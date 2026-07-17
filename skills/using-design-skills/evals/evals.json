@@ -1,0 +1,102 @@
+{
+  "skill_name": "using-design-skills",
+  "note": "Routing eval matrix required by consensus gate udsgate1 before 3-machine deploy. Each expected_output states: route/no-route, base deliverable owner (Q1), authority count (Q2), add-ons (Q3), executor types (Q4), verifier/evidence gate (Q5).",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "幫我把 login 按鈕的顏色從 #3B82F6 改成 #2563EB，在 src/components/LoginButton.tsx",
+      "expected_output": "NO ROUTE. One-line CSS tweak — frontmatter exclusion applies. Done inline; at most consult DESIGN.md. Zero authorities, no loop, no workers.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "用 impeccable 幫我 review 一下這個 settings 頁面的視覺層級",
+      "expected_output": "NO ROUTE. User explicitly names one member skill for a single-skill-sized task → invoke impeccable directly. Router must not wrap it.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "我要做一個新的行銷 landing page，主打我們的 API 監控產品，要非常有視覺衝擊力，不要看起來像模板",
+      "expected_output": "ROUTE. Q1: web page (code). Q2: new + visually ambitious + imagegen available → image-first pipeline. Authority = design-taste-frontend (exactly 1). Q3: none unless charts appear. Q4: imagegen-frontend-web + image-to-code on a PERSISTENT codex-tmux worker; reviews as fresh headless one-shots. Q5: visual quality loop with Gate 0 evidence (hash, screenshot paths, desktop+mobile viewports).",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "做一個內部用的 admin dashboard 新頁面，顯示訂單列表跟幾個統計卡片，普通好看就行",
+      "expected_output": "ROUTE. Q1: web page. Q2: new + ordinary → direct build, EXPLICITLY skip imagegen and say so (worker round-trip cost). Authority = impeccable (product UI, exactly 1). Q3: dataviz (stat tiles/charts). Q4: build on claude-tmux persistent worker or inline if small; fresh reviewer. Q5: visual loop, evidence gate 0.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "我們的 iOS app 首頁要重新設計，先給我幾個方向的 mockup 圖就好，不用寫 code",
+      "expected_output": "ROUTE. Q1: mockup-only delivery — imagegen-frontend-mobile output IS the deliverable. Q2: new, mobile. Authority count: 1 (direction feeds the image prompts). Q4: codex-tmux worker for imagegen. Q5: stop after image review — no code, no build loop.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "現在這個結帳流程頁面很醜很難用，幫我整個翻新",
+      "expected_output": "ROUTE. Q1: existing web UI. Q2: existing → AUDIT-FIRST: authority critiques current render before rebuild. Authority = impeccable (product UI flow). Q4: persistent builder worker for fixes, fresh reviewers. Q5: visual loop; BLOCK findings return to the SAME persistent builder.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "把這份 Q2 營收 CSV 做成一頁好看的 HTML 報告，會放進 Artifact 分享給主管",
+      "expected_output": "ROUTE. Q1: data file → data-report as base owner (html style). Q3: dataviz (charts) + artifact-design (Artifact deliverable) both load inline as constraint sets. Authority: 1 for visual layer. Q5: visual loop, Gate 0 evidence on the rendered artifact.",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "幫這個專案定一套 design tokens：色票、字級、間距，之後所有頁面都要照它走",
+      "expected_output": "ROUTE. Q1: design-system/token work → DESIGN.md itself is the deliverable. Authority sets direction (1), ui-ux-pro-max queried for palette/font candidates, design-md persists. NO build stage; loop reviews the DESIGN.md + a sample render if any.",
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "我要設計 notification service 的 public API，考慮幾種不同的介面形狀再決定",
+      "expected_output": "ROUTE. Q1: module/API design → Pipeline D. Authority count: ZERO (non-visual). design-an-interface (N shapes) + codebase-design criteria + domain-modeling terms. Q5: NON-visual loop — fresh reviewer judges the written design comparison, verdict PASS/BLOCK; no screenshots, 'good-looking' does not apply.",
+      "files": []
+    },
+    {
+      "id": 10,
+      "prompt": "畫一張我們微服務架構的圖，事件流要一眼看得懂",
+      "expected_output": "ROUTE. Q1: diagram → html-diagram owns structure (full-screen SVG, ANIMATED ARROWS for flow, minimal prose). Deliverable-grade → + 1 authority visual layer via DESIGN.md. Q5: visual loop; slop test + prose discipline enforced.",
+      "files": []
+    },
+    {
+      "id": 11,
+      "prompt": "做一個超有質感的新產品發表 landing page（註：此測試環境沒有安裝任何 imagegen skill）",
+      "expected_output": "ROUTE with EXPLICIT DEGRADATION. Discovery finds Role 3 empty → state the skipped image-first stage out loud, fall back to Q2 'new + ordinary' direct build with design-taste-frontend. Must NOT fake or silently skip the stage.",
+      "files": []
+    },
+    {
+      "id": 12,
+      "prompt": "（測試：reviewer 回報無法取得渲染截圖，只看了 code）這輪審查結果怎麼處理？",
+      "expected_output": "Gate 0 fail-closed: missing render evidence → findings UNCONFIRMED → overall VERDICT: BLOCK, tagged evidence-gap. Post-cap routing: repair the evidence path and re-audit; never PASS on code-only review.",
+      "files": []
+    },
+    {
+      "id": 13,
+      "prompt": "幫我 review 一下 dashboard 這個頁面的視覺，另外順便告訴我要找誰來定方向、這個 direction 的步驟是誰執行的",
+      "expected_output": "ROUTE. Q1: existing product UI → impeccable is Role 1 direction authority (exactly ONE selected, never stack with design-taste-frontend/frontend-design). Executor: Role 1 runs INLINE in the main session — read the skill, set direction, persist via design-md; it is judgment work, not a delegable build (never dispatched to a tmux worker).",
+      "files": []
+    },
+    {
+      "id": 14,
+      "prompt": "我要設計一個 payment gateway 的 module API，想比較幾種不同的介面切法，再套用我們現有 codebase 的深模組原則挑一個",
+      "expected_output": "ROUTE. Q1: module/API design → Pipeline D, Role 4 (design-an-interface + codebase-design). Executor: design-an-interface's N shapes run as in-process Agent-tool sub-agents, parallel — native contract, NOT tmux-governed. codebase-design loads INLINE as judging criteria applied to those shapes, not a separate dispatch. Q5: non-visual loop, fresh reviewer judges written comparison, PASS/BLOCK — no screenshots.",
+      "files": []
+    },
+    {
+      "id": 15,
+      "prompt": "幫我們的 design system 更新一下 token（色票/字級/間距），這次不需要出任何畫面截圖，只要 DESIGN.md 更新就好",
+      "expected_output": "ROUTE. Q1: design-system/token work, no sample render requested → DESIGN.md itself is the deliverable, no build stage required. Q5: document-only evidence — reviewer audits DESIGN.md's file hash/commit, token completeness, contrast/accessibility math, naming consistency against the authority's rubric. Gate 0 document-only exception applies: no screenshot required since nothing was rendered.",
+      "files": []
+    },
+    {
+      "id": 16,
+      "prompt": "更新 design tokens，然後順便做一張 sample render 給我看新色票套用在按鈕上長怎樣",
+      "expected_output": "ROUTE. Q1: design-system/token work WITH a sample render requested → the render is in scope for the visual loop (Q1/Q5), even though a full page build was never required. The instant this render exists, the pipeline re-enters the FULL screenshot contract: Gate 0 requires build identity/hash, exact artifact path, screenshot path(s), viewport(s), full-page/uncropped capture — the document-only exception (DESIGN.md hash alone) no longer applies once a render exists.",
+      "files": []
+    }
+  ]
+}
