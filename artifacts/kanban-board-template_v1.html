@@ -1,0 +1,205 @@
+<title>Kanban Work-Order Board — Template v1</title>
+<!--
+  kanban-board-template_v1.html
+  三區開合工作單版型（DONE / 待討論・決策 / TODO・BACKLOG），原生 <details>，零 JS、零外部資源。
+  用法：整份複製 → 換掉 <title>、標頭文字與卡片內容。元件對照：
+    .chip / .chip.ok / .chip.warn   標頭狀態膠囊
+    .progress + .plabel             進度條（調整 p-done/p-run/p-todo 的 width%）
+    details.zone                    區塊（加 open 屬性 = 預設展開）
+    .rail > .step                   時間軸卡片（.done 綠框、.hl 強調、.defer 區虛線=backlog）
+    .tag.done / .run / .todo        卡片右上狀態標籤
+    .donebox                        簡單勾選清單
+    .gates > .gq                    決策卡（.gq.done + .verdict = 已裁決）
+-->
+<style>
+:root{
+  --bg:#F6F8F7; --surface:#FFFFFF; --ink:#1B2624; --ink-2:#4A5854; --ink-3:#7E8B87;
+  --line:#D9E0DD; --accent:#0E7568; --accent-soft:#E2EFEC;
+  --done:#3D7A52; --done-soft:#E4EFE7;
+  --gate:#A8730E; --gate-soft:#F5EBD8;
+  --defer:#8A9490; --defer-soft:#EDF0EF;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  --sans:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141B19; --surface:#1C2422; --ink:#E7EDEB; --ink-2:#AAB8B3; --ink-3:#75837E;
+  --line:#2C3733; --accent:#4CC2AF; --accent-soft:#1B332F;
+  --done:#7DBE93; --done-soft:#20342A;
+  --gate:#DBA84A; --gate-soft:#3A2F17;
+  --defer:#75837E; --defer-soft:#232B29;
+}}
+:root[data-theme="dark"]{
+  --bg:#141B19; --surface:#1C2422; --ink:#E7EDEB; --ink-2:#AAB8B3; --ink-3:#75837E;
+  --line:#2C3733; --accent:#4CC2AF; --accent-soft:#1B332F;
+  --done:#7DBE93; --done-soft:#20342A;
+  --gate:#DBA84A; --gate-soft:#3A2F17;
+  --defer:#75837E; --defer-soft:#232B29;
+}
+:root[data-theme="light"]{
+  --bg:#F6F8F7; --surface:#FFFFFF; --ink:#1B2624; --ink-2:#4A5854; --ink-3:#7E8B87;
+  --line:#D9E0DD; --accent:#0E7568; --accent-soft:#E2EFEC;
+  --done:#3D7A52; --done-soft:#E4EFE7;
+  --gate:#A8730E; --gate-soft:#F5EBD8;
+  --defer:#8A9490; --defer-soft:#EDF0EF;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.65;margin:0;
+  font-size:15px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:48px 24px 80px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:30px;font-weight:700;letter-spacing:-.01em;margin:6px 0 4px;text-wrap:balance}
+.sub{color:var(--ink-2);margin:0 0 18px;max-width:60ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.chip{font-family:var(--mono);font-size:11.5px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--ink-2);background:var(--surface)}
+.chip.ok{color:var(--done);border-color:var(--done);background:var(--done-soft)}
+.chip.warn{color:var(--gate);border-color:var(--gate);background:var(--gate-soft)}
+h2{font-size:13px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);margin:44px 0 16px;display:flex;align-items:center;gap:12px}
+h2::after{content:"";flex:1;height:1px;background:var(--line)}
+/* done list */
+.donebox{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;
+  display:grid;gap:8px}
+.donebox div{display:flex;gap:10px;align-items:baseline;color:var(--ink-2)}
+.donebox b{color:var(--ink);font-weight:600}
+.tick{color:var(--done);font-family:var(--mono);flex:none}
+/* pipeline rail */
+.rail{position:relative;padding-left:52px;display:grid;gap:14px}
+.rail::before{content:"";position:absolute;left:17px;top:10px;bottom:10px;width:2px;background:var(--line)}
+.step{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+.step::before{content:"";position:absolute;left:-42px;top:18px;width:12px;height:12px;border-radius:50%;
+  background:var(--bg);border:2.5px solid var(--accent)}
+.step.hl{border-color:var(--accent)}
+.step.hl::before{background:var(--accent)}
+.whead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.wnum{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);
+  background:var(--accent-soft);padding:2px 8px;border-radius:5px;flex:none}
+.wtitle{font-weight:650;font-size:15.5px}
+.wdesc{color:var(--ink-2);margin:6px 0 0;font-size:14px}
+.wout{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.out{font-family:var(--mono);font-size:11px;color:var(--ink-2);border:1px solid var(--line);
+  border-radius:5px;padding:2px 8px;background:var(--bg)}
+.out.new{color:var(--accent);border-color:var(--accent)}
+.gnote{margin-top:10px;font-size:13px;color:var(--gate);display:flex;gap:8px;align-items:baseline}
+.gnote::before{content:"◆";font-size:10px;flex:none}
+/* status tags */
+.tag{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  padding:2px 8px;border-radius:99px;flex:none;margin-left:auto}
+.tag.done{color:var(--done);background:var(--done-soft);border:1px solid var(--done)}
+.tag.run{color:var(--gate);background:var(--gate-soft);border:1px solid var(--gate)}
+.tag.todo{color:var(--defer);background:var(--defer-soft);border:1px solid var(--line)}
+.step.done{border-color:var(--done)}
+.step.done::before{background:var(--done);border-color:var(--done)}
+/* progress bar */
+.progress{display:flex;height:8px;border-radius:99px;overflow:hidden;border:1px solid var(--line);margin:14px 0 4px}
+.progress i{display:block}
+.progress .p-done{background:var(--done)}
+.progress .p-run{background:var(--gate)}
+.progress .p-todo{background:var(--defer-soft)}
+.plabel{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin:0 0 6px}
+/* resolved gates */
+.gq.done{background:var(--done-soft);border-color:var(--done)}
+.gq.done .n{color:var(--done)}
+.gq .verdict{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--done);flex:none;margin-left:auto}
+/* gate strip */
+.gates{display:grid;gap:10px}
+.gq{background:var(--gate-soft);border:1px solid var(--gate);border-radius:10px;padding:12px 16px;
+  display:flex;gap:12px;align-items:baseline}
+.gq .n{font-family:var(--mono);font-weight:700;color:var(--gate);flex:none}
+.gq p{margin:0;color:var(--ink)}
+.gq small{color:var(--ink-2);display:block;margin-top:2px}
+/* deferred */
+.defer .step{border-style:dashed;background:transparent}
+.defer .step::before{border-color:var(--defer);border-style:solid}
+.defer .wnum{color:var(--defer);background:var(--defer-soft)}
+.fork{font-family:var(--mono);font-size:12px;color:var(--ink-3);padding-left:52px;margin:4px 0}
+.foot{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--ink-3);font-size:12.5px;
+  font-family:var(--mono)}
+code{font-family:var(--mono);font-size:.92em;background:var(--defer-soft);padding:1px 5px;border-radius:4px}
+@media (prefers-reduced-motion: no-preference){.step{transition:border-color .15s}}
+
+/* collapsible zones */
+details.zone{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:18px 0;overflow:hidden}
+details.zone>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:14px 18px;
+  font-family:var(--mono);font-size:12.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);user-select:none}
+details.zone>summary::-webkit-details-marker{display:none}
+details.zone>summary::after{content:"▾";margin-left:auto;color:var(--ink-3);transition:transform .15s}
+details.zone:not([open])>summary::after{transform:rotate(-90deg)}
+details.zone[open]>summary{border-bottom:1px solid var(--line)}
+details.zone>*:not(summary){margin-left:18px;margin-right:18px}
+details.zone>.rail,details.zone>.gates,details.zone>.donebox{margin-bottom:20px}
+details.zone .rail{padding-left:46px}
+details.zone h2{margin:20px 0 14px}
+.zdot{width:9px;height:9px;border-radius:50%;flex:none}
+.zdot.d{background:var(--done)}.zdot.r{background:var(--gate)}.zdot.t{background:var(--defer)}
+.zsub{font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3);font-size:12px;margin-left:4px}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Work Order · YYYY-MM-DD</div>
+  <h1>專案名稱 — 工作順序</h1>
+  <p class="sub">一句話說明這個 board 追蹤什麼：範圍、部署哲學、或本輪目標。</p>
+  <div class="chips">
+    <span class="chip ok">前提 A 已凍結</span>
+    <span class="chip warn">風險 B 觀察中</span>
+    <span class="chip">中性資訊 C</span>
+  </div>
+  <div class="progress" aria-hidden="true">
+    <i class="p-done" style="width:40%"></i><i class="p-run" style="width:20%"></i><i class="p-todo" style="width:40%"></i>
+  </div>
+  <p class="plabel">2/5 收案 · 1 進行中 · 2 待跑</p>
+
+  <details class="zone">
+  <summary><span class="zdot d"></span>DONE<span class="zsub">已收案項目 · 收合保持版面乾淨</span></summary>
+  <h2>已完成</h2>
+  <div class="donebox">
+    <div><span class="tick">✓</span><span><b>前置作業</b>：一行說明成果與證據位置</span></div>
+    <div><span class="tick">✓</span><span><b>另一項</b>：commit <code>abc1234</code></span></div>
+  </div>
+  <h2>Build — 已收案波次</h2>
+  <div class="rail">
+    <div class="step done">
+      <div class="whead"><span class="wnum">W1</span><span class="wtitle">第一階段標題</span><span class="tag done">✓ 完成</span></div>
+      <p class="wdesc">實際發生的事 + 驗收證據（verdict 原文、hash、exit code）。</p>
+      <div class="wout"><span class="out">產出物 1</span><span class="out new">新增物（強調）</span></div>
+    </div>
+    <div class="step done">
+      <div class="whead"><span class="wnum">W2</span><span class="wtitle">第二階段標題</span><span class="tag done">✓ 完成</span></div>
+      <p class="wdesc">說明。</p>
+      <div class="wout"><span class="out">產出物</span></div>
+      <p class="gnote">收案後的備註、carry-forward、殘留風險寫這裡</p>
+    </div>
+  </div>
+  <h2>Gates — 已裁決</h2>
+  <div class="gates">
+    <div class="gq done"><span class="n">Q1</span><p>已裁決的問題<small>裁決內容與依據</small></p><span class="verdict">YES ✓</span></div>
+  </div>
+  </details>
+
+  <details class="zone" open>
+  <summary><span class="zdot r"></span>待討論・決策<span class="zsub">需要人裁決的開放問題</span></summary>
+  <div class="gates">
+    <div class="gq"><span class="n">Q2</span><p>開放中的決策問題<small>背景、選項、影響範圍——裁決後移入 DONE 區並加 .done + .verdict</small></p></div>
+  </div>
+  </details>
+
+  <details class="zone" open>
+  <summary><span class="zdot t"></span>TODO · BACKLOG<span class="zsub">實線卡=排程中 · 虛線卡=backlog</span></summary>
+  <h2>排程中</h2>
+  <div class="rail">
+    <div class="step">
+      <div class="whead"><span class="wnum">W3</span><span class="wtitle">下一波標題</span><span class="tag todo">待跑</span></div>
+      <p class="wdesc">預期做什麼、驗收標準。</p>
+      <div class="wout"><span class="out">預期產出</span></div>
+    </div>
+  </div>
+  <h2>Backlog — 條件觸發</h2>
+  <div class="rail defer">
+    <div class="step">
+      <div class="whead"><span class="wnum">P2</span><span class="wtitle">後續構想</span><span class="tag todo">backlog</span></div>
+      <p class="wdesc">尚未排程的方向。</p>
+    </div>
+  </div>
+  <p class="fork">└─ 條件：前置波次驗證通過後才啟動</p>
+  </details>
+
+  <div class="foot">sources: 這裡列 board 的資料來源（plan、report、evidence 路徑）· 更新 YYYY-MM-DD</div>
+</div>
