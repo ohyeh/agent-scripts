@@ -22,8 +22,8 @@ bash <skill-dir>/scripts/install.sh /path/to/repo/.claude/workflows   # repo lay
 
 The script refuses to overwrite files whose content differs (pass `--force`
 after reviewing the diff it prints). Canonical source of truth is
-`.claude/workflows/` in the agent-scripts repo; the bundle here is a
-deployment snapshot — sync it from there, never edit it in place.
+`skills/using-workflows/workflows/` in the agent-scripts repo (this bundle);
+edit it there and reinstall — never edit deployed copies in place.
 
 ## The Rule
 
@@ -110,7 +110,8 @@ Hard limits while chaining:
   `codex-consensus-gate` shim spends that single level — top-level only.
 - Behavior-tier edits to any recipe require a `consensus-gate` pass FIRST;
   wording/docs edits go direct (canonical copy in the agent-scripts repo's
-  `.claude/workflows/`, then cp into `~/.claude/workflows/` — never the reverse).
+  `skills/using-workflows/workflows/`, then redeploy to `~/.claude/workflows/`
+  — never the reverse).
 
 ## Run discipline — optional add-on: `codex-dynamic-workflows`
 
@@ -144,7 +145,7 @@ conventions in the TARGET repo simultaneously:
 ## Canonical references (never paraphrase these from memory)
 
 - Per-recipe reference + args details: `workflows/README.md` in this bundle
-  (canonical: `.claude/workflows/README.md` in the agent-scripts repo).
+  (canonical: `skills/using-workflows/workflows/README.md` in the agent-scripts repo).
 - Tutorial (scenarios, onboarding a new repo, feedback loop):
   `docs/workflow-usage-guide.md` (same repo).
 - Worker mechanics (agent-tmux/profiles/send-wait): the `tmux-agent-tools`

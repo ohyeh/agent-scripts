@@ -10,9 +10,9 @@ content (local branch only — nothing below has been pushed):
 
 - `skills/using-design-skills/` — the Gate R2 `CLEAN`-reviewed design router (repaired, 16
   regression cases in `evals/evals.json`).
-- `skills/using-workflows/` + `.claude/workflows/` — the workflow meta-router and its 13
-  canonical recipes, migrated from `ohyeh/tmux-agent-tools`. `.claude/workflows/` is the
-  canonical source; `skills/using-workflows/workflows/` is the distributable install snapshot.
+- `skills/using-workflows/` — the workflow meta-router and its 13 canonical recipes
+  (`skills/using-workflows/workflows/`), migrated from `ohyeh/tmux-agent-tools`. This bundle is
+  the single canonical copy; machines deploy it to `~/.claude/workflows/` via the install script.
 - `skills/delegation-templates/`, `skills/unknowns-discovery/` — the two generic policy skills
   (W4.1), migrated byte-identical from `ohyeh/tmux-agent-tools/skills/`. These are the canonical
   skill directories; the `.agents/rules/` exclusion below covers only the same-named *rule*
@@ -24,8 +24,6 @@ content (local branch only — nothing below has been pushed):
   `lessons.md` stays machine-local and is git-ignored; it is never committed here.
 - `scripts/scrub.sh` — the pre-push secret/path/hostname/Tailscale-IP/commit-metadata scrub that
   must PASS before any push to this repo's remote.
-- `scripts/check-workflow-snapshot.sh` — verifies `.claude/workflows/` (canonical) and
-  `skills/using-workflows/workflows/` (distributable snapshot) stay byte-identical.
 
 Release channel: immutable tag (primary), protected `main` (fallback), per the frozen ADR
 governing this spinout's repo boundary, release policy, and per-skill fleet cutover invariant.
