@@ -159,12 +159,14 @@
 
   <header class="head">
     <div>
-      <p class="head-eyebrow">Agent Workflows · Manifest · 3 machines + Repo Hub</p>
-      <span class="machine-badge"><span class="dot-live"></span>mbp14（HUB）</span><span class="machine-badge">MAC-MINI-M2</span><span class="machine-badge">REMOTE2</span>
+      <p class="head-eyebrow">Agent Workflows · Manifest · Repo (canonical) + 2 machines · remote2 pending</p>
+      <span class="machine-badge"><span class="dot-live"></span>REPO (CANONICAL)</span><span class="machine-badge">mbp14</span><span class="machine-badge">MAC-MINI-M2</span><span class="machine-badge">REMOTE2 (OFFLINE)</span>
       <h1>Workflow distribution snapshot</h1>
       <p>Harvest ruling for saved dynamic workflows (<span class="mono">~/.claude/workflows</span>) and one-off exhaust scripts.
-      The single source of truth is the <span class="mono">agent-scripts</span> repo (<span class="mono">skills/using-workflows/workflows/</span>),
-      hub = mbp14 (P2-A9 counterpart-review already applied, <span class="mono">b57da68</span>).
+      The <span class="mono">agent-scripts</span> repo (<span class="mono">skills/using-workflows/workflows/</span>) is the single
+      canonical source — machines are deployed copies, never the other way round. Sync direction is always
+      <b>repo → machines</b>. Snapshot taken 2026-07-19 at repo HEAD <span class="mono">480b90a</span>, right after the
+      repo-canonical deployment converged mbp14 and mac-mini-m2 to zero drift (see §02).
       This page is for checking which machine missed which step — it is not an auto-sync tool.</p>
     </div>
     <div class="stamp" aria-label="12 saved workflows">
@@ -174,65 +176,73 @@
   </header>
 
   <div class="meta-row">
-    <div class="meta-item"><p class="k">Machines</p><p class="v">mbp14 (hub) / mac-mini-m2 / remote2</p></div>
+    <div class="meta-item"><p class="k">Canonical</p><p class="v">repo:agent-scripts @ 480b90a</p></div>
+    <div class="meta-item"><p class="k">Machines</p><p class="v">mbp14 / mac-mini-m2 (remote2 offline, pending)</p></div>
     <div class="meta-item"><p class="k">Date</p><p class="v">2026-07-19</p></div>
     <div class="meta-item"><p class="k">Single source of truth</p><p class="v">repo:agent-scripts skills/using-workflows/workflows/ → ~/.claude/workflows/</p></div>
-    <div class="meta-item"><p class="k">Recipes (hub/mini/remote2)</p><p class="v">12 / 12 / 12 <span style="color:var(--cut)">roster complete, 5 recipes hash-drifted ×2 machines</span></p></div>
+    <div class="meta-item"><p class="k">Recipes (mbp14/mac-mini-m2)</p><p class="v">12 / 12 <span style="color:var(--keep)">roster complete, 0 drift — md5-identical to repo on both</span></p></div>
     <div class="meta-item"><p class="k">Exhaust scripts (one-off)</p><p class="v">50 + 25 + 34 files · 11 + 16 + 22 base names · all ruled on</p></div>
-    <div class="meta-item"><p class="k">agents files</p><p class="v">All three machines' ~/.claude/agents/ empty/nonexistent · no drift</p></div>
+    <div class="meta-item"><p class="k">agents files</p><p class="v">All machines' ~/.claude/agents/ empty/nonexistent · no drift</p></div>
   </div>
 
   <section>
     <h2><span class="idx">01</span>Core workflows</h2>
-    <p class="lede">The hub (mbp14) currently has 12 recipes + <span class="mono">_lib</span> ×3. All three machines' rosters match exactly —
-    <b>no machine is missing any recipe</b>; but 5 recipes are hash-behind the hub on mac-mini-m2 and remote2
-    (tagged <b>hash drift</b>, see §02/§05). <span class="mono">consensus-gate</span> plus its deprecated alias
+    <p class="lede">The repo canonical set has 12 recipes + <span class="mono">_lib</span> ×3. mbp14 and mac-mini-m2 both match the
+    repo exactly — <b>no recipe missing, no hash drift</b> (converged by the 2026-07-19 repo-canonical deployment, see §02).
+    remote2 is offline and pending re-sync. <span class="mono">consensus-gate</span> plus its deprecated alias
     <span class="mono">codex-consensus-gate</span> together account for 52 runs across the fleet — the highest-frequency primitive fleet-wide.</p>
     <div class="core-grid">
-      <div class="core-card"><span class="name">consensus-gate</span><span class="src">81 lines · <span class="mono">10b172e9</span> · proposal → any agent-tmux profile's high-effort consensus verdict (args.cli picks the reviewer)</span><span class="pill">workhorse ×52 (incl. alias)</span><span class="pill drift">hash drift ×2 machines</span></div>
-      <div class="core-card"><span class="name">feature-lifecycle-auto</span><span class="src">151 lines · <span class="mono">00c1d416</span> · thin top-level shell: plan-maker → (gate) → chains into spec-implement build</span><span class="pill">×8</span><span class="pill drift">hash drift ×2 machines</span></div>
-      <div class="core-card"><span class="name">spec-implement-dual-review-verify</span><span class="src">163 lines · <span class="mono">15baa246</span> · main build pipeline: implement → dual review (args.cli + claude) → fix → verify</span><span class="pill drift">hash drift ×2 machines</span></div>
-      <div class="core-card"><span class="name">feature-plan-consensus</span><span class="src">344 lines · <span class="mono">0577e63a</span> · brief → v1 plan: escalation ladder + evidence doctrine + internal/external dual consensus + gated commit</span><span class="pill drift">hash drift ×2 machines</span></div>
-      <div class="core-card"><span class="name">plan-pipeline</span><span class="src">170 lines · <span class="mono">b80cb508</span> · planning-only: direction → frozen plan → ADRs (second-model frozen) → commit docs, no build</span><span class="pill drift">hash drift ×2 machines</span></div>
-      <div class="core-card"><span class="name">docs-vs-code-audit</span><span class="src">170 lines · <span class="mono">c9d2f945</span> · docs vs. code ground-truth line-by-line audit + in-place fix + consistency sweep · same hash on all 3</span></div>
-      <div class="core-card"><span class="name">design-vs-code-audit</span><span class="src">170 lines · <span class="mono">6aafbd4f</span> · design vs. code drift audit, item-by-item adversarial re-check, design-WIP-aware · same hash on all 3</span></div>
-      <div class="core-card"><span class="name">root-cause-deep-dive-audit</span><span class="src">98 lines · <span class="mono">6bfa59de</span> · evidence-driven multi-agent root-cause audit → ranked causes + report · same hash on all 3</span></div>
-      <div class="core-card"><span class="name">design-consensus</span><span class="src">99 lines · <span class="mono">bb6058fe</span> · N independent proposals → cross-adversarial critique → judge synthesizes consensus design · same hash on all 3</span></div>
-      <div class="core-card"><span class="name">project-direction-review</span><span class="src">85 lines · <span class="mono">92b43054</span> · readers survey current state → lens proposals → converge into a roadmap · same hash on all 3</span></div>
-      <div class="core-card"><span class="name">findings-triage</span><span class="src">148 lines · <span class="mono">0aa53800</span> · closed-loop connector: audit findings → root-cause clustering → three-way routing · same hash on all 3</span></div>
-      <div class="core-card"><span class="name">workflow-manifest</span><span class="src">129 lines · <span class="mono">c58cda7f</span> · this page's generator: scans 3 machines' recipes + exhaust → five-way ruling → renders HTML · same hash on all 3</span></div>
-      <div class="core-card builtin"><span class="name">_lib/safe.js</span><span class="src">canonical source of the silent-failure guards · present on all 3</span></div>
-      <div class="core-card builtin"><span class="name">_lib/worker-doctrine.md</span><span class="src">canonical source of multi-agent worker discipline (the landing destination for §03 doctrine rulings) · present on all 3</span></div>
-      <div class="core-card builtin"><span class="name">_lib/findings-schema.js</span><span class="src">standard finding/verdict shape for audit recipes · present on all 3</span></div>
+      <div class="core-card"><span class="name">consensus-gate</span><span class="src">81 lines · <span class="mono">10b172e9</span> · proposal → any agent-tmux profile's high-effort consensus verdict (args.cli picks the reviewer)</span><span class="pill">workhorse ×52 (incl. alias)</span><span class="pill new">md5-identical: mbp14, mac-mini-m2</span></div>
+      <div class="core-card"><span class="name">feature-lifecycle-auto</span><span class="src">151 lines · <span class="mono">00c1d416</span> · thin top-level shell: plan-maker → (gate) → chains into spec-implement build</span><span class="pill">×8</span><span class="pill new">md5-identical: mbp14, mac-mini-m2</span></div>
+      <div class="core-card"><span class="name">spec-implement-dual-review-verify</span><span class="src">163 lines · <span class="mono">15baa246</span> · main build pipeline: implement → dual review (args.cli + claude) → fix → verify</span><span class="pill new">md5-identical: mbp14, mac-mini-m2</span></div>
+      <div class="core-card"><span class="name">feature-plan-consensus</span><span class="src">344 lines · <span class="mono">0577e63a</span> · brief → v1 plan: escalation ladder + evidence doctrine + internal/external dual consensus + gated commit</span><span class="pill new">md5-identical: mbp14, mac-mini-m2</span></div>
+      <div class="core-card"><span class="name">plan-pipeline</span><span class="src">170 lines · <span class="mono">b80cb508</span> · planning-only: direction → frozen plan → ADRs (second-model frozen) → commit docs, no build</span><span class="pill new">md5-identical: mbp14, mac-mini-m2</span></div>
+      <div class="core-card"><span class="name">docs-vs-code-audit</span><span class="src">170 lines · <span class="mono">c9d2f945</span> · docs vs. code ground-truth line-by-line audit + in-place fix + consistency sweep · same hash on both machines</span></div>
+      <div class="core-card"><span class="name">design-vs-code-audit</span><span class="src">170 lines · <span class="mono">6aafbd4f</span> · design vs. code drift audit, item-by-item adversarial re-check, design-WIP-aware · same hash on both machines</span></div>
+      <div class="core-card"><span class="name">root-cause-deep-dive-audit</span><span class="src">98 lines · <span class="mono">6bfa59de</span> · evidence-driven multi-agent root-cause audit → ranked causes + report · same hash on both machines</span></div>
+      <div class="core-card"><span class="name">design-consensus</span><span class="src">99 lines · <span class="mono">bb6058fe</span> · N independent proposals → cross-adversarial critique → judge synthesizes consensus design · same hash on both machines</span></div>
+      <div class="core-card"><span class="name">project-direction-review</span><span class="src">85 lines · <span class="mono">92b43054</span> · readers survey current state → lens proposals → converge into a roadmap · same hash on both machines</span></div>
+      <div class="core-card"><span class="name">findings-triage</span><span class="src">148 lines · <span class="mono">0aa53800</span> · closed-loop connector: audit findings → root-cause clustering → three-way routing · same hash on both machines</span></div>
+      <div class="core-card"><span class="name">workflow-manifest</span><span class="src">129 lines · <span class="mono">c58cda7f</span> · this page's generator: scans machines' recipes + exhaust → five-way ruling → renders HTML · same hash on both machines</span></div>
+      <div class="core-card builtin"><span class="name">_lib/safe.js</span><span class="src">canonical source of the silent-failure guards · present on both machines</span></div>
+      <div class="core-card builtin"><span class="name">_lib/worker-doctrine.md</span><span class="src">canonical source of multi-agent worker discipline (the landing destination for §03 doctrine rulings) · present on both machines</span></div>
+      <div class="core-card builtin"><span class="name">_lib/findings-schema.js</span><span class="src">standard finding/verdict shape for audit recipes · present on both machines</span></div>
     </div>
   </section>
 
   <section>
-    <h2><span class="idx">02</span>Three-machine alignment ledger</h2>
-    <p class="lede">Checks recipe count, hash drift relative to the hub, and agents-file drift on each machine. mac-mini-m2 and remote2's
-    drift lists are identical (5 recipes, and the two machines' hashes agree with each other) — presumed that the hub distributed
-    <span class="mono">b57da68</span> without a re-sync afterward (UNCONFIRMED, direction inferred from repoNote).</p>
+    <h2><span class="idx">02</span>Machine alignment ledger</h2>
+    <p class="lede">Checks recipe count, hash drift relative to the repo canonical set, and agents-file drift on each machine.
+    The 2026-07-19 repo-canonical deployment (<span class="mono">git reset --hard origin/main</span> → <span class="mono">install.sh --force</span>,
+    see §05) converged both reachable machines to zero drift. remote2 was offline for this round and is not yet re-synced.</p>
     <div class="ledger">
       <div class="row">
         <div>
-          <span class="repo">mbp14 (hub)<br>mbp14</span>
-          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>baseline</span><br>12 recipes + _lib×3, hash is this page's comparison baseline. <span class="mono">~/.claude/agents/</span> doesn't exist (glob is empty), the agents ledger is empty and not a missed report. All commands exit 0.</span>
+          <span class="repo">repo (canonical)<br>agent-scripts @ 480b90a</span>
+          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>baseline</span><br>12 recipes + _lib×3 in <span class="mono">skills/using-workflows/workflows/</span>, this page's comparison baseline. All commands exit 0.</span>
         </div>
-        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">agents: no directory</span><span class="tag">hub baseline hash</span></div>
+        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">canonical baseline hash</span></div>
+      </div>
+      <div class="row">
+        <div>
+          <span class="repo">mbp14<br>mbp14</span>
+          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>converged</span><br>Roster 12/12 complete, _lib×3 complete, all 12 recipes md5-identical to repo canonical after the 2026-07-19 deployment (aggregate <span class="mono">shasum -a 256 *.workflow.js | shasum -a 256</span> matches repo). <span class="mono">~/.claude/agents/</span> doesn't exist (glob is empty), the agents ledger is empty and not a missed report. All commands exit 0.</span>
+        </div>
+        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">agents: no directory</span><span class="tag keep">0 drift</span></div>
       </div>
       <div class="row">
         <div>
           <span class="repo">mac-mini-m2<br>mac-mini-m2</span>
-          <span class="count"><span class="statusline lag"><span class="sdot lag"></span>hash behind ×5</span><br>Roster 12/12 complete, _lib×3 complete, but 5 recipes' hash ≠ hub: <span class="mono">consensus-gate</span> (1ed0712a, 80 lines vs hub's 81), <span class="mono">feature-lifecycle-auto</span> (92497b79), <span class="mono">feature-plan-consensus</span> (afda1017), <span class="mono">plan-pipeline</span> (4dfbb73a), <span class="mono">spec-implement-dual-review-verify</span> (814c93fa). <span class="mono">~/.claude/agents/</span> doesn't exist (NO_AGENTS_DIR) → no agents drift.</span>
+          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>converged</span><br>Roster 12/12 complete, _lib×3 complete, all 12 recipes md5-identical to repo canonical after the 2026-07-19 deployment (same aggregate hash as mbp14 and repo). <span class="mono">~/.claude/agents/</span> doesn't exist (NO_AGENTS_DIR) → no agents drift.</span>
         </div>
-        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag cut">hash drift ×5</span><span class="tag">agents: no directory</span></div>
+        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">agents: no directory</span><span class="tag keep">0 drift</span></div>
       </div>
       <div class="row">
         <div>
           <span class="repo">remote2<br>remote2</span>
-          <span class="count"><span class="statusline lag"><span class="sdot lag"></span>hash behind ×5</span><br>Roster 12/12 complete, _lib×3 complete; the drift list matches mac-mini-m2 recipe-for-recipe and hash-for-hash (the same stale batch): <span class="mono">consensus-gate</span> / <span class="mono">feature-lifecycle-auto</span> / <span class="mono">feature-plan-consensus</span> / <span class="mono">plan-pipeline</span> / <span class="mono">spec-implement-dual-review-verify</span>. <span class="mono">~/.claude/agents/</span> has no *.md (NONE) → no agents drift. All three ssh BatchMode batches exit 0.</span>
+          <span class="count"><span class="statusline lag"><span class="sdot lag"></span>offline — pending</span><br>Machine was unreachable for the 2026-07-19 deployment round. Last known state (pre-deployment) had 12/12 roster complete but 5 recipes hash-behind the pre-canonical hub baseline; status since is UNCONFIRMED until it comes back online and gets the same repo-canonical treatment as mbp14/mac-mini-m2.</span>
         </div>
-        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag cut">hash drift ×5</span><span class="tag">agents: no *.md</span></div>
+        <div class="tags"><span class="tag">12/12 recipes (stale)</span><span class="tag cut">offline · pending re-sync</span></div>
       </div>
     </div>
   </section>
@@ -267,7 +277,7 @@
         </div>
       </div>
       <div class="row">
-        <div><span class="repo">remote2 · 22 names (34 files)</span><span class="count">The only machine producing generalization candidates this round: the three healthgo ones share a "read-only parallel lanes (each with a JSON schema) → synthesize a minimal patch + verification commands" skeleton, not covered by any hub recipe (UNCONFIRMED: the shape isomorphism is inferred from manual comparison); the two <span class="mono">uat-distribute</span> ones share a fastlane UAT build-and-release shape, clearing the Q3 threshold → a project-level recipe. The jenkins triple = a hand-written precursor of <span class="mono">spec-implement-dual-review-verify</span>; most of the figma family falls under <span class="mono">design-vs-code-audit</span> / <span class="mono">docs-vs-code-audit</span>.</span></div>
+        <div><span class="repo">remote2 · 22 names (34 files)</span><span class="count">The only machine producing generalization candidates this round: the three healthgo ones share a "read-only parallel lanes (each with a JSON schema) → synthesize a minimal patch + verification commands" skeleton, not covered by any repo canonical recipe (UNCONFIRMED: the shape isomorphism is inferred from manual comparison); the two <span class="mono">uat-distribute</span> ones share a fastlane UAT build-and-release shape, clearing the Q3 threshold → a project-level recipe. The jenkins triple = a hand-written precursor of <span class="mono">spec-implement-dual-review-verify</span>; most of the figma family falls under <span class="mono">design-vs-code-audit</span> / <span class="mono">docs-vs-code-audit</span>.</span></div>
         <div class="tags">
           <span class="tag keep">healthgo-harness-accelerated-validation</span><span class="tag keep">healthgo-notification-figma-gap</span><span class="tag keep">healthgo-uat-parallel-validation</span><span class="tag keep">uat-distribute</span><span class="tag keep">uat-distribute-ios-retry</span>
           <span class="tag preset">build-smcs1498-from-frozen-plan</span>
@@ -281,13 +291,13 @@
 
   <section>
     <h2><span class="idx">04</span>Pending cleanup / degraded</h2>
-    <p class="lede">No unscanned machines this round (unscanned = 0), no unruled exhaust (all base names on all 3 machines cleared the tree). Two ledger categories remain: hash drift (→ §05 to fix) and harvest pending landing (labeled, not yet materialized).</p>
+    <p class="lede">No unscanned reachable machines this round (remote2 excluded — offline), no unruled exhaust (all base names cleared the tree). One ledger category remains: harvest pending landing (labeled, not yet materialized). The prior hash-drift category (§05 history) is now RESOLVED for mbp14 and mac-mini-m2.</p>
     <div class="diffblock">
-      <div class="diffhead"><span class="dot cut"></span>hash drift ×5 · mac-mini-m2 + remote2<span class="why">§05 one rsync round clears it</span></div>
+      <div class="diffhead"><span class="dot ghost"></span>hash drift ×5 · RESOLVED 2026-07-19<span class="why">repo-canonical deployment (§05) converged both machines</span></div>
       <div class="diffbody">
-        <p>Both machines are behind on the same batch: <span class="mono">consensus-gate</span> (80-line old version vs. hub's 81), <span class="mono">feature-lifecycle-auto</span>, <span class="mono">feature-plan-consensus</span>, <span class="mono">plan-pipeline</span>, <span class="mono">spec-implement-dual-review-verify</span>.
-        Direction inferred (UNCONFIRMED): the hub applied P2-A9 counterpart-review at <span class="mono">b57da68</span> and never re-synced afterward.</p>
-        <span class="tag cut">consensus-gate</span><span class="tag cut">feature-lifecycle-auto</span><span class="tag cut">feature-plan-consensus</span><span class="tag cut">plan-pipeline</span><span class="tag cut">spec-implement-dual-review-verify</span>
+        <p>Previously mac-mini-m2 and remote2 were behind on the same batch: <span class="mono">consensus-gate</span>, <span class="mono">feature-lifecycle-auto</span>, <span class="mono">feature-plan-consensus</span>, <span class="mono">plan-pipeline</span>, <span class="mono">spec-implement-dual-review-verify</span>.
+        Fixed by the 2026-07-19 repo-canonical deployment (<span class="mono">git reset --hard origin/main</span> → <span class="mono">install.sh --force</span>): mbp14 and mac-mini-m2 are now md5-identical to the repo on all 12 recipes. remote2 was offline for this round and still carries the old drift until it is re-synced.</p>
+        <span class="tag keep">consensus-gate</span><span class="tag keep">feature-lifecycle-auto</span><span class="tag keep">feature-plan-consensus</span><span class="tag keep">plan-pipeline</span><span class="tag keep">spec-implement-dual-review-verify</span>
       </div>
     </div>
     <div class="diffblock">
@@ -305,11 +315,13 @@
   <section>
     <h2><span class="idx">05</span>Alignment steps</h2>
     <div class="sync">
-      <p>Run these line by line on the hub (mbp14). The direction is always repo → hub → worker machines, never reversed. Goal: bring the 5 drifted recipes on both lagging machines up to the hub version; rsync --delete guarantees a bit-for-bit mirror.</p>
-      <div class="sync-line"><span class="no">1</span><span><code>rsync -av --delete --exclude .DS_Store ~/.claude/workflows/ mac-mini-m2:~/.claude/workflows/</code> <span class="cmt">— mac-mini-m2: overwrite the 5 drifted recipes + mirror _lib</span></span></div>
-      <div class="sync-line"><span class="no">2</span><span><code>rsync -av --delete --exclude .DS_Store ~/.claude/workflows/ remote2:~/.claude/workflows/</code> <span class="cmt">— remote2: same 5 recipes</span></span></div>
-      <div class="sync-line"><span class="no">3</span><span><code>for h in mac-mini-m2 remote2; do ssh -o BatchMode=yes "$h" 'shasum -a 256 ~/.claude/workflows/*.workflow.js | shasum -a 256'; done</code> <span class="cmt">— verify: both machines' aggregate hash should equal the hub's output from the same command</span></span></div>
-      <div class="sync-line"><span class="no">4</span><span><code>shasum -a 256 ~/.claude/workflows/*.workflow.js | shasum -a 256</code> <span class="cmt">— hub-side baseline value, compare against step 3</span></span></div>
+      <p>Run these on EACH machine (mbp14, mac-mini-m2; remote2 once it is back online). The direction is always
+      repo → machines, never reversed — the repo is canonical, machines are deployed copies. This is exactly the
+      procedure that converged mbp14 and mac-mini-m2 to zero drift on 2026-07-19.</p>
+      <div class="sync-line"><span class="no">1</span><span><code>cd ~/github/agent-scripts && git fetch origin && git reset --hard origin/main</code> <span class="cmt">— realign the local clone to the canonical repo (history was rewritten 2026-07-19; use reset, never a merge pull)</span></span></div>
+      <div class="sync-line"><span class="no">2</span><span><code>bash skills/using-workflows/scripts/install.sh --previous-manifest ~/.claude/workflows/.using-workflows-managed-files --force</code> <span class="cmt">— deploy all 12 recipes + _lib to ~/.claude/workflows/</span></span></div>
+      <div class="sync-line"><span class="no">3</span><span><code>(cd ~/.claude/workflows && shasum -a 256 *.workflow.js | shasum -a 256)</code> <span class="cmt">— per-machine aggregate hash (cd first so filenames, not paths, are hashed)</span></span></div>
+      <div class="sync-line"><span class="no">4</span><span><code>(cd ~/github/agent-scripts/skills/using-workflows/workflows && shasum -a 256 *.workflow.js | shasum -a 256)</code> <span class="cmt">— repo canonical aggregate hash; must equal step 3's output on every machine</span></span></div>
     </div>
   </section>
 
@@ -320,16 +332,16 @@
       <p class="label">5-way decision tree · copy verbatim</p>
       <button class="copybtn" type="button" onclick="const b=this,t=this.nextElementSibling.textContent;navigator.clipboard.writeText(t).then(()=&gt;{b.textContent=&#39;Copied&#39;;setTimeout(()=&gt;b.textContent=&#39;Copy&#39;,1600)})">Copy</button>
       <pre>Judge each exhaust BASE NAME (strip the -wf_xxxxxxxx suffix; N files of one base = N runs) in this order, cheapest test first. Tags are labels, NEVER deletions.
-Q1 internalized — does its meta.name/description match a saved recipe in the hub set (same pipeline, the recipe IS its generalization)? → tag internalized, note which recipe covers it.
+Q1 internalized — does its meta.name/description match a saved recipe in the repo's canonical set (same pipeline, the recipe IS its generalization)? → tag internalized, note which recipe covers it.
 Q2 preset — is it ≤20 lines, spawns zero agents itself, and just calls workflow() with baked args? → tag preset (a remembered invocation, candidate for a PRESET comment block on the recipe it wraps).
-Q3 generalization candidate — do ≥2 base names share an isomorphic pipeline shape not covered by any hub recipe? First re-check coverage: if an existing recipe covers the shape, reclassify internalized. Otherwise → tag generalization candidate with the shared shape named.
+Q3 generalization candidate — do ≥2 base names share an isomorphic pipeline shape not covered by any repo canonical recipe? First re-check coverage: if an existing recipe covers the shape, reclassify internalized. Otherwise → tag generalization candidate with the shared shape named.
 Q4 doctrine — is the reusable part not the pipeline but repeated discipline TEXT in the agent prompts (anchoring, tool mapping, scope fences, report contracts)? → tag doctrine, name the _lib/worker-doctrine.md block it feeds.
 Q5 genuinely one-off — everything else: project-specific, single-run, not worth abstracting. → tag one-off.</pre>
     </div>
   </section>
 
   <footer>
-    <span>repo <span class="mono">skills/using-workflows/workflows/</span> is the single source of truth · hub = mbp14 (b57da68)</span>
+    <span>repo <span class="mono">skills/using-workflows/workflows/</span> is the sole canonical source · snapshot @ <span class="mono">480b90a</span> · 2026-07-19</span>
     <span>This page is a static snapshot · re-run the <span class="mono">workflow-manifest</span> recipe to regenerate it</span>
   </footer>
 
