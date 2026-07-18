@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Skill Manifest — Fleet (gen. mbp14)</title>
+<style>
+:root{
+  --bg: #f9f9f7; --fg: #0b0b0b; --mut: #52514e;
+  --line: rgba(11,11,11,.1); --bord: rgba(11,11,11,.2); --hov: rgba(11,11,11,.05);
+  --surf: #ffffff; --brand: #c6613f; --primary: #0b0b0b; --on-primary: #ffffff;
+  --danger-bg: #fad6d6; --danger-bord: #f09595; --danger-fg: #8e2626;
+  --ok-bg: #d9f0d9; --ok-fg: #1e6b1e;
+  --warn-bg: #fde8c8; --warn-fg: #8a5a10;
+  --info-bg: #dce8f7; --info-fg: #1f4e8c;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg: #0d0d0d; --fg: #ffffff; --mut: #c3c2b7;
+    --line: rgba(255,255,255,.1); --bord: rgba(255,255,255,.2); --hov: rgba(255,255,255,.05);
+    --surf: #2c2c2a; --primary: #ffffff; --on-primary: #0b0b0b;
+    --danger-bg: #3c0e0e; --danger-bord: #641919; --danger-fg: #ec7e7e;
+    --ok-bg: #133a13; --ok-fg: #7fce7f;
+    --warn-bg: #3c2c0e; --warn-fg: #e8b566;
+    --info-bg: #10233c; --info-fg: #86b6ef;
+  }
+}
+:root[data-theme="dark"]{
+  --bg: #0d0d0d; --fg: #ffffff; --mut: #c3c2b7;
+  --line: rgba(255,255,255,.1); --bord: rgba(255,255,255,.2); --hov: rgba(255,255,255,.05);
+  --surf: #2c2c2a; --primary: #ffffff; --on-primary: #0b0b0b;
+  --danger-bg: #3c0e0e; --danger-bord: #641919; --danger-fg: #ec7e7e;
+  --ok-bg: #133a13; --ok-fg: #7fce7f;
+  --warn-bg: #3c2c0e; --warn-fg: #e8b566;
+  --info-bg: #10233c; --info-fg: #86b6ef;
+}
+:root[data-theme="light"]{
+  --bg: #f9f9f7; --fg: #0b0b0b; --mut: #52514e;
+  --line: rgba(11,11,11,.1); --bord: rgba(11,11,11,.2); --hov: rgba(11,11,11,.05);
+  --surf: #ffffff; --brand: #c6613f; --primary: #0b0b0b; --on-primary: #ffffff;
+  --danger-bg: #fad6d6; --danger-bord: #f09595; --danger-fg: #8e2626;
+  --ok-bg: #d9f0d9; --ok-fg: #1e6b1e;
+  --warn-bg: #fde8c8; --warn-fg: #8a5a10;
+  --info-bg: #dce8f7; --info-fg: #1f4e8c;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; padding:32px 20px 64px; background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  line-height:1.5;
+}
+.wrap{max-width:1120px;margin:0 auto}
+h1{font-size:22px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+.subtitle{color:var(--mut);font-size:14px;margin:0 0 24px}
+.meta-card{
+  background:var(--surf); border:1px solid var(--line); border-radius:12px;
+  padding:16px 20px; margin-bottom:24px; font-size:13px; color:var(--mut);
+}
+.meta-card b{color:var(--fg);font-weight:600}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 24px;margin-top:8px}
+.meta-grid div{font-size:13px}
+section{margin-bottom:32px}
+h2{font-size:16px;font-weight:600;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.section-note{color:var(--mut);font-size:13px;margin:0 0 12px}
+.stat-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.stat{
+  background:var(--surf);border:1px solid var(--line);border-radius:10px;
+  padding:10px 16px;min-width:120px;
+}
+.stat .num{font-size:20px;font-weight:700;line-height:1.1}
+.stat .label{font-size:12px;color:var(--mut);margin-top:2px}
+.stat.unreachable{border-color:var(--danger-bord);background:var(--danger-bg)}
+.stat.unreachable .num{color:var(--danger-fg)}
+table{width:100%;border-collapse:collapse;background:var(--surf);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+thead th{
+  text-align:left;padding:10px 12px;background:var(--hov);border-bottom:1px solid var(--line);
+  font-weight:600;color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:.03em;
+  position:sticky;top:0;
+}
+tbody td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--hov)}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px}
+.mut{color:var(--mut)}
+.center{text-align:center}
+.yes{color:var(--ok-fg);font-weight:700}
+.no{color:var(--mut)}
+.tag{
+  display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;
+  white-space:nowrap;
+}
+.tag-warn{background:var(--warn-bg);color:var(--warn-fg)}
+.tag-info{background:var(--info-bg);color:var(--info-fg)}
+.tag-danger{background:var(--danger-bg);color:var(--danger-fg)}
+.tag-ok{background:var(--ok-bg);color:var(--ok-fg)}
+.table-scroll{overflow-x:auto;border-radius:12px}
+.legend{font-size:12px;color:var(--mut);margin-top:8px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--hov);padding:1px 5px;border-radius:4px;font-size:12px}
+footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--mut);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Skill Manifest — Fleet</h1>
+<p class="subtitle">產生機器：mbp14（本機）｜產生日期：2026-07-19｜取代 07-04 舊快照</p>
+
+<div class="meta-card">
+  <b>Meta</b> — 本清單於 mbp14（this machine）產生，涵蓋 fleet 三台機器：<code>mbp14</code>（local）、<code>mac-mini-m2</code>（<code>ssh mac-mini-m2</code>）、<code>remote2</code>（<code>ssh remote2</code>），資料來源 repo：<code>ohyeh/agent-scripts</code>、<code>ohyeh/tmux-agent-tools</code>（其餘來源 repo 詳見下表「來源」欄，取自各機 <code>~/.agents/.skill-lock.json</code>）。
+  <div class="meta-grid">
+    <div>掃描指令：<code>ls ~/.agents/skills ~/.claude/skills ~/.codex/skills</code> + <code>cat ~/.agents/.skill-lock.json</code></div>
+    <div>連線方式：SSH BatchMode（key auth，皆連線成功，無 UNREACHABLE 機器）</div>
+    <div>聯集（union）skill 數：109</div>
+    <div>三機交集（intersection）skill 數：60</div>
+  </div>
+</div>
+
+<section>
+<h2>各機摘要</h2>
+<p class="section-note">三個目錄各自的已裝 skill 數（<code>~/.agents/skills</code> / <code>~/.claude/skills</code> 為 symlink 鏡射，通常數字相同或極接近；<code>~/.codex/skills</code> 是獨立、較小的子集）。</p>
+<div class="stat-row">
+  <div class="stat"><div class="num">92 / 98 / 12</div><div class="label">mbp14 — agents / claude / codex</div></div>
+  <div class="stat"><div class="num">76 / 72 / 9</div><div class="label">mac-mini-m2 — agents / claude / codex</div></div>
+  <div class="stat"><div class="num">72 / 81 / 7</div><div class="label">remote2 — agents / claude / codex</div></div>
+</div>
+<p class="section-note">下方主表以各機 <code>~/.agents/skills</code> 目錄為準（92 / 76 / 72），這是 skill-lock 追蹤的 canonical 安裝位置；<code>~/.claude/skills</code> 數字有出入是因為部分機器上兩個目錄未完全同步 symlink（不在本次盤點目標六支 skill 之列，留待後續 P2-A8 治理）。</p>
+</section>
+
+<section>
+<h2>Per-machine lock drift（installed vs. <code>.skill-lock.json</code>）</h2>
+<p class="section-note">「已裝但不在 lock」= 手動安裝／plugin 安裝、未經 skill installer 登記；「lock 有但未裝」= 曾裝過又被移除，lock 未清乾淨。</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>機器</th><th class="center">lock 筆數</th><th class="center">已裝數</th><th>已裝但不在 lock</th><th>lock 有但未裝</th></tr></thead>
+<tbody>
+<tr><td class="mono">mbp14</td><td class="center">92</td><td class="center">92</td><td class="mut">無（僅雜項 <code>.DS_Store</code>，非 skill）</td><td class="mut">無</td></tr>
+<tr><td class="mono">mac-mini-m2</td><td class="center">69</td><td class="center">76</td><td><span class="tag tag-warn">7 支</span> <code>claude-handoff</code>, <code>loop-me</code>, <code>note</code>, <code>paperclip</code>, <code>paperclip-create-plugin</code>, <code>wayfinder</code>, <code>wizard</code></td><td class="mut">無</td></tr>
+<tr><td class="mono">remote2</td><td class="center">76</td><td class="center">72</td><td><span class="tag tag-warn">1 支</span> <code>commit-commands</code></td><td><span class="tag tag-info">5 支</span> <code>huddle-brain</code>, <code>huddle-ops</code>, <code>huddle-room</code>, <code>huddle-runner</code>, <code>using-huddle</code>（推測為 plugin 解除安裝後 lock 未清）</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section>
+<h2>六支 fleet-wide gate skill 快速核對（承接 v0.1.0 既有結論，本次未重跑 md5）</h2>
+<p class="section-note">v0.1.0（2026-07-18）已核實下列 6 支 skill 在三機 SKILL.md md5 完全一致、symlink 完整：<code>delegation-templates</code>、<code>unknowns-discovery</code>、<code>using-workflows</code>、<code>using-design-skills</code>、<code>tmux-agent-tools</code>、<code>using-tmux-agent-tools</code>。本次盤點（下方主表）確認這 6 支在三機 <code>~/.agents/skills</code> 目錄仍均為 3/3 present，與 v0.1.0 結論一致，未見狀態退化。</p>
+</section>
+
+<section>
+<h2>Skill 清單（union，109 支，依名稱排序）</h2>
+<p class="section-note">來源欄取自各機 <code>~/.agents/.skill-lock.json</code>（優先 mbp14，其次 mac-mini-m2，再 remote2）；「無 lock 來源」代表任何一機的 lock 都查不到這支 skill 的登記（可能是 plugin 型安裝，如 <code>commit-commands</code>，或手動放置，如 <code>note</code> / <code>paperclip</code> / <code>paperclip-create-plugin</code>）。</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Skill</th><th>來源 repo（lock）</th><th class="center">mbp14</th><th class="center">mac-mini-m2</th><th class="center">remote2</th><th class="center">present</th><th>備註</th></tr></thead>
+<tbody>
+<tr><td class="mono">agent-browser</td><td class="mono mut">vercel-labs/agent-browser</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">agent-device</td><td class="mono mut">callstackincubator/agent-device</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">apple-design</td><td class="mono mut">emilkowalski/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">ask-matt</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">batch-grill-me</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">brainstorming</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">claude-handoff</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">code-review</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">codebase-design</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">codex-dynamic-workflows</td><td class="mono mut">dannymac180/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">commit-commands</td><td class="mono mut"><span class="mut">未知</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center">1/3</td><td><span class="tag tag-warn">無 lock 來源</span></td></tr>
+<tr><td class="mono">context7-cli</td><td class="mono mut">upstash/context7</td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">data-report</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">decision-mapping</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">defuddle</td><td class="mono mut">kepano/obsidian-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">delegation-templates</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">design-an-interface</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">design-md</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">design-taste-frontend</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">diagnosing-bugs</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">dispatching-parallel-agents</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">documentation-writing</td><td class="mono mut">nilecui/skillsbase</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">domain-modeling</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">edit-article</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">find-skills</td><td class="mono mut">vercel-labs/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">full-output-enforcement</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">git-commit</td><td class="mono mut">github/awesome-copilot</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">git-guardrails-claude-code</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">grill-me</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">grill-with-docs</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">grilling</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">gsap-core</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">gsap-frameworks</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">gsap-performance</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">gsap-plugins</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">gsap-react</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">gsap-scrolltrigger</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">gsap-timeline</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">gsap-utils</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">high-end-visual-design</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">html</td><td class="mono mut">plannotator/effective-html</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">html-diagram</td><td class="mono mut">plannotator/effective-html</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">html-plan</td><td class="mono mut">plannotator/effective-html</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">image-to-code</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">imagegen-frontend-mobile</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">imagegen-frontend-web</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">impeccable</td><td class="mono mut">pbakaus/impeccable</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">implement</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">improve-codebase-architecture</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">json-canvas</td><td class="mono mut">kepano/obsidian-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">karpathy-guidelines</td><td class="mono mut">multica-ai/andrej-karpathy-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">loop-me</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">migrate-to-shoehorn</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">note</td><td class="mono mut"><span class="mut">未知</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-warn">無 lock 來源</span></td></tr>
+<tr><td class="mono">obsidian-vault</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">oracle</td><td class="mono mut">steipete/oracle</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">paperclip</td><td class="mono mut"><span class="mut">未知</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-warn">無 lock 來源</span></td></tr>
+<tr><td class="mono">paperclip-create-plugin</td><td class="mono mut"><span class="mut">未知</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-warn">無 lock 來源</span></td></tr>
+<tr><td class="mono">pdf</td><td class="mono mut">anthropics/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">plannotator-annotate</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">plannotator-compound</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">plannotator-last</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">plannotator-review</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">plannotator-setup-goal</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">plannotator-visual-explainer</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">prototype</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">qa</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">qa-test-planner</td><td class="mono mut">softaworks/agent-toolkit</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">redesign-existing-projects</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">refactor</td><td class="mono mut">github/awesome-copilot</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">request-refactor-plan</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">research</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">research-decision-room</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">resolving-merge-conflicts</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">review</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">scaffold-exercises</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">self-improving-agent</td><td class="mono mut">charon-fan/agent-playbook</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">session-handoff</td><td class="mono mut">softaworks/agent-toolkit</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">setup-matt-pocock-skills</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">setup-pre-commit</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">setup-ts-deep-modules</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">simple</td><td class="mono mut">roin-orca/skills</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">simplify</td><td class="mono mut">brianlovin/claude-config</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">skill-creator</td><td class="mono mut">anthropics/skills</td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">subagent-driven-development</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">tdd</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">teach</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">tmux-agent-tools</td><td class="mono mut">ohyeh/tmux-agent-tools</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">to-issues</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">to-prd</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">to-questionnaire</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">to-spec</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">to-tickets</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">triage</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">ubiquitous-language</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">ui-skills</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">ui-ux-pro-max</td><td class="mono mut">nextlevelbuilder/ui-ux-pro-max-skill</td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">2/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">unknowns-discovery</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">using-design-skills</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">using-tmux-agent-tools</td><td class="mono mut">ohyeh/tmux-agent-tools</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">using-workflows</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">verification-before-completion</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">wayfinder</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">web-design-guidelines</td><td class="mono mut">vercel-labs/agent-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-info">部分機器</span></td></tr>
+<tr><td class="mono">wizard</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">writing-beats</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">writing-fragments</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">writing-great-skills</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">writing-shape</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+</tbody>
+</table>
+</div>
+<p class="legend">● = 已裝｜— = 未裝｜present = 三機中安裝的台數（3/3 為三機皆有）</p>
+</section>
+
+<section>
+<h2>Drift 重點摘要</h2>
+<ul>
+<li><b>無 lock 來源（4 支）</b>：<code>commit-commands</code>（僅 remote2）、<code>note</code> / <code>paperclip</code> / <code>paperclip-create-plugin</code>（僅 mac-mini-m2）。這 4 支在任何一機的 <code>.skill-lock.json</code> 都查不到登記，研判是 plugin 市集安裝或手動放置，未經 skill-lock 追蹤。</li>
+<li><b>mac-mini-m2 lock 落後實際安裝</b>：lock 只登記 69 筆，但目錄下有 76 支，7 支缺登記（<code>claude-handoff</code>, <code>loop-me</code>, <code>note</code>, <code>paperclip</code>, <code>paperclip-create-plugin</code>, <code>wayfinder</code>, <code>wizard</code>）。</li>
+<li><b>remote2 lock 有殘留</b>：lock 登記 76 筆但只裝了 72 支，缺 5 支（<code>huddle-brain</code>, <code>huddle-ops</code>, <code>huddle-room</code>, <code>huddle-runner</code>, <code>using-huddle</code>），研判是先前解除安裝但 lock 未同步清除。</li>
+<li><b>mbp14 唯一 gsap / plannotator / to-* 系列骨幹機</b>：GSAP 全系列（8 支）、plannotator 系列（6 支）、to-questionnaire/to-spec/to-tickets 僅存在於 mbp14，其餘兩機皆未安裝——這些是單機專用工具集，非跨機同步目標，屬預期差異而非漂移。</li>
+<li><b>fleet-wide gate 六支 skill（<code>delegation-templates</code> 等）</b>：三機皆 3/3 present，與 v0.1.0（2026-07-18）md5-identical 結論一致，無退化跡象。</li>
+</ul>
+</section>
+
+<footer>
+Generated by mbp14 · 2026-07-19 · Source repos: <code>ohyeh/agent-scripts</code>, <code>ohyeh/tmux-agent-tools</code> · 取代 07-04 舊快照 · 資料完全來自本次三機即時掃描（<code>ls</code> + <code>.skill-lock.json</code>），無快取或記憶推測。
+</footer>
+
+</div>
+</body>
+</html>

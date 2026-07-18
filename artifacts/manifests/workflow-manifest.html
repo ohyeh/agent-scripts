@@ -1,0 +1,327 @@
+<title>Workflow Manifest — Fleet</title>
+<style>
+  :root {
+    --bg: #eceee9; --bg-raised: #ffffff; --ink: #1c2321; --ink-soft: #4b544f;
+    --muted: #7c8681; --line: #d3d7d0; --line-strong: #b6bcb3;
+    --accent: #a8631f; --accent-ink: #ffffff; --accent-soft: #f2e2cd;
+    --tag-bg: #e2e5de; --tag-ink: #46504a;
+    --keep: #4c6b4f; --keep-soft: #e2ebe0; --cut: #9c4a3a; --cut-soft: #f2e0da;
+    --ghost: #8a7a5e; --ghost-soft: #ece4d2;
+    --shadow: 0 1px 2px rgba(28,35,33,0.06), 0 6px 16px rgba(28,35,33,0.05);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141815; --bg-raised: #1b201c; --ink: #e8ebe6; --ink-soft: #b7c0b9;
+      --muted: #7c8880; --line: #2c322c; --line-strong: #3c443c;
+      --accent: #d68a44; --accent-ink: #16130d; --accent-soft: #34291a;
+      --tag-bg: #232a24; --tag-ink: #c3ccc5;
+      --keep: #8fb892; --keep-soft: #1e2a20; --cut: #d68f80; --cut-soft: #2e211d;
+      --ghost: #c9b385; --ghost-soft: #2b2618;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141815; --bg-raised: #1b201c; --ink: #e8ebe6; --ink-soft: #b7c0b9;
+    --muted: #7c8880; --line: #2c322c; --line-strong: #3c443c;
+    --accent: #d68a44; --accent-ink: #16130d; --accent-soft: #34291a;
+    --tag-bg: #232a24; --tag-ink: #c3ccc5;
+    --keep: #8fb892; --keep-soft: #1e2a20; --cut: #d68f80; --cut-soft: #2e211d;
+    --ghost: #c9b385; --ghost-soft: #2b2618;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #eceee9; --bg-raised: #ffffff; --ink: #1c2321; --ink-soft: #4b544f;
+    --muted: #7c8681; --line: #d3d7d0; --line-strong: #b6bcb3;
+    --accent: #a8631f; --accent-ink: #ffffff; --accent-soft: #f2e2cd;
+    --tag-bg: #e2e5de; --tag-ink: #46504a;
+    --keep: #4c6b4f; --keep-soft: #e2ebe0; --cut: #9c4a3a; --cut-soft: #f2e0da;
+    --ghost: #8a7a5e; --ghost-soft: #ece4d2;
+    --shadow: 0 1px 2px rgba(28,35,33,0.06), 0 6px 16px rgba(28,35,33,0.05);
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono, code { font-family: ui-monospace, "SFMono-Regular", "IBM Plex Mono", Menlo, Consolas, monospace; }
+
+  .sheet { max-width: 860px; margin: 0 auto; padding: 56px 32px 96px; }
+
+  .head {
+    display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: start;
+    padding-bottom: 28px; border-bottom: 2px solid var(--ink);
+  }
+  .head-eyebrow { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  .head h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.15; margin: 0 0 10px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+  .head p { margin: 0; color: var(--ink-soft); font-size: 15px; max-width: 52ch; }
+  .stamp {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 108px; height: 108px; border: 2px solid var(--accent); border-radius: 50%;
+    color: var(--accent); transform: rotate(3deg); flex-shrink: 0; text-align: center;
+  }
+  .stamp .n { font-size: 34px; font-weight: 800; line-height: 1; font-family: ui-monospace, monospace; }
+  .stamp .l { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px; }
+  .machine-badge {
+    display: inline-flex; align-items: center; gap: 6px; font-family: ui-monospace, monospace;
+    font-size: 12px; color: var(--accent); background: var(--accent-soft);
+    border-radius: 999px; padding: 4px 10px 4px 8px; margin: 0 8px 14px 0;
+  }
+  .machine-badge .dot-live { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+  .meta-row { display: flex; gap: 28px; flex-wrap: wrap; padding: 18px 0 32px; border-bottom: 1px solid var(--line); margin-bottom: 32px; }
+  .meta-item .k { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin: 0 0 3px; }
+  .meta-item .v { font-size: 14px; font-family: ui-monospace, monospace; color: var(--ink); }
+
+  section { margin-bottom: 44px; }
+  h2 { display: flex; align-items: baseline; gap: 10px; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); margin: 0 0 18px; font-weight: 700; }
+  h2 .idx { color: var(--muted); font-weight: 500; font-family: ui-monospace, monospace; }
+  h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  section > p.lede { color: var(--ink-soft); font-size: 14.5px; line-height: 1.65; max-width: 62ch; margin: -8px 0 20px; }
+
+  .core-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .core-card { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .core-card .name { font-family: ui-monospace, monospace; font-size: 13.5px; font-weight: 600; color: var(--ink); display: block; margin-bottom: 6px; word-break: break-word; }
+  .core-card .src { font-size: 11.5px; color: var(--muted); line-height: 1.5; display: block; }
+  .core-card.builtin { border-style: dashed; border-color: var(--line-strong); }
+  .pill { display: inline-block; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 700; margin-top: 8px; }
+  .pill.new { background: var(--keep-soft); color: var(--keep); }
+  .pill.drift { background: var(--cut-soft); color: var(--cut); }
+
+  .ledger { border-top: 1px solid var(--line); }
+  .row { display: grid; grid-template-columns: 220px 1fr; gap: 20px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .row .repo { font-family: ui-monospace, monospace; font-size: 13px; color: var(--ink); word-break: break-word; }
+  .row .count { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.6; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+  .tag { font-family: ui-monospace, monospace; font-size: 12px; background: var(--tag-bg); color: var(--tag-ink); padding: 3px 8px; border-radius: 6px; }
+  .tag.keep { background: var(--keep-soft); color: var(--keep); font-weight: 600; }
+  .tag.preset { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .tag.ghost { background: var(--ghost-soft); color: var(--ghost); }
+  .tag.cut { background: var(--cut-soft); color: var(--cut); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--cut) 55%, transparent); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 18px; font-size: 12px; color: var(--ink-soft); }
+  .legend .tag { font-size: 11px; }
+
+  .statusline { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; }
+  .statusline.ok { color: var(--keep); }
+  .statusline.lag { color: var(--cut); }
+  .sdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sdot.ok { background: var(--keep); }
+  .sdot.lag { background: var(--cut); }
+
+  .diffblock { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+  .diffblock + .diffblock { margin-top: 14px; }
+  .diffhead { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 12.5px; font-weight: 700; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.cut { background: var(--cut); }
+  .dot.ghost { background: var(--ghost); }
+  .diffhead .why { color: var(--muted); font-weight: 400; margin-left: auto; font-size: 12px; }
+  .diffbody { padding: 14px 16px 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .diffbody p { flex-basis: 100%; margin: 0 0 4px; font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+
+  .sync { background: var(--ink); color: var(--bg); border-radius: 12px; padding: 20px 22px; }
+  .sync p { margin: 0 0 12px; font-size: 12px; opacity: 0.75; }
+  .sync-line { display: flex; gap: 12px; align-items: baseline; font-family: ui-monospace, monospace; font-size: 12.5px; line-height: 1.9; }
+  .sync-line .no { color: color-mix(in srgb, var(--bg) 45%, transparent); flex-shrink: 0; width: 1.4em; text-align: right; }
+  .sync-line code { color: var(--accent); word-break: break-all; }
+  .sync-line .cmt { color: color-mix(in srgb, var(--bg) 60%, transparent); }
+
+  .copyblock { position: relative; background: var(--ink); color: var(--bg); border-radius: 12px; padding: 20px 22px; }
+  .copyblock .label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.6; margin: 0 0 12px; }
+  .copyblock pre { margin: 0; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 12px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; max-height: 480px; overflow-y: auto; padding-right: 6px; }
+  .copybtn { position: absolute; top: 16px; right: 16px; font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: 0.04em; color: var(--accent-ink); background: var(--accent); border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .copybtn:hover { filter: brightness(1.08); }
+  .copybtn:active { transform: translateY(1px); }
+  .copybtn:focus-visible { outline: 2px solid var(--bg); outline-offset: 2px; }
+
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+  @media (max-width: 560px) {
+    .row { grid-template-columns: 1fr; }
+    .head { grid-template-columns: 1fr; }
+    .stamp { justify-self: start; }
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="head">
+    <div>
+      <p class="head-eyebrow">Agent Workflows · Manifest · 3 台裝置 ＋ Repo Hub</p>
+      <span class="machine-badge"><span class="dot-live"></span>mbp14（HUB）</span><span class="machine-badge">MAC-MINI-M2</span><span class="machine-badge">REMOTE2</span>
+      <h1>Workflow 分布快照</h1>
+      <p>saved dynamic workflows（<span class="mono">~/.claude/workflows</span>）與一次性排氣腳本的收割判定。
+      單一事實來源是 repo <span class="mono">ohyeh/agent-scripts</span>（<span class="mono">skills/using-workflows/workflows/</span>），
+      hub＝mbp14（P2-A9 counterpart-review 已套用，<span class="mono">b57da68</span>）。
+      本頁用來核對哪台漏了哪步，不是自動同步工具。</p>
+    </div>
+    <div class="stamp" aria-label="12 支 saved workflows">
+      <span class="n">12</span>
+      <span class="l">saved<br>recipes</span>
+    </div>
+  </header>
+
+  <div class="meta-row">
+    <div class="meta-item"><p class="k">機器</p><p class="v">mbp14（hub）/ mac-mini-m2 / remote2</p></div>
+    <div class="meta-item"><p class="k">日期</p><p class="v">2026-07-19</p></div>
+    <div class="meta-item"><p class="k">單一事實來源</p><p class="v">repo:ohyeh/agent-scripts skills/using-workflows/workflows/ → ~/.claude/workflows/</p></div>
+    <div class="meta-item"><p class="k">Recipes（hub/mini/remote2）</p><p class="v">12 / 12 / 12 <span style="color:var(--cut)">名冊齊，5 支 hash 漂移 ×2 台</span></p></div>
+    <div class="meta-item"><p class="k">排氣腳本（一次性）</p><p class="v">50 + 25 + 34 檔 · 11 + 16 + 22 個 base name · 已全數判定</p></div>
+    <div class="meta-item"><p class="k">agents 檔</p><p class="v">三台 ~/.claude/agents/ 皆空／不存在 · 無漂移</p></div>
+  </div>
+
+  <section>
+    <h2><span class="idx">01</span>核心工作流</h2>
+    <p class="lede">hub（mbp14）現行 12 支 recipe＋<span class="mono">_lib</span> ×3。三台名冊完全一致——<b>沒有任何一台缺任何 recipe</b>；
+    但 5 支在 mac-mini-m2 與 remote2 上 hash 落後 hub（標 <b>hash 漂移</b>，詳見 §02／§05）。
+    <span class="mono">consensus-gate</span>＋其 deprecated 別名 <span class="mono">codex-consensus-gate</span> 三台合計 52 次 run，全艦隊最高頻 primitive。</p>
+    <div class="core-grid">
+      <div class="core-card"><span class="name">consensus-gate</span><span class="src">81 行 · <span class="mono">10b172e9</span> · 提案 → 任一 agent-tmux profile 高 effort 共識裁決（args.cli 選 reviewer）</span><span class="pill">主力 ×52（含別名）</span><span class="pill drift">hash 漂移 ×2 台</span></div>
+      <div class="core-card"><span class="name">feature-lifecycle-auto</span><span class="src">151 行 · <span class="mono">00c1d416</span> · 頂層薄殼：plan-maker →（gate）→ spec-implement build 串接</span><span class="pill">×8</span><span class="pill drift">hash 漂移 ×2 台</span></div>
+      <div class="core-card"><span class="name">spec-implement-dual-review-verify</span><span class="src">163 行 · <span class="mono">15baa246</span> · 主力建置管線：實作 → 雙審（args.cli＋claude）→ 修復 → 驗證</span><span class="pill drift">hash 漂移 ×2 台</span></div>
+      <div class="core-card"><span class="name">feature-plan-consensus</span><span class="src">344 行 · <span class="mono">0577e63a</span> · brief → v1 計畫：升級階梯＋證據原則＋內外雙 consensus＋gated commit</span><span class="pill drift">hash 漂移 ×2 台</span></div>
+      <div class="core-card"><span class="name">plan-pipeline</span><span class="src">170 行 · <span class="mono">b80cb508</span> · 規劃專用：direction → frozen plan → ADRs（第二模型凍結）→ commit docs，不建置</span><span class="pill drift">hash 漂移 ×2 台</span></div>
+      <div class="core-card"><span class="name">docs-vs-code-audit</span><span class="src">170 行 · <span class="mono">c9d2f945</span> · docs vs 程式碼真相逐條稽核＋就地修＋一致性掃 · 三台同 hash</span></div>
+      <div class="core-card"><span class="name">design-vs-code-audit</span><span class="src">170 行 · <span class="mono">6aafbd4f</span> · 設計稿 vs code drift 稽核，逐項對抗覆核、design-WIP-aware · 三台同 hash</span></div>
+      <div class="core-card"><span class="name">root-cause-deep-dive-audit</span><span class="src">98 行 · <span class="mono">6bfa59de</span> · 證據驅動多代理根因稽核 → 排序根因＋報告 · 三台同 hash</span></div>
+      <div class="core-card"><span class="name">design-consensus</span><span class="src">99 行 · <span class="mono">bb6058fe</span> · N 組獨立提案 → 交叉對抗批判 → judge 合成共識設計 · 三台同 hash</span></div>
+      <div class="core-card"><span class="name">project-direction-review</span><span class="src">85 行 · <span class="mono">92b43054</span> · readers 盤現況 → lens 提案 → 收斂 roadmap · 三台同 hash</span></div>
+      <div class="core-card"><span class="name">findings-triage</span><span class="src">148 行 · <span class="mono">0aa53800</span> · 閉環接頭：稽核 findings → 根因分群 → 三路分流 · 三台同 hash</span></div>
+      <div class="core-card"><span class="name">workflow-manifest</span><span class="src">129 行 · <span class="mono">c58cda7f</span> · 本頁的再生器：掃三台 recipes＋排氣 → 五分法判定 → 渲染 HTML · 三台同 hash</span></div>
+      <div class="core-card builtin"><span class="name">_lib/safe.js</span><span class="src">silent-failure 防護正本 · 三台皆有</span></div>
+      <div class="core-card builtin"><span class="name">_lib/worker-doctrine.md</span><span class="src">multi-agent worker 紀律正本（§03 doctrine 判定的沉澱目的地）· 三台皆有</span></div>
+      <div class="core-card builtin"><span class="name">_lib/findings-schema.js</span><span class="src">稽核 recipe 的 finding/verdict 標準形 · 三台皆有</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">02</span>三台對齊帳</h2>
+    <p class="lede">逐台核對 recipe 數、hash 相對 hub 的漂移、agents 檔漂移。mac-mini-m2 與 remote2 的漂移清單完全相同
+    （5 支，且兩台 hash 彼此一致）——推測為 hub 套用 <span class="mono">b57da68</span> 後未再分發（UNCONFIRMED，方向依 repoNote 推論）。</p>
+    <div class="ledger">
+      <div class="row">
+        <div>
+          <span class="repo">mbp14（hub）<br>mbp14</span>
+          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>基準</span><br>12 recipes＋_lib×3，hash 為本頁比對基準。<span class="mono">~/.claude/agents/</span> 不存在（glob 無中），agents 帳為空、非漏報。全部指令 exit 0。</span>
+        </div>
+        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">agents：無目錄</span><span class="tag">hub 基準 hash</span></div>
+      </div>
+      <div class="row">
+        <div>
+          <span class="repo">mac-mini-m2<br>mac-mini-m2</span>
+          <span class="count"><span class="statusline lag"><span class="sdot lag"></span>hash 落後 ×5</span><br>名冊 12/12 齊、_lib×3 齊，但 5 支 hash ≠ hub：<span class="mono">consensus-gate</span>（1ed0712a，80 行 vs hub 81）、<span class="mono">feature-lifecycle-auto</span>（92497b79）、<span class="mono">feature-plan-consensus</span>（afda1017）、<span class="mono">plan-pipeline</span>（4dfbb73a）、<span class="mono">spec-implement-dual-review-verify</span>（814c93fa）。<span class="mono">~/.claude/agents/</span> 不存在（NO_AGENTS_DIR）→ 無 agents 漂移。</span>
+        </div>
+        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag cut">hash 漂移 ×5</span><span class="tag">agents：無目錄</span></div>
+      </div>
+      <div class="row">
+        <div>
+          <span class="repo">remote2<br>remote2</span>
+          <span class="count"><span class="statusline lag"><span class="sdot lag"></span>hash 落後 ×5</span><br>名冊 12/12 齊、_lib×3 齊；漂移清單與 mac-mini-m2 逐支逐 hash 相同（同一批舊版）：<span class="mono">consensus-gate</span>／<span class="mono">feature-lifecycle-auto</span>／<span class="mono">feature-plan-consensus</span>／<span class="mono">plan-pipeline</span>／<span class="mono">spec-implement-dual-review-verify</span>。<span class="mono">~/.claude/agents/</span> 無 *.md（NONE）→ 無 agents 漂移。ssh BatchMode 三批全 exit 0。</span>
+        </div>
+        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag cut">hash 漂移 ×5</span><span class="tag">agents：無 *.md</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">03</span>排氣腳本收割判定</h2>
+    <p class="lede">49 個 base name（109 個檔）全數過完五分類決策樹（全文見 §06），三台皆有判定——本輪無「未判定」警示列。
+    判定是標籤不是 rm，原料一支未刪。</p>
+    <div class="legend">
+      <span class="tag">已內化（recipe 的 run 紀錄／前身）</span>
+      <span class="tag preset">preset 收進檔頭範例</span>
+      <span class="tag keep">泛化候選</span>
+      <span class="tag ghost">doctrine 抽進 _lib</span>
+      <span class="tag cut">真一次性</span>
+    </div>
+    <div class="ledger">
+      <div class="row">
+        <div><span class="repo">mbp14 · 11 名（50 檔）</span><span class="count">9 支已內化——<span class="mono">consensus-gate</span> ×19＋deprecated 別名 <span class="mono">codex-consensus-gate</span> ×15 合計 34 次 run，強度最高的內化證據。<span class="mono">fastlane-uat-distribute</span> 的 detached poll／maskEnv／report schema 紀律抽 worker-doctrine（已自帶 healthgo 專案層參數化，僅 1 個 base 不達 Q3）。<span class="mono">triage-old-adhoc-notes</span>＝專案特定 fan-out 批次清理，真一次性。</span></div>
+        <div class="tags">
+          <span class="tag ghost">fastlane-uat-distribute ×3 →worker-doctrine</span>
+          <span class="tag">consensus-gate ×19</span><span class="tag">codex-consensus-gate ×15</span><span class="tag">spec-implement-dual-review-verify ×3</span><span class="tag">design-vs-code-audit ×3</span><span class="tag">feature-lifecycle-auto ×2</span><span class="tag">workflow-manifest</span><span class="tag">root-cause-deep-dive-audit</span><span class="tag">plan-pipeline</span><span class="tag">feature-plan-consensus</span>
+          <span class="tag cut">triage-old-adhoc-notes</span>
+        </div>
+      </div>
+      <div class="row">
+        <div><span class="repo">mac-mini-m2 · 16 名（25 檔）</span><span class="count">aurora 兩支＝<span class="mono">design-consensus</span>／<span class="mono">project-direction-review</span> 的前身；room 兩支改判已內化（<span class="mono">spec-implement-dual-review-verify</span> 的降級手工版）；<span class="mono">nova-half-done-deep-dive</span> 落 <span class="mono">project-direction-review</span>。issue-293 三連 gate＝18 行 baked-args 薄殼 → <span class="mono">consensus-gate</span> 檔頭 PRESET；bucket1 的 scope-fence／anchoring／機構記憶教條餵 worker-doctrine。smoke ×4＝harness 除錯拋棄式探針。</span></div>
+        <div class="tags">
+          <span class="tag preset">issue-293-final-gate</span><span class="tag preset">issue-293-final-gate-2</span><span class="tag preset">issue-293-final-gate-3</span>
+          <span class="tag ghost">issue-293-bucket1 →worker-doctrine</span>
+          <span class="tag">codex-consensus-gate ×5</span><span class="tag">feature-lifecycle-auto ×4</span><span class="tag">feature-plan-consensus ×2</span><span class="tag">nova-half-done-deep-dive ×2</span><span class="tag">aurora-reader-homepage-consensus</span><span class="tag">aurora-future-direction-plan</span><span class="tag">room-feature-implementation</span><span class="tag">room-phase2-backends</span>
+          <span class="tag cut">smoke-agenttype-real</span><span class="tag cut">smoke-schema-compatible</span><span class="tag cut">smoke-opts-undefined</span><span class="tag cut">smoke-opts-undefined-2</span>
+        </div>
+      </div>
+      <div class="row">
+        <div><span class="repo">remote2 · 22 名（34 檔）</span><span class="count">本輪唯一產出泛化候選的機器：healthgo 三支共享「read-only 平行 lanes（各帶 JSON schema）→ 綜合 minimal patch＋驗證指令」骨架，無 hub recipe 覆蓋（UNCONFIRMED：形狀同構為人工比對推論）；<span class="mono">uat-distribute</span> 兩支共享 fastlane UAT 建置發佈形狀，達 Q3 門檻 → 專案級 recipe。jenkins 三連＝<span class="mono">spec-implement-dual-review-verify</span> 的手寫前身；figma 家族多數落 <span class="mono">design-vs-code-audit</span>／<span class="mono">docs-vs-code-audit</span>。</span></div>
+        <div class="tags">
+          <span class="tag keep">healthgo-harness-accelerated-validation</span><span class="tag keep">healthgo-notification-figma-gap</span><span class="tag keep">healthgo-uat-parallel-validation</span><span class="tag keep">uat-distribute</span><span class="tag keep">uat-distribute-ios-retry</span>
+          <span class="tag preset">build-smcs1498-from-frozen-plan</span>
+          <span class="tag ghost">figma-ia-plan →worker-doctrine</span>
+          <span class="tag">codex-consensus-gate ×8</span><span class="tag">consensus-gate ×5</span><span class="tag">feature-lifecycle-auto ×2</span><span class="tag">coin-record-ui-states-audit</span><span class="tag">docs-overhaul</span><span class="tag">docs-vs-code-audit</span><span class="tag">feature-plan-consensus</span><span class="tag">health-coin-figma-audit</span><span class="tag">healthgo-coin-linked-proof-sidecar</span><span class="tag">healthgo-coin-parallel-breakthrough</span><span class="tag">jenkins-cli-build</span><span class="tag">jenkins-cli-iap-finalize</span><span class="tag">jenkins-trigger-cli</span><span class="tag">plan-pipeline</span>
+          <span class="tag cut">health-coin-figma-fixes</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">04</span>待清理／degraded</h2>
+    <p class="lede">本輪無未掃描機器（unscanned＝0）、無未判定排氣（三台 base 名全數過樹）。剩下兩類帳：hash 漂移（→ §05 動手）與收割待落地（標籤已打、實體未收）。</p>
+    <div class="diffblock">
+      <div class="diffhead"><span class="dot cut"></span>hash 漂移 ×5 · mac-mini-m2 ＋ remote2<span class="why">§05 一輪 rsync 可清</span></div>
+      <div class="diffbody">
+        <p>兩台落後同一批：<span class="mono">consensus-gate</span>（80 行舊版 vs hub 81）、<span class="mono">feature-lifecycle-auto</span>、<span class="mono">feature-plan-consensus</span>、<span class="mono">plan-pipeline</span>、<span class="mono">spec-implement-dual-review-verify</span>。
+        方向推論（UNCONFIRMED）：hub 於 <span class="mono">b57da68</span> 套 P2-A9 counterpart-review 後未再分發。</p>
+        <span class="tag cut">consensus-gate</span><span class="tag cut">feature-lifecycle-auto</span><span class="tag cut">feature-plan-consensus</span><span class="tag cut">plan-pipeline</span><span class="tag cut">spec-implement-dual-review-verify</span>
+      </div>
+    </div>
+    <div class="diffblock">
+      <div class="diffhead"><span class="dot ghost"></span>收割待落地<span class="why">標籤已打，實體收割另行執行</span></div>
+      <div class="diffbody">
+        <p><b>泛化候選 ×5（remote2）</b>：healthgo 三支 →「平行唯讀驗證 → 綜合行動計畫」新 recipe 候選；uat-distribute 兩支 → healthgo 專案級 fastlane 發佈 recipe。
+        <b>preset 待收</b>：issue-293 三連 gate → <span class="mono">consensus-gate</span> 檔頭多輪 push-gate PRESET；build-smcs1498 → <span class="mono">spec-implement-dual-review-verify</span> 檔頭 frozen-plan PRESET。
+        <b>doctrine 待沉澱</b>：fastlane-uat-distribute（detached poll／maskEnv）、issue-293-bucket1（scope-fence／anchoring）、figma-ia-plan（read-only fence／report contract）→ <span class="mono">_lib/worker-doctrine.md</span>。
+        另：<span class="mono">codex-consensus-gate</span> 別名三台合計 28 次 run 仍在流通，後續呼叫應改用 <span class="mono">consensus-gate</span>。</p>
+        <span class="tag keep">泛化候選 ×5</span><span class="tag preset">preset 待收 ×4</span><span class="tag ghost">doctrine 待沉澱 ×3</span><span class="tag">別名退場宣導</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">05</span>對齊步驟</h2>
+    <div class="sync">
+      <p>在 hub（mbp14）逐行執行。方向永遠是 repo → hub → 工作機，不反向。目標：兩台落後機的 5 支漂移 recipe 覆蓋成 hub 版，rsync --delete 保證逐位鏡像。</p>
+      <div class="sync-line"><span class="no">1</span><span><code>rsync -av --delete --exclude .DS_Store ~/.claude/workflows/ mac-mini-m2:~/.claude/workflows/</code> <span class="cmt">— mac-mini-m2：覆蓋 5 支漂移＋鏡像 _lib</span></span></div>
+      <div class="sync-line"><span class="no">2</span><span><code>rsync -av --delete --exclude .DS_Store ~/.claude/workflows/ remote2:~/.claude/workflows/</code> <span class="cmt">— remote2：同一批 5 支</span></span></div>
+      <div class="sync-line"><span class="no">3</span><span><code>for h in mac-mini-m2 remote2; do ssh -o BatchMode=yes "$h" 'shasum -a 256 ~/.claude/workflows/*.workflow.js | shasum -a 256'; done</code> <span class="cmt">— 驗證：兩台聚合 hash 應與 hub 同指令輸出相等</span></span></div>
+      <div class="sync-line"><span class="no">4</span><span><code>shasum -a 256 ~/.claude/workflows/*.workflow.js | shasum -a 256</code> <span class="cmt">— hub 端基準值，與步驟 3 對照</span></span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">06</span>判定決策樹全文</h2>
+    <p class="lede">下次收割直接沿用。順序即成本：先問機械可答的，最後才動用判斷力。</p>
+    <div class="copyblock">
+      <p class="label">5-way decision tree · 逐字可貼</p>
+      <button class="copybtn" type="button" onclick="const b=this,t=this.nextElementSibling.textContent;navigator.clipboard.writeText(t).then(()=&gt;{b.textContent=&#39;已複製&#39;;setTimeout(()=&gt;b.textContent=&#39;複製&#39;,1600)})">複製</button>
+      <pre>Judge each exhaust BASE NAME (strip the -wf_xxxxxxxx suffix; N files of one base = N runs) in this order, cheapest test first. Tags are labels, NEVER deletions.
+Q1 已內化 — does its meta.name/description match a saved recipe in the hub set (same pipeline, the recipe IS its generalization)? → tag 已內化, note which recipe covers it.
+Q2 preset — is it ≤20 lines, spawns zero agents itself, and just calls workflow() with baked args? → tag preset (a remembered invocation, candidate for a PRESET comment block on the recipe it wraps).
+Q3 泛化候選 — do ≥2 base names share an isomorphic pipeline shape not covered by any hub recipe? First re-check coverage: if an existing recipe covers the shape, reclassify 已內化. Otherwise → tag 泛化候選 with the shared shape named.
+Q4 doctrine — is the reusable part not the pipeline but repeated discipline TEXT in the agent prompts (anchoring, tool mapping, scope fences, report contracts)? → tag doctrine, name the _lib/worker-doctrine.md block it feeds.
+Q5 真一次性 — everything else: project-specific, single-run, not worth abstracting. → tag 一次性.</pre>
+    </div>
+  </section>
+
+  <footer>
+    <span>repo <span class="mono">skills/using-workflows/workflows/</span> 為單一事實來源 · hub＝mbp14（b57da68）</span>
+    <span>此頁為靜態快照 · 重跑 <span class="mono">workflow-manifest</span> recipe 即可再生</span>
+  </footer>
+
+</div>
