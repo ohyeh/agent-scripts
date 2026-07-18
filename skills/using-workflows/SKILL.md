@@ -145,8 +145,6 @@ conventions in the TARGET repo simultaneously:
 
 - Per-recipe reference + args details: `workflows/README.md` in this bundle
   (canonical: `skills/using-workflows/workflows/README.md` in the agent-scripts repo).
-- Tutorial (scenarios, onboarding a new repo, feedback loop):
-  `docs/workflow-usage-guide.md` (same repo).
 - Worker mechanics (agent-tmux/profiles/send-wait): the `tmux-agent-tools`
   skill — defer to it for anything about driving the second-model CLI.
 - Run-record conventions (`.workflow/<YYYYMMDDHHMM>-<slug>/`, goal mode,
