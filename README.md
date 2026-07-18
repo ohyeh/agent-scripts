@@ -30,7 +30,7 @@ governing this spinout's repo boundary, release policy, and per-skill fleet cuto
 
 ## Fleet skill restore (`skills-lock.json`)
 
-`skills-lock.json` at the repo root is the fleet's canonical skill set (99 entries, snapshot
+`skills-lock.json` at the repo root is the fleet's canonical skill set (98 entries, snapshot
 2026-07-19, union contract — every machine converges to this same set): every skill installed
 on the fleet that the `npx skills` CLI manages, merged from the machines' `~/.agents/.skill-lock.json`
 files. Two manual-only items are deliberately excluded: `commit-commands` (a Claude Code plugin, not a skill) and `note` (hand-copied, no

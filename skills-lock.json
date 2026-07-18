@@ -651,15 +651,6 @@
       "installedAt": "2026-07-18T20:49:31.171Z",
       "updatedAt": "2026-07-18T20:49:31.171Z"
     },
-    "simple": {
-      "source": "roin-orca/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/roin-orca/skills.git",
-      "skillPath": "skills/simple/SKILL.md",
-      "skillFolderHash": "707c9dfc2913276a114d50eef22a190aa9dca494",
-      "installedAt": "2026-03-11T13:33:59.169Z",
-      "updatedAt": "2026-03-14T09:30:38.740Z"
-    },
     "simplify": {
       "source": "brianlovin/claude-config",
       "sourceType": "github",
