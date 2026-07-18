@@ -25,22 +25,45 @@ removed, renamed, and re-sourced constantly; this router is the stable entry
 point precisely so the fleet underneath can change freely. At invocation:
 
 1. Discover candidates from the runtime's **active available-skills list**
-   first. Directory scans (`~/.agents/skills`, `~/.claude/skills`, plugins)
-   are fallback inventory only and must be deduplicated against the active
-   list — a directory copy that isn't loaded is not invocable.
-2. Descriptions are trigger copy, not capability contracts. Before selecting
+   first. Directory scans are fallback inventory only and must be
+   deduplicated against the active list — a directory copy that isn't loaded
+   is not invocable. Run this before trusting any name below:
+
+   ```bash
+   ls ~/.claude/skills/ ~/.agents/skills/ 2>/dev/null | sort -u
+   ```
+
+   then cross-check each candidate against the CURRENT turn's active
+   available-skills listing (the harness surfaces this automatically —
+   never reuse a listing you saw in an earlier turn or session).
+2. **A prior-table member may not be callable in THIS runtime, even when it
+   exists on disk.** Three independent ways a member can turn out
+   uncallable: (a) not installed on this machine at all; (b) installed but
+   not registered as active for this session/runtime (e.g. a skill that
+   lives only under a different CLI's skills directory); (c) registered but
+   gated `disable-model-invocation: true` in its frontmatter — check with
+   `head -8 <skill-dir>/SKILL.md` before routing to it; that flag means THIS
+   router cannot reach it through the `Skill` tool at all. For (c), either
+   point the user at the skill's own native trigger (its slash command) or,
+   if the stage is simple enough, read its SKILL.md directly (Read tool) and
+   apply its guidance inline without going through `Skill()`. In every case
+   where a prior member turns out absent or uncallable this way: STATE the
+   absence and name the nearest substitute in your plan — never invoke a
+   member from memory of a previous session's inventory, and never
+   substitute silently.
+3. Descriptions are trigger copy, not capability contracts. Before selecting
    an unlisted skill for a pipeline role, read its full SKILL.md and classify
    it by capability flags — a skill may carry several:
    `sets_direction` / `reviews_render` / `implements` /
    `specialist_constraints` / `output_owner` / special runtime needs
    (e.g. image generation → Codex only).
-3. An unknown skill is NEVER auto-promoted to direction authority. Default it
+4. An unknown skill is NEVER auto-promoted to direction authority. Default it
    to specialist-candidate until you have read it and confirmed fit; say so
    in the plan when you promote one.
-4. A listed member that no longer exists → drop it and STATE the drop and the
+5. A listed member that no longer exists → drop it and STATE the drop and the
    substitute (if any) in your plan. Never substitute silently — a swapped
    authority or a skipped mandatory stage changes the output's character.
-5. If a role ends up empty (e.g. no imagegen skill installed), degrade the
+6. If a role ends up empty (e.g. no imagegen skill installed), degrade the
    pipeline explicitly — say what was skipped — rather than faking the stage.
 
 ## The fleet — roles (prior, verify live)
@@ -66,7 +89,9 @@ delegable build; see the executor table under Multi-agent execution.
 **Advisory database (not an authority):** `ui-ux-pro-max` — searchable
 styles/palettes/fonts/charts/stacks. Any stage may QUERY it for facts; it
 never owns direction. Let it lead style exploration only when the user
-explicitly asks to survey many candidates.
+explicitly asks to survey many candidates. If it doesn't resolve under
+Discover live (see above), say so and proceed without it — never fabricate
+style facts in its place.
 
 **Role 2 · Specialist add-ons (constraint sets — stack freely, load inline).**
 
@@ -167,13 +192,40 @@ constraint set loaded inline before its build stage — not a separate worker.
   it does.
 - `prototype` → none; report what the prototype answered.
 
+## Auto-fill args (the lazy part)
+
+Fill these WITHOUT asking when derivable; ask only what's genuinely the
+user's call:
+
+- Role 1 authority choice: derive from Q1/Q2 (landing/marketing/portfolio →
+  `design-taste-frontend`; product UI/dashboard/redesign-critique →
+  `impeccable`; light-touch polish → `frontend-design`). Ask only when the
+  task straddles two categories about equally.
+- DESIGN.md path: `{repo}/DESIGN.md` unless the user already named a docs
+  convention.
+- Viewport list for Gate 0: desktop + mobile by default for any responsive
+  deliverable; ask only if the user says "desktop only" or names a specific
+  breakpoint set.
+- `cli` for any delegated worker stage (imagegen, image-to-code, build,
+  review): follow `~/.agents/rules/model-dispatch.md` §5 — do not ask if the
+  repo's CLAUDE.md already states a CLI preference.
+
 ## Cross-stage contract: DESIGN.md
 
 Multi-stage pipelines hand context between stages (and between workers)
-through the project's `DESIGN.md`, managed via the `design-md` skill. The
-stage that establishes direction WRITES it; every later stage (and every
-delegated worker prompt) READS it. Never let two stages carry direction in
-chat memory only — workers have no chat memory.
+through the project's `DESIGN.md`. The stage that establishes direction
+WRITES it; every later stage (and every delegated worker prompt) READS it.
+Never let two stages carry direction in chat memory only — workers have no
+chat memory.
+
+Prefer the `design-md` skill to manage this file when it resolves under
+Discover live above. When it doesn't (absent from this runtime, or gated per
+step 2's `disable-model-invocation` case), fall back explicitly and say
+which fallback you used: (a) delegate the DESIGN.md read/write to a worker
+on a runtime where `design-md` does resolve (e.g. the same worker already
+handling a Role 3 image stage), or (b) read/write `DESIGN.md` as a plain
+file (Read/Write/Edit), applying `design-md`'s own token conventions read
+once for reference. Never skip persistence silently.
 
 ## Multi-agent execution (per-stage dispatch)
 
