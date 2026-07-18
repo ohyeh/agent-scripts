@@ -27,3 +27,26 @@ content (local branch only — nothing below has been pushed):
 
 Release channel: immutable tag (primary), protected `main` (fallback), per the frozen ADR
 governing this spinout's repo boundary, release policy, and per-skill fleet cutover invariant.
+
+## Fleet skill restore (`skills-lock.json`)
+
+`skills-lock.json` at the repo root is the fleet's canonical skill set (82 entries, snapshot
+2026-07-18): every skill installed on the fleet that the `npx skills` CLI manages, merged from
+the machines' `~/.agents/.skill-lock.json` files. Two manual-only items are deliberately
+excluded: `commit-commands` (a Claude Code plugin, not a skill) and `note` (hand-copied, no
+tool-resolvable source).
+
+To restore all skills on a (new) machine — the CLI restores into `.agents/skills/` **relative
+to the cwd**, so run it from `$HOME` for a global install:
+
+```sh
+cd ~
+curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/skills-lock.json -o skills-lock.json
+npx -y skills experimental_install
+rm skills-lock.json
+```
+
+Format verified against the CLI (one-entry restore, exit 0). The `$HOME`-cwd global-install
+path is inferred from the CLI's cwd-relative behavior — UNCONFIRMED on a fresh machine until
+first used. Before running `npx skills update/upgrade -g` afterwards, clear ghost lock records
+(entries whose folder no longer exists) or deleted skills resurrect.
