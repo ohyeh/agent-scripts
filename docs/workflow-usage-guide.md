@@ -11,7 +11,7 @@
 ```text
 排程層（誰叫醒它）      cron ／ bash watcher ／ ScheduleWakeup ／ 你手打一句話
       ↓
-控制流層（recipe）      ~/.claude/workflows/*.workflow.js —— 13 支，個人層＝任何 repo 都能叫
+控制流層（recipe）      ~/.claude/workflows/*.workflow.js —— 12 支，個人層＝任何 repo 都能叫
       ↓
 執行體層（誰幹活）      Claude subagents ＋ 第二模型（args.cli = 任一 agent-tmux profile）
 ```
@@ -32,7 +32,7 @@ CLEAN 才凍結。`codex`、`claude-fable-gate-glm`、`agy`……都只是 `args
 | 需求 | 檢查方式 |
 | --- | --- |
 | Claude Code ≥ v2.1.154（dynamic workflows） | CLI 打 `/` 看有沒有 workflow 名 |
-| 13 支 recipe 在個人層 | `ls ~/.claude/workflows/*.workflow.js`（含 `_lib/`） |
+| 12 支 recipe 在個人層 | `ls ~/.claude/workflows/*.workflow.js`（含 `_lib/`） |
 | agent-tmux 在 PATH（或 skill bundle scripts/） | `agent-tmux --help` |
 | 第二模型 profiles | `ls ~/.config/agent-tmux/profiles`（codex／agy／claude-fable-gate-glm…） |
 
@@ -78,7 +78,7 @@ Workflow({ scriptPath: "~/.claude/workflows/plan-pipeline.workflow.js", args: {.
 | 只要凍結規劃文件、刻意不建置 | `plan-pipeline` | direction→plan→ADR，全部第二模型凍結 |
 | 需求→實作計畫（監督式、雙關共識） | `feature-plan-consensus` | 內部 critic＋第二模型對抗 |
 | 一個設計方案要對抗共識 | `design-consensus` | |
-| 任意產物要過「第二模型同意」這一關 | `consensus-gate` | 通用閘；`codex-consensus-gate` 是舊名 shim（僅限頂層呼叫） |
+| 任意產物要過「第二模型同意」這一關 | `consensus-gate` | 通用閘 |
 | 照 spec 建置＋雙模型 review＋驗證 | `spec-implement-dual-review-verify` | |
 | 專案「下一步做什麼」方向盤點 | `project-direction-review` | |
 | 艦隊 recipe 資產快照／盤點 | `workflow-manifest` | 產出 manifest artifact，通常週跑 |

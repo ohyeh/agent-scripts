@@ -1,9 +1,6 @@
 // Reusable building block: get a high-effort second-model consensus on a proposal before acting.
 // Encodes the "ask an independent reviewer for architecture consensus" rule as a one-call workflow.
 // Maturity: WORKING (drives any agent-tmux profile inside a single agent).
-// Renamed from codex-consensus-gate — the mechanism was always CLI-neutral (args.cli picks the
-// reviewer: codex / claude / agy / any ~/.config/agent-tmux/profiles entry). The old name remains
-// as a thin preset shim for muscle memory; new callers use this name.
 //
 //   Workflow({ scriptPath: ".claude/workflows/consensus-gate.workflow.js", args: {
 //     repoPath: "/abs/repo",            // cwd for the reviewer session
@@ -30,7 +27,7 @@
 export const meta = {
   name: 'consensus-gate',
   description: 'Get a high-effort second-model consensus verdict on a proposal via any agent-tmux profile',
-  whenToUse: 'When a decision, diff, or proposal needs an independent second-model verdict before acting — the reusable gate primitive other recipes call. args.cli is REQUIRED and picks the reviewer (codex / claude / agy / any agent-tmux profile — heterogeneous reviewers are a config concern, not a recipe concern). For push gates, see the multi-round preset in the header. Formerly codex-consensus-gate (old name = shim).',
+  whenToUse: 'When a decision, diff, or proposal needs an independent second-model verdict before acting — the reusable gate primitive other recipes call. args.cli is REQUIRED and picks the reviewer (codex / claude / agy / any agent-tmux profile — heterogeneous reviewers are a config concern, not a recipe concern). For push gates, see the multi-round preset in the header.',
   phases: [{ title: 'Consult', detail: 'drive the reviewer CLI via agent-tmux, capture verdict', model: 'sonnet' }],
 }
 const a = typeof args === 'string' ? (() => { try { return JSON.parse(args) } catch { return {} } })() : (args || {})

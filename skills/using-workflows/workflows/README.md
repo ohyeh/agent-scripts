@@ -76,17 +76,13 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   停下讓人先讀 plan。已在頂層用掉唯一一層 workflow() nesting，不可再被嵌套。
   檔頭記錄了 top-level args 掉失的 harness bug 與 JOB FILE 替代通道。**args 範例見檔頭。**
 
-- **`consensus-gate.workflow.js`**（原名 `codex-consensus-gate`）— 最小可複用 primitive：
+- **`consensus-gate.workflow.js`** — 最小可複用 primitive：
   把「丟提案 → 驅動第二模型拿高 effort 共識 → 回傳結構化裁決」收成單一呼叫。reviewer
   由 `args.cli` 指定（codex／claude／agy／任何 `~/.config/agent-tmux/profiles` 條目——
   異質 reviewer 是設定檔的事，不是 recipe 的事），透過 agent-tmux 驅動，回傳
   `{ ok, verdict, consensus(agree/agree_with_changes/disagree/unclear), notes }` 與
   `passed` 旗標。**完成訊號用「輪詢輸出檔（含 marker）」而非比中 pane**——避免 marker
   在送出 prompt 裡被 echo 誤判（本專案實戰踩過兩次的坑）。**args 範例見檔頭。**
-
-- **`codex-consensus-gate.workflow.js`** — Q2 preset shim（≤20 行、零 agent、純
-  `workflow()` 轉發到 `consensus-gate`）：28 次歷史 run 的肌肉記憶別名。**僅限頂層呼叫**
-  ——它花掉唯一一層 nesting，其他 workflow 一律直呼 `consensus-gate`。
 
 - **`spec-implement-dual-review-verify.workflow.js`** — 功能開發主力管線：實作 spec →
   第二模型（`args.cli`，REQUIRED）＋claude **平行雙審** → 只採真實且 in-spec 的修正 →

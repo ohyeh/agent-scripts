@@ -64,7 +64,7 @@ What is the user actually facing?
 ├─ freeze planning docs only, deliberately no build → plan-pipeline
 ├─ requirement → implementation plan (supervised, dual consensus) → feature-plan-consensus
 ├─ one design proposal needs adversarial consensus → design-consensus
-├─ ANY artifact needs a "second model agrees" gate → consensus-gate    (codex-consensus-gate = legacy shim, top-level only)
+├─ ANY artifact needs a "second model agrees" gate → consensus-gate
 ├─ build from spec + dual-model review + verify → spec-implement-dual-review-verify
 ├─ "what should this project do next"           → project-direction-review
 ├─ inventory/snapshot the recipe fleet, check machine drift → workflow-manifest
@@ -106,8 +106,7 @@ audit → confirmed findings?
 Hard limits while chaining:
 
 - **workflow() nesting cap = 1 level.** Chain recipes from the TOP level
-  (you, the main loop), never from inside another recipe. The
-  `codex-consensus-gate` shim spends that single level — top-level only.
+  (you, the main loop), never from inside another recipe.
 - Behavior-tier edits to any recipe require a `consensus-gate` pass FIRST;
   wording/docs edits go direct (canonical copy in the agent-scripts repo's
   `skills/using-workflows/workflows/`, then redeploy to `~/.claude/workflows/`

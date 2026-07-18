@@ -10,7 +10,7 @@ content (local branch only — nothing below has been pushed):
 
 - `skills/using-design-skills/` — the Gate R2 `CLEAN`-reviewed design router (repaired, 16
   regression cases in `evals/evals.json`).
-- `skills/using-workflows/` — the workflow meta-router and its 13 canonical recipes
+- `skills/using-workflows/` — the workflow meta-router and its 12 canonical recipes
   (`skills/using-workflows/workflows/`), migrated from `ohyeh/tmux-agent-tools`. This bundle is
   the single canonical copy; machines deploy it to `~/.claude/workflows/` via the install script.
 - `skills/delegation-templates/`, `skills/unknowns-discovery/` — the two generic policy skills
