@@ -18,6 +18,11 @@ models: follow it literally; do not improvise around it.
   inherit the session effort — that is fine; do not invent an effort field.
 - Useful built-in agent types: `Explore` (read-only search), `general-purpose`,
   `Plan`, `pr-review-toolkit:code-reviewer`, `fork` (inherits your full context).
+- Codex runtime: the `model` column above is Claude-specific. To pass the
+  delegation gate, Codex names its session-native model (e.g. `gpt-5.6-sol`)
+  and quotes the applicable §5 task-type row — the task-shape → tier logic is
+  runtime-agnostic. If §5 has no exactly-applicable row either, quote the
+  nearest row + a one-line deviation note.
 
 ## §2 The commander does not do grunt work
 The main conversation exists to: decompose tasks, make judgment calls, integrate
@@ -39,7 +44,7 @@ Never send a bare instruction. Every subagent prompt contains:
 1. GOAL + WHY — what to produce and what the result will be used for (one or two sentences; the "why" lets the agent make sane micro-decisions).
 2. ACCEPTANCE CRITERIA — objectively checkable conditions ("all call sites updated and `npm test` exits 0", not "make it work").
 3. REPORT FORMAT — exactly what to return (see §4) and where to write artifacts.
-Templates with these blanks: `rules/delegation-templates.md`.
+Templates with these blanks: `~/.agents/skills/delegation-templates/SKILL.md`.
 
 ## §4 Report contract (paste into every subagent prompt)
 > Return ONLY: (a) conclusions as short bullets, (b) `file:line` references for every

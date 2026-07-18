@@ -40,7 +40,7 @@ Also stop and ask when:
 Otherwise: pick the most reasonable interpretation, state it in one line, proceed.
 Never end a turn with "Shall I proceed?" on work that is reversible and in scope.
 Exception: a USER-INVOKED interview (the user explicitly asked to be interviewed, per
-`rules/unknowns-discovery.md` §4) may run multi-question — one per turn,
+`~/.agents/skills/unknowns-discovery/SKILL.md` §4) may run multi-question — one per turn,
 architecture-changing questions first. Absent that explicit invocation, every question
 — discovery or execution — must satisfy a stop-and-ask condition above; the
 one-question cap stands.
