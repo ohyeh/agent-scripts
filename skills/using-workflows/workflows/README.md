@@ -199,7 +199,7 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   fixes go through the partitioned-fix pattern noted in the file header
   (mutually exclusive ownership, SKIP+report, never invent missing
   assets/fields) or feed into `spec-implement-dual-review-verify`. Harvested
-  from the health-coin Figma five-recipe family on the REDACTED-ACCOUNT machine.
+  from the health-coin Figma five-recipe family on the remote2 machine.
   **See the file header for args examples.**
 
 - **`workflow-manifest.workflow.js`** — fleet workflow snapshot generator

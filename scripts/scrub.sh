@@ -38,7 +38,8 @@ SECRET_RE='(-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----|gh[pousr]_[A-Za
 PATH_RE='(/User''s/[^/[:space:]]+|/hom''e/[^/[:space:]]+|/priv''ate/tmp/)'
 
 # --- W4 extension: machine hostnames (this fleet's known patterns) ---
-HOST_RE='(oh''YEHs|MB''P|Mac-''Mini|25006''93-paul)'
+# --- W9 addition: no-hyphen serial variant + the tailnet domain suffix (additive only, per binding carry-forward: never weaken existing alternatives) ---
+HOST_RE='(oh''YEHs|MB''P|Mac-''Mini|25006''93-paul|25006931Pa''ul|\.t''s\.net)'
 
 # --- W4 extension: Tailscale CGNAT range, RFC 6598 (second octet 64-127 under the 100/8 block) ---
 TAILSCALE_RE='100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.'
