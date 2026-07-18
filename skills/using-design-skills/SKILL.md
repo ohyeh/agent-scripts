@@ -128,10 +128,21 @@ provides the skeleton, a Role-1 authority layers visual character on top.
 | `html-diagram` | Architecture / flow / state diagrams as full-screen SVG. Keep its signature strengths: animated arrows (flow direction legible at a glance), light on prose |
 | `html` | Reports, explainers, comparisons, decks |
 | `html-plan` | Plan pages: pragmatic, close to the user's own wording |
+| `plannotator-visual-explainer` | Rich visual explainers: plan pages with stat cards/SVG timelines, PR walkthroughs with risk maps, slide decks, data tables. Gated `disable-model-invocation: true` — read its SKILL.md inline per Discover-live rule 2(c), never via `Skill()` |
 
 Pairing rule: quick internal note → trio alone. Anything the user will look
 at twice or show someone → trio + ONE authority visual layer (via DESIGN.md)
 + quality loop.
+
+**Theme-layer exclusivity:** `plannotator-visual-explainer` ships its own
+theme tokens and delegates its skeleton to `nicobailon/visual-explainer`
+(auto-installs via npx skills if absent) — overriding ONLY the color/type
+layer. That is the same one-authority rule in miniature: when it owns a
+stage, its Plannotator theme IS the visual layer — do NOT stack a Role-1
+authority on top. Want Role-1 character instead? Use the trio, not this.
+**Delivery degrade:** its `plannotator annotate` UI requires the
+`plannotator` CLI; when the CLI is absent, STATE the degrade and deliver
+the same HTML as a plain file/Artifact instead — never fake the UI step.
 
 **Persistence & probes:** `design-md` persists direction/tokens to
 `DESIGN.md`; `data-report` turns CSV/Excel/JSON into a report page;
