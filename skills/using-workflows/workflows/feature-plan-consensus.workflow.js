@@ -5,16 +5,16 @@
 //   Step 0 Orchestrate  -> establish the operating contract (doctrine below)
 //   Decompose -> Discover(parallel read-only) -> Synthesize(v1 draft)
 //     -> InternalConsensus   (claude critics, adversarial, loop-until-consensus)    <- internal loop
-//     -> ExternalReview        (codex second-model, adversarial, loop-until-consensus) <- external loop
+//     -> ExternalReview        (args.cli counterpart second brain, adversarial, loop-until-consensus) <- external loop
 //     -> Commit                (write plan; commit/push ONLY when consensus + approved)
 //
 // ───────────────────────── OPERATING DOCTRINE (Step 0) ─────────────────────────
 // ORCHESTRATION: the workflow runtime ("you", the orchestrator brain) delegates each task to a
 //   worker, MONITORS the result, and corrects course. Workers are not trusted blindly.
 // ESCALATION LADDER (try cheapest capable tier first; climb on repeated failure):
-//   sonnet worker  ->  orchestrator self  ->  codex (second model)  ->  surface to USER
-//   Authority/trust ranking (high→low):  USER > CODEX >= ORCHESTRATOR(self) > sonnet/others.
-//   If codex (the top automated tier) still cannot satisfy the monitor, DO NOT force-proceed —
+//   sonnet worker  ->  orchestrator self  ->  args.cli (counterpart second brain)  ->  surface to USER
+//   Authority/trust ranking (high→low):  USER > EXTERNAL(args.cli) >= ORCHESTRATOR(self) > sonnet/others.
+//   If the external reviewer (the top automated tier) still cannot satisfy the monitor, DO NOT force-proceed —
 //   return needsUser:true and stop short of any commit.
 // CORRECTNESS (non-negotiable): truth = source code, logs, and real command output observed THIS run.
 //   Memory, existing .md/.html docs, comments, and prior plans are NOT truth — they may be stale;
@@ -33,7 +33,7 @@
 //     areas:      [{ key, scope }],               // optional: skip auto-decompose
 //     maxInternalRounds: 3, maxExternalRounds: 2, // optional
 //     sonnetTries: 2, selfTries: 1,               // optional: per-task escalation budget
-//     escalateToCodex: true,                      // optional, default true
+//     escalateExternal: true,                     // optional, default true (legacy alias: escalateToCodex)
 //     commit:     false, push: false,             // optional: git gate (= the human approval)
 //     model:      "sonnet"                        // optional, default worker model
 //   }})
@@ -77,7 +77,7 @@ const maxInternal = Number.isInteger(a.maxInternalRounds) ? a.maxInternalRounds 
 const maxExternal = Number.isInteger(a.maxExternalRounds) ? a.maxExternalRounds : 2
 const sonnetTries = Number.isInteger(a.sonnetTries) ? a.sonnetTries : 2
 const selfTries = Number.isInteger(a.selfTries) ? a.selfTries : 1
-const escalateToCodex = a.escalateToCodex !== false
+const escalateExternal = (a.escalateExternal ?? a.escalateToCodex) !== false  // legacy alias kept for old callers
 const lenses = Array.isArray(a.internalLenses) && a.internalLenses.length
   ? a.internalLenses
   : ['completeness (missing areas/tasks/edge cases)', 'sequencing & dependencies', 'risk & blast-radius', 'effort realism']
@@ -117,7 +117,7 @@ const EVIDENCE = `CORRECTNESS DOCTRINE (non-negotiable): truth = source code, lo
 const CONTEXT = `Repo: ${repo}.\n${EVIDENCE}\n\nNEW FEATURE BRIEF (a goal to plan toward; verify all "current state" against code):\n${a.featureBrief}${designRefs}`
 
 phase('Orchestrate')
-log(`Step 0 doctrine active — ladder: sonnet→self→${cli}→user (budget: sonnet x${sonnetTries}, self x${selfTries}, ${cli} ${escalateToCodex ? 'on' : 'off'}); truth = code/logs only.`)
+log(`Step 0 doctrine active — ladder: sonnet→self→${cli}→user (budget: sonnet x${sonnetTries}, self x${selfTries}, ${cli} ${escalateExternal ? 'on' : 'off'}); truth = code/logs only.`)
 if (!a.orchestratorModel) log(`note: orchestratorModel unset — the "self" rung inherits the main-loop model; it is a real capability step above sonnet only if the main loop runs a model above sonnet (else it is a same-model retry).`)
 
 // ───────────────────────── escalation ladder ─────────────────────────
@@ -129,14 +129,14 @@ async function runEscalated(label, phaseName, makePrompt, opts = {}) {
     ...Array(sonnetTries).fill({ tier: 'sonnet', model: 'sonnet' }),
     ...Array(selfTries).fill({ tier: 'self', model: a.orchestratorModel }), // undefined -> inherit main-loop (you)
   ]
-  if (escalateToCodex) rungs.push({ tier: cli, driveCli: true })
+  if (escalateExternal) rungs.push({ tier: cli, driveCli: true })
   let feedback = ''
   let last = null
   for (let i = 0; i < rungs.length; i++) {
     const r = rungs[i]
     const o = { label: `${label}:${r.tier}#${i + 1}`, phase: phaseName, effort, isolation, agentType }
     if (schema) o.schema = schema
-    if (r.model) o.model = r.model   // per-tier model (sonnet / self / codex-driven) — intentionally varies
+    if (r.model) o.model = r.model   // per-tier model (sonnet / self / cli-driven) — intentionally varies
     const p = makePrompt(feedback, r.tier)
     const res = await agent(r.driveCli ? driveCli(p, `/tmp/${cli}-${label.replace(/[^a-zA-Z0-9._-]/g, '_')}-${i + 1}.md`) : p, o)
     const v = verify ? await verify(res) : { ok: res != null, feedback: 'empty result' }
@@ -145,7 +145,7 @@ async function runEscalated(label, phaseName, makePrompt, opts = {}) {
     feedback = `MONITOR REJECTED the previous attempt (tier=${r.tier}): ${v.feedback}\nCorrect course and fix exactly this; do not drift.`
     log(`${label}: ${r.tier} attempt ${i + 1} rejected — ${v.feedback}`)
   }
-  log(`${label}: escalation exhausted (codex could not satisfy monitor) — surfacing to user.`)
+  log(`${label}: escalation exhausted (external reviewer ${cli} could not satisfy monitor) — surfacing to user.`)
   return { result: last, tier: 'exhausted', attempt: rungs.length, ok: false, needsUser: true }
 }
 // P5 quality gate: enforce PLAN_SECTIONS as SECTION LINES (markdown headings / numbered / bold lead),
@@ -278,7 +278,7 @@ while (internalRound < maxInternal) {
   plan = rev.result
 }
 
-// ───────────────────────── 5. External (codex) review loop ─────────────────────────
+// ───────────────────────── 5. External (counterpart second-brain) review loop ─────────────────────────
 phase('ExternalReview')
 let externalRound = 0, externalConsensus = false
 while (externalRound < maxExternal) {
@@ -292,14 +292,14 @@ while (externalRound < maxExternal) {
     ),
     { label: `${cli}-review#${externalRound}`, phase: 'ExternalReview', model, effort, isolation, agentType, schema: CRITIQUE_SCHEMA }
   )
-  if (!review) return { aborted: true, stage: 'external-review', needsUser: true, round: externalRound } // codex (top automated tier) died -> escalate to user
+  if (!review) return { aborted: true, stage: 'external-review', needsUser: true, round: externalRound } // external reviewer (top automated tier) died -> escalate to user
   const blocking = (review.blocking_issues || []).filter(i => i.severity !== 'minor')
   if (review.consensus && review.verified_against_code === true && blocking.length === 0) {
     externalConsensus = true; log(`external consensus in round ${externalRound}`); break
   }
   log(`external round ${externalRound}: ${blocking.length} blocking -> revise`)
   const rev = await runEscalated(`revise-external#${externalRound}`, 'ExternalReview',
-    (fb) => `${CONTEXT}\nCodex raised these issues; resolve each and RE-VERIFY facts in code/logs. Keep structure. Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
+    (fb) => `${CONTEXT}\nThe external reviewer (${cli}) raised these issues; resolve each and RE-VERIFY facts in code/logs. Keep structure. Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
     { verify: planOk }
   )
   if (!rev.ok) return { aborted: true, stage: 'external-revise', needsUser: true, round: externalRound }
@@ -323,7 +323,7 @@ const commit = await agent(
   `${CONTEXT}\nFinalize the plan artifact in ${outDir}.\n` +
   `1) Ensure final plan markdown is at ${planPath} (mkdir -p ${outDir}); write ${outDir}/final-report.md noting internal consensus=${internalConsensus} (rounds ${internalRound}), external consensus=${externalConsensus} (rounds ${externalRound}).\n` +
   (wantCommit
-    ? `2) APPROVED: git add ONLY the artifacts under ${outDir} (verify with 'git status --porcelain' that nothing outside ${outDir} is staged; if anything else is staged, unstage it). Commit "docs(plan): ${slug} v1 implementation plan (internal+codex consensus)". ${wantPush ? 'Then push current branch.' : 'Do NOT push.'} Report the staged_files list and commit sha.`
+    ? `2) APPROVED: git add ONLY the artifacts under ${outDir} (verify with 'git status --porcelain' that nothing outside ${outDir} is staged; if anything else is staged, unstage it). Commit "docs(plan): ${slug} v1 implementation plan (internal+external consensus)". ${wantPush ? 'Then push current branch.' : 'Do NOT push.'} Report the staged_files list and commit sha.`
     : `2) Do NOT git add/commit/push — ${bothConsensus ? 'commit not approved (args.commit!=true)' : 'consensus NOT reached; needs user decision'}. Just confirm files written (committed=false, pushed=false).`) +
   `\nReturn the schema honestly (committed/pushed reflect what you actually did).`,
   { label: 'commit-plan', phase: 'Commit', model, effort, isolation, agentType, schema: COMMIT_SCHEMA }

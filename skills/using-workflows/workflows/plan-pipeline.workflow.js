@@ -4,11 +4,11 @@
 //   ① direction (goal_doc)  →  ② frozen plan (plan-<slug>.md)  →  ③ ADR design (docs/adr/NNNN-*)
 //   └ then: review → commit → push the prepared DOCS.    ④ build is NOT part of this workflow.
 //
-// Each artifact is drafted by codex and frozen only after codex adversarial review reaches
-// CLEAN (0 Critical / 0 Major). Output = "all PLAN | TASK | GOAL docs ready for build".
+// Each artifact is drafted by the external counterpart (args.cli) and frozen only after its
+// adversarial review reaches CLEAN (0 Critical / 0 Major). Output = "all PLAN | TASK | GOAL docs ready for build".
 //
 // NOTHING is hardcoded to a project: slug, brief, output paths, review settings all come from
-// `args`. Drives codex via agent-tmux; completion is detected by POLLING an output file, never
+// `args`. Drives the external CLI via agent-tmux; completion is detected by POLLING an output file, never
 // by matching a marker in the tmux pane (the marker echoes in the sent prompt — a real bug).
 //
 //   Workflow({ scriptPath: ".claude/workflows/plan-pipeline.workflow.js", args: {
@@ -18,7 +18,7 @@
 //     directionPath: ".workflow/<YYYYMMDDHHMM>-<slug>/direction.md",  // ① output (default derives from slug)
 //     planPath: ".workflow/<YYYYMMDDHHMM>-<slug>/plan.md",            // ② output (default derives from slug)
 //     adrDir: "docs/adr",                           // ③ output dir (default "docs/adr")
-//     maxReviewRounds: 6,                           // codex freeze rounds per artifact (default 6)
+//     maxReviewRounds: 6,                           // external-review freeze rounds per artifact (default 6)
 //     sessionName: "plan-<slug>", effort: "high", timeoutSec: 1200,
 //     skipDirection: false,                         // true → directionPath already exists, start at ②
 //     adrs: [{ slug: "external-idp", title: "..." }],// OPTIONAL: force these ADRs; else ② decides which are needed
@@ -37,7 +37,7 @@ export const meta = {
 }
 
 // NESTING: this is a mid-level stage — do NOT call workflow() here (1-level nesting cap). Drive
-// codex/claude via inline agent() + agent-tmux, never via workflow() or a harness agent type.
+// the external CLI (codex/claude/…) via inline agent() + agent-tmux, never via workflow() or a harness agent type.
 //
 // BUILTIN: arg-channel fallback. This env's Workflow tool drops `args` for scriptPath runs
 // (documented gotcha — see .claude handoffs). Keep this {} in the committed/generic copy; to run a
@@ -53,7 +53,7 @@ const planPath = a.planPath || `.workflow/next-direction/plan-${slug}.md`
 const adrDir = a.adrDir || 'docs/adr'
 const maxRounds = a.maxReviewRounds || 6
 const session = a.sessionName || `plan-${slug}`
-const effort = a.effort || 'high'   // codex model_reasoning_effort AND the driving agent's effort
+const effort = a.effort || 'high'   // external CLI reasoning effort (e.g. codex model_reasoning_effort) AND the driving agent's effort
 const model = a.model || 'sonnet'   // driving Claude agent's model (listed on every agent() below)
 // Official agent() opts, listed on every call. Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
@@ -71,7 +71,7 @@ const FROZEN = { type: 'object', additionalProperties: false,
   required: ['ok', 'frozen', 'path', 'rounds', 'summary'],
   properties: {
     ok: { type: 'boolean' },
-    frozen: { type: 'boolean', description: 'true iff codex review reached CLEAN (0 Critical / 0 Major)' },
+    frozen: { type: 'boolean', description: 'true iff external review reached CLEAN (0 Critical / 0 Major)' },
     path: { type: 'string' },
     rounds: { type: 'integer', description: 'how many draft→review rounds it took' },
     requiredAdrs: { type: 'array', items: { type: 'object', additionalProperties: true,
@@ -166,5 +166,5 @@ return {
   stops_before: 'implementation/build (④) — by design',
   artifacts,
   direction, plan, adrResults, integrate,
-  note: 'All PLAN | TASK | GOAL docs prepared & codex-frozen. Hand off to a build workflow (e.g. spec-implement-dual-review-verify) for ④.',
+  note: 'All PLAN | TASK | GOAL docs prepared & consensus-frozen. Hand off to a build workflow (e.g. spec-implement-dual-review-verify) for ④.',
 }

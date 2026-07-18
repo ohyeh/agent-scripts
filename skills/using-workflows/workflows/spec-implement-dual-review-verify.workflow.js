@@ -1,4 +1,4 @@
-// Reusable recipe: implement a spec, dual-review (codex + claude in parallel),
+// Reusable recipe: implement a spec, dual-review (external counterpart via args.cli + claude in parallel),
 // then apply real in-spec fixes and verify with concrete commands.
 // Generalized from the one-off `jenkins-cli-build` / `-trigger-cli` / `-iap-finalize`
 // session workflows (standard-portal-app) — they were three instances of this same skeleton.
@@ -16,8 +16,8 @@
 //       "./scripts/foo/bar.sh --help"
 //     ],
 //     model: "sonnet",                             // optional, default "sonnet" for implement/fix
-//     effort: "high", timeoutSec: 600,             // optional, codex reasoning effort + OUT-file poll timeout
-//     sessionName: "spec-c1",                       // optional, agent-tmux codex session label
+//     effort: "high", timeoutSec: 600,             // optional, external CLI reasoning effort + OUT-file poll timeout
+//     sessionName: "spec-c1",                       // optional, agent-tmux external session label
 //   }})
 //
 // PRESET — build from a frozen consensus plan (proven: build-smcs1498-from-frozen-plan).
@@ -32,8 +32,8 @@
 // Restating the key invariants inline matters: it protects against the implementer skimming
 // the plan file, at ~10 lines' cost. Wrapper shape: an 18-line thin workflow that just calls
 // this recipe — no need to save those shells; write them ad hoc.
-// Second-model reviewer is codex driven via tmux-agent-tools (agent-tmux codex). If codex/agent-tmux
-// are unavailable the driver agent() returns null and dual review degrades to single (codex_available:false).
+// Second-model reviewer is the external counterpart (args.cli) driven via tmux-agent-tools (agent-tmux <cli>).
+// If the CLI/agent-tmux are unavailable the driver agent() returns null and dual review degrades to single (external_available:false).
 //
 // NOTE: workflow scripts have no FS/shell — only agents do. All file work happens inside agent() prompts.
 // NESTING: this is a mid-level stage — do NOT call workflow() here (1-level nesting cap). Drive the
@@ -111,13 +111,13 @@ const reviews = await parallel([
   () => agent(reviewPrompt('claude reviewer'), { label: 'review:claude', phase: 'Review', model, effort, isolation, agentType }),
 ])
 // Detect BOTH reviewers symmetrically — each parallel thunk can return null on failure.
-// Checking only codex would let a silent claude-side failure (or a total review loss) pass as success.
-const codexAvailable = reviews[0] != null
+// Checking only the external side would let a silent claude-side failure (or a total review loss) pass as success.
+const externalAvailable = reviews[0] != null
 const claudeAvailable = reviews[1] != null
-if (!codexAvailable) log(`WARNING: external reviewer (codex via agent-tmux) returned null — dual review degraded.`)
+if (!externalAvailable) log(`WARNING: external reviewer (${cli} via agent-tmux) returned null — dual review degraded.`)
 if (!claudeAvailable) log(`WARNING: claude reviewer returned null — dual review degraded.`)
-if (!codexAvailable && !claudeAvailable) {
-  return { aborted: true, stage: 'review', reason: 'both reviewers failed — no review coverage to finalize against', impl, reviews, codex_available: false, claude_available: false }
+if (!externalAvailable && !claudeAvailable) {
+  return { aborted: true, stage: 'review', reason: 'both reviewers failed — no review coverage to finalize against', impl, reviews, external_available: false, claude_available: false }
 }
 
 phase('Finalize')
@@ -152,12 +152,12 @@ const fixed = await agent(
   `REVIEW A (${cli}):\n${reviews[0] ?? 'unavailable'}\n\nREVIEW B (claude):\n${reviews[1] ?? 'unavailable'}\n\n${SPEC}`,
   { label: 'fix-and-verify', phase: 'Finalize', model, effort, isolation, agentType, schema: FINALIZE_SCHEMA }
 )
-if (!fixed) return { aborted: true, stage: 'finalize', reason: 'finalize agent failed (returned null) — implementation not verified', impl, reviews, codex_available: codexAvailable, claude_available: claudeAvailable }
+if (!fixed) return { aborted: true, stage: 'finalize', reason: 'finalize agent failed (returned null) — implementation not verified', impl, reviews, external_available: externalAvailable, claude_available: claudeAvailable }
 // Gate on BOTH the boolean AND any amendment-needed deviation — a finalizer that sets the flag false
 // while classifying a deviation as amendment-needed must NOT slip through (fail closed).
 const amendmentNeeded = fixed.amendment_needed === true || (fixed.deviations || []).some(d => d && d.classification === 'amendment-needed')
-if (amendmentNeeded) return { aborted: true, stage: 'finalize', reason: 'build contradicts a frozen spec/ADR line — escalate to an ADR amendment (re-freeze via plan-pipeline) before continuing; do not edit through', needsUser: true, deviations: fixed.deviations, impl, reviews, codex_available: codexAvailable, claude_available: claudeAvailable }
+if (amendmentNeeded) return { aborted: true, stage: 'finalize', reason: 'build contradicts a frozen spec/ADR line — escalate to an ADR amendment (re-freeze via plan-pipeline) before continuing; do not edit through', needsUser: true, deviations: fixed.deviations, impl, reviews, external_available: externalAvailable, claude_available: claudeAvailable }
 // Fail closed on verification: a finalizer that did not get verify passing is not a success.
-if (fixed.verified !== true) return { aborted: true, stage: 'finalize', reason: 'verification did not pass (verified!=true) — not finalizing as success', needsUser: true, fixed, impl, reviews, codex_available: codexAvailable, claude_available: claudeAvailable }
+if (fixed.verified !== true) return { aborted: true, stage: 'finalize', reason: 'verification did not pass (verified!=true) — not finalizing as success', needsUser: true, fixed, impl, reviews, external_available: externalAvailable, claude_available: claudeAvailable }
 
-return { impl, reviews, fixed, deviations: fixed.deviations, amendment_needed: false, verified: true, codex_available: codexAvailable, claude_available: claudeAvailable }
+return { impl, reviews, fixed, deviations: fixed.deviations, amendment_needed: false, verified: true, external_available: externalAvailable, claude_available: claudeAvailable }

@@ -2,12 +2,12 @@
 // already-built stage workflows via workflow() and gates between them.
 //
 //   PLAN (pick one) ──► [gate: clean?] ──► BUILD (optional) ──► return
-//     mode:'explore' → feature-plan-consensus   (discovery + internal/codex consensus)
-//     mode:'frozen'  → plan-pipeline            (direction → plan → ADR, codex-frozen)
+//     mode:'explore' → feature-plan-consensus   (discovery + internal/external consensus)
+//     mode:'frozen'  → plan-pipeline            (direction → plan → ADR, consensus-frozen)
 //                                               BUILD = spec-implement-dual-review-verify
 //
 // Layering: this shell calls the MID-level stage workflows (one nesting level — the max
-// allowed). Those stages drive codex themselves; the shell never touches codex/atoms directly.
+// allowed). Those stages drive the external CLI (args.cli) themselves; the shell never touches the CLI/atoms directly.
 //
 //   Workflow({ name: 'feature-lifecycle-auto', args: {
 //     repoPath:   '/abs/repo',                 // REQUIRED
@@ -143,7 +143,7 @@ if (budget?.total && budget.remaining() < 80_000) {
 phase('Build')
 const build = await workflow('spec-implement-dual-review-verify', {
   repoPath: a.repoPath,
-  spec: `Implement the frozen plan at ${planPath}. Read it fully first; it is the authoritative spec (codex-frozen / consensus-passed). Follow its file targets, behavior, and verification steps. Truth = source code and real command output, not memory.`,
+  spec: `Implement the frozen plan at ${planPath}. Read it fully first; it is the authoritative spec (consensus-frozen / consensus-passed). Follow its file targets, behavior, and verification steps. Truth = source code and real command output, not memory.`,
   targetFile: a.targetFile,
   cli: a.cli, model, effort, isolation, agentType, timeoutSec: a.timeoutSec, slug,   // forward model/effort/isolation/agentType + slug
 })

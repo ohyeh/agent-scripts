@@ -44,9 +44,9 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
 ## 本目錄現有 workflow
 
 - **`feature-plan-consensus.workflow.js`** — supervised orchestration：把「新功能需求」轉成
-  第一版實作計畫。階梯式升級（sonnet → orchestrator self → codex → 上呈 user）、
+  第一版實作計畫。階梯式升級（sonnet → orchestrator self → 第二腦（args.cli）→ 上呈 user）、
   證據鐵則（以 code/log/實際輸出為準，不採信記憶或舊 .md/.html）、內部 critic 共識
-  迴圈後再經 codex 外部對抗 review，兩關都共識且經授權才寫出 plan 並 commit。
+  迴圈後再經第二腦外部對抗 review，兩關都共識且經授權才寫出 plan 並 commit。
   設計已經 codex 多輪對抗 review 至 AGREE。
 
 - **`pr-review-triage-resolve`**（⚠️ 設計存檔——**檔案尚未落地**：git 史、個人層、三台
@@ -56,7 +56,7 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   bot 並 detached-poll 等回（minGrace 先硬等、以 baseline thread-id 快照判新留言）→
   ② 只收 bot 的、未 resolved 的新 thread（人類留言一律不碰）→ ③ TRIAGE 每條對撞
   code 真相判 accept／already-fixed／reject（severity 自評不吃 bot 標；低信心或高
-  severity 升 T2 worker 評審團、T3 內部對抗＋codex 外部共識）→ ④ 只修 accept（worker／
+  severity 升 T2 worker 評審團、T3 內部對抗＋第二腦（args.cli）外部共識）→ ④ 只修 accept（worker／
   self 階梯，修一條驗一條）→ ⑤ push 後**先寫 ledger 驗證可讀再** resolve 三類 thread
   （不留言）。**不走內建閉環**，下一輪＝手動重跑整支；跨輪去重靠 `isResolved=false`
   過濾＋ledger 稽核。設計已經 codex 對抗 review（含實打 PR API 驗證）收斂。
@@ -64,8 +64,8 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   可被 workflow 呼叫，也能 CLI 單獨手跑）。**本 repo 可直接跑的 args 範例見檔頭。**
 
 - **`plan-pipeline.workflow.js`** — 規劃專用管線（刻意**不含 build**）：① direction
-  （goal_doc）→ ② frozen plan（plan-<slug>.md）→ ③ ADRs——每份 artifact 由 codex 起草、
-  經 codex 對抗 review 至 CLEAN（0 Critical/0 Major）才凍結 → commit/push 文件。
+  （goal_doc）→ ② frozen plan（plan-<slug>.md）→ ③ ADRs——每份 artifact 由第二腦
+  （args.cli）起草、經其對抗 review 至 CLEAN（0 Critical/0 Major）才凍結 → commit/push 文件。
   全參數化（slug/brief/輸出路徑/review 輪數），完成訊號一律輪詢輸出檔。與
   `project-direction-review` 互補（那支回答「往哪走」、這支凍結「怎麼做」）；
   後續 build 交給 `spec-implement-dual-review-verify`。**args 範例見檔頭。**
@@ -88,7 +88,7 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   第二模型（`args.cli`，REQUIRED）＋claude **平行雙審** → 只採真實且 in-spec 的修正 →
   跑 `verifyCommands` 驗證並貼輸出。三階段（Implement／Review／Finalize），實作 agent
   回 null 即早退。第二模型經 agent-tmux 驅動（輪詢輸出檔偵測完成）。兩個 reviewer
-  對稱偵測：各自回 null 都 log 降級、return 帶 `codex_available`／`claude_available`，
+  對稱偵測：各自回 null 都 log 降級、return 帶 `external_available`／`claude_available`，
   兩個都掛則在 Finalize 前 abort；finalize agent 回 null 也 abort（不把未驗證實作報成
   完成）。第二模型補審 2 輪至 AGREE。**args 範例見檔頭。**
 

@@ -6,10 +6,11 @@
 //     repoPath: "/abs/repo",            // cwd for the reviewer session
 //     proposalFile: "/abs/proposal.md", // OR proposalText below
 //     proposalText: "....",
-//     cli: "codex",                     // REQUIRED: reviewer profile (codex|claude|agy|...)
+//     cli: "codex",                     // REQUIRED: reviewer profile — the COUNTERPART engine of the
+//                                       // commander (Claude commands → codex; Codex commands → claude)
 //     sessionName: "arch1",             // agent-tmux session name
 //     effort: "high",                   // low|medium|high (high => reviewer's own high-effort knob)
-//     marker: "=== CODEX VERDICT END ===",  // legacy default kept for byte-compat; just a sentinel
+//     marker: "=== REVIEWER VERDICT END ===",  // just a sentinel; pass "=== CODEX VERDICT END ===" for legacy byte-compat
 //     timeoutSec: 600
 //   }})
 //
@@ -39,7 +40,7 @@ const model = a.model || 'sonnet'   // the driving Claude agent's model
 // Official agent() opts, listed on every call so none reads as "unsupported". Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit (NOT false/'none')
 const agentType = a.agentType || undefined  // off = default workflow agent. NEVER hardcode a custom one — a missing agentType is a HARD error (#20931), breaks portability
-const marker = a.marker || '=== CODEX VERDICT END ==='
+const marker = a.marker || '=== REVIEWER VERDICT END ==='
 const timeout = a.timeoutSec || 600
 // Second-model CLI is REQUIRED and neutral — NO built-in default. Launch flags come from the CLI's
 // own profile; EXTRA flags pass raw via a.launchEnv. charset guard blocks shell injection (cli is
