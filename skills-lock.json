@@ -100,15 +100,6 @@
       "installedAt": "2026-05-27T02:56:14.951Z",
       "updatedAt": "2026-05-27T02:56:14.951Z"
     },
-    "decision-mapping": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/in-progress/decision-mapping/SKILL.md",
-      "skillFolderHash": "3453d54bf1fe8976e6dee09224c618e8c76cab17",
-      "installedAt": "2026-06-19T16:47:25.232Z",
-      "updatedAt": "2026-07-01T18:13:24.583Z"
-    },
     "defuddle": {
       "source": "kepano/obsidian-skills",
       "sourceType": "github",
@@ -399,6 +390,15 @@
       "installedAt": "2026-04-18T13:49:23.596Z",
       "updatedAt": "2026-04-18T13:49:23.596Z"
     },
+    "pierre-guard": {
+      "source": "backnotprop/plannotator",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "skillPath": ".agents/skills/pierre-guard/SKILL.md",
+      "skillFolderHash": "01929be984b93b60d4931afeeb74cdcbc1acdf0e",
+      "installedAt": "2026-07-18T21:55:44.672Z",
+      "updatedAt": "2026-07-18T21:55:44.672Z"
+    },
     "prototype": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -434,6 +434,15 @@
       "skillFolderHash": "01cfb6a412faf9d680880cc3f631c419121a9916",
       "installedAt": "2026-04-23T14:49:44.309Z",
       "updatedAt": "2026-04-23T14:49:44.309Z"
+    },
+    "release-plannotator": {
+      "source": "backnotprop/plannotator",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "skillPath": ".agents/skills/release/SKILL.md",
+      "skillFolderHash": "e2a486cd7825a6d98be57f74fb52d3e837ab61fb",
+      "installedAt": "2026-07-18T21:55:44.675Z",
+      "updatedAt": "2026-07-18T21:55:44.675Z"
     },
     "request-refactor-plan": {
       "source": "mattpocock/skills",
@@ -471,14 +480,14 @@
       "installedAt": "2026-06-19T16:46:27.517Z",
       "updatedAt": "2026-07-14T12:24:15.216Z"
     },
-    "review": {
-      "source": "mattpocock/skills",
+    "review-renovate": {
+      "source": "backnotprop/plannotator",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/in-progress/review/SKILL.md",
-      "skillFolderHash": "7358042ff9636cf903d3183e1d86744ea7ffda40",
-      "installedAt": "2026-06-19T16:47:25.627Z",
-      "updatedAt": "2026-07-01T01:27:40.186Z"
+      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "skillPath": ".agents/skills/review-renovate/SKILL.md",
+      "skillFolderHash": "7be697b0a4898605a0df735afedd7349b121c06b",
+      "installedAt": "2026-07-18T21:55:44.676Z",
+      "updatedAt": "2026-07-18T21:55:44.676Z"
     },
     "scaffold-exercises": {
       "source": "mattpocock/skills",
@@ -588,25 +597,6 @@
       "installedAt": "2026-05-16T03:35:50.488Z",
       "updatedAt": "2026-07-18T07:34:33.595Z"
     },
-    "to-issues": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/engineering/to-issues/SKILL.md",
-      "skillFolderHash": "009fa705f959aa17805b6f7d2e6f2f96ec4157ce",
-      "installedAt": "2026-06-19T16:46:30.395Z",
-      "updatedAt": "2026-07-08T01:21:26.021Z"
-    },
-    "to-prd": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/engineering/to-prd/SKILL.md",
-      "skillFolderHash": "d74909eec8906ceb3341a9b30e2e51cdf62a67c7",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-06-19T16:46:30.779Z",
-      "updatedAt": "2026-07-03T20:56:48.650Z"
-    },
     "triage": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -651,6 +641,15 @@
       "skillFolderHash": "be3ab7f2d23fd1caf8e35ba0c4ac384cf44cd59e",
       "installedAt": "2026-07-17T11:18:44.465Z",
       "updatedAt": "2026-07-17T11:18:44.465Z"
+    },
+    "update-deps": {
+      "source": "backnotprop/plannotator",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
+      "skillPath": ".agents/skills/update-deps/SKILL.md",
+      "skillFolderHash": "413b965103f5492d7e3197c55224430b1321a49e",
+      "installedAt": "2026-07-18T21:55:44.677Z",
+      "updatedAt": "2026-07-18T21:55:44.677Z"
     },
     "using-design-skills": {
       "source": "ohyeh/agent-scripts",
