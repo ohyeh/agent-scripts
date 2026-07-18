@@ -47,7 +47,7 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   第一版實作計畫。階梯式升級（sonnet → orchestrator self → 第二腦（args.cli）→ 上呈 user）、
   證據鐵則（以 code/log/實際輸出為準，不採信記憶或舊 .md/.html）、內部 critic 共識
   迴圈後再經第二腦外部對抗 review，兩關都共識且經授權才寫出 plan 並 commit。
-  設計已經 codex 多輪對抗 review 至 AGREE。
+  設計已由當時的 counterpart reviewer 多輪對抗 review 至 AGREE。
 
 - **`pr-review-triage-resolve`**（⚠️ 設計存檔——**檔案尚未落地**：git 史、個人層、三台
   harvest 皆查無此檔；本條目是完成度高的設計 spec，落地前不可 `/name` 叫用）
@@ -59,7 +59,8 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   severity 升 T2 worker 評審團、T3 內部對抗＋第二腦（args.cli）外部共識）→ ④ 只修 accept（worker／
   self 階梯，修一條驗一條）→ ⑤ push 後**先寫 ledger 驗證可讀再** resolve 三類 thread
   （不留言）。**不走內建閉環**，下一輪＝手動重跑整支；跨輪去重靠 `isResolved=false`
-  過濾＋ledger 稽核。設計已經 codex 對抗 review（含實打 PR API 驗證）收斂。
+  過濾＋ledger 稽核。設計已由當時的 counterpart reviewer 對抗 review
+  （含實打 PR API 驗證）收斂。
   搭配腳本：**`scripts/pr/trigger-codex-review.sh`**（帳號守門＋嚴格 review rubric，
   可被 workflow 呼叫，也能 CLI 單獨手跑）。**本 repo 可直接跑的 args 範例見檔頭。**
 
