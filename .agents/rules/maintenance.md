@@ -60,17 +60,18 @@ Hard constraints (close the approval bypass):
   and run the periodic review above if it hasn't happened this quarter.
 
 ## §5 Canonical home & multi-device discipline
-- Canonical source = `~/.agents/rules/` on each machine, read on demand by both
-  runtimes per the routing table in the global files. NOT yet version-controlled.
-- Planned git home (ADR-0001, agent-scripts spinout): the public `agent-scripts`
-  repo, mirrored at `.agents/rules/`; deploy = `rsync -a --delete
-  <repo>/.agents/rules/ ~/.agents/rules/`. `lessons.md` stays LOCAL-ONLY — it is
-  never published to the public repo.
-- Until that repo exists: cross-machine transfer = copy the directory. Diverged
-  `lessons.md` merges by concatenating entries, then consolidating per §4.
-- The two global files are native per-runtime copies — edited together, kept
-  content-identical (same `Version:` line), never symlinked, never stored under
-  `~/.agents/rules/`.
-- Machine verification: `~/.agents/rules/` manifest matches the routing table,
-  both global files show the same `Version:`, and a new session's first reply
-  ends with the `✈` canary (see `rules/agent-environment-provisioning.md`).
+- Canonical source (ADR-0001, ACTIVE) = the public `agent-scripts` repo's
+  `.agents/rules/`. `~/.agents/rules/` on each machine is a deployed copy, read
+  on demand by both runtimes per the routing table in the global files.
+- Deploy = `rsync -a --delete --exclude lessons.md <repo>/.agents/rules/
+  ~/.agents/rules/`. The `--exclude lessons.md` is required — without it,
+  `--delete` would erase the machine's local lessons file. `lessons.md` stays
+  LOCAL-ONLY — it is never published to the public repo.
+- The two global files are canonical in the repo's `global/` directory,
+  deployed to their runtime paths (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`)
+  byte-identical, kept content-identical (same `Version:` line), never
+  symlinked, never stored under `~/.agents/rules/`.
+- Machine verification: each machine's runtime `~/.agents/rules/` and global
+  files match the repo's md5 for the same paths, both global files show the
+  same `Version:`, and a new session's first reply ends with the `✈` canary
+  (see `rules/agent-environment-provisioning.md`).
