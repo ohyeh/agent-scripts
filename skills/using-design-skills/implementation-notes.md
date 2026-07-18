@@ -20,7 +20,7 @@
   dispatch to codex-tmux workers.
 - Placement: ~/.agents/skills/using-design-skills — consistent with sibling
   using-* routers. CAVEAT: manually placed, NOT managed by ~/.agents/.skill-lock.json
-  (same class as the "手動放入" entries in the Skill Manifest artifact). Add to the
+  (same class as the "manually placed" entries in the Skill Manifest artifact). Add to the
   other two machines manually or via repo sync.
 - Delegation law is referenced, not restated: using-tmux-agent-tools (dispatch),
   delegation-templates (prompt shape), model-dispatch.md (tiers §5, verification §7).

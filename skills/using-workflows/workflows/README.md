@@ -1,194 +1,286 @@
-# Claude Code Dynamic Workflows（本目錄說明）
+# Claude Code Dynamic Workflows (this directory's guide)
 
-本目錄是 **Claude Code 原生探索 saved dynamic workflows 的位置**。放在這裡的
-workflow 腳本，clone 此 repo 的人都能直接以 `/<name>` 叫用。
+This directory is **where Claude Code natively discovers saved dynamic
+workflows**. Workflow scripts placed here can be invoked directly with
+`/<name>` by anyone who clones this repo.
 
-> 本檔是每支 recipe 的參考手冊。
+> This file is the reference manual for each recipe.
 
-> 需求：Claude Code **v2.1.154 以上**。dynamic workflows 在 Pro 需到 `/config` 開啟，
-> Max/Team/Enterprise 與 API 預設開啟。
+> Requirement: Claude Code **v2.1.154 or later**. Dynamic workflows need to be
+> enabled via `/config` on Pro; Max/Team/Enterprise and API have them on by
+> default.
 
-## 探索規則（官方）
+## Discovery rules (official)
 
-| 位置 | 範圍 | 可見性 |
+| Location | Scope | Visibility |
 | --- | --- | --- |
-| `.claude/workflows/`（本目錄，專案層） | 隨 repo 共享、版控 | 所有 clone 的人 |
-| `~/.claude/workflows/`（家目錄，個人層） | 每個專案都可用 | 只有自己 |
+| `.claude/workflows/` (this directory, project-level) | Shared with the repo, version-controlled | Everyone who clones it |
+| `~/.claude/workflows/` (home directory, personal-level) | Available in every project | Only you |
 
-- 兩處皆以 `/<name>` 呼叫；**同名時專案層優先**（會 shadow 個人層）。
-- **command 名稱的推導**：官方 docs 未明文定義 `<name>` 如何從檔名產生。本腳本
-  `meta.name = feature-plan-consensus`（穩定錨點）。本檔保留 `.workflow.js` 後綴以明示用途。
-  實際 slash command 字串請在 CLI 打 `/` 查看確認，不在此臆測；絕對 `scriptPath` 叫用
-  與檔名/命名推導無關，永遠可用。
+- Both locations are invoked with `/<name>`; **on a name collision, project-level wins** (it shadows the personal-level one).
+- **Deriving the command name**: the official docs don't explicitly define how `<name>` is derived from the filename. This script's `meta.name = feature-plan-consensus` (stable anchor). This file keeps the `.workflow.js` suffix to make its purpose explicit.
+  Check the actual slash-command string by typing `/` in the CLI — don't guess it from this doc; invoking by the absolute `scriptPath` is independent of filename/naming derivation and always works.
 
-## ⚠️ 哪些目錄「不」會被探索
+## ⚠️ Which directories are NOT discovered
 
-- `.workflow/`、`.workflow/recipes/` —— 這是 `codex-dynamic-workflows` **skill 自己**的
-  產物/範例慣例（一次性 run 的 plan/orchestration/report 存檔），**Claude Code 不會**
-  把它當 saved workflow 探索。要能 `/name` 叫用，一定要放在 `.claude/workflows/`。
+- `.workflow/`, `.workflow/recipes/` — these are conventions/artifacts belonging
+  to the `codex-dynamic-workflows` **skill itself** (one-off run plan/orchestration/report
+  archives); **Claude Code does not** discover them as saved workflows. To be
+  invokable via `/name`, a recipe must live under `.claude/workflows/`.
 
-## 如何使用
+## How to use
 
 ```text
-# 簡寫（本目錄被探索後）
+# Shorthand (once this directory is discovered)
 /feature-plan-consensus
 
-# 帶結構化參數（腳本以 global `args` 讀取）
+# With structured parameters (the script reads them via the global `args`)
 > Run /feature-plan-consensus on { repoPath: "...", featureBrief: "...", slug: "..." }
 
-# 或永遠可用的 canonical 絕對路徑（不依賴探索/命名）
+# Or the always-available canonical absolute path (independent of discovery/naming)
 Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {...} })
 ```
 
-## 本目錄現有 workflow
+## Workflows currently in this directory
 
-- **`feature-plan-consensus.workflow.js`** — supervised orchestration：把「新功能需求」轉成
-  第一版實作計畫。階梯式升級（sonnet → orchestrator self → 第二腦（args.cli）→ 上呈 user）、
-  證據鐵則（以 code/log/實際輸出為準，不採信記憶或舊 .md/.html）、內部 critic 共識
-  迴圈後再經第二腦外部對抗 review，兩關都共識且經授權才寫出 plan 並 commit。
-  設計已由當時的 counterpart reviewer 多輪對抗 review 至 AGREE。
+- **`feature-plan-consensus.workflow.js`** — supervised orchestration: turns a
+  "new feature brief" into a v1 implementation plan. Escalation ladder (sonnet →
+  orchestrator self → second brain (`args.cli`) → escalate to user), evidence
+  doctrine (trust code/logs/actual output, never memory or stale .md/.html),
+  internal critic consensus loop followed by external adversarial review from
+  the second brain — the plan is only written and committed once both gates
+  reach consensus and are authorized.
+  Design converged to AGREE after multiple rounds of adversarial review by the
+  counterpart reviewer at the time.
 
-- **`pr-review-triage-resolve`**（⚠️ 設計存檔——**檔案尚未落地**：git 史、個人層、三台
-  harvest 皆查無此檔；本條目是完成度高的設計 spec，落地前不可 `/name` 叫用）
-  — 一次性 PR review 處理流程：⓪ 大腦先獨立
-  讀 diff＋ledger 建 code 真相 → ① 用 `scripts/pr/trigger-codex-review.sh` 召 review
-  bot 並 detached-poll 等回（minGrace 先硬等、以 baseline thread-id 快照判新留言）→
-  ② 只收 bot 的、未 resolved 的新 thread（人類留言一律不碰）→ ③ TRIAGE 每條對撞
-  code 真相判 accept／already-fixed／reject（severity 自評不吃 bot 標；低信心或高
-  severity 升 T2 worker 評審團、T3 內部對抗＋第二腦（args.cli）外部共識）→ ④ 只修 accept（worker／
-  self 階梯，修一條驗一條）→ ⑤ push 後**先寫 ledger 驗證可讀再** resolve 三類 thread
-  （不留言）。**不走內建閉環**，下一輪＝手動重跑整支；跨輪去重靠 `isResolved=false`
-  過濾＋ledger 稽核。設計已由當時的 counterpart reviewer 對抗 review
-  （含實打 PR API 驗證）收斂。
-  搭配腳本：**`scripts/pr/trigger-codex-review.sh`**（帳號守門＋嚴格 review rubric，
-  可被 workflow 呼叫，也能 CLI 單獨手跑）。**本 repo 可直接跑的 args 範例見檔頭。**
+- **`pr-review-triage-resolve`** (⚠️ design archive — **the file has not been
+  landed yet**: not found in git history, personal-level, or the 3-machine
+  harvest; this entry is a high-completeness design spec, not invokable via
+  `/name` before it lands)
+  — a one-shot PR review handling flow: ⓪ the brain first independently reads
+  the diff + ledger to establish code ground truth → ① calls
+  `scripts/pr/trigger-codex-review.sh` to summon the review bot and
+  detached-polls for its reply (hard-waits `minGrace` first, then diffs
+  against a baseline thread-id snapshot to detect new comments) → ② only
+  ingests the bot's own new, unresolved threads (never touches human
+  comments) → ③ TRIAGE: cross-checks every thread against code ground truth
+  and rules accept / already-fixed / reject (the bot's own severity label is
+  never taken at face value; low-confidence or high-severity findings escalate
+  to a T2 worker review panel, then T3 internal adversarial review + external
+  consensus via the second brain (`args.cli`)) → ④ only fixes accepted items
+  (worker/self escalation ladder, verify each fix as it lands) → ⑤ after
+  pushing, **first confirms the ledger is readable, then** resolves the three
+  thread categories (no comment left behind). **Does not run the built-in
+  closed loop** — the next round means manually re-running the whole recipe;
+  cross-round dedupe relies on filtering `isResolved=false` plus a ledger
+  audit. Design converged through adversarial review by the counterpart
+  reviewer at the time (including live PR API verification).
+  Paired script: **`scripts/pr/trigger-codex-review.sh`** (account gatekeeping
+  + a strict review rubric; callable from the workflow or run standalone from
+  the CLI). **See the file header for args examples runnable directly in this
+  repo.**
 
-- **`plan-pipeline.workflow.js`** — 規劃專用管線（刻意**不含 build**）：① direction
-  （goal_doc）→ ② frozen plan（plan-<slug>.md）→ ③ ADRs——每份 artifact 由第二腦
-  （args.cli）起草、經其對抗 review 至 CLEAN（0 Critical/0 Major）才凍結 → commit/push 文件。
-  全參數化（slug/brief/輸出路徑/review 輪數），完成訊號一律輪詢輸出檔。與
-  `project-direction-review` 互補（那支回答「往哪走」、這支凍結「怎麼做」）；
-  後續 build 交給 `spec-implement-dual-review-verify`。**args 範例見檔頭。**
+- **`plan-pipeline.workflow.js`** — a planning-only pipeline (deliberately
+  **excludes build**): ① direction (`goal_doc`) → ② frozen plan
+  (`plan-<slug>.md`) → ③ ADRs — each artifact is drafted by the second brain
+  (`args.cli`) and only frozen once its own adversarial review reaches CLEAN
+  (0 Critical/0 Major) → then the docs are committed/pushed. Fully
+  parameterized (slug/brief/output paths/review rounds), completion is always
+  signaled by polling output files. Complements `project-direction-review`
+  (that one answers "which direction"; this one freezes "how"); the
+  subsequent build is handed off to `spec-implement-dual-review-verify`.
+  **See the file header for args examples.**
 
-- **`feature-lifecycle-auto.workflow.js`** — 頂層薄殼（零業務邏輯）：PLAN（explore＝
-  feature-plan-consensus｜frozen＝plan-pipeline）→ gate（plan 沒過共識/凍結就停）→
-  BUILD（可選，spec-implement-dual-review-verify）。`autoBuild` 預設 false——閘門處
-  停下讓人先讀 plan。已在頂層用掉唯一一層 workflow() nesting，不可再被嵌套。
-  檔頭記錄了 top-level args 掉失的 harness bug 與 JOB FILE 替代通道。**args 範例見檔頭。**
+- **`feature-lifecycle-auto.workflow.js`** — a thin top-level shell (zero
+  business logic): PLAN (explore = feature-plan-consensus | frozen =
+  plan-pipeline) → gate (stops if the plan doesn't reach consensus/freeze) →
+  BUILD (optional, spec-implement-dual-review-verify). `autoBuild` defaults to
+  false — it stops at the gate so a human reads the plan first. It already
+  uses the one allowed layer of `workflow()` nesting at the top level and must
+  not be nested further. The file header documents the harness bug where
+  top-level args get dropped, and the JOB FILE fallback channel.
+  **See the file header for args examples.**
 
-- **`consensus-gate.workflow.js`** — 最小可複用 primitive：
-  把「丟提案 → 驅動第二模型拿高 effort 共識 → 回傳結構化裁決」收成單一呼叫。reviewer
-  由 `args.cli` 指定（codex／claude／agy／任何 `~/.config/agent-tmux/profiles` 條目——
-  異質 reviewer 是設定檔的事，不是 recipe 的事），透過 agent-tmux 驅動，回傳
-  `{ ok, verdict, consensus(agree/agree_with_changes/disagree/unclear), notes }` 與
-  `passed` 旗標。**完成訊號用「輪詢輸出檔（含 marker）」而非比中 pane**——避免 marker
-  在送出 prompt 裡被 echo 誤判（本專案實戰踩過兩次的坑）。**args 範例見檔頭。**
+- **`consensus-gate.workflow.js`** — the minimal reusable primitive: collapses
+  "hand over a proposal → drive a second model to a high-effort consensus →
+  return a structured verdict" into a single call. The reviewer is specified
+  by `args.cli` (codex/claude/agy/any entry under
+  `~/.config/agent-tmux/profiles` — heterogeneous reviewers are a config
+  concern, not a recipe concern), driven via agent-tmux, and returns
+  `{ ok, verdict, consensus(agree/agree_with_changes/disagree/unclear), notes }`
+  plus a `passed` flag. **Completion is signaled by polling an output file
+  (with a marker), never by pattern-matching the pane** — this avoids the
+  marker being echoed back in the submitted prompt and misread as done (a
+  pitfall this project hit twice in practice). **See the file header for args
+  examples.**
 
-- **`spec-implement-dual-review-verify.workflow.js`** — 功能開發主力管線：實作 spec →
-  第二模型（`args.cli`，REQUIRED）＋claude **平行雙審** → 只採真實且 in-spec 的修正 →
-  跑 `verifyCommands` 驗證並貼輸出。三階段（Implement／Review／Finalize），實作 agent
-  回 null 即早退。第二模型經 agent-tmux 驅動（輪詢輸出檔偵測完成）。兩個 reviewer
-  對稱偵測：各自回 null 都 log 降級、return 帶 `external_available`／`claude_available`，
-  兩個都掛則在 Finalize 前 abort；finalize agent 回 null 也 abort（不把未驗證實作報成
-  完成）。第二模型補審 2 輪至 AGREE。**args 範例見檔頭。**
+- **`spec-implement-dual-review-verify.workflow.js`** — the main feature-build
+  pipeline: implement the spec → **parallel dual review** by a second model
+  (`args.cli`, REQUIRED) and claude → only accept fixes that are real and
+  in-spec → run `verifyCommands` and paste the output. Three phases
+  (Implement/Review/Finalize); the implementation agent returning null exits
+  early. The second model is driven via agent-tmux (completion detected by
+  polling an output file). Both reviewers degrade symmetrically: either
+  returning null logs a downgrade and the return carries
+  `external_available`/`claude_available`; if both are down it aborts before
+  Finalize; the finalize agent returning null also aborts (never reports an
+  unverified implementation as done). The second model gets up to 2 more
+  review rounds to reach AGREE. **See the file header for args examples.**
 
-- **`docs-vs-code-audit.workflow.js`** — 文件維運：拿 `docs/` 每份文件對**程式碼真相**
-  逐條查核（唯讀稽核員回 FINDINGS_SCHEMA）→ 同 scope 修補員就地改（修前再驗一次、可
-  反駁就跳過、delete-candidate 只記不刪）→ 單一 agent 做全 docs/ 跨檔一致性掃（連結
-  完整性、跨檔矛盾、banned residue、索引準確）。按 `groups` 切 scope、各組以
-  `pipeline` 平行流動。group key 在 pipeline 內就綁進回傳（不靠事後 index，避免任一
-  組 null 時標籤錯位）。契合「真相＝程式碼非舊文件」教條。**args 範例見檔頭。**
+- **`docs-vs-code-audit.workflow.js`** — docs maintenance: checks every
+  document in `docs/` against **code ground truth** line by line (a read-only
+  auditor returns FINDINGS_SCHEMA) → an in-scope patcher fixes issues in place
+  (re-verifies right before each fix, skips anything it can rebut,
+  delete-candidates are only logged, never deleted) → a single agent runs a
+  cross-file consistency sweep over all of `docs/` (link integrity,
+  cross-file contradictions, banned residue, index accuracy). Scope is split
+  by `groups`, each group flows in parallel via `pipeline`. The group key is
+  bound into the return value inside the pipeline itself (not attached
+  after the fact by index, which would misalign labels if any group returns
+  null). Aligned with the "truth = code, never stale docs" doctrine.
+  **See the file header for args examples.**
 
-- **`root-cause-deep-dive-audit.workflow.js`** — 除錯偵查：給一個 bug 症狀，① 一個 agent
-  發散 N 個候選根因（MECE）→ ②③ 每個假設以 `pipeline` 獨立流：找證據（file:line）→
-  supported 者派 `VOTES` 個**對抗式驗證者**（盡量反駁、證據弱即 refuted）→ ④ 收斂排序、
-  解釋因果鏈、給治根最小修正。survivor＝反駁票 < 多數決。`N`／`VOTES` 以 `Math.max(1,…)`
-  防退化；**fail-closed 計票**：失敗的驗證者算反駁票，缺驗證撐不過（避免零驗證 silent
-  pass）；證據 agent 失敗標 `unevaluated`、部分驗證標 `verify_incomplete`，都上呈不靜默。
-  codex review 2 輪至 AGREE。**args 範例見檔頭。**
+- **`root-cause-deep-dive-audit.workflow.js`** — debugging investigation:
+  given a bug symptom, ① one agent diverges into N candidate root causes
+  (MECE) → ②③ each hypothesis flows independently via `pipeline`: gather
+  evidence (file:line) → supported ones get `VOTES` **adversarial
+  verifiers** (each tries hard to refute; weak evidence gets refuted) → ④
+  converge, rank, explain the causal chain, and give the minimal root-cause
+  fix. A survivor = refute votes < majority. `N`/`VOTES` are floored with
+  `Math.max(1,…)` to prevent degeneration; **fail-closed vote counting**: a
+  failed verifier counts as a refute vote, so missing verification can't carry
+  a hypothesis through (prevents a silent pass with zero verification); a
+  failed evidence agent is tagged `unevaluated`, partial verification is
+  tagged `verify_incomplete`, both are surfaced rather than silently dropped.
+  2 rounds of codex review to reach AGREE. **See the file header for args
+  examples.**
 
-- **`design-consensus.workflow.js`** — 設計共識 judge panel（域無關）：N 個獨立設計者
-  各從一個指定 angle 提案 → 互相 adversarial cross-attack（找真實使用情境下的失效點，
-  並點名值得留下的部分）→ judge 合成一份「會真的出貨」的共識 spec（明列被否決者與原因）。
-  領域細節全放 `args.context`（必填：背景＋任務＋硬限制）；`angles`／`outputLanguage`／
-  `synthesisSpec` 可覆寫。proposer 掛掉降級續跑（<2 存活即 abort）、attacker 掛掉該提案
-  標記「未受審」讓 judge 提高懷疑權重、synthesis 掛掉 abort 不以半成品充數。
-  收成自 aurora-reader-homepage-consensus 一次性 run。**args 範例見檔頭。**
+- **`design-consensus.workflow.js`** — a domain-agnostic design consensus
+  judge panel: N independent designers each propose from an assigned angle →
+  mutual adversarial cross-attack (find real-world failure points and call
+  out the parts worth keeping) → a judge synthesizes one consensus spec that
+  would actually ship (explicitly lists what was rejected and why). All
+  domain detail lives in `args.context` (required: background + task + hard
+  constraints); `angles`/`outputLanguage`/`synthesisSpec` are overridable. A
+  dead proposer degrades gracefully (aborts if fewer than 2 survive), a dead
+  attacker gets that proposal flagged "unreviewed" so the judge weighs it
+  with more suspicion, a dead synthesis step aborts rather than shipping a
+  half-finished result. Harvested from a one-off
+  aurora-reader-homepage-consensus run. **See the file header for args
+  examples.**
 
-- **`project-direction-review.workflow.js`** — 專案方向盤點（域無關）：Understand（5 個
-  並行 readers 掃 plans／pending decisions／runtime health／constraints-lessons／
-  consumer-gaps，預設用探索式 prompt、可用 `args.readers` 換成專案特化版）→ Design
-  （每個 lens 一份方向提案，預設 quality-first／consumer-first／automation-first）→
-  Synthesize（合成單一 prioritized roadmap：P0/P1/P2、gate 標註、風險與里程碑）。
-  reader 掛掉標記「證據 PARTIAL」注入下游 prompt（不當作沒事）、全掛才 abort。
-  與 `plan-pipeline`（凍結計畫）互補：這支產「往哪走」，那支產「怎麼做」。
-  收成自 aurora-future-direction-plan 一次性 run。**args 範例見檔頭。**
+- **`project-direction-review.workflow.js`** — domain-agnostic project
+  direction review: Understand (5 parallel readers scan plans/pending
+  decisions/runtime health/constraints-lessons/consumer-gaps, using an
+  exploratory prompt by default, swappable for a project-specific one via
+  `args.readers`) → Design (each lens proposes one direction, defaulting to
+  quality-first/consumer-first/automation-first) → Synthesize (merges into a
+  single prioritized roadmap: P0/P1/P2, gate annotations, risks and
+  milestones). A dead reader is tagged "evidence PARTIAL" and fed into
+  downstream prompts (never treated as if nothing happened); it only aborts
+  if all readers die. Complements `plan-pipeline` (frozen plan): this one
+  produces "which direction," that one produces "how." Harvested from a
+  one-off aurora-future-direction-plan run. **See the file header for args
+  examples.**
 
-- **`design-vs-code-audit.workflow.js`** — 設計稿 vs 程式碼 drift 稽核（域無關）：
-  `docs-vs-code-audit` 的姊妹篇——那支的真相是 code、對象是舊文件；這支的目標是設計稿
-  （Figma／mockup／凍結 spec）、對象是現行 code。按 `sections` 分區，每區一個 finder
-  （七類 drift taxonomy：MISSING/HALF_DONE/STATE_MACHINE/OVERLAP/ORDER/TEXT/STYLE）→
-  每條 finding 逐一 adversarial verify（isReal／isDesignWip／severity／fixHint）。
-  **design-WIP 三態**（`wip: false/'partial'/true`）：設計稿本身未完成時，缺元件不算
-  code bug——這是文件稽核沒有的維度。fail-closed：finder 掛掉該區標 UNAUDITED（不是
-  clean）、verifier 掛掉該條進 `unverified` bucket 上呈（不靜默丟棄）。audit-only
-  （scout）；後續修復走檔頭註記的 partitioned-fix 模式（所有權互斥、SKIP+report、
-  缺 asset/欄位不發明）或餵 `spec-implement-dual-review-verify`。
-  收成自 REDACTED-ACCOUNT 機的 health-coin figma 五支家族。**args 範例見檔頭。**
+- **`design-vs-code-audit.workflow.js`** — design-vs-code drift audit
+  (domain-agnostic): the sibling of `docs-vs-code-audit` — that one treats
+  code as ground truth and docs as the audit target; this one treats the
+  design (Figma/mockup/frozen spec) as ground truth and current code as the
+  audit target. Split into regions by `sections`, one finder per region
+  (a seven-category drift taxonomy: MISSING/HALF_DONE/STATE_MACHINE/
+  OVERLAP/ORDER/TEXT/STYLE) → each finding gets adversarially verified
+  one by one (isReal/isDesignWip/severity/fixHint). **Three-state design-WIP**
+  (`wip: false/'partial'/true`): when the design itself is unfinished, a
+  missing component doesn't count as a code bug — a dimension docs audits
+  don't have. Fail-closed: a dead finder tags its region UNAUDITED (never
+  "clean"), a dead verifier puts that finding in the `unverified` bucket and
+  surfaces it (never silently drops it). Audit-only (a scout); follow-up
+  fixes go through the partitioned-fix pattern noted in the file header
+  (mutually exclusive ownership, SKIP+report, never invent missing
+  assets/fields) or feed into `spec-implement-dual-review-verify`. Harvested
+  from the health-coin Figma five-recipe family on the REDACTED-ACCOUNT machine.
+  **See the file header for args examples.**
 
-- **`workflow-manifest.workflow.js`** — 艦隊 workflow 快照產生器（Phase 7「再生」）：
-  Scan（每台機器一個 agent，遠端走 ssh BatchMode：recipes＋`_lib`＋agents＋排氣 base
-  names）→ Classify（Q1–Q5 五路判定樹**內嵌於 recipe**，每次重跑同一把尺；
-  `priorJudgments` 讓已定案標籤不被翻案）→ Render（讀 `templatePath` 逐字繼承設計
-  token 系統，寫出六節 Workflow Manifest HTML 到 `outPath`）。fail-closed：掃描死
-  標 `unscanned`（不是乾淨）、判定死該台排氣渲染為 UNTAGGED（不隱藏）、渲染死帶完整
-  payload abort。**發佈在 recipe 外**：script 無 Artifact tool，回傳 `publishHint`
-  由主迴圈一行接手。收成自本 repo 的手工 manifest 產程。**args 範例見檔頭。**
+- **`workflow-manifest.workflow.js`** — fleet workflow snapshot generator
+  (Phase 7 "regeneration"): Scan (one agent per machine, remote ones go over
+  SSH BatchMode: recipes + `_lib` + agents + exhausted base names) → Classify
+  (a Q1–Q5 five-way decision tree **inlined in the recipe**, the same ruler
+  applied on every re-run; `priorJudgments` prevents already-settled labels
+  from flip-flopping) → Render (reads `templatePath` and inherits the design
+  token system verbatim, writes a six-section Workflow Manifest HTML to
+  `outPath`). Fail-closed: a dead scan tags a machine `unscanned` (never
+  "clean"), a dead classification renders that machine UNTAGGED (never
+  hidden), a dead render aborts with the full payload attached.
+  **Publishing happens outside the recipe**: the script has no Artifact tool,
+  it returns a `publishHint` for the main loop to act on in one line.
+  Harvested from this repo's manual manifest-generation process. **See the
+  file header for args examples.**
 
-- **`findings-triage.workflow.js`** — 閉環接頭①：把稽核 recipe 的 confirmed findings
-  自動路由成下一輪的輸入。路由表＝`_lib/findings-schema.js` 的 action 語意：
-  `ask-user` 呈給人（機器不代決意圖）、`no-op` 記錄、`auto-fix` 依**根因分群**——
-  同根因 ≥`clusterMin`（預設 2）條合寫一份迷你 PRD（問題/為什麼現在/範圍/不碰什麼/
-  完成判準）直餵 `feature-lifecycle-auto`，單發 finding 進 directFix 清單走
-  partitioned-fix 直修。fail-closed 底線是「一條不丟」：clusterer 死 → 全部降級
-  directFix（失路由精度不失資料）；brief writer 死 → cluster 進 `unbriefedClusters`；
-  `maxBriefs` 溢出進 directFix。接頭②（re-audit 停止條件）在呼叫端：修完用**同參數**
-  重跑原稽核，confirmed 歸零＝收斂。**args 範例見檔頭。**
+- **`findings-triage.workflow.js`** — closed-loop connector ①: automatically
+  routes an audit recipe's confirmed findings into the next round's input.
+  The routing table is the action semantics of `_lib/findings-schema.js`:
+  `ask-user` escalates to a human (the machine never decides intent on the
+  user's behalf), `no-op` just logs, `auto-fix` clusters **by root cause** —
+  when a shared root cause has ≥ `clusterMin` (default 2) findings, they're
+  written together into one mini-PRD (problem/why-now/scope/out-of-scope/
+  done-criteria) and fed straight into `feature-lifecycle-auto`; a singleton
+  finding goes into the directFix list for a direct partitioned-fix. The
+  fail-closed floor is "never drop a finding": a dead clusterer degrades
+  everything to directFix (loses routing precision, never loses data); a
+  dead brief writer puts the cluster into `unbriefedClusters`; overflow past
+  `maxBriefs` goes to directFix. Closed-loop connector ② (the re-audit stop
+  condition) lives on the caller's side: after fixes land, re-run the
+  original audit with the **same args**; confirmed findings hitting zero =
+  converged. **See the file header for args examples.**
 
-## 共用 helper：`_lib/safe.js`
+## Shared helper: `_lib/safe.js`
 
-silent-failure 三招（`coalesceNull`／`nullIndices`／`failClosedRefutes`）的**正本**在 `_lib/safe.js`。
-因 workflow script 為 self-contained（runtime 不支援 import），各 recipe 以 `// ── SAFE_LIB ──`
-標記**逐字內嵌**同一份；正本改動後用 `grep -rl SAFE_LIB .claude/workflows` 找出所有副本同步。
-目前內嵌者：`root-cause-deep-dive-audit`（failClosedRefutes）、`docs-vs-code-audit`
-（coalesceNull＋nullIndices）、`design-consensus`／`project-direction-review`／
-`design-vs-code-audit`（nullIndices）、`workflow-manifest`／`findings-triage`
-（coalesceNull＋nullIndices）。詳見
-`.claude/memory/lessons.md` L1。
+The **canonical source** of the three silent-failure guards
+(`coalesceNull`/`nullIndices`/`failClosedRefutes`) lives in `_lib/safe.js`.
+Because workflow scripts are self-contained (the runtime doesn't support
+`import`), each recipe embeds the same code **verbatim**, marked with
+`// ── SAFE_LIB ──`; after editing the canonical copy, run
+`grep -rl SAFE_LIB .claude/workflows` to find every copy that needs syncing.
+Recipes currently embedding it: `root-cause-deep-dive-audit`
+(failClosedRefutes), `docs-vs-code-audit` (coalesceNull + nullIndices),
+`design-consensus`/`project-direction-review`/`design-vs-code-audit`
+(nullIndices), `workflow-manifest`/`findings-triage`
+(coalesceNull + nullIndices). See `.claude/memory/lessons.md` L1 for details.
 
-另有 **`_lib/worker-doctrine.md`**：multi-agent 實作型 workflow 的 COMMON preamble
-正本（anchoring／hard tool mapping／語言 traps／scope fence／report contract 含
-`DECISIONS-NOT-IN-SPEC` schema／verify 收尾）。prompt 片段用複製的，不是 import；
-收成自 room-* 家族實戰 run。
+There is also **`_lib/worker-doctrine.md`**: the canonical source for the
+COMMON preamble used by multi-agent implementation workflows (anchoring/hard
+tool mapping/language traps/scope fence/report contract including the
+`DECISIONS-NOT-IN-SPEC` schema/verify wrap-up). Prompt fragments are copied,
+not imported; harvested from real runs of the room-* family.
 
-與 **`_lib/findings-schema.js`**：**新**稽核/review recipe 的 finding/verdict 標準形
-（severity: error/warning/info ＋ action: no-op/auto-fix/ask-user ＋ risk_level，
-形狀借鑑 no-mistakes review step；ask-user 保留給「挑戰作者意圖」的 finding）。
-既有 recipe 維持已過 review 的 schema，不追溯改——要 retrofit 得先過 review gate。
+And **`_lib/findings-schema.js`**: the standard finding/verdict shape for
+**new** audit/review recipes (severity: error/warning/info + action:
+no-op/auto-fix/ask-user + risk_level, shape borrowed from the no-mistakes
+review step; `ask-user` is reserved for findings that "challenge the
+author's intent"). Existing recipes keep whatever schema already passed
+review and are not retrofitted retroactively — a retrofit has to clear the
+review gate first.
 
-## 正本與同步
+## Canonical copy and sync
 
-此目錄是 workflow 腳本的**團隊用快照**,供 clone 本 repo 的人直接 `/<name>` 叫用。
-它不是編輯起點:改動應發生在來源端,再由一條獨立的 SYNC 管道流入本目錄(管道規劃中;
-在它就緒前以手動複製對齊,兩份為獨立副本、不會自動同步)。因此請勿直接在此編輯作為改動源。
+This directory is a **team-facing snapshot** of the workflow scripts, for
+anyone who clones this repo to invoke directly via `/<name>`. It is not the
+editing starting point: changes should happen at the source, then flow into
+this directory through a separate SYNC channel (planned; until it's ready,
+alignment is manual copy — the two copies are independent and do not
+auto-sync). So please do not edit directly here as the source of a change.
 
-另有一份**部署快照**在 `skills/using-workflows/workflows/`(供 skill 單獨散佈時
-一鍵安裝用,`scripts/install.sh`)。本目錄更新後記得 `cp -R .claude/workflows/.
-skills/using-workflows/workflows/` 對齊。
+There is also a **deployment snapshot** at
+`skills/using-workflows/workflows/` (for one-click install when the skill is
+distributed standalone, via `scripts/install.sh`). After updating this
+directory, remember to run
+`cp -R .claude/workflows/. skills/using-workflows/workflows/` to keep them
+aligned.
 
-## 來源
+## Sources
 
-- Claude Code Docs — Orchestrate subagents at scale with dynamic workflows：
+- Claude Code Docs — Orchestrate subagents at scale with dynamic workflows:
   https://code.claude.com/docs/en/workflows
-- Anthropic — Introducing dynamic workflows in Claude Code：
+- Anthropic — Introducing dynamic workflows in Claude Code:
   https://claude.com/blog/introducing-dynamic-workflows-in-claude-code

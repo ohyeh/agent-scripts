@@ -5,7 +5,7 @@ scripts are self-contained): copy the relevant blocks into your recipe's `COMMON
 template string and fill the `<...>` slots. Harvested from the proven room-* run
 family (room-feature-implementation / room-phase2-backends, v0.19→0.20 era).
 
-## 1. Anchoring（每個 worker prompt 開頭）
+## 1. Anchoring (start of every worker prompt)
 
 ```
 Repo: <ROOT>, branch <BRANCH> (already checked out — do NOT switch branches).
@@ -13,8 +13,9 @@ AUTHORITATIVE SPEC: <spec path> — read it FULLY before coding; where sections
 conflict, the newer/harder section overrides.
 ```
 
-要點：branch 用「已 checkout、禁止切換」語氣釘死；spec 衝突的解決規則寫在 preamble，
-不留給 worker 猜。
+Key point: pin the branch down with "already checked out, do not switch" language;
+the rule for resolving spec conflicts is written into the preamble, not left for
+the worker to guess.
 
 ## 2. Hard tool mapping
 
@@ -24,7 +25,7 @@ NEVER use find/grep/sed/awk/ag/ack.
 All JSON output strictly via jq -n --arg/--argjson (printf-assembled JSON is forbidden).
 ```
 
-## 3. Language traps（zsh 版；其他語言仿此格式列「已知踩過的坑」）
+## 3. Language traps (zsh version; list "known pitfalls hit before" in this format for other languages)
 
 ```
 Known zsh traps you MUST respect:
@@ -36,8 +37,8 @@ Known zsh traps you MUST respect:
 (4) empty-dir globs need (N) nullglob.
 ```
 
-要點：traps 是**這個 codebase 實戰踩過的坑**，不是通用 lint 規則——每次收割新的坑
-就補進對應語言的 trap 清單。
+Key point: these traps are **pitfalls actually hit in this codebase**, not generic
+lint rules — every time you harvest a new one, add it to that language's trap list.
 
 ## 4. Scope fence
 
@@ -48,9 +49,10 @@ Do NOT edit <out-of-scope area>; if you find a bug there, report it in
 decisions_not_in_spec instead of fixing.
 ```
 
-要點：「發現界外 bug → 回報不修」是防 scope creep 的關鍵句。
+Key point: "found a bug out of scope → report it, don't fix it" is the key sentence
+that guards against scope creep.
 
-## 5. Report contract（worker 最終輸出）
+## 5. Report contract (worker's final output)
 
 ```
 Your final text is data for the orchestrator, not a human-facing message. Report:
@@ -60,7 +62,7 @@ Your final text is data for the orchestrator, not a human-facing message. Report
 (3) how you self-verified (commands + results).
 ```
 
-搭配 schema（強制 worker 交代 spec 外決策，orchestrator 據此追審）：
+Paired with a schema (forces the worker to account for out-of-spec decisions, which the orchestrator then audits):
 
 ```js
 const REPORT_SCHEMA = {
@@ -75,10 +77,11 @@ const REPORT_SCHEMA = {
 }
 ```
 
-要點：`decisions_not_in_spec` 是整套 doctrine 的靈魂——spec 再凍結，實作一定有
-judgment calls；不逼 worker 自首，這些偏差就會沉默地進 main。
+Key point: `decisions_not_in_spec` is the soul of the whole doctrine — no matter how
+frozen the spec is, implementation always involves judgment calls; without forcing
+the worker to confess them, those deviations slip silently into main.
 
-## 6. Verify 收尾（最後一個 agent 的固定形狀）
+## 6. Verify wrap-up (fixed shape for the last agent in the chain)
 
 ```
 Run <all relevant smoke/lint suites>, capturing pass/fail counts. If something
@@ -86,7 +89,7 @@ fails, FIX it (respecting the traps above) and re-run until green, committing
 fixes. Report final per-suite counts + git log --oneline <base>..HEAD.
 ```
 
-## 組裝範例
+## Assembly example
 
 ```js
 const COMMON = `
