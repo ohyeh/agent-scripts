@@ -37,6 +37,15 @@
       "installedAt": "2026-06-19T16:46:27.513Z",
       "updatedAt": "2026-07-14T12:23:59.198Z"
     },
+    "batch-grill-me": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/in-progress/batch-grill-me/SKILL.md",
+      "skillFolderHash": "f2c0125db05db4d8f905a9423af308c476e2e4d5",
+      "installedAt": "2026-07-18T20:49:31.170Z",
+      "updatedAt": "2026-07-18T20:49:31.170Z"
+    },
     "brainstorming": {
       "source": "obra/superpowers",
       "sourceType": "github",
@@ -253,6 +262,87 @@
       "installedAt": "2026-07-03T21:01:52.866Z",
       "updatedAt": "2026-07-14T12:24:58.148Z"
     },
+    "gsap-core": {
+      "source": "greensock/gsap-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/greensock/gsap-skills.git",
+      "skillPath": "skills/gsap-core/SKILL.md",
+      "skillFolderHash": "135754edd728103e329a8df8b471b197375b370e",
+      "installedAt": "2026-07-18T20:47:52.634Z",
+      "updatedAt": "2026-07-18T20:47:52.634Z"
+    },
+    "gsap-frameworks": {
+      "source": "greensock/gsap-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/greensock/gsap-skills.git",
+      "skillPath": "skills/gsap-frameworks/SKILL.md",
+      "skillFolderHash": "5b086fa623be801882128fa16b2a9b446d193029",
+      "installedAt": "2026-07-18T20:47:52.636Z",
+      "updatedAt": "2026-07-18T20:47:52.636Z"
+    },
+    "gsap-performance": {
+      "source": "greensock/gsap-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/greensock/gsap-skills.git",
+      "skillPath": "skills/gsap-performance/SKILL.md",
+      "skillFolderHash": "34dec2f051872f8d02df06de97450e448bac9c5e",
+      "installedAt": "2026-07-18T20:47:52.636Z",
+      "updatedAt": "2026-07-18T20:47:52.636Z"
+    },
+    "gsap-plugins": {
+      "source": "greensock/gsap-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/greensock/gsap-skills.git",
+      "skillPath": "skills/gsap-plugins/SKILL.md",
+      "skillFolderHash": "e31ccbdb75cf41f0e7df0fec567f6e07956eaca9",
+      "installedAt": "2026-07-18T20:47:52.637Z",
+      "updatedAt": "2026-07-18T20:47:52.637Z"
+    },
+    "gsap-react": {
+      "source": "greensock/gsap-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/greensock/gsap-skills.git",
+      "skillPath": "skills/gsap-react/SKILL.md",
+      "skillFolderHash": "ac01a338b96fddbc6cf65a89858d2e6068887b39",
+      "installedAt": "2026-07-18T20:47:52.637Z",
+      "updatedAt": "2026-07-18T20:47:52.637Z"
+    },
+    "gsap-scrolltrigger": {
+      "source": "greensock/gsap-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/greensock/gsap-skills.git",
+      "skillPath": "skills/gsap-scrolltrigger/SKILL.md",
+      "skillFolderHash": "7838f515e05bfab0a79dd63368a409ddc7d76ee6",
+      "installedAt": "2026-07-18T20:47:52.637Z",
+      "updatedAt": "2026-07-18T20:47:52.637Z"
+    },
+    "gsap-timeline": {
+      "source": "greensock/gsap-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/greensock/gsap-skills.git",
+      "skillPath": "skills/gsap-timeline/SKILL.md",
+      "skillFolderHash": "37eb5d623c3e14367864d57160acb64f13950994",
+      "installedAt": "2026-07-18T20:47:52.638Z",
+      "updatedAt": "2026-07-18T20:47:52.638Z"
+    },
+    "gsap-utils": {
+      "source": "greensock/gsap-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/greensock/gsap-skills.git",
+      "skillPath": "skills/gsap-utils/SKILL.md",
+      "skillFolderHash": "3f7aa617dd2dc7ebf21f30349b9c7b6d8640d789",
+      "installedAt": "2026-07-18T20:47:52.638Z",
+      "updatedAt": "2026-07-18T20:47:52.638Z"
+    },
+    "high-end-visual-design": {
+      "source": "Leonxlnx/taste-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
+      "skillPath": "skills/soft-skill/SKILL.md",
+      "skillFolderHash": "1b5943432ddd1b980206968c529a323cc992dbec",
+      "installedAt": "2026-07-18T20:49:17.058Z",
+      "updatedAt": "2026-07-18T20:49:17.058Z"
+    },
     "html": {
       "source": "plannotator/effective-html",
       "sourceType": "github",
@@ -371,6 +461,15 @@
       "installedAt": "2026-06-19T16:46:27.524Z",
       "updatedAt": "2026-07-14T12:24:32.477Z"
     },
+    "obsidian-vault": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/personal/obsidian-vault/SKILL.md",
+      "skillFolderHash": "5fdd257588fefa400e8a0d505aac555a0b52311a",
+      "installedAt": "2026-07-18T20:49:31.175Z",
+      "updatedAt": "2026-07-18T20:49:31.175Z"
+    },
     "oracle": {
       "source": "steipete/oracle",
       "sourceType": "github",
@@ -425,6 +524,15 @@
       "skillFolderHash": "0f6e2438f6037ae4a4e45410d26daca6d61141d2",
       "installedAt": "2026-04-23T08:33:35.735Z",
       "updatedAt": "2026-04-23T08:33:35.735Z"
+    },
+    "redesign-existing-projects": {
+      "source": "Leonxlnx/taste-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
+      "skillPath": "skills/redesign-skill/SKILL.md",
+      "skillFolderHash": "d9cffe56d26d4af7687299e391a7be1cfaf46c1b",
+      "installedAt": "2026-07-18T20:49:17.057Z",
+      "updatedAt": "2026-07-18T20:49:17.057Z"
     },
     "refactor": {
       "source": "github/awesome-copilot",
@@ -534,6 +642,15 @@
       "installedAt": "2026-06-19T16:46:27.525Z",
       "updatedAt": "2026-07-14T12:24:37.078Z"
     },
+    "setup-ts-deep-modules": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/in-progress/setup-ts-deep-modules/SKILL.md",
+      "skillFolderHash": "706cd1617d53587b0c4e6df5a8c56974f54cacd2",
+      "installedAt": "2026-07-18T20:49:31.171Z",
+      "updatedAt": "2026-07-18T20:49:31.171Z"
+    },
     "simple": {
       "source": "roin-orca/skills",
       "sourceType": "github",
@@ -596,6 +713,35 @@
       "skillFolderHash": "5e7f645f60e3034827eba3f3dfa3feb02ad5a5f8",
       "installedAt": "2026-05-16T03:35:50.488Z",
       "updatedAt": "2026-07-18T07:34:33.595Z"
+    },
+    "to-questionnaire": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/in-progress/to-questionnaire/SKILL.md",
+      "skillFolderHash": "7c4d04fb4d77824d7d98433ee7a8b17dde5efa13",
+      "installedAt": "2026-07-18T20:49:31.171Z",
+      "updatedAt": "2026-07-18T20:49:31.171Z"
+    },
+    "to-spec": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/engineering/to-spec/SKILL.md",
+      "skillFolderHash": "bf698b96b5d8798d110d9872e32b9310728555b0",
+      "pluginName": "mattpocock-skills",
+      "installedAt": "2026-07-18T20:49:31.169Z",
+      "updatedAt": "2026-07-18T20:49:31.169Z"
+    },
+    "to-tickets": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/engineering/to-tickets/SKILL.md",
+      "skillFolderHash": "5467d7a37ef365ed43ebe6eb466d6e952be881b8",
+      "pluginName": "mattpocock-skills",
+      "installedAt": "2026-07-18T20:49:31.170Z",
+      "updatedAt": "2026-07-18T20:49:31.170Z"
     },
     "triage": {
       "source": "mattpocock/skills",
@@ -695,6 +841,15 @@
       "skillFolderHash": "0720cd0ac8d754ba6b2e6483279905c570c7c52e",
       "installedAt": "2026-07-03T21:02:01.701Z",
       "updatedAt": "2026-07-07T01:55:43.727Z"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-skills.git",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "skillFolderHash": "3116f3e62dbd02b44a598b1aa690d2a8938e8f89",
+      "installedAt": "2026-07-18T20:48:47.919Z",
+      "updatedAt": "2026-07-18T20:48:47.919Z"
     },
     "wizard": {
       "source": "mattpocock/skills",
