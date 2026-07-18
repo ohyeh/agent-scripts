@@ -34,7 +34,7 @@ export const meta = {
 //   }})
 //
 // Follow-up fix run (proven pattern from health-coin-figma-fixes, not part of this recipe):
-//   curate confirmed findings into an audit doc (🟢-now table with 位置/修法), then dispatch
+//   curate confirmed findings into an audit doc (🟢-now table with location/fix), then dispatch
 //   one agent per DISJOINT file-group with hard ownership rules: edit only assigned files,
 //   no new deps, missing asset/field → SKIP+report (never invent), locate by described code
 //   not stale line numbers, no build commands (orchestrator verifies after). Or route the

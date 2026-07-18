@@ -4,7 +4,7 @@
 //
 //   Workflow({ scriptPath: ".claude/workflows/root-cause-deep-dive-audit.workflow.js", args: {
 //     repoPath: "/abs/repo",
-//     symptom: "Discord 早晚報 collector 偶發只跑一半",
+//     symptom: "the Discord morning/evening report collector occasionally only runs halfway",
 //     scopeHints: ["lib/collectors", "cron", "logs"],   // optional search seeds
 //     hypotheses: 5,                                      // how many candidate root causes to explore (>=1)
 //     verifyVotes: 2                                      // adversarial verifiers per surviving hypothesis (>=1)

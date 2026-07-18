@@ -1,4 +1,4 @@
-// LOOP CONNECTOR (接頭 1): turns audit output into the next cycle's input.
+// LOOP CONNECTOR (connector 1): turns audit output into the next cycle's input.
 // Position in the closed loop:
 //   docs/design-vs-code-audit | root-cause-audit  →  THIS  →  feature-lifecycle-auto (briefs)
 //                                                          →  partitioned fix run    (small fixes)
@@ -11,9 +11,9 @@
 //                                     ownership, SKIP+report on missing assets, never invent)
 //   auto-fix, clustered root cause  → one mini-PRD per cluster (problem / why-now / scope /
 //                                     non-goals / done-criteria) ready for feature-lifecycle-auto
-// Cluster-vs-singleton is the "重複次數 → 抽象層級" rule replayed on fixes: N independent nits
+// Cluster-vs-singleton is the "duplication count → abstraction level" rule replayed on fixes: N independent nits
 // get N parallel patches; N findings sharing one bad abstraction get ONE plan.
-// Re-audit stop condition (接頭 2, lives in the CALLER): after fixes/build, re-run the SAME
+// Re-audit stop condition (connector 2, lives in the CALLER): after fixes/build, re-run the SAME
 // audit with the SAME args — confirmed findings reaching zero = the loop converged.
 //
 //   Workflow({ scriptPath: ".claude/workflows/findings-triage.workflow.js", args: {
@@ -123,7 +123,7 @@ const directFix = clustered.normalized
 phase('Brief')
 const briefs = briefClusters.length ? await parallel(briefClusters.map(c => () =>
   agent(
-    `${CONTEXT ? CONTEXT + '\n\n' : ''}Write ONE mini-PRD (a brief for feature-lifecycle-auto's args.brief) that fixes this root cause, in ${OUT_LANG}. Five short sections, prose not headings-heavy: 問題（root cause＋symptoms）｜為什麼現在（severity/user impact）｜範圍（files/components in scope）｜不碰什麼（explicit non-goals）｜完成判準（how a re-audit proves it closed — cite the concrete findings below as the checklist). Ground every claim in the findings; do NOT invent scope beyond them.
+    `${CONTEXT ? CONTEXT + '\n\n' : ''}Write ONE mini-PRD (a brief for feature-lifecycle-auto's args.brief) that fixes this root cause, in ${OUT_LANG}. Five short sections, prose not headings-heavy: Problem (root cause＋symptoms) | Why now (severity/user impact) | Scope (files/components in scope) | Non-goals (explicit non-goals) | Done criteria (how a re-audit proves it closed — cite the concrete findings below as the checklist). Ground every claim in the findings; do NOT invent scope beyond them.
 
 Root cause: ${c.rootCause}
 Member findings (JSON):
@@ -144,5 +144,5 @@ return {
   askUser,                              // → the human; the machine never decides intent
   noOp,
   degraded: { clusterFailed: false, unbriefedClusters: unbriefed, overflowClusters: overflow },
-  nextStep: 'after fixes: re-run the ORIGINATING audit with the SAME args — zero confirmed findings = loop converged (接頭 2)',
+  nextStep: 'after fixes: re-run the ORIGINATING audit with the SAME args — zero confirmed findings = loop converged (connector 2)',
 }
