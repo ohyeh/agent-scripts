@@ -12,7 +12,7 @@ export const meta = {
 // args:
 //   machines     (REQUIRED {name, ssh}[]) fleet to scan. ssh: null for the local hub,
 //                'user@host' for remotes (BatchMode key auth assumed). FIRST entry with
-//                ssh:null is treated as the hub whose recipe set is the source of truth.
+//                ssh:null is treated as the hub comparison baseline for deployed recipes.
 //   templatePath (REQUIRED string) absolute path to an existing manifest HTML whose CSS
 //                token system the render must inherit verbatim (sibling-document look).
 //   outPath      (REQUIRED string) absolute path to write the new manifest HTML.
@@ -25,7 +25,7 @@ export const meta = {
 // Publish step (NOT in this recipe — Workflow scripts can't call Artifact):
 //   after the run, the main loop calls Artifact({file_path: outPath, favicon: '🧩', url: <existing manifest url>}).
 
-// ── SAFE_LIB (canonical: .claude/workflows/_lib/safe.js — keep byte-identical) ──
+// ── SAFE_LIB (canonical repo source: skills/using-workflows/workflows/_lib/safe.js — keep byte-identical) ──
 const coalesceNull = (arr, fb) => arr.map((r, i) => (r == null ? fb(i) : r))
 const nullIndices = (arr) => arr.reduce((a, r, i) => (r == null ? (a.push(i), a) : a), [])
 const failClosedRefutes = (votes, total) => { const ok = votes.filter(Boolean); return ok.filter(v => v && v.refuted).length + (total - ok.length) }

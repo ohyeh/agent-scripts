@@ -3,7 +3,7 @@
 // Generalized from the one-off `docs-overhaul` session workflow (standard-portal-app).
 // Cross-project: fully parameterized via `args`. No hardcoded paths/facts.
 //
-// Invoke (canonical — use absolute scriptPath, not name):
+// Invoke reliably via absolute scriptPath (independent of discovery/name):
 //   Workflow({ scriptPath: ".claude/workflows/docs-vs-code-audit.workflow.js", args: {
 //     repoPath: "/abs/path/to/repo",
 //     groups: [                                  // one read-only auditor + one fixer per group
@@ -90,7 +90,7 @@ const FIX_SCHEMA = {
   },
 }
 
-// ── SAFE_LIB (canonical: .claude/workflows/_lib/safe.js — keep byte-identical) ──
+// ── SAFE_LIB (canonical repo source: skills/using-workflows/workflows/_lib/safe.js — keep byte-identical) ──
 const coalesceNull = (arr, fb) => arr.map((r, i) => (r == null ? fb(i) : r))
 const nullIndices = (arr) => arr.reduce((a, r, i) => (r == null ? (a.push(i), a) : a), [])
 const failClosedRefutes = (votes, total) => { const ok = votes.filter(Boolean); return ok.filter(v => v && v.refuted).length + (total - ok.length) }

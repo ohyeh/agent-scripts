@@ -24,7 +24,7 @@
 // Pairs with the `codex-dynamic-workflows` skill: produces a `.workflow/<YYYYMMDDHHMM>-<slug>/` artifact,
 // uses disjoint discovery packets, and gates git operations behind explicit args (approval rule).
 //
-// Invoke (canonical — absolute scriptPath, not name):
+// Invoke reliably via absolute scriptPath (independent of discovery/name):
 //   Workflow({ scriptPath: "~/Desktop/workflows/recipes/feature-plan-consensus.workflow.js", args: {
 //     repoPath:   "/abs/path/to/repo",
 //     featureBrief: "What the new feature is + goals + product decisions/links (multi-line).",

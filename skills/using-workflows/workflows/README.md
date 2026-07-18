@@ -37,7 +37,7 @@ workflows**. Workflow scripts placed here can be invoked directly with
 # With structured parameters (the script reads them via the global `args`)
 > Run /feature-plan-consensus on { repoPath: "...", featureBrief: "...", slug: "..." }
 
-# Or the always-available canonical absolute path (independent of discovery/naming)
+# Or an explicit absolute path (independent of discovery/naming)
 Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {...} })
 ```
 
@@ -236,12 +236,13 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
 
 ## Shared helper: `_lib/safe.js`
 
-The **canonical source** of the three silent-failure guards
+The **canonical repo source** of the three silent-failure guards
 (`coalesceNull`/`nullIndices`/`failClosedRefutes`) lives in `_lib/safe.js`.
 Because workflow scripts are self-contained (the runtime doesn't support
 `import`), each recipe embeds the same code **verbatim**, marked with
 `// ── SAFE_LIB ──`; after editing the canonical copy, run
-`grep -rl SAFE_LIB .claude/workflows` to find every copy that needs syncing.
+`rg -l SAFE_LIB --glob '*.workflow.js' .` from this directory to find every
+embedded copy that needs syncing before deployment.
 Recipes currently embedding it: `root-cause-deep-dive-audit`
 (failClosedRefutes), `docs-vs-code-audit` (coalesceNull + nullIndices),
 `design-consensus`/`project-direction-review`/`design-vs-code-audit`
@@ -264,19 +265,11 @@ review gate first.
 
 ## Canonical copy and sync
 
-This directory is a **team-facing snapshot** of the workflow scripts, for
-anyone who clones this repo to invoke directly via `/<name>`. It is not the
-editing starting point: changes should happen at the source, then flow into
-this directory through a separate SYNC channel (planned; until it's ready,
-alignment is manual copy — the two copies are independent and do not
-auto-sync). So please do not edit directly here as the source of a change.
-
-There is also a **deployment snapshot** at
-`skills/using-workflows/workflows/` (for one-click install when the skill is
-distributed standalone, via `scripts/install.sh`). After updating this
-directory, remember to run
-`cp -R .claude/workflows/. skills/using-workflows/workflows/` to keep them
-aligned.
+This directory is the **single canonical source** of the workflow scripts in
+the `agent-scripts` repo. Edit recipes here, review and commit the change, then
+deploy that committed copy to each machine's `~/.claude/workflows/` with
+`scripts/install.sh`. Runtime copies are deployment targets only; never edit
+them as a source or manually copy them back into this directory.
 
 ## Sources
 

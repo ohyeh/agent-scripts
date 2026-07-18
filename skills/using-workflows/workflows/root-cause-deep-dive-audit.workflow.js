@@ -46,7 +46,7 @@ const VERD = { type: 'object', additionalProperties: false, required: ['id', 're
 
 const COMMON = `Repo: ${repo}. Symptom under investigation: "${a.symptom}". ${hints ? `Search seeds: ${hints}.` : ''} Use rg/fd and read real code/logs/tests — cite file:line evidence, never speculate. Keep raw dumps out of the final message.`
 
-// ── SAFE_LIB (canonical: .claude/workflows/_lib/safe.js — keep byte-identical) ──
+// ── SAFE_LIB (canonical repo source: skills/using-workflows/workflows/_lib/safe.js — keep byte-identical) ──
 const coalesceNull = (arr, fb) => arr.map((r, i) => (r == null ? fb(i) : r))
 const nullIndices = (arr) => arr.reduce((a, r, i) => (r == null ? (a.push(i), a) : a), [])
 const failClosedRefutes = (votes, total) => { const ok = votes.filter(Boolean); return ok.filter(v => v && v.refuted).length + (total - ok.length) }

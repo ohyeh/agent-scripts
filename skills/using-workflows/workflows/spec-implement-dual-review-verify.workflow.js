@@ -4,7 +4,7 @@
 // session workflows (standard-portal-app) — they were three instances of this same skeleton.
 // Cross-project: fully parameterized via `args`. No hardcoded spec/paths.
 //
-// Invoke (canonical — use absolute scriptPath, not name):
+// Invoke reliably via absolute scriptPath (independent of discovery/name):
 //   Workflow({ scriptPath: ".claude/workflows/spec-implement-dual-review-verify.workflow.js", args: {
 //     repoPath:  "/abs/path/to/repo",
 //     spec:      "Full implementation spec (multi-line): what file to write/edit, style to match, exact behavior...",

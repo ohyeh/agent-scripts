@@ -1,4 +1,4 @@
-// ── FINDINGS_LIB (canonical: .claude/workflows/_lib/findings-schema.js) ──
+// ── FINDINGS_LIB (canonical repo source: skills/using-workflows/workflows/_lib/findings-schema.js) ──
 // Canonical finding/verdict shapes for NEW audit/review recipes. Like safe.js,
 // workflow scripts can't import — copy the shape you need and keep it byte-close.
 // Existing recipes keep their reviewed schemas; retrofit only through a review gate.
