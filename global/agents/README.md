@@ -11,5 +11,5 @@ repo-local discovery; global defs 0). The decision gate that lived in
 `tmux-delegate` moved verbatim into the `using-tmux-agent-tools` router
 skill (`Inline-vs-worker gate`).
 
-If sub-agent defs ever come back, they land here as snapshots with their
-canonical machine path named in this README.
+If sub-agent defs ever come back, their canonical sources land here and this
+README names the machine paths to which they are deployed.
