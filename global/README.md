@@ -1,11 +1,12 @@
-# global/ — personal global-layer snapshot
+# global/ — canonical runtime-main sources
 
-This directory is a **published snapshot** of the per-machine global layer
-(the files that live OUTSIDE any repo on each machine). For these two files
-the canonical copies are machine-side; this snapshot is refreshed whenever
-their `Version:` line bumps (deterministic sync rule, gate 2026-07-19).
+This directory contains the **canonical repo copies** of the two runtime main
+files. Deploy them byte-identically to each machine-side runtime path; never
+reverse-sync a runtime copy into the repo. A `Version:` bump records a rules
+release; after every bump, verify that each deployed file's md5 matches its
+canonical repo file on all three machines.
 
-| Here | Canonical (machine-side) | What it is |
+| Canonical repo file | Deployed runtime path | What it is |
 |---|---|---|
 | `CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code runtime main file (Lean Operating Rules) |
 | `AGENTS.md` | `~/.codex/AGENTS.md` | Codex runtime main file — same rules, same `Version:` line by contract |
