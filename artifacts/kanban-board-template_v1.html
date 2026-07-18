@@ -1,15 +1,15 @@
 <title>Kanban Work-Order Board — Template v1</title>
 <!--
   kanban-board-template_v1.html
-  三區開合工作單版型（DONE / 待討論・決策 / TODO・BACKLOG），原生 <details>，零 JS、零外部資源。
-  用法：整份複製 → 換掉 <title>、標頭文字與卡片內容。元件對照：
-    .chip / .chip.ok / .chip.warn   標頭狀態膠囊
-    .progress + .plabel             進度條（調整 p-done/p-run/p-todo 的 width%）
-    details.zone                    區塊（加 open 屬性 = 預設展開）
-    .rail > .step                   時間軸卡片（.done 綠框、.hl 強調、.defer 區虛線=backlog）
-    .tag.done / .run / .todo        卡片右上狀態標籤
-    .donebox                        簡單勾選清單
-    .gates > .gq                    決策卡（.gq.done + .verdict = 已裁決）
+  A three-zone collapsible work-order layout (DONE / OPEN QUESTIONS·DECISIONS / TODO·BACKLOG), native <details>, zero JS, zero external resources.
+  Usage: copy the whole file → swap out <title>, header text, and card content. Component reference:
+    .chip / .chip.ok / .chip.warn   header status pills
+    .progress + .plabel             progress bar (adjust the width% of p-done/p-run/p-todo)
+    details.zone                    a section (add the open attribute = expanded by default)
+    .rail > .step                   timeline cards (.done = green border, .hl = highlighted, .defer zone dashed = backlog)
+    .tag.done / .run / .todo        top-right status tag on a card
+    .donebox                        simple checklist
+    .gates > .gq                    decision card (.gq.done + .verdict = decided)
 -->
 <style>
 :root{
@@ -135,71 +135,71 @@ details.zone h2{margin:20px 0 14px}
 
 <div class="wrap">
   <div class="eyebrow">Work Order · YYYY-MM-DD</div>
-  <h1>專案名稱 — 工作順序</h1>
-  <p class="sub">一句話說明這個 board 追蹤什麼：範圍、部署哲學、或本輪目標。</p>
+  <h1>Project Name — Work Order</h1>
+  <p class="sub">One sentence on what this board tracks: scope, rollout philosophy, or this round's goal.</p>
   <div class="chips">
-    <span class="chip ok">前提 A 已凍結</span>
-    <span class="chip warn">風險 B 觀察中</span>
-    <span class="chip">中性資訊 C</span>
+    <span class="chip ok">Premise A frozen</span>
+    <span class="chip warn">Risk B under watch</span>
+    <span class="chip">Neutral info C</span>
   </div>
   <div class="progress" aria-hidden="true">
     <i class="p-done" style="width:40%"></i><i class="p-run" style="width:20%"></i><i class="p-todo" style="width:40%"></i>
   </div>
-  <p class="plabel">2/5 收案 · 1 進行中 · 2 待跑</p>
+  <p class="plabel">2/5 done · 1 in progress · 2 pending</p>
 
   <details class="zone">
-  <summary><span class="zdot d"></span>DONE<span class="zsub">已收案項目 · 收合保持版面乾淨</span></summary>
-  <h2>已完成</h2>
+  <summary><span class="zdot d"></span>DONE<span class="zsub">Completed items · collapsed to keep the layout clean</span></summary>
+  <h2>Completed</h2>
   <div class="donebox">
-    <div><span class="tick">✓</span><span><b>前置作業</b>：一行說明成果與證據位置</span></div>
-    <div><span class="tick">✓</span><span><b>另一項</b>：commit <code>abc1234</code></span></div>
+    <div><span class="tick">✓</span><span><b>Setup work</b>: one line on the outcome and where the evidence lives</span></div>
+    <div><span class="tick">✓</span><span><b>Another item</b>: commit <code>abc1234</code></span></div>
   </div>
-  <h2>Build — 已收案波次</h2>
+  <h2>Build — completed waves</h2>
   <div class="rail">
     <div class="step done">
-      <div class="whead"><span class="wnum">W1</span><span class="wtitle">第一階段標題</span><span class="tag done">✓ 完成</span></div>
-      <p class="wdesc">實際發生的事 + 驗收證據（verdict 原文、hash、exit code）。</p>
-      <div class="wout"><span class="out">產出物 1</span><span class="out new">新增物（強調）</span></div>
+      <div class="whead"><span class="wnum">W1</span><span class="wtitle">Phase 1 title</span><span class="tag done">✓ done</span></div>
+      <p class="wdesc">What actually happened + acceptance evidence (verdict verbatim, hash, exit code).</p>
+      <div class="wout"><span class="out">Output 1</span><span class="out new">New output (highlighted)</span></div>
     </div>
     <div class="step done">
-      <div class="whead"><span class="wnum">W2</span><span class="wtitle">第二階段標題</span><span class="tag done">✓ 完成</span></div>
-      <p class="wdesc">說明。</p>
-      <div class="wout"><span class="out">產出物</span></div>
-      <p class="gnote">收案後的備註、carry-forward、殘留風險寫這裡</p>
+      <div class="whead"><span class="wnum">W2</span><span class="wtitle">Phase 2 title</span><span class="tag done">✓ done</span></div>
+      <p class="wdesc">Description.</p>
+      <div class="wout"><span class="out">Output</span></div>
+      <p class="gnote">Post-completion notes, carry-forward items, remaining risk go here</p>
     </div>
   </div>
-  <h2>Gates — 已裁決</h2>
+  <h2>Gates — decided</h2>
   <div class="gates">
-    <div class="gq done"><span class="n">Q1</span><p>已裁決的問題<small>裁決內容與依據</small></p><span class="verdict">YES ✓</span></div>
+    <div class="gq done"><span class="n">Q1</span><p>Decided question<small>The decision and its rationale</small></p><span class="verdict">YES ✓</span></div>
   </div>
   </details>
 
   <details class="zone" open>
-  <summary><span class="zdot r"></span>待討論・決策<span class="zsub">需要人裁決的開放問題</span></summary>
+  <summary><span class="zdot r"></span>Open questions · decisions<span class="zsub">Open questions needing a human decision</span></summary>
   <div class="gates">
-    <div class="gq"><span class="n">Q2</span><p>開放中的決策問題<small>背景、選項、影響範圍——裁決後移入 DONE 區並加 .done + .verdict</small></p></div>
+    <div class="gq"><span class="n">Q2</span><p>Open decision question<small>Background, options, blast radius — move to the DONE zone with .done + .verdict once decided</small></p></div>
   </div>
   </details>
 
   <details class="zone" open>
-  <summary><span class="zdot t"></span>TODO · BACKLOG<span class="zsub">實線卡=排程中 · 虛線卡=backlog</span></summary>
-  <h2>排程中</h2>
+  <summary><span class="zdot t"></span>TODO · BACKLOG<span class="zsub">Solid-border cards = scheduled · dashed cards = backlog</span></summary>
+  <h2>Scheduled</h2>
   <div class="rail">
     <div class="step">
-      <div class="whead"><span class="wnum">W3</span><span class="wtitle">下一波標題</span><span class="tag todo">待跑</span></div>
-      <p class="wdesc">預期做什麼、驗收標準。</p>
-      <div class="wout"><span class="out">預期產出</span></div>
+      <div class="whead"><span class="wnum">W3</span><span class="wtitle">Next wave title</span><span class="tag todo">pending</span></div>
+      <p class="wdesc">What's expected to happen, acceptance criteria.</p>
+      <div class="wout"><span class="out">Expected output</span></div>
     </div>
   </div>
-  <h2>Backlog — 條件觸發</h2>
+  <h2>Backlog — conditionally triggered</h2>
   <div class="rail defer">
     <div class="step">
-      <div class="whead"><span class="wnum">P2</span><span class="wtitle">後續構想</span><span class="tag todo">backlog</span></div>
-      <p class="wdesc">尚未排程的方向。</p>
+      <div class="whead"><span class="wnum">P2</span><span class="wtitle">Future idea</span><span class="tag todo">backlog</span></div>
+      <p class="wdesc">A direction not yet scheduled.</p>
     </div>
   </div>
-  <p class="fork">└─ 條件：前置波次驗證通過後才啟動</p>
+  <p class="fork">└─ Condition: only starts once the prerequisite wave passes verification</p>
   </details>
 
-  <div class="foot">sources: 這裡列 board 的資料來源（plan、report、evidence 路徑）· 更新 YYYY-MM-DD</div>
+  <div class="foot">sources: list the board's data sources here (plan, report, evidence paths) · updated YYYY-MM-DD</div>
 </div>
