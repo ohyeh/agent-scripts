@@ -1,9 +1,9 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.6.3-lean-gated
-Provenance: derived from v4.6.2-lean-routed; replaces the soft routing table with mandatory pre-action Gates (per codex-interview OBSERVED 2026-07-18: explicit gate 100% vs soft table 50% vs inlined worst; dual governed-party review 2026-07-18, Codex and Claude both APPROVE-WITH-CHANGES, all changes absorbed); delegation-templates and unknowns-discovery are now read from the installed skills (`~/.agents/skills/*/SKILL.md`) and their two rule files are deleted.
+Version: 4.6.4-lean-gated
+Provenance: derived from 4.6.3-lean-gated; sync contract flipped to repo-canonical (user ruling 2026-07-19).
 Runtime main files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses `~/.claude/CLAUDE.md`. They are maintained separately and are never stored under `~/.agents/rules/`.
-Shared routed-rule home (DEPLOYED): `~/.agents/rules/`, containing only routed rule Markdown files. Git home (ADR-0001, ACTIVE): the public `ohyeh/agent-scripts` repo under `.agents/rules/` is canonical (deploy = rsync; `lessons.md` stays local-only). Both runtimes read these files on demand, directly from the canonical path, and only when a gate fires. Verify the shared-rule manifest after deployment; never maintain duplicate rule copies.
+Shared routed-rule home (DEPLOYED): `~/.agents/rules/`, containing only routed rule Markdown files. Git home (ADR-0001, ACTIVE): the public `ohyeh/agent-scripts` repo under `.agents/rules/` is canonical (deploy = `rsync -a --delete --exclude lessons.md`; `lessons.md` stays local-only). Both runtimes read these files on demand, directly from the deployed path, and only when a gate fires. Verify the shared-rule manifest against the repo after deployment; never maintain duplicate rule copies.
 Scope: shared rules for Claude Code AND Codex; a project-local AGENTS.md/CLAUDE.md overrides this file.
 
 ## Language
@@ -11,7 +11,7 @@ Scope: shared rules for Claude Code AND Codex; a project-local AGENTS.md/CLAUDE.
 - End every reply with the codeword `✈` on its own final line — a canary proving these rules are loaded. A reply missing it means this file fell out of context. Exception: a reply whose required format fixes the final line (e.g. `VERDICT: PASS|BLOCK` in review reports) puts that required line last and omits ✈.
 
 ## Gates — mandatory pre-action checkpoints with an evidence duty
-Canonical routed-file directory: `~/.agents/rules/`. No symlink or eager import. Edits follow `~/.agents/rules/maintenance.md`.
+Canonical rules live in the `agent-scripts` repo's `.agents/rules/`; `~/.agents/rules/` is the deployed directory gates read from at runtime. No symlink or eager import. Edits follow `~/.agents/rules/maintenance.md`.
 
 Passing a gate = (1) you actually read the gate file in THIS active context — for Claude, invoking the named skill via the Skill tool counts; a system-reminder skill listing does NOT; after compaction/resume, re-read unless you can still quote your earlier receipt verbatim (if you cannot quote it, it is not in context) — AND (2) BEFORE the gated action, emit a receipt:
 `GATE: <file path> §<section> — "<verbatim applicable criterion>" | this task: <one line binding it to the current task — chosen model / this task's acceptance / deviation note>`.
