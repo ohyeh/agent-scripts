@@ -103,7 +103,7 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 <div class="wrap">
 
 <h1>Skill Manifest — Fleet</h1>
-<p class="subtitle">Generated on: mbp14 (this machine) | Generated: 2026-07-19 | Supersedes the 07-04 snapshot | Canonical: <code>agent-scripts</code> repo @ <code>a060a7c</code></p>
+<p class="subtitle">Skill · Plugin · Workflow — three-machine fleet | Generated on: mbp14 (this machine) | Generated: 2026-07-19 | Supersedes the 07-04 / 07-18 snapshots | Canonical: <code>agent-scripts</code> repo @ <code>a060a7c</code></p>
 
 <div class="meta-card">
   <b>Meta</b> — This manifest was generated on mbp14 (this machine), covering all three fleet machines: <code>mbp14</code> (local), <code>mac-mini-m2</code> (<code>ssh mac-mini-m2</code>), <code>remote2</code> (<code>ssh remote2</code>); source repos: <code>agent-scripts</code>, <code>tmux-agent-tools</code> (other source repos are in the "Source" column below, taken from each machine's <code>~/.agents/.skill-lock.json</code>).
@@ -124,6 +124,55 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
   A follow-up user ruling removed one more skill fleet-wide: <code>roin-orca/skills</code>'s <code>simple</code> was found to contain an embedded prompt-injection attempt in its description field and was deleted from the canonical lock and all three machines.
   remote2 came back online, ran the same clone-free <code>scripts/deploy.sh</code> deployment as mac-mini-m2, and is now fully converged — its per-machine numbers below are live, not carried over from the pre-deployment state.
 </div>
+
+<section>
+<h2>Workflow recipes (fleet presence)</h2>
+<p class="section-note">Installed recipes under each machine's <code>~/.claude/workflows/</code>; source <code>ohyeh/agent-scripts@3cdcde2</code>. 12 recipes + 1 sidecar, all present on all three machines. Carried from the 2026-07-18 fleet snapshot — the skills tables further down are the live 2026-07-19 scan. Full loop semantics and per-recipe descriptions live in the separate <b>Workflow Manifest</b> artifact.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Recipe</th><th class="center">mbp14</th><th class="center">mac-mini-m2</th><th class="center">remote2</th><th class="center">present</th></tr></thead>
+<tbody>
+<tr><td class="mono">consensus-gate</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">design-consensus</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">design-vs-code-audit</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">docs-vs-code-audit</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">feature-lifecycle-auto</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">feature-plan-consensus</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">findings-triage</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">plan-pipeline</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">project-direction-review</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">root-cause-deep-dive-audit</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">spec-implement-dual-review-verify</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">workflow-manifest</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+<tr><td class="mono">.using-workflows-managed-files <span class="mut">(sidecar)</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section>
+<h2>Enabled plugins (fleet)</h2>
+<p class="section-note">From each machine's <code>~/.claude/settings.json</code> <code>enabledPlugins</code>. Carried from the 2026-07-18 fleet snapshot. <span class="yes">●</span> = enabled · <span class="tag tag-warn">off</span> = installed but disabled.</p>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Plugin</th><th class="center">mbp14</th><th class="center">mac-mini-m2</th><th class="center">remote2</th></tr></thead>
+<tbody>
+<tr><td class="mono">claude-hud@claude-hud</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+<tr><td class="mono">code-review@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+<tr><td class="mono">codex@openai-codex</td><td class="center"><span class="tag tag-warn">off</span></td><td class="center"><span class="tag tag-warn">off</span></td><td class="center"><span class="tag tag-warn">off</span></td></tr>
+<tr><td class="mono">commit-commands@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+<tr><td class="mono">context-mode@context-mode</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+<tr><td class="mono">explanatory-output-style@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+<tr><td class="mono">frontend-design@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+<tr><td class="mono">learning-output-style@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+<tr><td class="mono">ponytail@ponytail</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+<tr><td class="mono">pr-review-toolkit@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+<tr><td class="mono">security-guidance@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+<tr><td class="mono">skill-creator@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
+</tbody>
+</table>
+</div>
+</section>
 
 <section>
 <h2>Per-machine summary</h2>
