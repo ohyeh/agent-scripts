@@ -187,6 +187,71 @@
   </div>
 
   <section>
+    <h2><span class="idx">00</span>L1 單題閉環</h2>
+    <p class="lede">repo 現行 <b>12 recipe＋1 shim</b> 在單題閉環上的功能站位——有<b>流向</b>，不是平均灑一圈。起點是 <b>① 規劃</b>：一個 feature 從 plan 起手，順時針轉到收斂。冷啟動時先由 <b>④ 稽核／盤點</b>（現況 audit）餵出第一份 plan（左側虛線）。外圈排程層（cron／watcher／wakeup）已依裁定移除。</p>
+    <div style="overflow-x:auto">
+      <svg viewBox="0 0 900 660" role="img" aria-label="L1 單題閉環：plan→gate→build→audit→triage→回 plan，12 recipe + 1 shim 各歸功能站位" style="width:100%;max-width:840px;display:block;margin:0 auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">
+        <!-- 主環 -->
+        <circle cx="410" cy="330" r="158" fill="none" stroke="var(--keep)" stroke-width="2.5" stroke-dasharray="10 7"></circle>
+        <!-- 順時針流向箭頭（站間中點） -->
+        <path d="M 512 209 L 499 207 L 506 197 Z" fill="var(--keep)"></path>
+        <path d="M 557 389 L 555 377 L 566 381 Z" fill="var(--keep)"></path>
+        <path d="M 399 488 L 410 482 L 410 494 Z" fill="var(--keep)"></path>
+        <path d="M 256 368 L 265 377 L 254 381 Z" fill="var(--keep)"></path>
+        <path d="M 326 196 L 321 207 L 314 197 Z" fill="var(--keep)"></path>
+        <!-- 冷啟動：④稽核／盤點 餵出首份 plan（虛線 + 箭頭） -->
+        <path d="M 300 430 Q 300 250 396 178" fill="none" stroke="var(--ghost)" stroke-width="1.5" stroke-dasharray="4 5"></path>
+        <path d="M 402 175 L 391 178 L 398 186 Z" fill="var(--ghost)"></path>
+        <text x="286" y="300" text-anchor="end" fill="var(--ghost)" font-size="10">冷啟動</text>
+        <text x="286" y="313" text-anchor="end" fill="var(--muted)" font-size="9">盤點→首份 plan</text>
+
+        <!-- 中心：串環薄殼 + 再生器 -->
+        <circle cx="410" cy="330" r="70" fill="none" stroke="var(--line-strong)" stroke-width="1"></circle>
+        <text x="410" y="312" text-anchor="middle" fill="var(--ink)" font-size="18" font-weight="700">閉環</text>
+        <text x="410" y="333" text-anchor="middle" fill="var(--keep)" font-size="10" font-weight="700">feature-lifecycle-auto</text>
+        <text x="410" y="345" text-anchor="middle" fill="var(--muted)" font-size="8.5">串環薄殼 plan→gate→build</text>
+        <text x="410" y="364" text-anchor="middle" fill="var(--ghost)" font-size="10" font-weight="700">workflow-manifest</text>
+        <text x="410" y="376" text-anchor="middle" fill="var(--muted)" font-size="8.5">↻ 再生本頁快照</text>
+
+        <!-- ① 規劃 Plan（top / 起點） -->
+        <circle cx="410" cy="172" r="9" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="3"></circle>
+        <text x="410" y="156" text-anchor="middle" fill="var(--accent)" font-size="13" font-weight="700">① 規劃 Plan · 起點</text>
+        <text x="410" y="138" text-anchor="middle" fill="var(--ink)" font-size="11" font-weight="600">feature-plan-consensus</text>
+        <text x="410" y="123" text-anchor="middle" fill="var(--ink)" font-size="11" font-weight="600">plan-pipeline</text>
+        <text x="410" y="108" text-anchor="middle" fill="var(--ink)" font-size="11" font-weight="600">design-consensus</text>
+
+        <!-- ② 閘門 Gate（right-upper） -->
+        <circle cx="560" cy="281" r="9" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="3"></circle>
+        <text x="574" y="270" text-anchor="start" fill="var(--accent)" font-size="13" font-weight="700">② 閘門 Gate ✋人</text>
+        <text x="574" y="286" text-anchor="start" fill="var(--ink)" font-size="11" font-weight="600">consensus-gate</text>
+        <text x="574" y="301" text-anchor="start" fill="var(--ghost)" font-size="10.5">codex-consensus-gate (shim)</text>
+
+        <!-- ③ 建置 Build（right-lower） -->
+        <circle cx="503" cy="458" r="7" fill="var(--bg-raised)" stroke="var(--keep)" stroke-width="2.5"></circle>
+        <text x="517" y="454" text-anchor="start" fill="var(--keep)" font-size="13" font-weight="700">③ 建置 Build</text>
+        <text x="517" y="470" text-anchor="start" fill="var(--ink)" font-size="11" font-weight="600">spec-implement-dual-review-verify</text>
+
+        <!-- ④ 稽核 Audit（left-lower） -->
+        <circle cx="317" cy="458" r="7" fill="var(--bg-raised)" stroke="var(--keep)" stroke-width="2.5"></circle>
+        <text x="303" y="446" text-anchor="end" fill="var(--keep)" font-size="13" font-weight="700">④ 稽核 Audit / 盤點</text>
+        <text x="303" y="462" text-anchor="end" fill="var(--ink)" font-size="11" font-weight="600">docs-vs-code-audit</text>
+        <text x="303" y="477" text-anchor="end" fill="var(--ink)" font-size="11" font-weight="600">design-vs-code-audit</text>
+        <text x="303" y="492" text-anchor="end" fill="var(--ink)" font-size="11" font-weight="600">root-cause-deep-dive-audit</text>
+        <text x="303" y="507" text-anchor="end" fill="var(--ink)" font-size="11" font-weight="600">project-direction-review</text>
+
+        <!-- ⑤ 接頭·分流 Triage（left-upper） -->
+        <circle cx="260" cy="281" r="7" fill="var(--bg-raised)" stroke="var(--keep)" stroke-width="2.5"></circle>
+        <text x="246" y="270" text-anchor="end" fill="var(--keep)" font-size="13" font-weight="700">⑤ 接頭·分流 Triage</text>
+        <text x="246" y="286" text-anchor="end" fill="var(--ink)" font-size="11" font-weight="600">findings-triage</text>
+        <text x="246" y="301" text-anchor="end" fill="var(--muted)" font-size="9.5">歸零＝收斂 · 有剩回 ①</text>
+      </svg>
+    </div>
+    <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:4px">
+      <span style="color:var(--keep)">━╌▶</span> 順時針單題閉環 plan→gate→build→audit→triage&nbsp;&nbsp;<span style="color:var(--accent)">●</span> 人工核准閘門（起點＆閘門）&nbsp;&nbsp;<span style="color:var(--ghost)">┄▶</span> 冷啟動盤點餵 plan · shim
+    </p>
+  </section>
+
+  <section>
     <h2><span class="idx">01</span>Core workflows</h2>
     <p class="lede">The repo canonical set has 12 recipes + <span class="mono">_lib</span> ×3. mbp14, mac-mini-m2, and remote2 all match the
     repo exactly — <b>no recipe missing, no hash drift</b> (converged by the 2026-07-19 repo-canonical deployment, see §02).
