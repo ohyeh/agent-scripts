@@ -4,9 +4,9 @@ Canonical home for generic agent policy skills, routers, and workflow recipes, s
 `ohyeh/tmux-agent-tools` (which retains only tmux worker lifecycle mechanics and its narrow
 router).
 
-This repository is being built incrementally per a frozen, second-model-reviewed implementation
-plan. It currently contains the canary skill plus this wave's **staged, unpublished** migration
-content (local branch only — nothing below has been pushed):
+This repository is the canonical home (ADR-0001) for the fleet's generic agent policy skills,
+routers, workflow recipes, and shared rule files; machines are deployed copies only. Built
+incrementally per a frozen, second-model-reviewed implementation plan. Key contents:
 
 - `skills/using-design-skills/` — the Gate R2 `CLEAN`-reviewed design router (repaired, 16
   regression cases in `evals/evals.json`).
@@ -27,6 +27,20 @@ content (local branch only — nothing below has been pushed):
 
 Release channel: immutable tag (primary), protected `main` (fallback), per the frozen ADR
 governing this spinout's repo boundary, release policy, and per-skill fleet cutover invariant.
+
+## Deploy (clone-free, one command)
+
+Canonical deploy is a single raw-GitHub bootstrap — no clone, no working copy left on the
+machine. It downloads the current `main` tarball to a scratch dir and deploys all four runtime
+layers (global files → `~/.claude`/`~/.codex`, rules → `~/.agents/rules/`, workflow recipes →
+`~/.claude/workflows/`, and the `skills-lock.json` skill set), each layer printing PASS/FAIL
+with hash/diff evidence and aborting fast on the first failure:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/scripts/deploy.sh | bash
+```
+
+The skills-only restore below is Layer 4 of that script, kept for the skill-set-only case.
 
 ## Fleet skill restore (`skills-lock.json`)
 
