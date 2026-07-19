@@ -1,8 +1,8 @@
 # AGENTS.MD — agent-scripts
 
 This repository publishes reusable agent skills (routers, workflow recipes, generic policy
-skills) for install via `npx skills`. It is currently a minimal skeleton plus one canary skill
-used to validate the install/update/remove lifecycle against a real published ref.
+skills) for install via `npx skills`. Treat `skills/*/SKILL.md` and `skills-lock.json` as the
+live roster; prose summaries must not hard-code a count that drifts from those sources.
 
 ## Scope
 

@@ -802,27 +802,27 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-skills/SKILL.md",
-      "skillFolderHash": "a9f60013fbafa11a2bbda3422b6f969646b4fe13",
+      "skillFolderHash": "3bfc4dff34b9efb5a88e63e86888dfaa5b70666a",
       "installedAt": "2026-07-19T11:40:52.644Z",
-      "updatedAt": "2026-07-19T11:40:52.644Z"
+      "updatedAt": "2026-07-19T13:09:40Z"
     },
     "using-tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/using-tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "8c0c144ed5126906466ed04f0548db61bafd420c",
+      "skillFolderHash": "500389c3fcf1d56aa1c02208bc28054215f90844",
       "installedAt": "2026-06-21T18:10:15.997Z",
-      "updatedAt": "2026-07-18T07:34:36.192Z"
+      "updatedAt": "2026-07-19T13:09:40Z"
     },
     "using-workflows": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-workflows/SKILL.md",
-      "skillFolderHash": "0e1f822ad1abd34853c1d4f480e43ea96d021931",
+      "skillFolderHash": "293e6959e67a48d203556b3a34e92987861f4438",
       "installedAt": "2026-07-17T11:18:44.466Z",
-      "updatedAt": "2026-07-17T11:18:44.466Z"
+      "updatedAt": "2026-07-19T13:09:40Z"
     },
     "verification-before-completion": {
       "source": "obra/superpowers",
