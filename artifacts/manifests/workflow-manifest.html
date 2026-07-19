@@ -176,9 +176,13 @@
     </div>
   </header>
 
+  <div class="meta-row" style="background:rgba(240,180,40,.08);border-left:3px solid #d9a300">
+    <div class="meta-item" style="flex:1 1 100%"><p class="k">⚠ Post-snapshot drift — 2026-07-19 (later, W20 backfill)</p><p class="v">Since this snapshot the repo advanced <b>a060a7c → e6e0163</b>. Commit <b>6c9f644</b> (P2-A5 dual-review invariant fix) changed <span class="mono">spec-implement-dual-review-verify.workflow.js</span>, so the recipe aggregate hash is now <b><span class="mono">a5f8770f…</span></b>, no longer the <span class="mono">0bdca2c4…</span> baseline recorded in the per-machine cells below. <b>mbp14</b> was redeployed this session and is verified live at <span class="mono">a5f8770f…</span> (12/12 recipes, exit 0). <b>mac-mini-m2 / remote2</b> last deployed before 6c9f644 and are unreachable now → last-known <span class="mono">0bdca2c4…</span>, i.e. <b>drift reintroduced, pending a redeploy to re-converge on <span class="mono">a5f8770f…</span></b>. The point-in-time cells below remain a valid record of the a060a7c scan; this banner supersedes their "all converged" conclusion until the fleet is rescanned.</p></div>
+  </div>
+
   <div class="meta-row">
     <div class="meta-item"><p class="k">Canonical</p><p class="v">repo:agent-scripts @ a060a7c</p></div>
-    <div class="meta-item"><p class="k">Machines</p><p class="v">mbp14 / mac-mini-m2 / remote2 (all converged)</p></div>
+    <div class="meta-item"><p class="k">Machines</p><p class="v">mbp14 (redeployed → a5f8770f) / mac-mini-m2 · remote2 (pending redeploy — see drift banner)</p></div>
     <div class="meta-item"><p class="k">Date</p><p class="v">2026-07-19</p></div>
     <div class="meta-item"><p class="k">Single source of truth</p><p class="v">repo:agent-scripts skills/using-workflows/workflows/ → ~/.claude/workflows/</p></div>
     <div class="meta-item"><p class="k">Recipes (mbp14/mac-mini-m2/remote2)</p><p class="v">12 / 12 / 12 <span style="color:var(--keep)">roster complete, 0 drift — md5-identical to repo on all three</span></p></div>
@@ -389,7 +393,7 @@
       <div class="sync-line"><span class="no">1b</span><span><code>curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/scripts/deploy.sh | bash</code> <span class="cmt">— mac-mini-m2 / remote2 (clone-free): downloads the current main tarball to a scratch dir and deploys all four layers (global files, rules, workflows, skills) from it, no flags needed, no clone left behind</span></span></div>
       <div class="sync-line"><span class="no">2</span><span><code>bash skills/using-workflows/scripts/install.sh --previous-manifest ~/.claude/workflows/.using-workflows-managed-files --force</code> <span class="cmt">— mbp14 only (deploy.sh already does this step internally for mac-mini-m2/remote2): deploy all 12 recipes + _lib to ~/.claude/workflows/</span></span></div>
       <div class="sync-line"><span class="no">3</span><span><code>(cd ~/.claude/workflows && shasum -a 256 *.workflow.js | shasum -a 256)</code> <span class="cmt">— per-machine aggregate hash (cd first so filenames, not paths, are hashed)</span></span></div>
-      <div class="sync-line"><span class="no">4</span><span><code>(cd ~/github/agent-scripts/skills/using-workflows/workflows && shasum -a 256 *.workflow.js | shasum -a 256)</code> <span class="cmt">— repo canonical aggregate hash; must equal step 3's output on every machine (current value: 0bdca2c4bc2b696c2c106bbda65f8e1eadaaafb9f519ada372c8f40607a35286)</span></span></div>
+      <div class="sync-line"><span class="no">4</span><span><code>(cd ~/github/agent-scripts/skills/using-workflows/workflows && shasum -a 256 *.workflow.js | shasum -a 256)</code> <span class="cmt">— repo canonical aggregate hash; must equal step 3's output on every machine (current value as of e6e0163: a5f8770f6f45bb9476c522e88a96fc39c192c30596fbcc2b9ed47b57935e6687; the earlier 0bdca2c4… baseline predates commit 6c9f644)</span></span></div>
     </div>
   </section>
 

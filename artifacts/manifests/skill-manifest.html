@@ -103,7 +103,7 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 <div class="wrap">
 
 <h1>Skill Manifest — Fleet</h1>
-<p class="subtitle">Skill · Plugin · Workflow — three-machine fleet | Generated on: mbp14 (this machine) | Generated: 2026-07-19 | Supersedes the 07-04 / 07-18 snapshots | Canonical: <code>agent-scripts</code> repo @ <code>a060a7c</code></p>
+<p class="subtitle">Skill · Plugin · Workflow — three-machine fleet | Generated on: mbp14 (this machine) | Generated: 2026-07-19 | Supersedes the 07-04 / 07-18 snapshots | Snapshot commit: <code>agent-scripts</code> repo @ <code>a060a7c</code> (repo has since advanced to <code>e6e0163</code> — see post-snapshot note)</p>
 
 <div class="meta-card">
   <b>Meta</b> — This manifest was generated on mbp14 (this machine), covering all three fleet machines: <code>mbp14</code> (local), <code>mac-mini-m2</code> (<code>ssh mac-mini-m2</code>), <code>remote2</code> (<code>ssh remote2</code>); source repos: <code>agent-scripts</code>, <code>tmux-agent-tools</code> (other source repos are in the "Source" column below, taken from each machine's <code>~/.agents/.skill-lock.json</code>).
@@ -123,6 +123,14 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
   </div>
   A follow-up user ruling removed one more skill fleet-wide: <code>roin-orca/skills</code>'s <code>simple</code> was found to contain an embedded prompt-injection attempt in its description field and was deleted from the canonical lock and all three machines.
   remote2 came back online, ran the same clone-free <code>scripts/deploy.sh</code> deployment as mac-mini-m2, and is now fully converged — its per-machine numbers below are live, not carried over from the pre-deployment state.
+</div>
+
+<div class="meta-card">
+  <b>Post-snapshot note — 2026-07-19 (later, W20 backfill)</b> — After this scan the repo advanced <code>a060a7c → e6e0163</code>. The relevant landing for skills was commit <code>6c9f644</code>: global rules bumped to <b>v4.6.5-lean-gated</b> (hop-limit routing) and a new hand-authored skill <code>using-skills</code> (top-level intent map) was committed under <code>skills/using-skills/</code>.
+  <div class="meta-grid">
+    <div><b>Deployment gap</b>: <code>using-skills</code> is a repo skill of the same shape as the four lock-managed routers (<code>using-workflows</code>, <code>using-design-skills</code>, <code>delegation-templates</code>, <code>unknowns-discovery</code>, all <code>source: ohyeh/agent-scripts</code>) but is <b>NOT yet registered in <code>skills-lock.json</code></b> (lock still 98). So <code>npx skills experimental_install</code> does not deploy it — it currently exists only in the repo, installed on <b>zero</b> machines (verified on mbp14: absent from <code>~/.agents/skills</code> and <code>~/.claude/skills</code>). Registering it (lock → 99) is a fleet-contract change pending a user ruling + a redeploy when machines are reachable.</div>
+    <div>The union count below (98 lock + 2 manual = 100) is therefore still accurate for <i>installed</i> skills — <code>using-skills</code> is not yet installed anywhere and is intentionally not counted.</div>
+  </div>
 </div>
 
 <section>
