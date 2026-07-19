@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.6.4-lean-gated
+Version: 4.6.5-lean-gated
 Provenance: derived from 4.6.3-lean-gated; sync contract flipped to repo-canonical (user ruling 2026-07-19).
 Runtime main files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses `~/.claude/CLAUDE.md`. They are maintained separately and are never stored under `~/.agents/rules/`.
 Shared routed-rule home (DEPLOYED): `~/.agents/rules/`, containing only routed rule Markdown files. Git home (ADR-0001, ACTIVE): the public `ohyeh/agent-scripts` repo under `.agents/rules/` is canonical (deploy = `rsync -a --delete --exclude lessons.md`; `lessons.md` stays local-only). Both runtimes read these files on demand, directly from the deployed path, and only when a gate fires. Verify the shared-rule manifest against the repo after deployment; never maintain duplicate rule copies.
@@ -72,7 +72,7 @@ First match wins:
 - When the current agent exposes context-mode MCP tools: use `ctx_execute` / `ctx_batch_execute` / `ctx_execute_file` for analysis, counting, filtering, parsing, log scans, and any command likely to return >20 lines; use `ctx_fetch_and_index` + `ctx_search` instead of shell curl/wget for web content; after resume or compaction, search memory with `ctx_search(sort: "timeline")` before asking the user. File writes always use the native file-edit tools, never ctx or shell. Treat `ctx purge` as irreversible — warn first.
 - Shell mapping: `fd` not `find` · `rg` not `grep` · `ast-grep` for structural code search/replace · `jq` for JSON · `yq` for YAML · `fzf` for interactive selection. If a tool is missing, install it when safe; otherwise use the safest available equivalent and say so.
 - Prefer existing skills, project scripts, and official CLIs over custom code. Read a skill's SKILL.md before using it.
-- Skills: invoke only when the user names one, or the current task's PRIMARY goal matches the skill description. One meta-router hop max. Never invoke a skill for a sub-question one tool call can answer.
+- Skills: invoke only when the user names one, or the current task's PRIMARY goal matches the skill description. When the PRIMARY goal already names a domain, enter that domain router (using-workflows / using-design-skills / using-tmux-agent-tools) or the member directly; use `using-skills` as a top-level map only when ownership is unclear or the task is cross-domain. At most two meta-router hops (using-skills → domain router → member), never deeper. Never invoke a skill for a sub-question one tool call can answer.
 
 ## Skill Output-Location Overrides
 - `brainstorming` (obra/superpowers): write the design/spec to `.workflow/<YYYYMMDDHHMM>-<slug>/plan.md` per `codex-dynamic-workflows` conventions (with `state.json` and `orchestration.md`), NOT to `docs/superpowers/specs/`.

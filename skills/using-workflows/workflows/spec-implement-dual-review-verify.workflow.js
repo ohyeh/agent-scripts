@@ -33,7 +33,8 @@
 // the plan file, at ~10 lines' cost. Wrapper shape: an 18-line thin workflow that just calls
 // this recipe — no need to save those shells; write them ad hoc.
 // Second-model reviewer is the external counterpart (args.cli) driven via tmux-agent-tools (agent-tmux <cli>).
-// If the CLI/agent-tmux are unavailable the driver agent() returns null and dual review degrades to single (external_available:false).
+// If the CLI/agent-tmux are unavailable the driver agent() returns null; dual review is an INVARIANT, so a missing
+// reviewer ABORTS the run at the review stage — no silent degradation to single review (P2-A5).
 //
 // NOTE: workflow scripts have no FS/shell — only agents do. All file work happens inside agent() prompts.
 // NESTING: this is a mid-level stage — do NOT call workflow() here (1-level nesting cap). Drive the
@@ -111,13 +112,12 @@ const reviews = await parallel([
   () => agent(reviewPrompt('claude reviewer'), { label: 'review:claude', phase: 'Review', model, effort, isolation, agentType }),
 ])
 // Detect BOTH reviewers symmetrically — each parallel thunk can return null on failure.
-// Checking only the external side would let a silent claude-side failure (or a total review loss) pass as success.
+// Dual review is an INVARIANT: a missing reviewer aborts the run; we never substitute
+// placeholder text for it and finalize against half the coverage (P2-A5 root-cause fix).
 const externalAvailable = reviews[0] != null
 const claudeAvailable = reviews[1] != null
-if (!externalAvailable) log(`WARNING: external reviewer (${cli} via agent-tmux) returned null — dual review degraded.`)
-if (!claudeAvailable) log(`WARNING: claude reviewer returned null — dual review degraded.`)
-if (!externalAvailable && !claudeAvailable) {
-  return { aborted: true, stage: 'review', reason: 'both reviewers failed — no review coverage to finalize against', impl, reviews, external_available: false, claude_available: false }
+if (!externalAvailable || !claudeAvailable) {
+  return { aborted: true, stage: 'review', reason: 'dual review incomplete — refusing to finalize with a missing reviewer', impl, reviews, external_available: externalAvailable, claude_available: claudeAvailable }
 }
 
 phase('Finalize')
@@ -149,7 +149,7 @@ const fixed = await agent(
   `"within-spec" (only elaborates what the frozen line left open), "deviation" (small/reversible departure — record it, keep going), or "amendment-needed" (CONTRADICTS a frozen line). ` +
   `If ANY item is amendment-needed, do NOT edit through it: set amendment_needed=true, leave that contradiction unimplemented, and stop.\n` +
   `Report what you changed, paste verification outputs, and return the deviations honestly.\n\n` +
-  `REVIEW A (${cli}):\n${reviews[0] ?? 'unavailable'}\n\nREVIEW B (claude):\n${reviews[1] ?? 'unavailable'}\n\n${SPEC}`,
+  `REVIEW A (${cli}):\n${reviews[0]}\n\nREVIEW B (claude):\n${reviews[1]}\n\n${SPEC}`,
   { label: 'fix-and-verify', phase: 'Finalize', model, effort, isolation, agentType, schema: FINALIZE_SCHEMA }
 )
 if (!fixed) return { aborted: true, stage: 'finalize', reason: 'finalize agent failed (returned null) — implementation not verified', impl, reviews, external_available: externalAvailable, claude_available: claudeAvailable }

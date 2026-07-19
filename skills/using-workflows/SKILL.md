@@ -1,152 +1,116 @@
 ---
 name: using-workflows
-description: Meta-router for the closed-loop workflow recipes (audits, consensus gates, plan/build pipelines, findings triage, fleet manifest). Invoke BEFORE picking a workflow whenever the user describes a situation like "docs drifted", "weird bug", "plan this feature", "review this design", "fix this pile of findings", or asks which workflow/recipe to use. It routes the situation to the right recipe, auto-fills args, chains the closed loop, and optionally co-fires with codex-dynamic-workflows (if installed) for run artifacts (.workflow/<YYYYMMDDHHMM>-<slug>/). Even a 1% chance this applies means invoke it.
+description: Meta-router for the workflow recipes in ~/.claude/workflows/ (personal layer) and the current repo's .claude/workflows/ (shadows personal on name collision). Invoke before any loop-shaped work — audits, consensus gates, plan→build lifecycles, findings triage. Even a 1% chance this applies means invoke it.
 ---
 
 # using-workflows
 
-Meta-router for the workflow recipes living in `~/.claude/workflows/` (personal
-layer, usable from ANY repo) and/or the current repo's `.claude/workflows/`.
-You are not a recipe yourself — you pick **which** recipe the situation needs,
-fill its args, run it, and keep the closed loop moving.
+You pick **which** recipe the situation needs, fill its args, run it, and keep
+the closed loop moving. You are not a recipe.
 
-## Install / Deploy (first run on a new machine)
+## BYPASS — check FIRST
 
-This skill bundles the full recipe set under `workflows/` so it deploys
-standalone — no other checkout needed:
+One bounded task, single context, no stages, no convergence condition → do it
+directly (inline, or one worker via `using-tmux-agent-tools`). No recipe, no
+run dir. When in doubt, bypass — recipes exist for loops, not ceremony.
+
+Red flags that have actually burned us (naming one and proceeding anyway
+requires a stated reason):
+- 「我記得那支 recipe 內容」— recipes evolve; read the header comment (the
+  args contract) before running. Never guess args.
+- 「先做完再補 run record」— if it meets the run-dir bar below, open it first.
+- 「這個小改不用 gate」— behavior-tier edits to any recipe DO need one
+  consensus-gate round first.
+
+Subagent exemption: delegated workers never enter this router — the
+dispatcher already routed; workers follow their brief.
+
+## TRIGGER
+
+Loop-shaped work: stages plus a convergence condition. Audit chains,
+consensus review, plan→build lifecycles, findings triage.
+
+## SELECT
+
+Discover live — never recite the recipe list from memory:
 
 ```bash
-bash <skill-dir>/scripts/install.sh            # → ~/.claude/workflows/
-bash <skill-dir>/scripts/install.sh /path/to/repo/.claude/workflows   # repo layer, shared with the team
+ls ~/.claude/workflows/*.workflow.js .claude/workflows/*.workflow.js 2>/dev/null
 ```
 
-The script refuses to overwrite files whose content differs (pass `--force`
-after reviewing the diff it prints). Canonical source of truth is
-`skills/using-workflows/workflows/` in the agent-scripts repo (this bundle);
-edit it there and reinstall — never edit deployed copies in place.
-
-## The Rule
-
-1. **Discover live, never recite from memory.** The installed recipe set changes;
-   list what actually exists right now:
-
-   ```bash
-   for f in ~/.claude/workflows/*.workflow.js .claude/workflows/*.workflow.js; do
-     [ -f "$f" ] && node -e '
-       const s=require("fs").readFileSync(process.argv[1],"utf8");
-       const m=s.match(/export const meta = \{[\s\S]*?\n\}/);
-       const g=k=>(m&&m[0].match(new RegExp(k+":\\s*'\''([^'\'']*)"))||[])[1]||"";
-       console.log(process.argv[1].split("/").pop()+"\t"+g("name")+"\t"+g("description"))
-     ' "$f"
-   done
-   ```
-
-   Project layer shadows personal layer on name collisions. Before running a
-   candidate, **read its header comment** — that comment block is the args
-   contract; never guess args. If nothing is installed, run the install script
-   above first.
-
-2. **Route by situation**, using the decision tree below as the prior — but the
-   live `description`/`whenToUse` fields win if they disagree (recipes evolve).
-
-3. **After it returns, chain the loop** (see "Closed loop" below) instead of
-   stopping at raw output.
-
-## Decision tree — situation → recipe
+The inner loop (the ONLY loop — there is no scheduling outer ring; do not
+invent one):
 
 ```
-What is the user actually facing?
-│
-├─ "docs/design and code disagree / drifted"   → docs-vs-code-audit | design-vs-code-audit
-├─ weird bug, needs root-cause digging          → root-cause-deep-dive-audit
-├─ an audit just returned confirmed findings    → findings-triage      (connector ① — offer this AUTOMATICALLY)
-├─ has a brief (mini-PRD), wants it fully built → feature-lifecycle-auto
-├─ freeze planning docs only, deliberately no build → plan-pipeline
-├─ requirement → implementation plan (supervised, dual consensus) → feature-plan-consensus
-├─ one design proposal needs adversarial consensus → design-consensus
-├─ ANY artifact needs a "second model agrees" gate → consensus-gate
-├─ build from spec + dual-model review + verify → spec-implement-dual-review-verify
-├─ "what should this project do next"           → project-direction-review
-├─ inventory/snapshot the recipe fleet, check machine drift → workflow-manifest
-│
-└─ just ONE bounded task to run in the background — no multi-stage control flow
-    → NOT a workflow. Defer to the using-tmux-agent-tools skill
-      (tmux-delegate gate → claude-oneshot / codex-oneshot).
+audit (docs-vs-code | design-vs-code | root-cause-deep-dive)
+  → findings-triage        connector ①: askUser → human VERBATIM ·
+  │                        briefs → lifecycle · directFix → partitioned run
+  → feature-lifecycle-auto thin shell: feature-plan-consensus | plan-pipeline
+  │                        → gate ✋ (autoBuild=false: human reads the plan)
+  │                        → spec-implement-dual-review-verify
+  → re-run the ORIGINATING audit, SAME args
+  │                        connector ②: lives in YOU, not in code
+  → confirmed == 0 → converged, report · else → back to findings-triage
 ```
 
-## Auto-fill args (the lazy part)
+Entry points off the loop:
+- weird bug → `root-cause-deep-dive-audit` · docs/design drifted → the matching audit
+- ONE artifact needs a second-model verdict → `consensus-gate` — ONE round,
+  irreversible/behavior-tier changes only; NOT a default station
+- N-angle generative design consensus → `design-consensus`
+- "what should this project do next" → `project-direction-review`
+- recipe fleet inventory / machine drift → `workflow-manifest`
 
-Fill these WITHOUT asking when derivable; ask only what's genuinely the user's call:
+Stage recipes (`feature-plan-consensus`, `plan-pipeline`,
+`spec-implement-dual-review-verify`) are normally reached THROUGH
+`feature-lifecycle-auto`; call one directly only when you want just that stage.
+Args auto-fill: `cli` = user's words → repo CLAUDE.md → the COUNTERPART
+engine (the second brain is always the OTHER engine relative to the current
+commander: Claude commands → a codex profile; Codex commands → a claude
+profile; never your own engine, never a hard-coded name) → ask once;
+`context` = one line (repo abs path + stack + scope). Prefer name invocation
+over scriptPath.
 
-- `cli` (REQUIRED by every adversarial-review recipe; no default by design):
-  take, in order — the user's words → the repo's `CLAUDE.md` stated preference →
-  ask once ("codex? claude-fable-gate-glm? agy?"). Valid values = any
-  `~/.config/agent-tmux/profiles` name; verify with `ls` if unsure.
-- `context`: compose yourself — one line with the repo abs path + stack +
-  anything the user just said about scope. Quality of findings tracks this line.
-- `repoPath` / paths: current repo unless told otherwise.
-- `outputLanguage`: leave the recipe's default unless asked.
-- Prefer **name invocation** over `scriptPath`: some environments drop `args`
-  on scriptPath runs (symptom: `aborted: missing arg`). If stuck with
-  scriptPath, temporarily fill the recipe's `BUILTIN = {}` and revert after.
+## Cross-runtime execution
 
-## Closed loop — what to do after each recipe returns
+Both runtimes RUN recipes through this router; only the execution vehicle
+differs. Claude Code executes `.workflow.js` natively with `Workflow()`.
+Codex executes via `ADAPTED: claude-workflow-runner` (one bounded Claude
+runner capsule — mechanics in `references/codex-adapter.md`), under these
+constraints (Codex-authored, gate-v2 2026-07-19):
 
-```
-audit → confirmed findings?
-  ├─ yes → run findings-triage on them (don't make the user hand-sort)
-  │        ├─ askUser[]   → surface to the human verbatim; NEVER auto-decide intent
-  │        ├─ briefs[]    → one feature-lifecycle-auto call per brief (plan gate pauses for the human ✋)
-  │        └─ directFix[] → one partitioned fix run (disjoint files, SKIP+report on missing assets)
-  └─ after fixes/build → re-run the ORIGINATING audit with the SAME args (connector ②)
-         confirmed == 0  → loop converged; report and stop
-         confirmed  > 0  → back to findings-triage
-```
+- Codex MUST freeze recipe name, args, acceptance, author runtime, and reviewer profile before dispatching exactly one Claude runner.
+- The runner MUST invoke exactly one native `Workflow(...)`, preserve its return under `recipe_result`, write schema-v1 `result.json`, then stop.
+- Any later exception MUST cap nesting at 2, declare child profiles/round ceilings, use unique sessions plus wait-required results, and forbid children from spawning.
+- Resolve `args.cli` by the substantive author under review: Codex for Claude-authored work; a non-Codex profile when Codex authored the target; fail closed if unclear.
+- Human gates MUST return `status: paused` plus `next_action`, preserve `recipe_result`, stop the runner, and resume only via a new explicitly approved invocation.
+- Evidence MUST say `recipe <name> executed natively on Claude runtime via runner (commanded by Codex)`; adapter or child failure is never recipe PASS.
 
-Hard limits while chaining:
+Runtime matrix (Claude Code = `NATIVE` for all 12; Codex column):
 
-- **workflow() nesting cap = 1 level.** Chain recipes from the TOP level
-  (you, the main loop), never from inside another recipe.
-- Behavior-tier edits to any recipe require a `consensus-gate` pass FIRST;
-  wording/docs edits go direct (canonical copy in the agent-scripts repo's
-  `skills/using-workflows/workflows/`, then redeploy to `~/.claude/workflows/`
-  — never the reverse).
+| Recipe | Codex |
+|---|---|
+| 3 audits, `findings-triage`, `design-consensus`, `project-direction-review`, `workflow-manifest` (7, no tmux inside) | `ADAPTED: claude-workflow-runner` |
+| `consensus-gate` (simple verdict outcome only) | `ADAPTED: direct-claude-review` — `references/codex-adapter.md` |
+| `consensus-gate` (as recipe), lifecycle + its 3 stages (5, they launch agent-tmux inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise |
 
-## Run discipline — optional add-on: `codex-dynamic-workflows`
+## DEFER
 
-**This router works standalone** — recipes need nothing beyond
-`~/.claude/workflows/`. But IF the `codex-dynamic-workflows` skill is
-installed (check the available-skills list; do NOT assume), co-fire it: **this
-skill picks the recipe; that one governs the run record.** For any non-trivial
-recipe run (anything past a one-shot audit you'll discard), follow its
-conventions in the TARGET repo simultaneously:
+- Chain recipes from the TOP level only — `workflow()` nesting cap is 1, and
+  the lifecycle shell spends it.
+- Run dir (`.workflow/<slug>/`, `codex-dynamic-workflows` conventions) ONLY
+  when work spans days, has 2+ phases, or must survive interruption/handoff.
+  Within-chat work: a single results file, or nothing.
+- Recipe edits: behavior-tier → consensus-gate one round FIRST; wording →
+  direct. Canonical = the agent-scripts repo bundle
+  (`skills/using-workflows/workflows/`) → redeploy to `~/.claude/workflows/`;
+  a live edit made machine-side must be folded back into the bundle in the
+  same change.
 
-- Anchor the run in `.workflow/<YYYYMMDDHHMM>-<slug>/` — recipes already
-  lean this way (`plan-pipeline` defaults `directionPath`/`planPath` there).
-  The `<YYYYMMDDHHMM>` prefix is the run-creation timestamp; it is supplied
-  by the orchestrator as part of the `slug`/run-id arg it passes in, never
-  computed inside a Workflow script (`Date.now()` is banned there — recipes
-  must stay deterministic/replayable). Keep `plan.md` human-readable,
-  `state.json` for status/approval/verification state, `final-report.md`
-  for the integrated outcome.
-- Its operating contract applies verbatim: restate goal + success criteria
-  before invoking; artifact before delegating; approval before risky/external
-  steps; **integrate results — never paste raw recipe output as the answer**;
-  verify with checks matched to blast radius.
-- Note the directory split (a classic confusion): `.workflow/` = run
-  artifacts (that skill's convention, NOT discovered by Claude Code);
-  `.claude/workflows/` = the recipes themselves (discovered, `/name`-callable).
-- Multi-recipe chains (audit → triage → lifecycle → re-audit) = one slug, one
-  `.workflow/<YYYYMMDDHHMM>-<slug>/` dir; each recipe's return value lands in
-  `results/`, loop convergence (connector ② confirmed==0) goes in
-  `final-report.md`.
+## NOT-FOUND
 
-## Canonical references (never paraphrase these from memory)
-
-- Per-recipe reference + args details: `workflows/README.md` in this bundle
-  (canonical: `skills/using-workflows/workflows/README.md` in the agent-scripts repo).
-- Worker mechanics (agent-tmux/profiles/send-wait): the `tmux-agent-tools`
-  skill — defer to it for anything about driving the second-model CLI.
-- Run-record conventions (`.workflow/<YYYYMMDDHHMM>-<slug>/`, goal mode,
-  packets): the `codex-dynamic-workflows` skill — optional add-on; defer to
-  it for run discipline only when it's installed.
+No recipe fits → the work probably is not loop-shaped; bypass. A genuinely
+new loop shape → propose a new recipe to the user; never improvise a
+half-recipe inline. Per-recipe reference: `workflows/README.md` (canonical:
+agent-scripts bundle `skills/using-workflows/workflows/README.md`; deployed
+copy at `~/.claude/workflows/README.md`).
