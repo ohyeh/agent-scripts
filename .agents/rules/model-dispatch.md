@@ -46,6 +46,12 @@ Never send a bare instruction. Every subagent prompt contains:
 3. REPORT FORMAT — exactly what to return (see §4) and where to write artifacts.
 Templates with these blanks: `~/.agents/skills/delegation-templates/SKILL.md`.
 
+Never claim that the user requested or explicitly authorized a model unless the
+exact model appears in a quoted user message. Naming a runtime or worker
+authorizes that runtime only. Reusing an existing teammate authorizes context
+reuse, not its current model; an explicit user model choice overrides reuse.
+Otherwise describe the worker model as observed state, never user intent.
+
 ## §4 Report contract (paste into every subagent prompt)
 > Return ONLY: (a) conclusions as short bullets, (b) `file:line` references for every
 > claim, (c) verification evidence (command + exit code + key lines) if you changed
@@ -54,21 +60,45 @@ Templates with these blanks: `~/.agents/skills/delegation-templates/SKILL.md`.
 Subagents may not spawn further subagents unless told to. If a subagent replies with
 a wall of text anyway, extract what you need and do not quote the wall back to the user.
 
-## §5 Model selection per task type
+## §5 Role-first model and effort contract
+
+Claude Code uses this task table:
 
 | Task type | Model | Notes |
 |---|---|---|
 | Locate code / sweep repo / inventory | `haiku`; `sonnet` if synthesis needed | Explore agent type |
-| Implement a scoped change | `sonnet` | acceptance = tests/build pass |
-| Refactor with behavior preserved | `sonnet` | must run existing tests before+after |
-| Research / docs reading | `sonnet` | sources cited with URLs or file:line |
-| Review / verification | `sonnet` fresh context; `opus` if the change is risky | never the author (above §7's triviality threshold) |
+| Implement, refactor, or research | `sonnet` | acceptance includes tests or cited sources |
+| Review / verification | fresh `sonnet`; risky change `opus` | never the author above §7's triviality threshold |
 | Hard debugging (2 failed attempts) or architecture decision | `opus` | include full failure trail |
 | Batch-apply a solved pattern | `haiku` | give one worked example in the prompt |
 
-Effort: plain Agent calls inherit the session effort (no field exists — §1). Where
-effort IS settable (Workflow `agent()`, agent frontmatter): `low` for mechanical
-batch stages, `high`/`xhigh` for verify/judge stages.
+Codex uses this role contract (CLI catalog verified 2026-07-21; native tool
+availability must still be checked live):
+
+| Role | Model | Effort | Contract |
+|---|---|---|---|
+| Main commander | `gpt-5.6-sol` | start `medium` | Integrate, decide, and supervise; reserve `xhigh` for materially large or hard problems |
+| Plan | `gpt-5.6-sol` | start `medium` | Raise to `high`; use `xhigh` only for major architecture, security, or ambiguity |
+| Review / judgment | fresh `gpt-5.6-sol` | start `medium` | Reviewer is not the author; raise effort only when risk or contradictory evidence requires it |
+| Execution worker | `gpt-5.6-terra`; CLI `gpt-5.6-luna`; explicitly chosen `gpt-5.6-sol`; or an external worker | Terra/Luna start `low`/`medium`, up to `max`; Sol `low`/`medium` only | Keep Sol worker effort below the Sol commander/plan/review tier; increase Terra/Luna effort only while the task remains bounded and well specified |
+
+- Start execution workers at the cheapest capable `low`/`medium` combination.
+  Increase Terra/Luna effort one step at a time; `max` is allowed when lower
+  effort proved insufficient or the bounded task clearly benefits from deeper
+  execution without paying for a Sol worker.
+- A blocked worker reports evidence to the Sol commander instead of changing
+  its own model tier. The commander first repairs task decomposition or missing
+  context, then may raise Terra/Luna effort or choose another external worker.
+- A Sol execution worker never exceeds `medium`; Sol `high` and above are
+  reserved for commander, plan, and review judgment.
+- Native collaboration currently exposes only Terra and Sol. Never request Luna
+  there until the live tool schema accepts it; Luna remains valid for CLI workers.
+- `ultra` is forbidden. Sol normally stays at `medium`/`high`; use Sol `xhigh`
+  only for genuinely major problems, and Sol `max` only rarely with concrete evidence.
+- Keep `service_tier=default`; use `priority` only for an explicit latency need.
+
+Plain Claude Agent calls inherit session effort (no field exists — §1). Where
+effort is settable, start low and raise one step at a time from evidence.
 
 ## §6 Escalation / de-escalation ladder
 - `haiku` errs ONCE on a subtask → redo on `sonnet`. Do not debug haiku's attempt.
