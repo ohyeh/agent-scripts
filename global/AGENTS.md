@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.6.6-lean-gated
+Version: 4.6.8-lean-gated
 Provenance: derived from 4.6.3-lean-gated; sync contract flipped to repo-canonical (user ruling 2026-07-19).
 Runtime main files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses `~/.claude/CLAUDE.md`. They are maintained separately and are never stored under `~/.agents/rules/`.
 Shared routed-rule home (DEPLOYED): `~/.agents/rules/`, containing only routed rule Markdown files. Git home (ADR-0001, ACTIVE): the public `ohyeh/agent-scripts` repo under `.agents/rules/` is canonical (deploy = `rsync -a --delete --exclude lessons.md`; `lessons.md` stays local-only). Both runtimes read these files on demand, directly from the deployed path, and only when a gate fires. Verify the shared-rule manifest against the repo after deployment; never maintain duplicate rule copies.
@@ -64,6 +64,7 @@ First match wins:
 - Large refactors or experimental changes start on a new branch, never on mainline.
 
 ## Simplicity
+- Fix completeness over patch minimality: fix the verified root cause at the narrowest correct shared boundary, cover all affected paths, and verify the requested outcome end to end. Prefer a smaller diff only between equally complete fixes; never trade completeness for a workaround or symptom patch. Temporary mitigation requires explicit approval and documented limits.
 - Write the minimum solution that fully solves the problem: no speculative features, no abstractions for single-use code, no unrequested configurability.
 - Surgical diffs: touch only what the task requires, match existing style, remove anything your own change made unused. Every changed line traces to the request.
 - Reuse before writing: an existing helper in this codebase, then stdlib, then an installed dependency — never add a new dependency for what a few lines can do.
