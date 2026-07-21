@@ -8,6 +8,7 @@
 - 2026-07-22: Replaced fixed heartbeat language with material-event-only reporting and moved routine gate receipts into workflow/dispatch artifacts.
 - 2026-07-22: The full tmux smoke suite passed all 61 tests, including normal-result, silent-wait, lost-liveness, and supervision-stress coverage.
 - 2026-07-22: Refreshed the two tmux skill lock entries after the first deploy exposed stale pinned hashes; this keeps future fleet restores on the new mandatory proxy policy.
+- 2026-07-22: Fleet deploy completed and installed copies were compared against repo policy; both refreshed tmux skills contain the new supervision contract. PATH wrappers point to the tested checkout.
 
 ## Gate receipts
 

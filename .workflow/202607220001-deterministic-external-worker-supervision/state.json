@@ -1,11 +1,24 @@
 {
-  "status": "in_progress",
-  "implementation": "complete",
-  "approval": "approved_by_attached_request",
-  "packets": {
-    "policy": "complete",
-    "supervisor": "complete",
-    "verification": "complete",
-    "release": "pending"
-  }
+  "schema_version": 1,
+  "title": "Deterministic external worker supervision",
+  "slug": "deterministic-external-worker-supervision",
+  "status": "complete",
+  "approved_scope": "mandatory cheap native proxy, deterministic silent wait, ownership transfer, and quiet gate audit receipts",
+  "pending_approval": null,
+  "approval": {
+    "status": "approved",
+    "source": "user attachment and follow-up"
+  },
+  "packets": [
+    {
+      "id": "01-supervision",
+      "status": "complete"
+    }
+  ],
+  "verification": [
+    {
+      "check": "cross-repo tests, push, fleet deploy, and installed runtime checks",
+      "status": "complete"
+    }
+  ]
 }
