@@ -11,6 +11,7 @@ Local evidence:
 - Local fixture run → exit 0, PASS 6/6.
 - `node scripts/test-review-gate-smoke.mjs` → exit 0, 8 passed, 0 failed.
 - `node --check` on both scripts and `git diff --check` → exit 0.
+- Clean-worktree `scripts/scrub.sh` initially exposed a canonical GitHub merge identity missing from its exact allowlist; the allowlist was repaired without weakening secret/path/host scans.
 
 Independent evidence:
 - Fresh closeout reviewer re-ran the self-test and malformed-topology probes.

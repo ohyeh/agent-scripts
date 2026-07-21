@@ -13,6 +13,7 @@ Scope:
 - `scripts/execution-frontier.mjs`
 - `evals/execution-frontier/`
 - README usage documentation
+- `scripts/scrub.sh` exact identity allowlist repair required by canonical GitHub merge history
 - This workflow run directory
 
 Non-goals:
