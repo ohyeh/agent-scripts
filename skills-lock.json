@@ -700,7 +700,7 @@
       "source": "ohyeh/tmux-agent-tools",
       "sourceType": "github",
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
-      "computedHash": "cfb630c1990c6171380637fa4019b2a2325cac49ca30d95c7efbe83eef18b8ee"
+      "computedHash": "051d2887f84a7965ff0649c3a827d109688d3c30503a5cb9784028fcd5a04f71"
     },
     "to-questionnaire": {
       "source": "mattpocock/skills",

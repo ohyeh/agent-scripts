@@ -11,7 +11,7 @@
 ## Verification
 
 - `tmux-agent-tools/scripts/run-all-smokes`: 61 tests PASS, 0 FAIL.
-- `scripts/test-supervise-smoke`: 7 PASS, 0 FAIL.
+- `scripts/test-supervise-smoke`: 8 PASS, 0 FAIL.
 - `scripts/test-help-smoke`: 54 PASS, 0 FAIL.
 - `agent-scripts/scripts/test-execution-frontier.mjs`: 23 PASS, 0 FAIL.
 - `agent-scripts/scripts/test-review-gate-smoke.mjs`: 8 PASS, 0 FAIL.
@@ -22,6 +22,6 @@
 
 ## Release
 
-- `tmux-agent-tools`: `72e4cf1` pushed to `origin/main`.
+- `tmux-agent-tools`: initial `72e4cf1`, follow-up `3ec0666` pushed to `origin/main`.
 - `agent-scripts`: policy `9c64c93` and refreshed locks `15b063a` pushed to
   `origin/main`; final workflow closeout follows in the next commit.
