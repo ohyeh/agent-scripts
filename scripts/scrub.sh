@@ -85,9 +85,9 @@ test ! -s "$EVIDENCE/private-email-scan-staged.txt"
 
 # --- W4 extension: commit-metadata scan ---
 # Author/committer name+email over every commit, checked against every
-# pattern above. Every commit must carry exactly the accepted identity,
-# JENHAO YEH <ohyeh0412@gmail.com> (user-approved 2026-07-17; the canary
-# commit's legacy identity was rewritten out of history with user approval).
+# pattern above. Every commit must carry either the accepted local identity,
+# JENHAO YEH <ohyeh0412@gmail.com> (user-approved 2026-07-17), or the exact
+# GitHub-authored identity produced when that same user's PR is merged.
 # Any commit with any other identity blocks the scrub.
 git -C "$REPO" log --all --format='%H %an %ae %cn %ce' > "$EVIDENCE/commit-metadata.txt"
 
@@ -97,15 +97,17 @@ set -e
 test "$meta_rc" -eq 1
 test ! -s "$EVIDENCE/commit-metadata-flagged.txt"
 
-CURRENT_IDENTITY='JENHAO YEH ohyeh0412@gmail.com JENHAO YEH ohyeh0412@gmail.com'
+LOCAL_IDENTITY='JENHAO YEH ohyeh0412@gmail.com JENHAO YEH ohyeh0412@gmail.com'
+GITHUB_MERGE_IDENTITY='JENHAO YEH ohyeh@users.noreply.github.com GitHub noreply@github.com'
 sort -u "$EVIDENCE/commit-metadata.txt" > "$EVIDENCE/commit-metadata-unique.txt"
 : > "$EVIDENCE/commit-metadata-unexpected.txt"
 while IFS= read -r line; do
   test -z "$line" && continue
   identity="${line#* }"
-  if [ "$identity" != "$CURRENT_IDENTITY" ]; then
-    printf '%s\n' "$line" >> "$EVIDENCE/commit-metadata-unexpected.txt"
-  fi
+  case "$identity" in
+    "$LOCAL_IDENTITY"|"$GITHUB_MERGE_IDENTITY") ;;
+    *) printf '%s\n' "$line" >> "$EVIDENCE/commit-metadata-unexpected.txt" ;;
+  esac
 done < "$EVIDENCE/commit-metadata-unique.txt"
 test ! -s "$EVIDENCE/commit-metadata-unexpected.txt"
 
