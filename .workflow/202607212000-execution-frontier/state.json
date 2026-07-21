@@ -1,5 +1,5 @@
 {
-  "status": "verified",
+  "status": "complete",
   "branch": "codex/execution-frontier",
   "acceptance": [
     "valid fixture produces JSONL and summary",
@@ -11,6 +11,6 @@
   "verification": {
     "local": "PASS: execution-frontier 23/23, local observations 6/6, review-gate 8/8",
     "independent_review": "VERDICT: PASS",
-    "push": "pending"
+    "push": "PASS: codex/execution-frontier at bf86bc8"
   }
 }

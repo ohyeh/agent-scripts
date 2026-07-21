@@ -17,6 +17,11 @@ Independent evidence:
 - Fresh closeout reviewer re-ran the self-test and malformed-topology probes.
 - Verdict: `VERDICT: PASS`.
 
+Git evidence:
+- `542aaf4 feat(evals): add execution frontier harness`
+- `bf86bc8 fix(scrub): allow canonical GitHub merge identity`
+- Branch `codex/execution-frontier` pushed to `origin`.
+
 Remaining boundary:
 - The bundled fixture validates harness plumbing; it is not a model benchmark.
 - Provider cost and hidden reasoning tokens remain unavailable rather than estimated.
