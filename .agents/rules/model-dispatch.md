@@ -96,6 +96,13 @@ availability must still be checked live):
 - `ultra` is forbidden. Sol normally stays at `medium`/`high`; use Sol `xhigh`
   only for genuinely major problems, and Sol `max` only rarely with concrete evidence.
 - Keep `service_tier=default`; use `priority` only for an explicit latency need.
+- Codex asynchronous external workers MUST transfer wrapper ownership to exactly
+  one cheap native supervision proxy (`gpt-5.6-luna`, or low/medium
+  `gpt-5.6-terra` when Luna is unavailable). The parent does not poll the worker.
+  Routine gate receipts are recorded in the workflow/dispatch artifact and are
+  user-facing only for a deviation, approval boundary, BLOCK/escalation, or an
+  explicit request. Follow-ups under the same role, rubric, and acceptance reuse
+  the existing receipt.
 
 Plain Claude Agent calls inherit session effort (no field exists — §1). Where
 effort is settable, start low and raise one step at a time from evidence.
