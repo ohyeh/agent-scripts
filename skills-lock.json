@@ -699,11 +699,8 @@
     "tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "5e7f645f60e3034827eba3f3dfa3feb02ad5a5f8",
-      "installedAt": "2026-05-16T03:35:50.488Z",
-      "updatedAt": "2026-07-18T07:34:33.595Z"
+      "computedHash": "cfb630c1990c6171380637fa4019b2a2325cac49ca30d95c7efbe83eef18b8ee"
     },
     "to-questionnaire": {
       "source": "mattpocock/skills",
@@ -809,11 +806,8 @@
     "using-tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/using-tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "500389c3fcf1d56aa1c02208bc28054215f90844",
-      "installedAt": "2026-06-21T18:10:15.997Z",
-      "updatedAt": "2026-07-19T13:09:40Z"
+      "computedHash": "d306434fe0b0f7306bd2af35beba431867997b17b508408c9dc4067266506846"
     },
     "using-workflows": {
       "source": "ohyeh/agent-scripts",
