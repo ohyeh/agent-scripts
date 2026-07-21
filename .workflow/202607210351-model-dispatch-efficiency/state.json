@@ -2,7 +2,7 @@
   "schema_version": 1,
   "title": "Model dispatch efficiency",
   "slug": "model-dispatch-efficiency",
-  "status": "implementing",
+  "status": "complete",
   "approved_scope": "gate noise, model authorization, and role-first Codex model/effort policy",
   "pending_approval": null,
   "approval": {
@@ -18,7 +18,7 @@
   "verification": [
     {
       "check": "repo and deployment verification",
-      "status": "in_progress"
+      "status": "complete"
     }
   ]
 }
