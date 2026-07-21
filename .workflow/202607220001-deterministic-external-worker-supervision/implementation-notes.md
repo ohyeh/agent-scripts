@@ -7,6 +7,7 @@
 - 2026-07-22: Added a normal-call budget and slim proxy context. Parent ownership ends after dispatch; diagnostic capture is exception-only.
 - 2026-07-22: Replaced fixed heartbeat language with material-event-only reporting and moved routine gate receipts into workflow/dispatch artifacts.
 - 2026-07-22: The full tmux smoke suite passed all 61 tests, including normal-result, silent-wait, lost-liveness, and supervision-stress coverage.
+- 2026-07-22: Refreshed the two tmux skill lock entries after the first deploy exposed stale pinned hashes; this keeps future fleet restores on the new mandatory proxy policy.
 
 ## Gate receipts
 
