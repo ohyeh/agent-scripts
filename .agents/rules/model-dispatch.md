@@ -71,6 +71,7 @@ Claude Code uses this task table:
 | Review / verification | fresh `sonnet`; risky change `opus` | never the author above §7's triviality threshold |
 | Hard debugging (2 failed attempts) or architecture decision | `opus` | include full failure trail |
 | Batch-apply a solved pattern | `haiku` | give one worked example in the prompt |
+| Supervise an authorized external CLI worker | `general-purpose` sub-agent on `haiku` — always mount exactly one dedicated supervision-only proxy | owns the wrapper; event-driven via the tool-layer blocking supervisor, never polls; escalate to `sonnet` only for live diagnosis (trial from 2026-07-22, review after one week) |
 
 Codex uses this role contract (CLI catalog verified 2026-07-21; native tool
 availability must still be checked live):
@@ -96,9 +97,14 @@ availability must still be checked live):
 - `ultra` is forbidden. Sol normally stays at `medium`/`high`; use Sol `xhigh`
   only for genuinely major problems, and Sol `max` only rarely with concrete evidence.
 - Keep `service_tier=default`; use `priority` only for an explicit latency need.
-- Codex asynchronous external workers MUST transfer wrapper ownership to exactly
-  one cheap native supervision proxy (`gpt-5.6-luna`, or low/medium
-  `gpt-5.6-terra` when Luna is unavailable). The parent does not poll the worker.
+- Asynchronous external CLI workers MUST transfer wrapper ownership to exactly
+  one cheap native supervision sub-agent — Claude: a `general-purpose` sub-agent
+  on `haiku` (always mount one); Codex: a native `spawn_agent` sub-agent on
+  `gpt-5.6-terra` (`low`/`medium`). Luna is a CLI-worker execution model and is
+  not exposed to native collaboration, so the proxy itself never runs Luna.
+  Native Agent/sub-agent work needs no proxy (it already has a visible lifecycle
+  and completion wakeup). The parent does not poll the worker; the proxy waits on
+  the tool-layer blocking supervisor.
   Routine gate receipts are recorded in the workflow/dispatch artifact and are
   user-facing only for a deviation, approval boundary, BLOCK/escalation, or an
   explicit request. Follow-ups under the same role, rubric, and acceptance reuse
