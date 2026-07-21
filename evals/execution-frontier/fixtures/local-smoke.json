@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "comparison": {
+    "vary": "reasoning.effort"
+  },
+  "profiles": {
+    "low": {
+      "reasoning": { "runtime": "local-node", "model": "node", "effort": "low" },
+      "sampling": { "independent_samples": 1, "selection_rule": "none", "sequential_refinement_rounds": 0 },
+      "topology": { "agents": 1, "parallelism": 1, "roles": ["runner"], "edges": [] }
+    },
+    "high": {
+      "reasoning": { "runtime": "local-node", "model": "node", "effort": "high" },
+      "sampling": { "independent_samples": 1, "selection_rule": "none", "sequential_refinement_rounds": 0 },
+      "topology": { "agents": 1, "parallelism": 1, "roles": ["runner"], "edges": [] }
+    }
+  },
+  "cases": [
+    {
+      "id": "review-gate-low",
+      "workload_id": "review-gate",
+      "profile_id": "low",
+      "command": ["node", "scripts/test-review-gate-smoke.mjs"],
+      "expected_exit_code": 0,
+      "attempts": 2,
+      "timeout_ms": 30000
+    },
+    {
+      "id": "review-gate-high",
+      "workload_id": "review-gate",
+      "profile_id": "high",
+      "command": ["node", "scripts/test-review-gate-smoke.mjs"],
+      "expected_exit_code": 0,
+      "attempts": 2,
+      "timeout_ms": 30000
+    },
+    {
+      "id": "profile-env-low",
+      "workload_id": "profile-env",
+      "profile_id": "low",
+      "command": ["node", "-e", "const p=JSON.parse(process.env.EXECUTION_PROFILE_JSON); if (process.env.EXECUTION_PROFILE_ID !== process.env.EXECUTION_REASONING_EFFORT || p.reasoning.effort !== process.env.EXECUTION_REASONING_EFFORT || p.reasoning.runtime !== 'local-node') process.exit(1); console.log('profile-ok')"],
+      "expected_exit_code": 0,
+      "attempts": 1
+    },
+    {
+      "id": "profile-env-high",
+      "workload_id": "profile-env",
+      "profile_id": "high",
+      "command": ["node", "-e", "const p=JSON.parse(process.env.EXECUTION_PROFILE_JSON); if (process.env.EXECUTION_PROFILE_ID !== process.env.EXECUTION_REASONING_EFFORT || p.reasoning.effort !== process.env.EXECUTION_REASONING_EFFORT || p.reasoning.runtime !== 'local-node') process.exit(1); console.log('profile-ok')"],
+      "expected_exit_code": 0,
+      "attempts": 1
+    }
+  ]
+}

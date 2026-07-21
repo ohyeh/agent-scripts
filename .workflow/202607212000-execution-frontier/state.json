@@ -1,0 +1,16 @@
+{
+  "status": "verified",
+  "branch": "codex/execution-frontier",
+  "acceptance": [
+    "valid fixture produces JSONL and summary",
+    "invalid fixture exits non-zero before execution",
+    "execution profile separates reasoning, sampling, and topology",
+    "existing smoke and scrub checks pass",
+    "task-only commit is pushed"
+  ],
+  "verification": {
+    "local": "PASS: execution-frontier 23/23, local observations 6/6, review-gate 8/8",
+    "independent_review": "VERDICT: PASS",
+    "push": "pending"
+  }
+}
