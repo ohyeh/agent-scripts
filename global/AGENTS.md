@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.6.10-lean-gated
+Version: 4.6.11-lean-gated
 Provenance: derived from 4.6.3-lean-gated; sync contract flipped to repo-canonical (user ruling 2026-07-19).
 Runtime main files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses `~/.claude/CLAUDE.md`. They are maintained separately and are never stored under `~/.agents/rules/`.
 Shared routed-rule home (DEPLOYED): `~/.agents/rules/`, containing only routed rule Markdown files. Git home (ADR-0001, ACTIVE): the public `ohyeh/agent-scripts` repo under `.agents/rules/` is canonical (deploy = `rsync -a --delete --exclude lessons.md`; `lessons.md` stays local-only). Both runtimes read these files on demand, directly from the deployed path, and only when a gate fires. Verify the shared-rule manifest against the repo after deployment; never maintain duplicate rule copies.
@@ -55,7 +55,7 @@ First match wins:
 - External-worker supervision (Codex & Claude): when native sub-agents are available, every authorized asynchronous external CLI worker MUST be owned by exactly one supervision-only native sub-agent proxy — a dedicated, trackable sub-agent, never the parent. This covers external CLI workers only (`codex-tmux`, Claude/AGY/GLM CLIs); native Agent/sub-agent work already has a visible lifecycle and completion wakeup, so it gets NO proxy. Pick the cheap supervision model (and, on Claude, the agent type) for your runtime from `model-dispatch.md §5`, read on demand at the delegation gate. The proxy is event-driven: it waits on the tool-layer blocking supervisor and does NOT poll — no fixed-interval heartbeat (see the rule above). Once assigned, all wrapper interaction transfers to the proxy; the parent MUST NOT call `status`, `watch`, `capture`, `probe`, `ping`, `result`, or send follow-ups unless the proxy reports blocked/lost-liveness, terminates unexpectedly, or the user explicitly requests direct inspection. One-shot work whose terminal result returns in the original bounded call is exempt. Without native sub-agents, run the wrapper directly and report `UNAVAILABLE-NATIVE`.
 - Keep any single response within the provider's output token limit: chunk long output across turns or write it to files. Some endpoints cap output low and one oversized reply kills the whole session.
 - Write output/result files to the project's convention path, never the repo root. Temp files go to the session scratchpad, never `/tmp`.
-- Verbosity control: `V=0` one sentence / `V=1` concise (default) / `V=2` + key trade-offs / `V=3` full detail.
+- Verbosity control: `V=0` one sentence (default) / `V=1` concise / `V=2` + key trade-offs / `V=3` full detail.
 
 ## Code Discipline
 - Fail fast: never swallow errors with catch-alls or silent fallbacks; let failures surface loudly. A deliberate fallback must be observable and record the error class and fallback reason, without logging secrets or sensitive payloads.
