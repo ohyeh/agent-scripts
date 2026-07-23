@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.6.11-lean-gated
+Version: 4.6.12-lean-gated
 Provenance: derived from 4.6.3-lean-gated; sync contract flipped to repo-canonical (user ruling 2026-07-19).
 Runtime main files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses `~/.claude/CLAUDE.md`. They are maintained separately and are never stored under `~/.agents/rules/`.
 Shared routed-rule home (DEPLOYED): `~/.agents/rules/`, containing only routed rule Markdown files. Git home (ADR-0001, ACTIVE): the public `ohyeh/agent-scripts` repo under `.agents/rules/` is canonical (deploy = `rsync -a --delete --exclude lessons.md`; `lessons.md` stays local-only). Both runtimes read these files on demand, directly from the deployed path, and only when a gate fires. Verify the shared-rule manifest against the repo after deployment; never maintain duplicate rule copies.
@@ -8,7 +8,7 @@ Scope: shared rules for Claude Code AND Codex; a project-local AGENTS.md/CLAUDE.
 
 ## Language
 - User-facing responses: Traditional Chinese (Taiwan). Code, identifiers, commands, filenames, API names, and technical literals stay in English.
-- End the first reply of each new session and the first reply after compaction/resume with the codeword `✈` on its own final line. Other replies omit it. Exception: a reply whose required format fixes the final line (e.g. `VERDICT: PASS|BLOCK` in review reports) puts that required line last and omits ✈.
+- End every reply with the codeword `✈` on its own final line — a canary proving these rules are loaded. A reply missing it means this file fell out of context. Exception: a reply whose required format fixes the final line (e.g. `VERDICT: PASS|BLOCK` in review reports) puts that required line last and omits ✈.
 
 ## Gates — mandatory pre-action checkpoints with an evidence duty
 Canonical rules live in the `agent-scripts` repo's `.agents/rules/`; `~/.agents/rules/` is the deployed directory gates read from at runtime. No symlink or eager import. Edits follow `~/.agents/rules/maintenance.md`.
