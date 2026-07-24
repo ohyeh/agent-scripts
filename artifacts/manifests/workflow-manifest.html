@@ -165,9 +165,10 @@
       <p>Harvest ruling for saved dynamic workflows (<span class="mono">~/.claude/workflows</span>) and one-off exhaust scripts.
       The <span class="mono">agent-scripts</span> repo (<span class="mono">skills/using-workflows/workflows/</span>) is the single
       canonical source — machines are deployed copies, never the other way round. Sync direction is always
-      <b>repo → machines</b>. Snapshot taken 2026-07-19 at repo HEAD <span class="mono">a060a7c</span>, after the
+      <b>repo → machines</b>. Original snapshot taken 2026-07-19 at repo HEAD <span class="mono">a060a7c</span>, after the
       repo-canonical deployment (clone-free <span class="mono">scripts/deploy.sh</span> for mac-mini-m2/remote2, native clone for
       the mbp14 dev machine) converged all three machines to zero drift (see §02).
+      <b>Re-verified 2026-07-24</b> on mbp14: live <span class="mono">~/.claude/workflows</span> still holds exactly the same 12 recipes and the aggregate hash still matches <span class="mono">a5f8770f…</span> — no roster or hash drift since the 2026-07-19 (later) re-converge recorded below. mac-mini-m2/remote2 not re-verified this pass.
       This page is for checking which machine missed which step — it is not an auto-sync tool.</p>
     </div>
     <div class="stamp" aria-label="12 saved workflows">
@@ -413,7 +414,7 @@ Q5 genuinely one-off — everything else: project-specific, single-run, not wort
   </section>
 
   <footer>
-    <span>repo <span class="mono">skills/using-workflows/workflows/</span> is the sole canonical source · snapshot @ <span class="mono">a060a7c</span> · 2026-07-19</span>
+    <span>repo <span class="mono">skills/using-workflows/workflows/</span> is the sole canonical source · snapshot @ <span class="mono">a060a7c</span> · 2026-07-19, re-verified on mbp14 2026-07-24</span>
     <span>This page is a static snapshot · re-run the <span class="mono">workflow-manifest</span> recipe to regenerate it</span>
   </footer>
 
