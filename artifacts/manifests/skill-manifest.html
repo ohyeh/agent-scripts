@@ -103,16 +103,20 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 <div class="wrap">
 
 <h1>Skill Manifest — Fleet</h1>
-<p class="subtitle">Skill · Plugin · Workflow — three-machine fleet | Generated on: mbp14 (this machine) | Generated: 2026-07-19 | Supersedes the 07-04 / 07-18 snapshots | Snapshot commit: <code>agent-scripts</code> repo @ <code>a060a7c</code> (repo has since advanced to <code>e6e0163</code> — see post-snapshot note)</p>
+<p class="subtitle">Skill · Plugin · Workflow — three-machine fleet | Generated on: mbp14 (this machine) | Generated: 2026-07-24 | Supersedes the 07-04 / 07-18 / 07-19 snapshots | Snapshot: rules v4.6.12 → v4.6.14 landed, live mbp14 rosters re-scanned (mac-mini-m2 / remote2 not re-verified this pass — see note below)</p>
 
 <div class="meta-card">
   <b>Meta</b> — This manifest was generated on mbp14 (this machine), covering all three fleet machines: <code>mbp14</code> (local), <code>mac-mini-m2</code> (<code>ssh mac-mini-m2</code>), <code>remote2</code> (<code>ssh remote2</code>); source repos: <code>agent-scripts</code>, <code>tmux-agent-tools</code> (other source repos are in the "Source" column below, taken from each machine's <code>~/.agents/.skill-lock.json</code>).
   <div class="meta-grid">
     <div>Scan command: <code>ls ~/.agents/skills ~/.claude/skills ~/.codex/skills</code> + <code>cat ~/.agents/.skill-lock.json</code></div>
-    <div>Connection method: SSH BatchMode (key auth, all connections succeeded, no UNREACHABLE machines)</div>
-    <div>Union skill count: 98 (lock-managed) + 2 documented manual extras = 100 total</div>
-    <div>Three-machine intersection skill count: 98 (full convergence — see 2026-07-19 update below)</div>
+    <div>Connection method: SSH BatchMode (key auth, all connections succeeded, no UNREACHABLE machines) — <span class="mut">this 2026-07-24 pass only re-scanned mbp14 directly; mac-mini-m2/remote2 rows below carry the 2026-07-19 figures forward, unverified this round</span></div>
+    <div>mbp14 live union skill count (2026-07-24): 101 in <code>~/.agents/skills</code>, 106 in <code>~/.claude/skills</code></div>
+    <div>Three-machine intersection skill count: 98 as of 2026-07-19 (see update below); mbp14 has since gained 3 more (<code>adhd</code>, <code>stop-slop</code>, <code>using-skills</code>), fleet-wide convergence UNCONFIRMED this pass</div>
   </div>
+</div>
+
+<div class="meta-card">
+  <b>Update — 2026-07-24</b> — Live rescan of mbp14's <code>~/.agents/skills</code> against this manifest's table found 3 skills present on disk but missing from the table (<code>adhd</code>, <code>stop-slop</code>, <code>using-skills</code> — the last of these was already described as installed in the 2026-07-19 post-snapshot note above but the table row was never added, a drift now closed) and 1 stale row whose directory no longer exists on any machine (<code>paperclip-create-plugin</code>, removed below). <code>stop-slop</code> installed 2026-07-24, source <code>github.com/hardikpandya/stop-slop</code>, purpose: removes AI writing patterns from prose; a global rule pointer for it was added in <code>CLAUDE.md</code> v4.6.14. Rows added/removed in the table below; mac-mini-m2/remote2 columns for the 3 additions are marked unverified pending a fleet re-scan.
 </div>
 
 <div class="meta-card">
@@ -214,12 +218,13 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 </section>
 
 <section>
-<h2>Skill list (union, 100 entries: 98 lock-managed + 2 manual extras, sorted by name)</h2>
+<h2>Skill list (union, 100 entries as of 2026-07-19: 98 lock-managed + 2 manual extras; 2026-07-24 mbp14 rescan added 3 / removed 1, net 102, sorted by name)</h2>
 <p class="section-note">The Source column is taken from each machine's <code>~/.agents/.skill-lock.json</code> (preferring mbp14, then mac-mini-m2, then remote2); "no lock source" means no machine's lock has a registration for this skill (possibly a plugin-type install, e.g. <code>commit-commands</code>, or manually placed, e.g. <code>note</code> / <code>paperclip</code> / <code>paperclip-create-plugin</code>).</p>
 <div class="table-scroll">
 <table>
 <thead><tr><th>Skill</th><th>Source repo (lock)</th><th class="center">mbp14</th><th class="center">mac-mini-m2</th><th class="center">remote2</th><th class="center">present</th><th>Notes</th></tr></thead>
 <tbody>
+<tr><td class="mono">adhd</td><td class="mono mut">unknown</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="mut">?</span></td><td class="center"><span class="mut">?</span></td><td class="center">≥1/3</td><td><span class="tag tag-warn">no lock source</span> <span class="tag tag-info">added 2026-07-24</span></td></tr>
 <tr><td class="mono">agent-browser</td><td class="mono mut">vercel-labs/agent-browser</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">agent-device</td><td class="mono mut">callstackincubator/agent-device</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">apple-design</td><td class="mono mut">emilkowalski/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
@@ -274,7 +279,6 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 <tr><td class="mono">migrate-to-shoehorn</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">obsidian-vault</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">oracle</td><td class="mono mut">steipete/oracle</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">paperclip-create-plugin</td><td class="mono mut"><span class="mut">unknown</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="no">—</span></td><td class="center">1/3</td><td><span class="tag tag-warn">no lock source</span></td></tr>
 <tr><td class="mono">pdf</td><td class="mono mut">anthropics/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">pierre-guard</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">prototype</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
@@ -294,6 +298,7 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 <tr><td class="mono">setup-matt-pocock-skills</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">setup-pre-commit</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">setup-ts-deep-modules</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">stop-slop</td><td class="mono mut">hardikpandya/stop-slop</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="mut">?</span></td><td class="center"><span class="mut">?</span></td><td class="center">≥1/3</td><td>Removes AI writing patterns from prose; CLAUDE.md v4.6.14 added a global rule pointer <span class="tag tag-info">added 2026-07-24</span></td></tr>
 <tr><td class="mono">simplify</td><td class="mono mut">brianlovin/claude-config</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">skill-creator</td><td class="mono mut">anthropics/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">subagent-driven-development</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
@@ -310,6 +315,7 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 <tr><td class="mono">unknowns-discovery</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">update-deps</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">using-design-skills</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">using-skills</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="mut">?</span></td><td class="center"><span class="mut">?</span></td><td class="center">≥1/3</td><td>Documented as installed in the 2026-07-19 post-snapshot note but this table row was missing until now <span class="tag tag-info">row backfilled 2026-07-24</span></td></tr>
 <tr><td class="mono">using-tmux-agent-tools</td><td class="mono mut">ohyeh/tmux-agent-tools</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">using-workflows</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
 <tr><td class="mono">verification-before-completion</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
@@ -338,7 +344,7 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 </section>
 
 <footer>
-Generated by mbp14 · 2026-07-19 · repo canonical @ <code>a060a7c</code> · Source repos: <code>agent-scripts</code>, <code>tmux-agent-tools</code> · Supersedes the 07-04 snapshot · All data comes from this live three-machine scan (<code>ls</code> + <code>.skill-lock.json</code>), no cache or memory inference.
+Generated by mbp14 · 2026-07-24 (mbp14 rescan) / 2026-07-19 (last full three-machine scan) · repo canonical @ <code>a060a7c</code> · Source repos: <code>agent-scripts</code>, <code>tmux-agent-tools</code> · Supersedes the 07-04 / 07-18 snapshots · mbp14 data comes from a live <code>ls</code> scan this session; mac-mini-m2/remote2 carried forward from 07-19, not re-verified this pass.
 </footer>
 
 </div>
