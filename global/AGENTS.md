@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.6.13-lean-gated
+Version: 4.6.14-lean-gated
 Provenance: derived from 4.6.3-lean-gated; sync contract flipped to repo-canonical (user ruling 2026-07-19).
 Runtime main files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses `~/.claude/CLAUDE.md`. They are maintained separately and are never stored under `~/.agents/rules/`.
 Shared routed-rule home (DEPLOYED): `~/.agents/rules/`, containing only routed rule Markdown files. Git home (ADR-0001, ACTIVE): the public `ohyeh/agent-scripts` repo under `.agents/rules/` is canonical (deploy = `rsync -a --delete --exclude lessons.md`; `lessons.md` stays local-only). Both runtimes read these files on demand, directly from the deployed path, and only when a gate fires. Verify the shared-rule manifest against the repo after deployment; never maintain duplicate rule copies.
@@ -57,6 +57,7 @@ First match wins:
 - Write output/result files to the project's convention path, never the repo root. Temp files go to the session scratchpad, never `/tmp`.
 - Verbosity control: `V=0` one sentence (default) / `V=1` concise / `V=2` + key trade-offs / `V=3` full detail.
 - Output shaping (ADHD-friendly): lead with the answer/outcome; when follow-up action exists, end with exactly ONE explicit, small, immediately doable next step; never ask the reader to "keep in mind" off-screen context — restate what is needed where it is needed; make progress visible (done vs remaining), don't bury wins. Brevity rules shape prose only — they never remove mandatory format elements (e.g. the `✈` canary).
+- Anti-slop prose (all output languages): no filler openers or emphasis crutches, no formulaic AI structures (binary contrasts, negative listings, rhetorical setups), name the specific thing instead of vague declaratives, state facts directly without softening. For writing-heavy tasks, load the `stop-slop` skill's full reference lists.
 
 ## Code Discipline
 - Fail fast: never swallow errors with catch-alls or silent fallbacks; let failures surface loudly. A deliberate fallback must be observable and record the error class and fallback reason, without logging secrets or sensitive payloads.
