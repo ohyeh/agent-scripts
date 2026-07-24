@@ -46,3 +46,30 @@ E. 工具鏈：context-mode hook 對 claude.ai/code/artifact URL 放行 WebFetch
 - Codex 使用量與 Claude 相當甚至更高（remote2 175M vs 91M），fleet 是真雙 runtime。
 - mac-mini-m2 近一週近乎閒置 + 規則落後三版被抓到 —— 閒置機器最容易變成版本孤兒；~/.codex 下多個 config.toml.bak-* 顯示近期頻繁重設定。
 - 新 proposed：skill-lock 對 stop-slop/commit-commands 的 unmanaged 狀態要嘛入 lock 要嘛記為 documented manual extra（manifest 已記前例）。
+
+## 補遺 3 — ohyeh skill 系列實際觸發分析（2026-07-17 起，兩批 sonnet workers 交叉）
+方法：rg Skill-tool 調用（`"name":"Skill","input":{"skill":"…"}`）+ `<command-name>` 載入，掃 `~/.claude/projects` 內 -newermt 2026-07-17 的 JSONL；隱私上僅取 skill 名/次數/檔名。兩批 workers pattern 寬窄不同（寬鬆 `"skill":"…"` vs 嚴格全結構），計數以區間呈現。
+
+**mbp14（204–206 檔）**：
+| skill | 調用 | distinct sessions |
+|---|---|---|
+| using-tmux-agent-tools | 4–8 | 4–8 |
+| delegation-templates | 5–7 | 5–6 |
+| using-workflows | 2–4 | 2–4 |
+| unknowns-discovery | 1–4 | 1–4 |
+| tmux-agent-tools | 3–4 | 3–4 |
+| using-skills | 0–1 | 0–1 |
+| using-design-skills | 0–1 | 0–1 |
+| 校準：brainstorming 0–1；verification-before-completion 0；codex-dynamic-workflows 0 |
+
+**100.64.190.44（93 檔）與 mac-mini-m2（7 檔）**：全部 10 個 skill 零調用、零 `<command-name>`；pattern 有效性以窗外舊檔（yunlin-portal-app 含 delegation-templates 調用）及其他 tool 名可匹配交叉驗證 —— 零是真零。
+
+**摩擦訊號**：三台皆零 Skill 調用錯誤（is_error / not found / permission denied）、零 command-name 載入錯誤。mbp14 的 `gate FAILED` 41 次/11 sessions 抽樣全為 CLAUDE.md 規則原文被注入 context 的引述，非真實 gate 失敗（heuristic 上限，實際 ~0）。
+
+**解讀**：
+- gate 類 skills（delegation-templates、unknowns-discovery、tmux 系列）在 mbp14 確實被觸發，且與 gate 設計一致（派工/監督情境）；非 shelf-ware。
+- router 類（using-skills、using-design-skills）近乎零觸發 —— 與設計相符（PRIMARY goal 直入 domain，router 只在 ownership 不明時用），但也代表其價值需重新評估。
+- 遠端兩台完全零觸發是結構性的：那邊的 sessions（healthgo-mobile 為主）大量是 Codex 或未走 Skill tool 的 Claude 工作；skills 部署了但該環境的工作型態不觸發。Codex 側（AGENTS.md 路由）本方法量不到 —— 是觀測盲區。
+- 校準 skill 也全零/近零，說明「Skill tool 調用」整體就是低頻事件；用調用次數單獨判 shelf-ware 會誤殺。
+
+Status: proposed（併入提案 D）— 下次 retro 的 skill-invoke 檢查需涵蓋 Codex 側（掃 ~/.codex sessions 的 skill 讀取痕跡），並區分「router 零觸發＝設計如此」vs「gate 零觸發＝流程沒被走」。
