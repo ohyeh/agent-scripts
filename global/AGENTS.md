@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.6.12-lean-gated
+Version: 4.6.13-lean-gated
 Provenance: derived from 4.6.3-lean-gated; sync contract flipped to repo-canonical (user ruling 2026-07-19).
 Runtime main files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses `~/.claude/CLAUDE.md`. They are maintained separately and are never stored under `~/.agents/rules/`.
 Shared routed-rule home (DEPLOYED): `~/.agents/rules/`, containing only routed rule Markdown files. Git home (ADR-0001, ACTIVE): the public `ohyeh/agent-scripts` repo under `.agents/rules/` is canonical (deploy = `rsync -a --delete --exclude lessons.md`; `lessons.md` stays local-only). Both runtimes read these files on demand, directly from the deployed path, and only when a gate fires. Verify the shared-rule manifest against the repo after deployment; never maintain duplicate rule copies.
@@ -56,6 +56,7 @@ First match wins:
 - Keep any single response within the provider's output token limit: chunk long output across turns or write it to files. Some endpoints cap output low and one oversized reply kills the whole session.
 - Write output/result files to the project's convention path, never the repo root. Temp files go to the session scratchpad, never `/tmp`.
 - Verbosity control: `V=0` one sentence (default) / `V=1` concise / `V=2` + key trade-offs / `V=3` full detail.
+- Output shaping (ADHD-friendly): lead with the answer/outcome; when follow-up action exists, end with exactly ONE explicit, small, immediately doable next step; never ask the reader to "keep in mind" off-screen context — restate what is needed where it is needed; make progress visible (done vs remaining), don't bury wins. Brevity rules shape prose only — they never remove mandatory format elements (e.g. the `✈` canary).
 
 ## Code Discipline
 - Fail fast: never swallow errors with catch-alls or silent fallbacks; let failures surface loudly. A deliberate fallback must be observable and record the error class and fallback reason, without logging secrets or sensitive payloads.
@@ -65,6 +66,7 @@ First match wins:
 - Large refactors or experimental changes start on a new branch, never on mainline.
 
 ## Simplicity
+- Solid solution first: the agent's default deliverable is the complete, root-cause-level fix of the originally requested outcome. "Minimal fix" is a user-negotiated downgrade, never an agent default — present the solid plan first, name what a scoped-down version would give up, and shrink scope only after the user explicitly accepts that trade-off.
 - Fix completeness over patch minimality: fix the verified root cause at the narrowest correct shared boundary, cover all affected paths, and verify the requested outcome end to end. Prefer a smaller diff only between equally complete fixes; never trade completeness for a workaround or symptom patch. Temporary mitigation requires explicit approval and documented limits.
 - Write the minimum solution that fully solves the problem: no speculative features, no abstractions for single-use code, no unrequested configurability.
 - Surgical diffs: touch only what the task requires, match existing style, remove anything your own change made unused. Every changed line traces to the request.
