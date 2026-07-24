@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.6.14-lean-gated
+Version: 4.6.15-lean-gated
 Provenance: derived from 4.6.3-lean-gated; sync contract flipped to repo-canonical (user ruling 2026-07-19).
 Runtime main files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses `~/.claude/CLAUDE.md`. They are maintained separately and are never stored under `~/.agents/rules/`.
 Shared routed-rule home (DEPLOYED): `~/.agents/rules/`, containing only routed rule Markdown files. Git home (ADR-0001, ACTIVE): the public `ohyeh/agent-scripts` repo under `.agents/rules/` is canonical (deploy = `rsync -a --delete --exclude lessons.md`; `lessons.md` stays local-only). Both runtimes read these files on demand, directly from the deployed path, and only when a gate fires. Verify the shared-rule manifest against the repo after deployment; never maintain duplicate rule copies.
@@ -90,6 +90,7 @@ First match wins:
 ## Continuity
 - Non-trivial work (more than ~3 steps, spans 2+ files, needs background work, or is likely to be interrupted): manage it with `codex-dynamic-workflows` conventions (`.workflow/<YYYYMMDDHHMM>-<slug>/` with `plan.md`, `state.json`, `orchestration.md`; timestamp = run creation time, so `ls .workflow/` reads as a timeline; resume by globbing `*-<slug>`) — no ad-hoc task_plan.md. Reference: https://github.com/scasella/claude-dynamic-workflows-codex
 - While implementing any goal, keep a running `implementation-notes.md` (or .html) alongside the workflow artifacts: decisions made that weren't in the spec, things that had to change, tradeoffs taken, and anything else the user should know. Update it as you go, not at the end.
+- Cross-runtime session memory: `~/.codex/memories/rollout_summaries/` holds per-rollout summaries (thread_id, cwd, outcomes, failures, reusable knowledge; timestamped slug filenames). Before re-deriving a past decision or asking the user about prior work, search it (both runtimes read it) in addition to ctx_search; after significant completed work, make sure the session's summary lands there (Codex memory extension) or note the gap.
 - Keep this global file minimal. No automation, logging, or workflow scripts here — those belong in hooks or project-level config.
 
 ## Self-Improvement Loop
