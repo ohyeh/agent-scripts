@@ -34,3 +34,15 @@ E. 工具鏈：context-mode hook 對 claude.ai/code/artifact URL 放行 WebFetch
 - 100.64.190.44：v4.6.14（本日已部署）。修正 W3 結論：「其他 repo 零 .workflow 採用」只對 mbp14 成立 —— 這台的 healthgo/ttpush/standard/yunlin/core 等多個工作 repo 都有 .workflow 目錄，採用度高。
 - spinout artifact 備份：兩台遠端都沒有 agent_workspace/artifacts 備份，仍 BLOCKED。
 - 新 proposed：fleet 機器的規則版本檢查應納入每次部署（mac-mini-m2 落後三版無人察覺）。
+
+## 補遺 2 — 三機 skills + 近七天 sessions 盤點（2026-07-17 起，metadata-only）
+| 機器 | Claude sessions | Codex sessions | 主力專案 | Skills (agents/claude/codex) |
+|---|---|---|---|---|
+| mbp14 | 202 | 194 | agent-workspace(104)、healthgo-mobile(33)、photo-gallery(22) | —（本機，見 manifest） |
+| 100.64.190.44 | 93 (91M) | 107 (175M) | healthgo-mobile 佔 74%；Codex 07/23 單日 53 場 | 102/111/7；lock drift: commit-commands、stop-slop（手動裝） |
+| mac-mini-m2 | 7 (548K，全在 openclaw 08-Aurora) | 1（07/22「更新 llm-gate 並重啟服務」） | 近一週幾乎閒置 | 101/100/2；lock 格式異常（僅 4 個 top-level key）UNCONFIRMED drift |
+
+觀察：
+- Codex 使用量與 Claude 相當甚至更高（remote2 175M vs 91M），fleet 是真雙 runtime。
+- mac-mini-m2 近一週近乎閒置 + 規則落後三版被抓到 —— 閒置機器最容易變成版本孤兒；~/.codex 下多個 config.toml.bak-* 顯示近期頻繁重設定。
+- 新 proposed：skill-lock 對 stop-slop/commit-commands 的 unmanaged 狀態要嘛入 lock 要嘛記為 documented manual extra（manifest 已記前例）。
