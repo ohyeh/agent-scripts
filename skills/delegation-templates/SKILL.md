@@ -26,6 +26,7 @@ SCOPE: Look in {paths/globs}; also consider {alternative naming/conventions}.
 ACCEPTANCE:
 - Every match listed as file:line with a one-line role description.
 - Explicitly state "no other occurrences" only after checking {N} naming variants: {variants}.
+- Zero-result duty: before reporting zero matches, prove each search pattern works on a known positive (or synthetic sample); an unproven zero = UNCONFIRMED, not zero.
 NON-GOALS: Do not review quality, do not propose fixes.
 ```
 
@@ -62,6 +63,7 @@ SOURCES: prefer {official docs/repo/spec}; treat blogs/forums as secondary.
 ACCEPTANCE:
 - Every claim cited (URL or file:line). Uncited = label UNCONFIRMED.
 - Distinguish "documented" vs "inferred" vs "not found".
+- "Not found" duty: prove each search pattern/query works on a known positive before reporting absence; an unproven "not found" = UNCONFIRMED.
 - If sources conflict, present both sides — do not silently pick one.
 OUTPUT: findings to {artifact_path}; return path + a ≤10-bullet summary.
 ```
