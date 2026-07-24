@@ -27,3 +27,10 @@ E. 工具鏈：context-mode hook 對 claude.ai/code/artifact URL 放行 WebFetch
 - Skill Manifest（83743cc1）：已更新發佈（stop-slop/adhd/using-skills 補列、paperclip-create-plugin 移除、07-24 戳記）。
 - Workflow Manifest（6733cfaf）：已重驗發佈（12/12、hash a5f8770f 不變）。
 - spinout 工作順序（ed298346）:BLOCKED — 無本地源檔亦不在備份目錄，待使用者提供內容。
+
+## 補遺 — 三機補掃（2026-07-24，回應使用者質疑「只掃了本機？」）
+- 承認：原三個 workers 只掃 mbp14。補掃結果：
+- mac-mini-m2：原為 v4.6.11（落後三版）、無 stop-slop → 已用 deploy.sh + rsync 拉平至 v4.6.14（md5 b1ce74fe 與本機一致），stop-slop 兩處已裝。
+- 100.64.190.44：v4.6.14（本日已部署）。修正 W3 結論：「其他 repo 零 .workflow 採用」只對 mbp14 成立 —— 這台的 healthgo/ttpush/standard/yunlin/core 等多個工作 repo 都有 .workflow 目錄，採用度高。
+- spinout artifact 備份：兩台遠端都沒有 agent_workspace/artifacts 備份，仍 BLOCKED。
+- 新 proposed：fleet 機器的規則版本檢查應納入每次部署（mac-mini-m2 落後三版無人察覺）。
