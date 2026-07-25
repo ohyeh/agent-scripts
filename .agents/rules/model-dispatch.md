@@ -12,6 +12,13 @@ models: follow it literally; do not improvise around it.
 | `opus` | `claude-opus-4-8` | Escalation target: hard debugging, design decisions, adversarial review, second opinions |
 | `fable` | `claude-fable-5` | Scarce/possibly unavailable later. If the picker rejects it, fall back to `opus` silently — do not stall |
 
+- Tier aliases (`haiku`/`sonnet`/`opus`/`fable`) are the contract; exact model IDs
+  are a dated snapshot. A LATER same-tier successor (e.g. `claude-opus-4-8` →
+  `claude-opus-5.x`) satisfies its row once live-verified per §8. Never stall on —
+  or "correct" back to — an outdated pinned ID, and never hand-edit an ID without
+  live verification (schema enum or `/model`); the same successor rule applies to
+  the Codex model names in §5.
+
 - The Agent tool takes `model` but has NO `effort` parameter. Effort options exist
   only in: (a) `.claude/agents/*.md` frontmatter, (b) `Workflow` scripts via
   `agent(prompt, {effort})` with `low|medium|high|xhigh|max`. Plain Agent calls

@@ -30,6 +30,20 @@ dispatcher already routed; workers follow their brief.
 Loop-shaped work: stages plus a convergence condition. Audit chains,
 consensus review, plan→build lifecycles, findings triage.
 
+### From the Continuity trigger (global CLAUDE.md/AGENTS.md)
+
+The global rule routes loop-shaped work here at task start. On arrival:
+1. Match the trigger word (audit / consensus verification / findings triage /
+   root-cause deep-dive / plan→build) to a recipe via SELECT below.
+2. Runtime split: Claude invokes the recipe natively via `Workflow`; Codex
+   commands it through `references/codex-adapter.md` (`claude-workflow-runner`)
+   — the runner is mechanical, so use the cheapest capable model with
+   reasoning effort `low`.
+3. Write-back duty: every recipe artifact/result lands in the CALLER's
+   `.workflow/<YYYYMMDDHHMM>-<slug>/` run directory (the one the Continuity
+   rule had you create) — never a detached location. One task = one run dir,
+   shared by convention and recipe alike.
+
 ## SELECT
 
 Discover live — never recite the recipe list from memory:

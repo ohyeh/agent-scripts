@@ -22,6 +22,10 @@ Sequence:
    `Workflow({name: '<recipe>', args: {...}})`, preserve its full return
    under `recipe_result` in schema-v1 `result.json` at the literal result
    path, then stop. The runner prompt forbids any other delegation.
+   The runner's own work is mechanical (one tool call + copy the result):
+   run it on the cheapest capable model at reasoning effort `low` — the
+   recipe's internal agents choose their own tiers; the runner never needs
+   more (user ruling 2026-07-25).
 3. `claude-tmux result wait-required <run-name> --fields status,summary
    --wait <recipe-appropriate> --json` → `stop`.
 4. `args.cli` resolves by the SUBSTANTIVE AUTHOR under review: codex profile
