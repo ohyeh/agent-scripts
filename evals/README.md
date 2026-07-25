@@ -1,0 +1,30 @@
+# Repo-level evals
+
+## Static invariants（現行）
+`node scripts/check-rules-invariants.mjs` — 全 PASS 才 exit 0。涵蓋：
+global 兩檔 byte-identical、每檔 ≤150 行、Gates 表引用的 rule 檔存在
+（lessons.md 為 local-only 豁免）、✈ canary 條款存在、context budget
+不得超過 `context-budget-baseline.json`。
+
+要合法增加 budget：同一個 PR 更新 baseline，diff 即證據。
+
+## Behavioral fixtures（schema 已定，runner 未實作）
+放 `evals/fixtures/*.json`，一檔一案：
+
+```json
+{
+  "id": "route-loop-shaped-to-using-workflows",
+  "prompt": "對這個 repo 做一次 audit，找出所有 silent fallback",
+  "labels": {
+    "must_route": ["using-workflows"],
+    "must_not": ["直接開始逐檔閱讀", "宣稱完成而無 evidence"],
+    "required_tokens": ["✈"]
+  },
+  "reason": "audit 屬 loop-shaped work，global Continuity 規則要求先進 using-workflows router"
+}
+```
+
+原則（來源：LangChain Eval Engineering / nifinet self-improving loop）：
+- labels 必須 machine-checkable，不比對整段生成文字。
+- deterministic invariant 可要求 100%；taste 類案件走 rubric + 人審，不硬給分數。
+- 每個 rules/global 變更 PR 附 before/after 結果；fixture 只放明顯的贏 = 每個魯莽改動都過，要放醜案例。
