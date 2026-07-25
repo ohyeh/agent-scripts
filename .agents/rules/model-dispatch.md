@@ -134,6 +134,10 @@ time, each raise justified by the previous tier's failure evidence; the moment
 the hard part is solved, drop back down for batch application (§6). Workflow
 recipe scripts set `effort` EXPLICITLY on every `agent()` call — inheriting the
 session tier runs the whole fleet at commander effort and is forbidden.
+Before escalating to `xhigh`/`max`, first try SAME-tier sampling: N independent
+`medium`/`high` attempts + a judge (adversarial-verify / judge-panel shape) —
+self-consistency often beats one max-effort shot at lower cost (Raschka 2026-07-18,
+cost-vs-score curve is strongly concave past `high`).
 
 ## §6 Escalation / de-escalation ladder
 - `haiku` errs ONCE on a subtask → redo on `sonnet`. Do not debug haiku's attempt.
