@@ -132,6 +132,14 @@ Apply: after a change far larger than the user expected, or when they ask.
       depends on existing code paths, and merging without understanding is how
       future unknowns accumulate.
 
+## §7.1 Opt-in eval interview (only when the user asks to "make this testable")
+
+- [ ] For each blindspot/default surfaced above, ask ONE question that turns it
+      into a machine-checkable acceptance: what input, what observable output,
+      what command proves it. Record answers as fixture candidates in
+      `evals/fixtures/` (schema: `evals/README.md`). Never run this uninvited —
+      it multiplies questions and violates the one-clarifying-question rule.
+
 ## §8 Reminders
 
 - Too-specific instructions make you follow orders when a pivot is warranted;

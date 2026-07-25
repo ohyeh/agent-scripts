@@ -9,6 +9,10 @@ Fill every `{blank}`. Delete a line only if truly inapplicable — never skip th
 ACCEPTANCE or REPORT sections. A delegation without objective acceptance
 criteria is a guess you outsourced.
 
+REFERENCES (optional, prefer when they exist): paths to code, tests, rubrics, or
+HTML/specs that DEFINE done — a rich reference beats prose restating it. Add a
+`REFERENCES:` line to any template below when the task has one.
+
 Common footer — include in EVERY delegation:
 
 > REPORT: return ONLY short conclusion bullets + `file:line` per claim +

@@ -36,6 +36,8 @@ if [ -z "$SRC" ] || [ ! -d "$SRC" ]; then
   exit 1
 fi
 echo "PASS [download] extracted to $SRC"
+DEPLOYED_SHA="$(git ls-remote https://github.com/ohyeh/agent-scripts.git main | cut -f1)"
+echo "PASS [download] deploying main @ ${DEPLOYED_SHA:-unknown}"
 
 # --- Layer 1: global runtime files -----------------------------------------
 echo "==> [global] deploying CLAUDE.md + AGENTS.md"

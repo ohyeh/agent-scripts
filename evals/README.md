@@ -28,3 +28,7 @@ global 兩檔 byte-identical、每檔 ≤150 行、Gates 表引用的 rule 檔�
 - labels 必須 machine-checkable，不比對整段生成文字。
 - deterministic invariant 可要求 100%；taste 類案件走 rubric + 人審，不硬給分數。
 - 每個 rules/global 變更 PR 附 before/after 結果；fixture 只放明顯的贏 = 每個魯莽改動都過，要放醜案例。
+
+## Outcome ledger（`evals/outcomes.jsonl`）
+每次 rules/global/skill 變更 append 一行 JSON：`{"date","commit","change","reason","eval"}`。
+`reason` 為必填（來源：nifinet outcomes.jsonl 慣例）——沒有 reason 的變更在週回顧時視為可疑候選回退。
