@@ -120,6 +120,21 @@ availability must still be checked live):
 Plain Claude Agent calls inherit session effort (no field exists — §1). Where
 effort is settable, start low and raise one step at a time from evidence.
 
+## §5.1 Effort ladder (runtime-agnostic, resource-optimization first)
+
+| Tier | Use for | Examples |
+|---|---|---|
+| `low` | Mechanical execution: batch edits, format conversion, runner/supervision proxies, read-back checks, applying an already-solved pattern | `haiku`+low, Terra low |
+| `medium` | Default working tier: implement, refactor, research, first-pass review | `sonnet` (session default), Terra/Sol medium |
+| `high` | Judgment tier: planning, risky review, adversarial verification, root-cause convergence | `opus`, Sol high |
+| `xhigh`/`max` | Evidence tier: only after low/medium failed twice with a full failure trail, or the user names it | Sol xhigh, Workflow `agent()` effort max |
+
+Rules: start at the LOWEST tier that can pass ACCEPTANCE; raise one step at a
+time, each raise justified by the previous tier's failure evidence; the moment
+the hard part is solved, drop back down for batch application (§6). Workflow
+recipe scripts set `effort` EXPLICITLY on every `agent()` call — inheriting the
+session tier runs the whole fleet at commander effort and is forbidden.
+
 ## §6 Escalation / de-escalation ladder
 - `haiku` errs ONCE on a subtask → redo on `sonnet`. Do not debug haiku's attempt.
 - `sonnet` fails the SAME subtask TWICE → escalate to `opus`, passing the complete

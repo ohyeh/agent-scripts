@@ -105,9 +105,9 @@ const scanCmd = (m) => {
 Prefer fd/rg; use ls/shasum via ${m.ssh ? 'a SINGLE ssh invocation per logical step (batch with && / one heredoc script) to avoid dozens of round-trips' : 'local shell'}. If the machine is unreachable or a dir is missing, report what you could and say so in notes — do NOT fabricate. Return structured data only.`
 }
 const [repoScan, scans] = await Promise.all([
-  agent(repoScanCmd, { label: 'scan:repo', phase: 'Scan', schema: REPO_SCAN_SCHEMA }),
+  agent(repoScanCmd, { label: 'scan:repo', phase: 'Scan', schema: REPO_SCAN_SCHEMA, effort: 'low' }),
   parallel(MACHINES.map(m => () =>
-    agent(scanCmd(m), { label: `scan:${m.name}`, phase: 'Scan', schema: SCAN_SCHEMA })
+    agent(scanCmd(m), { label: `scan:${m.name}`, phase: 'Scan', schema: SCAN_SCHEMA, effort: 'low' })
   )),
 ])
 if (repoScan == null) return { aborted: true, reason: 'repo scan died — no canonical baseline to compare machines against', degraded: { unscanned: MACHINES.map(m => m.name) } }
@@ -125,7 +125,7 @@ const judgments = await parallel(okScans.map(s => () =>
   s.exhaust.length
     ? agent(
       `${DECISION_TREE}\n\nRepo canonical recipe set (source of truth): ${recipeCatalog}.\nRead the repo recipes' meta blocks at ${REPO_DIR}/ (the repo checkout) when a coverage call needs the description, not just the name.${a.priorJudgments ? `\nPrior judgments for consistency (follow unless clearly wrong): ${a.priorJudgments}` : ''}\n\nJudge these exhaust base names from machine "${s.machine}" (runs count in parentheses matters for Q3's ≥2 rule ACROSS names, and high run counts strengthen 已內化 claims):\n${s.exhaust.map(e => `- ${e.base} (${e.runs} runs)${e.metaDescription ? ` — ${e.metaDescription}` : ''}`).join('\n')}\n\nWrite reasons in ${OUT_LANG}. Every base name gets exactly one tag.`,
-      { label: `judge:${s.machine}`, phase: 'Classify', schema: JUDGE_SCHEMA }
+      { label: `judge:${s.machine}`, phase: 'Classify', schema: JUDGE_SCHEMA, effort: 'high' }
     )
     : Promise.resolve({ machine: s.machine, judgments: [] })
 ))

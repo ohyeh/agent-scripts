@@ -93,7 +93,7 @@ You may Read cited files to confirm a shared root cause when unsure. Every input
 
 Findings (JSON):
 ${JSON.stringify(FINDINGS)}`,
-  { label: 'cluster', phase: 'Cluster', schema: CLUSTER_SCHEMA }
+  { label: 'cluster', phase: 'Cluster', schema: CLUSTER_SCHEMA, effort: 'high' }
 )
 // fail-closed: dead clusterer → nothing is lost; every finding degrades to a directFix candidate.
 if (clustered == null) {
@@ -130,7 +130,7 @@ Member findings (JSON):
 ${JSON.stringify(c.memberIdxs.map(i => FINDINGS[i]))}
 
 Return ONLY the brief text — no preamble.`,
-    { label: `brief:${c.rootCause}`.slice(0, 60), phase: 'Brief' }
+    { label: `brief:${c.rootCause}`.slice(0, 60), phase: 'Brief', effort: 'medium' }
   ).then(text => ({ rootCause: c.rootCause, memberIdxs: c.memberIdxs, brief: text }))
 )) : []
 const unbriefed = nullIndices(briefs).map(i => briefClusters[i])

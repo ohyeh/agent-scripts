@@ -70,7 +70,7 @@ const ATTACK_SCHEMA = {
 phase('Propose')
 const rawProposals = await parallel(ANGLES.map((angle, i) => () =>
   agent(`${CONTEXT}\n\nYour design angle: ${angle}\n\nPropose ONE design from this angle. Be concrete and opinionated — this is a pitch, not a survey of options. Give it a short codename.`,
-    { label: `propose-${i}`, phase: 'Propose', schema: PROPOSAL_SCHEMA })
+    { label: `propose-${i}`, phase: 'Propose', schema: PROPOSAL_SCHEMA, effort: 'medium' })
 ))
 const deadProposers = nullIndices(rawProposals)
 if (deadProposers.length) log(`Propose: ${deadProposers.length}/${ANGLES.length} proposers failed (angles ${deadProposers.join(', ')}) — continuing with survivors`)
@@ -82,7 +82,7 @@ const rawAttacks = await parallel(proposals.map((target, i) => () => {
   const attackers = proposals.filter((_, j) => j !== i)
   return agent(
     `${CONTEXT}\n\nYou are reviewing a rival design proposal adversarially — your job is to find its real weaknesses, not to be polite.\n\nThe proposal to attack (codename: ${target.codename}):\n${JSON.stringify(target, null, 2)}\n\nYour own camp's competing designs for context (do not attack these, just use them to sharpen your critique):\n${JSON.stringify(attackers, null, 2)}\n\nGive your strongest, most concrete attacks — cite specific real usage scenarios where this design fails. Also name what part of it is genuinely good and should survive synthesis even if you don't like the rest.`,
-    { label: `attack-${target.codename}`, phase: 'Cross-attack', schema: ATTACK_SCHEMA }
+    { label: `attack-${target.codename}`, phase: 'Cross-attack', schema: ATTACK_SCHEMA, effort: 'high' }
   )
 }))
 const deadAttacks = nullIndices(rawAttacks)
@@ -92,7 +92,7 @@ const attacks = rawAttacks.map((a, i) => a || { target_codename: proposals[i].co
 phase('Synthesize')
 const synthesis = await agent(
   `${CONTEXT}\n\n${proposals.length} competing design proposals went through adversarial cross-review. Your job: synthesize ONE consensus design that a reasonable operator would actually ship — grafting the strongest surviving ideas from each proposal and explicitly discarding what got killed in the attacks. Do not just average them; make real calls. If an attack entry says a proposal was NOT adversarially reviewed, weigh that proposal more skeptically.\n\nProposals:\n${JSON.stringify(proposals, null, 2)}\n\nAdversarial attacks on each:\n${JSON.stringify(attacks, null, 2)}\n\nWrite the final consensus design as a clear spec covering: ${SYNTH_SPEC}. Write in ${OUTPUT_LANG}. Be thorough but not padded.`,
-  { label: 'synthesis', phase: 'Synthesize' }
+  { label: 'synthesis', phase: 'Synthesize', effort: 'high' }
 )
 if (synthesis == null) throw new Error('design-consensus: synthesis agent failed — no consensus produced (do not treat proposals alone as a result)')
 

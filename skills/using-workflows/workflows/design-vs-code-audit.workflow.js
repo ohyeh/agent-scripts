@@ -119,7 +119,7 @@ const results = await pipeline(
   SECTIONS,
   (s) => agent(
     `${DESIGN_SOURCE}\n\nYou are auditing the "${s.key}" section of the project at ${ROOT}.\n\nStep 1 — pull the design spec for this section using these refs/queries (add your own follow-ups as needed): ${JSON.stringify(s.designRefs)}.\nStep 2 — Read these code files (use Read/Grep; follow into view-models/state files if you need to confirm a state machine): ${JSON.stringify(s.files)}.\nStep 3 — ${RULES}\n\nDesign-WIP hint for this section: ${wipHint(s.wip)}\n\nReturn structured findings.`,
-    { label: `audit:${s.key}`, phase: 'Audit', schema: FINDINGS_SCHEMA }
+    { label: `audit:${s.key}`, phase: 'Audit', schema: FINDINGS_SCHEMA, effort: 'medium' }
   ),
   (res, s) => {
     if (res == null) return { section: s.key, finderFailed: true, verified: [] }
@@ -127,7 +127,7 @@ const results = await pipeline(
     return parallel(res.findings.map(f => () =>
       agent(
         `Adversarially verify ONE design-vs-code drift finding for the "${s.key}" section of the project at ${ROOT}. Default to skeptical — only confirm if you can prove it in the code.\n\n${DESIGN_SOURCE}\n\nFinding:\n- component: ${f.component}\n- category: ${f.category}\n- design says: ${f.designExpectation}\n- code reality (claimed): ${f.codeReality}\n- location: ${f.location}\n- reporter confidence: ${f.confidence}/5\n\nRe-Read the cited code (${f.location}) and related files in ${JSON.stringify(s.files)}. Check: (a) is the claimed code-reality actually true, or is it implemented somewhere the finder missed? (b) is this just design-WIP (design unfinished), not a code bug? (c) how severe is it for a user? You may re-check the design refs (${JSON.stringify(s.designRefs)}) to confirm the expectation. Return your verdict.`,
-        { label: `verify:${s.key}:${f.component}`.slice(0, 60), phase: 'Verify', schema: VERDICT_SCHEMA }
+        { label: `verify:${s.key}:${f.component}`.slice(0, 60), phase: 'Verify', schema: VERDICT_SCHEMA, effort: 'high' }
       ).then(v => ({ ...f, section: s.key, verdict: v }))
     )).then(vs => vs.map((v, i) => v || { ...res.findings[i], section: s.key, verdict: null }))
   }

@@ -57,7 +57,7 @@ const LENSES = (Array.isArray(a.lenses) && a.lenses.length) ? a.lenses : [
 
 phase('Understand')
 const rawFindings = await parallel(READERS.map(r => () =>
-  agent(r.prompt, { label: `read:${r.key}`, phase: 'Understand' }).then(t => ({ key: r.key, text: t }))
+  agent(r.prompt, { label: `read:${r.key}`, phase: 'Understand', effort: 'low' }).then(t => ({ key: r.key, text: t }))
 ))
 const deadReaders = nullIndices(rawFindings)
 if (deadReaders.length) log(`Understand: readers failed for [${deadReaders.map(i => READERS[i].key).join(', ')}] — evidence will be PARTIAL`)
@@ -70,7 +70,7 @@ log(`Understand phase complete: ${findings.length}/${READERS.length} readers`)
 phase('Design')
 const rawProposals = await parallel(LENSES.map(l => () =>
   agent(`You are designing the direction for ${HORIZON} for the project at ${ROOT}. Current-state evidence below. Through the lens of "${l.angle}", propose a focused direction: 3-5 concrete workstreams, each with goal, why-now (cite evidence from context), rough effort (S/M/L), measurable success criteria, and what gate (experiment/operator/evidence) it needs. Avoid re-proposing work already DONE per the evidence. Respect the constraints listed. Return compact markdown.\n\n=== CURRENT STATE EVIDENCE ===\n${ctx}`,
-    { label: `design:${l.key}`, phase: 'Design' }).then(t => ({ key: l.key, text: t }))
+    { label: `design:${l.key}`, phase: 'Design', effort: 'medium' }).then(t => ({ key: l.key, text: t }))
 ))
 const proposals = rawProposals.filter(Boolean)
 if (!proposals.length) throw new Error('project-direction-review: all lens proposals failed')
@@ -79,7 +79,7 @@ log(`Design phase complete: ${proposals.length}/${LENSES.length} proposals`)
 phase('Synthesize')
 const proposalText = proposals.map(p => `## Proposal [${p.key}]\n${p.text}`).join('\n\n')
 const synthesis = await agent(`You are the chief planner for the project at ${ROOT}. Merge the direction proposals below into ONE coherent roadmap for ${HORIZON}. Requirements: (1) pick a primary theme and explain why it wins given the current-state evidence; (2) produce a prioritized workstream list (P0/P1/P2) — dedupe overlapping items across proposals, keep the best framing; (3) for each workstream: name, goal, success criteria, gate/dependency, effort; (4) explicitly list what is operator-gated vs agent-autonomous; (5) list top 5 risks with controls; (6) propose a milestone cut by period.${SYNTH_EXTRA} Write in ${OUTPUT_LANG}. Return well-structured markdown — this becomes the body of a goal document.\n\n=== CURRENT STATE EVIDENCE ===\n${ctx}\n\n=== PROPOSALS ===\n${proposalText}`,
-  { label: 'synthesize:roadmap', phase: 'Synthesize' })
+  { label: 'synthesize:roadmap', phase: 'Synthesize', effort: 'high' })
 if (synthesis == null) throw new Error('project-direction-review: synthesis agent failed — no roadmap produced')
 
 return { findings, synthesis, degraded: { failedReaders: deadReaders.map(i => READERS[i].key), failedLenses: LENSES.filter((l, i) => rawProposals[i] == null).map(l => l.key) } }
