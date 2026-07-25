@@ -114,7 +114,8 @@ availability must still be checked live):
   the tool-layer blocking supervisor.
   Routine gate receipts are recorded in the workflow/dispatch artifact and are
   user-facing only for a deviation, approval boundary, BLOCK/escalation, or an
-  explicit request. Follow-ups under the same role, rubric, and acceptance reuse
+  explicit request — and then only in the COMPACT one-line form defined in the
+  global Gates section (`~` paths, plain-word conclusion, no rubric text). Follow-ups under the same role, rubric, and acceptance reuse
   the existing receipt.
 
 Plain Claude Agent calls inherit session effort (no field exists — §1). Where
