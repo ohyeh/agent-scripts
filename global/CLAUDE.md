@@ -105,6 +105,11 @@ Reference lookups, once per active context when relevant:
   Writing-heavy work loads `stop-slop`.
 
 ## Continuity and self-improvement
+- Session identity: title every non-trivial session `<scope> — <active outcome>`; update it
+  on a material goal change and before handoff. Codex MUST use its native title control;
+  Claude MUST issue `/rename` when its SlashCommand tool is exposed, otherwise state the
+  exact `/rename <title>` once for the user. A handoff/fork gets a new title; never retain
+  a predecessor's stale title or encode status in the title.
 - Non-trivial work uses `.workflow/<timestamp>-<slug>/` with `plan.md`, `state.json`,
   `orchestration.md`, and running `implementation-notes.md`. Loop-shaped work routes
   through `using-workflows`; one task keeps one run directory.
