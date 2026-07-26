@@ -4,6 +4,7 @@
 // fixture schema (not yet executed by this runner).
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -39,16 +40,74 @@ for (const f of ruleFiles) {
 const refs = [...claudeMd.matchAll(/~\/\.agents\/(rules|skills)\/[\w./-]+\.md/g)]
   .map((m) => m[0].replace('~/.agents/', ''));
 for (const ref of new Set(refs)) {
-  // rules live in this repo; skills are deployed separately — check rules only
-  if (!ref.startsWith('rules/')) continue;
   if (ref === 'rules/lessons.md') continue; // local-only by design (deploy excludes it)
-  check(`gate-ref ${ref}`, existsSync(join(ROOT, '.agents', ref)));
+  const canonical = ref.startsWith('rules/')
+    ? join(ROOT, '.agents', ref)
+    : join(ROOT, ref);
+  check(`gate-ref ${ref}`, existsSync(canonical));
 }
 
 // 4. canary rule present in global
 check('canary-rule', /codeword `✈`/.test(claudeMd), 'codeword ✈ clause');
 
-// 5. context budget vs baseline
+// 5. deploy content is pinned to the SHA resolved before download
+const deploy = read('scripts/deploy.sh');
+const resolveAt = deploy.indexOf('DEPLOYED_SHA="$(git ls-remote');
+const pinnedUrlAt = deploy.indexOf('archive/${DEPLOYED_SHA}.tar.gz');
+const downloadAt = deploy.indexOf('curl -fsSL "$REPO_TARBALL_URL"');
+check('deploy-pinned-sha',
+  resolveAt >= 0 && resolveAt < pinnedUrlAt && pinnedUrlAt < downloadAt &&
+    !deploy.includes('${DEPLOYED_SHA:-unknown}'),
+  'resolve SHA -> build pinned URL -> download');
+const deployRuntime = spawnSync('bash', ['-c', String.raw`
+  set -euo pipefail
+  fixed=0123456789abcdef0123456789abcdef01234567
+  request_log="$(mktemp)"
+  WORKDIR="$(mktemp -d)"
+  trap 'rm -rf "$WORKDIR" "$request_log"' EXIT
+  git() { printf '%s\trefs/heads/main\n' "$fixed"; }
+  curl() { printf '%s\n' "$*" > "$request_log"; }
+  tar() {
+    while [ "$#" -gt 0 ]; do
+      if [ "$1" = "-C" ]; then
+        shift
+        mkdir -p "$1/agent-scripts-$fixed"
+        return
+      fi
+      shift
+    done
+    return 2
+  }
+  source scripts/deploy.sh
+  resolve_release >/dev/null
+  download_release >/dev/null
+  expected="-fsSL https://github.com/ohyeh/agent-scripts/archive/$fixed.tar.gz"
+  [ "$(cat "$request_log")" = "$expected" ]
+  [ "$SRC" = "$WORKDIR/agent-scripts-$fixed" ]
+`], { cwd: ROOT, encoding: 'utf8' });
+check('deploy-pinned-sha-runtime', deployRuntime.status === 0,
+  deployRuntime.stderr.trim() || 'observed request URL and archive root');
+
+// 6. behavioral fixture files conform to the documented static schema
+const fixtureDir = join(ROOT, 'evals/fixtures');
+const fixtureFiles = existsSync(fixtureDir)
+  ? readdirSync(fixtureDir).filter((f) => f.endsWith('.json'))
+  : [];
+let fixturesValid = fixtureFiles.length > 0;
+for (const f of fixtureFiles) {
+  try {
+    const fixture = JSON.parse(readFileSync(join(fixtureDir, f), 'utf8'));
+    fixturesValid &&= ['id', 'prompt', 'reason'].every(
+      (k) => typeof fixture[k] === 'string' && fixture[k].length > 0);
+    fixturesValid &&= ['must_route', 'must_not', 'required_tokens'].every(
+      (k) => Array.isArray(fixture.labels?.[k]));
+  } catch {
+    fixturesValid = false;
+  }
+}
+check('fixture-schema', fixturesValid, `${fixtureFiles.length} fixture(s)`);
+
+// 7. context budget vs baseline
 const skillDirs = readdirSync(join(ROOT, 'skills'))
   .filter((d) => statSync(join(ROOT, 'skills', d)).isDirectory());
 let skillDescBytes = 0;

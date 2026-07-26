@@ -23,21 +23,38 @@
 #                 (see README.md "Fleet skill restore").
 set -euo pipefail
 
-REPO_TARBALL_URL="https://github.com/ohyeh/agent-scripts/archive/refs/heads/main.tar.gz"
-WORKDIR="$(mktemp -d)"
+REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
+RELEASE_REF="refs/heads/main"
 cleanup() { rm -rf "$WORKDIR"; }
-trap cleanup EXIT
 
-echo "==> Downloading agent-scripts (main) to scratch dir..."
-curl -fsSL "$REPO_TARBALL_URL" | tar xz -C "$WORKDIR"
-SRC="$(find "$WORKDIR" -maxdepth 1 -type d -name 'agent-scripts-*' | head -1)"
-if [ -z "$SRC" ] || [ ! -d "$SRC" ]; then
-  echo "FAIL [download] could not locate the extracted repo tree under $WORKDIR" >&2
-  exit 1
-fi
-echo "PASS [download] extracted to $SRC"
-DEPLOYED_SHA="$(git ls-remote https://github.com/ohyeh/agent-scripts.git main | cut -f1)"
-echo "PASS [download] deploying main @ ${DEPLOYED_SHA:-unknown}"
+resolve_release() {
+  echo "==> Resolving agent-scripts $RELEASE_REF..."
+  DEPLOYED_SHA="$(git ls-remote "$REPO_GIT_URL" "$RELEASE_REF" | cut -f1)"
+  if [[ ! "$DEPLOYED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "FAIL [resolve] expected one 40-character commit SHA for $RELEASE_REF" >&2
+    return 1
+  fi
+  REPO_TARBALL_URL="https://github.com/ohyeh/agent-scripts/archive/${DEPLOYED_SHA}.tar.gz"
+  echo "PASS [resolve] $RELEASE_REF -> $DEPLOYED_SHA"
+}
+
+download_release() {
+  echo "==> Downloading agent-scripts @ $DEPLOYED_SHA to scratch dir..."
+  curl -fsSL "$REPO_TARBALL_URL" | tar xz -C "$WORKDIR"
+  SRC="$WORKDIR/agent-scripts-$DEPLOYED_SHA"
+  if [ ! -d "$SRC" ]; then
+    echo "FAIL [download] archive did not extract the expected SHA-pinned tree: $SRC" >&2
+    return 1
+  fi
+  echo "PASS [download] extracted to $SRC"
+  echo "PASS [download] deploying $RELEASE_REF @ $DEPLOYED_SHA"
+}
+
+main() {
+WORKDIR="$(mktemp -d)"
+trap cleanup EXIT
+resolve_release
+download_release
 
 # --- Layer 1: global runtime files -----------------------------------------
 echo "==> [global] deploying CLAUDE.md + AGENTS.md"
@@ -99,3 +116,8 @@ fi
 echo "PASS [skills] experimental_install completed, ~/.agents/skills present"
 
 echo "==> DEPLOY OK — all four layers PASS"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

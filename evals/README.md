@@ -11,6 +11,10 @@ global 兩檔 byte-identical、每檔 ≤150 行、Gates 表引用的 rule 檔�
 ## Behavioral fixtures（schema 已定，runner 未實作）
 放 `evals/fixtures/*.json`，一檔一案：
 
+目前只收最高頻的 `model-dispatch` 與 `judgment-rubrics`，各一個正例與
+負例。`check-rules-invariants.mjs` 只驗證 JSON schema；行為 runner 尚未實作，
+因此不得把 schema PASS 宣稱為 routing behavior PASS。
+
 ```json
 {
   "id": "route-loop-shaped-to-using-workflows",
