@@ -39,6 +39,7 @@ route back here from inside a domain router.
 | investigate a question / make a hard reasoning call | `research` · `oracle` | SKILL · Skill() |
 | write tests / plan test coverage | `tdd` · `qa-test-planner` | SKILL · Skill() |
 | hand off to a fresh session | `session-handoff` · `claude-handoff` | SKILL · Skill()/manual |
+| curate shared Codex memory, submit an external Claude finding, or retire stale memory | `shared-memory-intake` | SKILL · Skill() |
 | write docs / prose | `documentation-writing` + the writing family | SKILL · manual |
 | commit / release | `git-commit` · `release-plannotator` | SKILL · Skill()/manual |
 | just implement something straightforward | — | inline (no skill; the domain is obvious) |

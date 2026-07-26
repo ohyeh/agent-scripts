@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.7.0-lean-gated
+Version: 4.7.1-lean-gated
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -113,8 +113,11 @@ Reference lookups, once per active context when relevant:
 - Non-trivial work uses `.workflow/<timestamp>-<slug>/` with `plan.md`, `state.json`,
   `orchestration.md`, and running `implementation-notes.md`. Loop-shaped work routes
   through `using-workflows`; one task keeps one run directory.
-- Before re-deriving prior work, search context memory and
-  `~/.codex/memories/rollout_summaries/`. Significant work leaves a resumable summary.
+- Shared memory uses `~/.codex/memories/`: first search `MEMORY.md`, then matching
+  `rollout_summaries/`. External runtimes may only create submissions in
+  `~/.agents/shared-memory-inbox/`; only Codex may promote or maintain official
+  summaries/index. Use
+  `~/.agents/skills/shared-memory-intake/SKILL.md` for submit/review/promote/maintain.
 - Rules evolve only through proposals. `maintenance.md` §1 is the sole edit authority;
   `lessons.md` is append-only, local-only, `Status: proposed`, and non-normative until
   an approved diff folds it into a rule. Automated self-modification stays OFF.

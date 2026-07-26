@@ -651,6 +651,15 @@
       "installedAt": "2026-07-18T20:49:31.171Z",
       "updatedAt": "2026-07-18T20:49:31.171Z"
     },
+    "shared-memory-intake": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/shared-memory-intake/SKILL.md",
+      "skillFolderHash": "40a807934d6a6215852a5e466167914c0839a6976c882d61f0f872b596dd390b",
+      "installedAt": "2026-07-26T10:39:37.000Z",
+      "updatedAt": "2026-07-26T10:53:01.000Z"
+    },
     "simplify": {
       "source": "brianlovin/claude-config",
       "sourceType": "github",
@@ -799,7 +808,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-skills/SKILL.md",
-      "skillFolderHash": "3bfc4dff34b9efb5a88e63e86888dfaa5b70666a",
+      "skillFolderHash": "eb743274cbbf5b6ed7def161bf6bd17a6fe5ecbcf46a6410e5097f89be3e132b",
       "installedAt": "2026-07-19T11:40:52.644Z",
       "updatedAt": "2026-07-19T13:09:40Z"
     },

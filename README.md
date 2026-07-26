@@ -13,10 +13,9 @@ incrementally per a frozen, second-model-reviewed implementation plan. Key conte
 - `skills/using-workflows/` — the workflow meta-router and its 12 canonical recipes
   (`skills/using-workflows/workflows/`), migrated from `ohyeh/tmux-agent-tools`. This bundle is
   the single canonical copy; machines deploy it to `~/.claude/workflows/` via the install script.
-- `skills/delegation-templates/`, `skills/unknowns-discovery/` — the two generic policy skills
-  (W4.1), migrated byte-identical from `ohyeh/tmux-agent-tools/skills/`. These are the canonical
-  skill directories; the `.agents/rules/` exclusion below covers only the same-named *rule*
-  Markdown files, not these skills.
+- `skills/delegation-templates/`, `skills/unknowns-discovery/`, and
+  `skills/shared-memory-intake/` — generic policy skills. These are canonical skill directories;
+  the `.agents/rules/` exclusion below covers only same-named *rule* Markdown files, not skills.
 - `.agents/rules/` — the shared routed-rule files (`model-dispatch.md`, `judgment-rubrics.md`,
   `maintenance.md`, `harness-diagnosis.md`, `agent-environment-provisioning.md`,
   `LETTER-TO-FUTURE-SESSIONS.md`). `delegation-templates.md` and `unknowns-discovery.md` are
