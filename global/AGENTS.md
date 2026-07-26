@@ -100,8 +100,9 @@ Reference lookups, once per active context when relevant:
 - Read a skill's `SKILL.md` before use. Invoke only when named or when the task's
   primary goal matches. Direct domain router first; at most two meta-router hops.
 - `brainstorming` writes its plan under `.workflow/<YYYYMMDDHHMM>-<slug>/`, not
-  `docs/superpowers/specs/`. `writing-plans` is not installed. Approved designs route
-  to `codex-dynamic-workflows`; writing-heavy work loads `stop-slop`.
+  `docs/superpowers/specs/`. `writing-plans` is not installed. Approved designs use
+  `codex-dynamic-workflows` for orchestration state; the selected executor runs the work.
+  Writing-heavy work loads `stop-slop`.
 
 ## Continuity and self-improvement
 - Non-trivial work uses `.workflow/<timestamp>-<slug>/` with `plan.md`, `state.json`,
