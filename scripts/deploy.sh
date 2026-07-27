@@ -118,6 +118,8 @@ echo "PASS [skills] experimental_install completed, ~/.agents/skills present"
 echo "==> DEPLOY OK — all four layers PASS"
 }
 
-if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+# :- so piping the script in (ssh host 'bash -s' < deploy.sh) works under set -u,
+# where BASH_SOURCE is unset and the guard must still run main.
+if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then
   main "$@"
 fi
