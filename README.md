@@ -64,11 +64,16 @@ The skills-only restore below is Layer 4 of that script, kept for the skill-set-
 
 ## Fleet skill restore (`skills-lock.json`)
 
-`skills-lock.json` at the repo root is the fleet's canonical skill set (98 entries, snapshot
-2026-07-19, union contract — every machine converges to this same set): every skill installed
+`skills-lock.json` at the repo root is the fleet's canonical skill set (101 entries, snapshot
+2026-07-27, union contract — every machine converges to this same set): every skill installed
 on the fleet that the `npx skills` CLI manages, merged from the machines' `~/.agents/.skill-lock.json`
 files. Two manual-only items are deliberately excluded: `commit-commands` (a Claude Code plugin, not a skill) and `note` (hand-copied, no
 tool-resolvable source).
+
+Any skill named in the global rules belongs in this lock — otherwise the rule points at
+something a freshly deployed machine does not have. `stop-slop` was that gap until
+2026-07-27: CLAUDE.md loads it for writing-heavy work, but it survived on the fleet only
+as a hand-copied folder.
 
 To restore all skills on a (new) machine — the CLI restores into `.agents/skills/` **relative
 to the cwd**, so run it from `$HOME` for a global install:
