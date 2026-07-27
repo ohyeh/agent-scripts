@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.7.1-lean-gated
+Version: 4.8.0-gated-at-exit
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -42,6 +42,11 @@ is invalid.
 | loop-shaped work: audit, consensus verification, findings triage, root-cause deep-dive, or plan→build | `~/.agents/skills/using-workflows/SKILL.md`; use its BYPASS/SELECT result |
 | editing global guidance, routed rules, installed skills, or `lessons.md` | `~/.agents/rules/maintenance.md` §1; semantic changes require exact diff then approval |
 
+The table binds only when the work is multi-phase, irreversible, or delegated. A
+single-file reversible edit with clear acceptance takes no route and no receipt —
+go straight to the code. Routed guidance never substitutes for reading the code the
+change touches: when read budget is tight, source wins over rules.
+
 Routine receipts stay in workflow/dispatch artifacts. Show a receipt to the user
 only for a deviation, approval boundary, BLOCK/escalation, or explicit request, as:
 `GATE: ~/.agents/rules/<file> §<n> — <plain conclusion>` (one line; no rubric quote).
@@ -55,6 +60,8 @@ Reference lookups, once per active context when relevant:
 - No evidence, no completion claim. Evidence is this-session command + exit code +
   key lines, artifact path, uncropped device proof, or fresh reviewer verdict.
   Re-read evidence for FAIL/BLOCK; label every unsupported fact `UNCONFIRMED`.
+  Evidence is idempotent: on an unchanged tree one green run IS the evidence —
+  re-running the same check adds no proof and counts as waste.
 - Done means the requested outcome exists, not an adjacent partial result. Name
   failed/skipped checks and the most likely remaining failure point.
 - Ask first only for deletion, privacy exposure, external side effects, payment,
