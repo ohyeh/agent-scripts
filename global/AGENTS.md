@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.10.0-judgement-first
+Version: 4.10.1-judgement-first
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -65,6 +65,9 @@ Reference lookups when relevant: `harness-diagnosis.md`,
 - Complete fixes beat small patches: scope reduction or temporary mitigation
   requires explicit user acceptance of what is lost. Reuse existing helpers,
   then stdlib, then installed dependencies.
+- Keep diffs surgical: every changed line traces to the request; preserve
+  unrelated user work. A stack or product direction change updates the
+  project's instructions in the same change.
 - Large refactors/experiments use a new branch. After edits, show `git status`
   and `git diff`; commit only when authorized, otherwise flag it.
 - Long delegated work uses blocking/event-driven waits, never fixed polling.

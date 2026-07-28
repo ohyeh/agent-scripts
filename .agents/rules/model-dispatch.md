@@ -1,7 +1,7 @@
 # Model Dispatch Rules
 
 Read this BEFORE any NEW/FOLLOW-UP delegation or reviewer-profile change. A follow-up
-under the same role, rubric, and acceptance reuses its existing receipt.
+under the same role, rubric, and acceptance needs no re-read.
 
 ## §1 Live model contract
 
@@ -107,11 +107,11 @@ real test/build/flow; high-risk judgment needs Claude `opus`, Codex fresh Sol, o
 real command with quoted exit code/key lines is sufficient. Completion and quality
 criteria live in `judgment-rubrics.md` §2/§5 and must be read before reporting.
 
-## §7 Receipt placement
+## §7 Dispatch records
 
-Routine receipts live in workflow/dispatch artifacts. Surface only deviations,
-approval boundaries, BLOCK/escalation, or explicit requests, using the compact global
-form. Follow-ups reuse a receipt only while role, rubric, and acceptance are unchanged.
+Dispatch decisions (role, model, brief, acceptance) live in workflow/dispatch
+artifacts. Surface to the user only deviations, approval boundaries,
+BLOCK/escalations, or explicit requests.
 
 ## §8 Re-verification
 
