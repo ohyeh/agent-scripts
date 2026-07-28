@@ -96,8 +96,8 @@ scoped edits are NOT delegable — inline by definition.
 |---|---|
 | Route, judge, integrate, talk to user | Main session (you) |
 | Role 1 direction authority | Inline, main session — sets direction, persists via `design-md` |
-| `imagegen-frontend-web/mobile`, `image-to-code` | `codex-tmux` persistent worker (image stages + fixes) |
-| Build / implement (non-trivial scope) | `claude-tmux` persistent worker; inline only for small scoped edits |
+| `imagegen-frontend-web/mobile`, `image-to-code` | `agent-tmux codex` persistent worker (image stages + fixes) |
+| Build / implement (non-trivial scope) | `agent-tmux claude` persistent worker; inline only for small scoped edits |
 | Role 4 `design-an-interface` (N shapes) | In-process Agent-tool sub-agents, parallel — native contract, not tmux-governed |
 | Role 4 `codebase-design` / `domain-modeling` | Inline — applied as judging criteria, not a separate dispatch |
 | Every review round (incl. Pipeline D's verifier) | FRESH headless one-shot (tier per model-dispatch §5) |

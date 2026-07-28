@@ -17,19 +17,19 @@
     {
       "id": 3,
       "prompt": "我要做一個新的行銷 landing page，主打我們的 API 監控產品，要非常有視覺衝擊力，不要看起來像模板",
-      "expected_output": "ROUTE. Q1: web page (code). Q2: new + visually ambitious + imagegen available → image-first pipeline. Authority = design-taste-frontend (exactly 1). Q3: none unless charts appear. Q4: imagegen-frontend-web + image-to-code on a PERSISTENT codex-tmux worker; reviews as fresh headless one-shots. Q5: visual quality loop with Gate 0 evidence (hash, screenshot paths, desktop+mobile viewports).",
+      "expected_output": "ROUTE. Q1: web page (code). Q2: new + visually ambitious + imagegen available → image-first pipeline. Authority = design-taste-frontend (exactly 1). Q3: none unless charts appear. Q4: imagegen-frontend-web + image-to-code on a PERSISTENT agent-tmux codex worker; reviews as fresh headless one-shots. Q5: visual quality loop with Gate 0 evidence (hash, screenshot paths, desktop+mobile viewports).",
       "files": []
     },
     {
       "id": 4,
       "prompt": "做一個內部用的 admin dashboard 新頁面，顯示訂單列表跟幾個統計卡片，普通好看就行",
-      "expected_output": "ROUTE. Q1: web page. Q2: new + ordinary → direct build, EXPLICITLY skip imagegen and say so (worker round-trip cost). Authority = impeccable (product UI, exactly 1). Q3: dataviz (stat tiles/charts). Q4: build on claude-tmux persistent worker or inline if small; fresh reviewer. Q5: visual loop, evidence gate 0.",
+      "expected_output": "ROUTE. Q1: web page. Q2: new + ordinary → direct build, EXPLICITLY skip imagegen and say so (worker round-trip cost). Authority = impeccable (product UI, exactly 1). Q3: dataviz (stat tiles/charts). Q4: build on agent-tmux claude persistent worker or inline if small; fresh reviewer. Q5: visual loop, evidence gate 0.",
       "files": []
     },
     {
       "id": 5,
       "prompt": "我們的 iOS app 首頁要重新設計，先給我幾個方向的 mockup 圖就好，不用寫 code",
-      "expected_output": "ROUTE. Q1: mockup-only delivery — imagegen-frontend-mobile output IS the deliverable. Q2: new, mobile. Authority count: 1 (direction feeds the image prompts). Q4: codex-tmux worker for imagegen. Q5: stop after image review — no code, no build loop.",
+      "expected_output": "ROUTE. Q1: mockup-only delivery — imagegen-frontend-mobile output IS the deliverable. Q2: new, mobile. Authority count: 1 (direction feeds the image prompts). Q4: agent-tmux codex worker for imagegen. Q5: stop after image review — no code, no build loop.",
       "files": []
     },
     {

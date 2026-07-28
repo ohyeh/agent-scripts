@@ -30,7 +30,7 @@ paraphrase, never the author's own session.
 ## CONTRACT — every round, no exceptions
 
 1. **Reviewer**: model-dispatch §1/§4 review row — fresh `gpt-5.6-sol`
-   medium via `codex-tmux`; `gemini-3.6-flash-medium` via `agy-tmux` for a
+   medium via `agent-tmux codex`; `gemini-3.6-flash-medium` via `agent-tmux agy` for a
    third perspective; fresh Claude `opus`/`sonnet` via Agent for
    Claude-side. Reviewer is never the author (model-dispatch §6).
 2. **Round prompt** (file in the session scratchpad, one per round):

@@ -7,7 +7,7 @@ workflow」. Codex-side gate opinion: RECOMMEND-WITH-CONSTRAINTS (gate-v2).
 
 The recipe executes NATIVELY on Claude runtime; Codex commands and supervises.
 `claude-workflow-runner` is this adapter protocol label, not an installed command;
-the executable runner path is `claude-tmux`.
+the executable runner path is `agent-tmux claude`.
 Day-one eligible (no tmux inside): `design-consensus`, `design-vs-code-audit`,
 `docs-vs-code-audit`, `findings-triage`, `project-direction-review`,
 `root-cause-deep-dive-audit`, `workflow-manifest`. The five tmux-launching
@@ -19,7 +19,7 @@ Sequence:
 
 1. Freeze recipe name, args (incl. `args.cli` per the author rule below),
    acceptance, author runtime. No unfrozen dispatch.
-2. `claude-tmux result path <run-name>` → start ONE bounded headless Claude
+2. `agent-tmux claude result path <run-name>` → start ONE bounded headless Claude
    runner whose whole brief is: invoke exactly one native
    `Workflow({name: '<recipe>', args: {...}})`, preserve its full return
    under `recipe_result` in schema-v1 `result.json` at the literal result
@@ -28,7 +28,7 @@ Sequence:
    run it on the cheapest capable model at reasoning effort `low` — the
    recipe's internal agents choose their own tiers; the runner never needs
    more (user ruling 2026-07-25).
-3. `claude-tmux result wait-required <run-name> --fields status,summary
+3. `agent-tmux claude result wait-required <run-name> --fields status,summary
    --wait <recipe-appropriate> --json` → `stop`.
 4. `args.cli` resolves by the SUBSTANTIVE AUTHOR under review: codex profile
    for Claude-authored work; a non-Codex profile when Codex authored the
@@ -54,7 +54,7 @@ label all evidence `ADAPTED direct Claude review`; never report
 Scope: simple consensus outcomes only. Audits, triage, and multi-stage
 recipes have no adapter — they stop as `UNAVAILABLE-NATIVE`.
 
-## Sequence (verified live against `claude-tmux` usage, 2026-07-18)
+## Sequence (verified live against the claude wrapper, 2026-07-18; spelling updated to `agent-tmux claude`)
 
 1. Freeze the artifact path, acceptance criteria, and verdict schema; run
    local checks first.
@@ -63,10 +63,10 @@ recipes have no adapter — they stop as `UNAVAILABLE-NATIVE`.
    (delegation-templates REVIEW shape), collect, stop:
 
 ```bash
-claude-tmux result path <gate-name>
-claude-tmux start --exact --headless <gate-name> <repo-dir> '<GOAL: independently review <artifact>. ACCEPTANCE: read the artifact and live cited sources; return agree | agree_with_changes | disagree | unclear with concrete evidence; do not edit reviewed files or spawn workers. REPORT: write only schema_version 1 JSON with status, summary, artifacts, errors, and verdict to <result-path>.>'
-claude-tmux result wait-required <gate-name> --fields status,summary --wait 600 --json
-claude-tmux stop <gate-name>
+agent-tmux claude result path <gate-name>
+agent-tmux claude start --exact --headless <gate-name> <repo-dir> '<GOAL: independently review <artifact>. ACCEPTANCE: read the artifact and live cited sources; return agree | agree_with_changes | disagree | unclear with concrete evidence; do not edit reviewed files or spawn workers. REPORT: write only schema_version 1 JSON with status, summary, artifacts, errors, and verdict to <result-path>.>'
+agent-tmux claude result wait-required <gate-name> --fields status,summary --wait 600 --json
+agent-tmux claude stop <gate-name>
 ```
 
 3. Accept only an explicit `agree`; anything else → stop and report the

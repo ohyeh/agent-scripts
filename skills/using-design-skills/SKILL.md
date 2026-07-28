@@ -44,7 +44,7 @@ loaded inline.
 
 Q4 **Executor per stage** — the executor table in
 `references/design-roles.md`. Direction runs INLINE; imagegen/image-to-code →
-codex-tmux persistent worker; non-trivial build → claude-tmux persistent
+agent-tmux codex persistent worker; non-trivial build → agent-tmux claude persistent
 worker; every review → FRESH headless one-shot, never the author.
 
 Q5 **Verifier.** Render in scope → the visual quality loop below (full Gate 0

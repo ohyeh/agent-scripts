@@ -1,6 +1,6 @@
 ---
 name: delegation-templates
-description: Fill-in-the-blank prompt templates for delegating work to subagents or tmux workers - SEARCH/LOCATE, IMPLEMENT, REFACTOR, RESEARCH, REVIEW/VERIFY. Invoke BEFORE writing any delegation prompt (Agent tool, claude-tmux/codex-tmux worker, or fanout task) so the prompt ships with explicit GOAL, ACCEPTANCE, and REPORT sections instead of a vague ask. Not for deciding WHETHER to delegate or for driving workers after launch (see the tmux-delegate agent and the tmux-agent-tools skill for those).
+description: Fill-in-the-blank prompt templates for delegating work to subagents or tmux workers - SEARCH/LOCATE, IMPLEMENT, REFACTOR, RESEARCH, REVIEW/VERIFY. Invoke BEFORE writing any delegation prompt (Agent tool, agent-tmux worker, or fanout task) so the prompt ships with explicit GOAL, ACCEPTANCE, and REPORT sections instead of a vague ask. Not for deciding WHETHER to delegate or for driving workers after launch (see the tmux-delegate agent and the tmux-agent-tools skill for those).
 ---
 
 # Delegation Prompt Templates
@@ -100,10 +100,10 @@ Agent({
 Parallelize independent delegations in one message. Wait for results before
 dispatching anything that depends on them.
 
-## Dispatch shape B — tmux worker (claude-tmux / codex-tmux / agent-tmux)
+## Dispatch shape B — tmux worker (agent-tmux <cli>)
 
 ```sh
-claude-tmux start --exact --prompt-file {prompt-file} {safe-name} {repo-dir}
+agent-tmux claude start --exact --prompt-file {prompt-file} {safe-name} {repo-dir}
 ```
 
 When the delegate is a tmux worker, ADD these lines to the filled template

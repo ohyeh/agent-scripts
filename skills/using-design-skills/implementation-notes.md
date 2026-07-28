@@ -17,7 +17,7 @@
   ui-ux-pro-max demoted to queryable database rather than default authority.
 - imagegen-frontend-web/mobile + image-to-code are Codex-authored skills
   (image generation unavailable inline in Claude Code) → those stages always
-  dispatch to codex-tmux workers.
+  dispatch to agent-tmux codex workers.
 - Placement: ~/.agents/skills/using-design-skills — consistent with sibling
   using-* routers. CAVEAT: manually placed, NOT managed by ~/.agents/.skill-lock.json
   (same class as the "manually placed" entries in the Skill Manifest artifact). Add to the
