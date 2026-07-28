@@ -606,6 +606,15 @@
       "installedAt": "2026-06-19T16:46:27.524Z",
       "updatedAt": "2026-07-14T12:24:34.630Z"
     },
+    "second-model-consensus": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/second-model-consensus/SKILL.md",
+      "skillFolderHash": "3b095cd3ed723bd663fcbd42f160bd7f49447f3a",
+      "installedAt": "2026-07-28T09:20:00.000Z",
+      "updatedAt": "2026-07-28T09:20:00.000Z"
+    },
     "self-improving-agent": {
       "source": "charon-fan/agent-playbook",
       "sourceType": "github",
