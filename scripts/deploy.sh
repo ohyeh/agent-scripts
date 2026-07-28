@@ -21,6 +21,10 @@
 #   4. skills   - restores skills-lock.json via `npx skills experimental_install`,
 #                 run from $HOME per the CLI's cwd-relative install path
 #                 (see README.md "Fleet skill restore").
+#   5. hooks    - rsync -a --delete .agents/hooks/ -> ~/.agents/hooks/
+#                 (repo-canonical, same discipline as rules), verified by diff.
+#                 Hook REGISTRATION in ~/.claude/settings.json stays manual —
+#                 that file is user-approval-locked (maintenance.md §1).
 set -euo pipefail
 
 REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
@@ -115,7 +119,23 @@ if [ ! -d ~/.agents/skills ]; then
 fi
 echo "PASS [skills] experimental_install completed, ~/.agents/skills present"
 
-echo "==> DEPLOY OK — all four layers PASS"
+# --- Layer 5: hooks ------------------------------------------------------------
+echo "==> [hooks] rsync .agents/hooks/ -> ~/.agents/hooks/"
+if [ -d "$SRC/.agents/hooks" ]; then
+  mkdir -p ~/.agents/hooks
+  rsync -a --delete "$SRC/.agents/hooks/" ~/.agents/hooks/
+  hooks_diff="$(diff -rq ~/.agents/hooks/ "$SRC/.agents/hooks/" || true)"
+  if [ -n "$hooks_diff" ]; then
+    echo "FAIL [hooks] diff found after rsync:" >&2
+    echo "$hooks_diff" >&2
+    exit 1
+  fi
+  echo "PASS [hooks] 0 diff"
+else
+  echo "PASS [hooks] no .agents/hooks in repo tree — nothing to deploy"
+fi
+
+echo "==> DEPLOY OK — all layers PASS"
 }
 
 # :- so piping the script in (ssh host 'bash -s' < deploy.sh) works under set -u,
