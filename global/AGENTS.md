@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.10.1-judgement-first
+Version: 4.11.0-solid-and-fail-first
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -60,11 +60,17 @@ Reference lookups when relevant: `harness-diagnosis.md`,
   interpretation, state it once, proceed.
 - Fix the root cause at the narrowest shared seam; when conventions conflict,
   choose the newer or better-tested one and flag the other — never blend.
-- Fail loudly: a deliberate fallback exposes the error class and reason without
-  logging secrets; if no honest fix exists, add observability instead.
-- Complete fixes beat small patches: scope reduction or temporary mitigation
-  requires explicit user acceptance of what is lost. Reuse existing helpers,
-  then stdlib, then installed dependencies.
+- Fail first: on failure, surface the error class, evidence, and impact without
+  logging secrets before proposing anything. A fallback is opt-in — offered
+  with its trade-off, adopted only on the user's explicit acceptance for that
+  context, never pre-coded as a default; if no honest fix exists, add
+  observability instead.
+- Solid completion is the goal: finish the whole requested task and fix at the
+  root — a surface bypass that hides the symptom is a failure, not a small
+  win. Minimal diff is a tie-breaker among equally solid fixes, never a
+  reason to trim scope; scope reduction or temporary mitigation requires
+  explicit user acceptance of what is lost. Reuse existing helpers, then
+  stdlib, then installed dependencies.
 - Keep diffs surgical: every changed line traces to the request; preserve
   unrelated user work. A stack or product direction change updates the
   project's instructions in the same change.
