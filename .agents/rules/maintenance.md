@@ -72,6 +72,5 @@ Hard constraints (close the approval bypass):
   byte-identical, kept content-identical (same `Version:` line), never
   symlinked, never stored under `~/.agents/rules/`.
 - Machine verification: each machine's runtime `~/.agents/rules/` and global
-  files match the repo's md5 for the same paths, both global files show the
-  same `Version:`, and a new session's first reply ends with the `✈` canary
-  (see `rules/agent-environment-provisioning.md`).
+  files match the repo's md5 for the same paths, and both global files show
+  the same `Version:` (see `rules/agent-environment-provisioning.md`).

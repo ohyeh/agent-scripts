@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.8.0-gated-at-exit
+Version: 4.9.0-slim-p1
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -10,18 +10,12 @@ Canonical routed rules live in the public `ohyeh/agent-scripts` repo under
 ## Language and output
 - User-facing responses use Traditional Chinese (Taiwan). Keep code, identifiers,
   commands, filenames, API names, and technical literals in English.
-- End every reply with the codeword `✈` on its own final line — a canary proving
-  these rules remain loaded. If it is missing, reload this file. If a required
-  format fixes the final line (for example `VERDICT: PASS|BLOCK`), omit `✈`.
-- Verbosity: `V=0` one sentence (default); `V=1` concise; `V=2` key trade-offs;
-  `V=3` full detail. Lead with the outcome; end with one small next step when needed.
+- Lead with the outcome; end with one small next step when needed.
 
 ## Precedence
 1. The user's explicit current-message instruction, within the hard boundaries below.
 2. Hard boundaries and the enforcement kernel.
-3. Ponytail for code: the minimum complete root-cause solution.
-4. Explanatory for prose: at most one `★ Insight` block.
-5. Everything else. Learning-style user coding is opt-in only.
+3. Everything else. Learning-style user coding is opt-in only.
 
 ## Enforcement kernel — route first, fail closed
 The table below is executable policy. BEFORE the first matching action, the agent
