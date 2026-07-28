@@ -46,7 +46,9 @@ is unavailable. Live-used on the fleet at W15/W18 (mac-mini-m2, remote2).
 
 - **Canonical**: routed rules live in `~/.agents/rules/` (both runtimes read them on demand per the global-file routing table); the two global files are native duplicates, `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` (same content, maintained separately, no symlink). (The v5 install.sh/symlink scheme was deprecated and deleted on 2026-07-17 — do not reference it anymore.)
 - **Rebuild (ADR-0001 ACTIVE since 2026-07-19)**: rules ARE now version-controlled — the public `agent-scripts` repo's `.agents/rules/` is canonical; machine copies are deployed, direction always repo → machine. Deploy = `rsync -a --delete --exclude lessons.md <repo>/.agents/rules/ ~/.agents/rules/` (the `--exclude lessons.md` is required — without it `--delete` erases the machine's local lessons file, which stays LOCAL-ONLY and never enters the public repo). The Fast-path `deploy.sh` does exactly this as its rules layer. Global files are canonical in the repo's `global/` directory, deployed byte-identical to `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`.
-- **Verify**: the `~/.agents/rules/` manifest matches the global-file routing table and both global files have the same `Version:` line.
+- **Verify**: the `~/.agents/rules/` manifest matches the global-file routing
+  table, both global files have the same `Version:` line, `scripts/check-canary.sh`
+  passes before deployment, and a new session reply ends with `✈`.
 
 ## Plugins / Marketplaces
 

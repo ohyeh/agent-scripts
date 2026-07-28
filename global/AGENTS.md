@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.11.0-solid-and-fail-first
+Version: 4.11.1-solid-and-fail-first-canary
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -10,6 +10,9 @@ Canonical routed rules live in the public `ohyeh/agent-scripts` repo under
 ## Language and output
 - User-facing responses use Traditional Chinese (Taiwan). Keep code, identifiers,
   commands, filenames, API names, and technical literals in English.
+- End every reply with the codeword `✈` on its own final line — a canary proving
+  these rules remain loaded. If it is missing, reload this file. If a required
+  format fixes the final line (for example `VERDICT: PASS|BLOCK`), omit `✈`.
 - Lead with the outcome; end with one small next step when needed.
 
 ## Precedence
