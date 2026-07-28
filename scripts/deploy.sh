@@ -21,10 +21,8 @@
 #   4. skills   - restores skills-lock.json via `npx skills experimental_install`,
 #                 run from $HOME per the CLI's cwd-relative install path
 #                 (see README.md "Fleet skill restore").
-#   5. hooks    - rsync -a --delete .agents/hooks/ -> ~/.agents/hooks/
-#                 (repo-canonical, same discipline as rules), verified by diff.
-#                 Hook REGISTRATION in ~/.claude/settings.json stays manual —
-#                 that file is user-approval-locked (maintenance.md §1).
+#   5. hooks    - removes the retired repo-managed tmux dispatch hook.
+#                 Active Claude hooks are delivered by their owning plugins.
 set -euo pipefail
 
 REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
@@ -120,20 +118,13 @@ fi
 echo "PASS [skills] experimental_install completed, ~/.agents/skills present"
 
 # --- Layer 5: hooks ------------------------------------------------------------
-echo "==> [hooks] rsync .agents/hooks/ -> ~/.agents/hooks/"
-if [ -d "$SRC/.agents/hooks" ]; then
-  mkdir -p ~/.agents/hooks
-  rsync -a --delete "$SRC/.agents/hooks/" ~/.agents/hooks/
-  hooks_diff="$(diff -rq ~/.agents/hooks/ "$SRC/.agents/hooks/" || true)"
-  if [ -n "$hooks_diff" ]; then
-    echo "FAIL [hooks] diff found after rsync:" >&2
-    echo "$hooks_diff" >&2
-    exit 1
-  fi
-  echo "PASS [hooks] 0 diff"
-else
-  echo "PASS [hooks] no .agents/hooks in repo tree — nothing to deploy"
+echo "==> [hooks] removing retired tmux-dispatch-gate.sh"
+rm -f ~/.agents/hooks/tmux-dispatch-gate.sh
+if [ -e ~/.agents/hooks/tmux-dispatch-gate.sh ]; then
+  echo "FAIL [hooks] retired tmux-dispatch-gate.sh still exists" >&2
+  exit 1
 fi
+echo "PASS [hooks] retired tmux-dispatch-gate.sh absent"
 
 echo "==> DEPLOY OK — all layers PASS"
 }
