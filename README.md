@@ -17,8 +17,9 @@ incrementally per a frozen, second-model-reviewed implementation plan. Key conte
   `skills/shared-memory-intake/` — generic policy skills. These are canonical skill directories;
   the `.agents/rules/` exclusion below covers only same-named *rule* Markdown files, not skills.
 - `.agents/rules/` — the shared routed-rule files (`model-dispatch.md`, `judgment-rubrics.md`,
-  `maintenance.md`, `harness-diagnosis.md`, `agent-environment-provisioning.md`,
-  `LETTER-TO-FUTURE-SESSIONS.md`). `delegation-templates.md` and `unknowns-discovery.md` are
+  `maintenance.md`, `session-titles.md`, `harness-diagnosis.md`,
+  `agent-environment-provisioning.md`, `LETTER-TO-FUTURE-SESSIONS.md`).
+  `delegation-templates.md` and `unknowns-discovery.md` are
   deliberately not carried over as rule files — their skills above are canonical instead.
   `lessons.md` stays machine-local and is git-ignored; it is never committed here.
 - `scripts/scrub.sh` — the pre-push secret/path/hostname/Tailscale-IP/commit-metadata scrub that

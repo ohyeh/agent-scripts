@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.11.1-solid-and-fail-first-canary
+Version: 4.12.0-session-title-lifecycle
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -33,6 +33,7 @@ tooling — wrapper contracts, hooks, validators — not prompt ceremony.
 | start work with unclear acceptance, multiple phases, or a material default | `~/.agents/skills/unknowns-discovery/SKILL.md`; state each blindspot and chosen default |
 | retry after a failure, take a non-obvious trade-off, or ask the user to decide | `~/.agents/rules/judgment-rubrics.md` §3/§4/§6 |
 | run loop-shaped work (audit, consensus verification, triage, plan→build) | `~/.agents/skills/using-workflows/SKILL.md` |
+| start or retitle a non-trivial session, block, complete, or hand it off | `~/.agents/rules/session-titles.md` |
 | edit global guidance, routed rules, installed skills, or `lessons.md` | `~/.agents/rules/maintenance.md` §1 — exact diff, then approval |
 
 The index binds only when work is multi-phase, irreversible, or delegated; a
@@ -96,9 +97,8 @@ Reference lookups when relevant: `harness-diagnosis.md`,
   `stop-slop`.
 
 ## Continuity and self-improvement
-- Title every non-trivial session `<scope> — <active outcome>` with the
-  runtime-native control (Codex native title; Claude `/rename`); retitle on a
-  material goal change and before handoff — never inherit a stale title.
+- Keep every non-trivial session title current through the routed
+  `session-titles.md` lifecycle; retitle before handoff.
 - Non-trivial work uses `.workflow/<timestamp>-<slug>/` with `plan.md`,
   `state.json`, `orchestration.md`, and running `implementation-notes.md`;
   one task keeps one run directory.
