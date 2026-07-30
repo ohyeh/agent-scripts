@@ -71,6 +71,37 @@ Fix:
   lookup made THIS session (tool schema, `--version`, file read, dashboard). If it
   cannot be looked up, write `UNCONFIRMED` next to it. No exceptions.
 
+## Interface trust tiers (verified 2026-07-30 on Claude Code 2.1.220, macOS)
+
+Documented interfaces may be relied on long-term; probed interfaces work today
+but carry no contract — note the verified CLI version at every use site and
+re-verify after a CLI upgrade.
+
+### Documented (official Hooks reference)
+- Hook stdin JSON, all events: `session_id`, `transcript_path` (the session's
+  own jsonl), `cwd`, `hook_event_name`, `permission_mode`.
+- PreToolUse adds `tool_name` + `tool_input`; PostToolUse adds `tool_response`;
+  UserPromptSubmit adds `prompt`.
+- Hook stdout JSON controls the harness: `permissionDecision: allow|deny|ask`,
+  `additionalContext`; exit 2 + stderr is the shorthand deny (stderr is fed
+  back to the model).
+- These fields are harness-injected — the model only controls
+  `tool_input.command`, which is what makes hook gates trustworthy.
+
+### Probed (undocumented, version-pinned)
+- Hook stdin `agent_type`: present only when the Bash call runs inside a
+  subagent context; absent in the parent session. Basis of the
+  tmux-dispatch-gate subagent pass-through. Probe: tmux-agent-tools
+  `.workflow/202607261830-dispatch-gate-enforcement/`, CLI 2.1.220.
+- Session rename endpoint: `PUT https://api.anthropic.com/v1/code/sessions/
+  <cse_id>` with subscription OAuth bearer from Keychain
+  (`Claude Code-credentials`) + `anthropic-beta: oauth-2025-04-20`; body
+  `{"title":"..."}`. The `cse_…` id lives in the session's own transcript
+  jsonl (also reachable via the documented `transcript_path`). Recipe:
+  `session-titles.md` §Runtime control, verified against CLI 2.1.220.
+- Local title record: `claude-agent-sdk` (pip) `rename_session(uuid, title,
+  cwd)` writes the rename into the local jsonl; offline, no cloud effect.
+
 ## Honorable mention (not top-3, still real)
 - `~/.claude` accumulates junk (5MB `history.jsonl`, paste-cache, session-env).
   Harmless to context but slows audits; prune yearly.
