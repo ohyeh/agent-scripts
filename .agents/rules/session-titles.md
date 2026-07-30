@@ -50,6 +50,12 @@ Use exactly one status:
 Do not rewrite a `✅` title for follow-up work. Start a new active session and
 continue the handoff sequence when the work is part of the same chain.
 
+A title that describes a previous state is a defect. Re-check the gate at
+every turn end where work started, stalled, blocked, handed off, or
+completed — not only when first setting the title. On resume or compaction
+recovery, re-derive status from current evidence and rename if stale. A `🚨`
+outcome names the exact user or external action needed, not just "blocked".
+
 ## Rename gate
 
 Rename only when one of these changes:
@@ -67,8 +73,27 @@ status, or outcome change, keep the existing title.
 
 ## Runtime control
 
-Codex uses its native title control. Claude uses `/rename` when its SlashCommand
-tool is available; otherwise it states the exact `/rename <title>` once for the
-user. If the native control fails, report the failure and leave the title
-unchanged. Never claim success or simulate a rename through a file, hook, or
-chat message.
+Codex uses its native title control. Claude Code renames via Bash, reproducing
+what `/rename` does internally (verified against CLI 2.1.220):
+
+1. Cloud title (what the claude.ai app shows). Find the session's `cse_…` id
+   inside its own transcript under `~/.claude/projects/<encoded-cwd>/`, then:
+
+   ```bash
+   TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w \
+     | jq -r .claudeAiOauth.accessToken)
+   curl -sf -X PUT "https://api.anthropic.com/v1/code/sessions/<cse_id>" \
+     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+     -H "anthropic-version: 2023-06-01" -H "anthropic-beta: oauth-2025-04-20" \
+     -d '{"title":"<title>"}'
+   ```
+
+2. Local title (the `claude --resume` list), when `claude-agent-sdk` (pip) is
+   available: `rename_session('<session-uuid>', '<title>', '<cwd>')`. Skip
+   without comment when the package is absent; the cloud title is primary.
+
+This endpoint is internal and undocumented; it may change between CLI
+versions. On any non-200 or missing credential, report the failure, state the
+exact `/rename <title>` once for the user, and leave the title unchanged.
+Never claim success or simulate a rename through a file, hook, or chat
+message.
