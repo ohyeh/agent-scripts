@@ -2,7 +2,7 @@
 // Rules eval gate — static invariants for global/ + .agents/rules/ + skills/.
 // Exit 0 = all PASS. Any FAIL = exit 1. See evals/README.md for the behavioral
 // fixture schema (not yet executed by this runner).
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -124,6 +124,12 @@ const budget = {
     (a, f) => a + Buffer.byteLength(read(`.agents/rules/${f}`)), 0),
   skillDescBytes,
 };
+if (process.argv.includes('--accept')) {
+  // Deliberate budget growth: write the current sizes back as the new baseline
+  // so the increase lands in the same reviewed diff.
+  writeFileSync(BASELINE_PATH, JSON.stringify(budget, null, 2) + '\n');
+  console.log(`accepted new baseline: ${JSON.stringify(budget)}`);
+}
 if (existsSync(BASELINE_PATH)) {
   const base = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
   for (const k of Object.keys(budget)) {

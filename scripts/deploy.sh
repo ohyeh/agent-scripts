@@ -21,8 +21,10 @@
 #   4. skills   - restores skills-lock.json via `npx skills experimental_install`,
 #                 run from $HOME per the CLI's cwd-relative install path
 #                 (see README.md "Fleet skill restore").
-#   5. hooks    - removes the retired repo-managed tmux dispatch hook.
-#                 Active Claude hooks are delivered by their owning plugins.
+#   5. hooks    - installs the kernel sentinel hooks (.agents/hooks/) into
+#                 ~/.agents/hooks/ and registers them idempotently in
+#                 ~/.claude/settings.json; removes the retired tmux dispatch
+#                 hook (workflow-gate hooks live with their owning plugins).
 set -euo pipefail
 
 REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
@@ -118,13 +120,35 @@ fi
 echo "PASS [skills] experimental_install completed, ~/.agents/skills present"
 
 # --- Layer 5: hooks ------------------------------------------------------------
-echo "==> [hooks] removing retired tmux-dispatch-gate.sh"
-rm -f ~/.agents/hooks/tmux-dispatch-gate.sh
-if [ -e ~/.agents/hooks/tmux-dispatch-gate.sh ]; then
-  echo "FAIL [hooks] retired tmux-dispatch-gate.sh still exists" >&2
-  exit 1
-fi
-echo "PASS [hooks] retired tmux-dispatch-gate.sh absent"
+# Kernel sentinel hooks (version-upgrade tripwire + session-title nudge) are
+# repo-managed: installed to ~/.agents/hooks/ and registered idempotently in
+# ~/.claude/settings.json. Workflow-gate hooks stay with their owning plugins.
+echo "==> [hooks] installing sentinel hooks + registering in ~/.claude/settings.json"
+rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent-tools plugin
+mkdir -p ~/.agents/hooks
+install -m 0755 "$SRC/.agents/hooks/claude-version-sentinel.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/session-title-sentinel.sh" ~/.agents/hooks/
+
+SETTINGS=~/.claude/settings.json
+[ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
+tmp_settings="$(mktemp)"
+jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
+   --arg ts "\"\$HOME/.agents/hooks/session-title-sentinel.sh\"" '
+  def ensure(ev; cmd):
+    .hooks[ev] = ((.hooks[ev] // [])
+      | if any(.[]; any(.hooks[]?; .command == cmd))
+        then . else . + [{"hooks":[{"type":"command","command":cmd}]}] end);
+  ensure("SessionStart"; $vs) | ensure("Stop"; $ts)
+' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
+
+for h in claude-version-sentinel session-title-sentinel; do
+  if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
+    echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
+    exit 1
+  fi
+done
+jq -e . "$SETTINGS" >/dev/null || { echo "FAIL [hooks] settings.json is no longer valid JSON" >&2; exit 1; }
+echo "PASS [hooks] sentinel hooks installed + registered, retired dispatch hook absent"
 
 echo "==> DEPLOY OK — all layers PASS"
 }

@@ -52,7 +52,16 @@ fi
 DEPLOY_URL="$RAW_BASE/$SHA/scripts/deploy.sh"
 EXPECTED_MD5="$(curl -fsSL "$RAW_BASE/$SHA/global/CLAUDE.md" | { if command -v md5 >/dev/null; then md5 -q; else md5sum | cut -d' ' -f1; fi; })"
 EXPECTED_VERSION="$(curl -fsSL "$RAW_BASE/$SHA/global/CLAUDE.md" | grep -m1 '^Version:')"
-echo "PASS [resolve] $RELEASE_REF -> $SHA (global md5=$EXPECTED_MD5, $EXPECTED_VERSION)"
+
+# Rules-layer expectation: aggregate sha256 of the pinned tree's rule files
+# (lessons.md excluded — always local-only), so a host whose deploy.sh silently
+# failed the rules rsync can no longer verify green on CLAUDE.md alone.
+RULES_SNIPPET='r(){ cd "$1" 2>/dev/null || { echo missing; return; }; LC_ALL=C ls *.md 2>/dev/null | grep -v "^lessons\.md$" | xargs shasum -a 256 2>/dev/null | shasum -a 256 | cut -d" " -f1; }'
+TMPD="$(mktemp -d)"
+trap 'rm -rf "$TMPD"' EXIT
+curl -fsSL "https://github.com/ohyeh/agent-scripts/archive/$SHA.tar.gz" | tar xz -C "$TMPD"
+EXPECTED_RULES="$(bash -c "$RULES_SNIPPET; r '$TMPD/agent-scripts-$SHA/.agents/rules'")"
+echo "PASS [resolve] $RELEASE_REF -> $SHA (global md5=$EXPECTED_MD5, rules sha=$EXPECTED_RULES, $EXPECTED_VERSION)"
 
 FAILED=0
 for host in "${HOSTS[@]}"; do
@@ -67,16 +76,18 @@ for host in "${HOSTS[@]}"; do
     fi
   fi
   echo "==> [$host] verifying"
-  report="$(run_on "$host" "$MD5_SNIPPET
+  report="$(run_on "$host" "$MD5_SNIPPET; $RULES_SNIPPET
     c=\$(f ~/.claude/CLAUDE.md); a=\$(f ~/.codex/AGENTS.md)
     vc=\$(grep -m1 '^Version:' ~/.claude/CLAUDE.md); va=\$(grep -m1 '^Version:' ~/.codex/AGENTS.md)
-    printf '%s|%s|%s|%s' \"\$c\" \"\$a\" \"\$vc\" \"\$va\"" || true)"
-  IFS='|' read -r c_md5 a_md5 c_ver a_ver <<<"$report"
+    rs=\$(r ~/.agents/rules)
+    printf '%s|%s|%s|%s|%s' \"\$c\" \"\$a\" \"\$vc\" \"\$va\" \"\$rs\"" || true)"
+  IFS='|' read -r c_md5 a_md5 c_ver a_ver r_sha <<<"$report"
   if [ "$c_md5" = "$EXPECTED_MD5" ] && [ "$a_md5" = "$EXPECTED_MD5" ] \
-     && [ "$c_ver" = "$EXPECTED_VERSION" ] && [ "$a_ver" = "$EXPECTED_VERSION" ]; then
-    echo "PASS [$host] CLAUDE.md/AGENTS.md md5=$EXPECTED_MD5, $c_ver"
+     && [ "$c_ver" = "$EXPECTED_VERSION" ] && [ "$a_ver" = "$EXPECTED_VERSION" ] \
+     && [ "$r_sha" = "$EXPECTED_RULES" ]; then
+    echo "PASS [$host] CLAUDE.md/AGENTS.md md5=$EXPECTED_MD5, rules sha=$r_sha, $c_ver"
   else
-    echo "FAIL [$host] got CLAUDE.md md5=${c_md5:-<none>} AGENTS.md md5=${a_md5:-<none>} '$c_ver' / '$a_ver' — expected md5=$EXPECTED_MD5 '$EXPECTED_VERSION'" >&2
+    echo "FAIL [$host] got CLAUDE.md md5=${c_md5:-<none>} AGENTS.md md5=${a_md5:-<none>} rules sha=${r_sha:-<none>} '$c_ver' / '$a_ver' — expected md5=$EXPECTED_MD5 rules sha=$EXPECTED_RULES '$EXPECTED_VERSION'" >&2
     FAILED=1
   fi
 done
