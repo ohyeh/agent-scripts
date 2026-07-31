@@ -79,3 +79,15 @@ Apply: choosing among approaches where the best option is not obvious.
 Keep it to ~15 lines. The point is forcing explicit trade-offs, not producing a spreadsheet.
 - Positive: choosing a queue: compares Redis Streams vs SQS vs Postgres `SKIP LOCKED` on 6 axes, notes the winner flips if ops burden is weighted 2×, picks Postgres with SQS fallback, first validation = load test at 2× expected volume.
 - Negative: "I chose Redis because it's popular and fast." No axes, no fallback, no validation step — redo.
+
+## §7 Task-specific quality gates (apply when relevant, not by default)
+Apply: before shipping code that touches security-sensitive input, performance-critical
+paths, or user-facing UI — do not run these unconditionally on every task.
+- [ ] Security-sensitive (auth, input parsing, secrets, deps): run a dependency/secret
+  scan and note the result; do not ship an unreviewed new dependency.
+- [ ] Performance-critical path touched: capture a before/after number (latency,
+  query count, bundle size) — a claim without a number is not a perf claim.
+- [ ] User-facing UI touched: keyboard nav + contrast spot-check (see `impeccable`/
+  `web-design-guidelines` skills), not a full audit unless requested.
+Skip silently when none apply — this is a gate for relevant work, not a checklist tax
+on every task.

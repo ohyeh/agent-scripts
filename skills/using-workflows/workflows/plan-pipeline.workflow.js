@@ -115,7 +115,7 @@ phase('Plan')
 const plan = await agent(
   cliFreeze(
     `the implementation PLAN at ${planPath}, derived from the direction doc ${directionPath}. ` +
-    `Include: goal, success criteria, scope/non-goals, per-area work breakdown (tasks with effort + touched files + deps), risks/open-questions, phased sequence, and an explicit "ADR vs direct build" list`,
+    `Include: goal, success criteria, scope/non-goals, per-area work breakdown (tasks with effort + touched files + deps + a one-line acceptance contract: the exact command/check that must pass), risks/open-questions, phased sequence, and an explicit "ADR vs direct build" list`,
     planPath,
     `\nAlso: in requiredAdrs[], list every design decision the plan says NEEDS an ADR (slug + title + one-line brief).`
   ),

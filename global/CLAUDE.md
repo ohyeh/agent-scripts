@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.12.0-session-title-lifecycle
+Version: 4.13.0-quality-gates-and-loop-signoff
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -49,7 +49,8 @@ Reference lookups when relevant: `harness-diagnosis.md`,
   failed/skipped checks; label unsupported facts `UNCONFIRMED`. Evidence is
   idempotent: one green run on an unchanged tree is enough.
 - Ask first for deletion, privacy exposure, external side effects, payment,
-  irreversible operations, production/protected-branch changes, or major
+  irreversible operations, production/protected-branch changes, starting an
+  unattended/scheduled autonomous loop on non-trivial work, or major
   architecture risk. A current-message explicit instruction approves exactly
   that scope (quote it when acting); generic urgency waives nothing. Never use
   production, protected branches, or deployed config as an unapproved stopgap.
