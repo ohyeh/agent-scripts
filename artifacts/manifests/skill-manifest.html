@@ -103,27 +103,27 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 <div class="wrap">
 
 <h1>Skill Manifest — Fleet</h1>
-<p class="subtitle">L1 全量花名冊 — installed-vs-adopted gap 可視化 | 生成機：mbp14 | 生成日：2026-08-01 | 取代 07-19 / 07-24 / 08-01（早前）快照 | 本次事件：W31 砍伐季 — 36 支移除（104 → 68 lock-managed），mac-mini-m2 / remote2 尚未重佈署</p>
+<p class="subtitle">L1 全量花名冊 — installed-vs-adopted gap 可視化 | 生成機：mbp14 | 生成日：2026-08-01 | 取代 07-19 / 07-24 / 08-01（早前）快照 | 本次事件：W31 砍伐季 — 36 支移除、11 支 vendor（104 → 70 lock-managed）· mac-mini-m2 已收斂 · remote2 離線待佈署</p>
 
 <div class="meta-card">
   <b>三層投影</b> — <b>L0</b> <code>~/.agents/.skill-lock.json</code>（安裝事實，本頁資料源）→ <b>L1</b> 本 manifest（全量花名冊 ＋ gap 儀表板）→ <b>L2</b> <code>using-skills</code> SKILL.md（僅路由 adopted 面）。安裝粒度是 per-repo（整包裝），使用粒度是 per-skill——兩者的差就是臃腫，收在這頁，不進 L2。
   <div class="meta-grid">
     <div>掃描：<code>cat ~/.agents/.skill-lock.json</code> ＋ <code>ls ~/.agents/skills</code></div>
-    <div>mbp14 現況：lock <b>68</b> · 目錄 71（＋3 支 lock 外）</div>
-    <div>adopted <b>59</b> · dormant <b>9</b>（均為用戶點名保留）</div>
-    <div><span class="tag tag-danger">機隊未收斂</span> mac-mini-m2 / remote2 仍為砍伐前狀態（~99 支），待 commit → push → <code>scripts/deploy.sh</code></div>
+    <div>mbp14 現況：lock <b>70</b> · 目錄 73（＋3 支 lock 外）</div>
+    <div>adopted <b>61</b> · dormant <b>9</b>（均為用戶點名保留）</div>
+    <div><span class="tag tag-ok">mac-mini-m2 已收斂</span>（remove --all ＋ deploy.sh 全層 PASS ＋ 11 支補齊）· <span class="tag tag-danger">remote2 離線</span> hostname 解析失敗，上線後跑同程序</div>
   </div>
 </div>
 
 <div class="meta-card">
-  <b>W31 砍伐季（2026-08-01）</b> — 逐 repo / 逐鏈裁決，36 支移除：gsap 全包（8）、nexu-io 設計冗餘（ui-skills、design-md、research-decision-room ＋ redesign-existing-projects、web-design-guidelines、ui-ux-pro-max）、matt setup／教學／流程冗餘（setup-*×3、git-guardrails、grilling、grill-me、grill-with-docs、loop-me、implement、to-questionnaire、teach、scaffold-exercises、ask-matt、ubiquitous-language、to-spec、to-tickets、claude-handoff、code-review）、charon-fan self-improving-agent（與硬規則「自動自我修改 OFF」正面衝突）、ohyeh second-model-consensus（consensus-gate recipe 取代，repo 源碼同步 git rm）、json-canvas。新建 2 支：<code>ask-nova</code>（面談式選流程）、<code>writing-artifacts</code>（統一寫作入口，genre branch 整合 documentation-writing）。
+  <b>W31 砍伐季（2026-08-01）</b> — 逐 repo / 逐鏈裁決，36 支移除：gsap 全包（8）、nexu-io 設計冗餘（ui-skills、design-md、research-decision-room ＋ redesign-existing-projects、web-design-guidelines、ui-ux-pro-max）、matt setup／教學／流程冗餘（setup-*×3、git-guardrails、grilling、grill-me、grill-with-docs、loop-me、implement、to-questionnaire、teach、scaffold-exercises、ask-matt、ubiquitous-language、to-spec、to-tickets、claude-handoff、code-review）、charon-fan self-improving-agent（與硬規則「自動自我修改 OFF」正面衝突）、ohyeh second-model-consensus（consensus-gate recipe 取代，repo 源碼同步 git rm）、json-canvas。新建 2 支：<code>ask-nova</code>（面談式選流程）、<code>writing-artifacts</code>（統一寫作入口，genre branch 整合 documentation-writing）。<b>上游換血應對</b>：mattpocock/skills 再度移除 11 支我們仍持有的（batch-grill-me、writing 鏈四支、design-an-interface ＋ dormant 五支）——已 vendor 進本 repo（commit <code>90cceae</code>），lock 來源改記 <code>ohyeh/agent-scripts</code>，deploy 不再靜默缺件。
 </div>
 
 <section>
 <h2>總覽</h2>
 <div class="stat-row">
-  <div class="stat"><div class="num">68</div><div class="label">lock-managed（mbp14）</div></div>
-  <div class="stat"><div class="num">59</div><div class="label">adopted（L2 有路由）</div></div>
+  <div class="stat"><div class="num">70</div><div class="label">lock-managed（mbp14）</div></div>
+  <div class="stat"><div class="num">61</div><div class="label">adopted（L2 有路由）</div></div>
   <div class="stat"><div class="num">9</div><div class="label">dormant（裝而未用，保留）</div></div>
   <div class="stat"><div class="num">3</div><div class="label">lock 外（unmanaged）</div></div>
   <div class="stat unreachable"><div class="num">36</div><div class="label">本季移除</div></div>
@@ -137,8 +137,8 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 <table>
 <thead><tr><th>Source repo</th><th class="center">installed</th><th class="center">adopted</th><th class="center">gap</th><th>Skills</th></tr></thead>
 <tbody>
-<tr><td class="mono">mattpocock/skills</td><td class="center">22</td><td class="center">14</td><td class="center"><span class="tag tag-warn">8 dormant</span></td><td class="mut">batch-grill-me, codebase-design, design-an-interface, diagnosing-bugs, domain-modeling, edit-article, <s>improve-codebase-architecture</s>, <s>migrate-to-shoehorn</s>, <s>obsidian-vault</s>, prototype, <s>qa</s>, <s>request-refactor-plan</s>, research, resolving-merge-conflicts, tdd, <s>triage</s>, <s>wayfinder</s>, <s>wizard</s>, writing-beats, writing-fragments, writing-great-skills, writing-shape</td></tr>
-<tr><td class="mono">ohyeh/agent-scripts</td><td class="center">6</td><td class="center">6</td><td class="center"><span class="yes">0</span></td><td class="mut">delegation-templates, shared-memory-intake, unknowns-discovery, using-design-skills, using-skills, using-workflows</td></tr>
+<tr><td class="mono">ohyeh/agent-scripts</td><td class="center">19</td><td class="center">14</td><td class="center"><span class="tag tag-warn">5 dormant</span></td><td class="mut">ask-nova, batch-grill-me, delegation-templates, design-an-interface, edit-article, <s>migrate-to-shoehorn</s>, <s>obsidian-vault</s>, <s>qa</s>, <s>request-refactor-plan</s>, shared-memory-intake, unknowns-discovery, using-design-skills, using-skills, using-workflows, <s>wizard</s>, writing-artifacts, writing-beats, writing-fragments, writing-shape</td></tr>
+<tr><td class="mono">mattpocock/skills</td><td class="center">11</td><td class="center">8</td><td class="center"><span class="tag tag-warn">3 dormant</span></td><td class="mut">codebase-design, diagnosing-bugs, domain-modeling, <s>improve-codebase-architecture</s>, prototype, research, resolving-merge-conflicts, tdd, <s>triage</s>, <s>wayfinder</s>, writing-great-skills</td></tr>
 <tr><td class="mono">Leonxlnx/taste-skill</td><td class="center">5</td><td class="center">5</td><td class="center"><span class="yes">0</span></td><td class="mut">full-output-enforcement, high-end-visual-design, image-to-code, imagegen-frontend-mobile, imagegen-frontend-web</td></tr>
 <tr><td class="mono">backnotprop/plannotator</td><td class="center">4</td><td class="center">3</td><td class="center"><span class="tag tag-warn">1 dormant</span></td><td class="mut">pierre-guard, release-plannotator, review-renovate, <s>update-deps</s></td></tr>
 <tr><td class="mono">obra/superpowers</td><td class="center">4</td><td class="center">4</td><td class="center"><span class="yes">0</span></td><td class="mut">brainstorming, dispatching-parallel-agents, subagent-driven-development, verification-before-completion</td></tr>
@@ -168,39 +168,41 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 </section>
 
 <section>
-<h2>Skill 全表（68 lock-managed ＋ 3 unmanaged，依 repo 分組）</h2>
+<h2>Skill 全表（70 lock-managed ＋ 3 unmanaged，依 repo 分組）</h2>
 <div class="table-scroll">
 <table>
 <thead><tr><th>Skill</th><th>Source repo</th><th class="center">狀態</th></tr></thead>
 <tbody>
-<tr><td class="mono">batch-grill-me</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">codebase-design</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">design-an-interface</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">diagnosing-bugs</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">domain-modeling</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">edit-article</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">improve-codebase-architecture</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
-<tr><td class="mono">migrate-to-shoehorn</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
-<tr><td class="mono">obsidian-vault</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
-<tr><td class="mono">prototype</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">qa</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
-<tr><td class="mono">request-refactor-plan</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
-<tr><td class="mono">research</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">resolving-merge-conflicts</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">tdd</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">triage</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
-<tr><td class="mono">wayfinder</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
-<tr><td class="mono">wizard</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
-<tr><td class="mono">writing-beats</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">writing-fragments</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">writing-great-skills</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
-<tr><td class="mono">writing-shape</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">ask-nova</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">batch-grill-me</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
 <tr><td class="mono">delegation-templates</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">design-an-interface</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">edit-article</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">migrate-to-shoehorn</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">obsidian-vault</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">qa</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">request-refactor-plan</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
 <tr><td class="mono">shared-memory-intake</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
 <tr><td class="mono">unknowns-discovery</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
 <tr><td class="mono">using-design-skills</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
 <tr><td class="mono">using-skills</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
 <tr><td class="mono">using-workflows</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">wizard</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">writing-artifacts</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">writing-beats</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">writing-fragments</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">writing-shape</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">codebase-design</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">diagnosing-bugs</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">domain-modeling</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">improve-codebase-architecture</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">prototype</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">research</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">resolving-merge-conflicts</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">tdd</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">triage</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">wayfinder</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">writing-great-skills</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
 <tr><td class="mono">full-output-enforcement</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
 <tr><td class="mono">high-end-visual-design</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
 <tr><td class="mono">image-to-code</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
@@ -261,8 +263,8 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 <section>
 <h2>Drift 與待辦</h2>
 <ul>
-<li><b>機隊發散（本次最大 drift）</b>：mac-mini-m2 / remote2 仍載 ~99 支砍伐前 roster。收斂路徑：本 repo commit ＋ push → 各機 <code>scripts/deploy.sh</code>（GitHub main tarball 拉取）。</li>
-<li><b>ask-nova / writing-artifacts 未入 lock</b>：repo 源碼已存在，比照 07-19 <code>using-skills</code> 的處理——入 <code>skills-lock.json</code> 後由 installer 佈署全機隊。</li>
+<li><b>remote2 離線</b>：hostname 解析失敗，未佈署——上線後跑 <code>npx skills remove --all -g</code> ＋ <code>scripts/deploy.sh</code>。</li>
+<li><b>mattpocock/skills 上游依賴風險已除</b>：11 支上游移除件 vendor 進本 repo；matt 源剩 11 支，上游再換血只影響 dormant／可重評者。</li>
 <li><b>arc-artifact-fetcher</b>：長期 lock 外的手放 skill，backlog 續留。</li>
 <li><b>design-roles.md 既有 drift</b>：Role 1 表仍列未安裝的 <code>frontend-design</code>，未裁決。</li>
 <li><b>~/.claude/skills 斷鏈</b>：07-19 留下的 5 條 huddle-* 斷 symlink，本季砍除又新增數十條指向已刪 skill 的斷鏈候選——check-rules-invariants.mjs 增加斷鏈檢查在 backlog。</li>
