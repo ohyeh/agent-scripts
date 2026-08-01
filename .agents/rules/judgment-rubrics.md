@@ -67,6 +67,7 @@ Apply: before handing over any artifact (code, doc, config, report).
 - [ ] Docs/rules: every path, command, model name, version verified live this session; no rule contradicts CLAUDE.md; concrete enough that a model without this conversation's context could follow it.
 - [ ] Reports: conclusions first; every claim has evidence or `file:line`; inferred vs verified separated; most likely failure point named.
 - [ ] Everything: the deliverable answers the ORIGINAL request, not the sub-problem you got absorbed in.
+- [ ] Measurement/inventory (logs, usage, counts): script-full-coverage only — sampling is forbidden at the measurement layer; LLM deep-read covers the COMPLETE script-flagged set (triage, not sampling); every reported number carries its producing command; two conflicting "full" sweeps are adjudicated by the commander re-running one shared method — never by picking a report.
 - Positive: a migration script delivered with `--dry-run` output attached showing 42 rows would change, plus one assert-based self-check. Meets floor.
 - Negative: a README documenting a `make deploy` target that was never run to confirm it exists. Below floor — verify or mark `UNCONFIRMED`.
 
