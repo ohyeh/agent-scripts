@@ -117,7 +117,26 @@ if [ ! -d ~/.agents/skills ]; then
   echo "FAIL [skills] ~/.agents/skills does not exist after restore" >&2
   exit 1
 fi
-echo "PASS [skills] experimental_install completed, ~/.agents/skills present"
+
+# `experimental_install` adds/updates the lock roster but retains removed
+# skills. Reconcile the managed directory so every deployment converges.
+allowed_skills="$(jq -r '.skills | keys[]' "$SRC/skills-lock.json")"
+removed_skills=0
+while IFS= read -r installed_skill; do
+  if ! grep -Fqx "$installed_skill" <<<"$allowed_skills"; then
+    rm -rf "$HOME/.agents/skills/$installed_skill"
+    removed_skills=$((removed_skills + 1))
+  fi
+done < <(find "$HOME/.agents/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
+
+unexpected_skills="$(comm -23 \
+  <(find "$HOME/.agents/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort) \
+  <(printf '%s\n' "$allowed_skills" | sort))"
+if [ -n "$unexpected_skills" ]; then
+  echo "FAIL [skills] stale managed skills remain: $unexpected_skills" >&2
+  exit 1
+fi
+echo "PASS [skills] experimental_install completed; removed $removed_skills stale skill(s)"
 
 # --- Layer 5: hooks ------------------------------------------------------------
 # Kernel sentinel hooks (version-upgrade tripwire + session-title nudge) are
