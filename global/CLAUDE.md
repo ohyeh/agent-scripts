@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.13.0-quality-gates-and-loop-signoff
+Version: 4.14.0-reply-scope-tool-chain-narration
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -10,6 +10,11 @@ Canonical routed rules live in the public `ohyeh/agent-scripts` repo under
 ## Language and output
 - User-facing responses use Traditional Chinese (Taiwan). Keep code, identifiers,
   commands, filenames, API names, and technical literals in English.
+- "Reply" covers every assistant text segment in a tool-call chain, including
+  narration between tool calls ("Let me check...", "The screenshot rendered,
+  viewing it now") — not only the final turn. Each such segment follows the
+  language and `✈` rules below. Only turns with zero text content (a bare tool
+  call, nothing else) are exempt.
 - End every reply with the codeword `✈` on its own final line — a canary proving
   these rules remain loaded. If it is missing, reload this file. If a required
   format fixes the final line (for example `VERDICT: PASS|BLOCK`), omit `✈`.
