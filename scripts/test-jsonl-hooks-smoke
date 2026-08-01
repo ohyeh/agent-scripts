@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Regression smoke for the A2/A5 hooks: one valid JSON object per physical line.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+WORK="$(mktemp -d -t agent-hooks-jsonl-smoke.XXXXXX)"
+trap 'rm -rf "$WORK"' EXIT
+TEST_HOME="$WORK/home"
+TEST_DATA="$WORK/data"
+mkdir -p "$TEST_HOME" "$TEST_DATA"
+
+check_jsonl() {
+  local file="$1" expected_lines="$2" filter="$3" line count=0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    count=$((count + 1))
+    printf '%s\n' "$line" | jq -e "$filter" >/dev/null
+  done < "$file"
+  [[ "$count" -eq "$expected_lines" ]]
+}
+
+run_bol() {
+  local prompt="$1"
+  printf '%s' "{\"tool_name\":\"Agent\",\"tool_input\":{\"prompt\":\"$prompt\"}}" |
+    HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" bash "$ROOT/.agents/hooks/bol-prompt-warn.sh" >/dev/null 2>&1
+}
+
+run_bol 'GOAL: ship it ACCEPTANCE: tests pass REPORT: evidence'
+run_bol 'GOAL: ship it'
+check_jsonl "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" 2 \
+  'type == "object" and (.timestamp | type) == "string" and (.result == "pass" or .result == "fail") and (.missing | type) == "array"'
+
+run_ledger() {
+  printf '%s' "$1" |
+    HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/context-ledger.sh" >/dev/null 2>&1
+}
+
+run_ledger '{"session_id":"jsonl-smoke","tool_name":"Read","tool_input":{"file_path":"one.md"}}'
+run_ledger '{"session_id":"jsonl-smoke","tool_name":"Edit","tool_input":{"file_path":"two.md"}}'
+check_jsonl "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" 2 \
+  'type == "object" and (.timestamp | type) == "string" and (.tool | type) == "string" and (.input_sha256 | test("^[0-9a-f]{64}$"))'
+
+echo "JSONL hooks smoke: 2 files, 4 records, each line independently valid"

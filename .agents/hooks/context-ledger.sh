@@ -21,6 +21,6 @@ LEDGER="$RUN_DIR/ledger.jsonl"
 sha="$(printf '%s' "$TOOL_INPUT" | $SHASUM | cut -d' ' -f1)"
 ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
-jq -n --arg ts "$ts" --arg tool "$TOOL_NAME" --arg file "$FILE_PATH" --arg sha "$sha" \
+jq -cn --arg ts "$ts" --arg tool "$TOOL_NAME" --arg file "$FILE_PATH" --arg sha "$sha" \
   '{timestamp: $ts, tool: $tool, file: (if $file == "" then null else $file end), input_sha256: $sha}' >> "$LEDGER"
 exit 0

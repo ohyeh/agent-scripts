@@ -38,7 +38,7 @@ else
   result="fail"
   missing_json="$(printf '%s\n' "${missing[@]}" | jq -R . | jq -s -c .)"
 fi
-jq -n --arg ts "$ts" --arg result "$result" --argjson missing "$missing_json" \
+jq -cn --arg ts "$ts" --arg result "$result" --argjson missing "$missing_json" \
   '{timestamp: $ts, result: $result, missing: $missing}' >> "$STATS_FILE"
 
 if [ "$result" = "fail" ]; then
