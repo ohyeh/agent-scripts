@@ -162,12 +162,9 @@
       <p class="head-eyebrow">Agent Workflows · Manifest · Repo（canonical）＋ 1 台機器</p>
       <span class="machine-badge"><span class="dot-live"></span>REPO (CANONICAL)</span><span class="machine-badge">mbp14 (ohYEHs-MBP-14.local)</span>
       <h1>Workflow 分佈快照</h1>
-      <p>已存 dynamic workflows（<span class="mono">~/.claude/workflows</span>）與一次性 exhaust scripts 的採收裁定。
-      <span class="mono">ohyeh/agent-scripts</span> repo 的 <span class="mono">skills/using-workflows/workflows/</span>
-      是唯一 canonical 來源——機器只是部署副本，方向永遠是 <b>repo → machines</b>。
-      本輪掃描 2026-08-01 執行，涵蓋 <b>mbp14</b> 一台機器：12/12 recipes 逐檔 hash（sha256 前 8 hex）
-      與 repo 基準完全一致，<span class="mono">_lib</span> ×3 齊備，零漂移；exhaust 共 38 個檔案、12 個 base name，
-      全數過完五分類決策樹（§06）。本頁用來檢查哪台機器漏了哪一步——不是自動同步工具。</p>
+      <p>已存 dynamic workflows 與 exhaust scripts 的採收裁定。repo 的
+      <span class="mono">skills/using-workflows/workflows/</span> 是唯一 canonical 來源，方向永遠 <b>repo → machines</b>。
+      2026-08-01 掃 mbp14：零漂移；exhaust 12 base（38 files）全數裁定。</p>
     </div>
     <div class="stamp" aria-label="12 saved workflows">
       <span class="n">12</span>
@@ -180,9 +177,7 @@
     <div class="meta-item"><p class="k">Canonical</p><p class="v">repo:agent-scripts · 12 recipes + _lib ×3</p></div>
     <div class="meta-item"><p class="k">Machines</p><p class="v">mbp14 (ohYEHs-MBP-14.local) ✓ 12/12 · 0 drift</p></div>
     <div class="meta-item"><p class="k">Date</p><p class="v">2026-08-01</p></div>
-    <div class="meta-item"><p class="k">Recipes（mbp14）</p><p class="v">12 / 12 <span style="color:var(--keep)">roster 齊全，逐檔 hash 與 repo 一致</span></p></div>
-    <div class="meta-item"><p class="k">Exhaust scripts（一次性）</p><p class="v">38 files · 12 base names · 全數已裁定</p></div>
-    <div class="meta-item"><p class="k">agents files</p><p class="v">mbp14 ~/.claude/agents/ 不存在或無 *.md · 無漂移</p></div>
+    <div class="meta-item"><p class="k">Exhaust</p><p class="v">38 files · 12 base names · 全數已裁定</p></div>
   </div>
 
   <section>
@@ -252,23 +247,22 @@
 
   <section>
     <h2><span class="idx">01</span>Core workflows</h2>
-    <p class="lede">repo canonical 集合共 <b>12 recipes ＋ <span class="mono">_lib</span> ×3</b>。本輪唯一掃描機 mbp14
-    與 repo 完全一致——<b>沒有任何 recipe 缺席、沒有 hash 漂移</b>。hash 為 sha256 前 8 hex（<span class="mono">shasum -a 256</span>）。
-    <span class="mono">consensus-gate</span> 以 19 次 exhaust 執行居冠，是最高頻的 primitive，
-    也是唯一的二模共識入口（<span class="mono">second-model-consensus</span> skill 已退役；一次性深度 review 備位：<span class="mono">oracle</span>）。</p>
+    <p class="lede">repo canonical 集合共 <b>12 recipes ＋ <span class="mono">_lib</span> ×3</b>，hash 為 sha256 前 8 hex。
+    <span class="mono">consensus-gate</span> 以 19 次執行居冠，是唯一的二模共識入口
+    （<span class="mono">second-model-consensus</span> skill 已退役；深度 review 備位：<span class="mono">oracle</span>）。</p>
     <div class="core-grid">
-      <div class="core-card"><span class="name">consensus-gate.workflow.js</span><span class="src">81 lines · <span class="mono">10b172e9</span> · 經任一 agent-tmux profile 取得 high-effort 第二模型共識裁決</span><span class="pill">workhorse ×19</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">design-consensus.workflow.js</span><span class="src">99 lines · <span class="mono">19a613ab</span> · N 個獨立提案 → 交叉對抗批判 → judge 收斂共識設計</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">design-vs-code-audit.workflow.js</span><span class="src">170 lines · <span class="mono">404d3511</span> · design spec vs. code 漂移稽核，逐 section finder ＋ 對抗式驗證，design-WIP-aware</span><span class="pill">×3</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">docs-vs-code-audit.workflow.js</span><span class="src">170 lines · <span class="mono">3aa32155</span> · docs vs. code 真相稽核 ＋ 就地修正 ＋ 一致性掃尾</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">feature-lifecycle-auto.workflow.js</span><span class="src">151 lines · <span class="mono">00c1d416</span> · 薄殼：串 plan-maker → (gate) → spec-implement build，呼叫既有 workflows</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">feature-plan-consensus.workflow.js</span><span class="src">344 lines · <span class="mono">d2a21f16</span> · 新功能 brief → v1 plan：escalation ladder ＋ evidence doctrine ＋ 雙重共識 ＋ gated commit</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">findings-triage.workflow.js</span><span class="src">148 lines · <span class="mono">cec34731</span> · loop connector：confirmed findings → 聚類成 mini-PRD / partitioned-fix / 人工決策三路分流</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">plan-pipeline.workflow.js</span><span class="src">170 lines · <span class="mono">bdb656b9</span> · planning-only：direction → frozen plan → ADRs（second-model-frozen）→ commit docs，不 build</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">project-direction-review.workflow.js</span><span class="src">85 lines · <span class="mono">4e7927d6</span> · parallel readers 盤點現況 → 多視角方向選項 → 收斂單一 roadmap</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">root-cause-deep-dive-audit.workflow.js</span><span class="src">98 lines · <span class="mono">7413b8ff</span> · evidence-driven 多代理 root-cause 稽核 → ranked causes ＋ report</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">spec-implement-dual-review-verify.workflow.js</span><span class="src">163 lines · <span class="mono">aa780798</span> · 主 build pipeline：implement → dual-review（args.cli ＋ claude）→ in-spec fixes → verify</span><span class="pill">×3</span><span class="pill new">mbp14 一致</span></div>
-      <div class="core-card"><span class="name">workflow-manifest.workflow.js</span><span class="src">153 lines · <span class="mono">af894565</span> · 本頁產生器：掃 fleet recipes ＋ exhaust → 五分類裁定 → 產出 HTML manifest</span><span class="pill">×2</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">consensus-gate.workflow.js</span><span class="src">81 lines · <span class="mono">10b172e9</span> · 經任一 agent-tmux profile 取得 high-effort 第二模型共識裁決</span><span class="pill">workhorse ×19</span></div>
+      <div class="core-card"><span class="name">design-consensus.workflow.js</span><span class="src">99 lines · <span class="mono">19a613ab</span> · N 個獨立提案 → 交叉對抗批判 → judge 收斂共識設計</span></div>
+      <div class="core-card"><span class="name">design-vs-code-audit.workflow.js</span><span class="src">170 lines · <span class="mono">404d3511</span> · design spec vs. code 漂移稽核，逐 section finder ＋ 對抗式驗證，design-WIP-aware</span><span class="pill">×3</span></div>
+      <div class="core-card"><span class="name">docs-vs-code-audit.workflow.js</span><span class="src">170 lines · <span class="mono">3aa32155</span> · docs vs. code 真相稽核 ＋ 就地修正 ＋ 一致性掃尾</span></div>
+      <div class="core-card"><span class="name">feature-lifecycle-auto.workflow.js</span><span class="src">151 lines · <span class="mono">00c1d416</span> · 薄殼：串 plan-maker → (gate) → spec-implement build，呼叫既有 workflows</span></div>
+      <div class="core-card"><span class="name">feature-plan-consensus.workflow.js</span><span class="src">344 lines · <span class="mono">d2a21f16</span> · 新功能 brief → v1 plan：escalation ladder ＋ evidence doctrine ＋ 雙重共識 ＋ gated commit</span></div>
+      <div class="core-card"><span class="name">findings-triage.workflow.js</span><span class="src">148 lines · <span class="mono">cec34731</span> · loop connector：confirmed findings → 聚類成 mini-PRD / partitioned-fix / 人工決策三路分流</span></div>
+      <div class="core-card"><span class="name">plan-pipeline.workflow.js</span><span class="src">170 lines · <span class="mono">bdb656b9</span> · planning-only：direction → frozen plan → ADRs（second-model-frozen）→ commit docs，不 build</span></div>
+      <div class="core-card"><span class="name">project-direction-review.workflow.js</span><span class="src">85 lines · <span class="mono">4e7927d6</span> · parallel readers 盤點現況 → 多視角方向選項 → 收斂單一 roadmap</span></div>
+      <div class="core-card"><span class="name">root-cause-deep-dive-audit.workflow.js</span><span class="src">98 lines · <span class="mono">7413b8ff</span> · evidence-driven 多代理 root-cause 稽核 → ranked causes ＋ report</span></div>
+      <div class="core-card"><span class="name">spec-implement-dual-review-verify.workflow.js</span><span class="src">163 lines · <span class="mono">aa780798</span> · 主 build pipeline：implement → dual-review（args.cli ＋ claude）→ in-spec fixes → verify</span><span class="pill">×3</span></div>
+      <div class="core-card"><span class="name">workflow-manifest.workflow.js</span><span class="src">153 lines · <span class="mono">af894565</span> · 本頁產生器：掃 fleet recipes ＋ exhaust → 五分類裁定 → 產出 HTML manifest</span><span class="pill">×2</span></div>
       <div class="core-card builtin"><span class="name">_lib/findings-schema.js</span><span class="src">audit recipes 共用的 finding/verdict 標準形 · mbp14 齊備</span></div>
       <div class="core-card builtin"><span class="name">_lib/safe.js</span><span class="src">silent-failure guards 的 canonical 來源 · mbp14 齊備</span></div>
       <div class="core-card builtin"><span class="name">_lib/worker-doctrine.md</span><span class="src">多代理 worker 紀律的 canonical 來源（§03 doctrine 裁定的落地目的地）· mbp14 齊備</span></div>
@@ -290,7 +284,7 @@
       <div class="row">
         <div>
           <span class="repo">mbp14<br>ohYEHs-MBP-14.local</span>
-          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>converged</span><br>Roster 12/12 齊全、_lib ×3 齊全，全部 12 個 recipe 的 sha256 前 8 hex 與 repo 基準逐檔一致（<span class="mono">10b172e9 … af894565</span>）——零漂移。<span class="mono">~/.claude/agents/</span> 不存在或無 *.md（glob 為空），agents ledger 為空是實況、不是漏報。</span>
+          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>converged</span><br>12/12 recipe 逐檔 hash 與 repo 一致，_lib ×3 齊全。<span class="mono">~/.claude/agents/</span> 無 *.md——ledger 為空是實況。</span>
         </div>
         <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">agents: 無目錄/無 *.md</span><span class="tag keep">0 drift</span></div>
       </div>
@@ -299,8 +293,7 @@
 
   <section>
     <h2><span class="idx">03</span>Exhaust script 採收裁定</h2>
-    <p class="lede">mbp14 共 <b>12 個 base name（38 files）</b>全數過完五分類決策樹（全文見 §06）——本輪沒有 unjudged 警告列。
-    每個 base 的「最新檔」以 mtime 判定（ls -t），顯示的 metaDescription 取自該最新檔。裁定是標籤，永遠不是刪除；未刪任何原始檔。</p>
+    <p class="lede"><b>12 base（38 files）</b>全數過完五分類決策樹（§06）。裁定是標籤，不刪原始檔。</p>
     <div class="legend">
       <span class="tag">已內化（recipe 的執行紀錄／前身）</span>
       <span class="tag preset">preset（可折入 recipe 檔頭範例）</span>
@@ -310,7 +303,7 @@
     </div>
     <div class="ledger">
       <div class="row">
-        <div><span class="repo">mbp14 (ohYEHs-MBP-14.local) · 12 names (38 files)</span><span class="count"><b>已內化 ×9</b>——<span class="mono">consensus-gate</span> ×19 為最強內化證據，其餘 8 個 base 皆與 canonical recipe 同名同描述（recipe 即其泛化）：<span class="mono">design-vs-code-audit</span> ×3、<span class="mono">spec-implement-dual-review-verify</span> ×3、<span class="mono">workflow-manifest</span> ×2（本次審計即由它驅動）、<span class="mono">project-direction-review</span> ×2、<span class="mono">root-cause-deep-dive-audit</span> ×2、<span class="mono">feature-lifecycle-auto</span>、<span class="mono">findings-triage</span>、<span class="mono">plan-pipeline</span>。<b>doctrine ×2</b>——<span class="mono">next-batch-plan</span>（80 行、自 spawn scout→plan pipeline，非 preset；canvas C2/autosave 內容專案一次性；可重用者為 read-only 圍欄、truth=file:line 引證與 UNCONFIRMED 標記、mutation-red VERIFICATION 契約 → worker-doctrine §1 Anchoring / §4 Scope fence，驗證契約可入 §5/§6）；<span class="mono">weekly-retro-fixes</span>（87 行、平行 per-repo implement chain ＋ fresh review；可重用者為 COMMON 紀律區塊——discover live、worktree/branch 圍欄、禁 push/merge/close、command+exit code 證據——與 fresh 對抗式審查契約、單行 VERDICT: PASS|BLOCK 收尾 → worker-doctrine §4/§5/§6）。<b>一次性 ×1</b>——<span class="mono">triage-old-adhoc-notes</span>：130 筆 pre-cutoff ad_hoc notes 的專案限定 fan-out 批次清理，單次執行，與先前 manifest 判定一致。</span></div>
+        <div><span class="repo">mbp14 (ohYEHs-MBP-14.local) · 12 names (38 files)</span><span class="count"><b>已內化 ×9</b>——各 base 與 canonical recipe 同名同描述，recipe 即其泛化（執行次數見右側標籤）。<b>doctrine ×2</b>——<span class="mono">next-batch-plan</span>、<span class="mono">weekly-retro-fixes</span>：pipeline 本身一次性，可重用的是 prompt 內紀律文字，落地目的地見 §04。<b>一次性 ×1</b>——<span class="mono">triage-old-adhoc-notes</span>：專案限定批次清理。</span></div>
         <div class="tags">
           <span class="tag ghost">next-batch-plan →worker-doctrine</span>
           <span class="tag ghost">weekly-retro-fixes →worker-doctrine</span>
@@ -323,8 +316,7 @@
 
   <section>
     <h2><span class="idx">04</span>待清理／degraded</h2>
-    <p class="lede">本輪無未掃描機器（unscanned 為空）、無 unjudged exhaust（12 個 base 全數過樹）、無 hash 漂移。
-    剩一類帳目：doctrine 裁定已標籤、尚未落地到 <span class="mono">_lib/worker-doctrine.md</span>。</p>
+    <p class="lede">剩一類帳目：doctrine 裁定已標籤、尚未落地到 <span class="mono">_lib/worker-doctrine.md</span>。</p>
     <div class="diffblock">
       <div class="diffhead"><span class="dot ghost"></span>Doctrine 待落地 ×2<span class="why">已標籤，實際採收另行執行</span></div>
       <div class="diffbody">
@@ -338,8 +330,7 @@
   <section>
     <h2><span class="idx">05</span>對齊步驟</h2>
     <div class="sync">
-      <p>方向永遠是 repo → machines，絕不反向——repo 是 canonical，機器是部署副本。
-      本輪唯一掃描機 mbp14 已收斂零漂移，<b>沒有落後機器需要 rsync/scp</b>；以下保留標準對齊與驗證程序，供下一台落後機器（或下次漂移）直接套用。</p>
+      <p>方向永遠 repo → machines。本輪無落後機器；程序供下次漂移直接套用。</p>
       <div class="sync-line"><span class="no">1</span><span><code>rsync -av --delete /Users/paul.yeh/github/agent-scripts/skills/using-workflows/workflows/ ~/.claude/workflows/</code> <span class="cmt">— 本機對齊：repo canonical → ~/.claude/workflows/（含 _lib，--delete 清掉多餘檔）</span></span></div>
       <div class="sync-line"><span class="no">2</span><span><code>rsync -av --delete /Users/paul.yeh/github/agent-scripts/skills/using-workflows/workflows/ &lt;host&gt;:~/.claude/workflows/</code> <span class="cmt">— 遠端落後機器：同一來源推到該機（scp -r 亦可，但不會清多餘檔）</span></span></div>
       <div class="sync-line"><span class="no">3</span><span><code>(cd ~/.claude/workflows && shasum -a 256 *.workflow.js)</code> <span class="cmt">— 逐機逐檔 hash（前 8 hex 應與 §01 各卡片一致：10b172e9 … af894565）</span></span></div>
@@ -363,8 +354,8 @@ Q5 真一次性 — everything else: project-specific, single-run, not worth abs
   </section>
 
   <footer>
-    <span>repo <span class="mono">skills/using-workflows/workflows/</span> 為唯一 canonical 來源 · 靜態快照 · 2026-08-01</span>
-    <span>本頁為靜態快照 · 重新執行 <span class="mono">workflow-manifest</span> recipe 即可再生</span>
+    <span>canonical：repo <span class="mono">skills/using-workflows/workflows/</span> · 2026-08-01</span>
+    <span>靜態快照 · 重跑 <span class="mono">workflow-manifest</span> recipe 即可再生</span>
   </footer>
 
 </div>
