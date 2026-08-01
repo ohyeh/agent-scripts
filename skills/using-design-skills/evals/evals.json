@@ -77,7 +77,7 @@
     {
       "id": 13,
       "prompt": "幫我 review 一下 dashboard 這個頁面的視覺，另外順便告訴我要找誰來定方向、這個 direction 的步驟是誰執行的",
-      "expected_output": "ROUTE. Q1: existing product UI → impeccable is Role 1 direction authority (exactly ONE selected, never stack with design-taste-frontend/frontend-design). Executor: Role 1 runs INLINE in the main session — read the skill, set direction, persist via design-md; it is judgment work, not a delegable build (never dispatched to a tmux worker).",
+      "expected_output": "ROUTE. Q1: existing product UI → impeccable is Role 1 direction authority (exactly ONE selected, never stack with design-taste-frontend). Executor: Role 1 runs INLINE in the main session — read the skill, set direction, persist via design-md; it is judgment work, not a delegable build (never dispatched to a tmux worker).",
       "files": []
     },
     {

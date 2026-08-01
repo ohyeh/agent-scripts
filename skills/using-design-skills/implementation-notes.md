@@ -12,8 +12,8 @@
      fleet table demoted to a prior.
   2. Closed quality loop is the point → "The quality loop" section: build ⇒ fresh
      reviewer ⇒ PASS/BLOCK, max 2 fix rounds, rendered-evidence review only.
-- Direction-authority mutual exclusion (impeccable / design-taste-frontend /
-  frontend-design / ui-ux-pro-max): stacking them produces conflicting direction;
+- Direction-authority mutual exclusion (impeccable / design-taste-frontend):
+  stacking them produces conflicting direction;
   ui-ux-pro-max demoted to queryable database rather than default authority.
 - imagegen-frontend-web/mobile + image-to-code are Codex-authored skills
   (image generation unavailable inline in Claude Code) → those stages always

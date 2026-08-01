@@ -11,7 +11,6 @@ Capability flags when classifying an unlisted skill (may carry several):
 |---|---|---|
 | `design-taste-frontend` | Landing pages, portfolios, marketing sites, full redesigns | Its pre-flight check |
 | `impeccable` | Product UI: dashboards, forms, settings, app shells; polish/critique of existing interfaces | Its "AI slop test" |
-| `frontend-design` | Light-touch aesthetic guidance when the two above are too heavy | Its restraint/self-critique section |
 
 If a selected authority ships no usable checklist, the reviewer falls back to
 impeccable's AI slop test as the default rubric. A skill that cannot support
@@ -101,7 +100,7 @@ scoped edits are NOT delegable — inline by definition.
 
 - Role 1 authority: landing/marketing/portfolio → `design-taste-frontend`;
   product UI/dashboard/redesign-critique → `impeccable`; light-touch →
-  `frontend-design`. Ask only when the task straddles two about equally.
+  `impeccable`. Ask only when the task straddles two about equally.
 - DESIGN.md path: `{repo}/DESIGN.md` unless a docs convention exists.
 - Gate 0 viewports: desktop + mobile for any responsive deliverable.
 - `cli` for delegated stages: `~/.agents/rules/model-dispatch.md` §5; don't

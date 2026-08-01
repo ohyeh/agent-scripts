@@ -114,6 +114,8 @@ When the delegate is a tmux worker, ADD these lines to the filled template
 > schema_version 1) to the literal result path injected into this prompt —
 > do not rely on `$TMUX_AGENT_RESULT` inside tool sandboxes. Put the REPORT
 > bullets in its `summary` field.
+> If the dispatcher gives an overall deadline, write that valid result at least
+> 120 seconds before it; an artifact without it remains UNCONFIRMED.
 
 Write the filled template to a prompt file and pass it via `--prompt-file`
 (alias of `--from-file`; works on `start`, `send`, `send-wait`) — never

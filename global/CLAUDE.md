@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.14.0-reply-scope-tool-chain-narration
+Version: 4.15.0-protocol-payload-result-deadline
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -18,6 +18,9 @@ Canonical routed rules live in the public `ohyeh/agent-scripts` repo under
 - End every reply with the codeword `✈` on its own final line — a canary proving
   these rules remain loaded. If it is missing, reload this file. If a required
   format fixes the final line (for example `VERDICT: PASS|BLOCK`), omit `✈`.
+- A machine-readable payload that must match an exact protocol — JSON/JSONL, a
+  `::directive{...}`, a structured result schema, or a literal verdict — is a
+  required format and must be emitted alone, without narration or `✈`.
 - Lead with the outcome; end with one small next step when needed.
 
 ## Precedence
