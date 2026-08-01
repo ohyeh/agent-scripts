@@ -17,19 +17,12 @@ If a selected authority ships no usable checklist, the reviewer falls back to
 impeccable's AI slop test as the default rubric. A skill that cannot support
 an evidence-backed PASS/BLOCK audit is not an authority for this loop.
 
-**Advisory database (not an authority):** `ui-ux-pro-max` — searchable
-styles/palettes/fonts/charts/stacks. Any stage may QUERY it for facts; it
-never owns direction. Let it lead style exploration only when the user
-explicitly asks to survey many candidates. If it doesn't resolve under
-Discover live, say so and proceed without it — never fabricate style facts.
-
 **Vocabulary reference (web, not a skill):** https://namethatui.com/ — the
 "what is this component called" dictionary. Consult it (via ctx_fetch, or
 ask the user to look) when a spec, worker prompt, or imagegen prompt
 describes a UI element vaguely: naming the component correctly upgrades
 search results, member-skill routing, and generation quality in one move.
-Same standing as ui-ux-pro-max: any stage may QUERY it; it never owns
-direction.
+Advisory only: any stage may QUERY it; it never owns direction.
 
 ## Role 2 · Specialist add-ons (constraint sets — stack freely, load inline)
 
@@ -82,7 +75,8 @@ the same HTML as a plain file/Artifact instead — never fake the UI step.
 
 ## Persistence & probes
 
-`design-md` persists direction/tokens to `DESIGN.md`; `data-report` turns
+Direction/tokens persist to `DESIGN.md` via plain Read/Write (the `design-md`
+helper skill was removed); `data-report` turns
 CSV/Excel/JSON into a report page; `prototype` builds a throwaway to answer
 one design question (no loop — disposable by contract).
 
@@ -95,7 +89,7 @@ scoped edits are NOT delegable — inline by definition.
 | Stage | Executor |
 |---|---|
 | Route, judge, integrate, talk to user | Main session (you) |
-| Role 1 direction authority | Inline, main session — sets direction, persists via `design-md` |
+| Role 1 direction authority | Inline, main session — sets direction, persists to DESIGN.md |
 | `imagegen-frontend-web/mobile`, `image-to-code` | `agent-tmux codex` persistent worker (image stages + fixes) |
 | Build / implement (non-trivial scope) | `agent-tmux claude` persistent worker; inline only for small scoped edits |
 | Role 4 `design-an-interface` (N shapes) | In-process Agent-tool sub-agents, parallel — native contract, not tmux-governed |

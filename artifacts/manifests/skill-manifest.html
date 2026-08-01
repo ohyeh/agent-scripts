@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -103,248 +103,174 @@ footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:v
 <div class="wrap">
 
 <h1>Skill Manifest — Fleet</h1>
-<p class="subtitle">Skill · Plugin · Workflow — three-machine fleet | Generated on: mbp14 (this machine) | Generated: 2026-07-24 | Supersedes the 07-04 / 07-18 / 07-19 snapshots | Snapshot: rules v4.6.12 → v4.6.14 landed, live mbp14 rosters re-scanned (mac-mini-m2 / remote2 not re-verified this pass — see note below)</p>
+<p class="subtitle">L1 全量花名冊 — installed-vs-adopted gap 可視化 | 生成機：mbp14 | 生成日：2026-08-01 | 取代 07-19 / 07-24 / 08-01（早前）快照 | 本次事件：W31 砍伐季 — 36 支移除（104 → 68 lock-managed），mac-mini-m2 / remote2 尚未重佈署</p>
 
 <div class="meta-card">
-  <b>Meta</b> — This manifest was generated on mbp14 (this machine), covering all three fleet machines: <code>mbp14</code> (local), <code>mac-mini-m2</code> (<code>ssh mac-mini-m2</code>), <code>remote2</code> (<code>ssh remote2</code>); source repos: <code>agent-scripts</code>, <code>tmux-agent-tools</code> (other source repos are in the "Source" column below, taken from each machine's <code>~/.agents/.skill-lock.json</code>).
+  <b>三層投影</b> — <b>L0</b> <code>~/.agents/.skill-lock.json</code>（安裝事實，本頁資料源）→ <b>L1</b> 本 manifest（全量花名冊 ＋ gap 儀表板）→ <b>L2</b> <code>using-skills</code> SKILL.md（僅路由 adopted 面）。安裝粒度是 per-repo（整包裝），使用粒度是 per-skill——兩者的差就是臃腫，收在這頁，不進 L2。
   <div class="meta-grid">
-    <div>Scan command: <code>ls ~/.agents/skills ~/.claude/skills ~/.codex/skills</code> + <code>cat ~/.agents/.skill-lock.json</code></div>
-    <div>Connection method: SSH BatchMode (key auth, all connections succeeded, no UNREACHABLE machines) — <span class="mut">this 2026-07-24 pass only re-scanned mbp14 directly; mac-mini-m2/remote2 rows below carry the 2026-07-19 figures forward, unverified this round</span></div>
-    <div>mbp14 live union skill count (2026-07-24): 101 in <code>~/.agents/skills</code>, 106 in <code>~/.claude/skills</code></div>
-    <div>Three-machine intersection skill count: 98 as of 2026-07-19 (see update below); mbp14 has since gained 3 more (<code>adhd</code>, <code>stop-slop</code>, <code>using-skills</code>), fleet-wide convergence UNCONFIRMED this pass</div>
+    <div>掃描：<code>cat ~/.agents/.skill-lock.json</code> ＋ <code>ls ~/.agents/skills</code></div>
+    <div>mbp14 現況：lock <b>68</b> · 目錄 71（＋3 支 lock 外）</div>
+    <div>adopted <b>59</b> · dormant <b>9</b>（均為用戶點名保留）</div>
+    <div><span class="tag tag-danger">機隊未收斂</span> mac-mini-m2 / remote2 仍為砍伐前狀態（~99 支），待 commit → push → <code>scripts/deploy.sh</code></div>
   </div>
 </div>
 
 <div class="meta-card">
-  <b>Update — 2026-07-24</b> — Live rescan of mbp14's <code>~/.agents/skills</code> against this manifest's table found 3 skills present on disk but missing from the table (<code>adhd</code>, <code>stop-slop</code>, <code>using-skills</code> — the last of these was already described as installed in the 2026-07-19 post-snapshot note above but the table row was never added, a drift now closed) and 1 stale row whose directory no longer exists on any machine (<code>paperclip-create-plugin</code>, removed below). <code>stop-slop</code> installed 2026-07-24, source <code>github.com/hardikpandya/stop-slop</code>, purpose: removes AI writing patterns from prose; a global rule pointer for it was added in <code>CLAUDE.md</code> v4.6.14. Rows added/removed in the table below; mac-mini-m2/remote2 columns for the 3 additions are marked unverified pending a fleet re-scan.
-</div>
-
-<div class="meta-card">
-  <b>Update — 2026-07-19 repo-canonical deployment, now fully converged</b> — The sync contract flipped: the <code>agent-scripts</code> repo is the sole canonical source; machine runtimes are deployed copies, direction always repo → machines. All three machines ran a full <code>npx skills remove --all</code> + repo-driven reinstall against the repo's canonical <code>skills-lock.json</code> (regenerated from scratch on each). Two confirmed <b>upstream removals</b> (not install failures) were folded into the canonical lock:
-  <div class="meta-grid">
-    <div><code>backnotprop/plannotator</code> replaced its whole skill set — the 6 old <code>plannotator-*</code> names no longer exist upstream; the repo now tracks its 4 current skills (<code>pierre-guard</code>, <code>release-plannotator</code>, <code>review-renovate</code>, <code>update-deps</code>) instead</div>
-    <div><code>mattpocock/skills</code> retired 4 skills (<code>decision-mapping</code>, <code>review</code>, <code>to-issues</code>, <code>to-prd</code>) — confirmed absent via <code>skills@latest</code> (1.5.19)</div>
-  </div>
-  A follow-up user ruling removed one more skill fleet-wide: <code>roin-orca/skills</code>'s <code>simple</code> was found to contain an embedded prompt-injection attempt in its description field and was deleted from the canonical lock and all three machines.
-  remote2 came back online, ran the same clone-free <code>scripts/deploy.sh</code> deployment as mac-mini-m2, and is now fully converged — its per-machine numbers below are live, not carried over from the pre-deployment state.
-</div>
-
-<div class="meta-card">
-  <b>Post-snapshot note — 2026-07-19 (later, W20 backfill)</b> — After this scan the repo advanced <code>a060a7c → e6e0163</code>. The relevant landing for skills was commit <code>6c9f644</code>: global rules bumped to <b>v4.6.5-lean-gated</b> (hop-limit routing) and a new hand-authored skill <code>using-skills</code> (top-level intent map) was committed under <code>skills/using-skills/</code>.
-  <div class="meta-grid">
-    <div><b>Deployment gap — RESOLVED 2026-07-19 (later):</b> <code>using-skills</code> is a repo skill of the same shape as the four lock-managed routers (<code>using-workflows</code>, <code>using-design-skills</code>, <code>delegation-templates</code>, <code>unknowns-discovery</code>, all <code>source: ohyeh/agent-scripts</code>). It had been committed under <code>skills/using-skills/</code> but was <b>not registered in <code>skills-lock.json</code></b> (lock 98), so <code>npx skills experimental_install</code> skipped it — installed on <b>zero</b> machines (mbp14/mac-mini-m2/remote2 all verified MISSING). User ruling 2026-07-19 (「所有 ohyeh skills 都要安裝」) closed it: entry added to <code>skills-lock.json</code> → <b>lock now 99</b> (commit <code>e881fec</code>, pushed to <code>origin/main</code>), with <code>skillFolderHash a9f60013…</code> (git tree SHA of <code>skills/using-skills/</code> at main tip, CLI-generated and confirmed by <code>git rev-parse origin/main:skills/using-skills</code>). Installed on all three machines via <code>skills add ohyeh/agent-scripts --skill using-skills -g</code> — <b>7/7 ohyeh skills now present on mbp14, mac-mini-m2, remote2</b> (SKILL.md files verified).</div>
-    <div>Post-resolution the <b>ohyeh-authored roster is 7</b>: 5 from <code>agent-scripts</code> (the four routers + <code>using-skills</code>) and 2 from <code>tmux-agent-tools</code> (<code>tmux-agent-tools</code>, <code>using-tmux-agent-tools</code>). The lock-managed union is now <b>99</b>; the two intentionally-excluded manual items (<code>commit-commands</code> plugin, one hand-copied skill) are unchanged.</div>
-  </div>
+  <b>W31 砍伐季（2026-08-01）</b> — 逐 repo / 逐鏈裁決，36 支移除：gsap 全包（8）、nexu-io 設計冗餘（ui-skills、design-md、research-decision-room ＋ redesign-existing-projects、web-design-guidelines、ui-ux-pro-max）、matt setup／教學／流程冗餘（setup-*×3、git-guardrails、grilling、grill-me、grill-with-docs、loop-me、implement、to-questionnaire、teach、scaffold-exercises、ask-matt、ubiquitous-language、to-spec、to-tickets、claude-handoff、code-review）、charon-fan self-improving-agent（與硬規則「自動自我修改 OFF」正面衝突）、ohyeh second-model-consensus（consensus-gate recipe 取代，repo 源碼同步 git rm）、json-canvas。新建 2 支：<code>ask-nova</code>（面談式選流程）、<code>writing-artifacts</code>（統一寫作入口，genre branch 整合 documentation-writing）。
 </div>
 
 <section>
-<h2>Workflow recipes (fleet presence)</h2>
-<p class="section-note">Installed recipes under each machine's <code>~/.claude/workflows/</code>; source <code>ohyeh/agent-scripts@3cdcde2</code>. 12 recipes + 1 sidecar, all present on all three machines. Carried from the 2026-07-18 fleet snapshot — the skills tables further down are the live 2026-07-19 scan. Full loop semantics and per-recipe descriptions live in the separate <b>Workflow Manifest</b> artifact.</p>
-<div class="table-scroll">
-<table>
-<thead><tr><th>Recipe</th><th class="center">mbp14</th><th class="center">mac-mini-m2</th><th class="center">remote2</th><th class="center">present</th></tr></thead>
-<tbody>
-<tr><td class="mono">consensus-gate</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">design-consensus</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">design-vs-code-audit</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">docs-vs-code-audit</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">feature-lifecycle-auto</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">feature-plan-consensus</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">findings-triage</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">plan-pipeline</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">project-direction-review</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">root-cause-deep-dive-audit</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">spec-implement-dual-review-verify</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">workflow-manifest</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-<tr><td class="mono">.using-workflows-managed-files <span class="mut">(sidecar)</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td></tr>
-</tbody>
-</table>
-</div>
-</section>
-
-<section>
-<h2>Enabled plugins (fleet)</h2>
-<p class="section-note">From each machine's <code>~/.claude/settings.json</code> <code>enabledPlugins</code>. Carried from the 2026-07-18 fleet snapshot. <span class="yes">●</span> = enabled · <span class="tag tag-warn">off</span> = installed but disabled.</p>
-<div class="table-scroll">
-<table>
-<thead><tr><th>Plugin</th><th class="center">mbp14</th><th class="center">mac-mini-m2</th><th class="center">remote2</th></tr></thead>
-<tbody>
-<tr><td class="mono">claude-hud@claude-hud</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-<tr><td class="mono">code-review@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-<tr><td class="mono">codex@openai-codex</td><td class="center"><span class="tag tag-warn">off</span></td><td class="center"><span class="tag tag-warn">off</span></td><td class="center"><span class="tag tag-warn">off</span></td></tr>
-<tr><td class="mono">commit-commands@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-<tr><td class="mono">context-mode@context-mode</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-<tr><td class="mono">explanatory-output-style@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-<tr><td class="mono">frontend-design@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-<tr><td class="mono">learning-output-style@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-<tr><td class="mono">ponytail@ponytail</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-<tr><td class="mono">pr-review-toolkit@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-<tr><td class="mono">security-guidance@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-<tr><td class="mono">skill-creator@claude-plugins-official</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td></tr>
-</tbody>
-</table>
-</div>
-</section>
-
-<section>
-<h2>Per-machine summary</h2>
-<p class="section-note">Installed skill count per directory (<code>~/.agents/skills</code> is the skill-lock-managed canonical location; <code>~/.claude/skills</code> and <code>~/.codex/skills</code> are per-agent surfaces that can carry additional non-lock-managed installs, so their counts diverge more than a simple mirror).</p>
+<h2>總覽</h2>
 <div class="stat-row">
-  <div class="stat"><div class="num">98 / 103 / 0</div><div class="label">mbp14 — agents / claude / codex</div></div>
-  <div class="stat"><div class="num">99 / 98 / 2</div><div class="label">mac-mini-m2 — agents / claude / codex</div></div>
-  <div class="stat"><div class="num">99 / 108 / 7</div><div class="label">remote2 — agents / claude / codex</div></div>
+  <div class="stat"><div class="num">68</div><div class="label">lock-managed（mbp14）</div></div>
+  <div class="stat"><div class="num">59</div><div class="label">adopted（L2 有路由）</div></div>
+  <div class="stat"><div class="num">9</div><div class="label">dormant（裝而未用，保留）</div></div>
+  <div class="stat"><div class="num">3</div><div class="label">lock 外（unmanaged）</div></div>
+  <div class="stat unreachable"><div class="num">36</div><div class="label">本季移除</div></div>
 </div>
-<p class="section-note">The main table below is based on each machine's <code>~/.agents/skills</code> directory (98 / 99 / 99), the canonical install location tracked by skill-lock; the <code>~/.claude/skills</code> counts differ because that directory can carry additional per-agent installs beyond the lock-managed union (out of scope for this survey).</p>
 </section>
 
 <section>
-<h2>Per-machine lock drift (installed vs. <code>.skill-lock.json</code>)</h2>
-<p class="section-note">"Installed but not in lock" = manually installed / plugin-installed, never registered by the skill installer; "in lock but not installed" = was installed before and later removed, lock never cleaned up.</p>
+<h2>Per-repo gap 儀表板（裁決單位）</h2>
+<p class="section-note">安裝以 repo 為單位，採用以 skill 為單位——本表就是那個差。<s>刪除線</s> ＝ dormant（裝著、L2 不路由）。gap 0 的 repo 是健康的；有 dormant 的 repo 都經過用戶明示保留。</p>
 <div class="table-scroll">
 <table>
-<thead><tr><th>Machine</th><th class="center">lock entries</th><th class="center">installed count</th><th>installed but not in lock</th><th>in lock but not installed</th></tr></thead>
+<thead><tr><th>Source repo</th><th class="center">installed</th><th class="center">adopted</th><th class="center">gap</th><th>Skills</th></tr></thead>
 <tbody>
-<tr><td class="mono">mbp14</td><td class="center">98</td><td class="center">98</td><td class="mut">None</td><td class="mut">None</td></tr>
-<tr><td class="mono">mac-mini-m2</td><td class="center">98</td><td class="center">99</td><td><span class="tag tag-warn">1</span> <code>paperclip-create-plugin</code></td><td class="mut">None</td></tr>
-<tr><td class="mono">remote2</td><td class="center">98</td><td class="center">99</td><td><span class="tag tag-warn">1</span> <code>commit-commands</code></td><td class="mut">None (5 <code>huddle-*</code> ghost entries were cleaned during the 2026-07-19 deployment)</td></tr>
+<tr><td class="mono">mattpocock/skills</td><td class="center">22</td><td class="center">14</td><td class="center"><span class="tag tag-warn">8 dormant</span></td><td class="mut">batch-grill-me, codebase-design, design-an-interface, diagnosing-bugs, domain-modeling, edit-article, <s>improve-codebase-architecture</s>, <s>migrate-to-shoehorn</s>, <s>obsidian-vault</s>, prototype, <s>qa</s>, <s>request-refactor-plan</s>, research, resolving-merge-conflicts, tdd, <s>triage</s>, <s>wayfinder</s>, <s>wizard</s>, writing-beats, writing-fragments, writing-great-skills, writing-shape</td></tr>
+<tr><td class="mono">ohyeh/agent-scripts</td><td class="center">6</td><td class="center">6</td><td class="center"><span class="yes">0</span></td><td class="mut">delegation-templates, shared-memory-intake, unknowns-discovery, using-design-skills, using-skills, using-workflows</td></tr>
+<tr><td class="mono">Leonxlnx/taste-skill</td><td class="center">5</td><td class="center">5</td><td class="center"><span class="yes">0</span></td><td class="mut">full-output-enforcement, high-end-visual-design, image-to-code, imagegen-frontend-mobile, imagegen-frontend-web</td></tr>
+<tr><td class="mono">backnotprop/plannotator</td><td class="center">4</td><td class="center">3</td><td class="center"><span class="tag tag-warn">1 dormant</span></td><td class="mut">pierre-guard, release-plannotator, review-renovate, <s>update-deps</s></td></tr>
+<tr><td class="mono">obra/superpowers</td><td class="center">4</td><td class="center">4</td><td class="center"><span class="yes">0</span></td><td class="mut">brainstorming, dispatching-parallel-agents, subagent-driven-development, verification-before-completion</td></tr>
+<tr><td class="mono">plannotator/effective-html</td><td class="center">3</td><td class="center">3</td><td class="center"><span class="yes">0</span></td><td class="mut">html, html-diagram, html-plan</td></tr>
+<tr><td class="mono">anthropics/skills</td><td class="center">2</td><td class="center">2</td><td class="center"><span class="yes">0</span></td><td class="mut">pdf, skill-creator</td></tr>
+<tr><td class="mono">github/awesome-copilot</td><td class="center">2</td><td class="center">2</td><td class="center"><span class="yes">0</span></td><td class="mut">git-commit, refactor</td></tr>
+<tr><td class="mono">nexu-io/open-design</td><td class="center">2</td><td class="center">2</td><td class="center"><span class="yes">0</span></td><td class="mut">data-report, design-taste-frontend</td></tr>
+<tr><td class="mono">ohyeh/tmux-agent-tools</td><td class="center">2</td><td class="center">2</td><td class="center"><span class="yes">0</span></td><td class="mut">tmux-agent-tools, using-tmux-agent-tools</td></tr>
+<tr><td class="mono">softaworks/agent-toolkit</td><td class="center">2</td><td class="center">2</td><td class="center"><span class="yes">0</span></td><td class="mut">qa-test-planner, session-handoff</td></tr>
+<tr><td class="mono">brianlovin/claude-config</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">simplify</td></tr>
+<tr><td class="mono">callstackincubator/agent-device</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">agent-device</td></tr>
+<tr><td class="mono">dannymac180/skills</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">codex-dynamic-workflows</td></tr>
+<tr><td class="mono">emilkowalski/skills</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">apple-design</td></tr>
+<tr><td class="mono">hardikpandya/stop-slop</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">stop-slop</td></tr>
+<tr><td class="mono">kepano/obsidian-skills</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">defuddle</td></tr>
+<tr><td class="mono">multica-ai/andrej-karpathy-skills</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">karpathy-guidelines</td></tr>
+<tr><td class="mono">nilecui/skillsbase</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">documentation-writing</td></tr>
+<tr><td class="mono">pbakaus/impeccable</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">impeccable</td></tr>
+<tr><td class="mono">steipete/oracle</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">oracle</td></tr>
+<tr><td class="mono">uditakhourii/adhd</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">adhd</td></tr>
+<tr><td class="mono">upstash/context7</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">context7-cli</td></tr>
+<tr><td class="mono">vercel-labs/agent-browser</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">agent-browser</td></tr>
+<tr><td class="mono">vercel-labs/skills</td><td class="center">1</td><td class="center">1</td><td class="center"><span class="yes">0</span></td><td class="mut">find-skills</td></tr>
 </tbody>
 </table>
 </div>
 </section>
 
 <section>
-<h2>Quick check of the six fleet-wide gate skills (carried forward from v0.1.0's existing conclusion, md5 not re-run this time)</h2>
-<p class="section-note">v0.1.0 (2026-07-18) already verified that the following 6 skills have identical SKILL.md md5 across all three machines with intact symlinks: <code>delegation-templates</code>, <code>unknowns-discovery</code>, <code>using-workflows</code>, <code>using-design-skills</code>, <code>tmux-agent-tools</code>, <code>using-tmux-agent-tools</code>. This survey (main table below) confirms these 6 are still 3/3 present across all three machines' <code>~/.agents/skills</code> directories, consistent with the v0.1.0 conclusion — no regression observed.</p>
-</section>
-
-<section>
-<h2>Skill list (union, 100 entries as of 2026-07-19: 98 lock-managed + 2 manual extras; 2026-07-24 mbp14 rescan added 3 / removed 1, net 102, sorted by name)</h2>
-<p class="section-note">The Source column is taken from each machine's <code>~/.agents/.skill-lock.json</code> (preferring mbp14, then mac-mini-m2, then remote2); "no lock source" means no machine's lock has a registration for this skill (possibly a plugin-type install, e.g. <code>commit-commands</code>, or manually placed, e.g. <code>note</code> / <code>paperclip</code> / <code>paperclip-create-plugin</code>).</p>
+<h2>Skill 全表（68 lock-managed ＋ 3 unmanaged，依 repo 分組）</h2>
 <div class="table-scroll">
 <table>
-<thead><tr><th>Skill</th><th>Source repo (lock)</th><th class="center">mbp14</th><th class="center">mac-mini-m2</th><th class="center">remote2</th><th class="center">present</th><th>Notes</th></tr></thead>
+<thead><tr><th>Skill</th><th>Source repo</th><th class="center">狀態</th></tr></thead>
 <tbody>
-<tr><td class="mono">adhd</td><td class="mono mut">unknown</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="mut">?</span></td><td class="center"><span class="mut">?</span></td><td class="center">≥1/3</td><td><span class="tag tag-warn">no lock source</span> <span class="tag tag-info">added 2026-07-24</span></td></tr>
-<tr><td class="mono">agent-browser</td><td class="mono mut">vercel-labs/agent-browser</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">agent-device</td><td class="mono mut">callstackincubator/agent-device</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">apple-design</td><td class="mono mut">emilkowalski/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">ask-matt</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">batch-grill-me</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">brainstorming</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">claude-handoff</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">code-review</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">codebase-design</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">codex-dynamic-workflows</td><td class="mono mut">dannymac180/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">commit-commands</td><td class="mono mut"><span class="mut">unknown</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="no">—</span></td><td class="center"><span class="yes">●</span></td><td class="center">1/3</td><td><span class="tag tag-warn">no lock source</span></td></tr>
-<tr><td class="mono">context7-cli</td><td class="mono mut">upstash/context7</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">data-report</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">defuddle</td><td class="mono mut">kepano/obsidian-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">delegation-templates</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">design-an-interface</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">design-md</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">design-taste-frontend</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">diagnosing-bugs</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">dispatching-parallel-agents</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">documentation-writing</td><td class="mono mut">nilecui/skillsbase</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">domain-modeling</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">edit-article</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">find-skills</td><td class="mono mut">vercel-labs/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">full-output-enforcement</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">git-commit</td><td class="mono mut">github/awesome-copilot</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">git-guardrails-claude-code</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">grill-me</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">grill-with-docs</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">grilling</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">gsap-core</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">gsap-frameworks</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">gsap-performance</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">gsap-plugins</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">gsap-react</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">gsap-scrolltrigger</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">gsap-timeline</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">gsap-utils</td><td class="mono mut">greensock/gsap-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">high-end-visual-design</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">html</td><td class="mono mut">plannotator/effective-html</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">html-diagram</td><td class="mono mut">plannotator/effective-html</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">html-plan</td><td class="mono mut">plannotator/effective-html</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">image-to-code</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">imagegen-frontend-mobile</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">imagegen-frontend-web</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">impeccable</td><td class="mono mut">pbakaus/impeccable</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">implement</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">improve-codebase-architecture</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">json-canvas</td><td class="mono mut">kepano/obsidian-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">karpathy-guidelines</td><td class="mono mut">multica-ai/andrej-karpathy-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">loop-me</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">migrate-to-shoehorn</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">obsidian-vault</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">oracle</td><td class="mono mut">steipete/oracle</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">pdf</td><td class="mono mut">anthropics/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">pierre-guard</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">prototype</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">qa</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">qa-test-planner</td><td class="mono mut">softaworks/agent-toolkit</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">redesign-existing-projects</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">refactor</td><td class="mono mut">github/awesome-copilot</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">release-plannotator</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">request-refactor-plan</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">research</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">research-decision-room</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">resolving-merge-conflicts</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">review-renovate</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">scaffold-exercises</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">self-improving-agent</td><td class="mono mut">charon-fan/agent-playbook</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">session-handoff</td><td class="mono mut">softaworks/agent-toolkit</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">setup-matt-pocock-skills</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">setup-pre-commit</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">setup-ts-deep-modules</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">stop-slop</td><td class="mono mut">hardikpandya/stop-slop</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="mut">?</span></td><td class="center"><span class="mut">?</span></td><td class="center">≥1/3</td><td>Removes AI writing patterns from prose; CLAUDE.md v4.6.14 added a global rule pointer <span class="tag tag-info">added 2026-07-24</span></td></tr>
-<tr><td class="mono">simplify</td><td class="mono mut">brianlovin/claude-config</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">skill-creator</td><td class="mono mut">anthropics/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">subagent-driven-development</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">tdd</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">teach</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">tmux-agent-tools</td><td class="mono mut">ohyeh/tmux-agent-tools</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">to-questionnaire</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">to-spec</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">to-tickets</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">triage</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">ubiquitous-language</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">ui-skills</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">ui-ux-pro-max</td><td class="mono mut">nextlevelbuilder/ui-ux-pro-max-skill</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">unknowns-discovery</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">update-deps</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">using-design-skills</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">using-skills</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="mut">?</span></td><td class="center"><span class="mut">?</span></td><td class="center">≥1/3</td><td>Documented as installed in the 2026-07-19 post-snapshot note but this table row was missing until now <span class="tag tag-info">row backfilled 2026-07-24</span></td></tr>
-<tr><td class="mono">using-tmux-agent-tools</td><td class="mono mut">ohyeh/tmux-agent-tools</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">using-workflows</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">verification-before-completion</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">wayfinder</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">web-design-guidelines</td><td class="mono mut">vercel-labs/agent-skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">wizard</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">writing-beats</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">writing-fragments</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">writing-great-skills</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
-<tr><td class="mono">writing-shape</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center"><span class="yes">●</span></td><td class="center">3/3</td><td></td></tr>
+<tr><td class="mono">batch-grill-me</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">codebase-design</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">design-an-interface</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">diagnosing-bugs</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">domain-modeling</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">edit-article</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">improve-codebase-architecture</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">migrate-to-shoehorn</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">obsidian-vault</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">prototype</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">qa</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">request-refactor-plan</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">research</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">resolving-merge-conflicts</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">tdd</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">triage</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">wayfinder</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">wizard</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">writing-beats</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">writing-fragments</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">writing-great-skills</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">writing-shape</td><td class="mono mut">mattpocock/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">delegation-templates</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">shared-memory-intake</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">unknowns-discovery</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">using-design-skills</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">using-skills</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">using-workflows</td><td class="mono mut">ohyeh/agent-scripts</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">full-output-enforcement</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">high-end-visual-design</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">image-to-code</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">imagegen-frontend-mobile</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">imagegen-frontend-web</td><td class="mono mut">Leonxlnx/taste-skill</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">pierre-guard</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="tag tag-info">project-only</span></td></tr>
+<tr><td class="mono">release-plannotator</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="tag tag-info">project-only</span></td></tr>
+<tr><td class="mono">review-renovate</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">update-deps</td><td class="mono mut">backnotprop/plannotator</td><td class="center"><span class="tag tag-warn">dormant</span></td></tr>
+<tr><td class="mono">brainstorming</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">dispatching-parallel-agents</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">subagent-driven-development</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">verification-before-completion</td><td class="mono mut">obra/superpowers</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">html</td><td class="mono mut">plannotator/effective-html</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">html-diagram</td><td class="mono mut">plannotator/effective-html</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">html-plan</td><td class="mono mut">plannotator/effective-html</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">pdf</td><td class="mono mut">anthropics/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">skill-creator</td><td class="mono mut">anthropics/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">git-commit</td><td class="mono mut">github/awesome-copilot</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">refactor</td><td class="mono mut">github/awesome-copilot</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">data-report</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">design-taste-frontend</td><td class="mono mut">nexu-io/open-design</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">tmux-agent-tools</td><td class="mono mut">ohyeh/tmux-agent-tools</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">using-tmux-agent-tools</td><td class="mono mut">ohyeh/tmux-agent-tools</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">qa-test-planner</td><td class="mono mut">softaworks/agent-toolkit</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">session-handoff</td><td class="mono mut">softaworks/agent-toolkit</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">simplify</td><td class="mono mut">brianlovin/claude-config</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">agent-device</td><td class="mono mut">callstackincubator/agent-device</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">codex-dynamic-workflows</td><td class="mono mut">dannymac180/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">apple-design</td><td class="mono mut">emilkowalski/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">stop-slop</td><td class="mono mut">hardikpandya/stop-slop</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">defuddle</td><td class="mono mut">kepano/obsidian-skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">karpathy-guidelines</td><td class="mono mut">multica-ai/andrej-karpathy-skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">documentation-writing</td><td class="mono mut">nilecui/skillsbase</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">impeccable</td><td class="mono mut">pbakaus/impeccable</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">oracle</td><td class="mono mut">steipete/oracle</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">adhd</td><td class="mono mut">uditakhourii/adhd</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">context7-cli</td><td class="mono mut">upstash/context7</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">agent-browser</td><td class="mono mut">vercel-labs/agent-browser</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
+<tr><td class="mono">find-skills</td><td class="mono mut">vercel-labs/skills</td><td class="center"><span class="tag tag-ok">adopted</span></td></tr>
 </tbody>
 </table>
 </div>
-<p class="legend">● = installed | — = not installed | present = number of machines it's installed on (3/3 = all three machines)</p>
+<h2 style="margin-top:24px">Lock 外（unmanaged）</h2>
+<div class="table-scroll">
+<table>
+<thead><tr><th>Skill</th><th>Source</th><th class="center">狀態</th><th>Note</th></tr></thead>
+<tbody>
+<tr><td class="mono">arc-artifact-fetcher</td><td class="mono mut">（lock 外）</td><td class="center"><span class="tag tag-ok">adopted</span></td><td class="mut">hand-placed（不在 lock）— ingest 家族</td></tr>
+<tr><td class="mono">ask-nova</td><td class="mono mut">（lock 外）</td><td class="center"><span class="tag tag-ok">adopted</span></td><td class="mut">本 session 新建，repo 源碼 skills/ask-nova/ — 尚未入 lock</td></tr>
+<tr><td class="mono">writing-artifacts</td><td class="mono mut">（lock 外）</td><td class="center"><span class="tag tag-ok">adopted</span></td><td class="mut">本 session 新建，repo 源碼 skills/writing-artifacts/ — 尚未入 lock</td></tr>
+</tbody>
+</table>
+</div>
+<p class="legend">adopted ＝ using-skills（L2）有路由 · dormant ＝ 裝著但 L2 不路由，喚醒須讀其 SKILL.md 後升格 · project-only ＝ 僅特定 repo（Plannotator）內生效</p>
 </section>
 
 <section>
-<h2>Drift highlights</h2>
+<h2>Drift 與待辦</h2>
 <ul>
-<li><b>Full union convergence (2026-07-19)</b>: all 98 lock-managed skills are now 3/3 present across mbp14, mac-mini-m2, and remote2 — the fleet-wide "any worker can be dispatched to any machine" contract is satisfied. Zero drift, zero missing registrations, zero ghost lock entries on any machine.</li>
-<li><b>No lock source (2 skills, both documented manual extras, not drift)</b>: <code>commit-commands</code> (remote2 only, a Claude Code plugin, not a skill) and <code>paperclip-create-plugin</code> (mac-mini-m2 only, hand-placed, no tool-resolvable source). Neither has a registration in any machine's <code>.skill-lock.json</code> by design.</li>
-<li><b>Two confirmed upstream removals folded into the canonical lock</b>: <code>backnotprop/plannotator</code>'s old 6-skill set (replaced by its current 4: <code>pierre-guard</code>, <code>release-plannotator</code>, <code>review-renovate</code>, <code>update-deps</code>) and <code>mattpocock/skills</code>'s 4 retired skills (<code>decision-mapping</code>, <code>review</code>, <code>to-issues</code>, <code>to-prd</code>).</li>
-<li><b>One security removal</b>: <code>roin-orca/skills</code>'s <code>simple</code> was found to carry an embedded prompt-injection attempt in its description field and was removed from the canonical lock and all three machines by user ruling.</li>
-<li><b>The six fleet-wide gate skills (<code>delegation-templates</code>, etc.)</b>: all 3/3 present across the fleet, consistent with the v0.1.0 (2026-07-18) md5-identical conclusion — no sign of regression.</li>
+<li><b>機隊發散（本次最大 drift）</b>：mac-mini-m2 / remote2 仍載 ~99 支砍伐前 roster。收斂路徑：本 repo commit ＋ push → 各機 <code>scripts/deploy.sh</code>（GitHub main tarball 拉取）。</li>
+<li><b>ask-nova / writing-artifacts 未入 lock</b>：repo 源碼已存在，比照 07-19 <code>using-skills</code> 的處理——入 <code>skills-lock.json</code> 後由 installer 佈署全機隊。</li>
+<li><b>arc-artifact-fetcher</b>：長期 lock 外的手放 skill，backlog 續留。</li>
+<li><b>design-roles.md 既有 drift</b>：Role 1 表仍列未安裝的 <code>frontend-design</code>，未裁決。</li>
+<li><b>~/.claude/skills 斷鏈</b>：07-19 留下的 5 條 huddle-* 斷 symlink，本季砍除又新增數十條指向已刪 skill 的斷鏈候選——check-rules-invariants.mjs 增加斷鏈檢查在 backlog。</li>
 </ul>
 </section>
 
 <footer>
-Generated by mbp14 · 2026-07-24 (mbp14 rescan) / 2026-07-19 (last full three-machine scan) · repo canonical @ <code>a060a7c</code> · Source repos: <code>agent-scripts</code>, <code>tmux-agent-tools</code> · Supersedes the 07-04 / 07-18 snapshots · mbp14 data comes from a live <code>ls</code> scan this session; mac-mini-m2/remote2 carried forward from 07-19, not re-verified this pass.
+Generated by mbp14 · 2026-08-01（W31 砍伐季收尾快照，程式化生成自 skill-lock）· mac-mini-m2 / remote2 資料本次不再轉載——待 deploy 後重掃 · Workflow recipes / plugins 見 Workflow Manifest artifact
 </footer>
 
 </div>

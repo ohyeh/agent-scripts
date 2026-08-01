@@ -70,9 +70,9 @@ fresh reviewer, verdict still PASS/BLOCK. `prototype` → none.
 
 ## DEFER — cross-stage contracts
 
-- **DESIGN.md**: the direction stage WRITES it (prefer `design-md`; fall back
-  to plain Read/Write and say so); every later stage and every worker prompt
-  READS it. Workers have no chat memory — never carry direction in chat only.
+- **DESIGN.md**: the direction stage WRITES it (plain Read/Write — the
+  `design-md` helper skill was removed); every later stage and every worker
+  prompt READS it. Workers have no chat memory — never carry direction in chat only.
 - **Dispatch**: tmux dispatches route through `using-tmux-agent-tools`;
   worker prompts from `delegation-templates`; tiers per
   `~/.agents/rules/model-dispatch.md` §5, verification §7. Fanout/dialogue

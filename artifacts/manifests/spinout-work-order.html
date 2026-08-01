@@ -1,0 +1,189 @@
+<title>agent-scripts spinout — 工作順序</title>
+<style>
+:root{
+  --bg:#F6F8F7; --surface:#FFFFFF; --ink:#1B2624; --ink-2:#4A5854; --ink-3:#7E8B87;
+  --line:#D9E0DD; --accent:#0E7568; --accent-soft:#E2EFEC;
+  --done:#3D7A52; --done-soft:#E4EFE7;
+  --gate:#A8730E; --gate-soft:#F5EBD8;
+  --defer:#8A9490; --defer-soft:#EDF0EF;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  --sans:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141B19; --surface:#1C2422; --ink:#E7EDEB; --ink-2:#AAB8B3; --ink-3:#75837E;
+  --line:#2C3733; --accent:#4CC2AF; --accent-soft:#1B332F;
+  --done:#7DBE93; --done-soft:#20342A;
+  --gate:#DBA84A; --gate-soft:#3A2F17;
+  --defer:#75837E; --defer-soft:#232B29;
+}}
+:root[data-theme="dark"]{
+  --bg:#141B19; --surface:#1C2422; --ink:#E7EDEB; --ink-2:#AAB8B3; --ink-3:#75837E;
+  --line:#2C3733; --accent:#4CC2AF; --accent-soft:#1B332F;
+  --done:#7DBE93; --done-soft:#20342A;
+  --gate:#DBA84A; --gate-soft:#3A2F17;
+  --defer:#75837E; --defer-soft:#232B29;
+}
+:root[data-theme="light"]{
+  --bg:#F6F8F7; --surface:#FFFFFF; --ink:#1B2624; --ink-2:#4A5854; --ink-3:#7E8B87;
+  --line:#D9E0DD; --accent:#0E7568; --accent-soft:#E2EFEC;
+  --done:#3D7A52; --done-soft:#E4EFE7;
+  --gate:#A8730E; --gate-soft:#F5EBD8;
+  --defer:#8A9490; --defer-soft:#EDF0EF;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.65;margin:0;
+  font-size:15px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:48px 24px 80px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:30px;font-weight:700;letter-spacing:-.01em;margin:6px 0 4px;text-wrap:balance}
+.sub{color:var(--ink-2);margin:0 0 18px;max-width:60ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.chip{font-family:var(--mono);font-size:11.5px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--ink-2);background:var(--surface)}
+.chip.ok{color:var(--done);border-color:var(--done);background:var(--done-soft)}
+.chip.warn{color:var(--gate);border-color:var(--gate);background:var(--gate-soft)}
+h2{font-size:13px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);margin:44px 0 16px;display:flex;align-items:center;gap:12px}
+h2::after{content:"";flex:1;height:1px;background:var(--line)}
+/* done list */
+.donebox{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;
+  display:grid;gap:8px}
+.donebox div{display:flex;gap:10px;align-items:baseline;color:var(--ink-2)}
+.donebox b{color:var(--ink);font-weight:600}
+.tick{color:var(--done);font-family:var(--mono);flex:none}
+/* pipeline rail */
+.rail{position:relative;padding-left:52px;display:grid;gap:14px}
+.rail::before{content:"";position:absolute;left:17px;top:10px;bottom:10px;width:2px;background:var(--line)}
+.step{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+.step::before{content:"";position:absolute;left:-42px;top:18px;width:12px;height:12px;border-radius:50%;
+  background:var(--bg);border:2.5px solid var(--accent)}
+.step.hl{border-color:var(--accent)}
+.step.hl::before{background:var(--accent)}
+.whead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.wnum{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);
+  background:var(--accent-soft);padding:2px 8px;border-radius:5px;flex:none}
+.wtitle{font-weight:650;font-size:15.5px}
+.wdesc{color:var(--ink-2);margin:6px 0 0;font-size:14px}
+.wout{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.out{font-family:var(--mono);font-size:11px;color:var(--ink-2);border:1px solid var(--line);
+  border-radius:5px;padding:2px 8px;background:var(--bg)}
+.out.new{color:var(--accent);border-color:var(--accent)}
+.gnote{margin-top:10px;font-size:13px;color:var(--gate);display:flex;gap:8px;align-items:baseline}
+.gnote::before{content:"◆";font-size:10px;flex:none}
+/* gate strip */
+.gates{display:grid;gap:10px}
+.gq{background:var(--gate-soft);border:1px solid var(--gate);border-radius:10px;padding:12px 16px;
+  display:flex;gap:12px;align-items:baseline}
+.gq .n{font-family:var(--mono);font-weight:700;color:var(--gate);flex:none}
+.gq p{margin:0;color:var(--ink)}
+.gq small{color:var(--ink-2);display:block;margin-top:2px}
+/* deferred */
+.defer .step{border-style:dashed;background:transparent}
+.defer .step::before{border-color:var(--defer);border-style:solid}
+.defer .wnum{color:var(--defer);background:var(--defer-soft)}
+.fork{font-family:var(--mono);font-size:12px;color:var(--ink-3);padding-left:52px;margin:4px 0}
+.foot{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--ink-3);font-size:12.5px;
+  font-family:var(--mono)}
+code{font-family:var(--mono);font-size:.92em;background:var(--defer-soft);padding:1px 5px;border-radius:4px}
+/* status refresh 2026-08-01 — reuse done/gate/defer tokens */
+.step.done{border-color:var(--done)}
+.step.done::before{background:var(--done);border-color:var(--done)}
+.step.done .wnum{color:var(--done);background:var(--done-soft)}
+.ev{margin-top:10px;font-size:12.5px;font-family:var(--mono);color:var(--done);display:flex;gap:8px;align-items:baseline}
+.ev::before{content:"✓";flex:none}
+.gq.res{background:var(--done-soft);border-color:var(--done)}
+.gq.res .n{color:var(--done)}
+.pstat{margin-top:10px;font-size:12.5px;font-family:var(--mono);display:flex;gap:8px;align-items:baseline}
+.pstat.part{color:var(--gate)}.pstat.part::before{content:"◐";flex:none}
+.pstat.todo{color:var(--defer)}.pstat.todo::before{content:"○";flex:none}
+@media (prefers-reduced-motion: no-preference){.step{transition:border-color .15s}}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Work Order · 2026-07-17 → 狀態更新 2026-08-01</div>
+  <h1>agent-scripts spinout — 預期工作順序</h1>
+  <p class="sub">repo-first、整包取代的部署哲學：所有內容在 <code>ohyeh/agent-scripts</code> 準備好，三台機器 cutover 一律 rsync／npx 整個取代，不再逐檔手改 live 狀態。</p>
+  <div class="chips">
+    <span class="chip ok">plan FROZEN（r6：0C/0M）</span>
+    <span class="chip ok">ADR-0001 FROZEN</span>
+    <span class="chip ok">seed scrub CLEAN</span>
+    <span class="chip ok">W1–W7 完成（07-17→07-24）</span>
+    <span class="chip ok">Q1–Q3 gate 已消解</span>
+    <span class="chip warn">P2-A 部分完成 · P2-B 未啟動</span>
+  </div>
+
+  <h2>已完成（本次 session）</h2>
+  <div class="donebox">
+    <div><span class="tick">✓</span><span><b>Planning 凍結</b>：direction（2 輪 CLEAN）→ plan 500 行（6 輪）→ ADR-0001，commit <code>cf2ef3f</code></span></div>
+    <div><span class="tick">✓</span><span><b>Seed 整備</b>：<code>~/.agents/rules/</code> 掃 personal identifiers → CLEAN；舊世界觀（install.sh／symlink／NOVA）清零</span></div>
+    <div><span class="tick">✓</span><span><b>制度推進 4.6.2</b>：兩個全域檔標記 rules home DEPLOYED、預告 git home = agent-scripts</span></div>
+  </div>
+
+  <h2>Build — W1–W7（全部完成）</h2>
+  <div class="rail">
+    <div class="step done">
+      <div class="whead"><span class="wnum">W1</span><span class="wtitle">執行契約定案</span></div>
+      <p class="wdesc">依 frozen plan 建立 execution contract：任務分解、每步 required artifacts 與 advance gate。</p>
+      <div class="wout"><span class="out">execution-contract</span><span class="out">.workflow/&lt;slug&gt;/</span></div>
+      <p class="ev">完成 · build 全程依契約執行完畢（後續 W2–W7 commits 為證）</p>
+    </div>
+    <div class="step done">
+      <div class="whead"><span class="wnum">W2</span><span class="wtitle">建 repo + npx 生命週期 canary</span></div>
+      <p class="wdesc">建最小 <code>ohyeh/agent-scripts</code>（public）；isolated-HOME 驗證 npx skills 完整生命週期（pinned <code>skills@1.5.18</code>、expected-catalogs 比對）。</p>
+      <div class="wout"><span class="out">repo skeleton</span><span class="out">canary evidence</span></div>
+      <p class="ev">完成 · repo public 建於 2026-07-17（gh：isPrivate=false）· <code>317091a</code> skeleton+canary · tag <code>canary-v0</code> · <code>61cea50</code> canary 收尾</p>
+    </div>
+    <div class="step done">
+      <div class="whead"><span class="wnum">W3</span><span class="wtitle">using-design-skills 修復 + Gate R2</span></div>
+      <p class="wdesc">修 gate r1 的 2 個 HIGH（Q4 executor 表、design-system 路徑矛盾），跑可重現的第二輪 consensus gate。</p>
+      <div class="wout"><span class="out">SKILL.md v2</span><span class="out">verdict.json</span></div>
+      <p class="ev">完成 · <code>feda62a</code> cross-runtime member discovery 修復 · <code>2fe28e5</code> Role 5 併入（2026-07-18）</p>
+    </div>
+    <div class="step done">
+      <div class="whead"><span class="wnum">W4</span><span class="wtitle">遷移（repo-side 一次做齊）</span></div>
+      <p class="wdesc">skills、using-workflows + 13 recipes canonical 遷入 repo；<b>institution 項目併入</b>：rules 收進 <code>.agents/rules/</code>（<code>lessons.md</code> 進 gitignore、留 local）、刪 rules 版 delegation-templates／unknowns-discovery、全域檔 routing 表改指 skill。</p>
+      <div class="wout"><span class="out">skills/</span><span class="out new">.agents/rules/</span><span class="out">check-workflow-snapshot.sh</span><span class="out">installer --previous-manifest</span></div>
+      <p class="ev">完成 · <code>19a90c7</code> W4 stage 一次遷入（skills、recipes、.agents/rules、scrub 全覆蓋，2026-07-17）· <code>2020167</code> recipe 收斂單一 canonical copy</p>
+    </div>
+    <div class="step done">
+      <div class="whead"><span class="wnum">W5</span><span class="wtitle">三台 cutover（整包取代）</span></div>
+      <p class="wdesc">mbp14 → paul → macmini 逐台切換：skills 走 npx（ghost-safe manifest 手術）、rules 走 <code>rsync -a --delete</code>；16 個互斥狀態 tuple（G0–G7／S0–S1）+ 每步 rollback。</p>
+      <div class="wout"><span class="out">per-machine evidence</span><span class="out">rollback runbook</span></div>
+      <p class="ev">完成 · <code>89f1990</code> fleet 收斂 union contract（99 skills）· <code>871f2e7</code> 三機 7/7 部署 gap RESOLVED（2026-07-19）· <code>11adf62</code> clone-free fleet deploy</p>
+    </div>
+    <div class="step done">
+      <div class="whead"><span class="wnum">W6</span><span class="wtitle">tag 發佈</span></div>
+      <p class="wdesc">immutable tag 為唯一 release channel；candidate allowlist、tree-identity 比對、fail-closed。</p>
+      <div class="wout"><span class="out">v0.1.0 tag</span><span class="out">publish proof</span></div>
+      <p class="ev">完成（形式演化）· release channel 落地為 repo-canonical baseline + skills-lock，非 immutable tag：<code>480b90a</code> consensus gate r3 PASS · <code>5942e0f</code> v4.6.4 契約（現存 tag 僅 <code>canary-v0</code>）</p>
+    </div>
+    <div class="step done">
+      <div class="whead"><span class="wnum">W7</span><span class="wtitle">Manifest 重生</span></div>
+      <p class="wdesc">Skill Manifest + Workflow Manifest 兩份 artifact 依 cutover 後真實狀態重生，取代 07-04 舊快照。</p>
+      <div class="wout"><span class="out">2 artifacts</span></div>
+      <p class="ev">完成 · <code>f1ec79c</code> 兩份 manifest 重生（三機掃描，2026-07-19）· <code>909b934</code> 07-24 weekly retro 再刷新</p>
+    </div>
+  </div>
+
+  <h2>Gate — 已全部消解（2026-08-01 查證）</h2>
+  <div class="gates">
+    <div class="gq res"><span class="n">Q1</span><p>frozen plan 加跑 sol-high gate？<small>已消解：plan 已依 r6 CLEAN 執行完畢（W1–W7 完成），問題隨之失效</small></p></div>
+    <div class="gq res"><span class="n">Q2</span><p>agent_workspace 建 GitHub remote？<small>已消解：build 完成後不再擋任何步驟；查證 <code>git remote -v</code> 仍為空（維持本機，擇時即可）</small></p></div>
+    <div class="gq res"><span class="n">Q3</span><p>repo 帳號與名稱確認。<small>已消解：<code>ohyeh/agent-scripts</code> 已建立（public，createdAt 2026-07-17）並為 canonical</small></p></div>
+  </div>
+
+  <h2>後續 — 另起新 plan-pipeline</h2>
+  <div class="rail defer">
+    <div class="step">
+      <div class="whead"><span class="wnum">P2-A</span><span class="wtitle">workflows 體系研究</span></div>
+      <p class="wdesc">13 支 recipe 健檢（實戰使用率、args 契約時效）、retro 排程化（workflow-manifest 週期跑 + telemetry 記錄端補 task_shape／cli／exec_mode）。</p>
+      <p class="pstat part">部分完成 · 2026-08-01 W31 retro：<code>scripts/recipe-usage-stats.sh</code> 使用率統計（<code>17c4a4b</code>）· design-consensus 掛 attic 標記（workflows/MOVED.md，預定 08-31 移除）· retro 排程化未做</p>
+    </div>
+    <div class="step">
+      <div class="whead"><span class="wnum">P2-B</span><span class="wtitle">W8–W12 新 routers</span></div>
+      <p class="wdesc">using-review／research／git-dev／writing／browser-skills 五個分類 router，依 W6 跑通的標準流程逐一建置，全部落在 agent-scripts。</p>
+      <p class="pstat todo">未啟動 · 查證 ~/.claude/skills 與 ~/.agents/skills 皆無 using-review／using-research 等 router（2026-08-01）</p>
+    </div>
+  </div>
+  <p class="fork">└─ 前置條件（W6 release 驗證）已滿足；P2-B 待另起 plan-pipeline</p>
+
+  <div class="foot">sources: plan-agent-scripts-spinout.md（frozen r6）· ADR-0001 · session decisions 2026-07-16/17 · 狀態查證 2026-08-01（git log／gh／fleet 現況）</div>
+</div>

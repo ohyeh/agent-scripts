@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-Hant-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -159,17 +159,15 @@
 
   <header class="head">
     <div>
-      <p class="head-eyebrow">Agent Workflows · Manifest · Repo (canonical) + 3 machines</p>
-      <span class="machine-badge"><span class="dot-live"></span>REPO (CANONICAL)</span><span class="machine-badge">mbp14</span><span class="machine-badge">MAC-MINI-M2</span><span class="machine-badge">REMOTE2</span>
-      <h1>Workflow distribution snapshot</h1>
-      <p>Harvest ruling for saved dynamic workflows (<span class="mono">~/.claude/workflows</span>) and one-off exhaust scripts.
-      The <span class="mono">agent-scripts</span> repo (<span class="mono">skills/using-workflows/workflows/</span>) is the single
-      canonical source — machines are deployed copies, never the other way round. Sync direction is always
-      <b>repo → machines</b>. Original snapshot taken 2026-07-19 at repo HEAD <span class="mono">a060a7c</span>, after the
-      repo-canonical deployment (clone-free <span class="mono">scripts/deploy.sh</span> for mac-mini-m2/remote2, native clone for
-      the mbp14 dev machine) converged all three machines to zero drift (see §02).
-      <b>Re-verified 2026-07-24</b> on mbp14: live <span class="mono">~/.claude/workflows</span> still holds exactly the same 12 recipes and the aggregate hash still matches <span class="mono">a5f8770f…</span> — no roster or hash drift since the 2026-07-19 (later) re-converge recorded below. mac-mini-m2/remote2 not re-verified this pass.
-      This page is for checking which machine missed which step — it is not an auto-sync tool.</p>
+      <p class="head-eyebrow">Agent Workflows · Manifest · Repo（canonical）＋ 1 台機器</p>
+      <span class="machine-badge"><span class="dot-live"></span>REPO (CANONICAL)</span><span class="machine-badge">mbp14 (ohYEHs-MBP-14.local)</span>
+      <h1>Workflow 分佈快照</h1>
+      <p>已存 dynamic workflows（<span class="mono">~/.claude/workflows</span>）與一次性 exhaust scripts 的採收裁定。
+      <span class="mono">ohyeh/agent-scripts</span> repo 的 <span class="mono">skills/using-workflows/workflows/</span>
+      是唯一 canonical 來源——機器只是部署副本，方向永遠是 <b>repo → machines</b>。
+      本輪掃描 2026-08-01 執行，涵蓋 <b>mbp14</b> 一台機器：12/12 recipes 逐檔 hash（sha256 前 8 hex）
+      與 repo 基準完全一致，<span class="mono">_lib</span> ×3 齊備，零漂移；exhaust 共 38 個檔案、12 個 base name，
+      全數過完五分類決策樹（§06）。本頁用來檢查哪台機器漏了哪一步——不是自動同步工具。</p>
     </div>
     <div class="stamp" aria-label="12 saved workflows">
       <span class="n">12</span>
@@ -177,245 +175,130 @@
     </div>
   </header>
 
-  <div class="meta-row" style="background:rgba(240,180,40,.08);border-left:3px solid #d9a300">
-    <div class="meta-item" style="flex:1 1 100%"><p class="k">✓ Post-snapshot re-converge — 2026-07-19 (later)</p><p class="v">Since this snapshot the repo advanced <b>a060a7c → 9cb86e5</b>. Commit <b>6c9f644</b> (P2-A5 dual-review invariant fix) changed <span class="mono">spec-implement-dual-review-verify.workflow.js</span>, so the recipe aggregate hash moved to <b><span class="mono">a5f8770f…</span></b> from the <span class="mono">0bdca2c4…</span> baseline recorded in the per-machine cells below. <b>Re-converge status (live-verified):</b> <b>mbp14</b> ✓ <span class="mono">a5f8770f…</span> (12/12); <b>mac-mini-m2</b> ✓ <span class="mono">a5f8770f…</span> (12/12, redeployed via <span class="mono">curl|bash deploy.sh</span> this session, verified). <b>remote2</b> — <span class="mono">deploy.sh</span> was dispatched this session but the host dropped off the network (tailscale) before the aggregate hash could be re-verified → <b>UNCONFIRMED, re-verify when it is back online</b> (one command: <span class="mono">cd ~/.claude/workflows && shasum -a 256 *.workflow.js | shasum -a 256</span>, expect <span class="mono">a5f8770f…</span>). Skill fleet is separately converged on all three: 7/7 ohyeh skills, skills-lock 99. The point-in-time cells below remain a valid record of the a060a7c scan.</p></div>
-  </div>
-
   <div class="meta-row">
-    <div class="meta-item"><p class="k">Canonical</p><p class="v">repo:agent-scripts @ a060a7c</p></div>
-    <div class="meta-item"><p class="k">Machines</p><p class="v">mbp14 ✓ a5f8770f / mac-mini-m2 ✓ a5f8770f (redeployed, verified) / remote2 (deploy sent, host offline — re-verify pending)</p></div>
-    <div class="meta-item"><p class="k">Date</p><p class="v">2026-07-19</p></div>
-    <div class="meta-item"><p class="k">Single source of truth</p><p class="v">repo:agent-scripts skills/using-workflows/workflows/ → ~/.claude/workflows/</p></div>
-    <div class="meta-item"><p class="k">Recipes (mbp14/mac-mini-m2/remote2)</p><p class="v">12 / 12 / 12 <span style="color:var(--keep)">roster complete, 0 drift — md5-identical to repo on all three</span></p></div>
-    <div class="meta-item"><p class="k">Exhaust scripts (one-off)</p><p class="v">50 + 25 + 34 files · 11 + 16 + 22 base names · all ruled on</p></div>
-    <div class="meta-item"><p class="k">agents files</p><p class="v">All machines' ~/.claude/agents/ empty/nonexistent · no drift</p></div>
+    <div class="meta-item"><p class="k">Single source of truth</p><p class="v">/Users/paul.yeh/github/agent-scripts/skills/using-workflows/workflows/</p></div>
+    <div class="meta-item"><p class="k">Canonical</p><p class="v">repo:agent-scripts · 12 recipes + _lib ×3</p></div>
+    <div class="meta-item"><p class="k">Machines</p><p class="v">mbp14 (ohYEHs-MBP-14.local) ✓ 12/12 · 0 drift</p></div>
+    <div class="meta-item"><p class="k">Date</p><p class="v">2026-08-01</p></div>
+    <div class="meta-item"><p class="k">Recipes（mbp14）</p><p class="v">12 / 12 <span style="color:var(--keep)">roster 齊全，逐檔 hash 與 repo 一致</span></p></div>
+    <div class="meta-item"><p class="k">Exhaust scripts（一次性）</p><p class="v">38 files · 12 base names · 全數已裁定</p></div>
+    <div class="meta-item"><p class="k">agents files</p><p class="v">mbp14 ~/.claude/agents/ 不存在或無 *.md · 無漂移</p></div>
   </div>
-
-  <section>
-    <h2><span class="idx">00</span>L1 單題閉環</h2>
-    <p class="lede">repo 現行 <b>12 recipe＋1 shim</b> 在單題閉環上的功能站位——有<b>流向</b>，不是平均灑一圈。起點是 <b>① 規劃</b>：一個 feature 從 plan 起手，順時針轉到收斂。冷啟動時先由 <b>④ 稽核／盤點</b>（現況 audit）餵出第一份 plan（左側虛線）。外圈排程層（cron／watcher／wakeup）已依裁定移除。</p>
-    <div style="overflow-x:auto">
-      <svg viewBox="0 0 900 660" role="img" aria-label="L1 單題閉環：plan→gate→build→audit→triage→回 plan，12 recipe + 1 shim 各歸功能站位" style="width:100%;max-width:840px;display:block;margin:0 auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace">
-        <!-- 主環 -->
-        <circle cx="410" cy="330" r="158" fill="none" stroke="var(--keep)" stroke-width="2.5" stroke-dasharray="10 7"></circle>
-        <!-- 順時針流向箭頭（站間中點） -->
-        <path d="M 512 209 L 499 207 L 506 197 Z" fill="var(--keep)"></path>
-        <path d="M 557 389 L 555 377 L 566 381 Z" fill="var(--keep)"></path>
-        <path d="M 399 488 L 410 482 L 410 494 Z" fill="var(--keep)"></path>
-        <path d="M 256 368 L 265 377 L 254 381 Z" fill="var(--keep)"></path>
-        <path d="M 326 196 L 321 207 L 314 197 Z" fill="var(--keep)"></path>
-        <!-- 冷啟動：④稽核／盤點 餵出首份 plan（虛線 + 箭頭） -->
-        <path d="M 300 430 Q 300 250 396 178" fill="none" stroke="var(--ghost)" stroke-width="1.5" stroke-dasharray="4 5"></path>
-        <path d="M 402 175 L 391 178 L 398 186 Z" fill="var(--ghost)"></path>
-        <text x="286" y="300" text-anchor="end" fill="var(--ghost)" font-size="10">冷啟動</text>
-        <text x="286" y="313" text-anchor="end" fill="var(--muted)" font-size="9">盤點→首份 plan</text>
-
-        <!-- 中心：串環薄殼 + 再生器 -->
-        <circle cx="410" cy="330" r="70" fill="none" stroke="var(--line-strong)" stroke-width="1"></circle>
-        <text x="410" y="312" text-anchor="middle" fill="var(--ink)" font-size="18" font-weight="700">閉環</text>
-        <text x="410" y="333" text-anchor="middle" fill="var(--keep)" font-size="10" font-weight="700">feature-lifecycle-auto</text>
-        <text x="410" y="345" text-anchor="middle" fill="var(--muted)" font-size="8.5">串環薄殼 plan→gate→build</text>
-        <text x="410" y="364" text-anchor="middle" fill="var(--ghost)" font-size="10" font-weight="700">workflow-manifest</text>
-        <text x="410" y="376" text-anchor="middle" fill="var(--muted)" font-size="8.5">↻ 再生本頁快照</text>
-
-        <!-- ① 規劃 Plan（top / 起點） -->
-        <circle cx="410" cy="172" r="9" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="3"></circle>
-        <text x="410" y="156" text-anchor="middle" fill="var(--accent)" font-size="13" font-weight="700">① 規劃 Plan · 起點</text>
-        <text x="410" y="138" text-anchor="middle" fill="var(--ink)" font-size="11" font-weight="600">feature-plan-consensus</text>
-        <text x="410" y="123" text-anchor="middle" fill="var(--ink)" font-size="11" font-weight="600">plan-pipeline</text>
-        <text x="410" y="108" text-anchor="middle" fill="var(--ink)" font-size="11" font-weight="600">design-consensus</text>
-
-        <!-- ② 閘門 Gate（right-upper） -->
-        <circle cx="560" cy="281" r="9" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="3"></circle>
-        <text x="574" y="270" text-anchor="start" fill="var(--accent)" font-size="13" font-weight="700">② 閘門 Gate ✋人</text>
-        <text x="574" y="286" text-anchor="start" fill="var(--ink)" font-size="11" font-weight="600">consensus-gate</text>
-        <text x="574" y="301" text-anchor="start" fill="var(--ghost)" font-size="10.5">codex-consensus-gate (shim)</text>
-
-        <!-- ③ 建置 Build（right-lower） -->
-        <circle cx="503" cy="458" r="7" fill="var(--bg-raised)" stroke="var(--keep)" stroke-width="2.5"></circle>
-        <text x="517" y="454" text-anchor="start" fill="var(--keep)" font-size="13" font-weight="700">③ 建置 Build</text>
-        <text x="517" y="470" text-anchor="start" fill="var(--ink)" font-size="11" font-weight="600">spec-implement-dual-review-verify</text>
-
-        <!-- ④ 稽核 Audit（left-lower） -->
-        <circle cx="317" cy="458" r="7" fill="var(--bg-raised)" stroke="var(--keep)" stroke-width="2.5"></circle>
-        <text x="303" y="446" text-anchor="end" fill="var(--keep)" font-size="13" font-weight="700">④ 稽核 Audit / 盤點</text>
-        <text x="303" y="462" text-anchor="end" fill="var(--ink)" font-size="11" font-weight="600">docs-vs-code-audit</text>
-        <text x="303" y="477" text-anchor="end" fill="var(--ink)" font-size="11" font-weight="600">design-vs-code-audit</text>
-        <text x="303" y="492" text-anchor="end" fill="var(--ink)" font-size="11" font-weight="600">root-cause-deep-dive-audit</text>
-        <text x="303" y="507" text-anchor="end" fill="var(--ink)" font-size="11" font-weight="600">project-direction-review</text>
-
-        <!-- ⑤ 接頭·分流 Triage（left-upper） -->
-        <circle cx="260" cy="281" r="7" fill="var(--bg-raised)" stroke="var(--keep)" stroke-width="2.5"></circle>
-        <text x="246" y="270" text-anchor="end" fill="var(--keep)" font-size="13" font-weight="700">⑤ 接頭·分流 Triage</text>
-        <text x="246" y="286" text-anchor="end" fill="var(--ink)" font-size="11" font-weight="600">findings-triage</text>
-        <text x="246" y="301" text-anchor="end" fill="var(--muted)" font-size="9.5">歸零＝收斂 · 有剩回 ①</text>
-      </svg>
-    </div>
-    <p style="text-align:center;color:var(--muted);font-size:12px;margin-top:4px">
-      <span style="color:var(--keep)">━╌▶</span> 順時針單題閉環 plan→gate→build→audit→triage&nbsp;&nbsp;<span style="color:var(--accent)">●</span> 人工核准閘門（起點＆閘門）&nbsp;&nbsp;<span style="color:var(--ghost)">┄▶</span> 冷啟動盤點餵 plan · shim
-    </p>
-  </section>
 
   <section>
     <h2><span class="idx">01</span>Core workflows</h2>
-    <p class="lede">The repo canonical set has 12 recipes + <span class="mono">_lib</span> ×3. mbp14, mac-mini-m2, and remote2 all match the
-    repo exactly — <b>no recipe missing, no hash drift</b> (converged by the 2026-07-19 repo-canonical deployment, see §02).
-    <span class="mono">consensus-gate</span> plus its deprecated alias
-    <span class="mono">codex-consensus-gate</span> together account for 52 runs across the fleet — the highest-frequency primitive fleet-wide.</p>
+    <p class="lede">repo canonical 集合共 <b>12 recipes ＋ <span class="mono">_lib</span> ×3</b>。本輪唯一掃描機 mbp14
+    與 repo 完全一致——<b>沒有任何 recipe 缺席、沒有 hash 漂移</b>。hash 為 sha256 前 8 hex（<span class="mono">shasum -a 256</span>）。
+    <span class="mono">consensus-gate</span> 以 19 次 exhaust 執行居冠，是最高頻的 primitive。</p>
     <div class="core-grid">
-      <div class="core-card"><span class="name">consensus-gate</span><span class="src">81 lines · <span class="mono">10b172e9</span> · proposal → any agent-tmux profile's high-effort consensus verdict (args.cli picks the reviewer)</span><span class="pill">workhorse ×52 (incl. alias)</span><span class="pill new">md5-identical: all 3 machines</span></div>
-      <div class="core-card"><span class="name">feature-lifecycle-auto</span><span class="src">151 lines · <span class="mono">00c1d416</span> · thin top-level shell: plan-maker → (gate) → chains into spec-implement build</span><span class="pill">×8</span><span class="pill new">md5-identical: all 3 machines</span></div>
-      <div class="core-card"><span class="name">spec-implement-dual-review-verify</span><span class="src">163 lines · <span class="mono">15baa246</span> · main build pipeline: implement → dual review (args.cli + claude) → fix → verify</span><span class="pill new">md5-identical: all 3 machines</span></div>
-      <div class="core-card"><span class="name">feature-plan-consensus</span><span class="src">344 lines · <span class="mono">0577e63a</span> · brief → v1 plan: escalation ladder + evidence doctrine + internal/external dual consensus + gated commit</span><span class="pill new">md5-identical: all 3 machines</span></div>
-      <div class="core-card"><span class="name">plan-pipeline</span><span class="src">170 lines · <span class="mono">b80cb508</span> · planning-only: direction → frozen plan → ADRs (second-model frozen) → commit docs, no build</span><span class="pill new">md5-identical: all 3 machines</span></div>
-      <div class="core-card"><span class="name">docs-vs-code-audit</span><span class="src">170 lines · <span class="mono">c9d2f945</span> · docs vs. code ground-truth line-by-line audit + in-place fix + consistency sweep · same hash on all 3 machines</span></div>
-      <div class="core-card"><span class="name">design-vs-code-audit</span><span class="src">170 lines · <span class="mono">6aafbd4f</span> · design vs. code drift audit, item-by-item adversarial re-check, design-WIP-aware · same hash on all 3 machines</span></div>
-      <div class="core-card"><span class="name">root-cause-deep-dive-audit</span><span class="src">98 lines · <span class="mono">6bfa59de</span> · evidence-driven multi-agent root-cause audit → ranked causes + report · same hash on all 3 machines</span></div>
-      <div class="core-card"><span class="name">design-consensus</span><span class="src">99 lines · <span class="mono">bb6058fe</span> · N independent proposals → cross-adversarial critique → judge synthesizes consensus design · same hash on all 3 machines</span></div>
-      <div class="core-card"><span class="name">project-direction-review</span><span class="src">85 lines · <span class="mono">92b43054</span> · readers survey current state → lens proposals → converge into a roadmap · same hash on all 3 machines</span></div>
-      <div class="core-card"><span class="name">findings-triage</span><span class="src">148 lines · <span class="mono">0aa53800</span> · closed-loop connector: audit findings → root-cause clustering → three-way routing · same hash on all 3 machines</span></div>
-      <div class="core-card"><span class="name">workflow-manifest</span><span class="src">129 lines · <span class="mono">c58cda7f</span> · this page's generator: scans machines' recipes + exhaust → five-way ruling → renders HTML · same hash on all 3 machines</span></div>
-      <div class="core-card builtin"><span class="name">_lib/safe.js</span><span class="src">canonical source of the silent-failure guards · present on all 3 machines</span></div>
-      <div class="core-card builtin"><span class="name">_lib/worker-doctrine.md</span><span class="src">canonical source of multi-agent worker discipline (the landing destination for §03 doctrine rulings) · present on all 3 machines</span></div>
-      <div class="core-card builtin"><span class="name">_lib/findings-schema.js</span><span class="src">standard finding/verdict shape for audit recipes · present on all 3 machines</span></div>
+      <div class="core-card"><span class="name">consensus-gate.workflow.js</span><span class="src">81 lines · <span class="mono">10b172e9</span> · 經任一 agent-tmux profile 取得 high-effort 第二模型共識裁決</span><span class="pill">workhorse ×19</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">design-consensus.workflow.js</span><span class="src">99 lines · <span class="mono">19a613ab</span> · N 個獨立提案 → 交叉對抗批判 → judge 收斂共識設計</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">design-vs-code-audit.workflow.js</span><span class="src">170 lines · <span class="mono">404d3511</span> · design spec vs. code 漂移稽核，逐 section finder ＋ 對抗式驗證，design-WIP-aware</span><span class="pill">×3</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">docs-vs-code-audit.workflow.js</span><span class="src">170 lines · <span class="mono">3aa32155</span> · docs vs. code 真相稽核 ＋ 就地修正 ＋ 一致性掃尾</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">feature-lifecycle-auto.workflow.js</span><span class="src">151 lines · <span class="mono">00c1d416</span> · 薄殼：串 plan-maker → (gate) → spec-implement build，呼叫既有 workflows</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">feature-plan-consensus.workflow.js</span><span class="src">344 lines · <span class="mono">d2a21f16</span> · 新功能 brief → v1 plan：escalation ladder ＋ evidence doctrine ＋ 雙重共識 ＋ gated commit</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">findings-triage.workflow.js</span><span class="src">148 lines · <span class="mono">cec34731</span> · loop connector：confirmed findings → 聚類成 mini-PRD / partitioned-fix / 人工決策三路分流</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">plan-pipeline.workflow.js</span><span class="src">170 lines · <span class="mono">bdb656b9</span> · planning-only：direction → frozen plan → ADRs（second-model-frozen）→ commit docs，不 build</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">project-direction-review.workflow.js</span><span class="src">85 lines · <span class="mono">4e7927d6</span> · parallel readers 盤點現況 → 多視角方向選項 → 收斂單一 roadmap</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">root-cause-deep-dive-audit.workflow.js</span><span class="src">98 lines · <span class="mono">7413b8ff</span> · evidence-driven 多代理 root-cause 稽核 → ranked causes ＋ report</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">spec-implement-dual-review-verify.workflow.js</span><span class="src">163 lines · <span class="mono">aa780798</span> · 主 build pipeline：implement → dual-review（args.cli ＋ claude）→ in-spec fixes → verify</span><span class="pill">×3</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card"><span class="name">workflow-manifest.workflow.js</span><span class="src">153 lines · <span class="mono">af894565</span> · 本頁產生器：掃 fleet recipes ＋ exhaust → 五分類裁定 → 產出 HTML manifest</span><span class="pill">×2</span><span class="pill new">mbp14 一致</span></div>
+      <div class="core-card builtin"><span class="name">_lib/findings-schema.js</span><span class="src">audit recipes 共用的 finding/verdict 標準形 · mbp14 齊備</span></div>
+      <div class="core-card builtin"><span class="name">_lib/safe.js</span><span class="src">silent-failure guards 的 canonical 來源 · mbp14 齊備</span></div>
+      <div class="core-card builtin"><span class="name">_lib/worker-doctrine.md</span><span class="src">多代理 worker 紀律的 canonical 來源（§03 doctrine 裁定的落地目的地）· mbp14 齊備</span></div>
     </div>
   </section>
 
   <section>
     <h2><span class="idx">02</span>Machine alignment ledger</h2>
-    <p class="lede">Checks recipe count, hash drift relative to the repo canonical set, and agents-file drift on each machine.
-    The 2026-07-19 repo-canonical deployment (mbp14 via <span class="mono">git reset --hard origin/main</span> → <span class="mono">install.sh --force</span>;
-    mac-mini-m2 and remote2 via clone-free <span class="mono">scripts/deploy.sh</span>, see §05) converged all three machines to zero drift.</p>
+    <p class="lede">逐機器核對 recipe 數量、相對 <b>repo 基準</b>（非任何機器）的 hash 漂移、以及 agents-file 漂移。
+    本輪掃描 1 台機器，無未掃描機器。</p>
     <div class="ledger">
       <div class="row">
         <div>
-          <span class="repo">repo (canonical)<br>agent-scripts @ a060a7c</span>
-          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>baseline</span><br>12 recipes + _lib×3 in <span class="mono">skills/using-workflows/workflows/</span>, this page's comparison baseline. All commands exit 0.</span>
+          <span class="repo">repo (canonical)<br>agent-scripts</span>
+          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>baseline</span><br>12 recipes ＋ _lib ×3 位於 <span class="mono">/Users/paul.yeh/github/agent-scripts/skills/using-workflows/workflows/</span>，本頁比對基準。hash 為 sha256 前 8 hex。</span>
         </div>
         <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">canonical baseline hash</span></div>
       </div>
       <div class="row">
         <div>
-          <span class="repo">mbp14<br>mbp14</span>
-          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>converged</span><br>Roster 12/12 complete, _lib×3 complete, all 12 recipes md5-identical to repo canonical (aggregate <span class="mono">shasum -a 256 *.workflow.js | shasum -a 256</span> matches repo: <span class="mono">0bdca2c4...</span>). <span class="mono">~/.claude/agents/</span> doesn't exist (glob is empty), the agents ledger is empty and not a missed report. All commands exit 0.</span>
+          <span class="repo">mbp14<br>ohYEHs-MBP-14.local</span>
+          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>converged</span><br>Roster 12/12 齊全、_lib ×3 齊全，全部 12 個 recipe 的 sha256 前 8 hex 與 repo 基準逐檔一致（<span class="mono">10b172e9 … af894565</span>）——零漂移。<span class="mono">~/.claude/agents/</span> 不存在或無 *.md（glob 為空），agents ledger 為空是實況、不是漏報。</span>
         </div>
-        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">agents: no directory</span><span class="tag keep">0 drift</span></div>
-      </div>
-      <div class="row">
-        <div>
-          <span class="repo">mac-mini-m2<br>mac-mini-m2</span>
-          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>converged</span><br>Roster 12/12 complete, _lib×3 complete, all 12 recipes md5-identical to repo canonical (same aggregate hash <span class="mono">0bdca2c4...</span> as mbp14 and repo). Deployed via clone-free <span class="mono">scripts/deploy.sh</span> (no git clone kept on this machine). <span class="mono">~/.claude/agents/</span> doesn't exist (NO_AGENTS_DIR) → no agents drift.</span>
-        </div>
-        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">agents: no directory</span><span class="tag keep">0 drift</span></div>
-      </div>
-      <div class="row">
-        <div>
-          <span class="repo">remote2<br>remote2</span>
-          <span class="count"><span class="statusline ok"><span class="sdot ok"></span>converged</span><br>Roster 12/12 complete, _lib×3 complete, all 12 recipes md5-identical to repo canonical (same aggregate hash <span class="mono">0bdca2c4...</span> as mbp14/mac-mini-m2/repo). Deployed via clone-free <span class="mono">scripts/deploy.sh</span> (its former git clone was removed after being confirmed clean with no unpushed work). <span class="mono">~/.claude/agents/</span> has no *.md (NONE) → no agents drift.</span>
-        </div>
-        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">agents: no *.md</span><span class="tag keep">0 drift</span></div>
+        <div class="tags"><span class="tag keep">12/12 recipes</span><span class="tag keep">_lib ×3</span><span class="tag">agents: 無目錄/無 *.md</span><span class="tag keep">0 drift</span></div>
       </div>
     </div>
   </section>
 
   <section>
-    <h2><span class="idx">03</span>Exhaust script harvest ruling</h2>
-    <p class="lede">All 49 base names (109 files) have been run through the five-category decision tree (full text in §06), with a ruling on
-    all three machines — no "unruled" warning rows this round. A ruling is a label, never an rm; not a single raw file was deleted.</p>
+    <h2><span class="idx">03</span>Exhaust script 採收裁定</h2>
+    <p class="lede">mbp14 共 <b>12 個 base name（38 files）</b>全數過完五分類決策樹（全文見 §06）——本輪沒有 unjudged 警告列。
+    每個 base 的「最新檔」以 mtime 判定（ls -t），顯示的 metaDescription 取自該最新檔。裁定是標籤，永遠不是刪除；未刪任何原始檔。</p>
     <div class="legend">
-      <span class="tag">internalized (a recipe's run record / precursor)</span>
-      <span class="tag preset">preset folded into a file-header example</span>
-      <span class="tag keep">generalization candidate</span>
-      <span class="tag ghost">doctrine extracted into _lib</span>
-      <span class="tag cut">genuinely one-off</span>
+      <span class="tag">已內化（recipe 的執行紀錄／前身）</span>
+      <span class="tag preset">preset（可折入 recipe 檔頭範例）</span>
+      <span class="tag keep">泛化候選</span>
+      <span class="tag ghost">doctrine（抽入 _lib）</span>
+      <span class="tag cut">一次性</span>
     </div>
     <div class="ledger">
       <div class="row">
-        <div><span class="repo">mbp14 · 11 names (50 files)</span><span class="count">9 internalized — <span class="mono">consensus-gate</span> ×19 + its deprecated alias <span class="mono">codex-consensus-gate</span> ×15, 34 runs combined, the strongest internalization evidence. <span class="mono">fastlane-uat-distribute</span>'s detached-poll/maskEnv/report-schema discipline is extracted into worker-doctrine (already project-parameterized for healthgo; only 1 base doesn't clear Q3). <span class="mono">triage-old-adhoc-notes</span> = a project-specific fan-out batch cleanup, genuinely one-off.</span></div>
+        <div><span class="repo">mbp14 (ohYEHs-MBP-14.local) · 12 names (38 files)</span><span class="count"><b>已內化 ×9</b>——<span class="mono">consensus-gate</span> ×19 為最強內化證據，其餘 8 個 base 皆與 canonical recipe 同名同描述（recipe 即其泛化）：<span class="mono">design-vs-code-audit</span> ×3、<span class="mono">spec-implement-dual-review-verify</span> ×3、<span class="mono">workflow-manifest</span> ×2（本次審計即由它驅動）、<span class="mono">project-direction-review</span> ×2、<span class="mono">root-cause-deep-dive-audit</span> ×2、<span class="mono">feature-lifecycle-auto</span>、<span class="mono">findings-triage</span>、<span class="mono">plan-pipeline</span>。<b>doctrine ×2</b>——<span class="mono">next-batch-plan</span>（80 行、自 spawn scout→plan pipeline，非 preset；canvas C2/autosave 內容專案一次性；可重用者為 read-only 圍欄、truth=file:line 引證與 UNCONFIRMED 標記、mutation-red VERIFICATION 契約 → worker-doctrine §1 Anchoring / §4 Scope fence，驗證契約可入 §5/§6）；<span class="mono">weekly-retro-fixes</span>（87 行、平行 per-repo implement chain ＋ fresh review；可重用者為 COMMON 紀律區塊——discover live、worktree/branch 圍欄、禁 push/merge/close、command+exit code 證據——與 fresh 對抗式審查契約、單行 VERDICT: PASS|BLOCK 收尾 → worker-doctrine §4/§5/§6）。<b>一次性 ×1</b>——<span class="mono">triage-old-adhoc-notes</span>：130 筆 pre-cutoff ad_hoc notes 的專案限定 fan-out 批次清理，單次執行，與先前 manifest 判定一致。</span></div>
         <div class="tags">
-          <span class="tag ghost">fastlane-uat-distribute ×3 →worker-doctrine</span>
-          <span class="tag">consensus-gate ×19</span><span class="tag">codex-consensus-gate ×15</span><span class="tag">spec-implement-dual-review-verify ×3</span><span class="tag">design-vs-code-audit ×3</span><span class="tag">feature-lifecycle-auto ×2</span><span class="tag">workflow-manifest</span><span class="tag">root-cause-deep-dive-audit</span><span class="tag">plan-pipeline</span><span class="tag">feature-plan-consensus</span>
+          <span class="tag ghost">next-batch-plan →worker-doctrine</span>
+          <span class="tag ghost">weekly-retro-fixes →worker-doctrine</span>
+          <span class="tag">consensus-gate ×19</span><span class="tag">design-vs-code-audit ×3</span><span class="tag">spec-implement-dual-review-verify ×3</span><span class="tag">workflow-manifest ×2</span><span class="tag">project-direction-review ×2</span><span class="tag">root-cause-deep-dive-audit ×2</span><span class="tag">feature-lifecycle-auto</span><span class="tag">findings-triage</span><span class="tag">plan-pipeline</span>
           <span class="tag cut">triage-old-adhoc-notes</span>
         </div>
       </div>
-      <div class="row">
-        <div><span class="repo">mac-mini-m2 · 16 names (25 files)</span><span class="count">The two aurora ones are precursors of <span class="mono">design-consensus</span> / <span class="mono">project-direction-review</span>; the two room ones are reclassified as internalized (a hand-rolled downgraded version of <span class="mono">spec-implement-dual-review-verify</span>); <span class="mono">nova-half-done-deep-dive</span> falls under <span class="mono">project-direction-review</span>. The issue-293 triple gate = an 18-line baked-args thin shell → <span class="mono">consensus-gate</span> file-header PRESET; bucket1's scope-fence/anchoring/institutional-memory doctrine feeds worker-doctrine. smoke ×4 = disposable harness-debugging probes.</span></div>
-        <div class="tags">
-          <span class="tag preset">issue-293-final-gate</span><span class="tag preset">issue-293-final-gate-2</span><span class="tag preset">issue-293-final-gate-3</span>
-          <span class="tag ghost">issue-293-bucket1 →worker-doctrine</span>
-          <span class="tag">codex-consensus-gate ×5</span><span class="tag">feature-lifecycle-auto ×4</span><span class="tag">feature-plan-consensus ×2</span><span class="tag">nova-half-done-deep-dive ×2</span><span class="tag">aurora-reader-homepage-consensus</span><span class="tag">aurora-future-direction-plan</span><span class="tag">room-feature-implementation</span><span class="tag">room-phase2-backends</span>
-          <span class="tag cut">smoke-agenttype-real</span><span class="tag cut">smoke-schema-compatible</span><span class="tag cut">smoke-opts-undefined</span><span class="tag cut">smoke-opts-undefined-2</span>
-        </div>
-      </div>
-      <div class="row">
-        <div><span class="repo">remote2 · 22 names (34 files)</span><span class="count">The only machine producing generalization candidates this round: the three healthgo ones share a "read-only parallel lanes (each with a JSON schema) → synthesize a minimal patch + verification commands" skeleton, not covered by any repo canonical recipe (UNCONFIRMED: the shape isomorphism is inferred from manual comparison); the two <span class="mono">uat-distribute</span> ones share a fastlane UAT build-and-release shape, clearing the Q3 threshold → a project-level recipe. The jenkins triple = a hand-written precursor of <span class="mono">spec-implement-dual-review-verify</span>; most of the figma family falls under <span class="mono">design-vs-code-audit</span> / <span class="mono">docs-vs-code-audit</span>.</span></div>
-        <div class="tags">
-          <span class="tag keep">healthgo-harness-accelerated-validation</span><span class="tag keep">healthgo-notification-figma-gap</span><span class="tag keep">healthgo-uat-parallel-validation</span><span class="tag keep">uat-distribute</span><span class="tag keep">uat-distribute-ios-retry</span>
-          <span class="tag preset">build-smcs1498-from-frozen-plan</span>
-          <span class="tag ghost">figma-ia-plan →worker-doctrine</span>
-          <span class="tag">codex-consensus-gate ×8</span><span class="tag">consensus-gate ×5</span><span class="tag">feature-lifecycle-auto ×2</span><span class="tag">coin-record-ui-states-audit</span><span class="tag">docs-overhaul</span><span class="tag">docs-vs-code-audit</span><span class="tag">feature-plan-consensus</span><span class="tag">health-coin-figma-audit</span><span class="tag">healthgo-coin-linked-proof-sidecar</span><span class="tag">healthgo-coin-parallel-breakthrough</span><span class="tag">jenkins-cli-build</span><span class="tag">jenkins-cli-iap-finalize</span><span class="tag">jenkins-trigger-cli</span><span class="tag">plan-pipeline</span>
-          <span class="tag cut">health-coin-figma-fixes</span>
-        </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="idx">04</span>待清理／degraded</h2>
+    <p class="lede">本輪無未掃描機器（unscanned 為空）、無 unjudged exhaust（12 個 base 全數過樹）、無 hash 漂移。
+    剩一類帳目：doctrine 裁定已標籤、尚未落地到 <span class="mono">_lib/worker-doctrine.md</span>。</p>
+    <div class="diffblock">
+      <div class="diffhead"><span class="dot ghost"></span>Doctrine 待落地 ×2<span class="why">已標籤，實際採收另行執行</span></div>
+      <div class="diffbody">
+        <p><b><span class="mono">next-batch-plan</span></b> → <span class="mono">_lib/worker-doctrine.md</span> §1 Anchoring / §4 Scope fence（read-only 圍欄、唯一例外檔案寫入、truth=file:line 引證、UNCONFIRMED 標記；mutation-red 驗證契約——禁 source-text assertion、oracle 至少兩值、async 失敗需具名訊息——可入 §5/§6）。
+        <b><span class="mono">weekly-retro-fixes</span></b> → §4 Scope fence / §5 Report contract / §6 Verify wrap-up（discover live、worktree/branch 圍欄、禁 push/merge/close、每項主張附 command+exit code 證據；fresh 對抗式審查契約：非作者審查、逐項驗證、單行 VERDICT: PASS|BLOCK 收尾）。</p>
+        <span class="tag ghost">doctrine 待落地 ×2</span><span class="tag keep">unscanned ×0</span><span class="tag keep">unjudged ×0</span><span class="tag keep">hash drift ×0</span>
       </div>
     </div>
   </section>
 
   <section>
-    <h2><span class="idx">04</span>Pending cleanup / degraded</h2>
-    <p class="lede">No unscanned machines this round, no unruled exhaust (all base names cleared the tree). One ledger category remains: harvest pending landing (labeled, not yet materialized). The prior hash-drift category (§05 history) is now RESOLVED on all three machines.</p>
-    <div class="diffblock">
-      <div class="diffhead"><span class="dot ghost"></span>hash drift ×5 · RESOLVED 2026-07-19<span class="why">repo-canonical deployment (§05) converged all three machines</span></div>
-      <div class="diffbody">
-        <p>Previously mac-mini-m2 and remote2 were behind on the same batch: <span class="mono">consensus-gate</span>, <span class="mono">feature-lifecycle-auto</span>, <span class="mono">feature-plan-consensus</span>, <span class="mono">plan-pipeline</span>, <span class="mono">spec-implement-dual-review-verify</span>.
-        Fixed by the 2026-07-19 repo-canonical deployment (mbp14 via <span class="mono">git reset --hard origin/main</span> → <span class="mono">install.sh --force</span>; mac-mini-m2 and remote2 via clone-free <span class="mono">scripts/deploy.sh</span>, run once remote2 came back online): all three machines are now md5-identical to the repo on all 12 recipes.</p>
-        <span class="tag keep">consensus-gate</span><span class="tag keep">feature-lifecycle-auto</span><span class="tag keep">feature-plan-consensus</span><span class="tag keep">plan-pipeline</span><span class="tag keep">spec-implement-dual-review-verify</span>
-      </div>
-    </div>
-    <div class="diffblock">
-      <div class="diffhead"><span class="dot ghost"></span>Harvest pending landing<span class="why">labeled, the actual harvest happens separately</span></div>
-      <div class="diffbody">
-        <p><b>Generalization candidates ×5 (remote2)</b>: the three healthgo ones → candidate for a new "parallel read-only validation → synthesized action plan" recipe; the two uat-distribute ones → a healthgo project-level fastlane release recipe.
-        <b>Presets pending</b>: the issue-293 triple gate → a multi-round push-gate PRESET in the <span class="mono">consensus-gate</span> file header; build-smcs1498 → a frozen-plan PRESET in the <span class="mono">spec-implement-dual-review-verify</span> file header.
-        <b>Doctrine pending consolidation</b>: fastlane-uat-distribute (detached poll/maskEnv), issue-293-bucket1 (scope-fence/anchoring), figma-ia-plan (read-only fence/report contract) → <span class="mono">_lib/worker-doctrine.md</span>.
-        Also: the <span class="mono">codex-consensus-gate</span> alias is still in circulation with 28 combined runs across the fleet — future calls should switch to <span class="mono">consensus-gate</span>.</p>
-        <span class="tag keep">generalization candidates ×5</span><span class="tag preset">presets pending ×4</span><span class="tag ghost">doctrine pending ×3</span><span class="tag">alias retirement notice</span>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2><span class="idx">05</span>Alignment steps</h2>
+    <h2><span class="idx">05</span>對齊步驟</h2>
     <div class="sync">
-      <p>The direction is always repo → machines, never reversed — the repo is canonical, machines are deployed copies.
-      mbp14 is the only dev machine and keeps a native git clone; mac-mini-m2 and remote2 are clone-free — they run
-      <span class="mono">scripts/deploy.sh</span> and never hold a git clone. This is exactly the procedure that converged
-      all three machines to zero drift on 2026-07-19.</p>
-      <div class="sync-line"><span class="no">1a</span><span><code>cd ~/github/agent-scripts && git fetch origin && git reset --hard origin/main</code> <span class="cmt">— mbp14 (dev clone) only: realign to the canonical repo; history was rewritten 2026-07-19, use reset, never a merge pull</span></span></div>
-      <div class="sync-line"><span class="no">1b</span><span><code>curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/scripts/deploy.sh | bash</code> <span class="cmt">— mac-mini-m2 / remote2 (clone-free): downloads the current main tarball to a scratch dir and deploys all four layers (global files, rules, workflows, skills) from it, no flags needed, no clone left behind</span></span></div>
-      <div class="sync-line"><span class="no">2</span><span><code>bash skills/using-workflows/scripts/install.sh --previous-manifest ~/.claude/workflows/.using-workflows-managed-files --force</code> <span class="cmt">— mbp14 only (deploy.sh already does this step internally for mac-mini-m2/remote2): deploy all 12 recipes + _lib to ~/.claude/workflows/</span></span></div>
-      <div class="sync-line"><span class="no">3</span><span><code>(cd ~/.claude/workflows && shasum -a 256 *.workflow.js | shasum -a 256)</code> <span class="cmt">— per-machine aggregate hash (cd first so filenames, not paths, are hashed)</span></span></div>
-      <div class="sync-line"><span class="no">4</span><span><code>(cd ~/github/agent-scripts/skills/using-workflows/workflows && shasum -a 256 *.workflow.js | shasum -a 256)</code> <span class="cmt">— repo canonical aggregate hash; must equal step 3's output on every machine (current value as of e6e0163: a5f8770f6f45bb9476c522e88a96fc39c192c30596fbcc2b9ed47b57935e6687; the earlier 0bdca2c4… baseline predates commit 6c9f644)</span></span></div>
+      <p>方向永遠是 repo → machines，絕不反向——repo 是 canonical，機器是部署副本。
+      本輪唯一掃描機 mbp14 已收斂零漂移，<b>沒有落後機器需要 rsync/scp</b>；以下保留標準對齊與驗證程序，供下一台落後機器（或下次漂移）直接套用。</p>
+      <div class="sync-line"><span class="no">1</span><span><code>rsync -av --delete /Users/paul.yeh/github/agent-scripts/skills/using-workflows/workflows/ ~/.claude/workflows/</code> <span class="cmt">— 本機對齊：repo canonical → ~/.claude/workflows/（含 _lib，--delete 清掉多餘檔）</span></span></div>
+      <div class="sync-line"><span class="no">2</span><span><code>rsync -av --delete /Users/paul.yeh/github/agent-scripts/skills/using-workflows/workflows/ &lt;host&gt;:~/.claude/workflows/</code> <span class="cmt">— 遠端落後機器：同一來源推到該機（scp -r 亦可，但不會清多餘檔）</span></span></div>
+      <div class="sync-line"><span class="no">3</span><span><code>(cd ~/.claude/workflows && shasum -a 256 *.workflow.js)</code> <span class="cmt">— 逐機逐檔 hash（前 8 hex 應與 §01 各卡片一致：10b172e9 … af894565）</span></span></div>
+      <div class="sync-line"><span class="no">4</span><span><code>(cd /Users/paul.yeh/github/agent-scripts/skills/using-workflows/workflows && shasum -a 256 *.workflow.js)</code> <span class="cmt">— repo canonical 逐檔 hash；每台機器 step 3 的輸出必須與此相等</span></span></div>
     </div>
   </section>
 
   <section>
-    <h2><span class="idx">06</span>Full text of the ruling decision tree</h2>
-    <p class="lede">Reuse this verbatim for the next harvest. Order = cost: ask what's mechanically answerable first, save judgment calls for last.</p>
+    <h2><span class="idx">06</span>裁定決策樹全文</h2>
+    <p class="lede">下次採收原文照用。順序＝成本：先問機械可答的，判斷題留最後。</p>
     <div class="copyblock">
       <p class="label">5-way decision tree · copy verbatim</p>
       <button class="copybtn" type="button" onclick="const b=this,t=this.nextElementSibling.textContent;navigator.clipboard.writeText(t).then(()=&gt;{b.textContent=&#39;Copied&#39;;setTimeout(()=&gt;b.textContent=&#39;Copy&#39;,1600)})">Copy</button>
       <pre>Judge each exhaust BASE NAME (strip the -wf_xxxxxxxx suffix; N files of one base = N runs) in this order, cheapest test first. Tags are labels, NEVER deletions.
-Q1 internalized — does its meta.name/description match a saved recipe in the repo's canonical set (same pipeline, the recipe IS its generalization)? → tag internalized, note which recipe covers it.
+Q1 已內化 — does its meta.name/description match a saved recipe in the repo's canonical set (same pipeline, the recipe IS its generalization)? → tag 已內化, note which recipe covers it.
 Q2 preset — is it ≤20 lines, spawns zero agents itself, and just calls workflow() with baked args? → tag preset (a remembered invocation, candidate for a PRESET comment block on the recipe it wraps).
-Q3 generalization candidate — do ≥2 base names share an isomorphic pipeline shape not covered by any repo canonical recipe? First re-check coverage: if an existing recipe covers the shape, reclassify internalized. Otherwise → tag generalization candidate with the shared shape named.
+Q3 泛化候選 — do ≥2 base names share an isomorphic pipeline shape not covered by any recipe in the repo's canonical set? First re-check coverage: if an existing recipe covers the shape, reclassify 已內化. Otherwise → tag 泛化候選 with the shared shape named.
 Q4 doctrine — is the reusable part not the pipeline but repeated discipline TEXT in the agent prompts (anchoring, tool mapping, scope fences, report contracts)? → tag doctrine, name the _lib/worker-doctrine.md block it feeds.
-Q5 genuinely one-off — everything else: project-specific, single-run, not worth abstracting. → tag one-off.</pre>
+Q5 真一次性 — everything else: project-specific, single-run, not worth abstracting. → tag 一次性.</pre>
     </div>
   </section>
 
   <footer>
-    <span>repo <span class="mono">skills/using-workflows/workflows/</span> is the sole canonical source · snapshot @ <span class="mono">a060a7c</span> · 2026-07-19, re-verified on mbp14 2026-07-24</span>
-    <span>This page is a static snapshot · re-run the <span class="mono">workflow-manifest</span> recipe to regenerate it</span>
+    <span>repo <span class="mono">skills/using-workflows/workflows/</span> 為唯一 canonical 來源 · 靜態快照 · 2026-08-01</span>
+    <span>本頁為靜態快照 · 重新執行 <span class="mono">workflow-manifest</span> recipe 即可再生</span>
   </footer>
 
 </div>
