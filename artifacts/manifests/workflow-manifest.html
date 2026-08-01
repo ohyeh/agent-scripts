@@ -189,7 +189,8 @@
     <h2><span class="idx">01</span>Core workflows</h2>
     <p class="lede">repo canonical 集合共 <b>12 recipes ＋ <span class="mono">_lib</span> ×3</b>。本輪唯一掃描機 mbp14
     與 repo 完全一致——<b>沒有任何 recipe 缺席、沒有 hash 漂移</b>。hash 為 sha256 前 8 hex（<span class="mono">shasum -a 256</span>）。
-    <span class="mono">consensus-gate</span> 以 19 次 exhaust 執行居冠，是最高頻的 primitive。</p>
+    <span class="mono">consensus-gate</span> 以 19 次 exhaust 執行居冠，是最高頻的 primitive。
+    <b>W31 補記（2026-08-01）</b>：<span class="mono">second-model-consensus</span> skill 已於砍伐季退役並自 repo 移除——<span class="mono">consensus-gate</span> 現為唯一的二模共識入口（一次性深度 review 備位：<span class="mono">oracle</span>）。</p>
     <div class="core-grid">
       <div class="core-card"><span class="name">consensus-gate.workflow.js</span><span class="src">81 lines · <span class="mono">10b172e9</span> · 經任一 agent-tmux profile 取得 high-effort 第二模型共識裁決</span><span class="pill">workhorse ×19</span><span class="pill new">mbp14 一致</span></div>
       <div class="core-card"><span class="name">design-consensus.workflow.js</span><span class="src">99 lines · <span class="mono">19a613ab</span> · N 個獨立提案 → 交叉對抗批判 → judge 收斂共識設計</span><span class="pill new">mbp14 一致</span></div>
