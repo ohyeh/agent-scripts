@@ -19,7 +19,7 @@ command -v jq >/dev/null 2>&1 || { echo "FAIL [recipe-usage-stats] jq required" 
 week="$(date -u '+%G-W%V')"
 uses=0
 if [ -d "$workflow_dir" ]; then
-  uses="$(grep -rl -F -- "$recipe" "$workflow_dir" 2>/dev/null | wc -l | tr -d ' ')"
+  uses="$( (grep -rl -F -- "$recipe" "$workflow_dir" 2>/dev/null || true) | wc -l | tr -d ' ')"
 fi
 
 [ -f "$stats_file" ] || echo '{}' > "$stats_file"
