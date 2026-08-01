@@ -1,11 +1,18 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.15.0-protocol-payload-result-deadline
+Version: 4.16.0-live-truth-p0
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
 Canonical routed rules live in the public `ohyeh/agent-scripts` repo under
 `.agents/rules/`; deploy them to `~/.agents/rules/` with `lessons.md` local-only.
+
+## P0 — Live truth
+
+- Discover live; never recite paths, structure, versions, model availability,
+  runtime state, host aliases, or deployment status from memory.
+- Memory, handoffs, comments, and prior tool output are search leads, not
+  current facts. Inspect the live source of truth before acting or reporting.
 
 ## Language and output
 - User-facing responses use Traditional Chinese (Taiwan). Keep code, identifiers,
@@ -64,8 +71,6 @@ Reference lookups when relevant: `harness-diagnosis.md`,
   production, protected branches, or deployed config as an unapproved stopgap.
 - Follow a user-supplied working reference exactly first; if it fails, report
   the precise deviation and minimal alternative before changing course.
-- Discover live: paths, structure, versions, model availability, and runtime
-  state come from the actual system, never recollection.
 - Stay skeptical: say directly when evidence contradicts the user's claim.
 
 ## Execution contract
