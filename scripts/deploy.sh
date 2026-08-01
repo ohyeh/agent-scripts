@@ -128,20 +128,32 @@ rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent
 mkdir -p ~/.agents/hooks
 install -m 0755 "$SRC/.agents/hooks/claude-version-sentinel.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/session-title-sentinel.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/bol-prompt-warn.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/scripts/check-bol-prompt.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/context-ledger.sh" ~/.agents/hooks/
 
 SETTINGS=~/.claude/settings.json
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
 tmp_settings="$(mktemp)"
 jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
-   --arg ts "\"\$HOME/.agents/hooks/session-title-sentinel.sh\"" '
+   --arg ts "\"\$HOME/.agents/hooks/session-title-sentinel.sh\"" \
+   --arg bol "\"\$HOME/.agents/hooks/bol-prompt-warn.sh\"" \
+   --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" '
   def ensure(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | if any(.[]; any(.hooks[]?; .command == cmd))
         then . else . + [{"hooks":[{"type":"command","command":cmd}]}] end);
-  ensure("SessionStart"; $vs) | ensure("Stop"; $ts)
+  def ensureMatched(ev; matcher; cmd):
+    .hooks[ev] = ((.hooks[ev] // [])
+      | if any(.[]; any(.hooks[]?; .command == cmd))
+        then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":cmd}]}] end);
+  ensure("SessionStart"; $vs)
+  | ensure("Stop"; $ts)
+  | ensureMatched("PreToolUse"; "Agent"; $bol)
+  | ensureMatched("PostToolUse"; "*"; $ledger)
 ' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
 
-for h in claude-version-sentinel session-title-sentinel; do
+for h in claude-version-sentinel session-title-sentinel bol-prompt-warn context-ledger; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1
