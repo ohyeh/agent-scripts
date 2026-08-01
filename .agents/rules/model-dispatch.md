@@ -10,10 +10,12 @@ same-tier successor is valid only after live verification per §8.
 
 | Claude tier | Current ID | Role |
 |---|---|---|
-| `haiku` | `claude-haiku-4-5-20251001` | mechanical search, read-back, solved-pattern batches |
-| `sonnet` | `claude-sonnet-5` | default implementation, refactor, research, first review |
+| `sonnet` | `claude-sonnet-5` | default implementation, refactor, research, first review; at effort `low` also covers mechanical search, read-back, solved-pattern batches |
 | `opus` | `claude-opus-4-8` | architecture, hard debugging, adversarial review |
 | `fable` | `claude-fable-5` | scarce; picker rejection falls back to `opus` |
+
+`haiku` RETIRED 2026-08-01 (user decision; repeated miscounts): all former haiku
+roles run as `sonnet` effort `low`; where only `model` is accepted, pass `sonnet`.
 
 Claude Agent calls take `model`, not `effort`; plain calls inherit session effort.
 Effort exists in agent frontmatter and Workflow `agent(prompt, {effort})`.
@@ -64,12 +66,12 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 
 | Task | Claude | Codex |
 |---|---|---|
-| locate/inventory | `haiku`; `sonnet` for synthesis | Terra low |
+| locate/inventory | `sonnet` low; `sonnet` medium for synthesis | Terra low |
 | implement/refactor/research | `sonnet` | Terra low/medium; Luna medium |
 | review/verification | fresh `sonnet`; risky=`opus` | fresh Sol medium |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
-| apply solved pattern | `haiku` | Terra low |
-| supervise external CLI worker | `general-purpose` on `haiku` | one Terra low/medium proxy |
+| apply solved pattern | `sonnet` low | Terra low |
+| supervise external CLI worker | `general-purpose` on `sonnet` low | one Terra low/medium proxy |
 
 External asynchronous workers have exactly one native supervision-only proxy. It owns
 the wrapper, waits through the tool-layer blocking supervisor, and never polls. The
@@ -93,15 +95,15 @@ bounded same-tier sampling plus a judge when it is cheaper. Workflow `agent()` c
 set effort explicitly. Sol workers never exceed `medium`; Sol high+ is reserved for
 commander/plan/review.
 
-Same approach: two rounds total across all models. Haiku fails once → Sonnet. Sonnet
-fails the same task twice → Opus with the full trail. A third failure triggers
+Same approach: two rounds total across all models. Sonnet `low` fails once → Sonnet
+`medium`. Sonnet fails the same task twice → Opus with the full trail. A third failure triggers
 `judgment-rubrics.md` §4, not another retry. Once the hard part is solved, drop to the
 cheap execution tier with one worked example.
 
 ## §6 Reviewer independence
 
 Above the trivial single-file/low-risk threshold, the author is not the verifier.
-Files need fresh read-back (Claude `haiku`; Codex cheap fresh worker); code needs the
+Files need fresh read-back (Claude `sonnet` low; Codex cheap fresh worker); code needs the
 real test/build/flow; high-risk judgment needs Claude `opus`, Codex fresh Sol, or
 2–3 candidates plus an independent judge. At the trivial threshold, the author's
 real command with quoted exit code/key lines is sufficient. Completion and quality
