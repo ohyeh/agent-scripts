@@ -37,6 +37,15 @@
       "installedAt": "2026-07-18T20:47:41.108Z",
       "updatedAt": "2026-07-18T20:47:41.108Z"
     },
+    "ask-nova": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/ask-nova/SKILL.md",
+      "skillFolderHash": "91fcae7e11f81098a4781822b7a654e7da62ba13",
+      "installedAt": "2026-08-01T11:44:27.225Z",
+      "updatedAt": "2026-08-01T11:44:27.225Z"
+    },
     "batch-grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -589,6 +598,15 @@
       "skillFolderHash": "e4dc85309aebecd9759f6c4cb3fdcb7c4f69544c",
       "installedAt": "2026-07-18T20:49:31.172Z",
       "updatedAt": "2026-07-18T20:49:31.172Z"
+    },
+    "writing-artifacts": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/writing-artifacts/SKILL.md",
+      "skillFolderHash": "7004cf63eaea10b4a32e606942edbe9411579bb0",
+      "installedAt": "2026-08-01T11:44:27.233Z",
+      "updatedAt": "2026-08-01T11:44:27.233Z"
     },
     "writing-beats": {
       "source": "mattpocock/skills",
