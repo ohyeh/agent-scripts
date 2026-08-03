@@ -47,13 +47,13 @@
       "updatedAt": "2026-08-01T11:44:27.225Z"
     },
     "batch-grill-me": {
-      "source": "ohyeh/agent-scripts",
+      "source": "mattpocock/skills",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/batch-grill-me/SKILL.md",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/in-progress/batch-grill-me/SKILL.md",
       "skillFolderHash": "f2c0125db05db4d8f905a9423af308c476e2e4d5",
-      "installedAt": "2026-08-01T11:51:26.247Z",
-      "updatedAt": "2026-08-01T11:51:26.247Z"
+      "installedAt": "2026-08-03T04:20:00.000Z",
+      "updatedAt": "2026-08-03T04:20:00.000Z"
     },
     "brainstorming": {
       "source": "obra/superpowers",
@@ -119,15 +119,6 @@
       "installedAt": "2026-07-18T20:48:21.471Z",
       "updatedAt": "2026-07-28T12:23:03.760Z"
     },
-    "design-an-interface": {
-      "source": "ohyeh/agent-scripts",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/design-an-interface/SKILL.md",
-      "skillFolderHash": "080dd14b88424aea0c6aca72357c617d6ab42625",
-      "installedAt": "2026-08-01T11:51:26.251Z",
-      "updatedAt": "2026-08-01T11:51:26.251Z"
-    },
     "design-taste-frontend": {
       "source": "nexu-io/open-design",
       "sourceType": "github",
@@ -176,13 +167,13 @@
       "updatedAt": "2026-07-18T20:49:31.166Z"
     },
     "edit-article": {
-      "source": "ohyeh/agent-scripts",
+      "source": "mattpocock/skills",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/edit-article/SKILL.md",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/personal/edit-article/SKILL.md",
       "skillFolderHash": "19ce34c6f4afcb58788e8e525dbb80c79a45a4a0",
-      "installedAt": "2026-08-01T11:51:26.255Z",
-      "updatedAt": "2026-08-01T11:51:26.255Z"
+      "installedAt": "2026-08-03T04:20:00.000Z",
+      "updatedAt": "2026-08-03T04:20:00.000Z"
     },
     "find-skills": {
       "source": "vercel-labs/skills",
@@ -304,22 +295,22 @@
       "updatedAt": "2026-07-18T20:47:58.231Z"
     },
     "migrate-to-shoehorn": {
-      "source": "ohyeh/agent-scripts",
+      "source": "mattpocock/skills",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/migrate-to-shoehorn/SKILL.md",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/misc/migrate-to-shoehorn/SKILL.md",
       "skillFolderHash": "0aea91a3599a4bf7aeec17e3262d4cbcfcbeec23",
-      "installedAt": "2026-08-01T11:51:26.256Z",
-      "updatedAt": "2026-08-01T11:51:26.256Z"
+      "installedAt": "2026-08-03T04:20:00.000Z",
+      "updatedAt": "2026-08-03T04:20:00.000Z"
     },
     "obsidian-vault": {
-      "source": "ohyeh/agent-scripts",
+      "source": "mattpocock/skills",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/obsidian-vault/SKILL.md",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/personal/obsidian-vault/SKILL.md",
       "skillFolderHash": "5fdd257588fefa400e8a0d505aac555a0b52311a",
-      "installedAt": "2026-08-01T11:51:26.258Z",
-      "updatedAt": "2026-08-01T11:51:26.258Z"
+      "installedAt": "2026-08-03T04:20:00.000Z",
+      "updatedAt": "2026-08-03T04:20:00.000Z"
     },
     "oracle": {
       "source": "steipete/oracle",
@@ -359,15 +350,6 @@
       "installedAt": "2026-07-18T20:49:31.168Z",
       "updatedAt": "2026-07-18T20:49:31.168Z"
     },
-    "qa": {
-      "source": "ohyeh/agent-scripts",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/qa/SKILL.md",
-      "skillFolderHash": "f63fde811a0215ab15f5b83bcaae9627ecacbe8e",
-      "installedAt": "2026-08-01T11:51:26.261Z",
-      "updatedAt": "2026-08-01T11:51:26.261Z"
-    },
     "qa-test-planner": {
       "source": "softaworks/agent-toolkit",
       "sourceType": "github",
@@ -394,15 +376,6 @@
       "skillFolderHash": "e2a486cd7825a6d98be57f74fb52d3e837ab61fb",
       "installedAt": "2026-07-18T21:55:44.675Z",
       "updatedAt": "2026-07-18T21:55:44.675Z"
-    },
-    "request-refactor-plan": {
-      "source": "ohyeh/agent-scripts",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/request-refactor-plan/SKILL.md",
-      "skillFolderHash": "603d197e4306ad8f1d8c4595d5aab4296b2d1f82",
-      "installedAt": "2026-08-01T11:51:26.262Z",
-      "updatedAt": "2026-08-01T11:51:26.262Z"
     },
     "research": {
       "source": "mattpocock/skills",
@@ -591,13 +564,13 @@
       "updatedAt": "2026-07-18T20:49:31.170Z"
     },
     "wizard": {
-      "source": "ohyeh/agent-scripts",
+      "source": "mattpocock/skills",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/wizard/SKILL.md",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/in-progress/wizard/SKILL.md",
       "skillFolderHash": "e4dc85309aebecd9759f6c4cb3fdcb7c4f69544c",
-      "installedAt": "2026-08-01T11:51:26.262Z",
-      "updatedAt": "2026-08-01T11:51:26.262Z"
+      "installedAt": "2026-08-03T04:20:00.000Z",
+      "updatedAt": "2026-08-03T04:20:00.000Z"
     },
     "writing-artifacts": {
       "source": "ohyeh/agent-scripts",
@@ -609,22 +582,22 @@
       "updatedAt": "2026-08-01T11:44:27.233Z"
     },
     "writing-beats": {
-      "source": "ohyeh/agent-scripts",
+      "source": "mattpocock/skills",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/writing-beats/SKILL.md",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/in-progress/writing-beats/SKILL.md",
       "skillFolderHash": "545d05c3fdbfdd094dd88900b0ef8c9a823eac90",
-      "installedAt": "2026-08-01T11:51:26.263Z",
-      "updatedAt": "2026-08-01T11:51:26.263Z"
+      "installedAt": "2026-08-03T04:20:00.000Z",
+      "updatedAt": "2026-08-03T04:20:00.000Z"
     },
     "writing-fragments": {
-      "source": "ohyeh/agent-scripts",
+      "source": "mattpocock/skills",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/writing-fragments/SKILL.md",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/in-progress/writing-fragments/SKILL.md",
       "skillFolderHash": "ce7d2741a30df8a488f6248c84cf954cff98393f",
-      "installedAt": "2026-08-01T11:51:26.264Z",
-      "updatedAt": "2026-08-01T11:51:26.264Z"
+      "installedAt": "2026-08-03T04:20:00.000Z",
+      "updatedAt": "2026-08-03T04:20:00.000Z"
     },
     "writing-great-skills": {
       "source": "mattpocock/skills",
@@ -637,13 +610,13 @@
       "updatedAt": "2026-07-18T20:49:31.176Z"
     },
     "writing-shape": {
-      "source": "ohyeh/agent-scripts",
+      "source": "mattpocock/skills",
       "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/writing-shape/SKILL.md",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/in-progress/writing-shape/SKILL.md",
       "skillFolderHash": "31af0156520819c15d19358a8e0bd36f82e67ad3",
-      "installedAt": "2026-08-01T11:51:26.264Z",
-      "updatedAt": "2026-08-01T11:51:26.264Z"
+      "installedAt": "2026-08-03T04:20:00.000Z",
+      "updatedAt": "2026-08-03T04:20:00.000Z"
     }
   }
 }
