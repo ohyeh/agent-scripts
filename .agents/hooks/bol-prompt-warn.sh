@@ -13,12 +13,25 @@ TOOL_NAME="$(printf '%s' "$IN" | jq -r '.tool_name // empty')"
 [ "$TOOL_NAME" = "Agent" ] || exit 0
 
 PROMPT="$(printf '%s' "$IN" | jq -r '.tool_input.prompt // empty')"
+SUBAGENT_TYPE="$(printf '%s' "$IN" | jq -r '.tool_input.subagent_type // empty')"
 
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"
 mkdir -p "$DATA_DIR"
 STATS_FILE="$DATA_DIR/bol-prompt-stats.jsonl"
 VALIDATOR="$HOME/.agents/hooks/check-bol-prompt.sh"
 [ -x "$VALIDATOR" ] || VALIDATOR="$(dirname "$0")/../../scripts/check-bol-prompt.sh"
+
+# Search-shaped subagents (Explore/Plan) are read-only lookups whose prompts are
+# a question, not a work order — GOAL/ACCEPTANCE/REPORT does not apply. Log them
+# as "exempt" so stats keep full coverage, and never warn.
+case "$SUBAGENT_TYPE" in
+  Explore|Plan)
+    ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    jq -cn --arg ts "$ts" --arg st "$SUBAGENT_TYPE" \
+      '{timestamp: $ts, result: "exempt", subagent_type: $st, missing: []}' >> "$STATS_FILE"
+    exit 0
+    ;;
+esac
 
 output="$(printf '%s' "$PROMPT" | "$VALIDATOR" 2>&1)"
 rc=$?

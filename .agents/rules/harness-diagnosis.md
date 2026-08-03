@@ -32,7 +32,7 @@ Fix — mechanical routing, no judgment needed:
 - Command output expected > 20 lines, or unpredictable → `ctx_batch_execute` /
   `ctx_execute`; print only the derived answer.
 - Need content from > 3 files, or unsure which file → `Explore` subagent
-  (`model: "haiku"`, or `"sonnet"` if the question needs synthesis); its report must
+  (`model: "sonnet"` — haiku is retired per model-dispatch §1); its report must
   be ≤ 30 lines of conclusions + `file:line` references.
 - `Read` is ONLY for a PROJECT file you are about to `Edit`, and only the needed line
   range. Exempt: routed rules files under `~/.agents/rules/` (mandatory reads per

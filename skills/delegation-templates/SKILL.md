@@ -91,7 +91,7 @@ Do not fix anything; report only.
 ```
 Agent({
   subagent_type: "Explore" | "general-purpose" | ...,
-  model: "haiku" | "sonnet" | "opus",   // cheapest tier that can pass ACCEPTANCE
+  model: "sonnet" | "opus",   // cheapest tier that can pass ACCEPTANCE (haiku retired 2026-08-01; former haiku roles = sonnet at effort low)
   description: "{3-5 words}",
   prompt: "{filled template + common footer}"
 })

@@ -15,7 +15,7 @@ Do NOT escalate when: the failure is a typo-level bug, a missing import, a wrong
 path, or you have not yet read the error message carefully. Escalation without the
 full failure trail is wasted budget.
 - Positive: sonnet twice failed to fix a race condition, each fix moving the failure elsewhere → escalate to opus with both diffs + test output. Correct.
-- Negative: haiku got a `ModuleNotFoundError`, sonnet session escalates to opus "because it errored". Wrong — read the error; it's a missing install, fix it directly.
+- Negative: a low-effort sonnet worker got a `ModuleNotFoundError`, the session escalates to opus "because it errored". Wrong — read the error; it's a missing install, fix it directly.
 
 ## §2 When it is actually DONE (completion checklist)
 Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
@@ -26,7 +26,7 @@ Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
 - [ ] `git status`/`git diff` shown; work committed or the uncommitted state explicitly flagged.
 - [ ] Anything inferred-but-unverified is labeled `UNCONFIRMED` in the report.
 Missing any box → report "attempted, unverified" and say which box is open.
-- Positive: "Fixed. `npm test` exit 0 (14 passed), fresh haiku read-back PASS on all 3 files, diff shown above, committed as abc1234." Done.
+- Positive: "Fixed. `npm test` exit 0 (14 passed), fresh sonnet read-back PASS on all 3 files, diff shown above, committed as abc1234." Done.
 - Negative: "I've updated the config so the timeout issue should be resolved." No run, no evidence — this is "attempted, unverified", not done.
 
 ## §3 When to stop and ask the user
