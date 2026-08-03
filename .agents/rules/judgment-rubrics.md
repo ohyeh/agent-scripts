@@ -25,6 +25,11 @@ Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
 - [ ] Independently verified. Trivial single-file, low-risk change: author-run real command/test with quoted exit code suffices. Multi-file, risky, or user-facing work: a fresh-context agent (not the author) verified it — files: read-back; code: tests or a real run; claims: spot-check.
 - [ ] `git status`/`git diff` shown; work committed or the uncommitted state explicitly flagged.
 - [ ] Anything inferred-but-unverified is labeled `UNCONFIRMED` in the report.
+- [ ] Delegated-worker verdicts read from the result.json body (`status`), never
+      from the supervise/wait exit code. Exit≠0 with a missing/invalid
+      result.json is a protocol failure — inspect `result --path` + pane capture
+      before re-dispatching or reporting the task as failed; pane PASS without a
+      valid result.json stays `UNCONFIRMED`.
 Missing any box → report "attempted, unverified" and say which box is open.
 - Positive: "Fixed. `npm test` exit 0 (14 passed), fresh sonnet read-back PASS on all 3 files, diff shown above, committed as abc1234." Done.
 - Negative: "I've updated the config so the timeout issue should be resolved." No run, no evidence — this is "attempted, unverified", not done.
