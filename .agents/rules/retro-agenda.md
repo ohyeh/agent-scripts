@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.1.0-draft（2026-08-07，Claude 依 W31/W32 實跑經驗起草；使用者尚未逐條核准，
+Version: 1.2.0-draft（2026-08-07，Claude 依 W31/W32 實跑經驗起草；使用者尚未逐條核准，
 缺的面向以「待使用者補」標注。每次 retro 後若議程本身有缺陷，先改這份再改流程。）
 
 範圍：ohyeh/agent-scripts、ohyeh/tmux-agent-tools、ohyeh/context-mode-local-insight
@@ -52,12 +52,24 @@ Version: 1.1.0-draft（2026-08-07，Claude 依 W31/W32 實跑經驗起草；使�
 找不到指標的改動明列「無法驗證有效性」——這本身是 finding。
 （例：bol hook → pass 率曲線；judgment-rubrics §2 → done-claim 無證據率。）
 
-### 5. 死碼盤點 — 用量為零的資產
+### 5. 循環工具與記憶盤點 — 自家 repo 之外的回饋迴路，每台機器都有、都要看
+這些檔案是 local-only 或 per-machine，不會出現在 GitHub 對帳裡，漏看就斷循環：
+- `~/.agents/rules/lessons.md`：本週新增 proposed 條目逐條列出；>90 天仍 proposed
+  的 zombie 提醒使用者裁決（maintenance §3）。
+- `~/.agents/shared-memory-inbox/pending/`：未消化的 submissions 數量與積齡；
+  積壓 = finding，消化走 shared-memory-intake（Codex 才能 promote）。
+- `~/.codex/memories/`（MEMORY.md、rollout_summaries/）：本週新增的官方摘要，
+  對照 retro findings 有無矛盾。
+- hook stats（bol-prompt-stats.jsonl、context ledger）已由漏斗 Layer 1 收，勿重算。
+- 機隊：每台在編機器的上述四項都要收；目前僅本機（100.64.190.44 指回本機，
+  待 E1 釐清）。新機器入列時此節是 provisioning 檢查項。
+
+### 6. 死碼盤點 — 用量為零的資產
 recipe：`recipe-usage-stats.sh <name>`（consecutive_zero_weeks）。
 skill / rules 的零用量統計尚無工具（W32 缺口）。連續零週 ≥ 4 → attic 掛牌提案；
 掛牌後又有使用 → 撤牌（W32 的 design-consensus 教訓：單週快照會誤殺）。
 
-### 6. 裁決與產出
+### 7. 裁決與產出
 - findings 逐條給指揮者裁決（升級 / 觀察 / 棄案），不自動升級 hard block。
 - 產出 W+1 backlog：每項有證據、落點 repo、可驗收條件。
 - lessons.md 追加 proposed 條目（§2 門檻：使用者糾正一次即記；同摩擦兩次即記）。
