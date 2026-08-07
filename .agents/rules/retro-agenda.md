@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.2.0-draft（2026-08-07，Claude 依 W31/W32 實跑經驗起草；使用者尚未逐條核准，
+Version: 1.3.0-draft（2026-08-07，Claude 依 W31/W32 實跑經驗起草；使用者尚未逐條核准，
 缺的面向以「待使用者補」標注。每次 retro 後若議程本身有缺陷，先改這份再改流程。）
 
 範圍：ohyeh/agent-scripts、ohyeh/tmux-agent-tools、ohyeh/context-mode-local-insight
@@ -68,6 +68,20 @@ Version: 1.2.0-draft（2026-08-07，Claude 依 W31/W32 實跑經驗起草；使�
 recipe：`recipe-usage-stats.sh <name>`（consecutive_zero_weeks）。
 skill / rules 的零用量統計尚無工具（W32 缺口）。連續零週 ≥ 4 → attic 掛牌提案；
 掛牌後又有使用 → 撤牌（W32 的 design-consensus 教訓：單週快照會誤殺）。
+
+### 6.5 臨時動議與使用者訴求
+常設收件匣：`agent-scripts/.workflow/retro/inbox.md`（兩節：待討論議題＋本週隨手記；
+`.workflow/` 下 run dir 之外的具名子目錄，比照 recipes/ 慣例，跨週存活不倒空目錄）。
+平常隨時追加一行；隨手記收 collector 撈不到的人為觀察（糾正時刻、體驗峰谷、環境異動），
+retro 時倒空 inbox：議題逐條討論、隨手記餵給 §2–4 當 Layer 2 線索。
+再問一次「還有沒有臨時動議或訴求？」使用者隨時可插入，
+不受固定清單限制：
+- **臨時動議**：本週想討論但議程沒排的題目（新工具評估、方向調整、某次體驗特別糟/好）。
+  當場列入本次 findings 一起裁決。
+- **訴求**：對 agent 行為或流程的不滿與期望。訴求本身就是最高優先的體驗訊號——
+  直接對應 §2–4 的「使用者體驗」面，不需要 collector 佐證即成案。
+- 兩者都落入 backlog 或 lessons 提案，與其他 findings 同格式（證據/落點/驗收），
+  不得只記「已討論」。
 
 ### 7. 裁決與產出
 - findings 逐條給指揮者裁決（升級 / 觀察 / 棄案），不自動升級 hard block。
