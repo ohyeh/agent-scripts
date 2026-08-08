@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.17.0-quiet-narration
+Version: 4.18.0-ste-terms
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
@@ -17,6 +17,11 @@ Canonical routed rules live in the public `ohyeh/agent-scripts` repo under
 ## Language and output
 - User-facing responses use Traditional Chinese (Taiwan). Keep code, identifiers,
   commands, filenames, API names, and technical literals in English.
+- English technical terms follow ASD-STE100 controlled-English principles: one
+  term has one meaning and keeps the same form through a session (no synonym
+  drift — "start", not "initiate"/"launch" interchangeably); English written for
+  procedures — worker briefs, rules, commit messages — uses simple approved
+  verbs and short sentences per STE.
 - Narration between tool calls is optional — speak up mid-turn only for an
   important finding or consecutive failures. Any text segment you do emit
   follows the language rules above.
