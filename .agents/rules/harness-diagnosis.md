@@ -77,6 +77,10 @@ Documented interfaces may be relied on long-term; probed interfaces work today
 but carry no contract — note the verified CLI version at every use site and
 re-verify after a CLI upgrade.
 
+Not a truth source: `tailscale status` node liveness (a Fortinet-blocked
+coordination server lists reachable nodes — including this machine itself — as
+"offline"). Own IP: `ifconfig`; remote liveness: an actual SSH probe.
+
 ### Documented (official Hooks reference)
 - Hook stdin JSON, all events: `session_id`, `transcript_path` (the session's
   own jsonl), `cwd`, `hook_event_name`, `permission_mode`.

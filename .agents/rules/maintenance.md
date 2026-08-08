@@ -63,10 +63,17 @@ Hard constraints (close the approval bypass):
 - Canonical source (ADR-0001, ACTIVE) = the public `agent-scripts` repo's
   `.agents/rules/`. `~/.agents/rules/` on each machine is a deployed copy, read
   on demand by both runtimes per the routing table in the global files.
-- Deploy = `rsync -a --delete --exclude lessons.md <repo>/.agents/rules/
-  ~/.agents/rules/`. The `--exclude lessons.md` is required — without it,
-  `--delete` would erase the machine's local lessons file. `lessons.md` stays
-  LOCAL-ONLY — it is never published to the public repo.
+- Deploy = `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/`.
+  `lessons.md` is repo-synced since 2026-08-08 (W32 ruling A-3); before deploying,
+  check each machine for local lessons entries not yet merged into the repo copy —
+  merge them first, or `--delete` destroys them.
+- Deploy hygiene (each learned from a real drift incident): after any institution
+  pivot, grep every rules/global file for the old mechanism's tokens and fix them
+  in one pass; periodically diff native `~/.claude/CLAUDE.md`/`~/.codex/AGENTS.md`
+  against repo `global/` in FULL (not just Version + touched lines); every skill
+  named in the global files or routed rules must have a fleet `skills-lock.json`
+  entry; treat any `skills update`-family subcommand as mutating (never pass it
+  `--help`).
 - The two global files are canonical in the repo's `global/` directory,
   deployed to their runtime paths (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`)
   byte-identical, kept content-identical (same `Version:` line), never

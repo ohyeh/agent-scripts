@@ -56,6 +56,13 @@ Every task uses the matching `delegation-templates` shape and contains:
 
 Never claim the user authorized a model unless their quoted message names it.
 
+Two packet-shape hard rules (each learned from a real delegation failure):
+- A packet that rewrites tests puts per-test assertion count and a zero-`fetch`
+  (no source-substring-grep) check in ACCEPTANCE, and states that a DROPPING test
+  count beats a hollow shell.
+- A packet that deletes or replaces a file enumerates the behaviours that file
+  owned, as items to port or explicitly retire — "route move" is not a description.
+
 > REPORT: short conclusions only; `file:line` per claim; fresh command + exit code +
 > key lines for changed work. Hard cap 30 lines. Longer material goes to the declared
 > artifact. Missing acceptance is reported, never concealed.
@@ -79,6 +86,19 @@ parent does not call status/watch/capture/probe/ping/result or send follow-ups u
 the proxy reports a blocker/lost liveness, terminates unexpectedly, or the user asks.
 Native subagents need no proxy. Without native subagents, run directly and report
 `UNAVAILABLE-NATIVE`.
+
+tmux worker mechanics (highest-frequency real-world failure — ≥4 sessions re-hit
+this after it was recorded):
+- Start sequence is exactly `start` (NO `--prompt-file`) → `result init` →
+  `send --from-file <abs>` → one blocking `supervise`. A worker started with
+  `--prompt-file` sits idle with no task; the symptom mimics an account/auth hang.
+- Before declaring any profile/worker unusable: read
+  `skills/tmux-agent-tools/scripts/profiles/README.md` (bin= may need a bare env
+  override, e.g. `CLAUDE="$(command -v claude)" agent-tmux <profile-filename> start …`).
+- Headless codex: always `codex exec … < /dev/null` (add `--skip-git-repo-check`
+  outside a trusted repo) or it hangs on stdin.
+- A worker stuck longer than ~15 min escalates to the user as a blocker; silent
+  fixed-interval polling is forbidden (the proxy's blocking wait IS the mechanism).
 
 ## §5 Effort and retry ladder
 

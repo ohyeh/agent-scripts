@@ -25,6 +25,15 @@ Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
 - [ ] Independently verified. Trivial single-file, low-risk change: author-run real command/test with quoted exit code suffices. Multi-file, risky, or user-facing work: a fresh-context agent (not the author) verified it — files: read-back; code: tests or a real run; claims: spot-check.
 - [ ] `git status`/`git diff` shown; work committed or the uncommitted state explicitly flagged.
 - [ ] Anything inferred-but-unverified is labeled `UNCONFIRMED` in the report.
+- [ ] Claims about file contents rest on full, non-truncated reads via an auditable
+      Read — a grep/rg hit alone is never evidence; read the definition/context it
+      points at (a hit may be documentation, not the behavior). File identity or
+      drift is judged by `diff`, never by hash mismatch alone. Claims about an
+      untracked file need `git ls-files` / `git log -- <path>` — `git diff --stat`
+      cannot see it.
+- [ ] Runtime claims: "Restarted", port in LISTEN, or exit 0 prove nothing about NEW
+      behavior — evidence is an observable difference (screen/output diff, or a
+      fresh install's first run).
 - [ ] Delegated-worker verdicts read from the result.json body (`status`), never
       from the supervise/wait exit code. Exit≠0 with a missing/invalid
       result.json is a protocol failure — inspect `result --path` + pane capture
@@ -60,6 +69,8 @@ retry of the same idea is forbidden (retry budget in `rules/model-dispatch.md` �
 - [ ] The diff keeps growing but the acceptance criteria get no closer.
 - [ ] You are fighting the framework/library (patching internals, copying private code).
 - [ ] The explanation of why it will work this time requires more than 3 sentences.
+- [ ] The user re-pastes the same correction they already gave — hard signal the last
+      fix never landed: stop the current path, read the named asset in full, then answer.
 When triggered: stop; write down (a) what was assumed, (b) which assumption the
 evidence now contradicts; form a NEW hypothesis that explains ALL observations, or
 escalate with the trail.
@@ -69,7 +80,8 @@ escalate with the trail.
 ## §5 Quality floor — the minimum bar and how to check it
 Apply: before handing over any artifact (code, doc, config, report).
 - [ ] Code: existing tests pass; new non-trivial logic has one runnable check (assert-based demo or one small test); no placeholder text (`TODO: implement`, `...`, lorem) left; matches surrounding style.
-- [ ] Docs/rules: every path, command, model name, version verified live this session; no rule contradicts CLAUDE.md; concrete enough that a model without this conversation's context could follow it.
+- [ ] Docs/rules: every path, command, model name, version verified live this session; no rule contradicts CLAUDE.md; concrete enough that a model without this conversation's context could follow it. A doc embedding a computed fingerprint (aggregate hash, count) re-derives it in the same commit that changes any hashed input.
+- [ ] Tests for code that consumes a library's serialized output: at least one fixture is built WITH that library and the test asserts the transform happened (e.g. output strictly smaller than input) — a hand-written literal tests the fixture, not the contract. Never run a build-producing suite while a delegated worker may be building the same tree.
 - [ ] Reports: conclusions first; every claim has evidence or `file:line`; inferred vs verified separated; most likely failure point named.
 - [ ] Everything: the deliverable answers the ORIGINAL request, not the sub-problem you got absorbed in.
 - [ ] Measurement/inventory (logs, usage, counts): script-full-coverage only — sampling is forbidden at the measurement layer; LLM deep-read covers the COMPLETE script-flagged set (triage, not sampling); every reported number carries its producing command; two conflicting "full" sweeps are adjudicated by the commander re-running one shared method — never by picking a report.
