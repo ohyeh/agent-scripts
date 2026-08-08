@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.4.0（2026-08-08 使用者逐條裁決後轉正式；W32 open-questions C-1～C-4 已套入。
+Version: 1.5.0（2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
 
 範圍：以 agent 協作過程與循環為主軸——ohyeh/agent-scripts、ohyeh/tmux-agent-tools、
@@ -100,8 +100,15 @@ retro 時倒空 inbox：議題逐條討論、隨手記餵給 §2–4 當 Layer 2
 
 ### 8. 收尾固定更新（使用者裁定 2026-08-08：每輪必做，不待點名）
 裁決落地後、報告收尾前，用當輪活資料重生唯一狀態頁
-「Claude Code 艦隊儀表板」（同 URL 原地更新；資料一律現場重測，
-禁止沿用上輪數字）。內容含：拓撲、逐層健檢指紋、skills 花名冊、
-workflows 漂移、已知問題、封存帳。舊有五頁（skill/workflow manifest、
-健檢報告、分群圖、spinout）已於 2026-08-08 併入並立指路碑，不再更新。
-URL 以 Artifact list 現場查（標題固定），不硬編在此。
+「Claude Code 艦隊儀表板」（同 URL 原地更新；URL 以 Artifact list 現場查，
+標題固定）。資料一律現場重測，禁止沿用上輪數字。資料源 repo 與各自量測層：
+
+| Repo | 量測層 |
+|---|---|
+| ohyeh/agent-scripts | kernel（global/）、routed rules（.agents/rules/）、hooks（.agents/hooks/＋settings.json 掛載）、skills-lock.json、workflows（skills/using-workflows/workflows/ 套組 hash） |
+| ohyeh/tmux-agent-tools | agent-tmux script 指紋、dispatch-gate plugin ×4 位置、smoke 狀態 |
+| ohyeh/context-mode-local-insight | agent-sessions --fleet（雙機 session 量測，schema 版本） |
+| 機器層（非 repo） | shared-memory-inbox pending、codex --version、部署層 .skill-lock.json hash |
+
+舊有五頁（skill/workflow manifest、健檢報告、分群圖、spinout）已於
+2026-08-08 併入並立指路碑，不再更新。
