@@ -8,9 +8,9 @@ model-dispatch §3/§4、maintenance §5、harness-diagnosis 信任層之後，�
 Rule: scrub.sh 一律傳外部 evidence dir 為 `$2`；歷史掃描命中先分流 real-secret vs documented-placeholder 再升級。
 Status: proposed   # 待折入 scrub 腳本 usage/註解後刪
 
-## 2026-07-22 | scope: dispatch | trigger: 使用者裁定外部 worker 監督 proxy 為 MUST，一週試用
-Rule: 試用期已過（2026-07-22 起）——需對照真實 worker 使用資料裁決轉正或撤，本輪 Layer 2 顯示 proxy 機制本身未被穩定走到。
-Status: proposed   # 待使用者裁決轉正/撤
+## 2026-08-08 | scope: dispatch | trigger: agy「卡帳號驗證」實為 start --prompt-file 舊寫法讓任務沒送達（agy 本身登入正常）；使用者設計的步驟化序列被證實有效
+Rule: M5 wrapper 收編使用者的六步序列為單一 dispatch 指令（start 不帶 prompt-file → CLI 就緒確認含 agy folder-trust capture+enter → result init → send --from-file → capture 確認 pane 在處理 → 一次阻塞 supervise），每步確認才走下一步、失敗即報 blocker 帶 capture；wrapper 上線後 7/22 的 per-worker 監督 proxy 撤（序列本身就是監督）。
+Status: proposed   # 畢業條件：tmux-agent-tools wrapper 上線（M5，P0）
 
 ## 2026-07-27 | scope: agent-device | trigger: 使用者多次糾正 simulator 被工具當副作用開啟；規則已存在仍犯（W32 L2 確認為執行失敗）
 Rule: 每次 `agent-device` 指令後檢查 `xcrun simctl list devices | rg -i booted`，非空即 shutdown 並回報——待做成工具閘門（wrapper/hook），排 W33 機器閘門。
@@ -24,6 +24,6 @@ Status: proposed   # 畢業條件：installed workflow 修復核准
 Rule: session-handoff resume 段補 acceptance-echo（複誦唯一驗收物＋確認 cwd/worktree）；validate_handoff.py regex `##?` → `#{1,6}`。installed skill 修改待核准 diff。
 Status: proposed   # 畢業條件：skill 修復核准（N2）
 
-## 2026-08-08 | scope: fleet | trigger: W32 Layer 2 — agy 在 tmux pane 反覆卡 "Verifying your account"（842a6043 ×4 波、c26d3bd2）
-Rule: agy headless 認證需根因診斷（tmux pane 缺 GUI/keychain session？）→ tmux-agent-tools issue；artifact publish 前先讀最新版 merge（cbc898bf 409×3＋SVG 誤刪）。
-Status: proposed   # 畢業條件：issue 開立＋工具修復（N3）
+## 2026-08-08 | scope: artifacts | trigger: W32 Layer 2 — Artifact 多 session 並發編輯 409×3＋早期 SVG 遭覆蓋誤刪（cbc898bf）
+Rule: artifact 更新前先 WebFetch 讀最新版、在其上 merge 再 publish；409 的正解是重讀重併，force 需使用者明示。
+Status: proposed   # 畢業條件：折入 writing-artifacts skill 或 pre-publish 檢查（N3 餘項）
