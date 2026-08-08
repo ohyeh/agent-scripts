@@ -78,20 +78,23 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 | review/verification | fresh `sonnet`; risky=`opus` | fresh Sol medium |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` low | Terra low |
-| supervise external CLI worker | `general-purpose` on `sonnet` low | one Terra low/medium proxy |
+| dispatch external CLI worker | one blocking `assign` call (background task, or `general-purpose` on `sonnet` low when foreground timeouts cap the wait) | one blocking `assign` call (same) |
 
-External asynchronous workers have exactly one native supervision-only proxy. It owns
-the wrapper, waits through the tool-layer blocking supervisor, and never polls. The
-parent does not call status/watch/capture/probe/ping/result or send follow-ups unless
-the proxy reports a blocker/lost liveness, terminates unexpectedly, or the user asks.
-Native subagents need no proxy. Without native subagents, run directly and report
-`UNAVAILABLE-NATIVE`.
+External asynchronous workers are dispatched with ONE
+`agent-tmux <cli> assign <name> <dir> <prompt-file>` call. The stepwise sequence it
+encodes (start → result init → send --from-file → confirm-the-pane-is-processing →
+one blocking supervise --result-required) IS the supervision — the per-worker
+supervision-proxy pattern is RETIRED (2026-08-08, W32 M5; user-designed sequence).
+Run the single blocking call where a long wait is appropriate: a background task, or
+one cheap subagent when the runtime caps foreground timeouts. The parent does not
+additionally call status/watch/capture/probe/ping/result or send follow-ups unless
+`assign` reports a failed step/blocker or the user asks.
 
 tmux worker mechanics (highest-frequency real-world failure — ≥4 sessions re-hit
 this after it was recorded):
-- Start sequence is exactly `start` (NO `--prompt-file`) → `result init` →
-  `send --from-file <abs>` → one blocking `supervise`. A worker started with
-  `--prompt-file` sits idle with no task; the symptom mimics an account/auth hang.
+- Dispatch is `assign` — never hand-chain the steps. A worker started with
+  `--prompt-file` sits idle with no task; the symptom mimics an account/auth hang
+  (`assign` makes that shape impossible and catches "task never reached the CLI").
 - Before declaring any profile/worker unusable: read
   `skills/tmux-agent-tools/scripts/profiles/README.md` (bin= may need a bare env
   override, e.g. `CLAUDE="$(command -v claude)" agent-tmux <profile-filename> start …`).
