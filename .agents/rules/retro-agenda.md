@@ -1,10 +1,13 @@
 # Weekly Retro Agenda
 
-Version: 1.3.0-draft（2026-08-07，Claude 依 W31/W32 實跑經驗起草；使用者尚未逐條核准，
-缺的面向以「待使用者補」標注。每次 retro 後若議程本身有缺陷，先改這份再改流程。）
+Version: 1.4.0（2026-08-08 使用者逐條裁決後轉正式；W32 open-questions C-1～C-4 已套入。
+每次 retro 後若議程本身有缺陷，先改這份再改流程。）
 
-範圍：ohyeh/agent-scripts、ohyeh/tmux-agent-tools、ohyeh/context-mode-local-insight
-三 repo 一起看——它們合起來是同一套 agent 作業系統。
+範圍：以 agent 協作過程與循環為主軸——ohyeh/agent-scripts、ohyeh/tmux-agent-tools、
+ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo）的 agent
+使用也算範圍但次要輕量，只在 Layer 1 帶出強訊號時深挖。
+
+觸發：使用者手動發起（喊「RETRO時間」），不排程、不自動觸發。
 
 ## 不變式
 
@@ -37,6 +40,11 @@ Version: 1.3.0-draft（2026-08-07，Claude 依 W31/W32 實跑經驗起草；使�
   collector 目前只出 rate 不出名單者，列為 collector backlog。
 - 手排只補 collector 未覆蓋的面（tmux worker result.json、bol-stats），
   不得重算 collector 已覆蓋的數字。
+- **token／成本面**：collector 加 token/成本欄（每 session 的 token 用量與估算成本，
+  同 `{value, method, tier}` 契約）；模型對照（如 opus-low vs sonnet）必附成本數字，
+  只有重試次數不算完成。欄位未落地前明寫「本週成本面未量測」。
+- **使用者糾正事件粗篩**：collector 加輕量關鍵詞欄（「不對」「不是」「我說的是」
+  「你改壞」等改口/糾正訊號），只出候選名單餵 Layer 2，不建大系統、不判定語意。
 
 **Layer 2 定向深挖（/wayfinder、/unknowns-discovery 的精神）**
 只挖 Layer 1 點名的 session，不掃全部原文——粗篩就是為了讓深挖有效率：
@@ -53,9 +61,10 @@ Version: 1.3.0-draft（2026-08-07，Claude 依 W31/W32 實跑經驗起草；使�
 （例：bol hook → pass 率曲線；judgment-rubrics §2 → done-claim 無證據率。）
 
 ### 5. 循環工具與記憶盤點 — 自家 repo 之外的回饋迴路，每台機器都有、都要看
-這些檔案是 local-only 或 per-machine，不會出現在 GitHub 對帳裡，漏看就斷循環：
-- `~/.agents/rules/lessons.md`：本週新增 proposed 條目逐條列出；>90 天仍 proposed
-  的 zombie 提醒使用者裁決（maintenance §3）。
+這些檔案多為 per-machine，不會出現在 GitHub 對帳裡，漏看就斷循環：
+- `~/.agents/rules/lessons.md`（2026-08-08 起 repo 同步，canonical 在
+  `.agents/rules/lessons.md`）：本週新增 proposed 條目逐條列出；>90 天仍 proposed
+  的 zombie 提醒使用者裁決（maintenance §3）。部署前先確認兩機無未合併的本地追加。
 - `~/.agents/shared-memory-inbox/pending/`：未消化的 submissions 數量與積齡；
   積壓 = finding，消化走 shared-memory-intake（Codex 才能 promote）。
 - `~/.codex/memories/`（MEMORY.md、rollout_summaries/）：本週新增的官方摘要，
@@ -88,10 +97,3 @@ retro 時倒空 inbox：議題逐條討論、隨手記餵給 §2–4 當 Layer 2
 - 產出 W+1 backlog：每項有證據、落點 repo、可驗收條件。
 - lessons.md 追加 proposed 條目（§2 門檻：使用者糾正一次即記；同摩擦兩次即記）。
 - 需要使用者決策的事項集中列在報告最後，一次問完。
-
-## 待使用者補的面向（Claude 認知外的部分）
-
-- retro 要不要看 token / 成本面？（collector 尚無此面）
-- 使用者糾正事件的收集要工具化到什麼程度？
-- 三 repo 之外（如 healthgo 等產品 repo 的 agent 使用）算不算 retro 範圍？
-- 週期與觸發：目前是使用者喊「RETRO時間」；要不要固定排程？

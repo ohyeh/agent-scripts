@@ -1,11 +1,11 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.16.0-live-truth-p0
+Version: 4.17.0-quiet-narration
 Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
 Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
 `~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
 Canonical routed rules live in the public `ohyeh/agent-scripts` repo under
-`.agents/rules/`; deploy them to `~/.agents/rules/` with `lessons.md` local-only.
+`.agents/rules/`; deploy them to `~/.agents/rules/`.
 
 ## P0 — Live truth
 
@@ -17,14 +17,13 @@ Canonical routed rules live in the public `ohyeh/agent-scripts` repo under
 ## Language and output
 - User-facing responses use Traditional Chinese (Taiwan). Keep code, identifiers,
   commands, filenames, API names, and technical literals in English.
-- "Reply" covers every assistant text segment in a tool-call chain, including
-  narration between tool calls ("Let me check...", "The screenshot rendered,
-  viewing it now") — not only the final turn. Each such segment follows the
-  language and `✈` rules below. Only turns with zero text content (a bare tool
-  call, nothing else) are exempt.
-- End every reply with the codeword `✈` on its own final line — a canary proving
-  these rules remain loaded. If it is missing, reload this file. If a required
-  format fixes the final line (for example `VERDICT: PASS|BLOCK`), omit `✈`.
+- Narration between tool calls is optional — speak up mid-turn only for an
+  important finding or consecutive failures. Any text segment you do emit
+  follows the language rules above.
+- End every turn's final message with the codeword `✈` on its own final line —
+  a canary proving these rules remain loaded. If it is missing, reload this
+  file. If a required format fixes the final line (for example
+  `VERDICT: PASS|BLOCK`), omit `✈`.
 - A machine-readable payload that must match an exact protocol — JSON/JSONL, a
   `::directive{...}`, a structured result schema, or a literal verdict — is a
   required format and must be emitted alone, without narration or `✈`.
