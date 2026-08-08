@@ -46,15 +46,6 @@
       "installedAt": "2026-08-01T11:44:27.225Z",
       "updatedAt": "2026-08-01T11:44:27.225Z"
     },
-    "batch-grill-me": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/in-progress/batch-grill-me/SKILL.md",
-      "skillFolderHash": "f2c0125db05db4d8f905a9423af308c476e2e4d5",
-      "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-03T04:20:00.000Z"
-    },
     "brainstorming": {
       "source": "obra/superpowers",
       "sourceType": "github",
@@ -165,15 +156,6 @@
       "pluginName": "mattpocock-skills",
       "installedAt": "2026-07-18T20:49:31.166Z",
       "updatedAt": "2026-07-18T20:49:31.166Z"
-    },
-    "edit-article": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/personal/edit-article/SKILL.md",
-      "skillFolderHash": "19ce34c6f4afcb58788e8e525dbb80c79a45a4a0",
-      "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-03T04:20:00.000Z"
     },
     "find-skills": {
       "source": "vercel-labs/skills",
@@ -300,15 +282,6 @@
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/misc/migrate-to-shoehorn/SKILL.md",
       "skillFolderHash": "0aea91a3599a4bf7aeec17e3262d4cbcfcbeec23",
-      "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-03T04:20:00.000Z"
-    },
-    "obsidian-vault": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/personal/obsidian-vault/SKILL.md",
-      "skillFolderHash": "5fdd257588fefa400e8a0d505aac555a0b52311a",
       "installedAt": "2026-08-03T04:20:00.000Z",
       "updatedAt": "2026-08-03T04:20:00.000Z"
     },
@@ -563,14 +536,23 @@
       "installedAt": "2026-07-18T20:49:31.170Z",
       "updatedAt": "2026-07-18T20:49:31.170Z"
     },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/agent-skills.git",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "skillFolderHash": "3116f3e62dbd02b44a598b1aa690d2a8938e8f89",
+      "installedAt": "2026-08-08T03:30:00.000Z",
+      "updatedAt": "2026-08-08T03:30:00.000Z"
+    },
     "wizard": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/in-progress/wizard/SKILL.md",
-      "skillFolderHash": "e4dc85309aebecd9759f6c4cb3fdcb7c4f69544c",
-      "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-03T04:20:00.000Z"
+      "skillPath": "skills/engineering/wizard/SKILL.md",
+      "skillFolderHash": "359db2fb13dc168346632556185252cab9dbec77",
+      "installedAt": "2026-08-08T03:30:00.000Z",
+      "updatedAt": "2026-08-08T03:30:00.000Z"
     },
     "writing-artifacts": {
       "source": "ohyeh/agent-scripts",
@@ -598,16 +580,6 @@
       "skillFolderHash": "ce7d2741a30df8a488f6248c84cf954cff98393f",
       "installedAt": "2026-08-03T04:20:00.000Z",
       "updatedAt": "2026-08-03T04:20:00.000Z"
-    },
-    "writing-great-skills": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/productivity/writing-great-skills/SKILL.md",
-      "skillFolderHash": "81d36946d48842f90358d8af54e3cdcc141f8e01",
-      "pluginName": "mattpocock-skills",
-      "installedAt": "2026-07-18T20:49:31.176Z",
-      "updatedAt": "2026-07-18T20:49:31.176Z"
     },
     "writing-shape": {
       "source": "mattpocock/skills",
