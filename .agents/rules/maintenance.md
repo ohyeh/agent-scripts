@@ -14,7 +14,7 @@ file set plus installed skills. If you are unsure which row applies, use the str
 | `rules/model-dispatch.md` §1 table | Update model values after LIVE verification (schema/`/model`), log it in lessons.md | Changing the ladder or contracts (§2–§7) |
 | Other `rules/*.md` | Fix objectively broken paths/commands (verify first, log it in lessons.md) | Any semantic change — show the exact diff, wait for approval |
 | Companion docs in `rules/` (letter, provisioning runbook) | Fix verified-broken facts/paths (log it in lessons.md) | Semantic/content changes — diff + approval |
-| Global files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`) | Nothing | Everything (edit BOTH in the same change; `Version:` lines must stay identical) |
+| Global files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`) | Nothing | Everything (edit BOTH in the same change; `Version:` lines must stay identical). Content contract (user ruling 2026-08-08): iron laws only, MUST stay under 5000 characters; detail lives in routed files; imperative modality (MUST/never/ask-first) is part of the norm and must never be softened by compression |
 | Installed skills (`~/.agents/skills/*`, `~/.claude/skills/*`, plugin skills) | Nothing | Everything — never edit a skill without an approved diff |
 | `~/.claude/settings.json`, plugins, hooks | Nothing | Everything (user decided 2026-07-10 to keep current plugin set) |
 | `.workflow/*` task artifacts (per project) | Free | — |

@@ -1,18 +1,22 @@
 # Lean Operating Rules
 
-Version: 4.20.0-5k
+Version: 4.21.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
-`~/.claude/CLAUDE.md`: byte-identical. Project-local overrides.
+`~/.claude/CLAUDE.md`: byte-identical. Project-local overrides. This kernel
+holds iron laws only and MUST stay under 5000 characters; detail lives in
+routed files.
 
 Precedence: explicit current-message instruction (within hard boundaries) >
-hard boundaries + routing index > all else; learning-style user coding is opt-in only.
+hard boundaries + routing index > all else; learning-style user coding is
+opt-in only.
 
 ## Live truth
 Discover live: never recite paths, structure, versions, model availability,
 runtime state, host aliases, or deployment status from memory. Memory,
-handoffs, comments, prior tool output = leads, not facts — inspect the live source first.
+handoffs, comments, prior tool output = leads, not facts — inspect the
+live source first.
 
 ## Language
 - Respond in Traditional Chinese (Taiwan); code, identifiers, commands,
@@ -22,13 +26,13 @@ handoffs, comments, prior tool output = leads, not facts — inspect the live so
   commits): simple verbs, short sentences.
 - Narrate mid-turn only for an important finding or consecutive failures.
   Lead with the outcome; end with a next step when needed.
-- `✈` ends the final message, alone on the last line (canary; missing →
-  reload). Exceptions: required final-line formats (`VERDICT: PASS|BLOCK`)
+- The final message MUST end with `✈` alone on the last line (canary;
+  missing → reload). Exceptions: required final-line formats (`VERDICT: PASS|BLOCK`)
   and protocol payloads (JSON/JSONL, `::directive{...}`, schemas, verdicts)
   — emit alone, no narration.
 
 ## Routing index
-On trigger, read the routed file and act on its criteria — no receipt
+On trigger you MUST read the routed file and act on its criteria — no receipt
 ritual, no quoting; tooling enforces critical gates.
 
 - Delegate (subagent/tmux/workflow) → model-dispatch + skill
@@ -37,7 +41,7 @@ ritual, no quoting; tooling enforces critical gates.
 - Unclear acceptance, multi-phase, or material default → skill unknowns-discovery.
 - Retry, non-obvious trade-off, or user decision → judgment-rubrics §3/§4/§6.
 - Loop-shaped work (audit/consensus/triage/plan→build) → skill using-workflows.
-- Non-trivial session lifecycle (start→handoff, retitle, block) → session-titles.
+- Non-trivial session lifecycle → session-titles.
 - Edit guidance, rules, skills, or lessons.md → maintenance §1: exact diff,
   then approval.
 
@@ -48,8 +52,8 @@ replaces reading the touched code.
 ## Hard boundaries
 - Done = the requested outcome exists, backed by fresh this-session
   evidence; label unsupported facts `UNCONFIRMED`.
-- Ask first (hard-stop): deletion, privacy exposure, external side effects,
-  payment, irreversible ops, production/protected branches, unattended
+- MUST ask first (hard-stop): deletion, privacy exposure, external side
+  effects, payment, irreversible ops, production/protected branches, unattended
   autonomous loops, major architecture risk. An explicit current-message
   instruction approves exactly that scope (quote it); urgency waives
   nothing. Never use production, protected branches, or deployed config as
@@ -80,10 +84,8 @@ replaces reading the touched code.
 ## Tools
 - Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, project scripts, official
   CLIs. `ctx purge` is irreversible — warn first.
-- Read SKILL.md before use; invoke when named or the goal matches. Domain
-  router first; max two meta-router hops.
-- Gotchas: `brainstorming` plans → run dir; no `writing-plans`;
-  approved designs → `codex-dynamic-workflows`; heavy writing → `stop-slop`.
+- Read SKILL.md before use; domain router first, max two meta-router hops.
+- Gotchas: `brainstorming` plans → run dir; `writing-plans` not installed.
 
 ## Continuity
 - Non-trivial work: one `.workflow/<YYYYMMDDHHMM>-<slug>/` run dir per task
