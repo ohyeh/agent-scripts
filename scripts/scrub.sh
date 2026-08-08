@@ -22,6 +22,10 @@
 # these concatenations back into single literals -- that reintroduces the
 # self-match and would require re-adding a file-scope exclusion instead.
 #
+# History-wide findings need triage into real-secret vs documented-placeholder
+# (teaching paths, AWS docs example keys) before escalating — placeholders get a
+# policy decision, never a pattern weakening.
+#
 # Usage: scripts/scrub.sh [REPO] [EVIDENCE_DIR]
 #   REPO         defaults to the repo containing this script.
 #   EVIDENCE_DIR defaults to $REPO/.scrub-evidence (caller may point this at
@@ -29,8 +33,19 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-REPO="${1:-$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)}"
-EVIDENCE="${2:-$REPO/.scrub-evidence}"
+REPO="${1:-$SCRIPT_DIR/..}"
+REPO="$(CDPATH= cd -- "$REPO" && pwd)"
+# EVIDENCE_DIR inside the repo dirties the worktree and self-BLOCKs the scan
+# (happened twice: W4 era and 2026-07-18) — require an external path.
+if [ -z "${2:-}" ]; then
+  echo "ERROR: EVIDENCE_DIR (\$2) is required and must be OUTSIDE the repo." >&2
+  echo "Usage: scripts/scrub.sh <REPO> <EVIDENCE_DIR>   e.g. \$TMPDIR/scrub-evidence" >&2
+  exit 1
+fi
+EVIDENCE="$2"
+case "$(CDPATH= cd -- "$(dirname -- "$EVIDENCE")" 2>/dev/null && pwd)/$(basename -- "$EVIDENCE")" in
+  "$REPO"/*) echo "ERROR: EVIDENCE_DIR resolves inside the repo ($REPO) — pick an external path." >&2; exit 1;;
+esac
 mkdir -p "$EVIDENCE"
 
 # --- base patterns (W1+W2) ---

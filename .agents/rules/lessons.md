@@ -4,10 +4,6 @@
 歷史在 git log（2026-08-08 W32 清算：48 條 → 折入 judgment-rubrics §2/§4/§5、
 model-dispatch §3/§4、maintenance §5、harness-diagnosis 信任層之後，餘下如下）。
 
-## 2026-07-18 | scope: scrub | trigger: 預設 evidence dir 落在 repo 內自弄髒 worktree（踩過兩次）
-Rule: scrub.sh 一律傳外部 evidence dir 為 `$2`；歷史掃描命中先分流 real-secret vs documented-placeholder 再升級。
-Status: proposed   # 待折入 scrub 腳本 usage/註解後刪
-
 ## 2026-08-08 | scope: dispatch | trigger: agy「卡帳號驗證」實為 start --prompt-file 舊寫法讓任務沒送達（agy 本身登入正常）；使用者設計的步驟化序列被證實有效
 Rule: M5 wrapper 收編使用者的六步序列為單一 dispatch 指令（start 不帶 prompt-file → CLI 就緒確認含 agy folder-trust capture+enter → result init → send --from-file → capture 確認 pane 在處理 → 一次阻塞 supervise），每步確認才走下一步、失敗即報 blocker 帶 capture；wrapper 上線後 7/22 的 per-worker 監督 proxy 撤（序列本身就是監督）。
 Status: proposed   # 畢業條件：tmux-agent-tools wrapper 上線（M5，P0）
