@@ -159,12 +159,12 @@
 
   <header class="head">
     <div>
-      <p class="head-eyebrow">Agent Workflows · Manifest · Repo（canonical）＋ 1 台機器</p>
-      <span class="machine-badge"><span class="dot-live"></span>REPO (CANONICAL)</span><span class="machine-badge">mbp14 (ohYEHs-MBP-14.local)</span>
+      <p class="head-eyebrow">Agent Workflows · Manifest · Repo（canonical）＋ 2 台機器</p>
+      <span class="machine-badge"><span class="dot-live"></span>REPO (CANONICAL)</span><span class="machine-badge">mbp-local</span><span class="machine-badge">paul-44</span>
       <h1>Workflow 分佈快照</h1>
       <p>已存 dynamic workflows 與 exhaust scripts 的採收裁定。repo 的
       <span class="mono">skills/using-workflows/workflows/</span> 是唯一 canonical 來源，方向永遠 <b>repo → machines</b>。
-      2026-08-01 掃 mbp14：零漂移；exhaust 12 base（38 files）全數裁定。</p>
+      2026-08-08 掃 mbp-local＋paul-44：雙機 12/12 零漂移（套組 hash 3fa06b71）。W32 事件：feature-lifecycle-auto read-job schema 改 typed properties＋unwrap 防禦（實戰修復），一度只落機器層、已回灌 canonical。exhaust 12 base（38 files）維持全數裁定。</p>
     </div>
     <div class="stamp" aria-label="12 saved workflows">
       <span class="n">12</span>
@@ -175,8 +175,8 @@
   <div class="meta-row">
     <div class="meta-item"><p class="k">Single source of truth</p><p class="v">/Users/paul.yeh/github/agent-scripts/skills/using-workflows/workflows/</p></div>
     <div class="meta-item"><p class="k">Canonical</p><p class="v">repo:agent-scripts · 12 recipes + _lib ×3</p></div>
-    <div class="meta-item"><p class="k">Machines</p><p class="v">mbp14 (ohYEHs-MBP-14.local) ✓ 12/12 · 0 drift</p></div>
-    <div class="meta-item"><p class="k">Date</p><p class="v">2026-08-01</p></div>
+    <div class="meta-item"><p class="k">Machines</p><p class="v">mbp-local ✓ 12/12 · paul-44 ✓ 12/12 · 0 drift</p></div>
+    <div class="meta-item"><p class="k">Date</p><p class="v">2026-08-08</p></div>
     <div class="meta-item"><p class="k">Exhaust</p><p class="v">38 files · 12 base names · 全數已裁定</p></div>
   </div>
 
@@ -354,7 +354,7 @@ Q5 真一次性 — everything else: project-specific, single-run, not worth abs
   </section>
 
   <footer>
-    <span>canonical：repo <span class="mono">skills/using-workflows/workflows/</span> · 2026-08-01</span>
+    <span>canonical：repo <span class="mono">skills/using-workflows/workflows/</span> · 2026-08-08 · 套組 sha 3fa06b71</span>
     <span>靜態快照 · 重跑 <span class="mono">workflow-manifest</span> recipe 即可再生</span>
   </footer>
 
