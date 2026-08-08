@@ -1,37 +1,35 @@
 # AGENTS.md / CLAUDE.md — Lean Operating Rules
 
-Version: 4.18.0-ste-terms
-Provenance: repo-canonical shared kernel; detailed policy is routed on demand.
-Runtime files remain native: Codex uses `~/.codex/AGENTS.md`; Claude Code uses
-`~/.claude/CLAUDE.md`. Keep them byte-identical. Project-local instructions override.
-Canonical routed rules live in the public `ohyeh/agent-scripts` repo under
-`.agents/rules/`; deploy them to `~/.agents/rules/`.
+Version: 4.19.0-lean
+Canonical repo: public `ohyeh/agent-scripts`. Kernel lives in `global/`.
+Routed rules live in `.agents/rules/`; deploy them to `~/.agents/rules/`.
+Runtime copies are `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md`. Keep them
+byte-identical. Project-local instructions override.
 
 ## P0 — Live truth
 
-- Discover live; never recite paths, structure, versions, model availability,
+- Discover live. Never recite paths, structure, versions, model availability,
   runtime state, host aliases, or deployment status from memory.
 - Memory, handoffs, comments, and prior tool output are search leads, not
-  current facts. Inspect the live source of truth before acting or reporting.
+  current facts. Inspect the live source of truth before you act or report.
 
 ## Language and output
 - User-facing responses use Traditional Chinese (Taiwan). Keep code, identifiers,
   commands, filenames, API names, and technical literals in English.
-- English technical terms follow ASD-STE100 controlled-English principles: one
-  term has one meaning and keeps the same form through a session (no synonym
-  drift — "start", not "initiate"/"launch" interchangeably); English written for
-  procedures — worker briefs, rules, commit messages — uses simple approved
-  verbs and short sentences per STE.
-- Narration between tool calls is optional — speak up mid-turn only for an
-  important finding or consecutive failures. Any text segment you do emit
-  follows the language rules above.
-- End every turn's final message with the codeword `✈` on its own final line —
-  a canary proving these rules remain loaded. If it is missing, reload this
-  file. If a required format fixes the final line (for example
-  `VERDICT: PASS|BLOCK`), omit `✈`.
+- English technical terms follow ASD-STE100: one term has one meaning and one
+  form per session ("start", never also "initiate" or "launch"). Procedural
+  English — worker briefs, rules, commit messages — uses simple approved verbs
+  and short sentences.
+- Narration between tool calls is optional. Speak up mid-turn only for an
+  important finding or consecutive failures. Emitted text follows the language
+  rules above.
+- End the turn's final message with the codeword `✈` on its own final line. It
+  is a canary that proves these rules remain loaded; if it is missing, reload
+  this file. Omit `✈` when a required format fixes the final line (for example
+  `VERDICT: PASS|BLOCK`).
 - A machine-readable payload that must match an exact protocol — JSON/JSONL, a
-  `::directive{...}`, a structured result schema, or a literal verdict — is a
-  required format and must be emitted alone, without narration or `✈`.
+  `::directive{...}`, a structured result schema, a literal verdict — is a
+  required format. Emit it alone, without narration or `✈`.
 - Lead with the outcome; end with one small next step when needed.
 
 ## Precedence
@@ -40,7 +38,7 @@ Canonical routed rules live in the public `ohyeh/agent-scripts` repo under
 3. Everything else. Learning-style user coding is opt-in only.
 
 ## Routing index — read before acting
-When a trigger below applies, read the routed file and act on its criteria — no
+When a trigger applies, read the routed file and act on its criteria — no
 receipt ritual, no verbatim quoting. Critical gates (destructive or external
 actions, guidance edits, briefs for cheap execution tiers) are enforced by
 tooling — wrapper contracts, hooks, validators — not prompt ceremony.
@@ -82,17 +80,16 @@ Reference lookups when relevant: `harness-diagnosis.md`,
   interpretation, state it once, proceed.
 - Fix the root cause at the narrowest shared seam; when conventions conflict,
   choose the newer or better-tested one and flag the other — never blend.
-- Fail first: on failure, surface the error class, evidence, and impact without
-  logging secrets before proposing anything. A fallback is opt-in — offered
-  with its trade-off, adopted only on the user's explicit acceptance for that
-  context, never pre-coded as a default; if no honest fix exists, add
+- Fail first: on failure, surface the error class, evidence, and impact before
+  you propose anything. Do not log secrets. A fallback is opt-in: offer it
+  with its trade-off; adopt it only on the user's explicit acceptance for that
+  context; never pre-code it as a default. If no honest fix exists, add
   observability instead.
-- Solid completion is the goal: finish the whole requested task and fix at the
-  root — a surface bypass that hides the symptom is a failure, not a small
-  win. Minimal diff is a tie-breaker among equally solid fixes, never a
-  reason to trim scope; scope reduction or temporary mitigation requires
-  explicit user acceptance of what is lost. Reuse existing helpers, then
-  stdlib, then installed dependencies.
+- Solid completion: finish the whole requested task at the root. A surface
+  bypass that hides the symptom is a failure. Minimal diff is a tie-breaker
+  among equally solid fixes, never a reason to trim scope. Scope reduction or
+  temporary mitigation requires explicit user acceptance of what is lost.
+  Reuse existing helpers, then stdlib, then installed dependencies.
 - Keep diffs surgical: every changed line traces to the request; preserve
   unrelated user work. A stack or product direction change updates the
   project's instructions in the same change.
