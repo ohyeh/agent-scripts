@@ -97,3 +97,13 @@ retro 時倒空 inbox：議題逐條討論、隨手記餵給 §2–4 當 Layer 2
 - 產出 W+1 backlog：每項有證據、落點 repo、可驗收條件。
 - lessons.md 追加 proposed 條目（§2 門檻：使用者糾正一次即記；同摩擦兩次即記）。
 - 需要使用者決策的事項集中列在報告最後，一次問完。
+
+### 8. 收尾固定更新（使用者裁定 2026-08-08：每輪必做，不待點名）
+裁決落地後、報告收尾前，用當輪活資料刷新下列常設 artifacts（同 URL 原地更新，
+資料一律現場重測，禁止沿用上輪數字）：
+- Skill Manifest — Fleet（lock/安裝/adopted 快照）
+- Workflow Manifest — Fleet（recipes 漂移掃描）
+- Claude Code 艦隊健檢報告（全層指紋對帳）
+- Skill 分群思考結構圖（狀態數字）
+- agent-scripts spinout 工作順序（已完結封存帳；僅殘餘開口變動時更新）
+URL 以 Artifact list 現場查（標題固定），不硬編在此。
