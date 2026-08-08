@@ -18,8 +18,8 @@ Status: proposed   # 畢業條件：installed workflow 修復核准
 
 ## 2026-08-08 | scope: session-handoff | trigger: W32 Layer 2 — resume 後首要目標認錯＋worktree 沒切（fd7e9719）；validator regex 假 FAIL 兩 session
 Rule: session-handoff resume 段補 acceptance-echo（複誦唯一驗收物＋確認 cwd/worktree）；validate_handoff.py regex `##?` → `#{1,6}`。installed skill 修改待核准 diff。
-Status: proposed   # 畢業條件：skill 修復核准（N2）
+Status: proposed   # 2026-08-08 使用者裁定緩議（validator 穩定跑通，先不動）
 
 ## 2026-08-08 | scope: artifacts | trigger: W32 Layer 2 — Artifact 多 session 並發編輯 409×3＋早期 SVG 遭覆蓋誤刪（cbc898bf）
 Rule: artifact 更新前先 WebFetch 讀最新版、在其上 merge 再 publish；409 的正解是重讀重併，force 需使用者明示。
-Status: proposed   # 畢業條件：折入 writing-artifacts skill 或 pre-publish 檢查（N3 餘項）
+Status: proposed   # 2026-08-08 使用者裁定緩議（牽涉大）；候選設計已記：repo source-of-truth ＋ git 合併層 ＋ Artifact PreToolUse gate
