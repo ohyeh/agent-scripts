@@ -48,21 +48,33 @@ const PROJECT_JOB = '.claude/workflows/feature-lifecycle-auto.job.json'
 const GLOBAL_JOB = '$HOME/.claude/workflows/.feature-lifecycle-auto.job.json'
 const BUILTIN = {}
 let a = { ...(typeof args === 'string' ? (() => { try { return JSON.parse(args) } catch { return {} } })() : (args || {})) }
+let jobSrc = null
 if (!a.repoPath || !a.brief) {
   const job = await agent(
     `Read a job JSON object. PREFER ${PROJECT_JOB} (relative to your current working directory). ` +
     `If it is absent or unreadable, fall back to ${GLOBAL_JOB} (expand $HOME). ` +
     `Return the parsed object of whichever existed, with an added "_source":"project"|"global". ` +
     `If neither exists, return {}. Return ONLY the object — no prose.`,
-    { label: 'read-job', phase: 'Plan', model: 'sonnet', effort: 'high', isolation: undefined, agentType: undefined, schema: { type: 'object', additionalProperties: true } }   // bootstrap: literal defaults (config not read yet)
+    { label: 'read-job', phase: 'Plan', model: 'sonnet', effort: 'high', isolation: undefined, agentType: undefined, schema: { type: 'object', properties: { repoPath: { type: 'string' }, brief: { type: 'string' }, slug: { type: 'string' }, mode: { type: 'string' }, _source: { type: 'string' } }, additionalProperties: true } }   // bootstrap: literal defaults (config not read yet); typed properties pin the shape (no `required` — {} is a valid "no job file" answer)
   )
-  const src = job && job._source; if (job) delete job._source
-  a = { ...BUILTIN, ...(job || {}), ...a }
+  // Defense in depth: a loose structured output once wrapped the whole job as one
+  // string property ({"input":"{...}"}), making every field read undefined.
+  let j = job || {}
+  if (typeof j === 'string') { try { j = JSON.parse(j) } catch { j = {} } }
+  if (j && !j.repoPath && !j.brief) {
+    const k = Object.keys(j)
+    if (k.length === 1 && typeof j[k[0]] === 'string') { try { j = JSON.parse(j[k[0]]) } catch { /* leave as-is */ } }
+  }
+  const src = j && j._source; if (j) delete j._source
+  jobSrc = src || null
+  a = { ...BUILTIN, ...(j || {}), ...a }
   if (src === 'project' && !a.repoPath) a.repoPath = '.'   // you're in the repo → it IS the target
   if (src === 'global') log(`P4 WARNING: inputs came from the SHARED global job file — NOT concurrency-safe; confirm slug=${a.slug || '?'} is THIS run before trusting it.`)
   else if (src === 'project') log(`Inputs from project-local ${PROJECT_JOB} (per-project, concurrency-safe).`)
 }
-for (const k of ['repoPath', 'brief']) if (!a[k]) return { aborted: true, reason: `missing arg: ${k} — put it in ${PROJECT_JOB} (preferred) or ${GLOBAL_JOB} (top-level Workflow args are dropped by this runtime)` }
+for (const k of ['repoPath', 'brief']) if (!a[k]) return { aborted: true, reason: jobSrc
+  ? `job file FOUND (source: ${jobSrc}) but field '${k}' is missing/empty after parse — fix the job file's fields, do not recreate it`
+  : `no job file found and no '${k}' arg — create ${PROJECT_JOB} (preferred) or ${GLOBAL_JOB} (top-level Workflow args are dropped by this runtime)` }
 const mode = a.mode === 'frozen' ? 'frozen' : 'explore'
 const slug = a.slug || 'feature'
 // ponytail: slug guard mirrors the stage workflows — keep the shell's own boundary check.
