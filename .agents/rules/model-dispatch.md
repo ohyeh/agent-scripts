@@ -86,9 +86,13 @@ encodes (start → result init → send --from-file → confirm-the-pane-is-proc
 one blocking supervise --result-required) IS the supervision — the per-worker
 supervision-proxy pattern is RETIRED (2026-08-08, W32 M5; user-designed sequence).
 Run the single blocking call where a long wait is appropriate: a background task, or
-one cheap subagent when the runtime caps foreground timeouts. The parent does not
-additionally call status/watch/capture/probe/ping/result or send follow-ups unless
-`assign` reports a failed step/blocker or the user asks.
+one cheap subagent when the runtime caps foreground timeouts. EXCEPTION — a harness
+that reaps long background tasks (local Claude Code: exit-144 kill after ~10 min,
+which also takes a tmux server spawned inside the task's tree): dispatch with
+`assign --detach` in a short FOREGROUND call (steps 1–4 still verified, returns
+immediately), then harvest with bounded `result wait-required --wait <s>` calls.
+The parent does not additionally call status/watch/capture/probe/ping or send
+follow-ups unless `assign` reports a failed step/blocker or the user asks.
 
 tmux worker mechanics (highest-frequency real-world failure — ≥4 sessions re-hit
 this after it was recorded):
