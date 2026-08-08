@@ -39,6 +39,7 @@ Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
       result.json is a protocol failure — inspect `result --path` + pane capture
       before re-dispatching or reporting the task as failed; pane PASS without a
       valid result.json stays `UNCONFIRMED`.
+Evidence is idempotent: one green run on an unchanged tree is enough.
 Missing any box → report "attempted, unverified" and say which box is open.
 - Positive: "Fixed. `npm test` exit 0 (14 passed), fresh sonnet read-back PASS on all 3 files, diff shown above, committed as abc1234." Done.
 - Negative: "I've updated the config so the timeout issue should be resolved." No run, no evidence — this is "attempted, unverified", not done.

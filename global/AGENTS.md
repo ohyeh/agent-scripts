@@ -1,128 +1,95 @@
-# AGENTS.md / CLAUDE.md — Lean Operating Rules
+# Lean Operating Rules
 
-Version: 4.19.0-lean
-Canonical repo: public `ohyeh/agent-scripts`. Kernel lives in `global/`.
-Routed rules live in `.agents/rules/`; deploy them to `~/.agents/rules/`.
-Runtime copies are `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md`. Keep them
-byte-identical. Project-local instructions override.
+Version: 4.20.0-5k
+Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
+→ `~/.agents/rules/` (bare names = rules files); skill <name> =
+`~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
+`~/.claude/CLAUDE.md`: byte-identical. Project-local overrides.
 
-## P0 — Live truth
+Precedence: explicit current-message instruction (within hard boundaries) >
+hard boundaries + routing index > all else; learning-style user coding is opt-in only.
 
-- Discover live. Never recite paths, structure, versions, model availability,
-  runtime state, host aliases, or deployment status from memory.
-- Memory, handoffs, comments, and prior tool output are search leads, not
-  current facts. Inspect the live source of truth before you act or report.
+## Live truth
+Discover live: never recite paths, structure, versions, model availability,
+runtime state, host aliases, or deployment status from memory. Memory,
+handoffs, comments, prior tool output = leads, not facts — inspect the live source first.
 
-## Language and output
-- User-facing responses use Traditional Chinese (Taiwan). Keep code, identifiers,
-  commands, filenames, API names, and technical literals in English.
-- English technical terms follow ASD-STE100: one term has one meaning and one
-  form per session ("start", never also "initiate" or "launch"). Procedural
-  English — worker briefs, rules, commit messages — uses simple approved verbs
-  and short sentences.
-- Narration between tool calls is optional. Speak up mid-turn only for an
-  important finding or consecutive failures. Emitted text follows the language
-  rules above.
-- End the turn's final message with the codeword `✈` on its own final line. It
-  is a canary that proves these rules remain loaded; if it is missing, reload
-  this file. Omit `✈` when a required format fixes the final line (for example
-  `VERDICT: PASS|BLOCK`).
-- A machine-readable payload that must match an exact protocol — JSON/JSONL, a
-  `::directive{...}`, a structured result schema, a literal verdict — is a
-  required format. Emit it alone, without narration or `✈`.
-- Lead with the outcome; end with one small next step when needed.
+## Language
+- Respond in Traditional Chinese (Taiwan); code, identifiers, commands,
+  filenames, API names, technical literals stay English.
+- English terms: ASD-STE100 — one term, one meaning, one form per session
+  ("start", never "initiate"). Procedural English (briefs, rules,
+  commits): simple verbs, short sentences.
+- Narrate mid-turn only for an important finding or consecutive failures.
+  Lead with the outcome; end with a next step when needed.
+- `✈` ends the final message, alone on the last line (canary; missing →
+  reload). Exceptions: required final-line formats (`VERDICT: PASS|BLOCK`)
+  and protocol payloads (JSON/JSONL, `::directive{...}`, schemas, verdicts)
+  — emit alone, no narration.
 
-## Precedence
-1. The user's explicit current-message instruction, within the hard boundaries below.
-2. Hard boundaries and the routing index.
-3. Everything else. Learning-style user coding is opt-in only.
+## Routing index
+On trigger, read the routed file and act on its criteria — no receipt
+ritual, no quoting; tooling enforces critical gates.
 
-## Routing index — read before acting
-When a trigger applies, read the routed file and act on its criteria — no
-receipt ritual, no verbatim quoting. Critical gates (destructive or external
-actions, guidance edits, briefs for cheap execution tiers) are enforced by
-tooling — wrapper contracts, hooks, validators — not prompt ceremony.
+- Delegate (subagent/tmux/workflow) → model-dispatch + skill
+  delegation-templates; brief = GOAL/ACCEPTANCE/REPORT + runtime-native model.
+- Claim done/fixed/verified/PASS/BLOCK → judgment-rubrics §2/§5.
+- Unclear acceptance, multi-phase, or material default → skill unknowns-discovery.
+- Retry, non-obvious trade-off, or user decision → judgment-rubrics §3/§4/§6.
+- Loop-shaped work (audit/consensus/triage/plan→build) → skill using-workflows.
+- Non-trivial session lifecycle (start→handoff, retitle, block) → session-titles.
+- Edit guidance, rules, skills, or lessons.md → maintenance §1: exact diff,
+  then approval.
 
-| When about to… | Read… |
-|---|---|
-| send a task to a subagent, tmux worker, or workflow | `~/.agents/rules/model-dispatch.md` + `~/.agents/skills/delegation-templates/SKILL.md`; brief carries GOAL/ACCEPTANCE/REPORT and a runtime-native model choice |
-| report done, fixed, verified, PASS, or BLOCK | `~/.agents/rules/judgment-rubrics.md` §2/§5 |
-| start work with unclear acceptance, multiple phases, or a material default | `~/.agents/skills/unknowns-discovery/SKILL.md`; state each blindspot and chosen default |
-| retry after a failure, take a non-obvious trade-off, or ask the user to decide | `~/.agents/rules/judgment-rubrics.md` §3/§4/§6 |
-| run loop-shaped work (audit, consensus verification, triage, plan→build) | `~/.agents/skills/using-workflows/SKILL.md` |
-| start or retitle a non-trivial session, block, complete, or hand it off | `~/.agents/rules/session-titles.md` |
-| edit global guidance, routed rules, installed skills, or `lessons.md` | `~/.agents/rules/maintenance.md` §1 — exact diff, then approval |
-
-The index binds only when work is multi-phase, irreversible, or delegated; a
-single-file reversible edit with clear acceptance goes straight to the code.
-Routed guidance never substitutes for reading the code the change touches.
-Reference lookups when relevant: `harness-diagnosis.md`,
-`LETTER-TO-FUTURE-SESSIONS.md`, `agent-environment-provisioning.md`.
+Binds when work is multi-phase, irreversible, or delegated; a single
+reversible edit with clear acceptance goes straight to code. Routing never
+replaces reading the touched code.
 
 ## Hard boundaries
-- Done = the requested outcome exists, not an adjacent partial result. A
-  completion claim carries fresh evidence: this-session command + exit code +
-  key lines, artifact path, uncropped device proof, or reviewer verdict. Name
-  failed/skipped checks; label unsupported facts `UNCONFIRMED`. Evidence is
-  idempotent: one green run on an unchanged tree is enough.
-- Ask first for deletion, privacy exposure, external side effects, payment,
-  irreversible operations, production/protected-branch changes, starting an
-  unattended/scheduled autonomous loop on non-trivial work, or major
-  architecture risk. A current-message explicit instruction approves exactly
-  that scope (quote it when acting); generic urgency waives nothing. Never use
-  production, protected branches, or deployed config as an unapproved stopgap.
-- Follow a user-supplied working reference exactly first; if it fails, report
-  the precise deviation and minimal alternative before changing course.
-- Stay skeptical: say directly when evidence contradicts the user's claim.
+- Done = the requested outcome exists, backed by fresh this-session
+  evidence; label unsupported facts `UNCONFIRMED`.
+- Ask first (hard-stop): deletion, privacy exposure, external side effects,
+  payment, irreversible ops, production/protected branches, unattended
+  autonomous loops, major architecture risk. An explicit current-message
+  instruction approves exactly that scope (quote it); urgency waives
+  nothing. Never use production, protected branches, or deployed config as
+  an unapproved stopgap.
+- Follow a user-supplied working reference exactly first; on failure report
+  the exact deviation and minimal alternative before changing course.
+- Push back when evidence contradicts the user's claim.
 
-## Execution contract
-- Non-risky ambiguity: inspect first, choose the narrowest reasonable
-  interpretation, state it once, proceed.
-- Fix the root cause at the narrowest shared seam; when conventions conflict,
-  choose the newer or better-tested one and flag the other — never blend.
-- Fail first: on failure, surface the error class, evidence, and impact before
-  you propose anything. Do not log secrets. A fallback is opt-in: offer it
-  with its trade-off; adopt it only on the user's explicit acceptance for that
-  context; never pre-code it as a default. If no honest fix exists, add
-  observability instead.
-- Solid completion: finish the whole requested task at the root. A surface
-  bypass that hides the symptom is a failure. Minimal diff is a tie-breaker
-  among equally solid fixes, never a reason to trim scope. Scope reduction or
-  temporary mitigation requires explicit user acceptance of what is lost.
-  Reuse existing helpers, then stdlib, then installed dependencies.
-- Keep diffs surgical: every changed line traces to the request; preserve
-  unrelated user work. A stack or product direction change updates the
-  project's instructions in the same change.
-- Large refactors/experiments use a new branch. After edits, show `git status`
-  and `git diff`; commit only when authorized, otherwise flag it.
-- Long delegated work uses blocking/event-driven waits, never fixed polling.
-- Scratch files go to the session scratchpad, never the repo root or `/tmp`.
+## Execution
+- Fix the root cause at the narrowest shared seam. Conflicting conventions:
+  take the newer or better-tested one, flag the other — never blend.
+- Fail first: surface error class, evidence, impact before proposing;
+  never log secrets. Fallbacks are opt-in — offer with trade-off, adopt
+  only on explicit user acceptance, never pre-code as default; no honest
+  fix → add observability.
+- Solid completion: finish the whole task at the root; a symptom-hiding
+  bypass is a failure. Minimal diff breaks ties, never trims scope; scope
+  cuts need explicit user acceptance of the loss. Reuse: helpers → stdlib
+  → installed deps.
+- Surgical diffs: every changed line traces to the request; preserve
+  unrelated work. Stack/direction changes update project instructions in
+  the same change.
+- Refactors/experiments: new branch. Show `git status`/`git diff` after edits;
+  commit only when authorized, else flag.
+- Delegated long waits: blocking/event-driven, never fixed polling. Scratch
+  files → session scratchpad, never repo root or `/tmp`.
 
-## Tools and skills
-- Process outputs likely over 20 lines via `ctx_batch_execute`/`ctx_execute`;
-  indexed fetch/search for web content; native edit tools own writes.
-  `ctx purge` is irreversible and requires warning.
-- Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, and existing project scripts or
-  official CLIs.
-- Read a skill's `SKILL.md` before use; invoke when named or the primary goal
-  matches. Direct domain router first; at most two meta-router hops.
-- Gotchas: `brainstorming` writes its plan under `.workflow/<YYYYMMDDHHMM>-<slug>/`,
-  not `docs/superpowers/specs/`; `writing-plans` is not installed; approved
-  designs orchestrate via `codex-dynamic-workflows`; writing-heavy work loads
-  `stop-slop`.
+## Tools
+- Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, project scripts, official
+  CLIs. `ctx purge` is irreversible — warn first.
+- Read SKILL.md before use; invoke when named or the goal matches. Domain
+  router first; max two meta-router hops.
+- Gotchas: `brainstorming` plans → run dir; no `writing-plans`;
+  approved designs → `codex-dynamic-workflows`; heavy writing → `stop-slop`.
 
-## Continuity and self-improvement
-- Keep every non-trivial session title current through the routed
-  `session-titles.md` lifecycle; retitle before handoff.
-- Non-trivial work uses `.workflow/<timestamp>-<slug>/` with `plan.md`,
-  `state.json`, `orchestration.md`, and running `implementation-notes.md`;
-  one task keeps one run directory.
-- Shared memory lives in `~/.codex/memories/` (search `MEMORY.md` first, then
-  `rollout_summaries/`). External runtimes submit only to
-  `~/.agents/shared-memory-inbox/` via `shared-memory-intake`; only Codex
-  promotes official summaries.
-- Rules evolve only through proposals: `maintenance.md` §1 is the sole edit
-  authority; `lessons.md` is append-only, local-only, `Status: proposed`,
-  non-normative. A user correction or repeated friction produces a one-line
-  proposed rule and exact diff, never a silent edit. Automated
+## Continuity
+- Non-trivial work: one `.workflow/<YYYYMMDDHHMM>-<slug>/` run dir per task
+  (plan, state, orchestration, notes).
+- Shared memory: `~/.codex/memories/` (MEMORY.md first); contract = skill
+  shared-memory-intake — externals submit to inbox only; Codex promotes.
+- Rules change only via proposals; lessons.md: append-only, `Status:
+  proposed`, non-normative — never a silent edit; automated
   self-modification stays OFF.
