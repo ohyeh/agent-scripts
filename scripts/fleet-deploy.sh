@@ -6,9 +6,9 @@
 #
 # Usage: scripts/fleet-deploy.sh [--verify-only] <host>...
 #   <host>  "local" for this machine, or any ssh destination
-#           (e.g. openclaw-macmini, paul.yeh@100.64.190.44)
+#           (e.g. build-node, deploy@example.internal)
 #
-# Every host gets the full four-layer deploy.sh run (unless --verify-only),
+# Every host gets the full five-layer deploy.sh run (unless --verify-only),
 # then the verify pass checks, per host:
 #   - ~/.claude/CLAUDE.md and ~/.codex/AGENTS.md md5 both equal the repo's
 #     global/CLAUDE.md md5 at the pinned SHA (the two files are byte-identical
@@ -53,10 +53,9 @@ DEPLOY_URL="$RAW_BASE/$SHA/scripts/deploy.sh"
 EXPECTED_MD5="$(curl -fsSL "$RAW_BASE/$SHA/global/CLAUDE.md" | { if command -v md5 >/dev/null; then md5 -q; else md5sum | cut -d' ' -f1; fi; })"
 EXPECTED_VERSION="$(curl -fsSL "$RAW_BASE/$SHA/global/CLAUDE.md" | grep -m1 '^Version:')"
 
-# Rules-layer expectation: aggregate sha256 of the pinned tree's rule files
-# (lessons.md excluded — always local-only), so a host whose deploy.sh silently
-# failed the rules rsync can no longer verify green on CLAUDE.md alone.
-RULES_SNIPPET='r(){ cd "$1" 2>/dev/null || { echo missing; return; }; LC_ALL=C ls *.md 2>/dev/null | grep -v "^lessons\.md$" | xargs shasum -a 256 2>/dev/null | shasum -a 256 | cut -d" " -f1; }'
+# Rules-layer expectation: aggregate sha256 of every pinned rule file,
+# including repo-canonical lessons.md.
+RULES_SNIPPET='r(){ cd "$1" 2>/dev/null || { echo missing; return; }; LC_ALL=C ls *.md 2>/dev/null | xargs shasum -a 256 2>/dev/null | shasum -a 256 | cut -d" " -f1; }'
 TMPD="$(mktemp -d)"
 trap 'rm -rf "$TMPD"' EXIT
 curl -fsSL "https://github.com/ohyeh/agent-scripts/archive/$SHA.tar.gz" | tar xz -C "$TMPD"

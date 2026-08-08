@@ -36,11 +36,19 @@ for (const f of ruleFiles) {
   check(`line-limit .agents/rules/${f}`, n <= LINE_LIMIT, `${n}/${LINE_LIMIT}`);
 }
 
-// 3. every rule file referenced in the global Gates section exists
-const refs = [...claudeMd.matchAll(/~\/\.agents\/(rules|skills)\/[\w./-]+\.md/g)]
-  .map((m) => m[0].replace('~/.agents/', ''));
-for (const ref of new Set(refs)) {
-  if (ref === 'rules/lessons.md') continue; // local-only by design (deploy excludes it)
+// 3. every routed file named by the compact kernel exists. Keep this list
+// explicit so a wording change cannot silently reduce the number of checks.
+const refs = [
+  'rules/model-dispatch.md',
+  'skills/delegation-templates/SKILL.md',
+  'rules/judgment-rubrics.md',
+  'skills/unknowns-discovery/SKILL.md',
+  'skills/using-workflows/SKILL.md',
+  'rules/session-titles.md',
+  'rules/maintenance.md',
+];
+check('gate-ref-count', refs.length === 7, `${refs.length}/7`);
+for (const ref of refs) {
   const canonical = ref.startsWith('rules/')
     ? join(ROOT, '.agents', ref)
     : join(ROOT, ref);
@@ -48,7 +56,7 @@ for (const ref of new Set(refs)) {
 }
 
 // 4. canary rule present in global
-check('canary-rule', /codeword `✈`/.test(claudeMd), 'codeword ✈ clause');
+check('canary-rule', /MUST end with `✈` alone/.test(claudeMd), 'mandatory final-line ✈ clause');
 
 // 5. deploy content is pinned to the SHA resolved before download
 const deploy = read('scripts/deploy.sh');
@@ -107,7 +115,22 @@ for (const f of fixtureFiles) {
 }
 check('fixture-schema', fixturesValid, `${fixtureFiles.length} fixture(s)`);
 
-// 7. context budget vs baseline
+// 7. public tracked files must not contain private fleet topology or home paths
+const privatePatterns = [
+  String.raw`100\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}`,
+  String.raw`/Users/[A-Za-z0-9._-]+`,
+  ['ohYEHs', 'MBP-14'].join('-'),
+  ['2500693', 'paul'].join('-'),
+  ['openclaw', 'macmini'].join('-'),
+  ['mac', 'mini', 'm2'].join('-'),
+  ['paul', String.raw`\.yeh@`].join(''),
+].join('|');
+const sensitive = spawnSync('git', ['grep', '-nE', privatePatterns,
+  '--', '.agents', '.claude/handoffs', 'scripts'], { cwd: ROOT, encoding: 'utf8' });
+check('public-sensitive-literals', sensitive.status === 1,
+  sensitive.status === 1 ? 'no private fleet literals' : sensitive.stdout.trim());
+
+// 8. context budget vs baseline
 const skillDirs = readdirSync(join(ROOT, 'skills'))
   .filter((d) => statSync(join(ROOT, 'skills', d)).isDirectory());
 let skillDescBytes = 0;

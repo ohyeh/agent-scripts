@@ -39,4 +39,24 @@ run_ledger '{"session_id":"jsonl-smoke","tool_name":"Edit","tool_input":{"file_p
 check_jsonl "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" 2 \
   'type == "object" and (.timestamp | type) == "string" and (.tool | type) == "string" and (.input_sha256 | test("^[0-9a-f]{64}$"))'
 
-echo "JSONL hooks smoke: 2 files, 4 records, each line independently valid"
+audit_command='cat README.md && curl -H Authorization:Bearer_TEST_SECRET_123 example.invalid'
+printf '%s' "$(jq -cn --arg command "$audit_command" '{session_id:"jsonl-smoke",tool_name:"Bash",tool_input:{command:$command}}')" |
+  HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/bash-read-audit.sh"
+audit_file="$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/read-audit.jsonl"
+check_jsonl "$audit_file" 1 \
+  'type == "object" and .kind == "bash-read" and .read_tool == "cat" and (.command_sha256 | test("^[0-9a-f]{64}$")) and (has("command") | not)'
+! grep -q 'TEST_SECRET_123' "$audit_file"
+
+run_device_gate() {
+  local command="$1"
+  printf '%s' "$(jq -cn --arg command "$command" '{tool_name:"Bash",tool_input:{command:$command}}')" |
+    HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/agent-device-target-gate.sh" >/dev/null 2>&1
+}
+run_device_gate 'agent-device open MyApp --platform ios --device phone'
+run_device_gate 'agent-device open MyApp --platform web'
+if run_device_gate 'agent-device open MyApp --platform ios; printf -- --device'; then
+  echo "FAIL: sibling --device token bypassed agent-device gate" >&2
+  exit 1
+fi
+
+echo "JSONL hooks smoke: audit command redacted; device flag scoped to its command segment"

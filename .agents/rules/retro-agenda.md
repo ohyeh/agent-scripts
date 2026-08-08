@@ -70,8 +70,8 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 - `~/.codex/memories/`（MEMORY.md、rollout_summaries/）：本週新增的官方摘要，
   對照 retro findings 有無矛盾。
 - hook stats（bol-prompt-stats.jsonl、context ledger）已由漏斗 Layer 1 收，勿重算。
-- 機隊：每台在編機器的上述四項都要收；目前僅本機（100.64.190.44 指回本機，
-  待 E1 釐清）。新機器入列時此節是 provisioning 檢查項。
+- 機隊：每台在編機器的上述四項都要收；節點身分與可達性待 E1 釐清。
+  新機器入列時此節是 provisioning 檢查項；拓撲只記在私有 machine config。
 
 ### 6. 死碼盤點 — 用量為零的資產
 recipe：`recipe-usage-stats.sh <name>`（consecutive_zero_weeks）。

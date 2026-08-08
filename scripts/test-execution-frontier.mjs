@@ -3,13 +3,13 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { median, validateFixture, runFixture } from './execution-frontier.mjs'
 
 const repo = resolve(fileURLToPath(new URL('..', import.meta.url)))
-const scratchRoot = join(repo, '.workflow', '202607212000-execution-frontier')
-const outputDir = mkdtempSync(join(scratchRoot, 'scratch-'))
+const outputDir = mkdtempSync(join(tmpdir(), 'execution-frontier-'))
 let passed = 0
 
 function check(name, fn) {

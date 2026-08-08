@@ -81,10 +81,11 @@ Not a truth source: `tailscale status` node liveness (a Fortinet-blocked
 coordination server lists reachable nodes — including this machine itself — as
 "offline"). Own IP: `ifconfig`; remote liveness: an actual SSH probe.
 
-Managed fleet is exactly two nodes: local MBP (`100.77.191.62`) and
-`2500693-paul` (`100.64.190.44`, SSH as `paul.yeh`). `mac-mini-m2`
-(`100.75.172.41`, alias `openclaw-macmini`) has a stale `~/.agents` but is NOT
-managed — deploys and audits exclude it (user ruling 2026-08-08: rarely used).
+Managed fleet is exactly two nodes: the local workstation and one configured
+remote workstation. A third, rarely used machine has a stale `~/.agents` but
+is NOT managed — deploys and audits exclude it (user ruling 2026-08-08).
+Resolve hostnames, addresses, and SSH users from private machine config; never
+publish fleet topology in this public repository.
 
 ### Documented (official Hooks reference)
 - Hook stdin JSON, all events: `session_id`, `transcript_path` (the session's

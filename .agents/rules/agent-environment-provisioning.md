@@ -22,7 +22,7 @@ runtime layers — global files → `~/.claude`/`~/.codex` (md5-verified), rules
 → `npx skills experimental_install`) — each layer printing PASS/FAIL and aborting
 fast on the first failure. This is the primary rebuild path; the per-layer manual
 procedures below remain the reference for disaster recovery when the script itself
-is unavailable. Live-used on the fleet at W15/W18 (mac-mini-m2, remote2).
+is unavailable. Live-used on two fleet nodes at W15/W18.
 
 ## Agent Skills
 

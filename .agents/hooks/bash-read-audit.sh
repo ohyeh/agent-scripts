@@ -3,6 +3,7 @@
 # Rules like "judgments need Read-tool evidence" (lessons L4) are unverifiable
 # while cat/head/sed reads leave no trail. This appends one JSONL line per
 # read-shaped Bash command to read-audit.jsonl in the session's run dir.
+# Command text is never stored because it can contain credentials.
 # Log-only, never blocks; gating comes later once the data says it should.
 set -u
 
@@ -20,8 +21,10 @@ SESSION_ID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
 RUN_DIR="${HOME}/.local/state/agent-hooks/${SESSION_ID:-pid-$PPID}"
 mkdir -p "$RUN_DIR"
 ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+read_tool="$(printf '%s' "$CMD" | grep -oE '(^|\||;|&&)[[:space:]]*(cat|head|tail|less|more|awk|sed -n)' | head -1 | grep -oE '(cat|head|tail|less|more|awk|sed -n)$')"
+command_sha256="$(printf '%s' "$CMD" | shasum -a 256 | cut -d' ' -f1)"
 
-jq -cn --arg ts "$ts" --arg cmd "$CMD" \
-  '{timestamp: $ts, kind: "bash-read", command: ($cmd | .[0:400])}' \
+jq -cn --arg ts "$ts" --arg read_tool "$read_tool" --arg command_sha256 "$command_sha256" \
+  '{timestamp: $ts, kind: "bash-read", read_tool: $read_tool, command_sha256: $command_sha256}' \
   >> "$RUN_DIR/read-audit.jsonl"
 exit 0
