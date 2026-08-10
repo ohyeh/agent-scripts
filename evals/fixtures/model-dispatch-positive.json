@@ -1,0 +1,10 @@
+{
+  "id": "model-dispatch-positive-new-subagent-task",
+  "prompt": "把這個 repo 的 deploy script 交給一個 subagent 做獨立 review，回報可驗證的 findings。",
+  "labels": {
+    "must_route": ["model-dispatch", "delegation-templates"],
+    "must_not": ["dispatch_without_contract"],
+    "required_tokens": ["✈"]
+  },
+  "reason": "Sending a new subagent task must load the dispatch model contract and task template."
+}
