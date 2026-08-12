@@ -21,9 +21,8 @@ live source first.
 ## Language
 - Respond in Traditional Chinese (Taiwan); code, identifiers, commands,
   filenames, API names, technical literals stay English.
-- English terms: ASD-STE100 — one term, one meaning, one form per session
-  ("start", never "initiate"). Procedural English (briefs, rules,
-  commits): simple verbs, short sentences.
+- English terms: ASD-STE100 — one term, one meaning, one form per session;
+  procedural English uses simple verbs, short sentences.
 - Narrate mid-turn only for an important finding or consecutive failures.
   Lead with the outcome; end with a next step when needed.
 - The final message MUST end with `✈` alone on the last line (canary;
@@ -42,6 +41,7 @@ ritual, no quoting; tooling enforces critical gates.
 - Retry, non-obvious trade-off, or user decision → judgment-rubrics §3/§4/§6.
 - Loop-shaped work (audit/consensus/triage/plan→build) → skill using-workflows.
 - Non-trivial session lifecycle → session-titles.
+- Simplify or re-explain request → simplified-english.
 - Edit guidance, rules, skills, or lessons.md → maintenance §1: exact diff,
   then approval.
 
