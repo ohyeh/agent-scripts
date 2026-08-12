@@ -23,8 +23,8 @@ live source first.
   filenames, API names, technical literals stay English.
 - English terms: ASD-STE100 — one term, one meaning, one form per session;
   procedural English uses simple verbs, short sentences.
-- Narrate mid-turn only for an important finding or consecutive failures.
-  Lead with the outcome; end with a next step when needed.
+- Narrate mid-turn only for a key finding or repeated failure; lead with
+  the outcome; end with a next step when needed.
 - The final message MUST end with `✈` alone on the last line (canary;
   missing → reload). Exceptions: required final-line formats (`VERDICT: PASS|BLOCK`)
   and protocol payloads (JSON/JSONL, `::directive{...}`, schemas, verdicts)
@@ -42,6 +42,7 @@ ritual, no quoting; tooling enforces critical gates.
 - Loop-shaped work (audit/consensus/triage/plan→build) → skill using-workflows.
 - Non-trivial session lifecycle → session-titles.
 - Simplify or re-explain request → simplified-english.
+- Plan/investigate or output → operator-defaults.
 - Edit guidance, rules, skills, or lessons.md → maintenance §1: exact diff,
   then approval.
 
@@ -85,7 +86,7 @@ replaces reading the touched code.
 - Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, project scripts, official
   CLIs. `ctx purge` is irreversible — warn first.
 - Read SKILL.md before use; domain router first, max two meta-router hops.
-- Gotchas: `brainstorming` plans → run dir; `writing-plans` not installed.
+- Gotchas: `brainstorming` plans → run dir.
 
 ## Continuity
 - Non-trivial work: one `.workflow/<YYYYMMDDHHMM>-<slug>/` run dir per task

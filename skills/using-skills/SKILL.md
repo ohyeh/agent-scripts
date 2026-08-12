@@ -34,6 +34,7 @@ is itself an implicit router over `html-diagram`/`html-plan`, so
 | run/supervise a CLI as a tmux worker, or decide inline-vs-worker | `using-tmux-agent-tools` | ROUTER · Skill() |
 | shape a fuzzy idea before building (parallel divergence: `adhd`) | `brainstorming` | SKILL · Skill() |
 | stress-test a plan/decision/idea (frontier rounds; `grill-with-docs` when ADRs/glossary should be written as you go) | `grilling` | SKILL · Skill() |
+| plan an effort too big for one session — chart it as decision tickets on the issue tracker, resolved one at a time | `wayfinder` | SKILL · manual |
 | not sure which flow fits (kickoff, cross-domain, fuzzy situation) | `ask-nova` | SKILL · manual |
 | check "is it actually done?" | `verification-before-completion` | SKILL · Skill() |
 | dig a weird bug to root cause (loop version) | `root-cause-deep-dive-audit` | RECIPE · via `using-workflows` |
@@ -79,7 +80,7 @@ Whole packs or chains that are installed (in the lock, listed in the skill
 manifest) but currently unused. They cost nothing while dormant; wake one by
 reading its SKILL.md and, if it sticks, promote it into the table above:
 
-- matt planning/tracker: `wayfinder`, `triage` · `wizard`
+- matt planning/tracker: `triage` · `wizard`
 - niche code-craft: `improve-codebase-architecture`, `migrate-to-shoehorn`, `request-refactor-plan`, `qa`
 - misc singles: `update-deps`
 
