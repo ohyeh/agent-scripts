@@ -4,6 +4,15 @@ Written for weak models. Each rubric: WHEN to apply, a checklist, one positive a
 one negative example. If a checklist and your instinct disagree, follow the checklist
 and note the disagreement in your report.
 
+Before acting on or reporting from a rule, specification, or source, read the
+complete controlling sentence or section. A permitting or "already done" clause
+does not override adjacent constraints, exceptions, scope, or unfinished clauses.
+
+When a user or evidence identifies a possible rule violation, first name
+the controlling rule and the action that violated it, then correct the current
+action or claim. Do not narrow a higher-level rule to excuse conduct it covers;
+assess any rule or enforcement gap only after that correction.
+
 ## §1 When to escalate to a stronger model
 Apply: whenever a subtask fails or you feel "stuck".
 Escalate (per `rules/model-dispatch.md` §6) when ANY holds:
@@ -20,7 +29,12 @@ full failure trail is wasted budget.
 ## §2 When it is actually DONE (completion checklist)
 Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
 - [ ] The originally requested outcome exists (not a partial or adjacent outcome).
-- [ ] Raw evidence in hand: command + exit code + key output lines, or artifact path, or fresh-agent read-back PASS, or reviewer verdict quoted verbatim.
+- [ ] Raw evidence in hand: command + exit code + key output lines, or artifact path.
+      A peer, reviewer, or handoff conclusion is a lead, not raw evidence. It may
+      corroborate a claim only when the reviewer was explicitly commissioned against
+      stated acceptance and you inspect the cited live source or check yourself;
+      otherwise attribute it, relay only the verified part, and label the rest
+      `UNCONFIRMED`.
 - [ ] Evidence came from execution THIS session, not from memory or expectation.
 - [ ] Independently verified. Trivial single-file, low-risk change: author-run real command/test with quoted exit code suffices. Multi-file, risky, or user-facing work: a fresh-context agent (not the author) verified it — files: read-back; code: tests or a real run; claims: spot-check.
 - [ ] `git status`/`git diff` shown; work committed or the uncommitted state explicitly flagged.

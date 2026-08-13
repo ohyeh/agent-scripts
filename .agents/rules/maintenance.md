@@ -22,6 +22,15 @@ file set plus installed skills. If you are unsure which row applies, use the str
 "Show the exact diff" means: print the proposed old→new text and the triggering
 incident, then STOP until the user approves. Never apply-then-ask.
 
+Before proposing a rule, hook, or gate after a violation: name the controlling
+rule and the action that violated it, correct the current action or claim, then
+assess enforcement. A mechanism is eligible for user approval only when (a) two
+verified incidents repeat the same prohibited action after the rule was clear,
+(b) one incident's recurrence risks a hard-stop boundary, security, privacy, or
+data loss, or (c) the user explicitly requests enforcement. Cite the incidents
+and state the mechanism's false-positive and false-negative boundary. Enforcement
+supplements compliance; it does not excuse the incident.
+
 ## §2 When to record a lesson
 Append to `rules/lessons.md` when:
 - The user corrects a behavior (a single correction suffices), or the same friction appears twice without a correction.
