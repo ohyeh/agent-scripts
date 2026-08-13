@@ -53,10 +53,19 @@ the skeleton, a Role-1 authority layers visual character on top.
 
 | Skill | Owns |
 |---|---|
-| `html-diagram` | Architecture / flow / state diagrams as full-screen SVG. Keep its signature strengths: animated arrows (flow direction legible at a glance), light on prose |
+| `diagram-design` | House-style diagrams: 27 typed forms, semantic patterns, connector/spacing hard rules, mermaid + draw.io import, PNG/SVG export. Default when the diagram must match a consistent visual system |
+| `html-diagram` | One-off diagram forms outside that library, or when interaction/Canvas/WebGL carries the meaning. Keep its signature strengths: animated arrows (flow direction legible at a glance), light on prose |
 | `html` | Reports, explainers, comparisons, decks |
 | `html-plan` | Plan pages: pragmatic, close to the user's own wording |
 | `plannotator-visual-explainer` *(only if it resolves under SELECT — not in the base roster; when absent, fall back to the HTML trio + a Role-1 authority)* | Rich visual explainers: plan pages with stat cards/SVG timelines, PR walkthroughs with risk maps, slide decks, data tables. Gated `disable-model-invocation: true` — read its SKILL.md inline per the router's SELECT rule, never via `Skill()` |
+
+Arbitration: `diagram-design` and `html-diagram` are mutually exclusive per
+diagram — never load both. Select and invoke that owner here; do not enter
+through `html` and follow its sibling handoff to `html-diagram`. When the source is a data FILE the owner stays
+`data-report`; `diagram-design` may be loaded by it as the house-style layer,
+never instead of it. `diagram-design` self-triggers (plugin-shipped,
+trigger-rich description), so when this router picks another owner, say so
+explicitly in the plan.
 
 Pairing rule: quick internal note → trio alone. Anything the user will look
 at twice or show someone → trio + ONE authority visual layer (via DESIGN.md)

@@ -25,8 +25,10 @@ module/API interface design.
 
 ## QUESTIONS — compose the pipeline (answer in order)
 
-Q1 **Base deliverable — who owns the output?** Diagram / report / plan page →
-the HTML trio or `plannotator-visual-explainer` · web/mobile → target stack ·
+Q1 **Base deliverable — who owns the output?** Diagram → `diagram-design` for
+house-style consistency / mermaid / draw.io / PNG-SVG export, else the HTML
+trio · report / plan page → the HTML trio or `plannotator-visual-explainer` ·
+web/mobile → target stack ·
 Artifact → artifact file · data file → `data-report` · module/API/domain →
 Pipeline D · token work → DESIGN.md itself · mockup-only → imagegen output ·
 "would this work?" → `prototype`, alone, no loop.

@@ -21,9 +21,8 @@ model-invocable · `manual` (`disable-model-invocation` — read its SKILL.md
 inline or use its slash command) · `via-router` · `inline` (just do it).
 
 Two-hop max: `using-skills` → domain router → member. Never deeper, and never
-route back here from inside a domain router. ONE documented exception: `html`
-is itself an implicit router over `html-diagram`/`html-plan`, so
-`using-design-skills` → `html` → `html-*` is a sanctioned third hop.
+route back here from inside a domain router. Visual work always enters
+`using-design-skills`; `html` does not provide a route around its owner selection.
 
 ## Intent table — "I need to…" → target
 
@@ -63,7 +62,7 @@ scoring / wrong-direction signals / done-criteria).
 ## Adopted families beyond the table — one line each
 
 - **Meta-routers (backbone)** → this map + `using-design-skills`, `using-workflows`, `using-tmux-agent-tools`; enter a domain router directly when the goal names it.
-- **Design-visual** → `html`/`html-*`, `impeccable`, `design-taste-frontend`, `high-end-visual-design`, `apple-design`, `imagegen-*`, `image-to-code`, `data-report` — ALWAYS through `using-design-skills`, the sole arbiter among overlapping anti-slop members (default `impeccable`; new landing pages → `design-taste-frontend`; Apple-grade polish → `apple-design`).
+- **Design-visual** → `html`/`html-*`, `diagram-design`, `impeccable`, `design-taste-frontend`, `high-end-visual-design`, `apple-design`, `imagegen-*`, `image-to-code`, `data-report` — ALWAYS through `using-design-skills`, the sole arbiter among overlapping anti-slop members (default `impeccable`; new landing pages → `design-taste-frontend`; Apple-grade polish → `apple-design`; house-style diagrams → `diagram-design`, one-off/interactive diagrams → `html-diagram`).
 - **Ideation** → `brainstorming` (mandatory gate before creative work), `adhd` (parallel divergence), `prototype` (throwaway prototype answers a design question).
 - **Grilling** → `grilling` (the implementation — asks each frontier of questions in one round, numbered, each with a recommended answer; dispatches sub-agents for facts). `grill-me` / `grill-with-docs` are manual slash entries into it; the latter runs `domain-modeling` alongside for ADRs/glossary.
 - **Workflow orchestration** → `codex-dynamic-workflows`, via `using-workflows` (approved designs only).
