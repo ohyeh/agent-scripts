@@ -129,6 +129,15 @@
       "installedAt": "2026-07-18T20:49:31.166Z",
       "updatedAt": "2026-07-18T20:49:31.166Z"
     },
+    "diagram-design": {
+      "source": "cathrynlavery/diagram-design",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
+      "skillPath": "skills/diagram-design/SKILL.md",
+      "skillFolderHash": "068971b9ecd2bf47b7ca5584fe1d980f19cd64c3",
+      "installedAt": "2026-08-13T03:09:56.853Z",
+      "updatedAt": "2026-08-13T03:09:56.853Z"
+    },
     "dispatching-parallel-agents": {
       "source": "obra/superpowers",
       "sourceType": "github",
@@ -535,6 +544,16 @@
       "skillFolderHash": "a4cb0b69aaefeab540947a7f1642bdaad810e37a",
       "installedAt": "2026-07-18T20:48:18.029Z",
       "updatedAt": "2026-07-24T01:12:45.422Z"
+    },
+    "wait-what": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/productivity/wait-what/SKILL.md",
+      "skillFolderHash": "6abe708f1bf253158a037ac49faea2944e2809dc",
+      "pluginName": "mattpocock-skills",
+      "installedAt": "2026-08-10T04:05:47.425Z",
+      "updatedAt": "2026-08-13T03:10:24.160Z"
     },
     "wayfinder": {
       "source": "mattpocock/skills",

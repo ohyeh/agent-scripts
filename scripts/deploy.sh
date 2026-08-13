@@ -148,6 +148,7 @@ install -m 0755 "$SRC/scripts/check-bol-prompt.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/context-ledger.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/bash-read-audit.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/agent-device-target-gate.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/tmux-assign-host-gate.sh" ~/.agents/hooks/
 
 SETTINGS=~/.claude/settings.json
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
@@ -157,7 +158,8 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
    --arg bol "\"\$HOME/.agents/hooks/bol-prompt-warn.sh\"" \
    --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" \
    --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
-   --arg device "\"\$HOME/.agents/hooks/agent-device-target-gate.sh\"" '
+   --arg device "\"\$HOME/.agents/hooks/agent-device-target-gate.sh\"" \
+   --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" '
   def ensure(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | if any(.[]; any(.hooks[]?; .command == cmd))
@@ -171,6 +173,7 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
   | ensureMatched("PreToolUse"; "Agent"; $bol)
   | ensureMatched("PreToolUse"; "Bash"; $audit)
   | ensureMatched("PreToolUse"; "Bash"; $device)
+  | ensureMatched("PreToolUse"; "Bash"; $assignhost)
   | ensureMatched("PostToolUse"; "*"; $ledger)
 ' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
 
