@@ -78,21 +78,22 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 | review/verification | fresh `sonnet`; risky=`opus` | fresh Sol medium |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` low | Terra low |
-| dispatch external CLI worker | one blocking `assign` call (background task, or `general-purpose` on `sonnet` low when foreground timeouts cap the wait) | one blocking `assign` call (same) |
+| dispatch external CLI worker | one hosted blocking `assign` call (background task, or `general-purpose` on `sonnet` low when foreground timeouts cap the wait) | one hosted blocking `assign` call (same) |
 
-External asynchronous workers are dispatched with ONE
+Before dispatch, resolve the wrapper bundle, run its `agent-tmux <cli> setup`, and stop on failure. Then dispatch external asynchronous workers with ONE
 `agent-tmux <cli> assign <name> <dir> <prompt-file>` call. The stepwise sequence it
 encodes (start → result init → send --from-file → confirm-the-pane-is-processing →
 one blocking supervise --result-required) IS the supervision — the per-worker
 supervision-proxy pattern is RETIRED (2026-08-08, W32 M5; user-designed sequence).
-Run the single blocking call where a long wait is appropriate: a background task, or
-one cheap subagent when the runtime caps foreground timeouts. EXCEPTION — a harness
+Run the single blocking call in a background task, or one cheap subagent when the
+runtime caps foreground timeouts; never run non-detach in the parent foreground. EXCEPTION — a harness
 that reaps long background tasks (local Claude Code: exit-144 kill after ~10 min,
 which also takes a tmux server spawned inside the task's tree): dispatch with
 `assign --detach` in a short FOREGROUND call (steps 1–4 still verified, returns
 immediately), then harvest with bounded `result wait-required --wait <s>` calls.
-The parent does not additionally call status/watch/capture/probe/ping or send
-follow-ups unless `assign` reports a failed step/blocker or the user asks.
+Verify that reaping premise in-session before using the exception. After `assign`
+returns, collect `result --json`, judge `.present` → `.valid` → `.body.status`, then `stop`.
+The parent does not additionally call status/watch/capture/probe/ping or send follow-ups unless `assign` reports a failed step/blocker or the user asks.
 
 tmux worker mechanics (highest-frequency real-world failure — ≥4 sessions re-hit
 this after it was recorded):

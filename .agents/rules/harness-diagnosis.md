@@ -100,9 +100,14 @@ publish fleet topology in this public repository.
 
 ### Probed (undocumented, version-pinned)
 - Hook stdin `agent_type`: present only when the Bash call runs inside a
-  subagent context; absent in the parent session. Basis of the
-  tmux-dispatch-gate subagent pass-through. Probe: tmux-agent-tools
-  `.workflow/202607261830-dispatch-gate-enforcement/`, CLI 2.1.220.
+  subagent context; absent in the parent session. The VALUE is the agent's
+  NAME, not its type (a `general-purpose` agent named `agenttype-probe`
+  reports `agenttype-probe`) — presence is the signal, never the value.
+  Basis of the tmux-dispatch-gate subagent pass-through and of
+  `.agents/hooks/tmux-assign-host-gate.sh`. Probe: tmux-agent-tools
+  `.workflow/202607261830-dispatch-gate-enforcement/`, CLI 2.1.220;
+  re-probed CLI 2.1.229 on 2026-08-13
+  (`~/.local/state/agent-scripts/tmux-assign-host-probe.jsonl`).
 - Session rename endpoint: `PUT https://api.anthropic.com/v1/code/sessions/
   <cse_id>` with subscription OAuth bearer from Keychain
   (`Claude Code-credentials`) + `anthropic-beta: oauth-2025-04-20`; body
