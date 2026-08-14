@@ -1,61 +1,61 @@
 {
   "design-consensus": {
-    "last_week": "2026-W32",
-    "uses": 5,
+    "last_week": "2026-W33",
+    "uses": 10,
     "consecutive_zero_weeks": 0
   },
   "consensus-gate": {
-    "last_week": "2026-W32",
+    "last_week": "2026-W33",
     "uses": 7,
     "consecutive_zero_weeks": 0
   },
   "design-vs-code-audit": {
-    "last_week": "2026-W32",
+    "last_week": "2026-W33",
     "uses": 8,
     "consecutive_zero_weeks": 0
   },
   "docs-vs-code-audit": {
-    "last_week": "2026-W32",
-    "uses": 5,
+    "last_week": "2026-W33",
+    "uses": 4,
     "consecutive_zero_weeks": 0
   },
   "feature-lifecycle-auto": {
-    "last_week": "2026-W32",
-    "uses": 2,
+    "last_week": "2026-W33",
+    "uses": 3,
     "consecutive_zero_weeks": 0
   },
   "feature-plan-consensus": {
-    "last_week": "2026-W32",
-    "uses": 2,
+    "last_week": "2026-W33",
+    "uses": 3,
     "consecutive_zero_weeks": 0
   },
   "findings-triage": {
-    "last_week": "2026-W32",
-    "uses": 4,
+    "last_week": "2026-W33",
+    "uses": 5,
     "consecutive_zero_weeks": 0
   },
   "plan-pipeline": {
-    "last_week": "2026-W32",
-    "uses": 4,
+    "last_week": "2026-W33",
+    "uses": 5,
     "consecutive_zero_weeks": 0
   },
   "project-direction-review": {
-    "last_week": "2026-W32",
-    "uses": 2,
+    "last_week": "2026-W33",
+    "uses": 3,
     "consecutive_zero_weeks": 0
   },
   "root-cause-deep-dive-audit": {
-    "last_week": "2026-W32",
-    "uses": 2,
+    "last_week": "2026-W33",
+    "uses": 3,
     "consecutive_zero_weeks": 0
   },
   "spec-implement-dual-review-verify": {
-    "last_week": "2026-W32",
+    "last_week": "2026-W33",
     "uses": 4,
     "consecutive_zero_weeks": 0
   },
   "workflow-manifest": {
-    "last_week": "2026-W32",
+    "last_week": "2026-W33",
     "uses": 5,
     "consecutive_zero_weeks": 0
   }

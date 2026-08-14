@@ -12,6 +12,8 @@ simpler", "in plain words"). You MUST follow it in both cases.
   colloquial and casual.
 - Procedural English (briefs, rules, commits) uses simple verbs and short
   sentences.
+- Use the smallest common words that preserve technical precision. When a
+  decision needs choices, give at most two and name the recommended one.
 - Keep technical terms in their original form. Translate no identifier, API
   name, command, or filename.
 

@@ -55,6 +55,8 @@ def errors_for(path: Path) -> list[str]:
             errors.append(f"{key} must be {expected}")
     if metadata.get("cwd", "") and not metadata["cwd"].startswith("/"):
         errors.append("cwd must be absolute")
+    if "evidence_host" in metadata and not metadata["evidence_host"]:
+        errors.append("evidence_host must not be empty")
     for pattern in SECRET_PATTERNS:
         if re.search(pattern, text):
             errors.append("possible secret pattern detected")
@@ -63,11 +65,12 @@ def errors_for(path: Path) -> list[str]:
 
 
 def self_test() -> int:
-    valid = """---\nschema_version: 1\nsource_runtime: claude\nsubmitted_at: 2026-07-26T00:00:00Z\ncwd: /repo\nsource_session: session-1\nclaim_status: unverified\n---\n# Candidate\n"""
+    valid = """---\nschema_version: 1\nsource_runtime: claude\nsubmitted_at: 2026-07-26T00:00:00Z\ncwd: /repo\nsource_session: session-1\nclaim_status: unverified\nevidence_host: mbp-local\n---\n# Candidate\n"""
     cases = {
         "runtime": valid.replace("source_runtime: claude", "source_runtime: codex"),
         "missing": valid.replace("source_session: session-1\n", ""),
         "relative": valid.replace("cwd: /repo", "cwd: repo"),
+        "empty_host": valid.replace("evidence_host: mbp-local", "evidence_host:"),
         "secret": valid + "api_key: abcdefgh\n",
     }
     with tempfile.TemporaryDirectory() as directory:

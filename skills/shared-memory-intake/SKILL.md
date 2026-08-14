@@ -32,7 +32,11 @@ runtime.
    cwd: /absolute/path
    source_session: opaque-session-id
    claim_status: unverified
+   evidence_host: hostname-or-fleet-id
    ```
+
+   `evidence_host` is optional for same-host evidence and required when the cited
+   source exists only on another host.
 
 3. Keep only reusable conclusions, source references, evidence, and unknowns. Never
    include credentials, tokens, private keys, cookies, or raw transcripts.
@@ -52,7 +56,9 @@ runtime.
    `rmdir` after the outcome is recorded.
 2. Run the validator on the candidate. Reject on schema or secret-pattern failure.
 3. Inspect the cited source and live-verify every dynamic claim that would enter the
-   current index.
+   current index. For cross-host evidence, require `evidence_host`, verify the live
+   source on that host, and record the curator host plus verification time in the
+   promoted summary. Missing host access remains `UNCONFIRMED`.
 4. Re-read `MEMORY.md` immediately before its update. If its relevant topic changed
    during review, restart the review instead of merging assumptions.
 5. Promote accepted knowledge to a new immutable `rollout_summaries/*.md` record and

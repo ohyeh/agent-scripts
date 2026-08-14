@@ -25,6 +25,8 @@ live source first.
   procedural English uses simple verbs, short sentences.
 - Narrate mid-turn only for a key finding or repeated failure; lead with
   the outcome; end with a next step when needed.
+- After a correction: state the fix in one line and execute it; do not write
+  an apology essay.
 - The final message MUST end with `✈` alone on the last line (canary;
   missing → reload). Exceptions: required final-line formats (`VERDICT: PASS|BLOCK`)
   and protocol payloads (JSON/JSONL, `::directive{...}`, schemas, verdicts)

@@ -13,6 +13,14 @@ REFERENCES (optional, prefer when they exist): paths to code, tests, rubrics, or
 HTML/specs that DEFINE done — a rich reference beats prose restating it. Add a
 `REFERENCES:` line to any template below when the task has one.
 
+For non-trivial work, add these filled lines before ACCEPTANCE:
+
+> BUDGET: `{max turns/time/tokens}`. Stop at `{stop condition}`; escalate on
+> `{escalation condition}`.
+> EXCLUDED PATHS: `{attempted or ruled-out approaches + evidence}`.
+> MAIN VERIFICATION: `{fresh evidence the delegator must reproduce before
+> accepting done}`.
+
 Common footer — include in EVERY delegation:
 
 > REPORT: return ONLY short conclusion bullets + `file:line` per claim +
@@ -103,7 +111,7 @@ dispatching anything that depends on them.
 ## Dispatch shape B — tmux worker (agent-tmux <cli>)
 
 ```sh
-agent-tmux claude start --exact --prompt-file {prompt-file} {safe-name} {repo-dir}
+agent-tmux claude assign {safe-name} {repo-dir} {prompt-file}
 ```
 
 When the delegate is a tmux worker, ADD these lines to the filled template
@@ -117,10 +125,9 @@ When the delegate is a tmux worker, ADD these lines to the filled template
 > If the dispatcher gives an overall deadline, write that valid result at least
 > 120 seconds before it; an artifact without it remains UNCONFIRMED.
 
-Write the filled template to a prompt file and pass it via `--prompt-file`
-(alias of `--from-file`; works on `start`, `send`, `send-wait`) — never
-interpolate raw task text into the command line (the tmux-delegate agent's
-rule, applied here to the prompt file).
+Write the filled template to a prompt file and pass its path to `assign` — never
+interpolate raw task text into the command line. `assign` owns start, submission,
+supervision, canonical-result validation, and stop; do not hand-chain them.
 Ownership boundaries: this skill owns the prompt body (templates + footers +
 addendum). The dispatch shapes above are illustrative carriers showing where
 the filled prompt lands — the authoritative rules for deciding WHETHER to
