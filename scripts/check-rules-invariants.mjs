@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LINE_LIMIT = 150; // maintenance.md per-file cap
+const KERNEL_CHAR_LIMIT = 5000;
 const BASELINE_PATH = join(ROOT, 'evals/context-budget-baseline.json');
 
 const results = [];
@@ -23,6 +24,9 @@ const claudeMd = read('global/CLAUDE.md');
 const agentsMd = read('global/AGENTS.md');
 check('global-identical', claudeMd === agentsMd,
   'global/CLAUDE.md vs global/AGENTS.md');
+const kernelChars = [claudeMd, agentsMd].map((s) => [...s].length);
+check('global-char-limit', kernelChars.every((n) => n < KERNEL_CHAR_LIMIT),
+  `${kernelChars.join('/')} < ${KERNEL_CHAR_LIMIT}`);
 
 // 2. line limits
 for (const p of ['global/CLAUDE.md', 'global/AGENTS.md']) {
