@@ -24,9 +24,10 @@ const claudeMd = read('global/CLAUDE.md');
 const agentsMd = read('global/AGENTS.md');
 check('global-identical', claudeMd === agentsMd,
   'global/CLAUDE.md vs global/AGENTS.md');
-const kernelChars = [claudeMd, agentsMd].map((s) => [...s].length);
-check('global-char-limit', kernelChars.every((n) => n < KERNEL_CHAR_LIMIT),
-  `${kernelChars.join('/')} < ${KERNEL_CHAR_LIMIT}`);
+// solid edition (deployed) has no size cap; the cap binds the lean edition only
+const leanChars = [...read('global/kernel-lean.md')].length;
+check('kernel-lean-char-limit', leanChars < KERNEL_CHAR_LIMIT,
+  `${leanChars} < ${KERNEL_CHAR_LIMIT}`);
 
 // 2. line limits
 for (const p of ['global/CLAUDE.md', 'global/AGENTS.md']) {
