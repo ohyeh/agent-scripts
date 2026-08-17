@@ -23,3 +23,8 @@ Chain these for planning and investigation work:
   then converge; number the options.
 - Run the full `adhd` parallel divergence at key, high-stakes, open-ended
   moments. A routine turn keeps the discipline without the parallel fan-out.
+- Diagram-first (user standing preference 2026-08-17): when the deliverable
+  explains structure or dynamics — architecture, flows, timelines, comparisons,
+  decision trees, retro/plan reports — proactively render it with
+  `diagram-design` (HTML/SVG) instead of describing it in prose only; send the
+  file. Skip only for trivial one-step answers or when the user asks for text.
