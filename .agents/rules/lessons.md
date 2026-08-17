@@ -35,3 +35,19 @@ transient (6 concurrent codex tmux workers + browsers). Root cause UNCONFIRMED.
 Lesson: a finished worker with pending result.json + Stop-hook EMFILE in the
 pane is a HARVEST-DIRECTLY signal, not a hang; on next EMFILE capture
 `sysctl kern.num_files` and `lsof | wc -l` immediately before touching anything.
+
+## 2026-08-18 EMFILE refined chain: Codex app-server MCP pipe-FD leak, 256 as trigger
+Status: proposed
+Supersedes-detail-of: "2026-08-18 EMFILE kills worker Stop hooks under load".
+Chain (user-verified snapshot): long-lived Codex app-server → stdio MCP /
+subagent churn → teardown leaves PIPE FDs (PID 15073, ~11h: 159 lsof rows,
+90 PIPE, 30 children) → launchd soft RLIMIT_NOFILE 256 becomes the trigger →
+EMFILE. Upstream: openai/codex #26984, #34410; local CLI 0.147.0 (rmcp 3.0.0,
+non-blocking MCP startup) installed 08-08. Root cause of the original incident
+stays UNCONFIRMED (no RLIMIT/EMFILE log captured at the time).
+Rules: (1) raising limits is mitigation, not the fix — the leak is upstream;
+(2) RLIMIT_NOFILE is per-process and fixed at spawn — after raising launchd
+limits, RESTART existing app-server/workers and re-verify a child's actual
+limit; (3) on next EMFILE capture, before touching anything:
+`sysctl kern.num_files`, `launchctl limit maxfiles`,
+`lsof -p <app-server-pid> | awk '$5=="PIPE"' | wc -l`.
