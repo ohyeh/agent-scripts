@@ -53,5 +53,5 @@ printf '%s' "$CMD" | awk -v RS='[|;&]+' '
   END { exit !found }
 ' && exit 0
 
-echo "BLOCKED: blocking \`agent-tmux <cli> assign\` must not run in the parent session's foreground — its supervise would sit on the expensive main context. Per model-dispatch.md §4, host the ONE assign call in a \`general-purpose\` subagent on sonnet low (host only: exactly one assign call, no status/capture/probe/result alongside it, no reading or judging the worker's output), or pass run_in_background. A short foreground --detach call is allowed only after its reaping premise is verified in-session." >&2
+echo "BLOCKED: blocking \`agent-tmux <cli> assign\` must not run in the parent session's foreground — its supervise would sit on the expensive main context. Per model-dispatch.md §4 (2026-08-17 ruling), the canonical host is a supervision proxy: ONE \`general-purpose\` subagent on sonnet low whose brief orders it to run the single assign call FIRST, then report exit code + status/summary (no status/capture/probe/result, no reading the worker's output). run_in_background is a FALLBACK, allowed only after a proxy attempt failed, with the reason logged in the run dir. A short foreground --detach call is allowed only after its reaping premise is verified in-session." >&2
 exit 2

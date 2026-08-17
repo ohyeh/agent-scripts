@@ -78,35 +78,34 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 | review/verification | fresh `sonnet`; risky=`opus` | fresh Sol medium |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` low | Terra low |
-| dispatch external CLI worker | one hosted blocking `assign` call (background task, or `general-purpose` on `sonnet` low when foreground timeouts cap the wait) | one hosted blocking `assign` call (same) |
+| dispatch external CLI worker | supervision proxy: `general-purpose` subagent on `sonnet` low hosting the ONE blocking `assign` call | same (proxy hosts the one `assign`) |
 
 Before dispatch, resolve the wrapper bundle, run its `agent-tmux <cli> setup`, and stop on failure. Then dispatch external asynchronous workers with ONE
 `agent-tmux <cli> assign <name> <dir> <prompt-file>` call. The stepwise sequence it
 encodes (start → result init → send --from-file → confirm-the-pane-is-processing →
-one blocking supervise --result-required) IS the supervision — the per-worker
-supervision-proxy pattern is RETIRED (2026-08-08, W32 M5; user-designed sequence).
-Run the single blocking call in a background task, or one cheap subagent when the
-runtime caps foreground timeouts; never run non-detach in the parent foreground. EXCEPTION — a harness
+one blocking supervise --result-required) IS the supervision. Canonical host
+(2026-08-17 user ruling): a supervision proxy — ONE `general-purpose` subagent on
+`sonnet` low — owns the full four-step bring-up as this single `assign` call, holds
+its stepwise output, and reports exit code + status/summary only. Its brief MUST
+order: run the command FIRST, then report; no status/capture/probe/result, no
+reading or judging the worker's output. Parent `run_in_background` = FALLBACK,
+only after a proxy attempt failed, reason logged in the run dir. The old per-worker
+polling proxy stays RETIRED (2026-08-08, W32 M5); never non-detach in the
+parent foreground. EXCEPTION — a harness
 that reaps long background tasks (local Claude Code: exit-144 kill after ~10 min,
-which also takes a tmux server spawned inside the task's tree): dispatch with
-`assign --detach` in a short FOREGROUND call (steps 1–4 still verified, returns
-immediately), then harvest with bounded `result wait-required --wait <s>` calls.
-Verify that reaping premise in-session before using the exception. After `assign`
-returns, collect `result --json`, judge `.present` → `.valid` → `.body.status`, then `stop`.
-The parent does not additionally call status/watch/capture/probe/ping or send follow-ups unless `assign` reports a failed step/blocker or the user asks.
+also killing a tmux server spawned in the task's tree): verify that reaping premise
+in-session, then dispatch `assign --detach` in a short FOREGROUND call (steps 1–4
+still verified, returns at once) and harvest with bounded `result wait-required
+--wait <s>` calls. After `assign` returns, collect `result --json`, judge
+`.present` → `.valid` → `.body.status`, then `stop`. The parent adds no
+status/watch/capture/probe/ping or follow-ups unless `assign` reports a failed
+step/blocker or the user asks.
 
-tmux worker mechanics (highest-frequency real-world failure — ≥4 sessions re-hit
-this after it was recorded):
-- Dispatch is `assign` — never hand-chain the steps. A worker started with
-  `--prompt-file` sits idle with no task; the symptom mimics an account/auth hang
-  (`assign` makes that shape impossible and catches "task never reached the CLI").
-- Before declaring any profile/worker unusable: read
-  `skills/tmux-agent-tools/scripts/profiles/README.md` (bin= may need a bare env
-  override, e.g. `CLAUDE="$(command -v claude)" agent-tmux <profile-filename> start …`).
-- Headless codex: always `codex exec … < /dev/null` (add `--skip-git-repo-check`
-  outside a trusted repo) or it hangs on stdin.
-- A worker stuck longer than ~15 min escalates to the user as a blocker; silent
-  fixed-interval polling is forbidden (the proxy's blocking wait IS the mechanism).
+tmux worker mechanics (highest-frequency real-world failure — ≥4 sessions re-hit this after it was recorded):
+- Dispatch is `assign` — never hand-chain the steps. A worker started with `--prompt-file` sits idle with no task; the symptom mimics an account/auth hang (`assign` makes that shape impossible and catches "task never reached the CLI").
+- Before declaring any profile/worker unusable: read `skills/tmux-agent-tools/scripts/profiles/README.md` (bin= may need a bare env override, e.g. `CLAUDE="$(command -v claude)" agent-tmux <profile-filename> start …`).
+- Headless codex: always `codex exec … < /dev/null` (add `--skip-git-repo-check` outside a trusted repo) or it hangs on stdin.
+- A worker stuck longer than ~15 min escalates to the user as a blocker; silent fixed-interval polling is forbidden (the proxy's blocking wait IS the mechanism).
 
 ## §5 Effort and retry ladder
 
