@@ -17,7 +17,7 @@ curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/scripts/de
 
 It downloads the current `main` tarball to a scratch dir and deploys all four
 runtime layers — global files → `~/.claude`/`~/.codex` (md5-verified), rules →
-`~/.agents/rules/` (`rsync --delete --exclude lessons.md`), workflow recipes →
+`~/.agents/rules/` (`rsync -a --delete`, lessons.md included — repo is canonical), workflow recipes →
 `~/.claude/workflows/` (install.sh --force), and the skill set (`skills-lock.json`
 → `npx skills experimental_install`) — each layer printing PASS/FAIL and aborting
 fast on the first failure. This is the primary rebuild path; the per-layer manual
@@ -45,7 +45,7 @@ is unavailable. Live-used on two fleet nodes at W15/W18.
 ## Rules / Institution
 
 - **Canonical**: routed rules live in `~/.agents/rules/` (both runtimes read them on demand per the global-file routing table); the two global files are native duplicates, `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` (same content, maintained separately, no symlink). (The v5 install.sh/symlink scheme was deprecated and deleted on 2026-07-17 — do not reference it anymore.)
-- **Rebuild (ADR-0001 ACTIVE since 2026-07-19)**: rules ARE now version-controlled — the public `agent-scripts` repo's `.agents/rules/` is canonical; machine copies are deployed, direction always repo → machine. Deploy = `rsync -a --delete --exclude lessons.md <repo>/.agents/rules/ ~/.agents/rules/` (the `--exclude lessons.md` is required — without it `--delete` erases the machine's local lessons file, which stays LOCAL-ONLY and never enters the public repo). The Fast-path `deploy.sh` does exactly this as its rules layer. Global files are canonical in the repo's `global/` directory, deployed byte-identical to `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`.
+- **Rebuild (ADR-0001 ACTIVE since 2026-07-19)**: rules ARE now version-controlled — the public `agent-scripts` repo's `.agents/rules/` is canonical; machine copies are deployed, direction always repo → machine. Deploy = `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/` — lessons.md is repo-canonical and synced like every other rules file (superseded 2026-08-18: the old `--exclude lessons.md` local-only doctrine contradicted deploy.sh live behavior and maintenance.md; append new lessons in the repo, then deploy). The Fast-path `deploy.sh` does exactly this as its rules layer. Global files are canonical in the repo's `global/` directory, deployed byte-identical to `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`.
 - **Verify**: the `~/.agents/rules/` manifest matches the global-file routing
   table, both global files have the same `Version:` line, `scripts/check-canary.sh`
   passes before deployment, and a new session reply ends with `✈`.

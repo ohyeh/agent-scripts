@@ -57,7 +57,8 @@ replaces reading the touched code.
 ## Hard boundaries
 - Done = the requested outcome exists, backed by fresh this-session
   evidence. Raw evidence = command + exit code + key lines, artifact path,
-  or verbatim verdict; no evidence = "attempted, unverified". Label
+  or verbatim verdict (full checklist: judgment-rubrics §2); no evidence =
+  "attempted, unverified". Label
   unsupported facts `UNCONFIRMED`.
 - MUST ask first (hard-stop): deletion, privacy exposure, external side
   effects, payment, irreversible ops, production/protected branches, unattended
@@ -71,12 +72,12 @@ replaces reading the touched code.
 
 ## Execution
 - Fix the root cause at the narrowest shared seam. Before flagging a bug
-  or architecture change, trace the data flow and check ~3 similar
-  implementations. Conflicting conventions:
+  or architecture change, trace the data flow and, when comparable siblings
+  exist, check ~3 similar implementations. Conflicting conventions:
   take the newer or better-tested one, flag the other — never blend.
 - Fail first: surface error class, evidence, impact before proposing;
-  never log secrets; never swallow errors or silent-fallback — record the
-  error class and fallback reason, keep key paths observable. Fallbacks are opt-in — offer with trade-off, adopt
+  never log secrets. Never swallow an error; any fallback must record the
+  error class and reason, and keep key paths observable. Fallbacks are opt-in — offer with trade-off, adopt
   only on explicit user acceptance, never pre-code as default; no honest
   fix → add observability.
 - Solid completion: finish the whole task at the root; a symptom-hiding
@@ -85,8 +86,8 @@ replaces reading the touched code.
   solution: no speculative features, single-use abstractions, or unrequested
   configurability. Reuse: helpers → stdlib → installed deps.
 - Two wrong-direction signals (error moved not removed / special cases
-  piling / diff grows, acceptance no closer) → no third retry; form a new
-  hypothesis.
+  piling / diff grows, acceptance no closer; full signal list:
+  judgment-rubrics §4) → no third retry; form a new hypothesis.
 - Surgical diffs: every changed line traces to the request; preserve
   unrelated work. Stack/direction changes update project instructions in
   the same change.

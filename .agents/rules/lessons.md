@@ -23,3 +23,15 @@ Status: proposed   # 使用者 2026-08-14 裁決通過，待折入
 ## 2026-08-14 | scope: handoff-format | trigger: W33 retro——blocked handoff 未帶「已證明不可行的路徑」，後繼 session 把前人結論當 lead 重驗三輪
 Rule: blocked handoff 必填「已燒成本＋已排除路徑（含證據指標）」節；後繼 session 禁止重驗未被推翻的已排除路徑。落點：session-handoff 格式。
 Status: proposed   # 使用者 2026-08-14 裁決通過，待折入
+
+## 2026-08-18 EMFILE kills worker Stop hooks under load
+Status: proposed
+Evidence: session 37839e4b — adversarial-kernel worker finished in 16m but its
+Stop hooks died 3x with "Too many open files (os error 24)", leaving
+result.json stuck at `pending`; supervise/result-wait then blocks until
+timeout. At diagnosis time kern.num_files was 7724/122880 and the tmux server
+ulimit -n was 1048576 — per-pane fd limits ruled out; the pressure was
+transient (6 concurrent codex tmux workers + browsers). Root cause UNCONFIRMED.
+Lesson: a finished worker with pending result.json + Stop-hook EMFILE in the
+pane is a HARVEST-DIRECTLY signal, not a hang; on next EMFILE capture
+`sysctl kern.num_files` and `lsof | wc -l` immediately before touching anything.
