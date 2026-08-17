@@ -1,0 +1,205 @@
+<title>Kanban Work-Order Board — Template v1</title>
+<!--
+  kanban-board-template_v1.html
+  A three-zone collapsible work-order layout (DONE / OPEN QUESTIONS·DECISIONS / TODO·BACKLOG), native <details>, zero JS, zero external resources.
+  Usage: copy the whole file → swap out <title>, header text, and card content. Component reference:
+    .chip / .chip.ok / .chip.warn   header status pills
+    .progress + .plabel             progress bar (adjust the width% of p-done/p-run/p-todo)
+    details.zone                    a section (add the open attribute = expanded by default)
+    .rail > .step                   timeline cards (.done = green border, .hl = highlighted, .defer zone dashed = backlog)
+    .tag.done / .run / .todo        top-right status tag on a card
+    .donebox                        simple checklist
+    .gates > .gq                    decision card (.gq.done + .verdict = decided)
+-->
+<style>
+:root{
+  --bg:#F6F8F7; --surface:#FFFFFF; --ink:#1B2624; --ink-2:#4A5854; --ink-3:#7E8B87;
+  --line:#D9E0DD; --accent:#0E7568; --accent-soft:#E2EFEC;
+  --done:#3D7A52; --done-soft:#E4EFE7;
+  --gate:#A8730E; --gate-soft:#F5EBD8;
+  --defer:#8A9490; --defer-soft:#EDF0EF;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,monospace;
+  --sans:-apple-system,"PingFang TC","Noto Sans TC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141B19; --surface:#1C2422; --ink:#E7EDEB; --ink-2:#AAB8B3; --ink-3:#75837E;
+  --line:#2C3733; --accent:#4CC2AF; --accent-soft:#1B332F;
+  --done:#7DBE93; --done-soft:#20342A;
+  --gate:#DBA84A; --gate-soft:#3A2F17;
+  --defer:#75837E; --defer-soft:#232B29;
+}}
+:root[data-theme="dark"]{
+  --bg:#141B19; --surface:#1C2422; --ink:#E7EDEB; --ink-2:#AAB8B3; --ink-3:#75837E;
+  --line:#2C3733; --accent:#4CC2AF; --accent-soft:#1B332F;
+  --done:#7DBE93; --done-soft:#20342A;
+  --gate:#DBA84A; --gate-soft:#3A2F17;
+  --defer:#75837E; --defer-soft:#232B29;
+}
+:root[data-theme="light"]{
+  --bg:#F6F8F7; --surface:#FFFFFF; --ink:#1B2624; --ink-2:#4A5854; --ink-3:#7E8B87;
+  --line:#D9E0DD; --accent:#0E7568; --accent-soft:#E2EFEC;
+  --done:#3D7A52; --done-soft:#E4EFE7;
+  --gate:#A8730E; --gate-soft:#F5EBD8;
+  --defer:#8A9490; --defer-soft:#EDF0EF;
+}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.65;margin:0;
+  font-size:15px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding:48px 24px 80px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font-size:30px;font-weight:700;letter-spacing:-.01em;margin:6px 0 4px;text-wrap:balance}
+.sub{color:var(--ink-2);margin:0 0 18px;max-width:60ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.chip{font-family:var(--mono);font-size:11.5px;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--ink-2);background:var(--surface)}
+.chip.ok{color:var(--done);border-color:var(--done);background:var(--done-soft)}
+.chip.warn{color:var(--gate);border-color:var(--gate);background:var(--gate-soft)}
+h2{font-size:13px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);margin:44px 0 16px;display:flex;align-items:center;gap:12px}
+h2::after{content:"";flex:1;height:1px;background:var(--line)}
+/* done list */
+.donebox{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 20px;
+  display:grid;gap:8px}
+.donebox div{display:flex;gap:10px;align-items:baseline;color:var(--ink-2)}
+.donebox b{color:var(--ink);font-weight:600}
+.tick{color:var(--done);font-family:var(--mono);flex:none}
+/* pipeline rail */
+.rail{position:relative;padding-left:52px;display:grid;gap:14px}
+.rail::before{content:"";position:absolute;left:17px;top:10px;bottom:10px;width:2px;background:var(--line)}
+.step{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px}
+.step::before{content:"";position:absolute;left:-42px;top:18px;width:12px;height:12px;border-radius:50%;
+  background:var(--bg);border:2.5px solid var(--accent)}
+.step.hl{border-color:var(--accent)}
+.step.hl::before{background:var(--accent)}
+.whead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.wnum{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);
+  background:var(--accent-soft);padding:2px 8px;border-radius:5px;flex:none}
+.wtitle{font-weight:650;font-size:15.5px}
+.wdesc{color:var(--ink-2);margin:6px 0 0;font-size:14px}
+.wout{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.out{font-family:var(--mono);font-size:11px;color:var(--ink-2);border:1px solid var(--line);
+  border-radius:5px;padding:2px 8px;background:var(--bg)}
+.out.new{color:var(--accent);border-color:var(--accent)}
+.gnote{margin-top:10px;font-size:13px;color:var(--gate);display:flex;gap:8px;align-items:baseline}
+.gnote::before{content:"◆";font-size:10px;flex:none}
+/* status tags */
+.tag{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  padding:2px 8px;border-radius:99px;flex:none;margin-left:auto}
+.tag.done{color:var(--done);background:var(--done-soft);border:1px solid var(--done)}
+.tag.run{color:var(--gate);background:var(--gate-soft);border:1px solid var(--gate)}
+.tag.todo{color:var(--defer);background:var(--defer-soft);border:1px solid var(--line)}
+.step.done{border-color:var(--done)}
+.step.done::before{background:var(--done);border-color:var(--done)}
+/* progress bar */
+.progress{display:flex;height:8px;border-radius:99px;overflow:hidden;border:1px solid var(--line);margin:14px 0 4px}
+.progress i{display:block}
+.progress .p-done{background:var(--done)}
+.progress .p-run{background:var(--gate)}
+.progress .p-todo{background:var(--defer-soft)}
+.plabel{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin:0 0 6px}
+/* resolved gates */
+.gq.done{background:var(--done-soft);border-color:var(--done)}
+.gq.done .n{color:var(--done)}
+.gq .verdict{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--done);flex:none;margin-left:auto}
+/* gate strip */
+.gates{display:grid;gap:10px}
+.gq{background:var(--gate-soft);border:1px solid var(--gate);border-radius:10px;padding:12px 16px;
+  display:flex;gap:12px;align-items:baseline}
+.gq .n{font-family:var(--mono);font-weight:700;color:var(--gate);flex:none}
+.gq p{margin:0;color:var(--ink)}
+.gq small{color:var(--ink-2);display:block;margin-top:2px}
+/* deferred */
+.defer .step{border-style:dashed;background:transparent}
+.defer .step::before{border-color:var(--defer);border-style:solid}
+.defer .wnum{color:var(--defer);background:var(--defer-soft)}
+.fork{font-family:var(--mono);font-size:12px;color:var(--ink-3);padding-left:52px;margin:4px 0}
+.foot{margin-top:48px;padding-top:16px;border-top:1px solid var(--line);color:var(--ink-3);font-size:12.5px;
+  font-family:var(--mono)}
+code{font-family:var(--mono);font-size:.92em;background:var(--defer-soft);padding:1px 5px;border-radius:4px}
+@media (prefers-reduced-motion: no-preference){.step{transition:border-color .15s}}
+
+/* collapsible zones */
+details.zone{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:18px 0;overflow:hidden}
+details.zone>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:14px 18px;
+  font-family:var(--mono);font-size:12.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--ink);user-select:none}
+details.zone>summary::-webkit-details-marker{display:none}
+details.zone>summary::after{content:"▾";margin-left:auto;color:var(--ink-3);transition:transform .15s}
+details.zone:not([open])>summary::after{transform:rotate(-90deg)}
+details.zone[open]>summary{border-bottom:1px solid var(--line)}
+details.zone>*:not(summary){margin-left:18px;margin-right:18px}
+details.zone>.rail,details.zone>.gates,details.zone>.donebox{margin-bottom:20px}
+details.zone .rail{padding-left:46px}
+details.zone h2{margin:20px 0 14px}
+.zdot{width:9px;height:9px;border-radius:50%;flex:none}
+.zdot.d{background:var(--done)}.zdot.r{background:var(--gate)}.zdot.t{background:var(--defer)}
+.zsub{font-weight:400;letter-spacing:0;text-transform:none;color:var(--ink-3);font-size:12px;margin-left:4px}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Work Order · YYYY-MM-DD</div>
+  <h1>Project Name — Work Order</h1>
+  <p class="sub">One sentence on what this board tracks: scope, rollout philosophy, or this round's goal.</p>
+  <div class="chips">
+    <span class="chip ok">Premise A frozen</span>
+    <span class="chip warn">Risk B under watch</span>
+    <span class="chip">Neutral info C</span>
+  </div>
+  <div class="progress" aria-hidden="true">
+    <i class="p-done" style="width:40%"></i><i class="p-run" style="width:20%"></i><i class="p-todo" style="width:40%"></i>
+  </div>
+  <p class="plabel">2/5 done · 1 in progress · 2 pending</p>
+
+  <details class="zone">
+  <summary><span class="zdot d"></span>DONE<span class="zsub">Completed items · collapsed to keep the layout clean</span></summary>
+  <h2>Completed</h2>
+  <div class="donebox">
+    <div><span class="tick">✓</span><span><b>Setup work</b>: one line on the outcome and where the evidence lives</span></div>
+    <div><span class="tick">✓</span><span><b>Another item</b>: commit <code>abc1234</code></span></div>
+  </div>
+  <h2>Build — completed waves</h2>
+  <div class="rail">
+    <div class="step done">
+      <div class="whead"><span class="wnum">W1</span><span class="wtitle">Phase 1 title</span><span class="tag done">✓ done</span></div>
+      <p class="wdesc">What actually happened + acceptance evidence (verdict verbatim, hash, exit code).</p>
+      <div class="wout"><span class="out">Output 1</span><span class="out new">New output (highlighted)</span></div>
+    </div>
+    <div class="step done">
+      <div class="whead"><span class="wnum">W2</span><span class="wtitle">Phase 2 title</span><span class="tag done">✓ done</span></div>
+      <p class="wdesc">Description.</p>
+      <div class="wout"><span class="out">Output</span></div>
+      <p class="gnote">Post-completion notes, carry-forward items, remaining risk go here</p>
+    </div>
+  </div>
+  <h2>Gates — decided</h2>
+  <div class="gates">
+    <div class="gq done"><span class="n">Q1</span><p>Decided question<small>The decision and its rationale</small></p><span class="verdict">YES ✓</span></div>
+  </div>
+  </details>
+
+  <details class="zone" open>
+  <summary><span class="zdot r"></span>Open questions · decisions<span class="zsub">Open questions needing a human decision</span></summary>
+  <div class="gates">
+    <div class="gq"><span class="n">Q2</span><p>Open decision question<small>Background, options, blast radius — move to the DONE zone with .done + .verdict once decided</small></p></div>
+  </div>
+  </details>
+
+  <details class="zone" open>
+  <summary><span class="zdot t"></span>TODO · BACKLOG<span class="zsub">Solid-border cards = scheduled · dashed cards = backlog</span></summary>
+  <h2>Scheduled</h2>
+  <div class="rail">
+    <div class="step">
+      <div class="whead"><span class="wnum">W3</span><span class="wtitle">Next wave title</span><span class="tag todo">pending</span></div>
+      <p class="wdesc">What's expected to happen, acceptance criteria.</p>
+      <div class="wout"><span class="out">Expected output</span></div>
+    </div>
+  </div>
+  <h2>Backlog — conditionally triggered</h2>
+  <div class="rail defer">
+    <div class="step">
+      <div class="whead"><span class="wnum">P2</span><span class="wtitle">Future idea</span><span class="tag todo">backlog</span></div>
+      <p class="wdesc">A direction not yet scheduled.</p>
+    </div>
+  </div>
+  <p class="fork">└─ Condition: only starts once the prerequisite wave passes verification</p>
+  </details>
+
+  <div class="foot">sources: list the board's data sources here (plan, report, evidence paths) · updated YYYY-MM-DD</div>
+</div>

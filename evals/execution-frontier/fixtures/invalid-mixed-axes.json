@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "comparison": {
+    "vary": "reasoning.effort"
+  },
+  "profiles": {
+    "low": {
+      "reasoning": { "runtime": "local-node", "model": "node", "effort": "low" },
+      "sampling": { "independent_samples": 1, "selection_rule": "none", "sequential_refinement_rounds": 0 },
+      "topology": { "agents": 1, "parallelism": 1, "roles": ["runner"], "edges": [] }
+    },
+    "mixed": {
+      "reasoning": { "runtime": "local-node", "model": "node", "effort": "high" },
+      "sampling": { "independent_samples": 1, "selection_rule": "none", "sequential_refinement_rounds": 0 },
+      "topology": { "agents": 2, "parallelism": 2, "roles": ["runner", "reviewer"], "edges": [["runner", "reviewer"]] }
+    }
+  },
+  "cases": [
+    {
+      "id": "invalid-comparison",
+      "workload_id": "invalid-comparison",
+      "profile_id": "mixed",
+      "command": ["node", "scripts/test-review-gate-smoke.mjs"],
+      "expected_exit_code": 0,
+      "attempts": 1
+    }
+  ]
+}
