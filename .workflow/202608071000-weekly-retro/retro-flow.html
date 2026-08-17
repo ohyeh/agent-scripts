@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekly Retro 執行流程 — agenda v1.2 draft</title>
+<style>
+:root{
+  --bg:#fafaf8;--ink:#1c1c1c;--muted:#6b6b66;--line:#c9c9c2;
+  --card:#ffffff;--accent:#0e6e5c;--accent-soft:#e3f0ec;
+  --warn:#8a4b0f;--warn-soft:#f6ead9;--gate:#5b4b8a;--gate-soft:#ece8f6;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#161614;--ink:#e8e8e4;--muted:#9a9a92;--line:#3d3d38;
+  --card:#211f1d;--accent:#5fbfa8;--accent-soft:#12332c;
+  --warn:#e0a45e;--warn-soft:#33260f;--gate:#a99ad4;--gate-soft:#241f33;}}
+:root[data-theme="light"]{
+  --bg:#fafaf8;--ink:#1c1c1c;--muted:#6b6b66;--line:#c9c9c2;
+  --card:#ffffff;--accent:#0e6e5c;--accent-soft:#e3f0ec;
+  --warn:#8a4b0f;--warn-soft:#f6ead9;--gate:#5b4b8a;--gate-soft:#ece8f6;}
+:root[data-theme="dark"]{
+  --bg:#161614;--ink:#e8e8e4;--muted:#9a9a92;--line:#3d3d38;
+  --card:#211f1d;--accent:#5fbfa8;--accent-soft:#12332c;
+  --warn:#e0a45e;--warn-soft:#33260f;--gate:#a99ad4;--gate-soft:#241f33;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.6 "PingFang TC","Noto Sans TC",system-ui,sans-serif;padding:32px 16px 64px}
+.wrap{max-width:880px;margin:0 auto}
+h1{font-size:1.35rem;margin:0 0 4px}
+.sub{color:var(--muted);font-size:.85rem;margin:0 0 28px}
+.stage{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:16px 20px;position:relative}
+.stage h2{font-size:1rem;margin:0 0 6px;display:flex;gap:8px;align-items:baseline}
+.n{display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;
+  border-radius:50%;background:var(--accent);color:var(--bg);font-size:.8rem;font-weight:700}
+.stage p,.stage ul{margin:4px 0;color:var(--ink);font-size:.9rem}
+.stage ul{padding-left:1.2em}
+.src{font-size:.78rem;color:var(--muted);margin-top:6px}
+.src code{font-size:.95em}
+.arrow{display:flex;flex-direction:column;align-items:center;color:var(--muted);
+  padding:4px 0;font-size:.78rem}
+.arrow::before{content:"";width:2px;height:16px;background:var(--line)}
+.arrow::after{content:"";border:6px solid transparent;border-top-color:var(--line)}
+.arrow span{margin:2px 0}
+.funnel{border-color:var(--accent);}
+.funnel .band{border-radius:8px;padding:12px 14px;margin:10px 0}
+.l1{background:var(--accent-soft);border:1px solid var(--accent)}
+.l2{background:var(--warn-soft);border:1px solid var(--warn)}
+.band h3{margin:0 0 4px;font-size:.9rem}
+.l1 h3{color:var(--accent)}.l2 h3{color:var(--warn)}
+.band ul{margin:2px 0;padding-left:1.2em;font-size:.85rem}
+.pinch{display:flex;justify-content:center;color:var(--muted);font-size:.78rem;
+  align-items:center;gap:8px;margin:2px 0}
+.pinch::before,.pinch::after{content:"";flex:0 0 60px;height:1px;background:var(--line)}
+.gate{border-color:var(--gate);background:var(--gate-soft)}
+.gate .n{background:var(--gate)}
+.two{display:flex;gap:10px;flex-wrap:wrap}
+.two .band{flex:1 1 240px;margin:6px 0}
+.lens{font-size:.8rem;color:var(--muted);border-top:1px dashed var(--line);
+  margin-top:10px;padding-top:8px}
+.tag{display:inline-block;font-size:.72rem;border:1px solid var(--line);border-radius:99px;
+  padding:0 8px;color:var(--muted);margin-left:4px;vertical-align:1px}
+.legend{font-size:.78rem;color:var(--muted);margin-top:28px;border-top:1px solid var(--line);padding-top:12px}
+code{background:color-mix(in srgb,var(--line) 30%,transparent);border-radius:4px;padding:0 4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Weekly Retro 執行流程</h1>
+<p class="sub">依 <code>retro-agenda.md</code> v1.2.0-draft · 範圍：agent-scripts ＋ tmux-agent-tools ＋ context-mode-local-insight · 觸發：使用者喊開跑</p>
+
+<div class="stage">
+  <h2><span class="n">0</span>準備 <span class="tag">不變式檢查</span></h2>
+  <ul>
+    <li>三 repo 先 <code>gh api</code> / <code>git fetch</code> — <b>remote 為真相源</b>，本地 clone 只是 lead</li>
+    <li>開 run dir：<code>.workflow/&lt;ts&gt;-weekly-retro/</code>（plan / report / backlog 三檔）</li>
+  </ul>
+</div>
+
+<div class="arrow"><span></span></div>
+
+<div class="stage">
+  <h2><span class="n">1</span>上週 backlog 對帳</h2>
+  <p>逐項對上週 <code>next-week-backlog.md</code>：「做了沒」看 GitHub commit/issue，「有效沒」看行為指標——分開評。merge 了但行為沒變 = 做了、無效。</p>
+</div>
+
+<div class="arrow"><span></span></div>
+
+<div class="stage funnel">
+  <h2><span class="n">2</span>體驗分析漏斗 <span class="tag">agenda §2–4</span></h2>
+  <p>分析兩種體驗：<b>使用者體驗</b>（糾正、重問、接管）＋ <b>AGENT 體驗</b>（工具失敗、權限拒、重試迴圈、context 耗盡、規則打架）。</p>
+
+  <div class="band l1">
+    <h3>Layer 1 — 全量粗篩（context-mode-local-insight）</h3>
+    <ul>
+      <li><code>cli.mjs agent-sessions --days 7</code>：codex｜claude｜agy 三 store，<b>含封存</b></li>
+      <li>每個數字自帶 <code>{value, method, tier}</code>；覆蓋不到的面明寫缺口</li>
+      <li>輸出<b>可疑名單</b>（附路徑）：done-claim 無證據、✈ 缺失、GOAL/ACCEPT/REPORT 缺失、重試密集、異常長短</li>
+      <li>手排只補 collector 沒有的面（tmux worker、bol-stats），不重算</li>
+    </ul>
+  </div>
+
+  <div class="pinch">只帶名單往下，不掃全部原文</div>
+
+  <div class="band l2">
+    <h3>Layer 2 — 定向深挖（unknowns-discovery / wayfinder 精神）</h3>
+    <ul>
+      <li>只讀名單上的 session 原文：使用者當下經歷什麼？agent 卡在什麼？</li>
+      <li>進場先列「我以為 vs 實際」，不帶上週假設讀本週 session</li>
+      <li>每筆收斂成一行：<b>現象 → 根因類別 → 對策去向</b>（收不斂 = 沒挖完）</li>
+    </ul>
+  </div>
+
+  <div class="lens">對照組：上週每項行為性改動（規則/hook/工具/skill）在 Layer 1 配一個前後指標；配不到 = 「無法驗證有效性」，本身就是 finding。</div>
+</div>
+
+<div class="arrow"><span></span></div>
+
+<div class="stage">
+  <h2><span class="n">5</span>循環工具與記憶盤點 <span class="tag">每台機器都有，local-only 不在 GitHub 上</span></h2>
+  <ul>
+    <li><code>~/.agents/rules/lessons.md</code>：本週新 proposed 逐條列；>90 天 zombie 提請裁決</li>
+    <li><code>~/.agents/shared-memory-inbox/pending/</code>：未消化 submissions 數量與積齡（積壓 = finding；消化走 shared-memory-intake）</li>
+    <li><code>~/.codex/memories/</code>：本週新官方摘要，對照 findings 有無矛盾</li>
+  </ul>
+  <p class="src">機隊內每台機器的這三項都要收；新機入列時本節是 provisioning 檢查項。</p>
+</div>
+
+<div class="arrow"><span></span></div>
+
+<div class="stage">
+  <h2><span class="n">6</span>死碼盤點</h2>
+  <p>recipe 用 <code>recipe-usage-stats.sh</code>（consecutive_zero_weeks）。連續零週 ≥ 4 → attic 掛牌提案；掛牌後又有使用 → 撤牌。<span class="tag">單週快照會誤殺（design-consensus 教訓）</span></p>
+</div>
+
+<div class="arrow"><span></span></div>
+
+<div class="stage gate">
+  <h2><span class="n">7</span>裁決與產出 <span class="tag">使用者 gate</span></h2>
+  <div class="two">
+    <div class="band" style="border:1px solid var(--gate)">
+      <h3 style="color:var(--gate)">指揮者裁決</h3>
+      <ul><li>findings 逐條：升級／觀察／棄案</li><li>不自動升 hard block</li></ul>
+    </div>
+    <div class="band" style="border:1px solid var(--gate)">
+      <h3 style="color:var(--gate)">產出</h3>
+      <ul>
+        <li><code>retro-report.md</code>（數字全附 method）</li>
+        <li>W+1 backlog：證據／落點／驗收</li>
+        <li>lessons.md 追加 <code>proposed</code></li>
+        <li>需使用者決策的事集中最後一次問完</li>
+      </ul>
+    </div>
+  </div>
+  <p style="font-size:.85rem;margin-top:8px">→ 使用者核准後才 commit run dir；backlog 餵給下週的 §1 對帳，形成閉環。</p>
+</div>
+
+<p class="legend">
+綠 = 全量量測層（audited/derived 分 tier）；橘 = 人工深挖層（只吃名單）；紫 = 使用者決策點。
+編號對應 retro-agenda.md v1.2 議程節號（§2–4 已併為漏斗；§5 循環工具為每台機器的 local-only 面）。
+</p>
+</div>
+</body>
+</html>

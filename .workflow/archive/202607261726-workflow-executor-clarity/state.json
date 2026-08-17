@@ -1,0 +1,8 @@
+{
+  "slug": "workflow-executor-clarity",
+  "status": "applied_pending_verification",
+  "changes": {
+    "global_pair": "proposed",
+    "codex_adapter_doc": "proposed"
+  }
+}

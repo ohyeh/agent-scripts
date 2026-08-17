@@ -1,0 +1,92 @@
+# Weekly Retro — 2026-07-17 → 07-24（commander 綜合）
+
+輸入：findings-agent-scripts.md / findings-tmux-agent-tools.md / findings-usage.md（三個 sonnet workers，全程指揮模式，commander 未親寫分析）。
+
+## 一週大勢
+- **agent-scripts**：規則體系高速演進 v4.6.3 → v4.6.14（8 個規則 commit），主軸是 supervision 規則重寫、V=0、ADHD/anti-slop 輸出塑形；07-19 完成 repo-canonical 翻轉與三機收斂。
+- **tmux-agent-tools**：13 commits，主軸 external-worker supervision（BREAKING 移除三個 subagent 定義、blocking supervisor、PR #316 bridge artifact 實測三種 CLI worker）；07-18 單日修正 result/audit 正確性。
+- **使用面**：.workflow 慣例在 agent-scripts 內執行良好（3/3 run 檔案齊全），其他 repo 零採用；lessons.md 一週新增 11 條但 14 proposed / 0 adopted。
+
+## 系統性摩擦（跨 repo 同款）
+1. **fixed-twice 模式**：✈ canary（6e11d5d 弱化 → e260cc5 還原，回覆率 65%→7% 才被人工發現）；supervision 同日兩改（9c64c93→a164ccc）；tmux 的 72e4cf1→3ec0666 同日同 3 檔二修。共同根因：規則/行為變更出貨前缺自動回歸檢查。
+2. **主張未驗證殘留**：154 tests PASS、60/60 smoke 等都是 artifact 自報；stars/clones 當 usage 證據自標 UNCONFIRMED。
+3. **積壓**：lessons.md 14 條 proposed 未消化；remote2 redeploy（288ed67）未確認收尾；upstream #34399（luna 被拒）僅留 fallback。
+
+## 本次 retro 自身的發現
+- Subagent harness 硬擋 findings/report 檔名寫入 → workers 只能 inline 回傳、commander 代落檔（三個 workers 全中）。
+- context-mode hook 硬轉向 WebFetch → 讀 claude.ai artifact 死結，最終靠 Chrome 目視 + force 覆蓋解決；「agent-scripts spinout — 工作順序」artifact 無本地備份，仍無法更新。
+
+## 提案清單（彙整三 workers，Status: proposed，待你裁定）
+A. 防回歸：global 主檔加 CI 檢查（✈ every-reply 措辭被縮窄即 fail）；tmux repo 加同日同檔追修偵測。
+B. 流程衛生:規則編輯 commit 附 .workflow artifact 連結；同日規則連改合併為單一 reviewed commit；.claude/handoffs 決定 commit 或 ignore；清 execution-frontier 雜檔。
+C. 積壓消化：排程 lessons.md review（14 proposed）；追 remote2 redeploy;#34399 入 docs。
+D. 觀測:下次 retro 加「skills 實際被 invoke」檢查;artifact 類頁面（如 spinout）建立本地備份慣例（agent_workspace/artifacts 已起步，缺 spinout）。
+E. 工具鏈：context-mode hook 對 claude.ai/code/artifact URL 放行 WebFetch（否則 artifact 更新流程每次都要 force）。
+
+## 三個 fleet artifact 更新狀態
+- Skill Manifest（83743cc1）：已更新發佈（stop-slop/adhd/using-skills 補列、paperclip-create-plugin 移除、07-24 戳記）。
+- Workflow Manifest（6733cfaf）：已重驗發佈（12/12、hash a5f8770f 不變）。
+- spinout 工作順序（ed298346）:BLOCKED — 無本地源檔亦不在備份目錄，待使用者提供內容。
+
+## 補遺 — 三機補掃（2026-07-24，回應使用者質疑「只掃了本機？」）
+- 承認：原三個 workers 只掃 mbp14。補掃結果：
+- mac-mini-m2：原為 v4.6.11（落後三版）、無 stop-slop → 已用 deploy.sh + rsync 拉平至 v4.6.14（md5 b1ce74fe 與本機一致），stop-slop 兩處已裝。
+- 100.64.190.44：v4.6.14（本日已部署）。修正 W3 結論：「其他 repo 零 .workflow 採用」只對 mbp14 成立 —— 這台的 healthgo/ttpush/standard/yunlin/core 等多個工作 repo 都有 .workflow 目錄，採用度高。
+- spinout artifact 備份：兩台遠端都沒有 agent_workspace/artifacts 備份，仍 BLOCKED。
+- 新 proposed：fleet 機器的規則版本檢查應納入每次部署（mac-mini-m2 落後三版無人察覺）。
+
+## 補遺 2 — 三機 skills + 近七天 sessions 盤點（2026-07-17 起，metadata-only）
+| 機器 | Claude sessions | Codex sessions | 主力專案 | Skills (agents/claude/codex) |
+|---|---|---|---|---|
+| mbp14 | 202 | 194 | agent-workspace(104)、healthgo-mobile(33)、photo-gallery(22) | —（本機，見 manifest） |
+| 100.64.190.44 | 93 (91M) | 107 (175M) | healthgo-mobile 佔 74%；Codex 07/23 單日 53 場 | 102/111/7；lock drift: commit-commands、stop-slop（手動裝） |
+| mac-mini-m2 | 7 (548K，全在 openclaw 08-Aurora) | 1（07/22「更新 llm-gate 並重啟服務」） | 近一週幾乎閒置 | 101/100/2；lock 格式異常（僅 4 個 top-level key）UNCONFIRMED drift |
+
+觀察：
+- Codex 使用量與 Claude 相當甚至更高（remote2 175M vs 91M），fleet 是真雙 runtime。
+- mac-mini-m2 近一週近乎閒置 + 規則落後三版被抓到 —— 閒置機器最容易變成版本孤兒；~/.codex 下多個 config.toml.bak-* 顯示近期頻繁重設定。
+- 新 proposed：skill-lock 對 stop-slop/commit-commands 的 unmanaged 狀態要嘛入 lock 要嘛記為 documented manual extra（manifest 已記前例）。
+
+## 補遺 3（重掃更正版）— ohyeh skill 觸發分析，三台 × 雙 runtime × 三種編碼（2026-07-17 起）
+
+事故聲明：第一輪掃描只查 Claude 側 Skill-tool 結構，漏掉 slash（`<command-name>/name`）與 Codex（`[$name]` markdown-link 調用）兩種編碼，把 100.64.190.44 誤報為「零觸發」。使用者指出後全面重掃（三個 sonnet workers，pattern 需先對已知正例自驗、零須附有效性證據、寬鬆對照差距須逐筆解釋）。以下為更正後數據。
+
+方法：(a) Claude Skill-tool `"name":"Skill"`+`"skill":"…"`；(b) Claude slash `<command-name>/name</command-name>`；(c) Codex `[$name]` 調用形式（排除 roster 樣板：同行 ≥5 個 `[$…]` token 視為目錄列印）。掃 `~/.claude/projects` 與 `~/.codex/sessions` 的 -newermt 2026-07-17 JSONL。隱私：僅 skill 名/次數/檔名。
+
+**mbp14**（Claude 210 檔 / Codex 193 檔）：
+| skill | (a) Skill-tool | (b) slash | (c) Codex |
+|---|---|---|---|
+| using-skills | 1/1 | 6/3 | 198/32 |
+| using-tmux-agent-tools | 8/8 | 1/1 | 74/19 |
+| using-design-skills | 1/1 | 0 | 26/7 |
+| using-workflows | 4/4 | 1/1 | 17/6 |
+| unknowns-discovery | 4/4 | 1/1 | 11/3 |
+| delegation-templates | 7/6 | 0 | 0 |
+| tmux-agent-tools | 4/4 | 0 | 4/3 |
+| stop-slop / verification-before-completion / codex-dynamic-workflows | 全零（pattern 已自驗有效） |
+| brainstorming（校準） | 1/1 | 0 | 0 |
+
+**100.64.190.44**（Claude 93 檔 / Codex 107 檔）：
+| skill | (a) | (b) | (c) |
+|---|---|---|---|
+| using-skills | 2/1 | 4/3 | 52/15 |
+| unknowns-discovery | 12/5 | 1/1 | 14/6 |
+| using-design-skills | 4/2 | 1/1 | 7/3 |
+| using-tmux-agent-tools | 2/1 | 0 | 8/4 |
+| delegation-templates | 4/2 | 0 | 2/1 |
+| codex-dynamic-workflows | 0 | 1/1 | 0 |
+| using-workflows / tmux-agent-tools / stop-slop / 校準組 | 真零（brainstorming、verification-before-completion 各 72 raw hits 全為 roster 樣板，已逐筆核實） |
+
+**mac-mini-m2**（Claude 7 檔 / Codex 1 檔）：全 11 skill × 三編碼真零（合成正例自驗 + 寬鬆 sweep 交叉），與本週閒置一致。
+
+**解讀（digest）**：
+1. 調用途徑即診斷訊號：Skill-tool（agent 主動）高 = 規則內化；slash/`[$…]`（人手動）高 = 人在替 router 做事；全零 = 工作型態不經過它。
+2. Codex 才是 skill 調用主場（mbp14 198+74+26+17 vs Claude 側個位數）—— 第一輪只掃 Claude 是方法性錯誤。
+3. gate 類健康：unknowns-discovery（remote2 agent 主動 12/5）、delegation-templates（兩台 Skill-tool 皆有）真的在自動觸發，且三台零觸發錯誤（is_error/not found/permission denied 全零；mbp14 41 筆 "gate FAILED" 抽樣全為規則原文引述，非真實失敗）。
+4. router（using-skills）幾乎全靠手動起手（Codex 198 次），自動路由價值低但已成使用者慣用入口 —— 文件應為人類讀者優化。
+5. codex-dynamic-workflows 零調用但 `.workflow/` 目錄遍地 —— 慣例被 CLAUDE.md 規則文吸收，skill 成純文件。shelf-ware 判準應改為「對應行為是否發生」而非調用次數。
+6. 殘留盲區（UNCONFIRMED）：Codex 若有非 `[$name]` 形態的 skill 調用（如帶參數變體）未測。
+
+**流程教訓（本補遺自身）**：對「零結果」的驗證義務與正結果同等 —— pattern 必須先在已知正例上自證有效，否則零不可報。已納入本次重掃的 acceptance，建議固化進 delegation-templates 的 SEARCH/RESEARCH 模板（Status: proposed，提案 G）。
+
+Status: proposed（併入提案 D + 新增 G）。

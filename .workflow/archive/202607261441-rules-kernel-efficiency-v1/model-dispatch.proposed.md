@@ -1,0 +1,120 @@
+# Model Dispatch Rules
+
+Read this BEFORE any NEW/FOLLOW-UP delegation or reviewer-profile change. A follow-up
+under the same role, rubric, and acceptance reuses its existing receipt.
+
+## §1 Live model contract
+
+Tier aliases are the policy contract; IDs below are a dated snapshot. A later
+same-tier successor is valid only after live verification per §8.
+
+| Claude tier | Current ID | Role |
+|---|---|---|
+| `haiku` | `claude-haiku-4-5-20251001` | mechanical search, read-back, solved-pattern batches |
+| `sonnet` | `claude-sonnet-5` | default implementation, refactor, research, first review |
+| `opus` | `claude-opus-4-8` | architecture, hard debugging, adversarial review |
+| `fable` | `claude-fable-5` | scarce; picker rejection falls back to `opus` |
+
+Claude Agent calls take `model`, not `effort`; plain calls inherit session effort.
+Effort exists in agent frontmatter and Workflow `agent(prompt, {effort})`.
+
+| Codex role | Model | Start effort | Ceiling/contract |
+|---|---|---|---|
+| commander | `gpt-5.6-sol` | `medium` | `xhigh` only for materially large/hard work |
+| plan | `gpt-5.6-sol` | `medium` | `high`; `xhigh` only for major architecture/security/ambiguity |
+| review/judgment | fresh `gpt-5.6-sol` | `medium` | reviewer is not the author |
+| execution | `gpt-5.6-terra`; CLI `gpt-5.6-luna`; explicit Sol; or external | Terra/Luna low/medium; Sol low/medium | Terra/Luna may rise to `max`; Sol workers stop at `medium` |
+
+Native collaboration currently exposes Terra and Sol; do not request Luna until the
+live schema accepts it. `ultra` is forbidden. Keep `service_tier=default`; use
+`priority` only for an explicit latency need. Sol `max` is rare and requires concrete
+evidence. Never hard-code context-window values; the live catalog is authoritative.
+
+## §2 Delegate only when it buys leverage
+
+The commander decomposes, decides, integrates, and talks to the user. Delegate or
+sandbox when any applies:
+- more than three files must be read, ownership is unknown, or synthesis needs an
+  isolated context;
+- output is unpredictable/over 20 lines;
+- one solved edit repeats across at least three files;
+- verification exceeds the trivial single-file threshold.
+
+Do not delegate one-tool-call facts or work whose coordination costs exceed execution.
+Project files read in full are files about to be edited; gate files and user-mandated
+reads are exempt.
+
+## §3 Assignment and report contract
+
+Every task uses the matching `delegation-templates` shape and contains:
+1. GOAL + WHY.
+2. Objectively checkable ACCEPTANCE.
+3. REPORT destination and format.
+4. Runtime-native model plus the applicable §4 row; nearest row requires a deviation.
+
+Never claim the user authorized a model unless their quoted message names it.
+
+> REPORT: short conclusions only; `file:line` per claim; fresh command + exit code +
+> key lines for changed work. Hard cap 30 lines. Longer material goes to the declared
+> artifact. Missing acceptance is reported, never concealed.
+
+Subagents cannot delegate further unless the task explicitly authorizes it.
+
+## §4 Role-first selection
+
+| Task | Claude | Codex |
+|---|---|---|
+| locate/inventory | `haiku`; `sonnet` for synthesis | Terra low |
+| implement/refactor/research | `sonnet` | Terra low/medium; Luna medium |
+| review/verification | fresh `sonnet`; risky=`opus` | fresh Sol medium |
+| hard debugging after two evidenced failures / architecture | `opus` | Sol high |
+| apply solved pattern | `haiku` | Terra low |
+| supervise external CLI worker | `general-purpose` on `haiku` | one Terra low/medium proxy |
+
+External asynchronous workers have exactly one native supervision-only proxy. It owns
+the wrapper, waits through the tool-layer blocking supervisor, and never polls. The
+parent does not call status/watch/capture/probe/ping/result or send follow-ups unless
+the proxy reports a blocker/lost liveness, terminates unexpectedly, or the user asks.
+Native subagents need no proxy. Without native subagents, run directly and report
+`UNAVAILABLE-NATIVE`.
+
+## §5 Effort and retry ladder
+
+| Effort | Use |
+|---|---|
+| `low` | mechanical execution, read-back, solved pattern, supervision proxy |
+| `medium` | default implementation, refactor, research, first review |
+| `high` | planning, risky/adversarial review, root-cause convergence |
+| `xhigh`/`max` | only after two evidenced lower-tier failures or explicit user choice |
+
+Start at the lowest tier that can pass acceptance. Raise one step from failure
+evidence; first repair decomposition or missing context. Before `xhigh`/`max`, prefer
+bounded same-tier sampling plus a judge when it is cheaper. Workflow `agent()` calls
+set effort explicitly. Sol workers never exceed `medium`; Sol high+ is reserved for
+commander/plan/review.
+
+Same approach: two rounds total across all models. Haiku fails once → Sonnet. Sonnet
+fails the same task twice → Opus with the full trail. A third failure triggers
+`judgment-rubrics.md` §4, not another retry. Once the hard part is solved, drop to the
+cheap execution tier with one worked example.
+
+## §6 Reviewer independence
+
+Above the trivial single-file/low-risk threshold, the author is not the verifier.
+Files need fresh read-back (Claude `haiku`; Codex cheap fresh worker); code needs the
+real test/build/flow; high-risk judgment needs Claude `opus`, Codex fresh Sol, or
+2–3 candidates plus an independent judge. At the trivial threshold, the author's
+real command with quoted exit code/key lines is sufficient. Completion and quality
+criteria live in `judgment-rubrics.md` §2/§5 and must be read before reporting.
+
+## §7 Receipt placement
+
+Routine receipts live in workflow/dispatch artifacts. Surface only deviations,
+approval boundaries, BLOCK/escalation, or explicit requests, using the compact global
+form. Follow-ups reuse a receipt only while role, rubric, and acceptance are unchanged.
+
+## §8 Re-verification
+
+On the first session of each quarter or any unknown-model error, inspect the live
+Agent/tool schema and model catalog. Update the snapshot only from live evidence and
+record the proposed lesson; never fill IDs or context limits from memory.

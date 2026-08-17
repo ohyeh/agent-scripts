@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "run_id": "3875ed19-f8ff-464f-80c6-d80116b2eb44",
+  "fixture_hash": "768cfe95cc14f449a4ef72651b4c8cf541dc96f3a9e0a1ad88dcae4f80d5b0d6",
+  "comparison": {
+    "vary": "reasoning.effort"
+  },
+  "profiles": {
+    "low": {
+      "hash": "23777b73b473b9225f60052392384c7d4a1db7744ba597427307fc3ecb9244f3",
+      "profile": {
+        "reasoning": {
+          "runtime": "local-node",
+          "model": "node",
+          "effort": "low"
+        },
+        "sampling": {
+          "independent_samples": 1,
+          "selection_rule": "none",
+          "sequential_refinement_rounds": 0
+        },
+        "topology": {
+          "agents": 1,
+          "parallelism": 1,
+          "roles": [
+            "runner"
+          ],
+          "edges": []
+        }
+      }
+    },
+    "high": {
+      "hash": "89418ff859bb500127264344bead2f76429bbef71c796c81f7dc3d3a65d37ef6",
+      "profile": {
+        "reasoning": {
+          "runtime": "local-node",
+          "model": "node",
+          "effort": "high"
+        },
+        "sampling": {
+          "independent_samples": 1,
+          "selection_rule": "none",
+          "sequential_refinement_rounds": 0
+        },
+        "topology": {
+          "agents": 1,
+          "parallelism": 1,
+          "roles": [
+            "runner"
+          ],
+          "edges": []
+        }
+      }
+    }
+  },
+  "cases": {
+    "review-gate-low": {
+      "profile_id": "low",
+      "attempts": 2,
+      "passed": 2,
+      "assertion_pass_rate": 1,
+      "median_duration_ms": 40.441,
+      "p95_duration_ms": 40.747
+    },
+    "review-gate-high": {
+      "profile_id": "high",
+      "attempts": 2,
+      "passed": 2,
+      "assertion_pass_rate": 1,
+      "median_duration_ms": 30.6495,
+      "p95_duration_ms": 31.024
+    },
+    "profile-env-low": {
+      "profile_id": "low",
+      "attempts": 1,
+      "passed": 1,
+      "assertion_pass_rate": 1,
+      "median_duration_ms": 28.454,
+      "p95_duration_ms": 28.454
+    },
+    "profile-env-high": {
+      "profile_id": "high",
+      "attempts": 1,
+      "passed": 1,
+      "assertion_pass_rate": 1,
+      "median_duration_ms": 28.501,
+      "p95_duration_ms": 28.501
+    }
+  }
+}

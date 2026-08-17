@@ -1,0 +1,9 @@
+{
+  "slug": "rules-eval-gate",
+  "created": "2026-07-25T13:40+08:00",
+  "batches": {
+    "1-eval-gate": "done",
+    "2-global-slim": "in_progress (model-dispatch trim done; global slim + tool-economy dedupe pending)",
+    "3-queue": "pending"
+  }
+}

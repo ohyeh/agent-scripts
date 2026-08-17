@@ -1,0 +1,29 @@
+{
+  "slug": "rules-kernel-efficiency-v1",
+  "created": "2026-07-26T14:41:00+08:00",
+  "status": "complete_uncommitted",
+  "branch": "codex/rules-kernel-efficiency-v1",
+  "steps": {
+    "deploy_pinned_sha": "done",
+    "router_zero_match": "done",
+    "global_exact_diff": "applied",
+    "dispatch_exact_diff": "applied",
+    "minimal_fixtures": "done_schema_only_runner_unimplemented",
+    "ledger_storage": "deferred_decision"
+  },
+  "verification": {
+    "status": "pass",
+    "independent_review": "VERDICT: PASS",
+    "commands": [
+      "bash -n scripts/deploy.sh scripts/check-router-adoption.sh",
+      "bash scripts/check-router-adoption.sh --self-test",
+      "HOME=<empty-history-fixture> bash scripts/check-router-adoption.sh 1",
+      "bash scripts/check-router-adoption.sh 1",
+      "node scripts/check-rules-invariants.mjs",
+      "bash scripts/check-canary.sh",
+      "node scripts/test-execution-frontier.mjs",
+      "node scripts/test-review-gate-smoke.mjs",
+      "git diff --check"
+    ]
+  }
+}

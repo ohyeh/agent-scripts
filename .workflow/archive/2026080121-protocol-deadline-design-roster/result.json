@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "status": "success",
+  "summary": "- Applied approved version/payload rule at global/AGENTS.md:3,21 and global/CLAUDE.md:3,21.\n- Added the 120-second valid-result deadline rule at skills/delegation-templates/SKILL.md:117.\n- Retained installed Role 1 authorities and routed light-touch to impeccable at skills/using-design-skills/references/design-roles.md:12-13,102.\n- Removed frontend-design meaningfully from skills/using-design-skills/implementation-notes.md:15 and skills/using-design-skills/evals/evals.json:80.\n- Verification: check-rules-invariants --accept exit 0 (24/24); check-rules-invariants exit 0 (24/24); git diff --check exit 0; cmp exit 0; rg exit 1 with no matches; jq exit 0.\n- Changed source files: the six approved guidance/skill files; required baseline evals/context-budget-baseline.json; run artifacts author-report.md and result.json.\n- Remaining limitations: no commit, push, deploy, external state, tmux, delegation, runtime test, or owner/device UAT, per scope.",
+  "artifacts": [
+    {
+      "kind": "report",
+      "ref": "/Users/paul.yeh/github/agent-scripts/.workflow/2026080121-protocol-deadline-design-roster/author-report.md"
+    },
+    {
+      "kind": "result",
+      "ref": "/Users/paul.yeh/github/agent-scripts/.workflow/2026080121-protocol-deadline-design-roster/result.json"
+    }
+  ],
+  "errors": [],
+  "verdict": {
+    "verdict": "ACCEPT",
+    "blockers": [],
+    "marker": "protocol-deadline-design-roster"
+  },
+  "decision": {
+    "decision_by": "agent",
+    "delegate_name": "codex_protocol_deadline_design_roster",
+    "authority": "direct execution under approved diff",
+    "scope": "approved protocol/deadline/design-roster edits only",
+    "decision": "accept",
+    "evidence": [
+      "author-report.md",
+      "node scripts/check-rules-invariants.mjs --accept: exit 0, 24/24 passed",
+      "node scripts/check-rules-invariants.mjs: exit 0, 24/24 passed",
+      "git diff --check: exit 0",
+      "cmp, frontend-design scan, and jq acceptance probes recorded in author-report.md"
+    ],
+    "limits": [
+      "No commit, push, deploy, external state change, tmux session, or delegation per instruction",
+      "Runtime tests and owner/device UAT were not requested or performed"
+    ]
+  }
+}

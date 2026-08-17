@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "status": "decision-required",
+  "scope": "2026-07-30 through 2026-08-01 changes in agent-scripts, tmux-agent-tools, and context-mode-local-insight",
+  "author_worker": "codex_w31_repair",
+  "review_worker": "codex_w31_review",
+  "deferred_decision": "F4 logical-conversation session_id versus rollout-record payload.id identity contract"
+}

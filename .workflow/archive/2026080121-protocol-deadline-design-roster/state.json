@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "status": "validated-direct",
+  "author_worker": "codex_protocol_roster_fix_retry",
+  "review_worker": "waived after user efficiency correction; retry proxy stopped worker exit 0",
+  "release": "pending",
+  "first_attempt": "no worker artifact or valid result.json; working tree unchanged",
+  "review_attempt": "supervisor transport ended at 30 seconds before worker execution; no review artifact or result",
+  "direct_validation": "cmp, invariants 24/24, JSON parse, zero-reference scan, and diff check passed"
+}

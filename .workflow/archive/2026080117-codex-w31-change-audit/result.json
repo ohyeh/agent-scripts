@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "status": "success",
+  "summary": "- F1 — PASS: exact dated substantive receipts and retained short-receipt rejection (tmux-agent-tools/scripts/test-dispatch-gate-hook-smoke:39-53; validator hooks/tmux-dispatch-gate.sh:49-53,55-70,78-89). Fresh smoke exit 0 with PASS [gate1-invalid-receipt].\n- F2 — PASS: all three consumers call canonical agent-tmux <cli> (test-dry-run-smoke:9-11,49-59; test-result-contract-smoke:12-14,52-65,116-117; test-result-schema-smoke:13-15,58-68,120-123). Fresh scan had no shim or suppression matches; smokes exit 0 with 81/0, 44/0, and 33/0.\n- F3 — PASS: both appenders use compact JSON and the regression walker parses each physical line (.agents/hooks/bol-prompt-warn.sh:41-42; .agents/hooks/context-ledger.sh:24-25; scripts/test-jsonl-hooks-smoke:12-18,27-40). Fresh smoke exit 0; isolated replay produced two independently valid lines in each file.\n- F4 — UNCONFIRMED, not PASS: payload.id versus session_id remains an unresolved identity/granularity decision (audit.md:146-163; repair.md:4; context-mode-local-insight/bin/agent-sessions.mjs:130-175; tmux-agent-tools/skills/tmux-agent-tools/scripts/agent-tmux:2221-2251).\n- F5 — PASS: rate hits/total are wrapped metrics and terminal rendering reads .value (context-mode-local-insight/bin/agent-sessions.mjs:28-34,214-233; test/agent-sessions.test.mjs:73-110). Fresh npm test exit 0 with 23 passed, 0 failed; JSON shape and CLI render checks exit 0.\n- Scope/status: repair-owned paths are the nine source/test files listed in repair.md:8-11; unrelated manifest/workflow artifacts remain separate. Fresh git diff --check exits 0 in all three repositories; no code, commit, push, deploy, tmux session, or F4 identity change was made.",
+  "artifacts": [
+    {
+      "kind": "file",
+      "ref": "/Users/paul.yeh/github/agent-scripts/.workflow/2026080117-codex-w31-change-audit/review.md"
+    }
+  ],
+  "errors": [],
+  "verdict": {
+    "verdict": "ACCEPT",
+    "blockers": [],
+    "marker": "W31-review"
+  },
+  "decision": {
+    "decision_by": "agent",
+    "delegate_name": "codex_w31_review",
+    "authority": "independent working-tree review",
+    "scope": "F1/F2/F3/F5 repairs only",
+    "decision": "accept",
+    "evidence": [
+      "/Users/paul.yeh/github/agent-scripts/.workflow/2026080117-codex-w31-change-audit/review.md",
+      "fresh smoke/test, syntax, diff-check, and status commands recorded in review.md"
+    ],
+    "limits": [
+      "F4 payload.id versus session_id identity semantics remain unresolved"
+    ]
+  }
+}

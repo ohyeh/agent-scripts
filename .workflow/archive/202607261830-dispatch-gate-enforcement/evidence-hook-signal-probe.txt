@@ -1,0 +1,30 @@
+=== entry ===
+{"session_id":"4a49ac88-2d8b-4a01-9155-32b43106bbd0","transcript_path":"/Users/paul.yeh/.claude/projects/-private-tmp-claude-501--Users-paul-yeh-github-agent-scripts-da593211-b950-4d34-bb4b-e4a99b7ab1de-scratchpad-hook-signal-test/4a49ac88-2d8b-4a01-9155-32b43106bbd0.jsonl","cwd":"/private/tmp/claude-501/-Users-paul-yeh-github-agent-scripts/da593211-b950-4d34-bb4b-e4a99b7ab1de/scratchpad/hook-signal-test","prompt_id":"a0e6b6ed-f06b-4754-8239-c22b29e1468f","permission_mode":"bypassPermissions","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo parent-probe","description":"Run parent probe command"},"tool_use_id":"toolu_01Bhy15TG8eoXPJyiCZYoPMm"}
+
+CLAUDE_CODE_CHILD_SESSION=1
+CLAUDE_CODE_DISABLE_AUTO_MEMORY=true
+CLAUDE_CODE_ENTRYPOINT=sdk-cli
+CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+CLAUDE_CODE_NO_FLICKER=1
+CLAUDE_CODE_SESSION_ID=4a49ac88-2d8b-4a01-9155-32b43106bbd0
+CLAUDE_CODE_WORKFLOWS=1
+CLAUDE_EFFORT=medium
+CLAUDE_PID=7834
+CLAUDE_PROJECT_DIR=/private/tmp/claude-501/-Users-paul-yeh-github-agent-scripts/da593211-b950-4d34-bb4b-e4a99b7ab1de/scratchpad/hook-signal-test
+CLAUDECODE=1
+--- end ---
+=== entry ===
+{"session_id":"4a49ac88-2d8b-4a01-9155-32b43106bbd0","transcript_path":"/Users/paul.yeh/.claude/projects/-private-tmp-claude-501--Users-paul-yeh-github-agent-scripts-da593211-b950-4d34-bb4b-e4a99b7ab1de-scratchpad-hook-signal-test/4a49ac88-2d8b-4a01-9155-32b43106bbd0.jsonl","cwd":"/private/tmp/claude-501/-Users-paul-yeh-github-agent-scripts/da593211-b950-4d34-bb4b-e4a99b7ab1de/scratchpad/hook-signal-test","prompt_id":"a0e6b6ed-f06b-4754-8239-c22b29e1468f","permission_mode":"bypassPermissions","agent_id":"a23cfcbd1fd898ab6","agent_type":"general-purpose","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"echo subagent-probe","description":"Run the exact command requested"},"tool_use_id":"toolu_01DaPTxL3cKu58cPmoqN17Sh"}
+
+CLAUDE_CODE_CHILD_SESSION=1
+CLAUDE_CODE_DISABLE_AUTO_MEMORY=true
+CLAUDE_CODE_ENTRYPOINT=sdk-cli
+CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+CLAUDE_CODE_NO_FLICKER=1
+CLAUDE_CODE_SESSION_ID=4a49ac88-2d8b-4a01-9155-32b43106bbd0
+CLAUDE_CODE_WORKFLOWS=1
+CLAUDE_EFFORT=medium
+CLAUDE_PID=7834
+CLAUDE_PROJECT_DIR=/private/tmp/claude-501/-Users-paul-yeh-github-agent-scripts/da593211-b950-4d34-bb4b-e4a99b7ab1de/scratchpad/hook-signal-test
+CLAUDECODE=1
+--- end ---
