@@ -13,10 +13,19 @@ t() {
 }
 V='agent-tmux codex assign a /tmp /p.md'
 t "parent blocking"   2 "{\"tool_name\":\"Bash\",\"session_id\":\"s\",\"tool_input\":{\"command\":\"$V\"}}"
-t "parent --detach"   0 "{\"tool_name\":\"Bash\",\"session_id\":\"s\",\"tool_input\":{\"command\":\"agent-tmux codex assign --detach a /tmp /p.md\"}}"
+t "parent --detach"   2 "{\"tool_name\":\"Bash\",\"session_id\":\"s\",\"tool_input\":{\"command\":\"agent-tmux codex assign --detach a /tmp /p.md\"}}"
 t "detach in sibling" 2 "{\"tool_name\":\"Bash\",\"session_id\":\"s\",\"tool_input\":{\"command\":\"echo --detach && $V\"}}"
 t "subagent host"     0 "{\"tool_name\":\"Bash\",\"agent_type\":\"h\",\"session_id\":\"s\",\"tool_input\":{\"command\":\"$V\"}}"
 t "background task"   0 "{\"tool_name\":\"Bash\",\"session_id\":\"s\",\"tool_input\":{\"command\":\"$V\",\"run_in_background\":true}}"
 t "unrelated command" 0 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"git status"}}'
+t "assign --help"     0 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex assign --help"}}'
+t "parent status"     2 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex status --json w1"}}'
+t "parent capture"    2 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex capture w1 2>&1 | tail -5"}}'
+t "parent probe"      2 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex probe --metric tool_active w1"}}'
+t "parent result"     2 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex result wait-required w1 --fields status --wait 900 --json"}}'
+t "subagent result"   0 '{"tool_name":"Bash","agent_type":"h","session_id":"s","tool_input":{"command":"agent-tmux codex result wait-required w1 --fields status --wait 900 --json"}}'
+t "background result" 0 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex result wait-required w1 --fields status --json","run_in_background":true}}'
+t "parent stop ok"    0 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex stop w1"}}'
+t "result --help"     0 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex result --help"}}'
 bash -n "$H" && echo "ok   bash -n"
 exit $fail

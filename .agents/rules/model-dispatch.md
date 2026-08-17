@@ -90,16 +90,15 @@ its stepwise output, and reports exit code + status/summary only. Its brief MUST
 order: run the command FIRST, then report; no status/capture/probe/result, no
 reading or judging the worker's output. Parent `run_in_background` = FALLBACK,
 only after a proxy attempt failed, reason logged in the run dir. The old per-worker
-polling proxy stays RETIRED (2026-08-08, W32 M5); never non-detach in the
-parent foreground. EXCEPTION — a harness
-that reaps long background tasks (local Claude Code: exit-144 kill after ~10 min,
-also killing a tmux server spawned in the task's tree): verify that reaping premise
-in-session, then dispatch `assign --detach` in a short FOREGROUND call (steps 1–4
-still verified, returns at once) and harvest with bounded `result wait-required
---wait <s>` calls. After `assign` returns, collect `result --json`, judge
-`.present` → `.valid` → `.body.status`, then `stop`. The parent adds no
-status/watch/capture/probe/ping or follow-ups unless `assign` reports a failed
-step/blocker or the user asks.
+polling proxy stays RETIRED (2026-08-08, W32 M5). Parent foreground `assign` is
+banned in ALL forms — `--detach` included (2026-08-18 tightening: a live session
+bypassed the ruling via parent `--detach` plus 30+ polling calls; the gate cannot
+verify the reaping premise, so the former foreground-`--detach` exception is
+withdrawn). Parent foreground `status`/`capture`/`probe`/`result` polling is
+likewise gate-denied; the parent waits for the proxy's terminal report, and a
+fallback harvest runs as a background task with the reason logged in the run dir.
+Inside a proxy or background fallback, judge `result --json` as `.present` →
+`.valid` → `.body.status`, then `stop`.
 
 tmux worker mechanics (highest-frequency real-world failure — ≥4 sessions re-hit this after it was recorded):
 - Dispatch is `assign` — never hand-chain the steps. A worker started with `--prompt-file` sits idle with no task; the symptom mimics an account/auth hang (`assign` makes that shape impossible and catches "task never reached the CLI").
