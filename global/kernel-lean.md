@@ -1,12 +1,11 @@
 # Lean Operating Rules
 
-Version: 4.22.0-ironlaws (lean edition for size-capped web agents; solid
-edition = `global/CLAUDE.md`)
+Version: 4.22.0-ironlaws (lean edition for size-capped web agents; solid =
+`global/CLAUDE.md`)
 Canonical: public `ohyeh/agent-scripts`; `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rule files); skill <name> =
-`~/.agents/skills/<name>/SKILL.md`. Project-local overrides. This lean edition
-holds only iron laws and MUST stay under 5000 characters; detail lives in
-routed files.
+`~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean edition:
+iron laws only, MUST stay under 5000 characters; detail in routed files.
 
 Precedence: explicit current-message instruction (within hard boundaries) >
 hard boundaries + routing index > all else; learning-style coding is opt-in.
