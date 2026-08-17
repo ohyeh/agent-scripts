@@ -53,8 +53,8 @@ Fix — precedence order, first match wins (canonical wording lives in CLAUDE.md
 5. Learning-style "ask the user to write this part": skip unless the user opted in.
 Skill invocation rule: invoke a skill only when (a) the user typed `/<skill>` or named
 it, or (b) the CURRENT task's primary goal matches the skill description. Never invoke
-a skill for a sub-question answerable with one tool call. At most one meta-router hop
-(a router skill may route once; the target skill must then do real work).
+a skill for a sub-question answerable with one tool call. At most two meta-router hops
+(kernel authority; the final target skill must then do real work).
 
 ### §3 Error-prone: self-verified completion and facts recited from memory
 Symptom: the model that wrote a change declares it works; model IDs, versions, flags,
