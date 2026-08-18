@@ -1,5 +1,12 @@
 # Maintenance Protocol for the Rules System
 
+Governance pair (user ruling 2026-08-18): the agent-scripts sessions (one per
+machine: local `~/github/agent-scripts`, .44 `~/git/agent-scripts`) are
+DEDICATED to this repo — kernel/rules/skills/hooks/deploy only. Cross-machine
+coordination goes ONLY between these two counterparts. Other projects'
+sessions and their workers are out of scope: never contact, supervise, or
+take over their work unless the user explicitly assigns it.
+
 Governs the routed rules at `~/.agents/rules/` and the two native global files
 (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md` — maintained separately, never symlinked).
 Written for weak models. This §1 matrix is the SINGLE authority on edit permissions —
