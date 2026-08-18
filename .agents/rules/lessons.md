@@ -115,3 +115,7 @@ Status: proposed
 ## 2026-08-18 correction | scope: judgment | trigger: my own ad1e2dec read-out was wrong twice
 Two claims are RETRACTED: "re-armed the wakeup after 先暫停" (the only post-pause ScheduleWakeup was stop=true, 4s after "Stop loop") and "138 wakeups = unattended autonomous loop" (the user invoked /loop 25 times — it was their instrument). Cause: jq shapes that printed null timestamps and grep -n line numbers taken from a FILTERED stream, not the file — verify the query shape before the claim. What SURVIVES: 48 assigns / 29 stops / 43 worker names / 67 live background agents = the dispatch runaway and FD amplifier, independent of any loop.
 Status: proposed
+
+## 2026-08-18 correction 2 | scope: judgment | trigger: "30.5h" framed a full supervised dev day as a runaway
+Rule: a long session span is not evidence of anything — yesterday's ad1e2dec span covered real development, update and deploy waves under the user's eye. Cite only the mechanism-level signal (assign/stop delta, unreaped registrations), never duration or raw counts, as proof of misuse.
+Status: proposed
