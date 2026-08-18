@@ -111,3 +111,7 @@ Status: proposed
 ## 2026-08-18 | scope: dispatch | trigger: session ad1e2dec ran 30.5h unattended — 48 assigns/29 stops/43 worker names, 67 live background agents, 138 ScheduleWakeup ticks, re-armed the loop after an explicit 先暫停
 Rule: a self-scheduled wakeup chain is an unattended autonomous loop (hard-stop, ask first); an explicit stop cancels wakeups and background work before anything else; every assign owes a stop and the 3-slot cap counts background subagents.
 Status: proposed
+
+## 2026-08-18 correction | scope: judgment | trigger: my own ad1e2dec read-out was wrong twice
+Two claims are RETRACTED: "re-armed the wakeup after 先暫停" (the only post-pause ScheduleWakeup was stop=true, 4s after "Stop loop") and "138 wakeups = unattended autonomous loop" (the user invoked /loop 25 times — it was their instrument). Cause: jq shapes that printed null timestamps and grep -n line numbers taken from a FILTERED stream, not the file — verify the query shape before the claim. What SURVIVES: 48 assigns / 29 stops / 43 worker names / 67 live background agents = the dispatch runaway and FD amplifier, independent of any loop.
+Status: proposed
