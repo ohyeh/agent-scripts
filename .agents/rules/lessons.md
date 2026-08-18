@@ -63,3 +63,18 @@ Lesson: (1) "brief text visible in pane" is NOT proof of submission — proof is
 working/thinking output or Context consumption; (2) recovery = send-wait to the
 SAME worker (persistent-teammate rule), never re-assign; (3) candidate tooling
 fix: confirm step should assert composer is empty AND context < 100%.
+
+## 2026-08-18 dispatch verification: dry-run/probe evidence does not transfer
+Status: proposed
+Evidence: SMCS-2050 review dispatch (.44) — (a) `start --dry-run` showed profile
+launch_flags correctly, but the actual dispatch used `assign` (different code
+path); worker came up on config-default luna max, generation unattributable
+(pre-launch_flags launch-meta). (b) `probe --metric tool_active` returned true
+with parsed_from = a line of the BRIEF itself — pane-text matching false-positives
+when the brief contains the keyword.
+Lesson: (1) model/flag proof = the CLI status line (or launch-meta launch_flags,
+recorded since tmux-agent-tools 70c3d7b) read AFTER launch, before sending the
+brief — never a dry-run of a different subcommand; (2) liveness proof = Context
+percentage consumption, not probe pane-matching; (3) mid-run rate-limit "switch
+model?" prompts: keep the user-specified model, report the limit, never swap to
+finish.
