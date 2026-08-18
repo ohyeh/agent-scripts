@@ -107,3 +107,7 @@ tooling-fix suggestion is downgraded to needs-reproduction.
 ## 2026-08-18 | scope: execution | trigger: session handed a project-answerable question back to the user (iOS fastlane env drift) instead of searching the repo
 Rule: before asking the user anything, exhaust the project's own record — sibling/platform implementations, `*.example` files, the lane/script that owns the value, docs/, CI config, and `git log` for the touched key; only a genuine preference (cost, risk appetite, priority) may go to the user, and the question must state what was already searched.
 Status: proposed
+
+## 2026-08-18 | scope: dispatch | trigger: session ad1e2dec ran 30.5h unattended — 48 assigns/29 stops/43 worker names, 67 live background agents, 138 ScheduleWakeup ticks, re-armed the loop after an explicit 先暫停
+Rule: a self-scheduled wakeup chain is an unattended autonomous loop (hard-stop, ask first); an explicit stop cancels wakeups and background work before anything else; every assign owes a stop and the 3-slot cap counts background subagents.
+Status: proposed
