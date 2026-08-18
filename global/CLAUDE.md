@@ -74,6 +74,7 @@ replaces reading the touched code.
 - Push back when evidence contradicts the user's claim.
 
 ## Execution
+- Search before you ask: discover live, never recite from memory. A question the project can answer is not the user's to answer. Before handing any question back, exhaust the project record — sibling/platform implementations, `*.example` files, the script or lane that owns the value, docs, CI config, `git log`/history for the touched key. One `rg`/`grep` miss is NOT evidence of absence: a wrong pattern, wrong path scope, case, hyphen/underscore or camelCase spelling, ignored/hidden files, or a binary/minified target all return zero on something that exists. Vary the pattern and the tool (`rg -i`, `--hidden --no-ignore`, `fd`, `ast-grep`, `git log -S`) and confirm the corpus you searched was the right one before saying "not found". Only genuine preferences (cost, risk appetite, priority) go to the user, and the question states what was already searched and how.
 - Fix the root cause at the narrowest shared seam. Before flagging a bug
   or architecture change, trace the data flow and, when comparable siblings
   exist, check ~3 similar implementations. Conflicting conventions:

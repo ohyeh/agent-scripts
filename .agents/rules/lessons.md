@@ -103,3 +103,7 @@ unattributable. The narrow lesson that SURVIVES: submission/liveness proof =
 Context consumption + worker-written files (result.json, usage.jsonl), never
 placeholder text or observer-written files (pane-hash). The confirm-step
 tooling-fix suggestion is downgraded to needs-reproduction.
+
+## 2026-08-18 | scope: execution | trigger: session handed a project-answerable question back to the user (iOS fastlane env drift) instead of searching the repo
+Rule: before asking the user anything, exhaust the project's own record — sibling/platform implementations, `*.example` files, the lane/script that owns the value, docs/, CI config, and `git log` for the touched key; only a genuine preference (cost, risk appetite, priority) may go to the user, and the question must state what was already searched.
+Status: proposed
