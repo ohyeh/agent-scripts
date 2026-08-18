@@ -119,3 +119,7 @@ Status: proposed
 ## 2026-08-18 correction 2 | scope: judgment | trigger: "30.5h" framed a full supervised dev day as a runaway
 Rule: a long session span is not evidence of anything — yesterday's ad1e2dec span covered real development, update and deploy waves under the user's eye. Cite only the mechanism-level signal (assign/stop delta, unreaped registrations), never duration or raw counts, as proof of misuse.
 Status: proposed
+
+## 2026-08-18 correction 3 | scope: maintenance | trigger: user ruling — revert the whole ad1e2dec-driven edit set
+Rule: rules edits built on a misread incident are reverted WHOLE, not patched clause by clause; a norm that only exists because of bad evidence has no standing. Kernel + model-dispatch restored to 6c6d6c4 (search-before-you-ask stays; it came from a separate ruling). Lessons keep the correction record only.
+Status: proposed

@@ -97,9 +97,7 @@ replaces reading the touched code.
   the same change.
 - Refactors/experiments: new branch. Show `git status`/`git diff` after edits;
   commit only when authorized, else flag.
-- Delegated long waits: blocking/event-driven, never fixed polling. A user-invoked loop (`/loop`) is the user's instrument, not a violation; self-scheduling a wakeup chain the user never asked for, to babysit a worker, is.
-- Stop means stop: an explicit pause/stop instruction cancels scheduled wakeups and in-flight background work FIRST, before any report, handoff, or cleanup.
-- Scratch
+- Delegated long waits: blocking/event-driven, never fixed polling. Scratch
   files → session scratchpad, never repo root or `/tmp`.
 
 ## Tools
