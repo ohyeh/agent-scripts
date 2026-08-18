@@ -88,8 +88,7 @@ one blocking supervise --result-required) IS the supervision. Canonical host
 `sonnet` low — owns the full four-step bring-up as this single `assign` call, holds
 its stepwise output, and reports exit code + status/summary only. Its brief MUST
 order: run the command FIRST, then report; no status/capture/probe/result, no
-reading or judging the worker's output. Parent `run_in_background` = FALLBACK,
-only after a proxy attempt failed, reason logged in the run dir. The old per-worker
+reading or judging the worker's output. Parent `run_in_background` = FALLBACK, only after a proxy attempt failed, reason logged in the run dir. Proxy failure is judged ONLY by its terminal report or by evidence the assign never launched the worker (no state dir); idle/'finished' mailbox heartbeats DURING the blocking assign are noise, never failure (two sessions misread this, 2026-08-18). The old per-worker
 polling proxy stays RETIRED (2026-08-08, W32 M5). Parent foreground `assign` is
 banned in ALL forms — `--detach` included (2026-08-18 tightening: a live session
 bypassed the ruling via parent `--detach` plus 30+ polling calls; the gate cannot
