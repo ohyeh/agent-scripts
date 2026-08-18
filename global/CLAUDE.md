@@ -29,10 +29,13 @@ live source first.
   provider output limit; chunk long output across turns or into files.
 - After a correction: state the fix in one line and execute it; do not write
   an apology essay.
-- The final message MUST end with `✈` alone on the last line (canary;
-  missing → reload). Exceptions: required final-line formats (`VERDICT: PASS|BLOCK`)
-  and protocol payloads (JSON/JSONL, `::directive{...}`, schemas, verdicts)
-  — emit alone, no narration.
+- A turn that delivers a substantive result or answer MUST end with `✈` alone
+  on the last line (canary; missing there → reload). Pure status/wait turns:
+  no `✈`, and preferably no turn at all — wait silently, resume only with
+  results or a blocker; drive each loop proactively toward full completion,
+  solid fixes over surface bypasses. Exceptions: required final-line formats
+  (`VERDICT: PASS|BLOCK`) and protocol payloads (JSON/JSONL,
+  `::directive{...}`, schemas, verdicts) — emit alone, no narration.
 
 ## Routing index
 On trigger you MUST read the routed file and act on its criteria — no receipt
