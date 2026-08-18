@@ -51,3 +51,15 @@ limits, RESTART existing app-server/workers and re-verify a child's actual
 limit; (3) on next EMFILE capture, before touching anything:
 `sysctl kern.num_files`, `launchctl limit maxfiles`,
 `lsof -p <app-server-pid> | awk '$5=="PIPE"' | wc -l`.
+
+## 2026-08-18 assign confirm-step false-pass on Codex 0.147.0 startup banner
+Status: proposed
+Evidence: worker smcs2050-review (.44) — assign completed its bring-up, but the
+brief sat UNSUBMITTED in the composer (placeholder visible, "Context 100% left",
+no output) for 6+ min; the 0.147.0 startup banner/warnings swallowed the Enter.
+assign's confirm-the-pane-is-processing step passed anyway (it matched brief
+text echoed above the banner, not actual processing).
+Lesson: (1) "brief text visible in pane" is NOT proof of submission — proof is
+working/thinking output or Context consumption; (2) recovery = send-wait to the
+SAME worker (persistent-teammate rule), never re-assign; (3) candidate tooling
+fix: confirm step should assert composer is empty AND context < 100%.
