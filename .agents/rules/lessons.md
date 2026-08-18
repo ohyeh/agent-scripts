@@ -78,3 +78,18 @@ brief — never a dry-run of a different subcommand; (2) liveness proof = Contex
 percentage consumption, not probe pane-matching; (3) mid-run rate-limit "switch
 model?" prompts: keep the user-specified model, report the limit, never swap to
 finish.
+
+## 2026-08-18 single-channel observability: result.json is the worker's LEAST reliable output
+Status: proposed
+Evidence: SMCS-2050 review (.44) — reviewer FINISHED (VERDICT: BLOCK in pane,
+14:48) but never wrote result.json (brief lacked the literal result path; also
+pointed at git diff while changes sat staged). Waiter watched only result.json
+→ three successive misreports ("running", "harvest alive", "still pending");
+"Context 93% left" was post-completion residue misread as progress.
+Lesson: (1) harvest verdicts from TWO channels — result.json AND the pane's
+terminal marker (VERDICT/RESULT SUMMARY); a worker without an injected result
+path can only answer in the pane. (2) `start`+send loses assign's result-init/
+path-injection — hand-built briefs MUST embed the literal result path.
+(3) Brief preflight question: "a reviewer starting from zero — does it SEE what
+I want reviewed?" (staged vs unstaged diff, file visibility). (4) A dispatched
+background waiter is not a live waiter — exit code first, then trust.
