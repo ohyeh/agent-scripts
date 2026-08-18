@@ -93,3 +93,13 @@ path-injection — hand-built briefs MUST embed the literal result path.
 (3) Brief preflight question: "a reviewer starting from zero — does it SEE what
 I want reviewed?" (staged vs unstaged diff, file visibility). (4) A dispatched
 background waiter is not a live waiter — exit code first, then trust.
+
+## 2026-08-18 correction: "banner swallowed the Enter" false-pass claim is UNCONFIRMED
+Status: proposed
+Corrects: "assign confirm-step false-pass on Codex 0.147.0 startup banner" (same
+day). Its evidence — composer placeholder + Context 100% — was later shown to be
+a misread (placeholder is permanent UI text) and the generation was
+unattributable. The narrow lesson that SURVIVES: submission/liveness proof =
+Context consumption + worker-written files (result.json, usage.jsonl), never
+placeholder text or observer-written files (pane-hash). The confirm-step
+tooling-fix suggestion is downgraded to needs-reproduction.
