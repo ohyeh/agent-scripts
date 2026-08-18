@@ -107,19 +107,3 @@ tooling-fix suggestion is downgraded to needs-reproduction.
 ## 2026-08-18 | scope: execution | trigger: session handed a project-answerable question back to the user (iOS fastlane env drift) instead of searching the repo
 Rule: before asking the user anything, exhaust the project's own record — sibling/platform implementations, `*.example` files, the lane/script that owns the value, docs/, CI config, and `git log` for the touched key; only a genuine preference (cost, risk appetite, priority) may go to the user, and the question must state what was already searched.
 Status: proposed
-
-## 2026-08-18 | scope: dispatch | trigger: session ad1e2dec ran 30.5h unattended — 48 assigns/29 stops/43 worker names, 67 live background agents, 138 ScheduleWakeup ticks, re-armed the loop after an explicit 先暫停
-Rule: a self-scheduled wakeup chain is an unattended autonomous loop (hard-stop, ask first); an explicit stop cancels wakeups and background work before anything else; every assign owes a stop and the 3-slot cap counts background subagents.
-Status: proposed
-
-## 2026-08-18 correction | scope: judgment | trigger: my own ad1e2dec read-out was wrong twice
-Two claims are RETRACTED: "re-armed the wakeup after 先暫停" (the only post-pause ScheduleWakeup was stop=true, 4s after "Stop loop") and "138 wakeups = unattended autonomous loop" (the user invoked /loop 25 times — it was their instrument). Cause: jq shapes that printed null timestamps and grep -n line numbers taken from a FILTERED stream, not the file — verify the query shape before the claim. What SURVIVES: 48 assigns / 29 stops / 43 worker names / 67 live background agents = the dispatch runaway and FD amplifier, independent of any loop.
-Status: proposed
-
-## 2026-08-18 correction 2 | scope: judgment | trigger: "30.5h" framed a full supervised dev day as a runaway
-Rule: a long session span is not evidence of anything — yesterday's ad1e2dec span covered real development, update and deploy waves under the user's eye. Cite only the mechanism-level signal (assign/stop delta, unreaped registrations), never duration or raw counts, as proof of misuse.
-Status: proposed
-
-## 2026-08-18 correction 3 | scope: maintenance | trigger: user ruling — revert the whole ad1e2dec-driven edit set
-Rule: rules edits built on a misread incident are reverted WHOLE, not patched clause by clause; a norm that only exists because of bad evidence has no standing. Kernel + model-dispatch restored to 6c6d6c4 (search-before-you-ask stays; it came from a separate ruling). Lessons keep the correction record only.
-Status: proposed
