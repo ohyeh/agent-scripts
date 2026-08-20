@@ -5,14 +5,20 @@ single-command task does not require a title change.
 
 ## Format
 
-`<status> [<ticket?>] <stable subject> [<handoff sequence?>] — <outcome>`
+`<host>-<sid8>-<subject> · <status> [<ticket?>] [<handoff sequence?>] — <outcome>`
+
+The title is also the cross-session address: `ListAgents` prints it and
+`SendMessage({to})` matches it. The leading `<host>-<sid8>-<subject>` segment is
+the address and never changes, so a peer holding an older title still matches as
+a prefix and gets a disambiguation error instead of a silent misdelivery. Use no
+brackets in the address — `ListAgents` appends its own ` [ref]`.
 
 Examples:
 
-- `⏳ Session title — Define normalization rules`
-- `🚨 iOS UAT — Waiting for the device to reconnect`
-- `↗️ [SMCS-1902] Type 1 voucher [1] — Continued in [2]`
-- `✅ [SMCS-1699] Health Coin rebrand — Opened the develop PR`
+- `.44-96fb35ed-session-title · ⏳ — Define normalization rules`
+- `.44-3f2a91c4-ios-uat · 🚨 — Waiting for the device to reconnect`
+- `.19-8b40d2e7-type1-voucher · ↗️ [SMCS-1902] [1] — Continued in [2]`
+- `.44-1afc7a39-coin-rebrand · ✅ [SMCS-1699] — Opened the develop PR`
 
 Use exactly one status:
 
@@ -25,6 +31,15 @@ Use exactly one status:
 
 ## Fields
 
+- Address segment: `<host>-<sid8>-<subject>`. Discover `host` live as the last
+  octet of `tailscale ip -4`, written with a leading dot (`.44`); it routes a
+  human to the right machine and carries no uniqueness. `sid8` is the first 8
+  characters of the hook `session_id` — the same value that names
+  `~/.local/state/agent-hooks/<session_id>/` — and is what makes the bare name
+  unique, so `SendMessage` never falls through to its silent latest-wins or
+  in-process precedence. `subject` is the stable subject slug, lowercase and
+  hyphenated. Assign the whole segment once and never rewrite it — not on a
+  status change, a handoff, or compaction recovery.
 - Ticket: copy an identifier only from the user's message, branch, issue, or
   inspected evidence. Preserve its casing. Never infer one.
 - Stable subject: use a short noun phrase that survives retries, compaction,
