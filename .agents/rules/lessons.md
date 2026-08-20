@@ -4,10 +4,6 @@
 歷史在 git log（2026-08-08 W32 清算：48 條 → 折入 judgment-rubrics §2/§4/§5、
 model-dispatch §3/§4、maintenance §5、harness-diagnosis 信任層之後，餘下如下）。
 
-## 2026-08-08 | scope: agent-device | trigger: 使用者更正根因——simulator 被開不是副作用，是 `open` 沒帶 `--device` 時預設落到 simulator（實機與同名 simulator 並存）
-Rule: `agent-device open`（mobile 平台）必帶 `--device <name-or-udid>`；已由 PreToolUse gate `agent-device-target-gate.sh` 強制（web/macOS 豁免）。
-Status: adopted   # gate 上線 2026-08-08，兩機部署；觀察一週無誤擋即刪本條
-
 ## 2026-08-13 | scope: rule-reading | trigger: ONE OWNER 的 Exception 句，前半授權 `--detach` 被執行、後半 `bounded harvest` 被忽略，前景阻塞 420s；同一份 byte-identical SKILL.md 在另一機做對過
 Rule: 等待成本在哪一步都算成本 — 把阻塞從 assign 搬到 harvest 不算解決。（前半「授權與限制同等強制、先讀完整句」已折入 judgment-rubrics preamble，2026-08-13 畢業）
 Status: proposed
@@ -147,3 +143,6 @@ Status: proposed
 Status: proposed
 `scripts/deploy.sh` deploys `origin/main`, NOT the working tree: `resolve_release()` takes the SHA from `git ls-remote <url> refs/heads/main`, `download_release()` extracts that tarball to a scratch dir, and every layer copies from `$SRC` (deploy.sh:36-48, 80). So an uncommitted or unpushed edit CANNOT reach runtime, and the deploy still exits 0. Its internal `diff -rq ~/.agents/rules/ "$SRC/.agents/rules/"` (deploy.sh:81) compares runtime against that same downloaded tree, so it passes by construction and can never detect the gap. Both observed drifts were edit-then-deploy-before-push; two deploys on the already-pushed tree at `58a7251` were IN_SYNC, consistent with this and not with a race. Correct order is commit, push, deploy, then an external `diff -rq` against the working tree. This also falsifies two guesses made from memory in the same session — mine, that deploy copies the working tree, and the peer's, that it reads the current working directory.
 
+## 2026-08-20 | scope: harness | trigger: `CLAUDE_CODE_SESSION_ID` was carried as UNCONFIRMED across resume/compaction, leaving the title's `sid8` field unverifiable
+Rule: measured across two compactions of one session — the env value held and still matched its live `~/.claude/sessions/*.json` `.sessionId`, so a title's `sid8` needs no compaction exception.
+Status: proposed
