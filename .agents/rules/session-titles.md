@@ -7,18 +7,10 @@ single-command task does not require a title change.
 
 `<host>-<sid8>-<subject> · <status> [<ticket?>] [<handoff sequence?>] — <outcome>`
 
-The title is also the cross-session address: `ListAgents` prints it and
-`SendMessage({to})` matches it against the title, start-anchored, so a UNIQUE
-PREFIX delivers just like an exact match (verified against CLI 2.1.237). The
-`<host>-<sid8>` head is therefore the real address: it is unique, it never
-changes, and everything after it may be rewritten freely.
-
-**Address a peer by the `<host>-<sid8>` head alone, never by the full title.**
-The rest of the title carries mutable status and outcome, so a full title copied
-from an earlier listing is not a prefix of the current one and delivers nothing.
-Keep the whole title at or under 200 characters — `SendMessage` rejects a longer
-recipient, which would make the title unaddressable. Use no brackets in the
-address — `ListAgents` appends its own ` [ref]`.
+The title is for humans to read. It is NOT the cross-session address — see
+`## Cross-session addressing` below. The `<host>-<sid8>` head is a machine
+marker that tells a reader which host and session a row belongs to; it carries
+no delivery role.
 
 Examples:
 
@@ -60,6 +52,27 @@ Use exactly one status:
 - Outcome: state the current target, exact unblock needed, successor, or
   verified result. Put the identifying words first and keep it to one line.
 
+## Cross-session addressing
+
+The address is the peer's bridge id, not its title. It never changes with
+status, outcome, or a rename, and unlike a ` [ref]` it is not single-use.
+Resolve your own from the LIVE registry, keyed by this session's id:
+
+```bash
+jq -r 'select(.sessionId==env.CLAUDE_CODE_SESSION_ID) | .bridgeSessionId' \
+  ~/.claude/sessions/*.json
+```
+
+Send with `to: "bridge:<bridgeSessionId>"`. An incoming message's `from`
+attribute is already in exactly this form, so reply by copying it verbatim.
+
+Delivery by name is a fallback and needs the EXACT full name from a current
+`ListAgents` row; a trailing ` [ref]` is harmless but not required. A prefix
+NEVER delivers, with or without a ref, so no leading segment of a title can
+serve as an address (measured 2026-08-20 on two hosts, same result on both).
+The `to` field is capped at 300 characters by the tool schema — a limit on the
+recipient string, not on what a title may say.
+
 ## State transitions
 
 1. When a non-trivial goal becomes clear, set `⏳`.
@@ -100,15 +113,15 @@ status, or outcome change, keep the existing title.
 Codex uses its native title control. Claude Code renames via Bash, reproducing
 what `/rename` does internally (verified against CLI 2.1.237):
 
-1. Cloud title (what the claude.ai app shows). No field in the cloud session
-   list carries the local session uuid or cwd, so there is NO reliable join
-   key — every lookup is a heuristic and MUST be verified before writing.
-   Never grep `bridgeSessionId` out of a transcript: a resumed or compacted
-   transcript quotes registry dumps from earlier sessions, so that id can
-   belong to an archived session (2026-08-20: an 8/14 archived session was
-   overwritten this way). Instead list `GET /v1/code/sessions?limit=8`, take
-   the newest `last_event_at`, and REFUSE to write unless that row's `status`
-   is `running` — an archived session accepts the write and returns 200. Then:
+1. Cloud title (what the claude.ai app shows). Resolve the `cse_…` id with the
+   `## Cross-session addressing` query, replacing the `session_` prefix of its
+   result with `cse_`. Read that registry ONLY from disk, never from a
+   transcript: a resumed or compacted one quotes registry dumps from
+   earlier sessions, so the id found there can belong to an archived session,
+   and the write lands on it and still returns 200 (2026-08-20: an 8/14
+   archived session was overwritten this way, its original title
+   unrecoverable). If the query returns no row or more than one, stop and
+   report — never guess from a session list. Then:
 
    ```bash
    TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w \
