@@ -8,10 +8,17 @@ single-command task does not require a title change.
 `<host>-<sid8>-<subject> · <status> [<ticket?>] [<handoff sequence?>] — <outcome>`
 
 The title is also the cross-session address: `ListAgents` prints it and
-`SendMessage({to})` matches it. The leading `<host>-<sid8>-<subject>` segment is
-the address and never changes, so a peer holding an older title still matches as
-a prefix and gets a disambiguation error instead of a silent misdelivery. Use no
-brackets in the address — `ListAgents` appends its own ` [ref]`.
+`SendMessage({to})` matches it against the title, start-anchored, so a UNIQUE
+PREFIX delivers just like an exact match (verified against CLI 2.1.237). The
+`<host>-<sid8>` head is therefore the real address: it is unique, it never
+changes, and everything after it may be rewritten freely.
+
+**Address a peer by the `<host>-<sid8>` head alone, never by the full title.**
+The rest of the title carries mutable status and outcome, so a full title copied
+from an earlier listing is not a prefix of the current one and delivers nothing.
+Keep the whole title at or under 200 characters — `SendMessage` rejects a longer
+recipient, which would make the title unaddressable. Use no brackets in the
+address — `ListAgents` appends its own ` [ref]`.
 
 Examples:
 
@@ -31,15 +38,17 @@ Use exactly one status:
 
 ## Fields
 
-- Address segment: `<host>-<sid8>-<subject>`. Discover `host` live as the last
-  octet of `tailscale ip -4`, written with a leading dot (`.44`); it routes a
-  human to the right machine and carries no uniqueness. `sid8` is the first 8
-  characters of the hook `session_id` — the same value that names
-  `~/.local/state/agent-hooks/<session_id>/` — and is what makes the bare name
-  unique, so `SendMessage` never falls through to its silent latest-wins or
-  in-process precedence. `subject` is the stable subject slug, lowercase and
-  hyphenated. Assign the whole segment once and never rewrite it — not on a
-  status change, a handoff, or compaction recovery.
+- Address head: `<host>-<sid8>`, assigned once and never rewritten — not on a
+  status change, a subject change, a handoff, or compaction recovery. Discover
+  `host` live as the last octet of `tailscale ip -4`, written with a leading dot
+  (`.44`); it routes a human to the right machine and carries no uniqueness.
+  Read `sid8` from the `CLAUDE_CODE_SESSION_ID` environment variable and take its
+  first 8 characters; it matches the directory name under
+  `~/.local/state/agent-hooks/`. Never reverse it out of a transcript filename.
+  Those 8 hex characters are 32 bits with no collision check anywhere in the
+  stack, so before reusing a head confirm no live `ListAgents` row already
+  carries it, and extend to 12 characters if one does. Only the head is the
+  address; `<subject>` sits after it and stays governed by the rename gate.
 - Ticket: copy an identifier only from the user's message, branch, issue, or
   inspected evidence. Preserve its casing. Never infer one.
 - Stable subject: use a short noun phrase that survives retries, compaction,
