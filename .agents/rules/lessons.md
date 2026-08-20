@@ -146,3 +146,11 @@ Status: proposed
 ## 2026-08-20 | scope: execution | trigger: two `deploy exit=0` runs left the just-edited file stale in `~/.agents/rules/`, while the script's own `PASS [rules] 0 diff` passed both times
 Status: proposed
 `scripts/deploy.sh` deploys `origin/main`, NOT the working tree: `resolve_release()` takes the SHA from `git ls-remote <url> refs/heads/main`, `download_release()` extracts that tarball to a scratch dir, and every layer copies from `$SRC` (deploy.sh:36-48, 80). So an uncommitted or unpushed edit CANNOT reach runtime, and the deploy still exits 0. Its internal `diff -rq ~/.agents/rules/ "$SRC/.agents/rules/"` (deploy.sh:81) compares runtime against that same downloaded tree, so it passes by construction and can never detect the gap. Both observed drifts were edit-then-deploy-before-push; two deploys on the already-pushed tree at `58a7251` were IN_SYNC, consistent with this and not with a race. Correct order is commit, push, deploy, then an external `diff -rq` against the working tree. This also falsifies two guesses made from memory in the same session — mine, that deploy copies the working tree, and the peer's, that it reads the current working directory.
+
+## CLAUDE_CODE_SESSION_ID survives compaction
+Status: proposed
+Measured 2026-08-20: this session was compacted twice; `CLAUDE_CODE_SESSION_ID`
+stayed `37839e4b-…` and still matched the `.sessionId` of its live
+`~/.claude/sessions/*.json` row. So the `sid8` in a title is stable across
+compaction and the "assigned once, never rewritten" head needs no exception.
+Previously carried as UNCONFIRMED.

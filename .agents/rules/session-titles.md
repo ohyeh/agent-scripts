@@ -139,12 +139,12 @@ what `/rename` does internally (verified against CLI 2.1.237):
 This endpoint is internal and undocumented; it may change between CLI
 versions. A 200 is NOT success: it only means the request was accepted, and it
 is returned for a write to the wrong session. Confirm with
-`GET /v1/code/sessions/<cse_id>`, reading `.response_shape.title` — NOT
+`GET /v1/code/sessions/<cse_id>` and the SAME two `anthropic-*` headers as
+above — the version header is required on both verbs — reading
+`.response_shape.title` — NOT
 `.title` or `.session.title`, which read `null` and turn a successful rename
 into a reported failure. So a mismatch means the write missed OR the read path
 is wrong; check the path first. If a hook intercepts `curl`, use another HTTP
 client; never skip the read-back. On a missing credential, a non-200, or a
 confirmed mismatch, report the failure, state the exact `/rename <title>` once
 for the user, and leave the title unchanged.
-Never claim success or simulate a rename through a file, hook, or chat
-message.
