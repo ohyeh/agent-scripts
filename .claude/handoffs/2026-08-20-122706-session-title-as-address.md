@@ -2,7 +2,7 @@
 
 ## Session Metadata
 - Created: 2026-08-20 12:27:06
-- Project: /Users/paul.yeh/git/agent-scripts
+- Project: ~/git/agent-scripts
 - Branch: main
 - Session duration: ~1h of active work (plus an earlier compacted SMCS-2050 triage phase)
 
@@ -30,7 +30,7 @@ ends and left peers holding an address that resolved to nothing. Two commits
 landed: `1768097` introduced an immutable address segment, and `458c7ec` fixed
 the four defects a second-model adversarial review (Codex `gpt-5.6-sol medium`)
 confirmed against the CLI binary. Both are pushed to `origin/main` and deployed
-to two hosts (`local` and `100.77.191.62`), verified at SHA
+to two hosts (`local` and `<peer-host>`), verified at SHA
 `458c7ecd361bbcb57057143860584323772fccab`, rules sha
 `c56b34dd847fa5467da348f00b4397803b3a5bfbfb83fc66dd6d447f0ce72e67`. The work is
 at a clean stopping point; what remains is a deliberately deferred hook fix and
@@ -84,7 +84,7 @@ deploying or the deploy installs the previous version.
 - [x] Established that the title is the peer address, and that `SendMessage` matching is start-anchored `startsWith` — a unique PREFIX delivers.
 - [x] Committed `1768097` (immutable address segment) and `458c7ec` (four review fixes).
 - [x] Dispatched an adversarial review to Codex `gpt-5.6-sol medium` via `agent-tmux codex assign`, hosted in a sub-agent, with the model proven by `start --dry-run` first.
-- [x] Pushed to `origin/main`, deployed to `local` and `100.77.191.62`, both verified.
+- [x] Pushed to `origin/main`, deployed to `local` and `<peer-host>`, both verified.
 
 ## Files Modified
 
@@ -170,7 +170,7 @@ never returned an exit code, yet the worker completed normally after 9m24s.
 - `agent-tmux` wrapper bundle resolved at `~/.agents/skills/tmux-agent-tools/scripts/agent-tmux`.
 - Codex CLI 0.148.0. Its global default is `gpt-5.6-luna` at `max`, so a `sol medium` run REQUIRES a profile; the one used here is `.workflow/202608201700-session-title-address-review/codex-sol.profile`.
 - Claude Code CLI 2.1.237 (the rule file's `Runtime control` section still cites 2.1.220 as its verified version).
-- Tailscale: this host is `100.64.190.44`; the second deploy target is `100.77.191.62`.
+- Tailscale: this host is `<this-host>`; the second deploy target is `<peer-host>`.
 
 ## Active Processes
 
