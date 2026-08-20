@@ -81,7 +81,7 @@ deploying or the deploy installs the previous version.
 ## Tasks Finished
 
 - [x] Diagnosed why titles often went un-renamed: `session-title-sentinel.sh` is a one-shot nudge that exits once the transcript mentions `customTitle` or `/v1/code/sessions`, so it never fires at later status transitions, and it requires >= 12 user prompts.
-- [x] Established that the title is the peer address, and that `SendMessage` matching is start-anchored `startsWith` — a unique PREFIX delivers.
+- [x] FALSIFIED 2026-08-20 by a six-cell matrix on two hosts: the title is NOT the address (the bridge session id is, addressable as `bridge:session_<id>`), and matching is NOT start-anchored — a unique prefix is refused with or without a ` [ref]`; only the exact full name delivers. The original claim came from `strings -a` on the CLI binary, which cannot read control flow.
 - [x] Committed `1768097` (immutable address segment) and `458c7ec` (four review fixes).
 - [x] Dispatched an adversarial review to Codex `gpt-5.6-sol medium` via `agent-tmux codex assign`, hosted in a sub-agent, with the model proven by `start --dry-run` first.
 - [x] Pushed to `origin/main`, deployed to `local` and `<peer-host>`, both verified.
@@ -108,7 +108,7 @@ deploying or the deploy installs the previous version.
 ## Immediate Next Steps
 
 1. Decide whether to fix `session-title-sentinel.sh`. It currently exits as soon as the transcript mentions `customTitle` or `/v1/code/sessions`, so it nudges at most once per session and never checks the format or later status transitions. The reviewer marked this FAIL: the new format ships effectively unenforced. The proposed minimal fix is to replace the has-it-ever-been-renamed guard with a last-known-state comparison (store the transcript byte offset of the last rename) and lower the >= 12 prompt threshold.
-2. Find the real cause of the observed wrong-session deliveries. `1768097`'s message blamed a silent newer-over-older precedence; the reviewer found no such precedence (in-process does win over a session, but two same-named sessions raise an ambiguous error), and `458c7ec` corrects that attribution. The actual mechanism is still unknown — the user's own transcripts hold every `SendMessage` `to` value alongside the `<cross-session-message from=...>` that came back, so the mismatches are findable.
+2. Find the real cause of the observed wrong-session deliveries. `1768097`'s message blamed a silent newer-over-older precedence; the reviewer found no such precedence (in-process does win over a session, but two same-named sessions raise an ambiguous error), and `458c7ec` corrects that attribution. The actual mechanism is still unknown, and today's finding does NOT explain it: the matrix proved a prefix FAILS TO DELIVER, which is a different event from DELIVERING TO THE WRONG SESSION. No original tool result from the reported misdelivery survives in this session, so the observation itself is UNCONFIRMED and must not be back-filled with the prefix result — the user's own transcripts hold every `SendMessage` `to` value alongside the `<cross-session-message from=...>` that came back, so the mismatches are findable.
 3. Consider whether other rules files that name a session need the same address discipline, and whether `ListAgents`' "session list too long to fetch completely" truncation can hide a colliding head.
 
 ## Blockers/Open Questions
