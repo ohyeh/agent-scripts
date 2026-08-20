@@ -5,19 +5,20 @@ single-command task does not require a title change.
 
 ## Format
 
-`<host>-<sid8>-<subject> · <status> [<ticket?>] [<handoff sequence?>] — <outcome>`
+`<status> <subject> [<ticket?>] [<handoff sequence?>] — <outcome> · <host>-<sid8>`
 
 The title is for humans to read. It is NOT the cross-session address — see
-`## Cross-session addressing` below. The `<host>-<sid8>` head is a machine
-marker that tells a reader which host and session a row belongs to; it carries
-no delivery role.
+`## Cross-session addressing` below. Order is by discriminating power: listing
+surfaces truncate from the right, and a sidebar measured 2026-08-20 showed ~30
+characters, of which a leading `<host>-<sid8>-` head ate 12. Status leads at 2
+characters; the marker goes last, needed least and carrying no delivery role.
 
 Examples:
 
-- `.44-96fb35ed-session-title · ⏳ — Define normalization rules`
-- `.44-3f2a91c4-ios-uat · 🚨 — Waiting for the device to reconnect`
-- `.19-8b40d2e7-type1-voucher · ↗️ [SMCS-1902] [1] — Continued in [2]`
-- `.44-1afc7a39-coin-rebrand · ✅ [SMCS-1699] — Opened the develop PR`
+- `⏳ session-title — Define normalization rules · .44-96fb35ed`
+- `🚨 ios-uat — Waiting for the device to reconnect · .44-3f2a91c4`
+- `↗️ type1-voucher [SMCS-1902] [1] — Continued in [2] · .19-8b40d2e7`
+- `✅ coin-rebrand [SMCS-1699] — Opened the develop PR · .44-1afc7a39`
 
 Use exactly one status:
 
@@ -30,17 +31,16 @@ Use exactly one status:
 
 ## Fields
 
-- Address head: `<host>-<sid8>`, assigned once and never rewritten — not on a
-  status change, a subject change, a handoff, or compaction recovery. Discover
-  `host` live as the last octet of `tailscale ip -4`, written with a leading dot
-  (`.44`); it routes a human to the right machine and carries no uniqueness.
-  Read `sid8` from the `CLAUDE_CODE_SESSION_ID` environment variable and take its
-  first 8 characters; it matches the directory name under
-  `~/.local/state/agent-hooks/`. Never reverse it out of a transcript filename.
-  Those 8 hex characters are 32 bits with no collision check anywhere in the
-  stack, so before reusing a head confirm no live `ListAgents` row already
-  carries it, and extend to 12 characters if one does. Only the head is the
-  address; `<subject>` sits after it and stays governed by the rename gate.
+- Machine marker: `<host>-<sid8>`, placed last, assigned once and never
+  rewritten — not on a status change, a subject change, a handoff, or
+  compaction recovery. Discover `host` live as the last octet of
+  `tailscale ip -4`, with a leading dot (`.44`); it routes a human and carries
+  no uniqueness. Read `sid8` from `CLAUDE_CODE_SESSION_ID`, first 8 characters;
+  it matches the directory under `~/.local/state/agent-hooks/`. Never reverse it
+  out of a transcript filename.
+  Those 8 hex characters are 32 bits with no collision check anywhere, so
+  before reusing a marker confirm no live `ListAgents` row carries it, and
+  extend to 12 characters if one does. No field of the title is the address.
 - Ticket: copy an identifier only from the user's message, branch, issue, or
   inspected evidence. Preserve its casing. Never infer one.
 - Stable subject: use a short noun phrase that survives retries, compaction,
