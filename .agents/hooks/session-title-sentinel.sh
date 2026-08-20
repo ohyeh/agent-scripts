@@ -21,15 +21,30 @@ SESSION_ID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
 
 STATE_DIR="${HOME}/.local/state/agent-hooks/${SESSION_ID:-pid-$PPID}"
 mkdir -p "$STATE_DIR"
-MARKER="$STATE_DIR/title-nudge-sent"
-[ -f "$MARKER" ] && exit 0
-
-grep -q 'customTitle\|/v1/code/sessions' "$TRANSCRIPT" && exit 0
-
-prompts="$(grep -c '"type":"user"' "$TRANSCRIPT" 2>/dev/null || echo 0)"
+# Count HUMAN turns only. A `"type":"user"` record is also written for every
+# tool result, which in one measured session was 731 of 981 such records, so
+# the raw count runs ~4x ahead of real prompts and a threshold of 12 was
+# reached by roughly the third human turn (measured 2026-08-20).
+prompts="$(grep '"type":"user"' "$TRANSCRIPT" 2>/dev/null | grep -vc 'tool_result' || echo 0)"
 [ "$prompts" -lt 12 ] && exit 0
 
-: > "$MARKER"
+# Re-nudge every 40 human turns rather than once per session. Whether a title
+# is STALE cannot be decided here: staleness means the title's status differs
+# from the real one, and the real one is the model's judgment from current
+# evidence, not a value a hook can read. So this is a cadence, not a detector.
+# The old one-shot marker, plus a grep for whether a rename had EVER happened,
+# made this hook structurally unable to support the rule's "re-check at every
+# turn end where work started, stalled, blocked, handed off, or completed".
+# 40 is derived, not picked: the same session held ~3 material title changes
+# across 250 human turns, so nudging every 40 offers roughly one useful
+# reminder per two fired, where every 12 would have been ~85% noise.
+MARKER="$STATE_DIR/title-nudge-at"
+if [ -f "$MARKER" ]; then
+  last="$(cat "$MARKER" 2>/dev/null || echo 0)"
+  [ "$prompts" -lt "$(( last + 40 ))" ] && exit 0
+fi
+
+printf '%s' "$prompts" > "$MARKER"
 jq -n '{decision: "block",
-  reason: "Session title check: this session looks non-trivial but no title has been set. Apply ~/.agents/rules/session-titles.md — derive status from current evidence and rename (cloud PUT recipe in §Runtime control). If the session is genuinely trivial, proceed without renaming; this reminder fires only once."}'
+  reason: "Session title check: re-read ~/.agents/rules/session-titles.md §Rename gate and confirm the title still describes the CURRENT state — status, outcome, handoff sequence. A title describing a previous state is a defect. If nothing material changed, proceed unchanged; this fires again after further activity."}'
 exit 0
