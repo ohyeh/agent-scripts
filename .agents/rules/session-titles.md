@@ -98,10 +98,17 @@ status, or outcome change, keep the existing title.
 ## Runtime control
 
 Codex uses its native title control. Claude Code renames via Bash, reproducing
-what `/rename` does internally (verified against CLI 2.1.220):
+what `/rename` does internally (verified against CLI 2.1.237):
 
-1. Cloud title (what the claude.ai app shows). Find the session's `cse_…` id
-   inside its own transcript under `~/.claude/projects/<encoded-cwd>/`, then:
+1. Cloud title (what the claude.ai app shows). No field in the cloud session
+   list carries the local session uuid or cwd, so there is NO reliable join
+   key — every lookup is a heuristic and MUST be verified before writing.
+   Never grep `bridgeSessionId` out of a transcript: a resumed or compacted
+   transcript quotes registry dumps from earlier sessions, so that id can
+   belong to an archived session (2026-08-20: an 8/14 archived session was
+   overwritten this way). Instead list `GET /v1/code/sessions?limit=8`, take
+   the newest `last_event_at`, and REFUSE to write unless that row's `status`
+   is `running` — an archived session accepts the write and returns 200. Then:
 
    ```bash
    TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w \
@@ -117,7 +124,11 @@ what `/rename` does internally (verified against CLI 2.1.220):
    without comment when the package is absent; the cloud title is primary.
 
 This endpoint is internal and undocumented; it may change between CLI
-versions. On any non-200 or missing credential, report the failure, state the
-exact `/rename <title>` once for the user, and leave the title unchanged.
+versions. A 200 is NOT success: it only means the request was accepted, and it
+is returned for a write to the wrong session. Confirm by re-reading the title
+with `GET /v1/code/sessions/<cse_id>` and comparing it to the intended string.
+On a missing credential, a non-200, or a read-back mismatch, report the
+failure, state the exact `/rename <title>` once for the user, and leave the
+title unchanged.
 Never claim success or simulate a rename through a file, hook, or chat
 message.
