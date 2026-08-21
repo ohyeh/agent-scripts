@@ -1,6 +1,8 @@
 # Weekly Retro Agenda
 
-Version: 1.5.0（2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
+Version: 1.6.0（2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
+1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
 
 範圍：以 agent 協作過程與循環為主軸——ohyeh/agent-scripts、ohyeh/tmux-agent-tools、
@@ -40,9 +42,24 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
   collector 目前只出 rate 不出名單者，列為 collector backlog。
 - 手排只補 collector 未覆蓋的面（tmux worker result.json、bol-stats），
   不得重算 collector 已覆蓋的數字。
-- **token／成本面**：collector 加 token/成本欄（每 session 的 token 用量與估算成本，
-  同 `{value, method, tier}` 契約）；模型對照（如 opus-low vs sonnet）必附成本數字，
-  只有重試次數不算完成。欄位未落地前明寫「本週成本面未量測」。
+- **token／成本面（每輪必收，2026-08-21 起）**：Claude 側跑
+  `session-report@claude-plugins-official` 的 analyzer
+  （`node <skill-dir>/analyze-sessions.mjs --json --since 7d`），取 `overall`
+  的 token 四分類、`cache_breaks_over_100k`、`subagent.calls/total_tokens`、
+  `by_subagent_type`、`by_skill`、`top_prompts`。已知瑕疵：`by_project` 的 token
+  歸戶為 0，且它只讀 `~/.claude/projects`（不含 `projects_archived/*.jsonl.gz`、
+  `transcripts/ses_*.jsonl`、codex、agy）——缺的面自行補，不得當成全量。
+  Codex 側從 session jsonl 的 `payload.info.total_token_usage` 取
+  `input/cached_input/cache_write_input/output/reasoning_output/total`，並記
+  `model_context_window` 分布（同機混用多個 window ＝ 成本模型混算，是 finding）。
+  兩側都要出「派工場 vs 非派工場」與「每輪 token」對照；模型對照（如 opus-low vs
+  sonnet）必附成本數字，只有重試次數不算完成。
+  另收兩個定額可疑訊號：**cache break >100k 的逐筆清單**（附破快取前的最後一則
+  使用者訊息）與 **turns=0 但 total>1M 的 session**（無人止損的高消耗，
+  2026-08-14 與 08-21 兩輪各出現）。任一面缺料就明寫「本週未量測」，
+  同 `{value, method, tier}` 契約。逐週數字落成 `evals/retro-metrics/<ISO-week>.json`
+  （**版控路徑，不放 `.workflow/`——該目錄被 gitignore，只存在單機**），
+  USD 以 `evals/retro-metrics/cost.py` 換算，並註明那是 API 費率當量而非實付帳單。
 - **使用者糾正事件粗篩**：collector 加輕量關鍵詞欄（「不對」「不是」「我說的是」
   「你改壞」等改口/糾正訊號），只出候選名單餵 Layer 2，不建大系統、不判定語意。
 
@@ -75,8 +92,13 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 
 ### 6. 死碼盤點 — 用量為零的資產
 recipe：`recipe-usage-stats.sh <name>`（consecutive_zero_weeks）。
-skill / rules 的零用量統計尚無工具（W32 缺口）。連續零週 ≥ 4 → attic 掛牌提案；
-掛牌後又有使用 → 撤牌（W32 的 design-consensus 教訓：單週快照會誤殺）。
+skill / tool 用量：`scripts/ctx-usage-report.py --days 7`（唯讀 context-mode SQLite，
+codex＋claude 兩側；出 tool 次數與 bytes、plugin 歸屬、使用者明確呼叫的 skill、
+skill 提及次數；`--agent codex|claude` 可分側）。**零用量 skill ＝ 已安裝清單
+減去該報告的呼叫與提及集合**，兩者都為零才算零用量；只看提及會誤殺被程式化
+呼叫的 skill。rules 的零用量仍無工具（W32 缺口續留）。
+連續零週 ≥ 4 → attic 掛牌提案；掛牌後又有使用 → 撤牌
+（W32 的 design-consensus 教訓：單週快照會誤殺）。
 
 ### 6.5 臨時動議與使用者訴求
 常設收件匣：`agent-scripts/.workflow/retro/inbox.md`（兩節：待討論議題＋本週隨手記；

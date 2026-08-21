@@ -102,7 +102,15 @@ replaces reading the touched code.
 
 ## Tools
 - Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, project scripts, official
-  CLIs. `ctx purge` is irreversible — warn first.
+  CLIs. Route through `ctx_*` wherever it applies: analysis, counting,
+  parsing, log scans, and any command likely to exceed ~20 lines via
+  `ctx_execute`/`ctx_batch_execute`/`ctx_execute_file`; web content via
+  `ctx_fetch_and_index` + `ctx_search`, never shell curl/wget; recall after
+  resume or compaction via `ctx_search(sort: "timeline")` BEFORE asking the
+  user. File writes never go through ctx or a shell — native edit tools only.
+  A ctx tool's own WHEN NOT clause binds: check it before calling the failure
+  a blocker (`ctx_fetch_and_index` does not render SPA pages — use
+  `ctx_execute`). `ctx purge` is irreversible — warn first.
 - Read SKILL.md before use; domain router first, max two meta-router hops.
 - Gotchas: `brainstorming` plans → run dir.
 

@@ -76,13 +76,13 @@ reading touched code.
 - Refactors/experiments: new branch. Show `git status`/`git diff` after edits;
   commit only when authorized, else flag.
 - Delegated long waits: blocking/event-driven, never fixed polling. Scratch
-  files → session scratchpad, never repo root or `/tmp`.
+  files → session scratchpad, never repo root.
 
 ## Tools
-- Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, project scripts, official
-  CLIs. `ctx purge` is irreversible — warn first.
-- Read SKILL.md before use; domain router first, max two meta-router hops.
-- Gotchas: `brainstorming` plans → run dir.
+- Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, project scripts, official CLIs;
+  default to `ctx_*` for analysis, long output, web, recall — not writes.
+  `ctx purge` is irreversible — warn first.
+- Read SKILL.md before use; domain router first, max two hops.
 
 ## Continuity
 - Non-trivial work: one `.workflow/<YYYYMMDDHHMM>-<slug>/` run dir per task
