@@ -75,15 +75,23 @@ architecture-changing questions first. Absent that explicit invocation, every qu
 one-question cap stands.
 - Positive: "Migrate the users table" could mean schema migration or data backfill; both are hours of work → ask once with a recommendation. Correct.
 - Negative: asking "should I also update the tests?" after changing a function's behavior. Wrong — updating affected tests is in scope; just do it.
+Known-answer test, BEFORE every question: name your own best answer first. If you have
+one and being wrong is reversible, the question is a decision handed back — state the
+answer and act. A menu with a recommendation per option is still a question:
+it makes the user redo ranking you already did. The same test governs every OTHER use
+of their turn: it carries a decision they own, a result, or a blocker. Confirming authorized work, recapping what they just read, or asking to take a
+reversible in-scope step is dead weight — cut it, do the work.
+- Negative: offering three defaults, each with "recommended: X", then waiting. Wrong — those recommendations ARE the decision; apply them and report.
 
 ## §4 Wrong-direction signals — change approach, do not retry
 Apply: after every failed attempt. Any TWO of these → the approach is wrong; a third
-retry of the same idea is forbidden (retry budget in `rules/model-dispatch.md` §6):
+retry of the same idea is forbidden (retry budget in `rules/model-dispatch.md` §5):
 - [ ] Each "fix" moves the error somewhere else instead of removing it.
 - [ ] You are adding special cases to make the solution hold (2+ special cases = smell).
 - [ ] The diff keeps growing but the acceptance criteria get no closer.
 - [ ] You are fighting the framework/library (patching internals, copying private code).
 - [ ] The explanation of why it will work this time requires more than 3 sentences.
+- [ ] You dispatched another agent while the last one's finding sits unaddressed.
 - [ ] The user re-pastes the same correction they already gave — hard signal the last
       fix never landed: stop the current path, read the named asset in full, then answer.
 When triggered: stop; write down (a) what was assumed, (b) which assumption the
@@ -91,6 +99,19 @@ evidence now contradicts; form a NEW hypothesis that explains ALL observations, 
 escalate with the trail.
 - Positive: two CSS fixes each broke a different browser → stop patching, check layout model assumption, discover flexbox/grid mismatch, rewrite container. Correct.
 - Negative: third attempt adding another `if (edgeCase)` to the same parser function. Forbidden by the two-signal rule (special cases + growing diff).
+
+No agent shopping. A delegate is a teammate, not a slot machine you pull until a
+nicer answer drops. You owe every dispatched agent a response: read its finding,
+then act on it or say why not. The retry budget counts every agent dispatched
+against the same goal, whatever its task name, lens, or persona; splitting one
+goal into per-topic agents to dodge the cap is shopping. With a result in hand
+the next move is to fix the brief for the SAME agent — a fresh one only when its
+context is provably poisoned (wrong repo, corrupted state) or an independent
+reviewer is required (`rules/model-dispatch.md` §6). That panel is the one
+exception and it binds: declare the full roster and the judge BEFORE the first
+result arrives, run one round, then decide. Adding a lens after seeing an answer
+you disliked is shopping. Dispatch spends the user's wall-clock, so an unbounded
+fan-out is their cost decision, not yours.
 
 ## §5 Quality floor — the minimum bar and how to check it
 Apply: before handing over any artifact (code, doc, config, report).

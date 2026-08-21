@@ -84,6 +84,21 @@ fresh reviewer, verdict still PASS/BLOCK. `prototype` → none.
   is a fresh headless one-shot, never the builder, never reused.
 - Worker-prompt addendum: "DESIGN CONTEXT: read `{repo}/DESIGN.md` first;
   conform to its tokens. SKILL: read and follow `{member-SKILL.md}` first."
+- **Diagram house defaults** (these override a member's opt-in gate, never its
+  mechanism): a diagram whose story IS direction — data flow, architecture,
+  dependency, deployment — ships motion by default. Request `diagram-design`
+  mode `loop` with the Flow-token primitive (one `aria-hidden` token, cycle
+  ≥3s, no playback controls); escalate to `reveal` + Path draw only when the
+  ORDER of hops carries meaning, and to `step` only for teaching. Every other
+  diagram type (ER, quadrant, bar, Venn) defaults to `none` — no flow to
+  point at means motion is decoration. The static-first contract is NOT
+  relaxed: with JS off, and in reduced-motion, print, and every export, the
+  complete labeled figure is visible.
+- **Format: HTML first.** Every diagram and visual deliverable is a
+  self-contained `.html`; `svg`/`png` are EXPORTED from it, never
+  hand-authored. Markdown (a mermaid fence) requires the user asking for it
+  or a text-only consuming tool — never the agent's own guess that "the
+  reader probably cannot see images".
 
 ## The quality loop — no pipeline ends at "built"
 

@@ -125,7 +125,8 @@ commander/plan/review.
 Same approach: two rounds total across all models. Sonnet `low` fails once → Sonnet
 `medium`. Sonnet fails the same task twice → Opus with the full trail. A third failure triggers
 `judgment-rubrics.md` §4, not another retry. Once the hard part is solved, drop to the
-cheap execution tier with one worked example.
+cheap execution tier with one worked example. No agent shopping: this cap counts
+every agent dispatched at the same goal, whatever its name (`judgment-rubrics.md` §4).
 
 ## §6 Reviewer independence
 
