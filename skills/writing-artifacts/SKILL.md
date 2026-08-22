@@ -17,6 +17,11 @@ destination: quick share → `md` · something the user will look at twice or
 show someone → `html` page or Artifact · visual metaphor / hero image needed →
 add an image stage. If the user already said the format, don't ask.
 
+**Reader preset — ELI5:** "explain like I'm five", "dead simple", "完全外行"
+pins READER = knows nothing about the domain and FORMAT = Artifact carried by
+big pictures and few words. Simplify the language, never the facts: no jargon
+without a grounded term, no "simply/just/obviously".
+
 **Genre branch, decided here:** in-repo SOFTWARE documentation (README, API
 docs, tutorials, how-to guides — anything living under the repo) swaps the
 structure station: run `documentation-writing` (Eight Rules + Diataxis, docs/
@@ -54,6 +59,19 @@ whole run (not just this stage): no filler, no hedging, no AI-slop cadence.
   pipeline (it owns authority selection, imagegen delegation, and the
   screenshot-evidence quality loop). Never style inline yourself; the text is
   frozen content by this point — design changes layout, not wording.
+
+## Stage 5 — report the edit (in the turn, not in the artifact)
+
+After delivering, add at most five lines naming what changed and why. One
+line per edit class, not per sentence: the jargon you grounded, the
+assumption you made explicit, the structure you reordered, what you cut.
+Name the problem, not the prettier wording.
+
+When the input was EXISTING text, each line is `before → after`, quoting the
+shortest fragment that carries the problem. When the text is new, drop the
+`before` half and report what you cut and why.
+
+This report never enters the artifact.
 
 ## Boundaries
 
