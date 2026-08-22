@@ -25,6 +25,10 @@ incrementally per a frozen, second-model-reviewed implementation plan. Key conte
 - `scripts/scrub.sh` — the pre-push secret/path/hostname/Tailscale-IP/commit-metadata scrub that
   must PASS before any push to this repo's remote.
 
+For an agent that cannot use the deploy script — a web agent, or anything that was
+previously handed a ZIP or a Drive folder — the bootstrap prompt is a single URL:
+[`WEB-AGENTS.md`](WEB-AGENTS.md). It loads the kernel over raw HTTPS and routes from there.
+
 Release channel: immutable tag (primary), protected `main` (fallback), per the frozen ADR
 governing this spinout's repo boundary, release policy, and per-skill fleet cutover invariant.
 
