@@ -27,10 +27,26 @@ Effort exists in agent frontmatter and Workflow `agent(prompt, {effort})`.
 | review/judgment | fresh `gpt-5.6-sol` | `medium` | reviewer is not the author |
 | execution | `gpt-5.6-terra`; CLI `gpt-5.6-luna`; explicit Sol; or external | Terra/Luna low/medium; Sol low/medium | Terra/Luna may rise to `max`; Sol workers stop at `medium` |
 
-Native collaboration currently exposes Terra and Sol; do not request Luna until the
-live schema accepts it. `ultra` is forbidden. Keep `service_tier=default`; use
+Native collaboration exposes Terra and Sol. Luna runs as the Codex CLI spawned-child
+default (`[agents] default_subagent_model`), verified live on the fleet at
+codex-cli 0.149.0 — read the live catalog before requesting it elsewhere.
+`ultra` is forbidden. Keep `service_tier=default`; use
 `priority` only for an explicit latency need. Sol `max` is rare and requires concrete
 evidence. Never hard-code context-window values; the live catalog is authoritative.
+
+### Codex multi_agent_v2 spawn contract
+
+Routine delegation spawns with `fork_turns="none"` or bounded history, so the child
+takes the `[agents]` defaults. Use `fork_turns="all"` ONLY when the child genuinely
+needs the whole conversation: a full-history fork inherits the parent's model AND
+reasoning effort, and cannot override either — it silently bypasses the defaults.
+`max_concurrent_threads_per_session` COUNTS THE ROOT, so the deployed cap of 2 means
+one root plus one child; raise both the `[agents]` and `[features]` values together
+if a task truly needs a concurrent implementer and reviewer.
+
+A tmux worker is NOT a v2 child: `agent-tmux <cli> …` launches a fresh CLI root that
+reads the machine's own config, so `fork_turns` does not apply and per-run `-c`
+overrides are for deliberately departing from that config, never for restating it.
 
 ## §2 Delegate only when it buys leverage
 
