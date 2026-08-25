@@ -87,11 +87,6 @@ Rule: diff-then-approve 是一次性動作：把 exact diff 寫成檔案、講�
 Evidence: 2026-08-21。遠端 37839e4b 行 5739「『要我開 diff 嗎』…把一回合的手續拖成一整天零產出」；本場 9e024f84 三次重問 lessons diff。
 Status: proposed
 
-## 2026-08-21 | scope: delegation | trigger: 派過 subagent 的 session 糾正密度是沒派的 26 倍（本機 23.8 vs 0.9），兩台機獨立驗證同向
-Rule: 派工不是中性的加速手段，它本身是最大的摩擦與成本來源。未派工的短／中場幾乎零摩擦；崩的全是派工長場，崩法一致：錯誤堆積 → 使用者糾正 → 使用者親手停 agent。派工前先問「非派不可嗎」，派出當下就設併發上限（使用者 2026-08-21 裁決：軟警告 3、硬上限 5）。
-Evidence: 2026-08-21 三機分桶（本機 135 場／mbpr 191 場）；mbpr subagent 平均單次 1.436M token、150 次共 215.4M；本窗口使用者兩次親手停 19 個與 5 個。
-Status: proposed
-
 ## 2026-08-21 | scope: measurement | trigger: Codex 側 68 場 turns=0 但 total>1M 的高消耗 session，現有 canary／糾正／done-claim 指標全數抓不到
 Rule: 成本面必須有一條「無人參與」的偵測軸：turns=0 且 total>1M 即列可疑名單。Codex 每輪 3.5M 是 Claude 1.27M 的 2.8 倍，且其 `cache_write_input_tokens` 三機全為 0 而 cached_input 佔 96.7%（UNCONFIRMED 為回報缺漏或行為本身）。
 Evidence: 2026-08-21 三機掃描（本機 11 筆、mbpr 57 筆、mac-mini 0 筆；單場最大 82.5M）。Codex 158 場中 116 場（73%）位於 archived_sessions，不掃封存即漏四分之三。

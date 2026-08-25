@@ -20,9 +20,8 @@ Escalate (per `rules/model-dispatch.md` §6) when ANY holds:
 - [ ] The task requires weighing >2 interacting constraints (perf vs compat vs deadline) and you cannot articulate the trade-off in two sentences.
 - [ ] You are about to make an irreversible or architecture-level choice.
 - [ ] Your confidence in a factual claim is below "I could show the user evidence".
-Do NOT escalate when: the failure is a typo-level bug, a missing import, a wrong
-path, or you have not yet read the error message carefully. Escalation without the
-full failure trail is wasted budget.
+Do NOT escalate when the failure is a typo-level bug, missing import, wrong path, or you have
+not yet read the error message carefully. Escalation without the full failure trail is wasted budget.
 - Positive: sonnet twice failed to fix a race condition, each fix moving the failure elsewhere → escalate to opus with both diffs + test output. Correct.
 - Negative: a low-effort sonnet worker got a `ModuleNotFoundError`, the session escalates to opus "because it errored". Wrong — read the error; it's a missing install, fix it directly.
 
@@ -30,21 +29,17 @@ full failure trail is wasted budget.
 Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
 - [ ] The originally requested outcome exists (not a partial or adjacent outcome).
 - [ ] Raw evidence in hand: command + exit code + key output lines, or artifact path.
-      A peer, reviewer, or handoff conclusion is a lead, not raw evidence. It may
-      corroborate a claim only when the reviewer was explicitly commissioned against
-      stated acceptance and you inspect the cited live source or check yourself;
-      otherwise attribute it, relay only the verified part, and label the rest
-      `UNCONFIRMED`.
+      A peer, reviewer, or handoff conclusion is a lead, not raw evidence: it corroborates
+      only if the reviewer was commissioned against stated acceptance AND you inspect the
+      cited live source; otherwise attribute it, relay the verified part, mark the rest `UNCONFIRMED`.
 - [ ] Evidence came from execution THIS session, not from memory or expectation.
 - [ ] Independently verified. Trivial single-file, low-risk change: author-run real command/test with quoted exit code suffices. Multi-file, risky, or user-facing work: a fresh-context agent (not the author) verified it — files: read-back; code: tests or a real run; claims: spot-check.
 - [ ] `git status`/`git diff` shown; work committed or the uncommitted state explicitly flagged.
 - [ ] Anything inferred-but-unverified is labeled `UNCONFIRMED` in the report.
-- [ ] Claims about file contents rest on full, non-truncated reads via an auditable
-      Read — a grep/rg hit alone is never evidence; read the definition/context it
-      points at (a hit may be documentation, not the behavior). File identity or
-      drift is judged by `diff`, never by hash mismatch alone. Claims about an
-      untracked file need `git ls-files` / `git log -- <path>` — `git diff --stat`
-      cannot see it.
+- [ ] Claims about file contents rest on full, non-truncated auditable reads — a grep/rg
+      hit alone is never evidence (it may be documentation, not behavior); read the context
+      it points at. Identity/drift is judged by `diff`, never by hash mismatch alone; an
+      untracked file needs `git ls-files` / `git log -- <path>` (`git diff --stat` cannot see it).
 - [ ] Runtime claims: "Restarted", port in LISTEN, or exit 0 prove nothing about NEW
       behavior — evidence is an observable difference (screen/output diff, or a
       fresh install's first run).
@@ -52,24 +47,21 @@ Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
       from the supervise/wait exit code. Exit≠0 with a missing/invalid
       result.json is a protocol failure — inspect `result --path` + pane capture
       before re-dispatching or reporting the task as failed; pane PASS without a
-      valid result.json stays `UNCONFIRMED`. This box is the SPECIALISED form of
-      the absence rule below; its authority order and channels both stand.
+      valid result.json stays `UNCONFIRMED` (specialised form of the absence rule below).
 Evidence is idempotent: one green run on an unchanged tree is enough.
 Missing any box → report "attempted, unverified" and say which box is open.
 - Positive: "Fixed. `npm test` exit 0 (14 passed), fresh sonnet read-back PASS on all 3 files, diff shown above, committed as abc1234." Done.
 - Negative: "I've updated the config so the timeout issue should be resolved." No run, no evidence — this is "attempted, unverified", not done.
 
-A negative claim INFERRED FROM ABSENCE (stuck/failed/missing/no reply/never
-reported; 卡住／受阻／失敗／缺少／不存在／尚未實作／沒有回覆／似乎掛了) carries the
-same bar, because unlike a false "done" nobody re-checks it: a pending status,
-empty result, silent worker or zero-hit search reads two ways — the thing is
-absent, or your view of it is. Say which your evidence shows, or say "not
-observed" and name the channel not checked. Corroborate from an authoritative
-source or one independent channel (`git diff --stat`/mtimes, pane capture,
-varied pattern+tool — one `rg` miss ≠ absence) BEFORE any re-dispatch, revert,
-rewrite or escalation, and never reason further on an uncorroborated negative.
-A DIRECTLY observed failure is reported at once: fail-first and the hard-stop
-boundary outrank every check here.
+A negative claim INFERRED FROM ABSENCE (stuck/failed/missing/no reply/never reported;
+卡住／受阻／失敗／缺少／不存在／尚未實作／沒有回覆／似乎掛了) carries the same bar — unlike a
+false "done", nobody re-checks it. A pending status, empty result, silent worker or zero-hit
+search reads two ways: the thing is absent, or your view of it is. Say which your evidence
+shows, or say "not observed" and name the unchecked channel. Corroborate from an authoritative
+source or one independent channel (`git diff --stat`/mtimes, pane capture, varied pattern+tool
+— one `rg` miss ≠ absence) BEFORE any re-dispatch, revert, rewrite or escalation; never reason
+further on an uncorroborated negative. A DIRECTLY observed failure is reported at once:
+fail-first and the hard-stop boundary outrank every check here.
 
 ## §3 When to stop and ask the user
 Apply: continuously. Ask FIRST (hard-stop list): data deletion, privacy exposure,
@@ -80,20 +72,17 @@ Also stop and ask when:
 - [ ] Acceptance criteria cannot be stated objectively even after reading the code.
 - [ ] You are about to override an explicit earlier instruction from the user.
 Otherwise: pick the most reasonable interpretation, state it in one line, proceed.
-Never end a turn with "Shall I proceed?" on work that is reversible and in scope.
 Exception: a USER-INVOKED interview (the user explicitly asked to be interviewed, per
 `~/.agents/skills/unknowns-discovery/SKILL.md` §4) may run multi-question — one per turn,
-architecture-changing questions first. Absent that explicit invocation, every question
-— discovery or execution — must satisfy a stop-and-ask condition above; the
-one-question cap stands.
+architecture-changing first. Absent that explicit invocation, every question — discovery or
+execution — must satisfy a stop-and-ask condition above; the one-question cap stands.
 - Positive: "Migrate the users table" could mean schema migration or data backfill; both are hours of work → ask once with a recommendation. Correct.
 - Negative: asking "should I also update the tests?" after changing a function's behavior. Wrong — updating affected tests is in scope; just do it.
-Known-answer test, BEFORE every question: name your own best answer first. If you have
-one and being wrong is reversible, the question is a decision handed back — state the
-answer and act. A menu with a recommendation per option is still a question:
-it makes the user redo ranking you already did. The same test governs every OTHER use
-of their turn: it carries a decision they own, a result, or a blocker. Confirming authorized work, recapping what they just read, or asking to take a
-reversible in-scope step is dead weight — cut it, do the work.
+Known-answer test, BEFORE every question: name your own best answer first. If you have one
+and being wrong is reversible, the question is a decision handed back — state the answer and
+act. A menu with a recommendation per option is still a question (the user redoes your ranking).
+Every other use of their turn carries a decision they own, a result, or a blocker; confirming
+authorized work, recapping, or asking to take a reversible in-scope step is dead weight — do the work.
 - Negative: offering three defaults, each with "recommended: X", then waiting. Wrong — those recommendations ARE the decision; apply them and report.
 
 ## §4 Wrong-direction signals — change approach, do not retry
@@ -107,24 +96,21 @@ retry of the same idea is forbidden (retry budget in `rules/model-dispatch.md` �
 - [ ] You dispatched another agent while the last one's finding sits unaddressed.
 - [ ] The user re-pastes the same correction they already gave — hard signal the last
       fix never landed: stop the current path, read the named asset in full, then answer.
-When triggered: stop; write down (a) what was assumed, (b) which assumption the
-evidence now contradicts; form a NEW hypothesis that explains ALL observations, or
-escalate with the trail.
+When triggered: stop; write down (a) what was assumed, (b) which assumption the evidence now
+contradicts; form a NEW hypothesis that explains ALL observations, or escalate with the trail.
 - Positive: two CSS fixes each broke a different browser → stop patching, check layout model assumption, discover flexbox/grid mismatch, rewrite container. Correct.
 - Negative: third attempt adding another `if (edgeCase)` to the same parser function. Forbidden by the two-signal rule (special cases + growing diff).
 
-No agent shopping. A delegate is a teammate, not a slot machine you pull until a
-nicer answer drops. You owe every dispatched agent a response: read its finding,
-then act on it or say why not. The retry budget counts every agent dispatched
-against the same goal, whatever its task name, lens, or persona; splitting one
-goal into per-topic agents to dodge the cap is shopping. With a result in hand
-the next move is to fix the brief for the SAME agent — a fresh one only when its
-context is provably poisoned (wrong repo, corrupted state) or an independent
-reviewer is required (`rules/model-dispatch.md` §6). That panel is the one
-exception and it binds: declare the full roster and the judge BEFORE the first
-result arrives, run one round, then decide. Adding a lens after seeing an answer
-you disliked is shopping. Dispatch spends the user's wall-clock, so an unbounded
-fan-out is their cost decision, not yours.
+No agent shopping. A delegate is a teammate, not a slot machine pulled until a nicer answer
+drops. You owe every dispatched agent a response: read its finding, then act on it or say why
+not. The retry budget counts every agent dispatched at the same goal, whatever its name, lens,
+or persona; splitting one goal into per-topic agents to dodge the cap is shopping. With a result
+in hand, fix the brief for the SAME agent — a fresh one only when its context is provably
+poisoned (wrong repo, corrupted state) or an independent reviewer is required
+(`rules/model-dispatch.md` §6). That panel is the one exception and it binds: declare the full
+roster and judge BEFORE the first result arrives, run one round, then decide; adding a lens after
+an answer you disliked is shopping. Dispatch spends the user's wall-clock — unbounded fan-out is
+their cost decision, not yours.
 
 ## §5 Quality floor — the minimum bar and how to check it
 Apply: before handing over any artifact (code, doc, config, report).
@@ -145,7 +131,7 @@ Apply: choosing among approaches where the best option is not obvious.
 2. Score each 1–5 on 5–8 weighted axes: impact, risk, reversibility, maintainability, implementation cost, dependency footprint (+ task-specific axes).
 3. Stress-test: recompute with one alternate weighting (e.g. risk doubled). If the winner flips, say so — the decision is weight-sensitive and deserves a user check-in when stakes are high.
 4. Output: primary choice + fallback + the FIRST validation step that would prove the choice wrong fastest.
-Keep it to ~15 lines. The point is forcing explicit trade-offs, not producing a spreadsheet.
+Keep it to ~15 lines: the point is explicit trade-offs, not a spreadsheet.
 - Positive: choosing a queue: compares Redis Streams vs SQS vs Postgres `SKIP LOCKED` on 6 axes, notes the winner flips if ops burden is weighted 2×, picks Postgres with SQS fallback, first validation = load test at 2× expected volume.
 - Negative: "I chose Redis because it's popular and fast." No axes, no fallback, no validation step — redo.
 
@@ -158,5 +144,4 @@ paths, or user-facing UI — do not run these unconditionally on every task.
   query count, bundle size) — a claim without a number is not a perf claim.
 - [ ] User-facing UI touched: keyboard nav + contrast spot-check (see `impeccable`/
   `web-design-guidelines` skills), not a full audit unless requested.
-Skip silently when none apply — this is a gate for relevant work, not a checklist tax
-on every task.
+Skip silently when none apply — a gate for relevant work, not a checklist tax on every task.

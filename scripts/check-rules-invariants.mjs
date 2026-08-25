@@ -8,7 +8,6 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const LINE_LIMIT = 150; // maintenance.md per-file cap
 const KERNEL_CHAR_LIMIT = 5000;
 const BASELINE_PATH = join(ROOT, 'evals/context-budget-baseline.json');
 
@@ -17,7 +16,6 @@ const check = (name, ok, detail = '') =>
   results.push({ name, ok, detail });
 
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
-const lines = (s) => s.split('\n').length - (s.endsWith('\n') ? 1 : 0);
 
 // 1. global files byte-identical
 const claudeMd = read('global/CLAUDE.md');
@@ -29,17 +27,11 @@ const leanChars = [...read('global/kernel-lean.md')].length;
 check('kernel-lean-char-limit', leanChars < KERNEL_CHAR_LIMIT,
   `${leanChars} < ${KERNEL_CHAR_LIMIT}`);
 
-// 2. line limits
-for (const p of ['global/CLAUDE.md', 'global/AGENTS.md']) {
-  const n = lines(read(p));
-  check(`line-limit ${p}`, n <= LINE_LIMIT, `${n}/${LINE_LIMIT}`);
-}
+// 2. size: no per-file line cap (retired 2026-08-25 — line counts measure
+// wrapping, not content, and were passed by reflowing prose). Growth is
+// governed by the byte budget baseline below (check 8), which only moves down.
 const ruleFiles = readdirSync(join(ROOT, '.agents/rules'))
   .filter((f) => f.endsWith('.md'));
-for (const f of ruleFiles) {
-  const n = lines(read(`.agents/rules/${f}`));
-  check(`line-limit .agents/rules/${f}`, n <= LINE_LIMIT, `${n}/${LINE_LIMIT}`);
-}
 
 // 3. every routed file named by the compact kernel exists. Keep this list
 // explicit so a wording change cannot silently reduce the number of checks.
@@ -130,10 +122,15 @@ const privatePatterns = [
   ['mac', 'mini', 'm2'].join('-'),
   ['paul', String.raw`\.yeh@`].join(''),
 ].join('|');
-const sensitive = spawnSync('git', ['grep', '-nE', privatePatterns,
-  '--', '.agents', '.claude/handoffs', 'scripts'], { cwd: ROOT, encoding: 'utf8' });
+// Plain grep, not `git grep`: deploy.sh runs this check inside the downloaded
+// tarball tree, which has no .git. The tarball holds exactly the tracked files.
+const sensitivePaths = ['.agents', '.claude/handoffs', 'scripts']
+  .filter((p) => existsSync(join(ROOT, p)));
+const sensitive = spawnSync('grep', ['-rnE', privatePatterns, ...sensitivePaths],
+  { cwd: ROOT, encoding: 'utf8' });
 check('public-sensitive-literals', sensitive.status === 1,
-  sensitive.status === 1 ? 'no private fleet literals' : sensitive.stdout.trim());
+  sensitive.status === 1 ? 'no private fleet literals'
+    : (sensitive.stdout.trim() || `grep exit ${sensitive.status}: ${sensitive.stderr.trim()}`));
 
 // 8. context budget vs baseline
 const skillDirs = readdirSync(join(ROOT, 'skills'))

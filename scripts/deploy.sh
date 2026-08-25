@@ -10,6 +10,8 @@
 # Layers, in order (each layer prints PASS/FAIL + the hash/diff evidence it
 # checked; the FIRST failing layer aborts the whole run non-zero -- fail
 # fast, no silent fallback to a partial deploy):
+#   0. invariants - scripts/check-rules-invariants.mjs run inside the
+#                 downloaded tree; any FAIL aborts before ~ is touched.
 #   1. global   - global/CLAUDE.md -> ~/.claude/CLAUDE.md,
 #                 global/AGENTS.md -> ~/.codex/AGENTS.md, verified by md5.
 #   2. rules    - rsync -a --delete .agents/rules/ -> ~/.agents/rules/,
@@ -59,6 +61,15 @@ WORKDIR="$(mktemp -d)"
 trap cleanup EXIT
 resolve_release
 download_release
+
+# --- Layer 0: rules invariants (the only caller of this check; a red here
+# means main is not deployable — abort before any layer mutates ~) -----------
+echo "==> [invariants] node scripts/check-rules-invariants.mjs @ $DEPLOYED_SHA"
+if ! (cd "$SRC" && node scripts/check-rules-invariants.mjs); then
+  echo "FAIL [invariants] check-rules-invariants exited non-zero; refusing to deploy" >&2
+  exit 1
+fi
+echo "PASS [invariants] all checks green"
 
 # --- Layer 1: global runtime files -----------------------------------------
 echo "==> [global] deploying CLAUDE.md + AGENTS.md"
@@ -140,10 +151,12 @@ echo "PASS [skills] experimental_install completed; removed $removed_skills stal
 # ~/.claude/settings.json. Workflow-gate hooks stay with their owning plugins.
 echo "==> [hooks] installing sentinel hooks + registering in ~/.claude/settings.json"
 rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent-tools plugin
+rm -f ~/.agents/hooks/bol-prompt-warn.sh      # retired 2026-08-25; replaced by bol-prompt-gate.sh (blocking)
 mkdir -p ~/.agents/hooks
 install -m 0755 "$SRC/.agents/hooks/claude-version-sentinel.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/session-title-sentinel.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/bol-prompt-warn.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/bol-prompt-gate.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/subagent-ledger.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/scripts/check-bol-prompt.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/context-ledger.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/bash-read-audit.sh" ~/.agents/hooks/
@@ -155,7 +168,9 @@ SETTINGS=~/.claude/settings.json
 tmp_settings="$(mktemp)"
 jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
    --arg ts "\"\$HOME/.agents/hooks/session-title-sentinel.sh\"" \
-   --arg bol "\"\$HOME/.agents/hooks/bol-prompt-warn.sh\"" \
+   --arg bolold "\"\$HOME/.agents/hooks/bol-prompt-warn.sh\"" \
+   --arg bol "\"\$HOME/.agents/hooks/bol-prompt-gate.sh\"" \
+   --arg subledger "\"\$HOME/.agents/hooks/subagent-ledger.sh\"" \
    --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" \
    --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
    --arg device "\"\$HOME/.agents/hooks/agent-device-target-gate.sh\"" \
@@ -168,23 +183,35 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
     .hooks[ev] = ((.hooks[ev] // [])
       | if any(.[]; any(.hooks[]?; .command == cmd))
         then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":cmd}]}] end);
-  ensure("SessionStart"; $vs)
+  def retire(ev; cmd):
+    .hooks[ev] = ((.hooks[ev] // [])
+      | map(.hooks |= map(select(.command != cmd))) | map(select(.hooks | length > 0)));
+  retire("PreToolUse"; $bolold)
+  | ensure("SessionStart"; $vs)
   | ensure("Stop"; $ts)
   | ensureMatched("PreToolUse"; "Agent"; $bol)
+  | ensure("SubagentStart"; $subledger)
+  | ensure("SubagentStop"; $subledger)
   | ensureMatched("PreToolUse"; "Bash"; $audit)
   | ensureMatched("PreToolUse"; "Bash"; $device)
   | ensureMatched("PreToolUse"; "Bash"; $assignhost)
   | ensureMatched("PostToolUse"; "*"; $ledger)
 ' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
 
-for h in claude-version-sentinel session-title-sentinel bol-prompt-warn context-ledger bash-read-audit agent-device-target-gate; do
+for h in claude-version-sentinel session-title-sentinel bol-prompt-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1
   fi
 done
+# The gate fails closed: a missing validator would deny every dispatch, so its presence is a deploy check.
+[ -x ~/.agents/hooks/check-bol-prompt.sh ] || { echo "FAIL [hooks] check-bol-prompt.sh (bol-prompt-gate validator) not installed" >&2; exit 1; }
+if [ -e ~/.agents/hooks/bol-prompt-warn.sh ] || grep -q 'bol-prompt-warn' "$SETTINGS"; then
+  echo "FAIL [hooks] retired bol-prompt-warn.sh still installed or registered" >&2
+  exit 1
+fi
 jq -e . "$SETTINGS" >/dev/null || { echo "FAIL [hooks] settings.json is no longer valid JSON" >&2; exit 1; }
-echo "PASS [hooks] sentinel hooks installed + registered, retired dispatch hook absent"
+echo "PASS [hooks] sentinel hooks installed + registered, retired dispatch/warn hooks absent"
 
 echo "==> DEPLOY OK — all layers PASS"
 }

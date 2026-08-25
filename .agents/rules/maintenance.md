@@ -62,10 +62,11 @@ Hard constraints (close the approval bypass):
   approved diff; the `proposed → adopted` flip happens in that same approved commit.
 
 ## §4 Size limits and pruning
-- `~/.claude/CLAUDE.md`: ≤150 lines, index + hard rules only. Overflow → move content
-  to a rules/ file and leave one routing line.
-- Each `rules/*.md`: ≤150 lines. Overflow → split by section, update the routing table
-  in CLAUDE.md.
+- No per-file line cap (retired 2026-08-25: line counts measure wrapping, not content,
+  and were passed by reflowing prose). Growth is governed by the byte budget baseline in
+  `scripts/check-rules-invariants.mjs` (`rulesBytes`/`globalBytes`), which only moves
+  down; `deploy.sh` refuses to ship while it is red. `~/.claude/CLAUDE.md` stays index +
+  hard rules only — detail moves to a rules/ file behind one routing line.
 - `rules/lessons.md`: at 40 entries, propose a consolidation pass to the user (fold
   adopted lessons into their target rules file, delete retired ones).
 - Periodic review — ~monthly or every ~50 sessions: run `/insights` and `/doctor`

@@ -18,16 +18,34 @@ check_jsonl() {
   [[ "$count" -eq "$expected_lines" ]]
 }
 
-run_bol() {
-  local prompt="$1"
-  printf '%s' "{\"tool_name\":\"Agent\",\"tool_input\":{\"prompt\":\"$prompt\"}}" |
-    HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" bash "$ROOT/.agents/hooks/bol-prompt-warn.sh" >/dev/null 2>&1
+run_bol() { # $1 prompt, $2 session_id (optional), $3 subagent_type (optional); returns the hook's exit code
+  local prompt="$1" sid="${2:-}" st="${3:-general-purpose}"
+  printf '%s' "$(jq -cn --arg p "$prompt" --arg sid "$sid" --arg st "$st" \
+    '{tool_name:"Agent",session_id:$sid,tool_input:{prompt:$p,subagent_type:$st}}')" |
+    HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" XDG_STATE_HOME="$TEST_HOME/.local/state" \
+    bash "$ROOT/.agents/hooks/bol-prompt-gate.sh" >/dev/null 2>&1
+}
+run_ledger_event() { # $1 event, $2 session_id, $3 agent_id
+  printf '%s' "$(jq -cn --arg ev "$1" --arg sid "$2" --arg aid "$3" \
+    '{hook_event_name:$ev,session_id:$sid,agent_id:$aid,agent_type:"general-purpose"}')" |
+    HOME="$TEST_HOME" XDG_STATE_HOME="$TEST_HOME/.local/state" bash "$ROOT/.agents/hooks/subagent-ledger.sh"
 }
 
-run_bol 'GOAL: ship it ACCEPTANCE: tests pass REPORT: evidence'
-run_bol 'GOAL: ship it'
-check_jsonl "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" 2 \
-  'type == "object" and (.timestamp | type) == "string" and (.result == "pass" or .result == "fail") and (.missing | type) == "array"'
+# bill of lading: complete brief passes, incomplete brief is DENIED (exit 2), Explore is exempt
+run_bol 'GOAL: ship it ACCEPTANCE: tests pass REPORT: evidence' || { echo "FAIL: complete brief was blocked" >&2; exit 1; }
+if run_bol 'GOAL: ship it'; then echo "FAIL: incomplete brief was not blocked" >&2; exit 1; fi
+run_bol 'where is the config loader?' '' Explore || { echo "FAIL: Explore lookup was blocked" >&2; exit 1; }
+check_jsonl "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" 3 \
+  'type == "object" and (.timestamp | type) == "string" and (.result == "pass" or .result == "fail" or .result == "exempt") and (.missing | type) == "array" and (.blocked | type) == "boolean"'
+
+# concurrency: 5 live subagents deny the 6th dispatch; a SubagentStop frees a slot
+SID="bol-concurrency-smoke"
+for i in 1 2 3 4 5; do run_ledger_event SubagentStart "$SID" "agent-$i"; done
+[[ "$(ls "$TEST_HOME/.local/state/agent-hooks/$SID/subagents" | wc -l | tr -d ' ')" == 5 ]]
+if run_bol 'GOAL: g ACCEPTANCE: a REPORT: r' "$SID"; then echo "FAIL: 6th concurrent dispatch was not blocked" >&2; exit 1; fi
+run_ledger_event SubagentStop "$SID" "agent-3"
+run_bol 'GOAL: g ACCEPTANCE: a REPORT: r' "$SID" || { echo "FAIL: dispatch blocked with 4 live subagents" >&2; exit 1; }
+tail -2 "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" | head -1 | jq -e '.result == "concurrency" and .blocked == true and .live_subagents == 5' >/dev/null
 
 run_ledger() {
   printf '%s' "$1" |
@@ -59,4 +77,4 @@ if run_device_gate 'agent-device open MyApp --platform ios; printf -- --device';
   exit 1
 fi
 
-echo "JSONL hooks smoke: audit command redacted; device flag scoped to its command segment"
+echo "JSONL hooks smoke: bol gate denies incomplete briefs + 6th concurrent subagent; audit command redacted; device flag scoped to its command segment"
