@@ -52,11 +52,28 @@ Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
       from the supervise/wait exit code. Exit≠0 with a missing/invalid
       result.json is a protocol failure — inspect `result --path` + pane capture
       before re-dispatching or reporting the task as failed; pane PASS without a
-      valid result.json stays `UNCONFIRMED`.
+      valid result.json stays `UNCONFIRMED`. This box is one INSTANCE of the
+      symmetric bar below, not a special case.
 Evidence is idempotent: one green run on an unchanged tree is enough.
 Missing any box → report "attempted, unverified" and say which box is open.
 - Positive: "Fixed. `npm test` exit 0 (14 passed), fresh sonnet read-back PASS on all 3 files, diff shown above, committed as abc1234." Done.
 - Negative: "I've updated the config so the timeout issue should be resolved." No run, no evidence — this is "attempted, unverified", not done.
+
+The bar is SYMMETRIC: every box above applies unchanged to a NEGATIVE-STATE
+claim — stuck, failed, missing, not implemented, never reported. That direction
+is the expensive one; it authorises re-dispatch, revert, rewrite and escalation,
+and unlike a false "done" nobody goes and checks it. Before asserting one, also:
+- [ ] Rule out signal ABSENCE. "I did not receive it" is not "it did not
+      happen" — a pending status, empty result, silent worker, zero-hit search
+      and missing file each read two ways (the thing is absent, or your view of
+      it is). Name which one the evidence shows.
+- [ ] Check a SECOND independent channel first: `git diff --stat`/mtimes for work
+      claimed undone, pane capture for a worker claimed silent, a varied pattern
+      and tool for a search claimed empty (one `rg` miss ≠ absence).
+- [ ] Never reason further on an unverified negative — a critique resting on "it
+      produced nothing" inherits that premise wholesale.
+Missing any → say "not observed" and name the channel not checked, never "it is
+broken"/"it is stuck".
 
 ## §3 When to stop and ask the user
 Apply: continuously. Ask FIRST (hard-stop list): data deletion, privacy exposure,

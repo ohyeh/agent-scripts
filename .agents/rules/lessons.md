@@ -96,3 +96,10 @@ Status: proposed
 Rule: 成本面必須有一條「無人參與」的偵測軸：turns=0 且 total>1M 即列可疑名單。Codex 每輪 3.5M 是 Claude 1.27M 的 2.8 倍，且其 `cache_write_input_tokens` 三機全為 0 而 cached_input 佔 96.7%（UNCONFIRMED 為回報缺漏或行為本身）。
 Evidence: 2026-08-21 三機掃描（本機 11 筆、mbpr 57 筆、mac-mini 0 筆；單場最大 82.5M）。Codex 158 場中 116 場（73%）位於 archived_sessions，不掃封存即漏四分之三。
 Status: proposed
+
+## 2026-08-25 | scope: judgment | trigger: 看到 worker `status: pending` 就對使用者宣告「卡住、30 分鐘沒交件」，實際上該 worker 已完成 11 檔 +169/−63、analyze 乾淨、463 tests passed
+Rule: §2 是單向閘——整份 checklist 只管「宣告完成」，反向宣告（卡住／失敗／缺失／未實作／沒回報）沒有對稱門檻，而反向宣告才是觸發 re-dispatch、revert、重寫這些昂貴且破壞性動作的那一種。所以：宣告任何負面狀態前，證據門檻與宣告完成相同，且必須先排除「訊號缺席」這個解釋——「我沒收到回報」不等於「它沒做事」。§2 現有的 delegated-worker box 是這條的實例，不是特例。
+Evidence: 2026-08-25 session 367ba284 稽核 session c42d1927。我僅憑 `agent-tmux agy result` 的 `status: pending` 一個訊號下結論，並在該前提上疊了一整段「supervision proxy 是壞的」的結構性批判。推翻證據是 `git diff --stat`（11 檔 +169/−63、mtime 10:42:56–10:47:24）與 `agent-tmux agy capture`（pane 有完整交付報告、`flutter analyze` No issues、`flutter test test/reward` 463 passed、完成標記 MARK-aa7756），兩個指令我一個都沒下就先講了。真正的缺陷是 worker 從未寫 result.json，`wait-required` 因此無法區分「還在做」與「做完但沒寫檔」。附帶：依 §2 同一個 box，pane PASS 而無有效 result.json 時該 worker 狀態仍應標 `UNCONFIRMED`，我第二輪的翻案（「它已經做完了」）同樣超標。
+Related: 2026-08-21 scope:tools 條（`ctx_fetch_and_index` 抓 SPA 得 0.1KB 隨即宣告「卡住」）是同一類的第一次；本條為第二次，兩次都是「訊號缺席 → 負面斷言」。依 maintenance §1 (a)(c)，機制化強制已具備核准資格。
+Status: proposed
+Deferred: `global/kernel-lean.md` 的同步 trigger 詞表未改——該檔現為 4990/5000 字元，最小可用增補 13 字元即破 MUST 上限。lean 版需先有一筆獨立的裁減決定。

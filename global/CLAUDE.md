@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.23.0-ironlaws
+Version: 4.24.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -43,7 +43,8 @@ ritual, no quoting; tooling enforces critical gates.
 
 - Delegate (subagent/tmux/workflow) → model-dispatch + skill
   delegation-templates; brief = GOAL/ACCEPTANCE/REPORT + runtime-native model.
-- Claim done/fixed/verified/PASS/BLOCK → judgment-rubrics §2/§5.
+- Claim done/fixed/verified/PASS/BLOCK, or any negative-state claim
+  (stuck/failed/missing/not implemented/no reply) → judgment-rubrics §2/§5.
 - Unclear acceptance, multi-phase, or material default → skill unknowns-discovery.
 - Retry, non-obvious trade-off, or user decision → judgment-rubrics §3/§4/§6.
 - Loop-shaped work (audit/consensus/triage/plan→build) → skill using-workflows.
