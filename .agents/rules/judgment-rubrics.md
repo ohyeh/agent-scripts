@@ -52,28 +52,24 @@ Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
       from the supervise/wait exit code. Exit≠0 with a missing/invalid
       result.json is a protocol failure — inspect `result --path` + pane capture
       before re-dispatching or reporting the task as failed; pane PASS without a
-      valid result.json stays `UNCONFIRMED`. This box is one INSTANCE of the
-      symmetric bar below, not a special case.
+      valid result.json stays `UNCONFIRMED`. This box is the SPECIALISED form of
+      the absence rule below; its authority order and channels both stand.
 Evidence is idempotent: one green run on an unchanged tree is enough.
 Missing any box → report "attempted, unverified" and say which box is open.
 - Positive: "Fixed. `npm test` exit 0 (14 passed), fresh sonnet read-back PASS on all 3 files, diff shown above, committed as abc1234." Done.
 - Negative: "I've updated the config so the timeout issue should be resolved." No run, no evidence — this is "attempted, unverified", not done.
 
-The bar is SYMMETRIC: every box above applies unchanged to a NEGATIVE-STATE
-claim — stuck, failed, missing, not implemented, never reported. That direction
-is the expensive one; it authorises re-dispatch, revert, rewrite and escalation,
-and unlike a false "done" nobody goes and checks it. Before asserting one, also:
-- [ ] Rule out signal ABSENCE. "I did not receive it" is not "it did not
-      happen" — a pending status, empty result, silent worker, zero-hit search
-      and missing file each read two ways (the thing is absent, or your view of
-      it is). Name which one the evidence shows.
-- [ ] Check a SECOND independent channel first: `git diff --stat`/mtimes for work
-      claimed undone, pane capture for a worker claimed silent, a varied pattern
-      and tool for a search claimed empty (one `rg` miss ≠ absence).
-- [ ] Never reason further on an unverified negative — a critique resting on "it
-      produced nothing" inherits that premise wholesale.
-Missing any → say "not observed" and name the channel not checked, never "it is
-broken"/"it is stuck".
+A negative claim INFERRED FROM ABSENCE (stuck/failed/missing/no reply/never
+reported; 卡住／受阻／失敗／缺少／不存在／尚未實作／沒有回覆／似乎掛了) carries the
+same bar, because unlike a false "done" nobody re-checks it: a pending status,
+empty result, silent worker or zero-hit search reads two ways — the thing is
+absent, or your view of it is. Say which your evidence shows, or say "not
+observed" and name the channel not checked. Corroborate from an authoritative
+source or one independent channel (`git diff --stat`/mtimes, pane capture,
+varied pattern+tool — one `rg` miss ≠ absence) BEFORE any re-dispatch, revert,
+rewrite or escalation, and never reason further on an uncorroborated negative.
+A DIRECTLY observed failure is reported at once: fail-first and the hard-stop
+boundary outrank every check here.
 
 ## §3 When to stop and ask the user
 Apply: continuously. Ask FIRST (hard-stop list): data deletion, privacy exposure,
