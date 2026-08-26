@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import re
+import sys
 import sqlite3
 from collections import Counter
 from datetime import datetime, timedelta
@@ -113,10 +114,31 @@ def main():
         since = datetime.now() - timedelta(days=args.days)
 
     session_dirs = args.sessions_dir or [
-        "~/.codex/context-mode/sessions",
         "~/.claude/context-mode/sessions",
     ]
-    session_dirs = [os.path.expanduser(path) for path in session_dirs]
+    session_dirs = [os.path.realpath(os.path.expanduser(path)) for path in session_dirs]
+    # Dedup symlink twins (e.g. ~/.cursor/context-mode -> ~/.claude/...).
+    seen = set()
+    unique_dirs = []
+    for path in session_dirs:
+        if path in seen:
+            continue
+        seen.add(path)
+        unique_dirs.append(path)
+    session_dirs = unique_dirs
+    if not args.sessions_dir:
+        for leftover in (
+            os.path.expanduser("~/.codex/context-mode/sessions"),
+            os.path.expanduser("~/.gemini/context-mode/sessions"),
+        ):
+            if os.path.isdir(leftover) and not os.path.islink(
+                os.path.dirname(leftover)
+            ):
+                print(
+                    f"WARN leftover adapter store {leftover} "
+                    "(canonical is ~/.claude/context-mode/sessions)",
+                    file=sys.stderr,
+                )
     dbs = []
     for sessions_dir in session_dirs:
         dbs.extend(glob.glob(os.path.join(sessions_dir, "*.db")))

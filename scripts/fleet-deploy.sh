@@ -8,7 +8,7 @@
 #   <host>  "local" for this machine, or any ssh destination
 #           (e.g. build-node, deploy@example.internal)
 #
-# Every host gets the full five-layer deploy.sh run (unless --verify-only),
+# Every host gets the full deploy.sh run (unless --verify-only),
 # then the verify pass checks, per host:
 #   - ~/.claude/CLAUDE.md and ~/.codex/AGENTS.md md5 both equal the repo's
 #     global/CLAUDE.md md5 at the pinned SHA (the two files are byte-identical

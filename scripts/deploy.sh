@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Clone-free fleet deploy: downloads the current agent-scripts main tarball
-# to a scratch dir and deploys all five runtime layers from it. No git
+# to a scratch dir and deploys every runtime layer from it. No git
 # clone, no working copy left behind on the target machine — the repo is
 # canonical, machines are deployed copies only.
 #
-# Usage: scripts/deploy.sh   (no flags; always runs all five layers, per
+# Usage: scripts/deploy.sh   (no flags; always runs every layer, per
 # YAGNI -- this script has exactly one job)
 #
 # Layers, in order (each layer prints PASS/FAIL + the hash/diff evidence it
@@ -24,9 +24,14 @@
 #                 run from $HOME per the CLI's cwd-relative install path
 #                 (see README.md "Fleet skill restore").
 #   5. hooks    - installs the kernel sentinel hooks (.agents/hooks/) into
-#                 ~/.agents/hooks/ and registers them idempotently in
-#                 ~/.claude/settings.json; removes the retired tmux dispatch
-#                 hook (workflow-gate hooks live with their owning plugins).
+#                 ~/.agents/hooks/; registers them in ~/.claude/settings.json
+#                 (Claude events) and ~/.cursor/hooks.json (Cursor events via
+#                 cursor-adapt.sh). Removes the retired tmux dispatch hook
+#                 (workflow-gate hooks live with their owning plugins).
+#   6. context-mode dir - pin CONTEXT_MODE_DIR to ~/.claude/context-mode on
+#                 every present runtime (Codex/Cursor/Gemini/zshrc + Cursor
+#                 symlink). Plugin upgrades rewrite MCP env; this layer
+#                 puts the pin back and fails closed if it did not stick.
 set -euo pipefail
 
 REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
@@ -162,6 +167,7 @@ install -m 0755 "$SRC/.agents/hooks/context-ledger.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/bash-read-audit.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/agent-device-target-gate.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/tmux-assign-host-gate.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/cursor-adapt.sh" ~/.agents/hooks/
 
 SETTINGS=~/.claude/settings.json
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
@@ -206,12 +212,24 @@ for h in claude-version-sentinel session-title-sentinel bol-prompt-gate subagent
 done
 # The gate fails closed: a missing validator would deny every dispatch, so its presence is a deploy check.
 [ -x ~/.agents/hooks/check-bol-prompt.sh ] || { echo "FAIL [hooks] check-bol-prompt.sh (bol-prompt-gate validator) not installed" >&2; exit 1; }
+[ -x ~/.agents/hooks/cursor-adapt.sh ] || { echo "FAIL [hooks] cursor-adapt.sh not installed" >&2; exit 1; }
 if [ -e ~/.agents/hooks/bol-prompt-warn.sh ] || grep -q 'bol-prompt-warn' "$SETTINGS"; then
   echo "FAIL [hooks] retired bol-prompt-warn.sh still installed or registered" >&2
   exit 1
 fi
 jq -e . "$SETTINGS" >/dev/null || { echo "FAIL [hooks] settings.json is no longer valid JSON" >&2; exit 1; }
 echo "PASS [hooks] sentinel hooks installed + registered, retired dispatch/warn hooks absent"
+
+echo "==> [hooks] registering portable sentinels in ~/.cursor/hooks.json"
+bash "$SRC/scripts/install-cursor-hooks.sh"
+bash "$SRC/scripts/check-cursor-hooks.sh"
+echo "PASS [hooks] Cursor adapter registry"
+
+# --- Layer 6: context-mode storage pin ---------------------------------------
+# Machine-local. Layer 0 cannot see ~/. Plugin upgrades drop CONTEXT_MODE_DIR.
+echo "==> [context-mode] pin storage to ~/.claude/context-mode"
+bash "$SRC/scripts/install-context-mode-dir.sh"
+echo "PASS [context-mode] canonical store ~/.claude/context-mode"
 
 echo "==> DEPLOY OK — all layers PASS"
 }
