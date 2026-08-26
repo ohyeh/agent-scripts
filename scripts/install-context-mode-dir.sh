@@ -265,9 +265,8 @@ if [ -d "${HOME}/.cursor" ]; then
   done < <(wrap_cursor_plugin_mcp)
 fi
 pin_json_mcp "${HOME}/.gemini/settings.json" ""
-pin_json_mcp "${HOME}/.gemini/antigravity/mcp_config.json" ""
 wrap_json_mcp_command "${HOME}/.gemini/settings.json"
-wrap_json_mcp_command "${HOME}/.gemini/antigravity/mcp_config.json"
+# agy / Antigravity CLI is not a fleet pin target — do not wrap its mcp_config.
 pin_zshrc
 echo "PASS [context-mode-dir] install wrote pins"
 exec "$CHECK"

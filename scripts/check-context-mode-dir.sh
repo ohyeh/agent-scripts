@@ -5,6 +5,7 @@
 #
 # Canonical store: $HOME/.claude/context-mode  (sessions/ + content/)
 # Cursor CLI ignores mcpServers.env — the MCP command must be the wrapper.
+# agy / Antigravity CLI is out of this gate — do not fail-closed on it.
 # Usage: scripts/check-context-mode-dir.sh   (exit 0 = PASS)
 set -euo pipefail
 
@@ -158,14 +159,6 @@ if [ -f "${HOME}/.gemini/settings.json" ]; then
     say_fail "$out"
   fi
   if out="$(want_wrapper_command "${HOME}/.gemini/settings.json" "gemini settings.json")"; then
-    [ -n "$out" ] && say_pass "$out"
-  else
-    say_fail "$out"
-  fi
-fi
-
-if [ -f "${HOME}/.gemini/antigravity/mcp_config.json" ]; then
-  if out="$(want_wrapper_command "${HOME}/.gemini/antigravity/mcp_config.json" "antigravity mcp_config.json")"; then
     [ -n "$out" ] && say_pass "$out"
   else
     say_fail "$out"
