@@ -98,3 +98,8 @@ Evidence: 2026-08-25 session 367ba284 稽核 session c42d1927。我僅憑 `agent
 Related: 2026-08-21 scope:tools 條（`ctx_fetch_and_index` 抓 SPA 得 0.1KB 隨即宣告「卡住」）是同一類的第一次；本條為第二次，兩次都是「訊號缺席 → 負面斷言」。依 maintenance §1 (a)(c)，機制化強制已具備核准資格。
 Status: proposed
 Deferred: `global/kernel-lean.md` 的同步 trigger 詞表未改——該檔現為 4990/5000 字元，最小可用增補 13 字元即破 MUST 上限。lean 版需先有一筆獨立的裁減決定。
+
+## 2026-08-26 | scope: context-mode | trigger: Cursor CLI 的 ctx_doctor 在 mcp.json / plugin.json 已 pin CONTEXT_MODE_DIR 後仍報 ~/.gemini store (default)
+Rule: Cursor CLI 不把 mcpServers.env 傳進 MCP child；live server 是 plugin MCP 不是 ~/.cursor/mcp.json。要共用 Claude store，DIR 必須在啟動 command（wrapper）裡，不能只寫 JSON env。
+Status: proposed
+
