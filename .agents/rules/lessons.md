@@ -103,3 +103,8 @@ Deferred: `global/kernel-lean.md` 的同步 trigger 詞表未改——該檔現�
 Rule: Cursor CLI 不把 mcpServers.env 傳進 MCP child；live server 是 plugin MCP 不是 ~/.cursor/mcp.json。要共用 Claude store，DIR 必須在啟動 command（wrapper）裡，不能只寫 JSON env。
 Status: proposed
 
+## 2026-08-26 | scope: harness | trigger: 另一台自有主機（.44）三場被使用者稱「失智」的 session（421d／e58c／510a）各 compact 3／4／1 次，510a 在 16:16 compact 的同一分鐘就丟掉「uat = staging」指令；當天 ~3400 個 hook 事件 deny=0，接線的 gate 一個都沒觸發
+Rule: compaction summary 是有損改寫，使用者原話是最先丟的東西；kernel 寫的「compaction 後先 `ctx_search(sort:"timeline")`」實測救不回——context-mode 只索引 turn_end 的 assistant 訊息與 CLAUDE.md，不索引 user prompt（本場查「outputStyle Concise」零結果）。可靠來源是磁碟上的 transcript jsonl，它逐字保留且不受 compaction 影響。另：✅ 標題是完成宣告，應受 §2 同一門檻約束，但 sentinel 只做週期性提醒，不看證據。
+Evidence: 本場 197fabb7 對 .44 host 14 場 transcript 的統計（frustration 關鍵詞 vs isCompactSummary 時間戳），與 `ctx_search` 空結果；機制化：`.agents/hooks/compaction-recall.sh`（SessionStart matcher compact，重注入最後 20 條原話、≥3 次 compact 升級 handoff）與 `session-title-sentinel.sh` 的 ✅-無證據單次 block，均有 smoke 覆蓋。
+Status: proposed
+Deferred: `global/CLAUDE.md` §Tools 的 ctx_search 句未改（byte ratchet + maintenance 流程），待本條核准後一併修。

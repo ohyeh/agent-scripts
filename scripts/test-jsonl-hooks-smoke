@@ -77,4 +77,39 @@ if run_device_gate 'agent-device open MyApp --platform ios; printf -- --device';
   exit 1
 fi
 
-echo "JSONL hooks smoke: bol gate denies incomplete briefs + 6th concurrent subagent; audit command redacted; device flag scoped to its command segment"
+# compaction recall: re-injects verbatim user prompts, skips tool_result/<tags>/its own header, escalates at 3 compactions
+TR="$WORK/transcript.jsonl"
+{
+  echo '{"type":"user","message":{"content":"uat = staging 記得改"}}'
+  echo '{"type":"user","message":{"content":[{"type":"tool_result","content":"noise"}]}}'
+  echo '{"type":"user","message":{"content":"<system-reminder>skip me</system-reminder>"}}'
+  echo '{"type":"user","message":{"content":"[compaction-recall] verbatim user prompts before this compaction, newest last: - old injection"}}'
+  echo '{"type":"user","isCompactSummary":true,"message":{"content":"summary text"}}'
+  echo '{"type":"user","message":{"content":[{"type":"text","text":"快點測試 驗證"}]}}'
+} > "$TR"
+run_recall() { printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",transcript_path:$t}')" | bash "$ROOT/.agents/hooks/compaction-recall.sh"; }
+out="$(run_recall)"
+grep -q -- '- uat = staging 記得改' <<<"$out" || { echo "FAIL: recall dropped a user prompt" >&2; exit 1; }
+grep -q -- '- 快點測試 驗證' <<<"$out" || { echo "FAIL: recall dropped a text-block prompt" >&2; exit 1; }
+grep -q 'noise\|skip me\|old injection' <<<"$out" && { echo "FAIL: recall leaked tool_result/tag/self output" >&2; exit 1; }
+grep -q 'ESCALATION' <<<"$out" && { echo "FAIL: escalated at 1 compaction" >&2; exit 1; }
+for i in 2 3; do echo '{"type":"user","isCompactSummary":true,"message":{"content":"s"}}' >> "$TR"; done
+grep -q 'ESCALATION: this session has compacted 3 times' <<<"$(run_recall)" || { echo "FAIL: no escalation at 3 compactions" >&2; exit 1; }
+for i in $(seq 1 60); do printf '{"type":"user","message":{"content":"%s"}}\n' "$(head -c 300 /dev/zero | tr '\0' x)" >> "$TR"; done
+[[ "$(run_recall | wc -c)" -le 6100 ]] || { echo "FAIL: recall exceeded byte cap" >&2; exit 1; }
+
+# title sentinel: ✅ title with no evidence in the reply blocks once; with evidence, or non-✅, stays silent
+TR2="$WORK/transcript-short.jsonl"   # < 12 human prompts so the 40-turn cadence nudge stays quiet
+echo '{"type":"user","message":{"content":"hi"}}' > "$TR2"
+run_sentinel() { # $1 unused, $2 last_assistant_message, $3 session id
+  printf '%s' "$(jq -cn --arg t "$TR2" --arg m "$2" --arg sid "$3" '{session_id:$sid,transcript_path:$t,stop_hook_active:false,last_assistant_message:$m}')" |
+    HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/session-title-sentinel.sh"
+}
+printf '{"type":"custom-title","customTitle":"%s"}\n' '⏳ foo — working · .1-abcd1234' >> "$TR2"
+[[ -z "$(run_sentinel '' '改好了' done-smoke-1 | jq -r '.decision // empty')" ]] || { echo "FAIL: non-✅ title blocked" >&2; exit 1; }
+printf '{"type":"custom-title","customTitle":"%s"}\n' '✅ foo — shipped · .1-abcd1234' >> "$TR2"
+[[ "$(run_sentinel '' '改好了 應該沒問題' done-smoke-2 | jq -r '.decision // empty')" == "block" ]] || { echo "FAIL: ✅ without evidence not blocked" >&2; exit 1; }
+[[ -z "$(run_sentinel '' '改好了 應該沒問題' done-smoke-2 | jq -r '.decision // empty')" ]] || { echo "FAIL: ✅ check fired twice for the same title" >&2; exit 1; }
+[[ -z "$(run_sentinel '' 'flutter test → exit 0, 463 passed' done-smoke-3 | jq -r '.decision // empty')" ]] || { echo "FAIL: ✅ with evidence blocked" >&2; exit 1; }
+
+echo "JSONL hooks smoke: bol gate denies incomplete briefs + 6th concurrent subagent; audit command redacted; device flag scoped to its command segment; compaction recall re-injects prompts + escalates at 3; ✅ title without evidence blocked once"

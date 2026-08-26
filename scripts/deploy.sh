@@ -170,6 +170,7 @@ install -m 0755 "$SRC/.agents/hooks/bash-read-audit.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/agent-device-target-gate.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/tmux-assign-host-gate.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/cursor-adapt.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/compaction-recall.sh" ~/.agents/hooks/
 
 SETTINGS=~/.claude/settings.json
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
@@ -182,7 +183,8 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
    --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" \
    --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
    --arg device "\"\$HOME/.agents/hooks/agent-device-target-gate.sh\"" \
-   --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" '
+   --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
+   --arg recall "\"\$HOME/.agents/hooks/compaction-recall.sh\"" '
   def ensure(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | if any(.[]; any(.hooks[]?; .command == cmd))
@@ -204,6 +206,7 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
   | ensureMatched("PreToolUse"; "Bash"; $device)
   | ensureMatched("PreToolUse"; "Bash"; $assignhost)
   | ensureMatched("PostToolUse"; "*"; $ledger)
+  | ensureMatched("SessionStart"; "compact"; $recall)
 ' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
 
 for h in claude-version-sentinel session-title-sentinel bol-prompt-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate; do

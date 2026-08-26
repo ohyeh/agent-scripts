@@ -21,11 +21,37 @@ SESSION_ID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
 
 STATE_DIR="${HOME}/.local/state/agent-hooks/${SESSION_ID:-pid-$PPID}"
 mkdir -p "$STATE_DIR"
+
+# ✅ without evidence (measured 2026-08-26, session 510a1448: title went ✅,
+# user: 「你又沒證據你測好了」). A ✅ title is a completion claim, so it is held
+# to judgment-rubrics §2: the SAME turn's reply must carry raw evidence —
+# a command with its exit code, a test count, or a verdict line. Fires once
+# per distinct ✅ title value, before the cadence check below.
+# ponytail: only sees renames that wrote a custom-title record (the local
+# rename path); a cloud-only rename leaves no trace here.
+title="$(grep -o '"customTitle":"[^"]*"' "$TRANSCRIPT" 2>/dev/null | tail -1 | cut -d'"' -f4)"
+case "$title" in
+  ✅*)
+    tsha="$(printf '%s' "$title" | shasum -a 256 2>/dev/null | cut -c1-16)"
+    DONE_MARKER="$STATE_DIR/done-claim-checked-$tsha"
+    if [ ! -f "$DONE_MARKER" ]; then
+      : > "$DONE_MARKER"
+      last="$(printf '%s' "$IN" | jq -r '.last_assistant_message // empty')"
+      if ! printf '%s' "$last" | grep -Eqi 'exit[ =:]*(code[ =:]*)?[0-9]+|[0-9]+ (tests? )?passed|VERDICT: *(PASS|BLOCK)|status: *"?(pass|ok|success)'; then
+        jq -n --arg t "$title" '{decision: "block",
+          reason: ("Title is ✅ (" + $t + ") but this reply carries no raw evidence per judgment-rubrics §2 — no command + exit code, test count, or verdict line. Either quote the this-session evidence now, or rename the title to ⏳ and report \"attempted, unverified\".")}'
+        exit 0
+      fi
+    fi
+    ;;
+esac
 # Count HUMAN turns only. A `"type":"user"` record is also written for every
 # tool result, which in one measured session was 731 of 981 such records, so
 # the raw count runs ~4x ahead of real prompts and a threshold of 12 was
 # reached by roughly the third human turn (measured 2026-08-20).
-prompts="$(grep '"type":"user"' "$TRANSCRIPT" 2>/dev/null | grep -vc 'tool_result' || echo 0)"
+# grep -c prints "0" AND exits 1 on no match, so `|| echo 0` would yield "0\n0".
+prompts="$(grep '"type":"user"' "$TRANSCRIPT" 2>/dev/null | grep -vc 'tool_result')"
+prompts="${prompts:-0}"
 [ "$prompts" -lt 12 ] && exit 0
 
 # Re-nudge every 40 human turns rather than once per session. Whether a title
