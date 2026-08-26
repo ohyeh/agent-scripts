@@ -46,7 +46,7 @@ if [ -n "$claim" ] && ! printf '%s' "$last" | grep -Eqi 'unverified|UNCONFIRMED|
   if [ ! -f "$DONE_MARKER" ]; then
     : > "$DONE_MARKER"
     missing=""
-    printf '%s' "$last" | grep -Eqi 'exit[ =:]*(code[ =:]*)?[0-9]+|[0-9]+ (tests? )?passed|VERDICT: *(PASS|BLOCK)|status: *"?(pass|ok|success)' \
+    printf '%s' "$last" | grep -Eqi 'exit[ =:]*(code[ =:]*)?[0-9]+|[0-9]+ (tests? )?passed|VERDICT: *(PASS|BLOCK)|status: *"?(pass|ok|success)|(^|[^A-Za-z])PASS( \[|:)|DEPLOY OK|[0-9]+/[0-9]+ passed' \
       || missing="no raw evidence quoted (command + exit code, test count, or verdict line)"
     # deed: last human prompt time (transcript, ISO ms) vs ledger entries (ISO s); both UTC, compare to the second.
     since="$(grep '"type":"user"' "$TRANSCRIPT" 2>/dev/null | grep -v 'tool_result' | grep -o '"timestamp":"[^"]*"' | tail -1 | cut -d'"' -f4 | cut -c1-19)"
