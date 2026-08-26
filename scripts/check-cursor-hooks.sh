@@ -16,7 +16,7 @@ say_pass() { echo "PASS [cursor-hooks] $*"; }
 [ -x "$ADAPT" ] || say_fail "adapter not executable: \$HOME/.agents/hooks/cursor-adapt.sh"
 [ -f "$JSON" ] || say_fail "missing \$HOME/.cursor/hooks.json"
 
-for name in bol-prompt-gate subagent-ledger bash-read-audit agent-device-target-gate context-ledger; do
+for name in bol-prompt-gate subagent-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate context-ledger; do
   [ -x "${HOOK_DIR}/fleet-${name}.sh" ] || say_fail "wrapper missing: \$HOME/.cursor/hooks/fleet-${name}.sh"
 done
 
@@ -29,7 +29,7 @@ hooks = data.get("hooks") or {}
 want = {
     "subagentStart": ["./hooks/fleet-bol-prompt-gate.sh", "./hooks/fleet-subagent-ledger.sh"],
     "subagentStop": ["./hooks/fleet-subagent-ledger.sh"],
-    "preToolUse": ["./hooks/fleet-bash-read-audit.sh", "./hooks/fleet-agent-device-target-gate.sh"],
+    "preToolUse": ["./hooks/fleet-bash-read-audit.sh", "./hooks/fleet-agent-device-target-gate.sh", "./hooks/fleet-tmux-assign-host-gate.sh"],
     "postToolUse": ["./hooks/fleet-context-ledger.sh"],
 }
 errors = []
@@ -41,7 +41,6 @@ for event, cmds in want.items():
 forbidden = {
     "./hooks/fleet-claude-version-sentinel.sh",
     "./hooks/fleet-session-title-sentinel.sh",
-    "./hooks/fleet-tmux-assign-host-gate.sh",
 }
 for event, arr in hooks.items():
     if not isinstance(arr, list):

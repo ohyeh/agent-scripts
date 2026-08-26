@@ -20,6 +20,7 @@ install -m 0755 .agents/hooks/subagent-ledger.sh "$HOME/.agents/hooks/subagent-l
 install -m 0755 .agents/hooks/bash-read-audit.sh "$HOME/.agents/hooks/bash-read-audit.sh"
 install -m 0755 .agents/hooks/agent-device-target-gate.sh "$HOME/.agents/hooks/agent-device-target-gate.sh"
 install -m 0755 .agents/hooks/context-ledger.sh "$HOME/.agents/hooks/context-ledger.sh"
+install -m 0755 .agents/hooks/tmux-assign-host-gate.sh "$HOME/.agents/hooks/tmux-assign-host-gate.sh"
 export CURSOR_ADAPT_HOOKS_DIR="$HOME/.agents/hooks"
 
 t() {
@@ -105,6 +106,22 @@ if [ -f "$ledger" ]; then
   printf 'ok   %-36s wrote ledger\n' "context-ledger session remap"
 else
   printf 'FAIL %-36s missing %s\n' "context-ledger session remap" "$ledger"
+  fail=1
+fi
+
+# --- tmux-assign-host-gate via adapter ---
+ASSIGN='{"hook_event_name":"preToolUse","tool_name":"Shell","conversation_id":"c1","tool_input":{"command":"agent-tmux cursor assign job /tmp /p.md"}}'
+ASSIGN_CHILD='{"hook_event_name":"preToolUse","tool_name":"Shell","subagent_id":"s1","subagent_type":"generalPurpose","conversation_id":"c1","tool_input":{"command":"agent-tmux cursor assign job /tmp /p.md"}}'
+ASSIGN_BG='{"hook_event_name":"preToolUse","tool_name":"Shell","conversation_id":"c1","tool_input":{"command":"agent-tmux cursor assign job /tmp /p.md","run_in_background":true}}'
+t "assign parent deny" 2 tmux-assign-host-gate "$ASSIGN"
+t "assign Task-hosted allow" 0 tmux-assign-host-gate "$ASSIGN_CHILD"
+t "assign background allow" 0 tmux-assign-host-gate "$ASSIGN_BG"
+out="$(printf '%s' "$ASSIGN" | "$HOME/.agents/hooks/cursor-adapt.sh" tmux-assign-host-gate)"
+ec=$?
+if [ "$ec" = 2 ] && printf '%s' "$out" | python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); assert d.get("permission")=="deny"'; then
+  printf 'ok   %-36s deny JSON\n' "assign parent deny JSON"
+else
+  printf 'FAIL %-36s deny JSON ec=%s out=%s\n' "assign parent deny JSON" "$ec" "$out"
   fail=1
 fi
 

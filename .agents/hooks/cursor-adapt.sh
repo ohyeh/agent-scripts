@@ -10,8 +10,8 @@
 #   claude-version-sentinel  — Claude CLI version tripwire
 #   session-title-sentinel   — Stop output is Claude {decision:block}; Cursor
 #                              stop wants followup_message, and greps Claude jsonl
-#   tmux-assign-host-gate    — keyed on agent_type, which Cursor preToolUse
-#                              Shell does not send (would deny Task-hosted assign)
+# tmux-assign-host-gate IS registered: parent Shell has no subagent_id →
+# agent_type ABSENT → deny. Task-hosted Shell with subagent_id passes.
 set -u
 
 HOOKS_DIR="${CURSOR_ADAPT_HOOKS_DIR:-$HOME/.agents/hooks}"

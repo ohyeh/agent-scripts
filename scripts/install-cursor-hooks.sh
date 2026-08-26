@@ -33,6 +33,7 @@ subagent-ledger|subagentStart||false
 subagent-ledger|subagentStop||false
 bash-read-audit|preToolUse|Shell|false
 agent-device-target-gate|preToolUse|Shell|true
+tmux-assign-host-gate|preToolUse|Shell|true
 context-ledger|postToolUse||false
 '
 

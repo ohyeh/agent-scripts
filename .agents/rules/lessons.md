@@ -108,3 +108,8 @@ Rule: compaction summary 是有損改寫，使用者原話是最先丟的東西�
 Evidence: 本場 197fabb7 對 .44 host 14 場 transcript 的統計（frustration 關鍵詞 vs isCompactSummary 時間戳），與 `ctx_search` 空結果；機制化：`.agents/hooks/compaction-recall.sh`（SessionStart matcher compact，重注入最後 20 條原話、≥3 次 compact 升級 handoff）與 `session-title-sentinel.sh` 的 ✅-無證據單次 block，均有 smoke 覆蓋。
 Status: proposed
 Deferred: `global/CLAUDE.md` §Tools 的 ctx_search 句未改（byte ratchet + maintenance 流程），待本條核准後一併修。
+
+## 2026-08-26 | scope: layers | trigger: Cursor tmux 支援被當成本 repo 的設定檢查，沒先對 layer
+Rule: `cursor.conf` / `agent-tmux` binary 屬 `ohyeh/tmux-agent-tools`；本 repo 只接 Cursor fleet hooks adapter 與 `tmux-assign-host-gate` 是否掛上。跨層題先對齊 sibling，不在 agent-scripts 寫第二份 profile。
+Status: proposed
+
