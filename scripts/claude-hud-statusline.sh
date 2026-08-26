@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Shared statusline for Claude Code and Cursor CLI.
 #
-# Canonical copy lives in this repo. Restore:
-#   cp scripts/claude-hud-statusline.sh scripts/cursor-plan-usage.py ~/.claude/
-#   chmod +x ~/.claude/claude-hud-statusline.sh ~/.claude/cursor-plan-usage.py
+# Canonical copy lives in this repo. Restore: scripts/install-cursor-hud.sh
+# (copies these two files into ~/.claude/, merges statusLine only).
 # Claude Code (~/.claude/settings.json):
 #   "statusLine": { "type": "command", "command": "bash -c '~/.claude/claude-hud-statusline.sh'" }
 # Cursor CLI (~/.cursor/cli-config.json) — add this key only; never copy a full

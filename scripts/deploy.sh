@@ -32,6 +32,8 @@
 #                 every present runtime (Codex/Cursor/Gemini/zshrc + Cursor
 #                 symlink). Plugin upgrades rewrite MCP env; this layer
 #                 puts the pin back and fails closed if it did not stick.
+#   7. cursor   - kernel.mdc, Ponytail instruction rule (if plugin present),
+#                 HUD scripts + statusLine merge (never copies cli-config).
 set -euo pipefail
 
 REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
@@ -230,6 +232,14 @@ echo "PASS [hooks] Cursor adapter registry"
 echo "==> [context-mode] pin storage to ~/.claude/context-mode"
 bash "$SRC/scripts/install-context-mode-dir.sh"
 echo "PASS [context-mode] canonical store ~/.claude/context-mode"
+
+# --- Layer 7: Cursor runtime (kernel / ponytail rule / HUD) -------------------
+echo "==> [cursor] kernel.mdc + ponytail rule + HUD statusLine"
+bash "$SRC/scripts/install-cursor-kernel.sh"
+bash "$SRC/scripts/install-cursor-ponytail.sh"
+bash "$SRC/scripts/install-cursor-hud.sh"
+bash "$SRC/scripts/check-cursor-runtime.sh"
+echo "PASS [cursor] kernel + HUD + ponytail wiring"
 
 echo "==> DEPLOY OK — all layers PASS"
 }

@@ -2,7 +2,7 @@
 
 ## Session Metadata
 - Created: 2026-08-26 11:45:52
-- Project: /Users/paul.yeh/git/agent-scripts
+- Project: ~/git/agent-scripts
 - Branch: main (ahead of origin/main by 1 commit: `41483fb`; plus uncommitted work)
 - Session duration: ~75 minutes (10:31–11:45 UTC+8)
 
