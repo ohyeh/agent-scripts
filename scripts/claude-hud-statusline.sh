@@ -2,8 +2,8 @@
 # Shared statusline for Claude Code and Cursor CLI.
 #
 # Canonical copy lives in this repo. Restore:
-#   cp scripts/claude-hud-statusline.sh ~/.claude/claude-hud-statusline.sh
-#   chmod +x ~/.claude/claude-hud-statusline.sh
+#   cp scripts/claude-hud-statusline.sh scripts/cursor-plan-usage.py ~/.claude/
+#   chmod +x ~/.claude/claude-hud-statusline.sh ~/.claude/cursor-plan-usage.py
 # Claude Code (~/.claude/settings.json):
 #   "statusLine": { "type": "command", "command": "bash -c '~/.claude/claude-hud-statusline.sh'" }
 # Cursor CLI (~/.cursor/cli-config.json) — add this key only; never copy a full
@@ -15,7 +15,8 @@
 #     "timeoutMs": 5000,
 #     "updateIntervalMs": 1000
 #   }
-# Requires: jq, bun, claude-hud plugin under ~/.claude/plugins/cache/claude-hud/
+# Requires: jq, python3, bun, claude-hud plugin under ~/.claude/plugins/cache/claude-hud/
+# Companion: scripts/cursor-plan-usage.py (same directory after restore).
 #
 # Renders claude-hud, then the session id (HUD has no HudElement for it).
 # Cursor-only fields (worktree / max_mode / vim) print only when present, so
@@ -25,6 +26,13 @@
 export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.bun/bin:${PATH}"
 
 input=$(cat)
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+USAGE_HELPER="${SCRIPT_DIR}/cursor-plan-usage.py"
+[ -f "$USAGE_HELPER" ] || USAGE_HELPER="${HOME}/.claude/cursor-plan-usage.py"
+if [ -f "$USAGE_HELPER" ]; then
+  input=$(printf '%s' "$input" | python3 "$USAGE_HELPER")
+fi
 
 sid=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
 cols=$(printf '%s' "$input" | jq -r '.render_width_chars // empty' 2>/dev/null)
