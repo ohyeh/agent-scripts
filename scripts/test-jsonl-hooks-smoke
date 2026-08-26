@@ -112,4 +112,27 @@ printf '{"type":"custom-title","customTitle":"%s"}\n' '✅ foo — shipped · .1
 [[ -z "$(run_sentinel '' '改好了 應該沒問題' done-smoke-2 | jq -r '.decision // empty')" ]] || { echo "FAIL: ✅ check fired twice for the same title" >&2; exit 1; }
 [[ -z "$(run_sentinel '' 'flutter test → exit 0, 463 passed' done-smoke-3 | jq -r '.decision // empty')" ]] || { echo "FAIL: ✅ with evidence blocked" >&2; exit 1; }
 
-echo "JSONL hooks smoke: bol gate denies incomplete briefs + 6th concurrent subagent; audit command redacted; device flag scoped to its command segment; compaction recall re-injects prompts + escalates at 3; ✅ title without evidence blocked once"
+# done-claim wording (no ✅ title): text without evidence blocks; "not done yet" is not a claim; deed check reads the ledger
+TR3="$WORK/transcript-claim.jsonl"
+echo '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"修好它"}}' > "$TR3"
+run_claim() { # $1 last_assistant_message, $2 session id
+  printf '%s' "$(jq -cn --arg t "$TR3" --arg m "$1" --arg sid "$2" '{session_id:$sid,transcript_path:$t,stop_hook_active:false,last_assistant_message:$m}')" |
+    HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/session-title-sentinel.sh" | jq -r '.decision // empty'
+}
+[[ "$(run_claim '修好了，應該沒問題' claim-1)" == "block" ]] || { echo "FAIL: done-claim wording without evidence not blocked" >&2; exit 1; }
+[[ -z "$(run_claim 'not done yet, still tracing the caller' claim-2)" ]] || { echo "FAIL: negated claim blocked" >&2; exit 1; }
+[[ -z "$(run_claim '改了設定，attempted, unverified' claim-3)" ]] || { echo "FAIL: self-labelled unverified reply blocked" >&2; exit 1; }
+mkdir -p "$TEST_HOME/.local/state/agent-hooks/claim-4" "$TEST_HOME/.local/state/agent-hooks/claim-5"
+echo '{"timestamp":"2025-12-31T23:59:00Z","tool":"Bash"}' > "$TEST_HOME/.local/state/agent-hooks/claim-4/ledger.jsonl"
+[[ "$(run_claim 'Fixed. npm test exit 0' claim-4)" == "block" ]] || { echo "FAIL: evidence text with no execution after the prompt not blocked" >&2; exit 1; }
+printf '%s\n' '{"timestamp":"2025-12-31T23:59:00Z","tool":"Read"}' '{"timestamp":"2026-01-01T00:00:05Z","tool":"Bash"}' > "$TEST_HOME/.local/state/agent-hooks/claim-5/ledger.jsonl"
+[[ -z "$(run_claim 'Fixed. npm test exit 0' claim-5)" ]] || { echo "FAIL: claim with evidence text and a real run blocked" >&2; exit 1; }
+
+# bol: build-shaped brief must carry a runnable check; research brief need not
+if run_bol 'GOAL: implement retry in client.ts ACCEPTANCE: retries work REPORT: summary'; then echo "FAIL: build brief without runnable check not blocked" >&2; exit 1; fi
+run_bol 'GOAL: implement retry in client.ts ACCEPTANCE: `npm test` exits 0 REPORT: exit code + key lines' || { echo "FAIL: build brief with backtick command blocked" >&2; exit 1; }
+run_bol 'GOAL: fix flaky test ACCEPTANCE: flutter test test/reward exits 0 REPORT: exit code' || { echo "FAIL: build brief with bare runner blocked" >&2; exit 1; }
+run_bol 'GOAL: Answer: which SDK version ACCEPTANCE: every claim cited REPORT: path + summary' || { echo "FAIL: research brief blocked for lacking a command" >&2; exit 1; }
+tail -4 "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" | head -1 | jq -e '.result == "fail" and .missing == ["RUNNABLE_CHECK"] and .blocked == true' >/dev/null
+
+echo "JSONL hooks smoke: bol gate denies incomplete briefs + 6th concurrent subagent; audit command redacted; device flag scoped to its command segment; compaction recall re-injects prompts + escalates at 3; ✅ title without evidence blocked once; done-claim wording checked on text + ledger deed; build briefs need a runnable check"

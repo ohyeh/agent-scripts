@@ -22,29 +22,46 @@ SESSION_ID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
 STATE_DIR="${HOME}/.local/state/agent-hooks/${SESSION_ID:-pid-$PPID}"
 mkdir -p "$STATE_DIR"
 
-# ✅ without evidence (measured 2026-08-26, session 510a1448: title went ✅,
-# user: 「你又沒證據你測好了」). A ✅ title is a completion claim, so it is held
-# to judgment-rubrics §2: the SAME turn's reply must carry raw evidence —
-# a command with its exit code, a test count, or a verdict line. Fires once
-# per distinct ✅ title value, before the cadence check below.
-# ponytail: only sees renames that wrote a custom-title record (the local
-# rename path); a cloud-only rename leaves no trace here.
+# Completion claims without evidence (measured 2026-08-26, session 510a1448:
+# title went ✅, user: 「你又沒證據你測好了」). A ✅ title OR done-claim wording in
+# the reply is a completion claim, held to judgment-rubrics §2 on two axes:
+#   text  — the SAME reply quotes raw evidence (exit code / test count / verdict)
+#   deed  — the ledger shows at least one executing tool call (Bash, Agent,
+#           Workflow, ctx_execute*) AFTER the last human prompt; a claim with no
+#           execution behind it is "attempted, unverified", whatever the text says.
+# Replies that already say unverified/UNCONFIRMED/attempted are not claims.
+# Fires once per distinct claim (hash of title + reply).
+# ponytail: ✅ detection only sees renames that wrote a custom-title record (the
+# local rename path); a cloud-only rename leaves no trace here.
 title="$(grep -o '"customTitle":"[^"]*"' "$TRANSCRIPT" 2>/dev/null | tail -1 | cut -d'"' -f4)"
-case "$title" in
-  ✅*)
-    tsha="$(printf '%s' "$title" | shasum -a 256 2>/dev/null | cut -c1-16)"
-    DONE_MARKER="$STATE_DIR/done-claim-checked-$tsha"
-    if [ ! -f "$DONE_MARKER" ]; then
-      : > "$DONE_MARKER"
-      last="$(printf '%s' "$IN" | jq -r '.last_assistant_message // empty')"
-      if ! printf '%s' "$last" | grep -Eqi 'exit[ =:]*(code[ =:]*)?[0-9]+|[0-9]+ (tests? )?passed|VERDICT: *(PASS|BLOCK)|status: *"?(pass|ok|success)'; then
-        jq -n --arg t "$title" '{decision: "block",
-          reason: ("Title is ✅ (" + $t + ") but this reply carries no raw evidence per judgment-rubrics §2 — no command + exit code, test count, or verdict line. Either quote the this-session evidence now, or rename the title to ⏳ and report \"attempted, unverified\".")}'
-        exit 0
-      fi
+last="$(printf '%s' "$IN" | jq -r '.last_assistant_message // empty')"
+claim=""
+case "$title" in ✅*) claim="title ✅ ($title)";; esac
+if [ -z "$claim" ] && printf '%s' "$last" | grep -Eqi '(^|[^a-z])(done|fixed|verified|shipped|completed?|resolved|all green|tests? pass(ed|ing)?)([^a-z]|$)|已?(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|✅|VERDICT: *PASS'; then
+  claim="done-claim wording in the reply"
+fi
+if [ -n "$claim" ] && ! printf '%s' "$last" | grep -Eqi 'unverified|UNCONFIRMED|attempted|not (yet )?(done|fixed|verified)|未驗證|尚未|還沒|未完成'; then
+  csha="$(printf '%s%s' "$title" "$last" | shasum -a 256 2>/dev/null | cut -c1-16)"
+  DONE_MARKER="$STATE_DIR/done-claim-checked-$csha"
+  if [ ! -f "$DONE_MARKER" ]; then
+    : > "$DONE_MARKER"
+    missing=""
+    printf '%s' "$last" | grep -Eqi 'exit[ =:]*(code[ =:]*)?[0-9]+|[0-9]+ (tests? )?passed|VERDICT: *(PASS|BLOCK)|status: *"?(pass|ok|success)' \
+      || missing="no raw evidence quoted (command + exit code, test count, or verdict line)"
+    # deed: last human prompt time (transcript, ISO ms) vs ledger entries (ISO s); both UTC, compare to the second.
+    since="$(grep '"type":"user"' "$TRANSCRIPT" 2>/dev/null | grep -v 'tool_result' | grep -o '"timestamp":"[^"]*"' | tail -1 | cut -d'"' -f4 | cut -c1-19)"
+    LEDGER="$STATE_DIR/ledger.jsonl"
+    if [ -n "$since" ] && [ -f "$LEDGER" ]; then
+      ran="$(jq -r --arg s "$since" 'select(.timestamp[0:19] >= $s) | .tool' "$LEDGER" 2>/dev/null | grep -cE '^(Bash|Agent|Workflow|mcp__.*execute.*)$')"
+      [ "${ran:-0}" -gt 0 ] || missing="${missing:+$missing; }no executing tool call (Bash/Agent/Workflow/ctx_execute) since the last user prompt at ${since}Z — nothing was run"
     fi
-    ;;
-esac
+    if [ -n "$missing" ]; then
+      jq -n --arg c "$claim" --arg m "$missing" '{decision: "block",
+        reason: ("Completion claim (" + $c + ") fails judgment-rubrics §2: " + $m + ". Either run the verification now and quote command + exit code, or downgrade the claim to \"attempted, unverified\" (and the title to ⏳).")}'
+      exit 0
+    fi
+  fi
+fi
 # Count HUMAN turns only. A `"type":"user"` record is also written for every
 # tool result, which in one measured session was 731 of 981 such records, so
 # the raw count runs ~4x ahead of real prompts and a threshold of 12 was
