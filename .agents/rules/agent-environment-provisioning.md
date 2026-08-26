@@ -61,6 +61,8 @@ From `~/.claude/plugins/known_marketplaces.json`; install: `/plugin marketplace 
 | openai-codex (codex CLI integration) | `openai/codex-plugin-cc` |
 | claude-hud | `jarrodwatts/claude-hud` |
 
+Shared statusline wrapper (Claude Code + Cursor CLI): `scripts/claude-hud-statusline.sh`. Restore is a manual copy, not a `deploy.sh` layer: `cp scripts/claude-hud-statusline.sh ~/.claude/claude-hud-statusline.sh && chmod +x ~/.claude/claude-hud-statusline.sh`. Point Claude `settings.json` `statusLine.command` at `bash -c '~/.claude/claude-hud-statusline.sh'` and Cursor `cli-config.json` `statusLine.command` at `~/.claude/claude-hud-statusline.sh` (timeoutMs 5000, updateIntervalMs 1000). Never copy a full `cli-config.json` — it contains auth.
+
 ## Skills used by the docs HTML-ification task (commit 6f5ed3b)
 
 | skill | role | status per `~/.agents/.skill-lock.json` (live-checked 2026-07-10) |
