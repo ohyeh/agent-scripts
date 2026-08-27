@@ -17,7 +17,22 @@ fail=0
 
 say_fail() { echo "FAIL [context-mode-dir] $*" >&2; fail=1; }
 say_pass() { echo "PASS [context-mode-dir] $*"; }
-say_warn() { echo "WARN [context-mode-dir] $*" >&2; }
+
+check_runtime_symlink() {
+  local link="$1/context-mode" label="$2" target
+  if [ -L "$link" ]; then
+    target="$(readlink "$link")"
+    if [ "$target" = "$CANON" ]; then
+      say_pass "$label context-mode symlink -> $CANON"
+    else
+      say_fail "$label context-mode symlink -> $target (want $CANON)"
+    fi
+  elif [ -e "$link" ]; then
+    say_fail "$link exists and is not a symlink to $CANON"
+  else
+    say_fail "$label present but $link symlink missing"
+  fi
+}
 
 want_assignment() {
   local file="$1" label="$2"
@@ -119,18 +134,7 @@ if [ -d "${HOME}/.cursor" ]; then
   else
     say_fail "Cursor present but ~/.cursor/mcp.json missing CONTEXT_MODE_DIR pin"
   fi
-  if [ -L "${HOME}/.cursor/context-mode" ]; then
-    target="$(readlink "${HOME}/.cursor/context-mode")"
-    if [ "$target" = "$CANON" ]; then
-      say_pass "cursor context-mode symlink -> $CANON"
-    else
-      say_fail "cursor context-mode symlink -> $target (want $CANON)"
-    fi
-  elif [ -e "${HOME}/.cursor/context-mode" ]; then
-    say_fail "~/.cursor/context-mode exists and is not a symlink to $CANON"
-  else
-    say_fail "Cursor present but ~/.cursor/context-mode symlink missing"
-  fi
+  check_runtime_symlink "${HOME}/.cursor" cursor
   if [ -d "${HOME}/.cursor/plugins" ]; then
     while IFS= read -r plugin_json; do
       [ -n "$plugin_json" ] || continue
@@ -173,12 +177,9 @@ if [ -f "${HOME}/.zshrc" ]; then
   fi
 fi
 
-# Leftover adapter trees are archives, not the live pin. Warn so hooks that
-# ignore env are visible; do not fail deploy (historical session DBs stay).
-for leftover in "${HOME}/.codex/context-mode" "${HOME}/.gemini/context-mode"; do
-  if [ -d "$leftover" ] && [ ! -L "$leftover" ]; then
-    say_warn "leftover real directory $leftover (live pin is $CANON)"
-  fi
+# Every present runtime shares the Claude store via <runtime>/context-mode symlink.
+for rt in "${HOME}/.codex" "${HOME}/.gemini"; do
+  [ -d "$rt" ] && check_runtime_symlink "$rt" "$(basename "$rt" | tr -d .)"
 done
 
 if [ "$fail" -ne 0 ]; then

@@ -207,9 +207,10 @@ else:
 PY
 }
 
-pin_cursor_symlink() {
-  local dest="${HOME}/.cursor/context-mode"
-  mkdir -p "${HOME}/.cursor"
+# One store for every runtime: <runtime>/context-mode is a symlink to $CANON.
+# A real directory there is an old per-runtime DB; it is moved aside, not merged.
+pin_runtime_symlink() {
+  local dest="$1/context-mode"
   if [ -L "$dest" ]; then
     ln -sfn "$CANON" "$dest"
     return 0
@@ -258,7 +259,7 @@ pin_toml "${HOME}/.codex/config.toml" "shell_environment_policy.set"
 wrap_codex_toml_command
 if [ -d "${HOME}/.cursor" ]; then
   write_cursor_mcp
-  pin_cursor_symlink
+  pin_runtime_symlink "${HOME}/.cursor"
   while IFS= read -r plugin_json; do
     [ -n "$plugin_json" ] || continue
     wrap_json_mcp_command "$plugin_json"
@@ -266,6 +267,9 @@ if [ -d "${HOME}/.cursor" ]; then
 fi
 pin_json_mcp "${HOME}/.gemini/settings.json" ""
 wrap_json_mcp_command "${HOME}/.gemini/settings.json"
+for rt in "${HOME}/.codex" "${HOME}/.gemini"; do
+  [ -d "$rt" ] && pin_runtime_symlink "$rt"
+done
 # agy / Antigravity CLI is not a fleet pin target — do not wrap its mcp_config.
 pin_zshrc
 echo "PASS [context-mode-dir] install wrote pins"
