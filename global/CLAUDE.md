@@ -6,7 +6,7 @@ Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
 `~/.claude/CLAUDE.md`: byte-identical. Project-local overrides. Two editions:
 this solid edition (deployed, no size cap) and `global/kernel-lean.md`
-(for size-capped web agents, MUST stay under 5000 characters); detail lives in
+(for agents that cannot run deploy, MUST stay under 6000 characters); detail lives in
 routed files.
 
 Precedence: explicit current-message instruction (within hard boundaries) >

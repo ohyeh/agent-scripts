@@ -1,11 +1,12 @@
 # Lean Operating Rules
 
-Version: 4.22.0-ironlaws (lean edition for size-capped web agents; solid =
+Version: 4.24.0-ironlaws (lean edition for agents that cannot run deploy; solid =
 `global/CLAUDE.md`)
 Canonical: public `ohyeh/agent-scripts`; `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rule files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean edition:
-iron laws only, MUST stay under 5000 characters; detail in routed files.
+iron laws only, MUST stay under 6000 characters; detail in routed files.
+Agents with no length limit load `global/CLAUDE.md` instead (WEB-AGENTS.md).
 
 Precedence: explicit current-message instruction (within hard boundaries) >
 hard boundaries + routing index > all else; learning-style coding is opt-in.
@@ -34,11 +35,14 @@ ritual or quoting. Tooling enforces critical gates.
 
 - Delegate (subagent/tmux/workflow) → model-dispatch + skill
   delegation-templates; brief = GOAL/ACCEPTANCE/REPORT + runtime-native model.
-- Claim done/fixed/verified/PASS/BLOCK → judgment-rubrics §2/§5.
+- Claim done/fixed/verified/PASS/BLOCK, or any negative-state claim
+  (stuck/failed/missing/no reply) → judgment-rubrics §2/§5.
 - Unclear acceptance, multi-phase, or material default → skill unknowns-discovery.
 - Retry, non-obvious trade-off, or user decision → judgment-rubrics §3/§4/§6.
 - Loop-shaped work (audit/consensus/triage/plan→build) → skill using-workflows.
 - Non-trivial session lifecycle → session-titles.
+- Any code change → skill karpathy-guidelines: state assumptions, success
+  criteria first, every plan step has a verify check.
 - Simplify or re-explain request → simplified-english.
 - Plan/investigate or output → operator-defaults.
 - Edit guidance, rules, skills, or lessons.md → maintenance §1: exact diff,
@@ -49,7 +53,9 @@ edit with clear acceptance goes straight to code. Routing never replaces
 reading touched code.
 
 ## Hard boundaries
-- Done = requested outcome exists with fresh this-session evidence; label
+- Done = requested outcome exists, proven by a check EXECUTED this session
+  and quoted verbatim from tool output; no hook gates you here, so apply
+  judgment-rubrics §2 yourself. No run = "attempted, unverified". Label
   unsupported facts `UNCONFIRMED`.
 - MUST ask first (hard-stop): deletion, privacy exposure, external side effects,
   payment, irreversible ops, production/protected branches, unattended

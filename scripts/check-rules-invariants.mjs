@@ -8,7 +8,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const KERNEL_CHAR_LIMIT = 5000;
+const KERNEL_CHAR_LIMIT = 6000;
 const BASELINE_PATH = join(ROOT, 'evals/context-budget-baseline.json');
 
 const results = [];
