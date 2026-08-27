@@ -10,6 +10,7 @@ canonical repo file on all three machines.
 |---|---|---|
 | `CLAUDE.md` | `~/.claude/CLAUDE.md` | Claude Code runtime main file (Lean Operating Rules) |
 | `AGENTS.md` | `~/.codex/AGENTS.md` | Codex runtime main file — same rules, same `Version:` line by contract |
+| `CLAUDE.md` (reused) | `~/.gemini/GEMINI.md` | Gemini CLI / agy runtime main file — deployed only when `~/.gemini` exists; byte-identical to the two above |
 | `agents/` | — | sub-agent definitions: RETIRED, see `agents/README.md` |
 
 Deliberately **not duplicated** here (single canonical copy elsewhere in this

@@ -13,7 +13,9 @@
 #   0. invariants - scripts/check-rules-invariants.mjs run inside the
 #                 downloaded tree; any FAIL aborts before ~ is touched.
 #   1. global   - global/CLAUDE.md -> ~/.claude/CLAUDE.md,
-#                 global/AGENTS.md -> ~/.codex/AGENTS.md, verified by md5.
+#                 global/AGENTS.md -> ~/.codex/AGENTS.md,
+#                 global/CLAUDE.md -> ~/.gemini/GEMINI.md (if ~/.gemini exists),
+#                 each verified by md5.
 #   2. rules    - rsync -a --delete .agents/rules/ -> ~/.agents/rules/,
 #                 verified by a full diff. The repo is canonical, including lessons.md.
 #   3. workflows- skills/using-workflows/scripts/install.sh --force into
@@ -79,18 +81,28 @@ fi
 echo "PASS [invariants] all checks green"
 
 # --- Layer 1: global runtime files -----------------------------------------
-echo "==> [global] deploying CLAUDE.md + AGENTS.md"
-cp "$SRC/global/CLAUDE.md" ~/.claude/CLAUDE.md
-cp "$SRC/global/AGENTS.md" ~/.codex/AGENTS.md
-claude_src_md5="$(md5 -q "$SRC/global/CLAUDE.md")"
-claude_dst_md5="$(md5 -q ~/.claude/CLAUDE.md)"
-agents_src_md5="$(md5 -q "$SRC/global/AGENTS.md")"
-agents_dst_md5="$(md5 -q ~/.codex/AGENTS.md)"
-if [ "$claude_src_md5" != "$claude_dst_md5" ] || [ "$agents_src_md5" != "$agents_dst_md5" ]; then
-  echo "FAIL [global] md5 mismatch: CLAUDE.md $claude_src_md5 vs $claude_dst_md5 | AGENTS.md $agents_src_md5 vs $agents_dst_md5" >&2
-  exit 1
+# Same kernel to every present runtime: Claude, Codex, and Gemini/agy (GEMINI.md
+# only when ~/.gemini exists — that runtime is optional).
+echo "==> [global] deploying CLAUDE.md + AGENTS.md (+ GEMINI.md if ~/.gemini present)"
+global_targets=(
+  "$SRC/global/CLAUDE.md:$HOME/.claude/CLAUDE.md"
+  "$SRC/global/AGENTS.md:$HOME/.codex/AGENTS.md"
+)
+if [ -d "$HOME/.gemini" ]; then
+  global_targets+=("$SRC/global/CLAUDE.md:$HOME/.gemini/GEMINI.md")
 fi
-echo "PASS [global] md5 match (CLAUDE.md=$claude_src_md5, AGENTS.md=$agents_src_md5)"
+global_report=""
+for pair in "${global_targets[@]}"; do
+  src="${pair%%:*}"; dst="${pair#*:}"
+  cp "$src" "$dst"
+  src_md5="$(md5 -q "$src")"; dst_md5="$(md5 -q "$dst")"
+  if [ "$src_md5" != "$dst_md5" ]; then
+    echo "FAIL [global] md5 mismatch: $dst $src_md5 vs $dst_md5" >&2
+    exit 1
+  fi
+  global_report="$global_report $(basename "$dst")=$src_md5"
+done
+echo "PASS [global] md5 match ($global_report )"
 
 # --- Layer 2: rules ----------------------------------------------------------
 echo "==> [rules] rsync canonical .agents/rules/ -> ~/.agents/rules/"
