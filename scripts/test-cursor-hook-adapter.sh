@@ -71,6 +71,8 @@ BOL_EXPLORE='{"hook_event_name":"subagentStart","subagent_id":"s2","subagent_typ
 t "bol deny missing GOAL" 2 bol-prompt-gate "$BOL_BAD"
 t "bol allow full brief" 0 bol-prompt-gate "$BOL_OK"
 t "bol explore exempt" 0 bol-prompt-gate "$BOL_EXPLORE"
+BOL_BARE='{"hook_event_name":"subagentStart","subagent_id":"s3","subagent_type":"generalPurpose","task":"## GOAL\nx\n## ACCEPTANCE\ny\n## REPORT\nz","parent_conversation_id":"c1"}'
+t "bol allow bare headers (no colon)" 0 bol-prompt-gate "$BOL_BARE"
 
 # --- ledger start/stop share derived id ---
 export XDG_STATE_HOME="$HOME/.local/state"
