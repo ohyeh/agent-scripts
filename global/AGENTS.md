@@ -49,6 +49,8 @@ ritual, no quoting; tooling enforces critical gates.
 - Retry, non-obvious trade-off, or user decision → judgment-rubrics §3/§4/§6.
 - Loop-shaped work (audit/consensus/triage/plan→build) → skill using-workflows.
 - Non-trivial session lifecycle → session-titles.
+- Any code change → skill karpathy-guidelines: state assumptions, success
+  criteria first, every plan step has a verify check.
 - Simplify or re-explain request → simplified-english.
 - Plan/investigate or output → operator-defaults.
 - Edit guidance, rules, skills, or lessons.md → maintenance §1: exact diff,
@@ -59,11 +61,11 @@ reversible edit with clear acceptance goes straight to code. Routing never
 replaces reading the touched code.
 
 ## Hard boundaries
-- Done = the requested outcome exists, backed by fresh this-session
-  evidence. Raw evidence = command + exit code + key lines, artifact path,
-  or verbatim verdict (full checklist: judgment-rubrics §2); no evidence =
-  "attempted, unverified". Label
-  unsupported facts `UNCONFIRMED`.
+- Done = the requested outcome exists, proven by a check EXECUTED this
+  session and quoted verbatim from tool output (exit code, test count,
+  verdict, artifact path; judgment-rubrics §2). A Stop gate binds done/stuck
+  claims to the tool ledger. No run = "attempted,
+  unverified". Label unsupported facts `UNCONFIRMED`.
 - MUST ask first (hard-stop): deletion, privacy exposure, external side
   effects, payment, irreversible ops, production/protected branches, unattended
   autonomous loops, major architecture risk. An explicit current-message
@@ -106,9 +108,9 @@ replaces reading the touched code.
   CLIs. Route through `ctx_*` wherever it applies: analysis, counting,
   parsing, log scans, and any command likely to exceed ~20 lines via
   `ctx_execute`/`ctx_batch_execute`/`ctx_execute_file`; web content via
-  `ctx_fetch_and_index` + `ctx_search`, never shell curl/wget; recall after
-  resume or compaction via `ctx_search(sort: "timeline")` BEFORE asking the
-  user. File writes never go through ctx or a shell — native edit tools only.
+  `ctx_fetch_and_index` + `ctx_search`, never shell curl/wget; after
+  compaction re-derive the goal from the re-injected prompts before asking
+  the user. File writes never go through ctx or a shell — native edit tools only.
   A ctx tool's own WHEN NOT clause binds: check it before calling the failure
   a blocker (`ctx_fetch_and_index` does not render SPA pages — use
   `ctx_execute`). `ctx purge` is irreversible — warn first.

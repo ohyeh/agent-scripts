@@ -29,6 +29,7 @@ wrapper_body=$'#!/usr/bin/env bash\nexec "$HOME/.agents/hooks/cursor-adapt.sh" "
 # matcher empty = all tools / no filter
 REGISTRY=$'
 bol-prompt-gate|subagentStart||true
+subagent-concurrency-gate|subagentStart||true
 subagent-ledger|subagentStart||false
 subagent-ledger|subagentStop||false
 bash-read-audit|preToolUse|Shell|false

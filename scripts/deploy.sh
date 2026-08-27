@@ -171,6 +171,9 @@ install -m 0755 "$SRC/.agents/hooks/agent-device-target-gate.sh" ~/.agents/hooks
 install -m 0755 "$SRC/.agents/hooks/tmux-assign-host-gate.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/cursor-adapt.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/compaction-recall.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/evidence-tokens.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/claim-evidence-gate.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/subagent-concurrency-gate.sh" ~/.agents/hooks/
 
 SETTINGS=~/.claude/settings.json
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
@@ -184,7 +187,9 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
    --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
    --arg device "\"\$HOME/.agents/hooks/agent-device-target-gate.sh\"" \
    --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
-   --arg recall "\"\$HOME/.agents/hooks/compaction-recall.sh\"" '
+   --arg recall "\"\$HOME/.agents/hooks/compaction-recall.sh\"" \
+   --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
+   --arg conc "\"\$HOME/.agents/hooks/subagent-concurrency-gate.sh\"" '
   def ensure(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | if any(.[]; any(.hooks[]?; .command == cmd))
@@ -207,9 +212,11 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
   | ensureMatched("PreToolUse"; "Bash"; $assignhost)
   | ensureMatched("PostToolUse"; "*"; $ledger)
   | ensureMatched("SessionStart"; "compact"; $recall)
+  | ensure("Stop"; $claim)
+  | ensureMatched("PreToolUse"; "Agent"; $conc)
 ' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
 
-for h in claude-version-sentinel session-title-sentinel bol-prompt-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1
@@ -217,6 +224,7 @@ for h in claude-version-sentinel session-title-sentinel bol-prompt-gate subagent
 done
 # The gate fails closed: a missing validator would deny every dispatch, so its presence is a deploy check.
 [ -x ~/.agents/hooks/check-bol-prompt.sh ] || { echo "FAIL [hooks] check-bol-prompt.sh (bol-prompt-gate validator) not installed" >&2; exit 1; }
+[ -x ~/.agents/hooks/evidence-tokens.sh ] || { echo "FAIL [hooks] evidence-tokens.sh (shared by context-ledger + claim-evidence-gate) not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/cursor-adapt.sh ] || { echo "FAIL [hooks] cursor-adapt.sh not installed" >&2; exit 1; }
 if [ -e ~/.agents/hooks/bol-prompt-warn.sh ] || grep -q 'bol-prompt-warn' "$SETTINGS"; then
   echo "FAIL [hooks] retired bol-prompt-warn.sh still installed or registered" >&2

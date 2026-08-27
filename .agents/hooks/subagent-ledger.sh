@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SubagentStart / SubagentStop hook: keeps one marker file per live subagent at
 #   ${XDG_STATE_HOME:-~/.local/state}/agent-hooks/<session_id>/subagents/<agent_id>
-# bol-prompt-gate.sh counts these files to enforce the concurrency cap. Marker
+# subagent-concurrency-gate.sh counts these files to enforce the concurrency cap. Marker
 # content is the agent_type + start timestamp, so `ls` of the dir is a live
 # roster. State is per session_id, so a crashed session leaves no phantom
 # count for the next one. Never blocks.

@@ -10,6 +10,8 @@
 #   claude-version-sentinel  — Claude CLI version tripwire
 #   session-title-sentinel   — Stop output is Claude {decision:block}; Cursor
 #                              stop wants followup_message, and greps Claude jsonl
+#   claim-evidence-gate      — same shape as session-title-sentinel (Claude jsonl
+#                              + {decision:block}); Cursor has no ledger deed axis
 # tmux-assign-host-gate IS registered: parent Shell has no subagent_id →
 # agent_type ABSENT → deny. Task-hosted Shell with subagent_id passes.
 set -u

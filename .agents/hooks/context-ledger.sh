@@ -21,6 +21,21 @@ LEDGER="$RUN_DIR/ledger.jsonl"
 sha="$(printf '%s' "$TOOL_INPUT" | $SHASUM | cut -d' ' -f1)"
 ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
-jq -cn --arg ts "$ts" --arg tool "$TOOL_NAME" --arg file "$FILE_PATH" --arg sha "$sha" \
-  '{timestamp: $ts, tool: $tool, file: (if $file == "" then null else $file end), input_sha256: $sha}' >> "$LEDGER"
+# Evidence tokens: fixed-shape facts the tool actually printed (exit=N,
+# N passed, PASS, DEPLOY OK, VERDICT: …), normalized by the shared
+# evidence-tokens.sh. claim-evidence-gate.sh later requires a completion claim
+# to quote one of these — binding the claim to an observation. PostToolUse
+# carries no exit code for Bash (measured 2.1.246: stdout/stderr/interrupted
+# only), so printed tokens are the strongest binding available. Only the
+# normalized tokens are stored, never the surrounding output.
+TOKENIZER="$(dirname "$0")/evidence-tokens.sh"
+evidence='[]'
+if [ -x "$TOKENIZER" ]; then
+  evidence="$(printf '%s' "$IN" \
+    | jq -r '.tool_response | if type=="string" then . elif type=="object" then ((.stdout // "") + "\n" + (.stderr // "") + "\n" + ((.content // "") | if type=="string" then . else tostring end)) else tostring end' 2>/dev/null \
+    | bash "$TOKENIZER" | jq -R . | jq -s -c .)"
+fi
+
+jq -cn --arg ts "$ts" --arg tool "$TOOL_NAME" --arg file "$FILE_PATH" --arg sha "$sha" --argjson ev "${evidence:-[]}" \
+  '{timestamp: $ts, tool: $tool, file: (if $file == "" then null else $file end), input_sha256: $sha, evidence: $ev}' >> "$LEDGER"
 exit 0
