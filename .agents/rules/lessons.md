@@ -113,3 +113,9 @@ Deferred: `global/CLAUDE.md` §Tools 的 ctx_search 句未改（byte ratchet + m
 Rule: `cursor.conf` / `agent-tmux` binary 屬 `ohyeh/tmux-agent-tools`；本 repo 只接 Cursor fleet hooks adapter 與 `tmux-assign-host-gate` 是否掛上。跨層題先對齊 sibling，不在 agent-scripts 寫第二份 profile。
 Status: proposed
 
+## 2026-08-28 | scope: tools | trigger: codex thread 01a045ef 用 10 次 1 秒 wait 輪詢一個測試跑完，使用者質疑「一樣的情況 claude 就很有效率」
+Rule: 等待要外部化。yield 語意的 runtime（Codex `exec_command`）裡，**啟動時的 `yield_time_ms` 就是在預約輪詢鏈**——給 1 秒等於保證還要再回來一次，而每次回來都重送整個 context。長命令的 `yield_time_ms` 直接給預期耗時（實測 600000 可用），長工作走 `agent-tmux <cli> result wait-required --wait N` 阻塞在單一 process；真正需要續等時才 `wait`，30s 起、×2、上限 300s。kernel §Execution 現有的「Delegated long waits: blocking/event-driven, never fixed polling」只射到派工，射不到 exec 啟動參數，是規則缺口不是違規。
+Evidence: 08-20 起 codex 132 場：`yield_time_ms=1000` 有 **1206 次在 exec 啟動、只有 48 次在 wait**；wait 共 617 次／372.4 分鐘（平均 36s）、waits per exec 0.029——瓶頸在啟動 yield 不在退避曲線。對照 claude 392 場：**背景啟動 153 次、BashOutput 輪詢 0 次**，最長 timeout 3,650,000ms；差距來自 harness 事件驅動而非模型自律。Codex 有 9 個 hook（permission_request／post_tool_use／pre_compact／pre_tool_use／session_end／session_start／stop／subagent_start／user_prompt_submit），**0 個能在 yield 後 re-invoke**；`notify` 只在 turn-ended 觸發且單向。
+Related: 查 hook 能力時我先只看 `~/.codex/hooks/` 的三個檔就斷言「只有 session_start/stop」，被斷言測出 FAIL；真相在 `config.toml` 的 `[hooks.state]`。與 2026-08-21／08-25 兩條同屬「取樣面太窄 → 過早斷言」，但這次方向相反：不是訊號缺席，是**看到部分就當看完**。
+Status: proposed
+
