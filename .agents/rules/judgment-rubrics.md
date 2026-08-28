@@ -63,6 +63,21 @@ source or one independent channel (`git diff --stat`/mtimes, pane capture, varie
 further on an uncorroborated negative. A DIRECTLY observed failure is reported at once:
 fail-first and the hard-stop boundary outrank every check here.
 
+### §2b Verification budget — enough evidence is a stopping condition too
+The evidence bar above is a floor, not a licence to keep checking. Verification scales with
+how much a wrong answer costs, not with how much more could be checked.
+- Verify what ACCEPTANCE names, once, with one check that would fail if the claim were false.
+  A finding the acceptance does not name is a NOTE in the report — never a new fix round.
+- A fresh second-opinion review is a costly action (minutes of wall-clock per round); spend it
+  only on irreversible or outward-facing changes (deploy, delete, publish, architecture). For
+  a reversible edit the author's own executed check with quoted evidence is the whole bar.
+- Verification turns or wall-time exceeding the build itself is a wrong-direction signal (§4):
+  stop, report the evidence gathered so far, and let the user decide whether to keep checking.
+- A malformed report (missing `VERDICT:` line, missing evidence token) is a format defect of
+  that reviewer: re-ask the SAME reviewer for the missing line; never spawn another to get it.
+(2026-08-28: one polish request spent 2 min building and 28 min on 5 reviewers that each
+minted new non-acceptance findings; the screen did not change.)
+
 ## §3 When to stop and ask the user
 Apply: continuously. Ask FIRST (hard-stop list): data deletion, privacy exposure,
 external side effects (emails, tickets, deploys, payments), irreversible operations,
