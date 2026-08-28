@@ -2,7 +2,7 @@
 
 ## Session Metadata
 - Created: 2026-08-28 11:31:31
-- Project: /Users/paul.yeh/github/agent-scripts
+- Project: `~/github/agent-scripts`
 - Branch: feat/review-agent-in-repo
 - Session duration: ~2h15m (09:16–11:31 CST), session `fc159339`
 
