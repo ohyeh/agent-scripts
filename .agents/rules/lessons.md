@@ -140,3 +140,8 @@ Status: proposed
 Rule: 改 UI 或範圍類請求前，用一句話覆誦「要改的元件與範圍」再動手；請求指向一類東西時等回覆。
 Evidence: e58cb016 ×4（L1844/1936/2164/3107）、421d7ec0 ×2（L3283/3700）；邏輯與工具皆對，位置錯。
 Status: proposed
+
+## 2026-08-28 | scope: design-loop | trigger: Codex（gpt-5.6-luna max, thread 019e9bbf）「幫我美化下」跑 44.6 分：真正改樣式 2 分鐘，5 個 fresh reviewer 各等 5–6 分鐘，畫面結構未變；第 4 輪全 PASS 只因缺 `VERDICT:` 行又開第 5 個
+Rule: reviewer 只能以 rubric 或凍結的 ACCEPTANCE 判 BLOCK；a11y 細節是 NOTE 不開修正輪。polish 第一版先給人看方向，再決定要不要 review。缺 `VERDICT:` 行是 reviewer 格式缺陷，重問同一個，不再開一個。
+Evidence: turn_aborted duration_ms=2679579；spawn_agent ×5、wait_agent 600000 ×5；SKILL.md 原本已有「Hard cap two fix rounds」仍被跑到第 4 輪——每輪都用新 a11y 缺口當 BLOCK，所以上限形同無效。
+Status: proposed
