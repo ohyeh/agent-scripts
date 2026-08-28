@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.6.0（2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+Version: 1.7.0（2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
 ＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
 1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
@@ -34,7 +34,12 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 
 **Layer 1 全量粗篩（context-mode-local-insight）**
 `node bin/cli.mjs agent-sessions --days 7`，覆蓋契約：
-- 三個 CLI 都看：codex | claude | agy。
+- 四個 CLI 都看：codex | claude | agy | cursor。cursor 的 store 是
+  `~/.cursor/chats/<bucket>/<uuid>/{meta.json,store.db}`：窗口取 `meta.json`
+  的 `updatedAtMs`，缺 meta 時退回 `store.db` mtime 並計入 `withoutMeta`
+  （2026-08-28 實測 17 個 chat 有 6 個無 meta.json，只走 meta 會漏 289 則訊息）。
+  cursor 磁碟上沒有 token 記帳，只能出 chat 數與訊息數，不得與 codex/claude
+  的 token 對齊；方案用量另讀 `~/.cursor/statusline-usage-cache.json`。
 - 時間區段內**有無封存都算**（codex archived_sessions、claude 舊 project dir、
   agy 全部 *.db）；collector 覆蓋不到的 store = 量測缺口，明寫並回填 collector。
 - 產出不只總量，還要**可疑名單**：done-claim 無證據、canary 缺失、
