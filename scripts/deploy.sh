@@ -270,8 +270,8 @@ echo "PASS [cursor] kernel + HUD + ponytail wiring"
 # W35 retro F2: a per-host deploy record, so a retro can window "after both
 # hosts ran version X" instead of comparing hosts on different gate versions.
 mkdir -p ~/.local/state/agent-scripts
-printf '{"timestamp":"%s","host":"%s","sha":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$(hostname)" "$SHA" >> ~/.local/state/agent-scripts/deploy-log.jsonl
-echo "PASS [deploy-log] appended $(hostname) @ ${SHA:0:7} -> ~/.local/state/agent-scripts/deploy-log.jsonl"
+printf '{"timestamp":"%s","host":"%s","sha":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$(hostname)" "$DEPLOYED_SHA" >> ~/.local/state/agent-scripts/deploy-log.jsonl
+echo "PASS [deploy-log] appended $(hostname) @ ${DEPLOYED_SHA:0:7} -> ~/.local/state/agent-scripts/deploy-log.jsonl"
 echo "==> DEPLOY OK — all layers PASS"
 }
 

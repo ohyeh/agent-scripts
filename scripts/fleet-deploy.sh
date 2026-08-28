@@ -70,7 +70,9 @@ for host in "${HOSTS[@]}"; do
     # cause (the 2026-08-28 clone timeout would have been invisible here).
     LOGDIR="${XDG_STATE_HOME:-$HOME/.local/state}/agent-scripts/fleet-deploy"; mkdir -p "$LOGDIR"
     hostlog="$LOGDIR/$(date -u +%Y%m%dT%H%M%SZ)-${host//[^A-Za-z0-9._-]/_}.log"
-    if run_on "$host" "SKILLS_CLONE_TIMEOUT_MS=600000 bash -c \"curl -fsSL '$DEPLOY_URL' | bash\"" >"$hostlog" 2>&1; then
+    # Exit status alone lied once (2026-08-28: remote unbound-variable abort
+    # reported PASS); the DEPLOY OK line is the contract.
+    if run_on "$host" "SKILLS_CLONE_TIMEOUT_MS=600000 bash -c \"curl -fsSL '$DEPLOY_URL' | bash\"" >"$hostlog" 2>&1 && grep -aq '^==> DEPLOY OK' "$hostlog"; then
       echo "PASS [$host] deploy.sh completed (log: $hostlog)"
     else
       echo "FAIL [$host] deploy.sh exited non-zero — $(grep -m1 -aE '^FAIL|Installation failed|timed out' "$hostlog" || echo 'see log') (log: $hostlog)" >&2
