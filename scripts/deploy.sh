@@ -186,6 +186,7 @@ install -m 0755 "$SRC/.agents/hooks/compaction-recall.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/evidence-tokens.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/claim-evidence-gate.sh" ~/.agents/hooks/
 install -m 0755 "$SRC/.agents/hooks/subagent-concurrency-gate.sh" ~/.agents/hooks/
+install -m 0755 "$SRC/.agents/hooks/deny-replay-gate.sh" ~/.agents/hooks/
 
 SETTINGS=~/.claude/settings.json
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
@@ -201,7 +202,8 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
    --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
    --arg recall "\"\$HOME/.agents/hooks/compaction-recall.sh\"" \
    --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
-   --arg conc "\"\$HOME/.agents/hooks/subagent-concurrency-gate.sh\"" '
+   --arg conc "\"\$HOME/.agents/hooks/subagent-concurrency-gate.sh\"" \
+   --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" '
   def ensure(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | if any(.[]; any(.hooks[]?; .command == cmd))
@@ -226,9 +228,10 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
   | ensureMatched("SessionStart"; "compact"; $recall)
   | ensure("Stop"; $claim)
   | ensureMatched("PreToolUse"; "Agent"; $conc)
+  | ensureMatched("PreToolUse"; "*"; $deny)
 ' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate deny-replay-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1
@@ -264,6 +267,11 @@ bash "$SRC/scripts/install-cursor-hud.sh"
 bash "$SRC/scripts/check-cursor-runtime.sh"
 echo "PASS [cursor] kernel + HUD + ponytail wiring"
 
+# W35 retro F2: a per-host deploy record, so a retro can window "after both
+# hosts ran version X" instead of comparing hosts on different gate versions.
+mkdir -p ~/.local/state/agent-scripts
+printf '{"timestamp":"%s","host":"%s","sha":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$(hostname)" "$SHA" >> ~/.local/state/agent-scripts/deploy-log.jsonl
+echo "PASS [deploy-log] appended $(hostname) @ ${SHA:0:7} -> ~/.local/state/agent-scripts/deploy-log.jsonl"
 echo "==> DEPLOY OK — all layers PASS"
 }
 

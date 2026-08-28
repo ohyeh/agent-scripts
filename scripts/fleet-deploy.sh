@@ -66,10 +66,14 @@ FAILED=0
 for host in "${HOSTS[@]}"; do
   if [ "$VERIFY_ONLY" -eq 0 ]; then
     echo "==> [$host] deploying @ $SHA"
-    if run_on "$host" "curl -fsSL '$DEPLOY_URL' | bash" >/dev/null 2>&1; then
-      echo "PASS [$host] deploy.sh completed"
+    # W35 retro F2: never discard deploy output — a FAIL with no log has no
+    # cause (the 2026-08-28 clone timeout would have been invisible here).
+    LOGDIR="${XDG_STATE_HOME:-$HOME/.local/state}/agent-scripts/fleet-deploy"; mkdir -p "$LOGDIR"
+    hostlog="$LOGDIR/$(date -u +%Y%m%dT%H%M%SZ)-${host//[^A-Za-z0-9._-]/_}.log"
+    if run_on "$host" "SKILLS_CLONE_TIMEOUT_MS=600000 bash -c \"curl -fsSL '$DEPLOY_URL' | bash\"" >"$hostlog" 2>&1; then
+      echo "PASS [$host] deploy.sh completed (log: $hostlog)"
     else
-      echo "FAIL [$host] deploy.sh exited non-zero" >&2
+      echo "FAIL [$host] deploy.sh exited non-zero — $(grep -m1 -aE '^FAIL|Installation failed|timed out' "$hostlog" || echo 'see log') (log: $hostlog)" >&2
       FAILED=1
       continue
     fi

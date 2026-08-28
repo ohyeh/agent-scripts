@@ -119,3 +119,24 @@ Evidence: 08-20 起 codex 132 場：`yield_time_ms=1000` 有 **1206 次在 exec 
 Related: 查 hook 能力時我先只看 `~/.codex/hooks/` 的三個檔就斷言「只有 session_start/stop」，被斷言測出 FAIL；真相在 `config.toml` 的 `[hooks.state]`。與 2026-08-21／08-25 兩條同屬「取樣面太窄 → 過早斷言」，但這次方向相反：不是訊號缺席，是**看到部分就當看完**。
 Status: proposed
 
+
+## 2026-08-28 | scope: measurement | trigger: retro 指標「done-w/o-evidence」連三輪 95→97→96 不動，被當成行為常數
+Rule: 一個指標三輪不動，先懷疑量尺再懷疑行為。改口徑重測（同窗口、同資料）是第一步，不是加規則。
+Evidence: collector 要求 evidence 與 claim 在同一 jsonl 行；改為 assistant text + 前 6 行 lookback 後本機 7d 由 96.9%（31/32）降到 63%（17/27）；嚴格口徑（中文完成語＋PASS/DEPLOY OK/md5）只剩 3/58。corr 全文關鍵詞七場重算 175→0、53→4、24→2、23→1、17→1、22→0。
+Related: claim-evidence gate 08-27 落地後指標未動，因此被誤讀為「gate 無效」。
+Status: proposed
+
+## 2026-08-28 | scope: deploy | trigger: 另一 session 的 handoff 說「skill 已部署、deploy 全綠」，本機 `~/.agents/skills` 沒有該 skill；bol gate 的 block 版本機 08-27 生效、MBP-14 到 08-28 才拿到
+Rule: 部署驗證要寫主機名；一台 PASS 不是艦隊 PASS。跨機比較指標前先對 `deploy-log.jsonl` 確認兩機版本相同，不同就標「不可比」。
+Evidence: MBP-14 7d bol stats 34 個 fail 全為 `blocked=na`（舊 warn 版），本機同期 `blocked=true` 5 筆；`fleet-deploy.sh` 原本把 deploy 輸出丟 `/dev/null`。
+Status: proposed
+
+## 2026-08-28 | scope: judgment | trigger: 同一 session 內同一被擋操作重送：tmux-assign-host-gate ×2（c42d1927）、Stop gate ×4（fc159339）、SendMessage 同錯 ×2（9e024f84）、同一不存在路徑 cd ×2（421d7ec0）
+Rule: 同一錯誤訊息第二次出現前必須換策略或查 schema；被 gate BLOCKED 的呼叫不得原樣重送。
+Evidence: 7 場 Layer 2 中 5 場出現；上輪 N2 列 P0 但無程式碼，本輪落地 `deny-replay-gate.sh`（PreToolUse，指紋＝tool+sorted input sha）。
+Status: proposed
+
+## 2026-08-28 | scope: ux | trigger: 8 次真實糾正中 6 次是「改對了東西、改錯了範圍」：品牌⇄商品列表、Toast⇄版型、視覺細節⇄wireframe、全命令⇄專測登入
+Rule: 改 UI 或範圍類請求前，用一句話覆誦「要改的元件與範圍」再動手；請求指向一類東西時等回覆。
+Evidence: e58cb016 ×4（L1844/1936/2164/3107）、421d7ec0 ×2（L3283/3700）；邏輯與工具皆對，位置錯。
+Status: proposed
