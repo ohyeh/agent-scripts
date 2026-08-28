@@ -7,6 +7,12 @@
 # Usage: scripts/deploy.sh   (no flags; always runs every layer, per
 # YAGNI -- this script has exactly one job)
 #
+# Clone-tracked layout (grok-bot VM): when ~/.agents/rules is a symlink into
+# a working clone of this repo, the clone IS the source: `git pull --ff-only`
+# replaces the tarball, the rules rsync and the hook copies are skipped
+# (they would overwrite the symlink targets in place and dirty the git
+# tree), every verify step still runs. Everything else is identical.
+#
 # Layers, in order (each layer prints PASS/FAIL + the hash/diff evidence it
 # checked; the FIRST failing layer aborts the whole run non-zero -- fail
 # fast, no silent fallback to a partial deploy):
@@ -38,6 +44,13 @@
 #                 HUD scripts + statusLine merge (never copies cli-config).
 set -euo pipefail
 
+# macOS ships `md5 -q`; Linux (grok-bot VM) has md5sum only and a non-login ssh
+# PATH. Shim once here; `export -f` reaches every `bash scripts/*.sh` child.
+if ! command -v md5 >/dev/null 2>&1; then
+  md5() { [ "${1:-}" = -q ] && shift; { if [ $# -gt 0 ]; then md5sum "$1"; else md5sum; fi; } | cut -d' ' -f1; }
+  export -f md5
+fi
+
 REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
 RELEASE_REF="refs/heads/main"
 cleanup() { rm -rf "$WORKDIR"; }
@@ -65,11 +78,34 @@ download_release() {
   echo "PASS [download] deploying $RELEASE_REF @ $DEPLOYED_SHA"
 }
 
+CLONE_TRACKED=0
+detect_clone_tracked() {
+  [ -L ~/.agents/rules ] || return 0
+  local target; target="$(cd "$(dirname "$(readlink ~/.agents/rules)")/.." && pwd -P)"
+  # the symlink must point at <clone>/.agents/rules of THIS repo, on branch main
+  if [ ! -f "$target/scripts/deploy.sh" ] || ! git -C "$target" remote get-url origin 2>/dev/null | grep -q 'ohyeh/agent-scripts'; then
+    echo "FAIL [resolve] ~/.agents/rules is a symlink but not into an agent-scripts clone: $target" >&2
+    return 1
+  fi
+  if [ -n "$(git -C "$target" status --porcelain --untracked-files=no)" ]; then
+    echo "FAIL [resolve] clone $target has tracked changes; refusing to pull over them" >&2
+    return 1
+  fi
+  CLONE_TRACKED=1; SRC="$target"
+  echo "==> [resolve] clone-tracked layout: ~/.agents/rules -> $target; pulling $RELEASE_REF"
+  git -C "$SRC" pull -q --ff-only origin "${RELEASE_REF#refs/heads/}"
+  DEPLOYED_SHA="$(git -C "$SRC" rev-parse HEAD)"
+  echo "PASS [resolve] clone @ $DEPLOYED_SHA (git pull --ff-only; tarball skipped)"
+}
+
 main() {
 WORKDIR="$(mktemp -d)"
 trap cleanup EXIT
-resolve_release
-download_release
+detect_clone_tracked
+if [ "$CLONE_TRACKED" = 0 ]; then
+  resolve_release
+  download_release
+fi
 
 # --- Layer 0: rules invariants (the only caller of this check; a red here
 # means main is not deployable — abort before any layer mutates ~) -----------
@@ -106,8 +142,12 @@ echo "PASS [global] md5 match ($global_report )"
 
 # --- Layer 2: rules ----------------------------------------------------------
 echo "==> [rules] rsync canonical .agents/rules/ -> ~/.agents/rules/"
-mkdir -p ~/.agents/rules
-rsync -a --delete "$SRC/.agents/rules/" ~/.agents/rules/
+if [ "$CLONE_TRACKED" = 1 ]; then
+  echo "     (clone-tracked: symlink already points at the pulled clone; rsync skipped, diff still verified)"
+else
+  mkdir -p ~/.agents/rules
+  rsync -a --delete "$SRC/.agents/rules/" ~/.agents/rules/
+fi
 rules_diff="$(diff -rq ~/.agents/rules/ "$SRC/.agents/rules/" || true)"
 if [ -n "$rules_diff" ]; then
   echo "FAIL [rules] diff found after rsync:" >&2
@@ -172,21 +212,23 @@ echo "==> [hooks] installing sentinel hooks + registering in ~/.claude/settings.
 rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent-tools plugin
 rm -f ~/.agents/hooks/bol-prompt-warn.sh      # retired 2026-08-25; replaced by bol-prompt-gate.sh (blocking)
 mkdir -p ~/.agents/hooks
-install -m 0755 "$SRC/.agents/hooks/claude-version-sentinel.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/session-title-sentinel.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/bol-prompt-gate.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/subagent-ledger.sh" ~/.agents/hooks/
+# same-file guard: on the clone-tracked layout ~/.agents/hooks IS $SRC/.agents/hooks
+hook_install() { [ "$1" -ef ~/.agents/hooks/"$(basename "$1")" ] || install -m 0755 "$1" ~/.agents/hooks/; }
+hook_install "$SRC/.agents/hooks/claude-version-sentinel.sh"
+hook_install "$SRC/.agents/hooks/session-title-sentinel.sh"
+hook_install "$SRC/.agents/hooks/bol-prompt-gate.sh"
+hook_install "$SRC/.agents/hooks/subagent-ledger.sh"
 install -m 0755 "$SRC/scripts/check-bol-prompt.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/context-ledger.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/bash-read-audit.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/agent-device-target-gate.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/tmux-assign-host-gate.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/cursor-adapt.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/compaction-recall.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/evidence-tokens.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/claim-evidence-gate.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/subagent-concurrency-gate.sh" ~/.agents/hooks/
-install -m 0755 "$SRC/.agents/hooks/deny-replay-gate.sh" ~/.agents/hooks/
+hook_install "$SRC/.agents/hooks/context-ledger.sh"
+hook_install "$SRC/.agents/hooks/bash-read-audit.sh"
+hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
+hook_install "$SRC/.agents/hooks/tmux-assign-host-gate.sh"
+hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
+hook_install "$SRC/.agents/hooks/compaction-recall.sh"
+hook_install "$SRC/.agents/hooks/evidence-tokens.sh"
+hook_install "$SRC/.agents/hooks/claim-evidence-gate.sh"
+hook_install "$SRC/.agents/hooks/subagent-concurrency-gate.sh"
+hook_install "$SRC/.agents/hooks/deny-replay-gate.sh"
 
 SETTINGS=~/.claude/settings.json
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
@@ -270,7 +312,8 @@ echo "PASS [cursor] kernel + HUD + ponytail wiring"
 # W35 retro F2: a per-host deploy record, so a retro can window "after both
 # hosts ran version X" instead of comparing hosts on different gate versions.
 mkdir -p ~/.local/state/agent-scripts
-printf '{"timestamp":"%s","host":"%s","sha":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$(hostname)" "$DEPLOYED_SHA" >> ~/.local/state/agent-scripts/deploy-log.jsonl
+deploy_method=tarball; [ "$CLONE_TRACKED" = 1 ] && deploy_method=clone-tracked
+printf '{"timestamp":"%s","host":"%s","sha":"%s","method":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$(hostname)" "$DEPLOYED_SHA" "$deploy_method" >> ~/.local/state/agent-scripts/deploy-log.jsonl
 echo "PASS [deploy-log] appended $(hostname) @ ${DEPLOYED_SHA:0:7} -> ~/.local/state/agent-scripts/deploy-log.jsonl"
 echo "==> DEPLOY OK — all layers PASS"
 }
