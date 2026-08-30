@@ -107,7 +107,10 @@ only report in-flight. Any non-terminal proxy report is a dispatch PROTOCOL FAIL
 supervision and never a reason to idle: the parent OWNS the wait and MUST open the listener
 itself, `run_in_background` with `result wait-required <name> --fields <csv> --wait <N> --json`.
 Ownership IS the mechanism — a parent-launched background task re-invokes the session on exit,
-one orphaned by a terminated subagent notifies nobody (c48c0d3a: 2h40m dead). Never pipe the
+one orphaned by a terminated subagent notifies nobody (c48c0d3a: 2h40m dead). Measured 2026-08-30:
+a parent-owned background task ran 781s to completion, exit 0, and did notify the session, while a
+foreground call was reaped at exactly 600s (exit 143) — the ~600s limit binds the FOREGROUND call
+only, so a bounded listener longer than 10 minutes is legitimate as a background task. Never pipe the
 listener: a trailing `| tail` reports `tail`'s status, so `exit 2` reads as success — judge it by
 validated JSON, never by exit code.
 
