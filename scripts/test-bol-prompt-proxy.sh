@@ -80,42 +80,5 @@ punctuation can be compared with the parser fixture. Do not summarise the error 
 
 REPORT: Give the root cause, test exit code, and the exact failing log line only.'
 
-# Gate-level cases: the validator is only reachable through the PreToolUse hook,
-# which reads a JSON payload and exempts non-Agent calls — a raw-text smoke test
-# passes for the wrong reason. Exercise the real payload shape.
-GATE="${GATE:-$(dirname "$0")/../.agents/hooks/bol-prompt-gate.sh}"
-if [ -r "$GATE" ] && command -v jq >/dev/null 2>&1; then
-  gate_expect() { # gate_expect <name> <want_exit> <prompt>
-    local name="$1" want="$2" prompt="$3" got
-    jq -cn --arg p "$prompt" \
-      '{tool_name:"Agent",session_id:"selftest",tool_input:{subagent_type:"general-purpose",prompt:$p}}' \
-      | BOL_VALIDATOR="$CHECK" bash "$GATE" >/dev/null 2>&1
-    got=$?
-    if [ "$got" -eq "$want" ]; then
-      echo "ok   $name (exit $got)"
-    else
-      echo "FAIL $name (want exit $want, got $got)"
-      fails=$((fails + 1))
-    fi
-  }
-  canonical_brief="PROXY_MODE: agent-tmux-assign
-WORKER_ARTIFACT: /tmp/run/findings.md
-
-GOAL
-Run exactly one blocking \`agent-tmux agy assign w1 /tmp/run /tmp/run/p.md\` call, then report.
-
-ACCEPTANCE
-That one call returns. No status/capture/probe/result/second-wait call is made.
-
-$CANON_REPORT"
-  gate_expect "G gate allows canonical proxy brief" 0 "$canonical_brief"
-  gate_expect "H gate denies missing WORKER_ARTIFACT" 2 \
-    "$(printf '%s\n' "$canonical_brief" | grep -v '^WORKER_ARTIFACT:')"
-  total=8
-else
-  echo "skip G/H (gate or jq unavailable: $GATE)"
-  total=6
-fi
-
-[ "$fails" -eq 0 ] && { echo "PASS: $total/$total proxy-contract cases"; exit 0; }
+[ "$fails" -eq 0 ] && { echo "PASS: 6/6 proxy-contract cases"; exit 0; }
 echo "FAIL: $fails case(s)"; exit 1

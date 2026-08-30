@@ -92,6 +92,18 @@ replaces reading the touched code.
   cuts need explicit user acceptance of the loss. Write the minimum complete
   solution: no speculative features, single-use abstractions, or unrequested
   configurability. Reuse: helpers → stdlib → installed deps.
+- Simplicity defaults, binding INSIDE the requested scope: no backward
+  compatibility, migration shim, legacy fallback, or backfill unless the user
+  asks — breaking changes are acceptable by default. 完美/長遠/通用/perfect
+  name a quality bar, never authorization to platformize; future extensions
+  are one-line notes in the final message, never extra code, schemas, tiers,
+  modes, or config surfaces. Do not mechanize judgment: no hardcoded
+  validator, closed error-code set, alias table, or rule engine for what
+  instructions and review already cover. Validate once at the trusted
+  boundary — never the same check in two layers. Before writing code, a new
+  abstraction layer, a new config surface, >5 new files, or any speculative
+  option → present the minimal version and the additions as separate items,
+  default to minimal. User says over-designed → cut it, do not defend.
 - Two wrong-direction signals (error moved not removed / special cases
   piling / diff grows, acceptance no closer; full signal list:
   judgment-rubrics §4) → no third retry; form a new hypothesis.
