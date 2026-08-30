@@ -1,0 +1,269 @@
+{
+  "env": {
+    "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "true",
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_NO_FLICKER": "1",
+    "CLAUDE_CODE_WORKFLOWS": "1",
+    "ENABLE_EXPERIMENTAL_MCP_CLI": "true",
+    "ENABLE_TOOL_SEARCH": "true",
+    "USE_BUILTIN_RIPGREP": "0"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "model": "gpt-5.6-sol[1m]",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/context-ledger.sh\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/bash-read-audit.sh\""
+          },
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/agent-device-target-gate.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/tmux-assign-host-gate.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/bol-prompt-gate.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/subagent-concurrency-gate.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/deny-replay-gate.sh\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.claude/hooks/context-mode-cache-heal.mjs\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/claude-version-sentinel.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/compaction-recall.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/session-title-sentinel.sh\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/claim-evidence-gate.sh\""
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/subagent-ledger.sh\""
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/subagent-ledger.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash -c '~/.claude/claude-hud-statusline.sh'"
+  },
+  "enabledPlugins": {
+    "claude-hud@claude-hud": true,
+    "code-review@claude-plugins-official": true,
+    "codex@openai-codex": false,
+    "commit-commands@claude-plugins-official": true,
+    "context-mode@context-mode": true,
+    "explanatory-output-style@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "learning-output-style@claude-plugins-official": true,
+    "ponytail@ponytail": true,
+    "pr-review-toolkit@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "session-report@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "tmux-agent-tools@tmux-agent-tools": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      },
+      "autoUpdate": true
+    },
+    "context-mode": {
+      "source": {
+        "source": "github",
+        "repo": "mksglu/context-mode"
+      },
+      "autoUpdate": false
+    },
+    "openai-codex": {
+      "source": {
+        "source": "github",
+        "repo": "openai/codex-plugin-cc"
+      },
+      "autoUpdate": true
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
+      },
+      "autoUpdate": true
+    },
+    "tmux-agent-tools": {
+      "source": {
+        "source": "github",
+        "repo": "ohyeh/tmux-agent-tools"
+      },
+      "autoUpdate": true
+    }
+  },
+  "outputStyle": "Concise",
+  "language": "繁體中文，Taiwan 用語",
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "low",
+  "modelSettings": {
+    "claude-opus-5": {
+      "effortLevel": "medium"
+    },
+    "gpt-5.6-sol": {
+      "effortLevel": "medium"
+    },
+    "gpt-5.6-luna": {
+      "effortLevel": "xhigh"
+    }
+  },
+  "autoCompactWindow": 500000,
+  "advisorModel": "fable",
+  "askUserQuestionTimeout": "5m",
+  "autoUpdatesChannel": "latest",
+  "channelsEnabled": true,
+  "prefersReducedMotion": true,
+  "autoDreamEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
+  "theme": "dark-daltonized",
+  "editorMode": "normal",
+  "preferredNotifChannel": "auto",
+  "autoCompactEnabled": true,
+  "teammateMode": "auto",
+  "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "autoMode": {
+    "soft_deny": [
+      "$defaults",
+      "Bash(rm -rf:*) targeting .env, .env.local.backup, or other gitignored .env.* files in ohyeh/us-options-terrain"
+    ],
+    "environment": [
+      "### Org-wide",
+      "**Organization**: None configured",
+      "**Cloud provider(s)**: None configured",
+      "**Repository visibility**: private (ohyeh/us-options-terrain, confirmed via gh)",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: CI secret names referenced: EDGAR_CONTACT_EMAIL, MARKETDATA_API_TOKEN, MASSIVE_API_KEY (names only, no values) — scoped to ohyeh/us-options-terrain",
+      "**Default / protected branches**: Default branch: main; Protected branches: none listed (gh query for rulesets was not queryable here — do not assume unprotected)",
+      "**CI/CD deploy targets**: None configured",
+      "**Network posture**: None configured",
+      "**Source control**: The trusted repo (ohyeh/us-options-terrain) and its remote (github.com/ohyeh/us-options-terrain) only — no additional orgs configured",
+      "**Trusted internal domains**: None configured",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: None configured",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: .env, .env.local.backup, and other .env.* files (gitignored except .env.example) — contain credentials; keep out of commits and shares; CI secrets EDGAR_CONTACT_EMAIL, MARKETDATA_API_TOKEN, MASSIVE_API_KEY are similarly sensitive",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries `prod` or `production` as a whole word or name segment",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries `prod` or `production` as a whole word or name segment",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development (US Options Terrain — local-first equity/options terrain reader)",
+      "**Trusted repo**: ohyeh/us-options-terrain (private) — its own work is fine to commit/push here; content ported or first read from outside this session's repo is not; secrets and sensitive data are never cleared into it by visibility alone",
+      "**Org-specific CLIs**: None configured",
+      "routine under ohyeh/us-options-terrain prefix: git operations, dependency installs, test/build/lint scripts, fetch:edgar-*, fetch:cboe-* data scripts"
+    ]
+  }
+}

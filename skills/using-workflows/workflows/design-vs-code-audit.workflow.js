@@ -23,6 +23,10 @@ export const meta = {
 //                (MISSING/HALF_DONE/STATE_MACHINE/OVERLAP/ORDER/TEXT/STYLE).
 //   extraRules   (optional string) appended to the audit rules (domain conventions).
 //   outputLanguage (optional string) language for finding text; default English.
+//   effort       (optional 'low'|'medium'|'high'|'xhigh'|'max') applied to BOTH tiers.
+//                Omit (default) to inherit settings.json per-model effort.
+//   model        (optional string) overrides the subagent model for every agent.
+//                Omit to keep CLAUDE_CODE_SUBAGENT_MODEL / the configured default.
 //
 // Example:
 //   Workflow({ scriptPath: ".../design-vs-code-audit.workflow.js", args: {
@@ -56,6 +60,12 @@ const DESIGN_SOURCE = a.designSource
 const SECTIONS = a.sections
 const OUTPUT_LANG = a.outputLanguage || 'English, keeping code identifiers/design-node names as-is'
 const CATEGORIES = (Array.isArray(a.categories) && a.categories.length) ? a.categories : ['MISSING', 'HALF_DONE', 'STATE_MACHINE', 'OVERLAP', 'ORDER', 'TEXT', 'STYLE']
+
+// effort/model are pass-through-only: when the caller omits them, nothing is sent and the
+// harness resolves effort from settings.json (effortLevel / modelSettings[model].effortLevel)
+// against THAT agent's model. Hardcoding here silently overrides that per-model table.
+const effortOpt = a.effort ? { effort: a.effort } : {}
+const modelOpt = a.model ? { model: a.model } : {}
 
 const RULES = `Compare the design spec against the code COMPONENT BY COMPONENT. Report drift in these categories:
 - MISSING: a component/element present in the design is absent in code.
@@ -119,7 +129,7 @@ const results = await pipeline(
   SECTIONS,
   (s) => agent(
     `${DESIGN_SOURCE}\n\nYou are auditing the "${s.key}" section of the project at ${ROOT}.\n\nStep 1 — pull the design spec for this section using these refs/queries (add your own follow-ups as needed): ${JSON.stringify(s.designRefs)}.\nStep 2 — Read these code files (use Read/Grep; follow into view-models/state files if you need to confirm a state machine): ${JSON.stringify(s.files)}.\nStep 3 — ${RULES}\n\nDesign-WIP hint for this section: ${wipHint(s.wip)}\n\nReturn structured findings.`,
-    { label: `audit:${s.key}`, phase: 'Audit', schema: FINDINGS_SCHEMA, effort: 'medium' }
+    { label: `audit:${s.key}`, phase: 'Audit', schema: FINDINGS_SCHEMA, ...effortOpt, ...modelOpt }
   ),
   (res, s) => {
     if (res == null) return { section: s.key, finderFailed: true, verified: [] }
@@ -127,7 +137,7 @@ const results = await pipeline(
     return parallel(res.findings.map(f => () =>
       agent(
         `Adversarially verify ONE design-vs-code drift finding for the "${s.key}" section of the project at ${ROOT}. Default to skeptical — only confirm if you can prove it in the code.\n\n${DESIGN_SOURCE}\n\nFinding:\n- component: ${f.component}\n- category: ${f.category}\n- design says: ${f.designExpectation}\n- code reality (claimed): ${f.codeReality}\n- location: ${f.location}\n- reporter confidence: ${f.confidence}/5\n\nRe-Read the cited code (${f.location}) and related files in ${JSON.stringify(s.files)}. Check: (a) is the claimed code-reality actually true, or is it implemented somewhere the finder missed? (b) is this just design-WIP (design unfinished), not a code bug? (c) how severe is it for a user? You may re-check the design refs (${JSON.stringify(s.designRefs)}) to confirm the expectation. Return your verdict.`,
-        { label: `verify:${s.key}:${f.component}`.slice(0, 60), phase: 'Verify', schema: VERDICT_SCHEMA, effort: 'high' }
+        { label: `verify:${s.key}:${f.component}`.slice(0, 60), phase: 'Verify', schema: VERDICT_SCHEMA, ...effortOpt, ...modelOpt }
       ).then(v => ({ ...f, section: s.key, verdict: v }))
     )).then(vs => vs.map((v, i) => v || { ...res.findings[i], section: s.key, verdict: null }))
   }
