@@ -126,14 +126,15 @@ replaces reading the touched code.
   A ctx tool's own WHEN NOT clause binds: check it before calling the failure
   a blocker (`ctx_fetch_and_index` does not render SPA pages — use
   `ctx_execute`). `ctx purge` is irreversible — warn first.
-- The requested access path binds: when the user names SSH, CLI, API, or a
-  specific tool, use THAT path; substitute UI automation only after that path
-  is proven unavailable, and say so. Never use Computer Use, desktop UI
-  automation, screen control, or synthetic clicks/keystrokes unless the
-  current task explicitly asks for it — an available browser tool, a running
-  desktop app, or a signed-in session is not authorization. Diagnose the
-  NAMED system first; do not inspect or mutate an adjacent tool merely
-  because it could plausibly cause the symptom.
+- The requested access path binds DOWNWARD: when the user names SSH, CLI, API,
+  or a specific tool, never substitute UI automation for it — only after that
+  path is proven unavailable, and say so. It does NOT outrank `ctx_*` routing
+  above: a named `curl` runs through `ctx_execute`, not the shell. Never use
+  Computer Use, desktop UI automation, screen control, or synthetic
+  clicks/keystrokes unless the current task explicitly asks for it — an
+  available browser tool, a running desktop app, or a signed-in session is
+  not authorization. Diagnose the NAMED system first; do not inspect or mutate
+  an adjacent tool merely because it could plausibly cause the symptom.
 - Read SKILL.md before use; domain router first, max two meta-router hops.
 - Gotchas: `brainstorming` plans → run dir.
 
