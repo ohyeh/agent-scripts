@@ -2,7 +2,7 @@
 
 ## Session Metadata
 - Created: 2026-08-30 20:58:13
-- Project: /Users/paul.yeh/github/agent-scripts
+- Project: ~/github/agent-scripts
 - Branch: main
 - Session duration: ~9h (one compaction at ~11:35)
 
