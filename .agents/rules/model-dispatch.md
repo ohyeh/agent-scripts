@@ -95,12 +95,21 @@ status/summary only. Its brief MUST order: run the command FIRST, then report; n
 status/capture/probe/result, no reading or judging the worker's output. Proxy failure is judged
 ONLY by its terminal report or by evidence the assign never launched the worker (no state dir);
 idle/'finished' mailbox heartbeats DURING the blocking assign are noise, never failure
-(misread by two sessions, 2026-08-18). Parent `run_in_background` = FALLBACK only after a proxy
-attempt failed, reason logged in the run dir. Parent foreground `assign` (ALL forms, `--detach`
+(misread by two sessions, 2026-08-18). Parent foreground `assign` (ALL forms, `--detach`
 included — the gate cannot verify the reaping premise) and parent foreground
 `status`/`capture`/`probe`/`result` polling are gate-denied (per-worker polling proxy RETIRED
 2026-08-08, W32 M5); a fallback harvest runs as a background task, reason logged. Inside a proxy
 or background fallback, judge `result --json` as `.present` → `.valid` → `.body.status`, then `stop`.
+
+Backgrounded is NOT terminal (measured 2026-08-30): the harness reaps a foreground Bash call at
+~600s, and the reaped proxy cannot wait on the task — a subagent has no `TaskOutput` — so it can
+only report in-flight. Any non-terminal proxy report is a dispatch PROTOCOL FAILURE, never
+supervision and never a reason to idle: the parent OWNS the wait and MUST open the listener
+itself, `run_in_background` with `result wait-required <name> --fields <csv> --wait <N> --json`.
+Ownership IS the mechanism — a parent-launched background task re-invokes the session on exit,
+one orphaned by a terminated subagent notifies nobody (c48c0d3a: 2h40m dead). Never pipe the
+listener: a trailing `| tail` reports `tail`'s status, so `exit 2` reads as success — judge it by
+validated JSON, never by exit code.
 
 Concurrency cap (2026-08-21 user ruling; dispatch itself is the top friction source on
 record — sessions that delegated drew 26× the corrections of sessions that did not): at most
