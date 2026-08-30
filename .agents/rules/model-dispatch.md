@@ -123,7 +123,10 @@ Teardown order is fixed: stand the proxy DOWN BEFORE stopping the worker it supe
 first strands the proxy on a signal that can no longer arrive (c48c0d3a, 12s apart). And never
 brief a proxy to return the worker's output verbatim: §4 forbids it from reading that output, and
 when result.json is `pending` the brief is unsatisfiable by any legal means. Have the WORKER write
-findings to a declared artifact path and read that file yourself.
+findings to a declared artifact path and read that file yourself. Proxy briefs use
+`delegation-templates` shape C — typed, not prose: `PROXY_MODE: agent-tmux-assign` +
+`WORKER_ARTIFACT: <absolute path>` + a FIXED REPORT block; the gate validates those three fields
+only, and an unmarked brief is not a target.
 
 Concurrency cap (2026-08-21 user ruling; dispatch itself is the top friction source on
 record — sessions that delegated drew 26× the corrections of sessions that did not): at most
