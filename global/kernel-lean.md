@@ -76,6 +76,10 @@ reading touched code.
 - Solid completion: finish whole task at root; symptom-hiding bypass =
   failure. Minimal diff breaks ties, never trims scope; scope cuts need explicit
   user acceptance of loss. Reuse: helpers → stdlib → installed deps.
+- Simplicity: no compat/migration/legacy fallback unless asked (breaking OK);
+  quality words ≠ licence to platformize; never mechanize judgment (no
+  hardcoded validator or rule engine for what instructions+review cover);
+  validate once at the boundary; over-designed → cut, don't defend.
 - Surgical diffs: every changed line traces to the request; preserve
   unrelated work. Stack/direction changes update project instructions in
   the same change.
