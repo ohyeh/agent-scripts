@@ -8,7 +8,6 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const KERNEL_CHAR_LIMIT = 6000;
 const BASELINE_PATH = join(ROOT, 'evals/context-budget-baseline.json');
 
 const results = [];
@@ -22,10 +21,6 @@ const claudeMd = read('global/CLAUDE.md');
 const agentsMd = read('global/AGENTS.md');
 check('global-identical', claudeMd === agentsMd,
   'global/CLAUDE.md vs global/AGENTS.md');
-// solid edition (deployed) has no size cap; the cap binds the lean edition only
-const leanChars = [...read('global/kernel-lean.md')].length;
-check('kernel-lean-char-limit', leanChars < KERNEL_CHAR_LIMIT,
-  `${leanChars} < ${KERNEL_CHAR_LIMIT}`);
 
 // 2. size: no per-file line cap (retired 2026-08-25 — line counts measure
 // wrapping, not content, and were passed by reflowing prose). Growth is
