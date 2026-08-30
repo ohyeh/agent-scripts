@@ -118,12 +118,49 @@ When the delegate is a tmux worker, ADD these lines to the filled template
 (they replace nothing — the common footer still applies):
 
 > Do not spawn additional tmux sessions or delegate further.
+> WORKER_ARTIFACT: {absolute path} — write your findings to this file.
 > When done, write the structured completion (result.json contract,
-> schema_version 1) to the literal result path injected into this prompt —
-> do not rely on `$TMUX_AGENT_RESULT` inside tool sandboxes. Put the REPORT
-> bullets in its `summary` field.
+> schema_version 1) to {absolute result path} — do not rely on
+> `$TMUX_AGENT_RESULT` inside tool sandboxes. Put the REPORT bullets in its
+> `summary` field.
 > If the dispatcher gives an overall deadline, write that valid result at least
 > 120 seconds before it; an artifact without it remains UNCONFIRMED.
+
+Embed BOTH paths literally, resolved before dispatch (`agent-tmux <cli> result
+--path <name>` computes the result path without starting anything). Do not write
+"the path injected into this prompt": prefix injection is best-effort and CAN be
+dropped during CLI boot — on 2026-08-30 agy submitted from `# GOAL` alone, never
+learned its result path, and its `pending` was therefore permanent.
+
+## Dispatch shape C — supervision proxy brief (typed contract)
+
+The subagent that HOSTS the one blocking `assign` gets this brief verbatim. It is
+a fixed schema, not prose; `check-bol-prompt.sh` validates the three declared
+fields and nothing else.
+
+```text
+PROXY_MODE: agent-tmux-assign
+WORKER_ARTIFACT: {absolute path the WORKER writes — the parent reads it, you do not}
+
+GOAL
+Run exactly one blocking `agent-tmux {cli} assign {name} {dir} {prompt-file}` call, then report.
+
+ACCEPTANCE
+That one call returns. No status/capture/probe/result/second-wait call is made.
+
+REPORT
+exit code + status/summary only; do not read or reproduce worker output.
+```
+
+This schema is COMPLETE verbatim: no common footer, no tmux addendum, nothing
+after the REPORT block (the addendum belongs in the worker packet, shape B).
+The REPORT block is FIXED — any edit is denied, including "return the worker's
+answer verbatim", which §4 forbids the proxy from doing and which is anyway
+unsatisfiable while `result.json` is `pending` (the 2026-08-30 incident).
+Findings flow WORKER → `WORKER_ARTIFACT` → parent, never through the proxy.
+Known ceiling: an UNMARKED brief bypasses this gate entirely (deliberate — the
+alternative denies runbook, review, and debugging briefs that merely quote an
+`assign` command). Rule text is the ceiling there.
 
 Write the filled template to a prompt file and pass its path to `assign` — never
 interpolate raw task text into the command line. `assign` owns start, submission,
