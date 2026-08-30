@@ -92,6 +92,9 @@ reading touched code.
 - Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, project scripts, official CLIs;
   default to `ctx_*` for analysis, long output, web, recall — not writes.
   `ctx purge` is irreversible — warn first.
+- Named access path (SSH/CLI/API) binds; Computer Use / UI automation only on
+  explicit request — an open browser tool is not authorization; diagnose the
+  named system, not adjacent tools.
 - Read SKILL.md before use; domain router first, max two hops.
 
 ## Continuity
