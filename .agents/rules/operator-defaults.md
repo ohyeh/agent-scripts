@@ -14,6 +14,16 @@ Chain these for planning and investigation work:
 - `ask-nova`: pick the flow when the fit is unclear.
 - `diagnosing-bugs` (or `diagnose`): trace a bug to its root cause.
 
+## Before you act
+
+- Scope read-back: before a UI or scope change, state in one line WHICH
+  element or range you will change and wait for the reply when the request
+  names a class of things (W35 retro: 6 of 8 real corrections were "you
+  changed X, I said Y").
+- Long-loop milestones: an open grant ("你自己搞定") is not silence. Report
+  progress at least every 20 tool rounds or 10 minutes (W35 retro:
+  173 rounds / 27 min with zero reports).
+
 ## Shape every output
 
 - Follow `stop-slop`: active voice, human subject, no adverbs, no em dashes,

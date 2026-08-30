@@ -89,6 +89,10 @@ else
   fi
 fi
 
+# W35 retro F8: the gate had no stats file, so its hit rate was unmeasurable.
+STATS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"; mkdir -p "$STATS_DIR"
+jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg claim "$claim" --arg sid "${SESSION_ID:-}" --argjson blocked "$([ -n "$reason" ] && echo true || echo false)" \
+  '{timestamp:$ts, claim:$claim, session:$sid, blocked:$blocked}' >> "$STATS_DIR/claim-evidence-stats.jsonl"
 [ -n "$reason" ] || exit 0
 jq -n --arg r "$reason" '{decision: "block", reason: $r}'
 exit 0

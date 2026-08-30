@@ -114,10 +114,18 @@ generic gradient-hero / emoji-bullet / card-grid sameness = BLOCK regardless
 of correctness. 2. Prose discipline — no filler, scannable hierarchy.
 3. DESIGN.md conformance. 4. The stage's frozen ACCEPTANCE criteria.
 
+**What counts as BLOCK:** only a rubric item above or a frozen ACCEPTANCE
+criterion. Accessibility polish (hit-area, contrast, aria names, focus ring,
+skip link) that no ACCEPTANCE line names is a NOTE — list it, do not BLOCK
+on it, do not open a fix round for it. A reviewer that returns only NOTEs
+returns `VERDICT: PASS`.
+
 **Report contract:** per-item PASS / FAIL / UNCONFIRMED + one-line reason,
 findings tagged persistent/new/regression/evidence-gap, all blockers in ONE
 pass, final line exactly `VERDICT: PASS` or `VERDICT: BLOCK`, quoted
-verbatim in your report.
+verbatim in your report. A report missing the `VERDICT:` line is a format
+defect of that reviewer: re-ask the SAME reviewer for the one line — never
+spawn another reviewer to obtain it.
 
 **Rounds:** BLOCK → same persistent builder fixes → fresh reviewer
 re-audits. Hard cap two fix rounds, then route by CAUSE: same-root failures
@@ -126,6 +134,11 @@ evidence-gap → repair evidence path, re-audit · new/regression → triage
 separately · otherwise → stop and ask the user with the failure trail.
 PASS → persist tokens via design-md, report with the evidence bundle.
 "Built and audited: PASS" is a completion claim; "built" alone is not.
+
+**Polish/`Operate` mode — human checkpoint first:** the first rendered
+build goes to the USER (URL/screenshot, desktop + mobile) BEFORE any
+reviewer is spawned. Direction is the user's call; the reviewer only
+checks the direction the user accepted. One reviewer round, not a loop.
 
 ## NOT-FOUND
 

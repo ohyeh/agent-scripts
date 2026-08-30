@@ -21,7 +21,7 @@ if [ ! -f "$ADAPT_SRC" ]; then
 fi
 
 mkdir -p "${HOME}/.agents/hooks" "$HOOK_DIR"
-install -m 0755 "$ADAPT_SRC" "$ADAPT_DST"
+[ "$ADAPT_SRC" -ef "$ADAPT_DST" ] || install -m 0755 "$ADAPT_SRC" "$ADAPT_DST"   # same file on the clone-tracked layout
 
 wrapper_body=$'#!/usr/bin/env bash\nexec "$HOME/.agents/hooks/cursor-adapt.sh" "$(basename "$0" .sh | sed "s/^fleet-//")"\n'
 

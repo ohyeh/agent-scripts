@@ -148,4 +148,19 @@ run_bol 'GOAL: fix flaky test ACCEPTANCE: flutter test test/reward exits 0 REPOR
 run_bol 'GOAL: Answer: which SDK version ACCEPTANCE: every claim cited REPORT: path + summary' || { echo "FAIL: research brief blocked for lacking a command" >&2; exit 1; }
 tail -4 "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" | head -1 | jq -e '.result == "fail" and .missing == ["RUNNABLE_CHECK"] and .blocked == true' >/dev/null
 
-echo "JSONL hooks smoke: bol denies incomplete briefs + build briefs without a runnable check; concurrency gate denies the 6th subagent; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger"
+# deny-replay: the same (tool, input) that a gate BLOCKED earlier is short-circuited; a fresh input and a plain error are not
+TR5="$WORK/transcript-deny.jsonl"
+printf '%s\n' \
+  '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"gated-cmd --foreground"}}]}}' \
+  '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","is_error":true,"content":"BLOCKED: gated-cmd must not run in the foreground"}]}}' \
+  '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"npm test"}}]}}' \
+  '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t2","is_error":true,"content":"Exit code 1\n3 failing"}]}}' > "$TR5"
+run_deny() { printf '%s' "$(jq -cn --arg tp "$TR5" --arg c "$1" '{tool_name:"Bash",transcript_path:$tp,tool_input:{command:$c}}')" \
+  | HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" bash "$ROOT/.agents/hooks/deny-replay-gate.sh" >/dev/null 2>&1; }
+if run_deny 'gated-cmd --foreground'; then echo "FAIL: replay of a BLOCKED call was not short-circuited" >&2; exit 1; fi
+run_deny 'npm test'  || { echo "FAIL: re-running a plain failing command was blocked" >&2; exit 1; }
+run_deny 'ls -la'    || { echo "FAIL: a fresh call was blocked" >&2; exit 1; }
+check_jsonl "$TEST_DATA/agent-hooks/deny-replay-stats.jsonl" 3 '(.tool=="Bash") and (.replay_blocked|type)=="boolean"'
+[[ "$(jq -r 'select(.replay_blocked==true)|.tool' "$TEST_DATA/agent-hooks/deny-replay-stats.jsonl" | wc -l | tr -d ' ')" == 1 ]]
+
+echo "JSONL hooks smoke: bol denies incomplete briefs + build briefs without a runnable check; concurrency gate denies the 6th subagent; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call"
