@@ -111,6 +111,20 @@ one orphaned by a terminated subagent notifies nobody (c48c0d3a: 2h40m dead). Ne
 listener: a trailing `| tail` reports `tail`'s status, so `exit 2` reads as success — judge it by
 validated JSON, never by exit code.
 
+`pending` is neither proof of failure nor licence to wait forever; it is a TERMINATING
+PROCEDURE. Within the bound, keep waiting. Bound expires still `pending` → re-prompt the worker
+ONCE with the literal path from `result --path <name>`, then one more bounded wait. Only then may
+a pane capture stand in, always labelled UNCONFIRMED — a scrape is never a verified answer and
+never a basis for shipping. `assign` warns `result-path delivery UNCONFIRMED` when it could not
+confirm the worker was told that path; a worker that never learned it can NEVER write result.json,
+so its `pending` is permanent (2026-08-30: agy dropped both injected prefixes during a 95s boot,
+its own transcript proving it never saw the path, and the answer existed only in the pane).
+Teardown order is fixed: stand the proxy DOWN BEFORE stopping the worker it supervises — stopping
+first strands the proxy on a signal that can no longer arrive (c48c0d3a, 12s apart). And never
+brief a proxy to return the worker's output verbatim: §4 forbids it from reading that output, and
+when result.json is `pending` the brief is unsatisfiable by any legal means. Have the WORKER write
+findings to a declared artifact path and read that file yourself.
+
 Concurrency cap (2026-08-21 user ruling; dispatch itself is the top friction source on
 record — sessions that delegated drew 26× the corrections of sessions that did not): at most
 3 live subagents per session before a warning, hard stop at 5, enforced by the
