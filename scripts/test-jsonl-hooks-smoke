@@ -141,12 +141,16 @@ printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{
 ledger_for c11 "$RUN0";            [[ "$(run_claim c11 'see above' "$TR4")" == block ]]               || { echo "FAIL: ✅ title without quoted evidence not blocked" >&2; exit 1; }
 ledger_for c12 "$RUN0";            [[ -z "$(run_claim c12 'exit=0' "$TR4")" ]]                        || { echo "FAIL: ✅ title with bound evidence blocked" >&2; exit 1; }
 
-# bol: build-shaped brief must carry a runnable check; research brief need not
-if run_bol 'GOAL: implement retry in client.ts ACCEPTANCE: retries work REPORT: summary'; then echo "FAIL: build brief without runnable check not blocked" >&2; exit 1; fi
-run_bol 'GOAL: implement retry in client.ts ACCEPTANCE: `npm test` exits 0 REPORT: exit code + key lines' || { echo "FAIL: build brief with backtick command blocked" >&2; exit 1; }
-run_bol 'GOAL: fix flaky test ACCEPTANCE: flutter test test/reward exits 0 REPORT: exit code' || { echo "FAIL: build brief with bare runner blocked" >&2; exit 1; }
-run_bol 'GOAL: Answer: which SDK version ACCEPTANCE: every claim cited REPORT: path + summary' || { echo "FAIL: research brief blocked for lacking a command" >&2; exit 1; }
-tail -4 "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" | head -1 | jq -e '.result == "fail" and .missing == ["RUNNABLE_CHECK"] and .blocked == true' >/dev/null
+# bol: prose shape is no longer judged (runnable-check heuristic retired
+# 2026-08-30 under the kernel's do-not-mechanize-judgment rule). A declared
+# proxy brief still has its fields checked.
+run_bol 'GOAL: implement retry in client.ts ACCEPTANCE: retries work REPORT: summary' || { echo "FAIL: brief blocked for lacking a command" >&2; exit 1; }
+run_bol 'GOAL: Answer: which SDK version ACCEPTANCE: every claim cited REPORT: path + summary' || { echo "FAIL: research brief blocked" >&2; exit 1; }
+if run_bol 'PROXY_MODE: agent-tmux-assign
+GOAL: host one assign ACCEPTANCE: it returns
+REPORT
+exit code + status/summary only; do not read or reproduce worker output.'; then echo "FAIL: proxy brief without WORKER_ARTIFACT not blocked" >&2; exit 1; fi
+tail -1 "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" | jq -e '.result == "fail" and .missing == ["SCHEMA"] and .blocked == true' >/dev/null
 
 # deny-replay: the same (tool, input) that a gate BLOCKED earlier is short-circuited; a fresh input and a plain error are not
 TR5="$WORK/transcript-deny.jsonl"
@@ -163,4 +167,4 @@ run_deny 'ls -la'    || { echo "FAIL: a fresh call was blocked" >&2; exit 1; }
 check_jsonl "$TEST_DATA/agent-hooks/deny-replay-stats.jsonl" 3 '(.tool=="Bash") and (.replay_blocked|type)=="boolean"'
 [[ "$(jq -r 'select(.replay_blocked==true)|.tool' "$TEST_DATA/agent-hooks/deny-replay-stats.jsonl" | wc -l | tr -d ' ')" == 1 ]]
 
-echo "JSONL hooks smoke: bol denies incomplete briefs + build briefs without a runnable check; concurrency gate denies the 6th subagent; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call"
+echo "JSONL hooks smoke: bol denies incomplete briefs + proxy briefs missing declared fields; concurrency gate denies the 6th subagent; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call"

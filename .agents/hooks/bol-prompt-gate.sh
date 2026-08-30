@@ -59,8 +59,8 @@ case "$SUBAGENT_TYPE" in
         log_stat "fail" "$missing_json" true "$live"
         echo "BLOCKED: delegated Agent prompt is missing sections: ${missing_csv}. Every delegation brief carries GOAL, ACCEPTANCE and REPORT (model-dispatch.md §3; templates in ~/.agents/skills/delegation-templates/SKILL.md). Rewrite the prompt with all three and dispatch again." >&2
       else
-        log_stat "fail" '["RUNNABLE_CHECK"]' true "$live"
-        echo "BLOCKED: ${output#FAIL: }. A build-shaped brief ships with the command that proves it (delegation-templates §2/§3: \`{test command}\` exits 0, VERIFY BEFORE REPORTING: run {command}). Add it and dispatch again." >&2
+        log_stat "fail" '["SCHEMA"]' true "$live"
+        echo "BLOCKED: ${output#FAIL: }" >&2
       fi
       exit 2
     fi
