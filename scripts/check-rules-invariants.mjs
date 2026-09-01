@@ -122,7 +122,7 @@ const privatePatterns = [
 ].join('|');
 // Plain grep, not `git grep`: deploy.sh runs this check inside the downloaded
 // tarball tree, which has no .git. The tarball holds exactly the tracked files.
-const sensitivePaths = ['.agents', '.claude/handoffs', 'scripts']
+const sensitivePaths = ['.agents', '.claude/handoffs', 'scripts', 'skills']
   .filter((p) => existsSync(join(ROOT, p)));
 const sensitive = spawnSync('grep', ['-rnE', privatePatterns, ...sensitivePaths],
   { cwd: ROOT, encoding: 'utf8' });
