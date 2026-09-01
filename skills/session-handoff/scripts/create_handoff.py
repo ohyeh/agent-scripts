@@ -232,7 +232,7 @@ def generate_handoff(
 
 ## Session Metadata
 - Created: {timestamp}
-- Project: {project_path}
+- Project: {project_path.replace(str(Path.home()), "~")}
 - Branch: {branch_line}
 - Session duration: [estimate how long you worked]
 
@@ -375,7 +375,7 @@ def main():
     print(f"1. Open {filepath}")
     print(f"2. Replace [TODO: ...] placeholders with actual content")
     print(f"3. Focus especially on 'Important Context' and 'Immediate Next Steps'")
-    print(f"4. Run: python validate_handoff.py {filepath}")
+    print(f"4. Run: python ~/.agents/skills/session-handoff/scripts/validate_handoff.py {filepath}")
     print(f"   (Checks for completeness and accidental secrets)")
 
     return filepath

@@ -64,14 +64,17 @@ def check_required_sections(content: str) -> tuple[bool, list[str]]:
     missing = []
     for section in REQUIRED_SECTIONS:
         # Look for section header
-        pattern = rf'(?:^|\n)##?\s*{re.escape(section)}'
+        # The scaffold emits some of these at h3 and some at h2, so match any
+        # heading level; the section ends at the next heading of the SAME or a
+        # higher level, never at its own subheadings.
+        pattern = rf'(?:^|\n)(#{{2,6}})\s*{re.escape(section)}'
         match = re.search(pattern, content, re.IGNORECASE)
         if not match:
             missing.append(f"{section} (missing)")
         else:
-            # Check if section has meaningful content (not just placeholder)
+            level = len(match.group(1))
             section_start = match.end()
-            next_section = re.search(r'\n##?\s+', content[section_start:])
+            next_section = re.search(rf'\n#{{2,{level}}}\s+', content[section_start:])
             section_end = section_start + next_section.start() if next_section else len(content)
             section_content = content[section_start:section_end].strip()
 
@@ -86,7 +89,7 @@ def check_recommended_sections(content: str) -> list[str]:
     """Check which recommended sections are missing."""
     missing = []
     for section in RECOMMENDED_SECTIONS:
-        pattern = rf'(?:^|\n)##?\s*{re.escape(section)}'
+        pattern = rf'(?:^|\n)#{{2,6}}\s*{re.escape(section)}'
         if not re.search(pattern, content, re.IGNORECASE):
             missing.append(section)
     return missing
