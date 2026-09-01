@@ -85,7 +85,7 @@ reading touched code.
   the same change.
 - Refactors/experiments: new branch. Show `git status`/`git diff` after edits;
   commit only when authorized, else flag.
-- Delegated long waits: blocking/event-driven, never fixed polling. Scratch
+- Delegated long waits: blocking/event-driven, never a bare `sleep N`. Scratch
   files → session scratchpad, never repo root.
 
 ## Tools

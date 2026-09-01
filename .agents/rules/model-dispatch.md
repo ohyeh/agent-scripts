@@ -101,6 +101,12 @@ included — the gate cannot verify the reaping premise) and parent foreground
 2026-08-08, W32 M5); a fallback harvest runs as a background task, reason logged. Inside a proxy
 or background fallback, judge `result --json` as `.present` → `.valid` → `.body.status`, then `stop`.
 
+Every delegated wait MUST have an explicit terminal condition and an enforced
+wall-clock deadline before its first wait or poll call. Prefer a blocking/event-driven
+wait; if the tool has none, poll only that condition within the same deadline.
+An attempt count alone is not a deadline. Expiry ends that wait; starting it
+again with materially identical inputs is a retry.
+
 Backgrounded is NOT terminal (measured 2026-08-30): the harness reaps a foreground Bash call at
 ~600s, and the reaped proxy cannot wait on the task — a subagent has no `TaskOutput` — so it can
 only report in-flight. Any non-terminal proxy report is a dispatch PROTOCOL FAILURE, never
