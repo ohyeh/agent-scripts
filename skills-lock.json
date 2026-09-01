@@ -272,10 +272,10 @@
       "computedHash": "3b5df2907c2b69e105b317552a9dffd7314e9642a033b98095e1eb519f782768"
     },
     "session-handoff": {
-      "source": "softaworks/agent-toolkit",
+      "source": "ohyeh/agent-scripts",
       "sourceType": "github",
       "skillPath": "skills/session-handoff/SKILL.md",
-      "computedHash": "8a73adac79d965a57dc5e898a498c479b749a8fad5ba03b08aa033ad9b710437"
+      "computedHash": "02c06127076af4d82ac9c4cf3314ea30a7e4eb8e77a5b98611db9672665a67f6"
     },
     "shared-memory-intake": {
       "source": "ohyeh/agent-scripts",
