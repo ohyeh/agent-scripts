@@ -150,3 +150,8 @@ Status: proposed
 Rule: 不要手工造 runtime 已直接量測的代理指標。context 成本看 `/context`／statusline 的真實 token，不用 repo script 數 bytes；按需讀取的 routed 檔更不佔每 session 成本。
 Evidence: handoff 2026-08-26-134554／-144749／-224627／2026-08-27-014357 皆記「Layer 0 rulesBytes over baseline is still red」；本輪退役全部三個 budget 檢查後 `14/14 passed`。
 Status: proposed
+
+## 2026-09-01 | scope: waits | trigger: 質疑 model-dispatch §4 的 wait 契約是為假想敵而寫，實測後推翻
+Rule: delegated wait 的 deadline 規則有實證基礎，勿再以「沒發生過」為由刪減；要改先量。
+Evidence: 24h 內 9 個 sleep 條件迴圈，4 個無 deadline（b2a2306b、37fc267e 等）；b2a2306b 兩次 `Command timed out after 2m 0s`。寫對的兩個（`SECONDS+560`、`timeout 900`）出自同一天同一批工具。
+Status: proposed
