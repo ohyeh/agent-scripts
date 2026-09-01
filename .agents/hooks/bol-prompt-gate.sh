@@ -57,7 +57,13 @@ case "$SUBAGENT_TYPE" in
       if [ -n "$missing_csv" ]; then
         missing_json="$(printf '%s' "$missing_csv" | tr ',' '\n' | jq -R . | jq -s -c .)"
         log_stat "fail" "$missing_json" true "$live"
-        echo "BLOCKED: delegated Agent prompt is missing sections: ${missing_csv}. Every delegation brief carries GOAL, ACCEPTANCE and REPORT (model-dispatch.md §3; templates in ~/.agents/skills/delegation-templates/SKILL.md). Rewrite the prompt with all three and dispatch again." >&2
+        echo "BLOCKED: delegated Agent prompt is missing sections: ${missing_csv}. Every delegation brief carries GOAL, ACCEPTANCE and REPORT (model-dispatch.md §3). Rewrite using this skeleton and dispatch again:
+
+GOAL: <one sentence: the outcome, not the activity>
+ACCEPTANCE: <the check that proves it, runnable where possible>
+REPORT: <what to return, and the artifact path to write it to>
+
+Fuller templates per work shape (SEARCH/IMPLEMENT/REFACTOR/RESEARCH/REVIEW): ~/.agents/skills/delegation-templates/SKILL.md" >&2
       else
         log_stat "fail" '["SCHEMA"]' true "$live"
         echo "BLOCKED: ${output#FAIL: }" >&2
