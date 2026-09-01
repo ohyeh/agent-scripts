@@ -8,7 +8,6 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const BASELINE_PATH = join(ROOT, 'evals/context-budget-baseline.json');
 
 const results = [];
 const check = (name, ok, detail = '') =>
@@ -22,9 +21,13 @@ const agentsMd = read('global/AGENTS.md');
 check('global-identical', claudeMd === agentsMd,
   'global/CLAUDE.md vs global/AGENTS.md');
 
-// 2. size: no per-file line cap (retired 2026-08-25 — line counts measure
-// wrapping, not content, and were passed by reflowing prose). Growth is
-// governed by the byte budget baseline below (check 8), which only moves down.
+// 2. size: no cap. The line cap was retired 2026-08-25 (line counts measure
+// wrapping, not content, and were passed by reflowing prose); the byte budget
+// baseline was retired 2026-09-01 for the same class of reason — it counted
+// bytes as a proxy for context cost while the runtime already reports real
+// token usage (/context, statusline), and rulesBytes counted routed files
+// that are read on demand and cost nothing per session. Growth is governed by
+// review, not by a number.
 const ruleFiles = readdirSync(join(ROOT, '.agents/rules'))
   .filter((f) => f.endsWith('.md'));
 
@@ -126,40 +129,6 @@ const sensitive = spawnSync('grep', ['-rnE', privatePatterns, ...sensitivePaths]
 check('public-sensitive-literals', sensitive.status === 1,
   sensitive.status === 1 ? 'no private fleet literals'
     : (sensitive.stdout.trim() || `grep exit ${sensitive.status}: ${sensitive.stderr.trim()}`));
-
-// 8. context budget vs baseline
-const skillDirs = readdirSync(join(ROOT, 'skills'))
-  .filter((d) => statSync(join(ROOT, 'skills', d)).isDirectory());
-let skillDescBytes = 0;
-for (const d of skillDirs) {
-  const p = join(ROOT, 'skills', d, 'SKILL.md');
-  if (!existsSync(p)) continue;
-  const fm = readFileSync(p, 'utf8').match(/^---\n([\s\S]*?)\n---/);
-  const desc = fm?.[1].match(/^description:\s*([\s\S]*?)(?=\n\w+:|$)/m)?.[1] ?? '';
-  skillDescBytes += Buffer.byteLength(desc.trim());
-}
-const budget = {
-  globalBytes: Buffer.byteLength(claudeMd),
-  rulesBytes: ruleFiles.reduce(
-    (a, f) => a + Buffer.byteLength(read(`.agents/rules/${f}`)), 0),
-  skillDescBytes,
-};
-if (process.argv.includes('--accept')) {
-  // Deliberate budget growth: write the current sizes back as the new baseline
-  // so the increase lands in the same reviewed diff.
-  writeFileSync(BASELINE_PATH, JSON.stringify(budget, null, 2) + '\n');
-  console.log(`accepted new baseline: ${JSON.stringify(budget)}`);
-}
-if (existsSync(BASELINE_PATH)) {
-  const base = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
-  for (const k of Object.keys(budget)) {
-    check(`budget ${k}`, budget[k] <= base[k],
-      `${budget[k]} vs baseline ${base[k]}`);
-  }
-} else {
-  check('budget baseline', false,
-    `missing ${BASELINE_PATH} — create it with: ${JSON.stringify(budget)}`);
-}
 
 let failed = 0;
 for (const r of results) {

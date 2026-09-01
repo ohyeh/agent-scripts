@@ -62,13 +62,21 @@ Hard constraints (close the approval bypass):
   approved diff; the `proposed → adopted` flip happens in that same approved commit.
 
 ## §4 Size limits and pruning
-- No per-file line cap (retired 2026-08-25: line counts measure wrapping, not content,
-  and were passed by reflowing prose). Growth is governed by the byte budget baseline in
-  `scripts/check-rules-invariants.mjs` (`rulesBytes`/`globalBytes`), which only moves
-  down; `deploy.sh` refuses to ship while it is red. `~/.claude/CLAUDE.md` stays index +
+- No size cap and no byte budget. The line cap went 2026-08-25 (line counts measure
+  wrapping, not content, and were passed by reflowing prose); the byte budget went
+  2026-09-01 for the same class of reason — bytes were a proxy for context cost the
+  runtime already reports directly (`/context`, statusline), and `rulesBytes` counted
+  routed files that are read on demand and cost nothing per session. Growth is governed
+  by review. Never trim unrelated rules to make room for an addition — that is the
+  reflow trick again. `~/.claude/CLAUDE.md` stays index +
   hard rules only — detail moves to a rules/ file behind one routing line.
 - `rules/lessons.md`: at 40 entries, propose a consolidation pass to the user (fold
   adopted lessons into their target rules file, delete retired ones).
+- `Version:` is a policy EDITION label bumped by the periodic review below,
+  NOT a drift signal: it held at `4.24.0-ironlaws` across 8 commits while a
+  host ran 3-day-old kernels (session 76409ec8). Provenance drift →
+  `scripts/check-deploy-drift.sh` vs `deploy-log.jsonl`; content drift stays
+  with the full-file comparison. Neither replaces the other.
 - Periodic review — ~monthly or every ~50 sessions: run `/insights` and `/doctor`
   (where the runtime provides them), process every `proposed` lesson with the user,
   fold confirmed frictions into rules, prune rules that stopped earning their place,

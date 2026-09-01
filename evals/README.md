@@ -2,11 +2,14 @@
 
 ## Static invariants（現行）
 `node scripts/check-rules-invariants.mjs` — 全 PASS 才 exit 0。涵蓋：
-global 兩檔 byte-identical、每檔 ≤150 行、Gates 表引用的 rule 檔存在
-（lessons.md 為 local-only 豁免）、✈ canary 條款存在、context budget
-不得超過 `context-budget-baseline.json`。
+global 兩檔 byte-identical、Gates 表引用的 rule 檔存在（lessons.md 為
+local-only 豁免）、✈ canary 條款存在、deploy 的 pinned-SHA 流程、fixture
+schema、public 檔不含私有 fleet 字面值。
 
-要合法增加 budget：同一個 PR 更新 baseline，diff 即證據。
+大小不設限：行數上限 2026-08-25 退役，byte budget 2026-09-01 退役
+（bytes 只是 context 成本的代理，runtime 已直接回報真實 token；且
+`rulesBytes` 計入的 routed 檔是按需讀取，不佔每 session 成本）。成長由
+review 把關，不由數字。
 
 ## Behavioral fixtures（schema 已定，runner 未實作）
 放 `evals/fixtures/*.json`，一檔一案：

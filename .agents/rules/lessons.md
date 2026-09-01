@@ -145,3 +145,8 @@ Status: proposed
 Rule: reviewer 只能以 rubric 或凍結的 ACCEPTANCE 判 BLOCK；a11y 細節是 NOTE 不開修正輪。polish 第一版先給人看方向，再決定要不要 review。缺 `VERDICT:` 行是 reviewer 格式缺陷，重問同一個，不再開一個。
 Evidence: turn_aborted duration_ms=2679579；spawn_agent ×5、wait_agent 600000 ×5；SKILL.md 原本已有「Hard cap two fix rounds」仍被跑到第 4 輪——每輪都用新 a11y 缺口當 BLOCK，所以上限形同無效。
 Status: proposed
+
+## 2026-09-01 | scope: gates | trigger: byte budget (`rulesBytes`) 擋住 fleet deploy 至少三天、跨四份 handoff 未解；本輪又逼出「刪無關規則來換空間」的念頭
+Rule: 不要手工造 runtime 已直接量測的代理指標。context 成本看 `/context`／statusline 的真實 token，不用 repo script 數 bytes；按需讀取的 routed 檔更不佔每 session 成本。
+Evidence: handoff 2026-08-26-134554／-144749／-224627／2026-08-27-014357 皆記「Layer 0 rulesBytes over baseline is still red」；本輪退役全部三個 budget 檢查後 `14/14 passed`。
+Status: proposed
