@@ -226,6 +226,7 @@ hook_install "$SRC/.agents/hooks/tmux-assign-host-gate.sh"
 hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
 hook_install "$SRC/.agents/hooks/compaction-recall.sh"
 hook_install "$SRC/.agents/hooks/precompact-instructions.sh"
+hook_install "$SRC/.agents/hooks/postcompact-handoff.sh"
 hook_install "$SRC/.agents/hooks/evidence-tokens.sh"
 hook_install "$SRC/.agents/hooks/claim-evidence-gate.sh"
 hook_install "$SRC/.agents/hooks/subagent-concurrency-gate.sh"
@@ -245,6 +246,7 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
    --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
    --arg recall "\"\$HOME/.agents/hooks/compaction-recall.sh\"" \
    --arg precompact "\"\$HOME/.agents/hooks/precompact-instructions.sh\"" \
+   --arg postcompact "\"\$HOME/.agents/hooks/postcompact-handoff.sh\"" \
    --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
    --arg conc "\"\$HOME/.agents/hooks/subagent-concurrency-gate.sh\"" \
    --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" '
@@ -271,12 +273,13 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
   | ensureMatched("PostToolUse"; "*"; $ledger)
   | ensureMatched("SessionStart"; "compact"; $recall)
   | ensure("PreCompact"; $precompact)
+  | ensure("PostCompact"; $postcompact)
   | ensure("Stop"; $claim)
   | ensureMatched("PreToolUse"; "Agent"; $conc)
   | ensureMatched("PreToolUse"; "*"; $deny)
 ' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate deny-replay-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall precompact-instructions; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate deny-replay-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall precompact-instructions postcompact-handoff; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1
