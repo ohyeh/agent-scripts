@@ -109,6 +109,9 @@ retry of the same idea is forbidden (retry budget in `rules/model-dispatch.md` �
 - [ ] You are fighting the framework/library (patching internals, copying private code).
 - [ ] The explanation of why it will work this time requires more than 3 sentences.
 - [ ] You dispatched another agent while the last one's finding sits unaddressed.
+- [ ] Outside a declared bounded Monitor wait, the same command with materially
+      identical inputs returns the same failure twice — hard signal: do not run
+      it a third time; change hypothesis.
 - [ ] The user re-pastes the same correction they already gave — hard signal the last
       fix never landed: stop the current path, read the named asset in full, then answer.
 When triggered: stop; write down (a) what was assumed, (b) which assumption the evidence now
