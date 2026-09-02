@@ -11,10 +11,11 @@
 #
 # Threshold data: the three sessions the user called 失智 compacted 3, 4 and 1
 # times (the 1 lost an instruction at that single compaction); healthy sessions
-# that day compacted 0–1. Escalate at 3.
+# that day compacted 0–1. Escalated at 3 until 2026-09-02; raised to 6 to measure
+# whether the PostCompact handoff file (postcompact-handoff.sh) removes the loss.
 set -u
 
-MAX_COMPACTIONS=3
+MAX_COMPACTIONS=6
 MAX_PROMPTS=20
 MAX_PROMPT_CHARS=200
 MAX_TOTAL_BYTES=6000
@@ -44,6 +45,15 @@ prompts="$(jq -r --arg max "$MAX_PROMPT_CHARS" --arg hdr "$HEADER" '
 out="$HEADER
 $(printf '%s\n' "$prompts" | sed 's/^/- /')
 Compactions in this session: $compactions. Re-derive current goal and title status from these, not from the summary alone."
+
+# Point at the file postcompact-handoff.sh just wrote so the model can read the
+# full summary back if the re-injected context above looks incomplete.
+CWD="$(printf '%s' "$IN" | jq -r '.cwd // empty')"
+latest_handoff="$(ls -t "${CWD:-.}"/.claude/handoffs/*-compact*.md 2>/dev/null | head -n 1)"
+if [ -n "$latest_handoff" ]; then
+  out="$out
+Latest compact handoff: ${latest_handoff/#$HOME/\~}. Read it before acting if the summary above seems incomplete."
+fi
 
 if [ "$compactions" -ge "$MAX_COMPACTIONS" ]; then
   out="$out
