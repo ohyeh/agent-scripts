@@ -8,10 +8,12 @@
 // Doctrine baked in (per repo owner):
 //   - Truth = code / logs / real operations, NOT memory or stale docs/threads.
 //     An open thread does NOT mean "unfixed" — verify against code (Phase 0 + 3).
-//   - Authority: user > codex >= orchestrator(self) > sonnet workers.
+//   - Authority: user > external second model (when configured) >= orchestrator(self) > workers.
 //   - Don't rubber-stamp the bot. The brain knows the diff before the bot speaks.
 //   - High-stakes / low-confidence calls escalate: T1 self -> T2 worker panel ->
-//     T3 internal adversarial consensus THEN external codex consensus.
+//     T3 deciding pass (args.externalAgentType when given, else a FRESH Claude opus agent).
+//   - MODEL POLICY (user ruling 2026-09-02): floor opus low; triage/verify/land never sonnet.
+//     `fixModel` (default opus) is the only knob where 'sonnet' is permitted — it implements fixes.
 //
 //   Workflow({ scriptPath: "~/.claude/workflows/pr-review-triage-resolve.workflow.js", args: {
 //     repoPath: "/abs/path/to/repo",
@@ -22,7 +24,9 @@
 //     triggerScript: "scripts/pr/trigger-codex-review.sh",  // REQUIRED; repo-relative. Owns the account guard — no default, no raw `gh pr comment` fallback
 //     account: { login: "...", id: "..." },        // optional account-guard for the trigger script
 //     wait: { minGraceSec: 600, quietWindowSec: 120, maxTimeoutSec: 1800 },  // optional, these are defaults
-//     sonnetTries: 2,                              // worker attempts before escalating to self
+//     workerTries: 1,                              // fix-worker attempts before escalating to self
+//     fixModel: "opus",                            // optional; implementer model for Fix rung ('sonnet' allowed here only)
+//     externalAgentType: null,                     // optional second-model agent type; null = fresh Claude opus (never a codex dependency)
 //     ledgerPath: ".workflow/pr-review/<prRef>/ledger.json",  // optional, repo-relative; default derived from prRef
 //     orchestratorModel: null                      // optional; null = inherit session model for self-rung agents
 //   }})
@@ -58,10 +62,14 @@ const prNum = (prRef.match(/(\d+)\s*$/) || [])[1] || prRef
 if (!/^\d+$/.test(prNum)) return { aborted: true, reason: `cannot derive PR number from prRef: ${prRef}` }
 const baseRef = a.baseRef || 'origin/main'
 const wait = Object.assign({ minGraceSec: 600, quietWindowSec: 120, maxTimeoutSec: 1800 }, a.wait || {})
-const sonnetTries = Number.isInteger(a.sonnetTries) ? a.sonnetTries : 2
+const workerTries = Number.isInteger(a.workerTries) ? a.workerTries : 1
+const model = 'opus'                          // floor for triage / panel / land agents (never sonnet)
+const fixModel = a.fixModel || 'opus'         // Fix implementer — the one role where 'sonnet' is permitted
 const ledgerPath = a.ledgerPath || `.workflow/pr-review/${prNum}/ledger.json`
 const orchModel = a.orchestratorModel || undefined
-const externalAgentType = a.externalAgentType || 'codex:codex-rescue' // second-model rung; if unavailable, agent() -> null is handled
+// T3 / top rung: an external second-model agent type when the caller has one; otherwise a FRESH
+// Claude opus agent (independent context). No codex default — never depend on codex availability.
+const externalOpts = a.externalAgentType ? { agentType: a.externalAgentType } : { model: 'opus', effort: 'high' }
 if (typeof a.triggerScript !== 'string' || !a.triggerScript) {
   return { aborted: true, reason: 'args.triggerScript is required (repo-relative script that summons the bots; it owns the account guard)' }
 }
@@ -172,15 +180,15 @@ const RESOLVE_SCHEMA = {
   },
 }
 
-// Escalation ladder: sonnet worker x sonnetTries -> orchestrator self -> codex.
+// Escalation ladder: fix worker x workerTries -> orchestrator self -> external / fresh opus.
 async function runEscalated(label, phaseName, makePrompt, schema) {
-  for (let i = 0; i < Math.max(1, sonnetTries); i++) {
-    const r = await agent(makePrompt('sonnet worker'), { label: `${label}:w${i + 1}`, phase: phaseName, model: 'sonnet', schema })
+  for (let i = 0; i < Math.max(1, workerTries); i++) {
+    const r = await agent(makePrompt(`${fixModel} worker`), { label: `${label}:w${i + 1}`, phase: phaseName, model: fixModel, schema })
     if (r) return { result: r, rung: `worker#${i + 1}` }
   }
   const self = await agent(makePrompt('orchestrator (self) — workers failed, you handle it'), { label: `${label}:self`, phase: phaseName, model: orchModel, schema })
   if (self) return { result: self, rung: 'self' }
-  const cx = await agent(makePrompt('external second model — self could not complete; deep pass'), { label: `${label}:external`, phase: phaseName, agentType: externalAgentType, schema })
+  const cx = await agent(makePrompt('independent deciding pass — self could not complete; fresh context, deep pass'), { label: `${label}:external`, phase: phaseName, ...externalOpts, schema })
   return { result: cx, rung: 'external' }
 }
 
@@ -224,7 +232,7 @@ STEP B — WAIT for the review with a DETACHED POLL (a single bash call caps ~10
   - If ${wait.maxTimeoutSec}s elapse first: completed_reason='timeout' (return whatever NEW threads exist).
   - If timeout AND zero new threads: completed_reason='no-response', ok=false (do NOT proceed on empty findings).
 Return new_thread_ids (node ids not in baseline) + responded_bots.`,
-  { label: 'trigger+wait', phase: 'Trigger', model: 'sonnet', schema: WAIT_SCHEMA }
+  { label: 'trigger+wait', phase: 'Trigger', model, effort: 'low', schema: WAIT_SCHEMA }
 )
 if (!waited || !waited.ok || !(waited.new_thread_ids || []).length) {
   return { aborted: true, stage: 'trigger-wait', reason: waited && waited.completed_reason, waited }
@@ -237,7 +245,7 @@ const ingest = await agent(
 Ingest ONLY these NEW review threads (node ids): ${JSON.stringify(waited.new_thread_ids)}.
 For each: fetch its thread + first comment via graphql. KEEP a finding iff author.login (lowercased, "[bot]" stripped) is in [${botList}] AND the thread is isResolved=false. DROP human-authored threads and already-resolved ones.
 Return findings: { thread_id (node id), comment_id (databaseId, as string), file (path), line, summary (the bot's claim, condensed), author, severity_claimed }.`,
-  { label: 'ingest', phase: 'Ingest', model: 'sonnet', schema: INGEST_SCHEMA }
+  { label: 'ingest', phase: 'Ingest', model, effort: 'low', schema: INGEST_SCHEMA }
 )
 if (!ingest || !ingest.ok || !Array.isArray(ingest.findings)) {
   return { aborted: true, stage: 'ingest', note: 'ingest agent failed', waited, ingest } // failure != empty
@@ -272,9 +280,9 @@ const triaged = await pipeline(
     const highStakes = v.severity === 'P0' || v.verdict === 'already-fixed'
     const needPanel = v.confidence !== 'high' || highStakes
     if (!needPanel) return { finding: f, verdict: v, tier: 'T1', escalated: false }
-    // T2: independent panel of 3 sonnet verifiers — FULL quorum (4 votes) required.
+    // T2: independent panel of 3 opus verifiers — FULL quorum (4 votes) required.
     const panel = await parallel([0, 1, 2].map(i => () =>
-      agent(triagePrompt(f)(`independent verifier #${i + 1} (challenge the proposed verdict "${v.verdict}")`), { label: `triage:${f.thread_id}:panel${i + 1}`, phase: 'Triage', model: 'sonnet', schema: TRIAGE_SCHEMA })
+      agent(triagePrompt(f)(`independent verifier #${i + 1} (challenge the proposed verdict "${v.verdict}")`), { label: `triage:${f.thread_id}:panel${i + 1}`, phase: 'Triage', model, effort: 'high', schema: TRIAGE_SCHEMA })
     ))
     const panelOk = panel.filter(Boolean)
     const votes = [v, ...panelOk]
@@ -287,10 +295,10 @@ const triaged = await pipeline(
     if (!(p0 || deadlock)) {
       return { finding: f, verdict: consensusVerdict, tier: 'T2', escalated: true, tally }
     }
-    // T3: external second-model pass is AUTHORITATIVE (schema-validated, not a note).
+    // T3: the deciding pass is AUTHORITATIVE (schema-validated, not a note) — external agent type when configured, else a fresh opus agent.
     const t3 = await agent(
-      `${GH}\nHigh-stakes / deadlocked PR finding — you are the DECIDING second model. ${groundBlob}\nFINDING ${f.thread_id} @ ${f.file}:${f.line || '?'} — "${f.summary}".\nInternal panel tally: ${JSON.stringify(tally)} (votes=${votes.length}). Verify against the ACTUAL code and return the single correct verdict (accept/already-fixed/reject) WITH concrete code/commit evidence; for already-fixed you MUST cite the commit sha. Self-judge severity.`,
-      { label: `triage:${f.thread_id}:external`, phase: 'Triage', agentType: externalAgentType, schema: TRIAGE_SCHEMA }
+      `${GH}\nHigh-stakes / deadlocked PR finding — you are the DECIDING independent reviewer (fresh context). ${groundBlob}\nFINDING ${f.thread_id} @ ${f.file}:${f.line || '?'} — "${f.summary}".\nInternal panel tally: ${JSON.stringify(tally)} (votes=${votes.length}). Verify against the ACTUAL code and return the single correct verdict (accept/already-fixed/reject) WITH concrete code/commit evidence; for already-fixed you MUST cite the commit sha. Self-judge severity.`,
+      { label: `triage:${f.thread_id}:external`, phase: 'Triage', ...externalOpts, schema: TRIAGE_SCHEMA }
     )
     if (!t3) return { finding: f, verdict: null, tier: 'T3', failed: true, tally } // external unavailable/failed -> do NOT resolve this thread
     return { finding: f, verdict: t3, tier: 'T3', escalated: true, tally } // T3 verdict wins
@@ -337,7 +345,7 @@ if (fixedOk.length) {
   push = await agent(
     `${GH}
 Stage ONLY the files changed by the accepted fixes this round, commit (message references PR #${prNum}), then push (use --force-with-lease ONLY if amending an already-pushed commit).${fixFailed.length ? ` Do NOT touch the ${fixFailed.length} unverified findings.` : ''} Return head_sha + pushed.`,
-    { label: 'land:push', phase: 'Land', model: 'sonnet', schema: PUSH_SCHEMA }
+    { label: 'land:push', phase: 'Land', model, effort: 'low', schema: PUSH_SCHEMA }
   ) || { ok: false, pushed: false }
   if (!push.ok) return { aborted: true, stage: 'push', push, triage_failed: triageFailed.map(t => t.finding.thread_id) }
 }
@@ -348,7 +356,7 @@ const ledger = await agent(
 Append these ledger entries to ${repo}/${ledgerPath} (mkdir -p its dir; create as a JSON array if absent). Add to EACH entry: "round" = (prior max round in the file) + 1, and "ts" = \`date -u +%s\`. Then RE-READ the file and confirm it parses as JSON and contains the new entries. Set ledger_written=true ONLY if that re-read succeeded.
 ENTRIES:
 ${JSON.stringify(ledgerEntries, null, 2)}`,
-  { label: 'land:ledger', phase: 'Land', model: 'sonnet', schema: LEDGER_SCHEMA }
+  { label: 'land:ledger', phase: 'Land', model, effort: 'low', schema: LEDGER_SCHEMA }
 ) || { ok: false, ledger_written: false }
 if (!ledger.ok || !ledger.ledger_written) {
   // audit must survive -> resolve NOTHING; surface loudly.
@@ -362,7 +370,7 @@ The ledger is written + verified. RESOLVE each thread below: run the resolveRevi
    - accept (fixed+verified): ${JSON.stringify(resolveAccept)}
    - already-fixed:          ${JSON.stringify(resolveAlready)}
    - reject:                 ${JSON.stringify(resolveReject)}`,
-  { label: 'land:resolve', phase: 'Land', model: 'sonnet', schema: RESOLVE_SCHEMA }
+  { label: 'land:resolve', phase: 'Land', model, effort: 'low', schema: RESOLVE_SCHEMA }
 ) || { ok: false, resolved_thread_ids: [], failed_resolves: [...resolveAccept, ...resolveAlready, ...resolveReject] }
 
 return {

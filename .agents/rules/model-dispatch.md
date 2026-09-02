@@ -85,6 +85,15 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 | apply solved pattern | `sonnet` low | Terra low |
 | dispatch external CLI worker | supervision proxy: `general-purpose` subagent on `sonnet` low hosting the ONE blocking `assign` call | same (proxy hosts the one `assign`) |
 
+Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
+2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
+3.5 h): every recipe agent runs at least `opus` effort `low`; planning, synthesis, revision,
+critique, review, and verdicts NEVER run on `sonnet`. `sonnet` is allowed in a recipe only for
+implementation or read-only data gathering, and only by explicit arg. The second-model CLI
+(`cli`) is optional — never make a recipe depend on codex; absent, a fresh Claude `opus` agent is
+the second brain. The commander calls `advisor` before launch, at every gate, and before any
+resume (skill `using-workflows` §ADVISOR GATE).
+
 Before dispatch, resolve the wrapper bundle, run its `agent-tmux <cli> setup`, stop on failure.
 Then dispatch external asynchronous workers with ONE `agent-tmux <cli> assign <name> <dir>
 <prompt-file>` call; the sequence it encodes (start → result init → send --from-file → confirm

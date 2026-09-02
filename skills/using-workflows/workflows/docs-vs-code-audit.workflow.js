@@ -14,7 +14,7 @@
 //     groundTruth: "Code-verified facts the docs MUST reflect (multi-line). Verify in code before trusting any doc claim.",
 //     bannedPatterns: ["yunlin", "docs/work", "date_formatter"],  // optional: rg these in the consistency sweep
 //     docsRoot: "docs/",                          // optional, default "docs/"
-//     model: "sonnet"                             // optional, default "sonnet"
+//     model: "opus", effort: "low"                // optional; floor opus low (user ruling 2026-09-02)
 //   }})
 //
 // NOTE: workflow scripts have no FS/shell — only agents do. All file work happens inside agent() prompts.
@@ -24,8 +24,8 @@ export const meta = {
   description: 'Audit docs/ against code reality, fix in place, cross-check consistency (param via args)',
   whenToUse: 'When docs/ may have drifted from the code: per-group read-only audit against code truth, in-place fixes, then a cross-doc consistency/banned-residue sweep. Truth = code, never old docs. Sister of design-vs-code-audit (there the design is the target; here the code is).',
   phases: [
-    { title: 'Audit', detail: 'one read-only auditor per docs group', model: 'sonnet' },
-    { title: 'Fix', detail: 'same-scope fixers apply audited corrections', model: 'sonnet' },
+    { title: 'Audit', detail: 'one read-only auditor per docs group', model: 'opus' },
+    { title: 'Fix', detail: 'same-scope fixers apply audited corrections', model: 'opus' },
     { title: 'Consistency', detail: 'cross-doc contradiction + link + banned-residue sweep' },
   ],
 }
@@ -36,8 +36,8 @@ if (!Array.isArray(a.groups) || !a.groups.length) return { aborted: true, reason
 
 const repo = a.repoPath
 const docsRoot = a.docsRoot || 'docs/'
-const model = a.model || 'sonnet'   // listed on every agent() below (never omitted)
-const effort = a.effort || 'high'   // reasoning effort — "not shown" must not read as "unsupported"
+const model = a.model || 'opus'     // listed on every agent() below (never omitted); floor opus
+const effort = a.effort || 'high'    // reasoning effort — "not shown" must not read as "unsupported"
 // Official agent() opts, listed on every call. Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)

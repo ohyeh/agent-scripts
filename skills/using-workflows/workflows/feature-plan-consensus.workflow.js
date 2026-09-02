@@ -12,10 +12,14 @@
 // ORCHESTRATION: the workflow runtime ("you", the orchestrator brain) delegates each task to a
 //   worker, MONITORS the result, and corrects course. Workers are not trusted blindly.
 // ESCALATION LADDER (try cheapest capable tier first; climb on repeated failure):
-//   sonnet worker  ->  orchestrator self  ->  args.cli (counterpart second brain)  ->  surface to USER
-//   Authority/trust ranking (high→low):  USER > EXTERNAL(args.cli) >= ORCHESTRATOR(self) > sonnet/others.
-//   If the external reviewer (the top automated tier) still cannot satisfy the monitor, DO NOT force-proceed —
+//   opus worker  ->  orchestrator self  ->  args.cli (optional second brain)  ->  surface to USER
+//   Authority/trust ranking (high→low):  USER > EXTERNAL(args.cli, when given) >= ORCHESTRATOR(self) > workers.
+//   If the top automated tier still cannot satisfy the monitor, DO NOT force-proceed —
 //   return needsUser:true and stop short of any commit.
+// MODEL POLICY (user ruling 2026-09-02): floor = opus effort low. Planning, synthesis, revision,
+//   critique, and review NEVER run on sonnet. sonnet is allowed ONLY for read-only data gathering
+//   (Discover) — pass discoverModel:'sonnet' to opt in; default stays opus.
+//   The second-model CLI is OPTIONAL: no cli → the external loop runs a fresh Claude opus reviewer.
 // CORRECTNESS (non-negotiable): truth = source code, logs, and real command output observed THIS run.
 //   Memory, existing .md/.html docs, comments, and prior plans are NOT truth — they may be stale;
 //   use them only as leads to verify against code. Unverifiable claims become OPEN QUESTIONS, never assertions.
@@ -32,10 +36,13 @@
 //     designRefs: "Figma node-ids / URLs / decisions (optional)",
 //     areas:      [{ key, scope }],               // optional: skip auto-decompose
 //     maxInternalRounds: 3, maxExternalRounds: 2, // optional
-//     sonnetTries: 2, selfTries: 1,               // optional: per-task escalation budget
-//     escalateExternal: true,                     // optional, default true (legacy alias: escalateToCodex)
+//     workerTries: 1, selfTries: 1,               // optional: per-task escalation budget
+//     cli:        "codex",                        // OPTIONAL second-model CLI; absent → fresh Claude opus reviewer
+//     escalateExternal: true,                     // optional, default true; only effective when cli is given
 //     commit:     false, push: false,             // optional: git gate (= the human approval)
-//     model:      "sonnet"                        // optional, default worker model
+//     model:      "opus", effort: "low",          // optional worker floor (never below opus low)
+//     reviewEffort: "high",                       // optional: critics / external reviewer effort
+//     discoverModel: "opus"                       // optional: 'sonnet' allowed here ONLY (read-only data gathering)
 //   }})
 //
 // NOTE: workflow scripts have no FS/shell — only agents do. All reads, writes, git happen in agent() prompts.
@@ -43,14 +50,14 @@
 export const meta = {
   name: 'feature-plan-consensus',
   description: 'Supervised orchestration: new-feature brief -> v1 plan via escalation ladder + evidence doctrine + internal/second-model consensus, then gated commit',
-  whenToUse: 'When a NEW-feature brief must become a v1 implementation plan whose claims are code-verified and double-gated (internal adversarial critics + an external second-model loop via args.cli), with an escalation ladder that surfaces needsUser instead of force-proceeding. Exploratory counterpart of plan-pipeline.',
+  whenToUse: 'When a NEW-feature brief must become a v1 implementation plan whose claims are code-verified and double-gated (internal adversarial critics + a second review loop: args.cli when given, else a fresh Claude opus reviewer), with an escalation ladder that surfaces needsUser instead of force-proceeding. Exploratory counterpart of plan-pipeline.',
   phases: [
     { title: 'Orchestrate', detail: 'Step 0: establish supervision doctrine + escalation ladder' },
-    { title: 'Decompose', detail: 'split the feature into disjoint discovery areas', model: 'sonnet' },
+    { title: 'Decompose', detail: 'split the feature into disjoint discovery areas', model: 'opus' },
     { title: 'Discover', detail: 'parallel read-only Explore per area (code/logs are truth)' },
-    { title: 'Synthesize', detail: 'merge findings into a v1 plan draft', model: 'sonnet' },
-    { title: 'InternalConsensus', detail: 'adversarial claude critics, revise until consensus', model: 'sonnet' },
-    { title: 'ExternalReview', detail: 'second-model adversarial review (args.cli), revise until consensus' },
+    { title: 'Synthesize', detail: 'merge findings into a v1 plan draft', model: 'opus' },
+    { title: 'InternalConsensus', detail: 'adversarial claude critics, revise until consensus', model: 'opus' },
+    { title: 'ExternalReview', detail: 'second adversarial review (args.cli if given, else fresh Claude opus), revise until consensus' },
     { title: 'Commit', detail: 'write plan; commit/push only when consensus + approved' },
   ],
 }
@@ -61,8 +68,10 @@ const a = typeof args === 'string' ? (() => { try { return JSON.parse(args) } ca
 for (const k of ['repoPath', 'featureBrief']) if (!a[k]) return { aborted: true, reason: `missing arg: ${k}` }
 
 const repo = a.repoPath
-const model = a.model || 'sonnet'   // listed on every agent() below (escalation rungs override per-tier)
-const effort = a.effort || 'high'   // harness agents' reasoning effort
+const model = a.model || 'opus'     // worker floor (user ruling 2026-09-02: never sonnet for plan/synth/revise)
+const effort = a.effort || 'high'    // worker effort (default high; floor opus low)
+const reviewEffort = a.reviewEffort || 'high'   // critics + second reviewer
+const discoverModel = a.discoverModel || model  // the ONLY role where 'sonnet' is permitted (read-only data gathering)
 // Official agent() opts, listed on every call. Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)
@@ -75,23 +84,22 @@ const outDir = `${repo}/.workflow/${slug}`
 const planPath = `${outDir}/plan.md`
 const maxInternal = Number.isInteger(a.maxInternalRounds) ? a.maxInternalRounds : 3
 const maxExternal = Number.isInteger(a.maxExternalRounds) ? a.maxExternalRounds : 2
-const sonnetTries = Number.isInteger(a.sonnetTries) ? a.sonnetTries : 2
+const workerTries = Number.isInteger(a.workerTries) ? a.workerTries : 1
 const selfTries = Number.isInteger(a.selfTries) ? a.selfTries : 1
-const escalateExternal = (a.escalateExternal ?? a.escalateToCodex) !== false  // legacy alias kept for old callers
 const lenses = Array.isArray(a.internalLenses) && a.internalLenses.length
   ? a.internalLenses
   : ['completeness (missing areas/tasks/edge cases)', 'sequencing & dependencies', 'risk & blast-radius', 'effort realism']
 const designRefs = a.designRefs ? `\nDesign refs / decisions (LEADS to verify, not truth):\n${a.designRefs}` : ''
 
-// The second-model reviewer is driven via tmux-agent-tools (agent-tmux <cli>), NOT a harness
-// agentType. The openai-codex plugin (codex:codex-rescue) is deprecated/disabled in settings;
-// agent-tmux works regardless of plugin enablement and across repos. Mirrors plan-pipeline /
-// consensus-gate: completion is detected by POLLING an OUT file, never the tmux pane.
-// cli is REQUIRED and neutral — NO built-in default (codex/claude are just the common ones). Each CLI's
-// launch flags come from its own agent-tmux profile (codex→--yolo, claude→--dangerously-skip-permissions);
-// EXTRA flags pass raw via a.launchEnv. charset guard blocks shell injection (cli is interpolated into commands).
-if (!/^[a-z0-9][a-z0-9._-]*$/i.test(a.cli || '')) return { aborted: true, reason: "missing/invalid arg: cli ('codex' | 'claude' | any agent-tmux profile name)" }
-const cli = a.cli
+// The second-model reviewer, WHEN a.cli is given, is driven via tmux-agent-tools (agent-tmux <cli>),
+// NOT a harness agentType; completion is detected by POLLING an OUT file, never the tmux pane.
+// cli is OPTIONAL and neutral (user ruling 2026-09-02: never depend on codex). Absent → the external
+// loop runs a fresh Claude opus reviewer (independent context, same adversarial prompt).
+// charset guard blocks shell injection (cli is interpolated into commands).
+if (a.cli != null && !/^[a-z0-9][a-z0-9._-]*$/i.test(a.cli)) return { aborted: true, reason: "invalid arg: cli ('codex' | 'claude' | any agent-tmux profile name, or omit)" }
+const cli = a.cli || null
+const externalTier = cli || 'claude-opus'
+const escalateExternal = !!cli && a.escalateExternal !== false
 const cliTimeout = Number.isInteger(a.timeoutSec) ? a.timeoutSec : 900
 const cliSession = `fpc-${cli}-${slug}`
 const REVIEW_MARKER = '=== SECOND-MODEL REVIEW END ==='
@@ -117,16 +125,16 @@ const EVIDENCE = `CORRECTNESS DOCTRINE (non-negotiable): truth = source code, lo
 const CONTEXT = `Repo: ${repo}.\n${EVIDENCE}\n\nNEW FEATURE BRIEF (a goal to plan toward; verify all "current state" against code):\n${a.featureBrief}${designRefs}`
 
 phase('Orchestrate')
-log(`Step 0 doctrine active — ladder: sonnet→self→${cli}→user (budget: sonnet x${sonnetTries}, self x${selfTries}, ${cli} ${escalateExternal ? 'on' : 'off'}); truth = code/logs only.`)
-if (!a.orchestratorModel) log(`note: orchestratorModel unset — the "self" rung inherits the main-loop model; it is a real capability step above sonnet only if the main loop runs a model above sonnet (else it is a same-model retry).`)
+log(`Step 0 doctrine active — ladder: ${model}→self→${externalTier}→user (budget: worker x${workerTries}, self x${selfTries}, external rung ${escalateExternal ? 'on' : 'off'}); models: workers=${model}/${effort}, discover=${discoverModel}, review=${model}/${reviewEffort}; truth = code/logs only.`)
+if (!a.orchestratorModel) log(`note: orchestratorModel unset — the "self" rung inherits the main-loop model; it is a real capability step only if the main loop runs a model above ${model} (else it is a same-model retry).`)
 
 // ───────────────────────── escalation ladder ─────────────────────────
 // Delegate a task; MONITOR via verify(); on rejection, climb the ladder, feeding the
 // monitor's correction into the next attempt. Returns {result, tier, attempt, ok, needsUser}.
 async function runEscalated(label, phaseName, makePrompt, opts = {}) {
-  const { schema, verify } = opts
+  const { schema, verify, workerModel } = opts
   const rungs = [
-    ...Array(sonnetTries).fill({ tier: 'sonnet', model: 'sonnet' }),
+    ...Array(workerTries).fill({ tier: workerModel || model, model: workerModel || model }),
     ...Array(selfTries).fill({ tier: 'self', model: a.orchestratorModel }), // undefined -> inherit main-loop (you)
   ]
   if (escalateExternal) rungs.push({ tier: cli, driveCli: true })
@@ -136,7 +144,7 @@ async function runEscalated(label, phaseName, makePrompt, opts = {}) {
     const r = rungs[i]
     const o = { label: `${label}:${r.tier}#${i + 1}`, phase: phaseName, effort, isolation, agentType }
     if (schema) o.schema = schema
-    if (r.model) o.model = r.model   // per-tier model (sonnet / self / cli-driven) — intentionally varies
+    if (r.model) o.model = r.model   // per-tier model (worker / self / cli-driven) — intentionally varies
     const p = makePrompt(feedback, r.tier)
     const res = await agent(r.driveCli ? driveCli(p, `/tmp/${cli}-${label.replace(/[^a-zA-Z0-9._-]/g, '_')}-${i + 1}.md`) : p, o)
     const v = verify ? await verify(res) : { ok: res != null, feedback: 'empty result' }
@@ -145,7 +153,7 @@ async function runEscalated(label, phaseName, makePrompt, opts = {}) {
     feedback = `MONITOR REJECTED the previous attempt (tier=${r.tier}): ${v.feedback}\nCorrect course and fix exactly this; do not drift.`
     log(`${label}: ${r.tier} attempt ${i + 1} rejected — ${v.feedback}`)
   }
-  log(`${label}: escalation exhausted (external reviewer ${cli} could not satisfy monitor) — surfacing to user.`)
+  log(`${label}: escalation exhausted (top rung ${rungs.at(-1).tier} could not satisfy monitor) — surfacing to user.`)
   return { result: last, tier: 'exhausted', attempt: rungs.length, ok: false, needsUser: true }
 }
 // P5 quality gate: enforce PLAN_SECTIONS as SECTION LINES (markdown headings / numbered / bold lead),
@@ -235,7 +243,7 @@ async function discoverArea(area) {
       // greenfield is allowed: existing may be empty as long as gaps or open_questions explain the work/unknowns.
       if (ex.length || gp.length || oq.length) return { ok: true }
       return { ok: false, feedback: 'all sections empty — actually probe the code (rg/fd/Read) and report existing/gaps, or list explicit open_questions for what you could not verify.' }
-    } }
+    }, workerModel: discoverModel }   // read-only data gathering: the one role where sonnet is permitted
   ).then(x => x.ok ? x.result : null)
 }
 const findings = (await parallel(areas.map(area => () => discoverArea(area)))).filter(Boolean)
@@ -261,7 +269,7 @@ while (internalRound < maxInternal) {
       `${CONTEXT}\nAdversarially critique this v1 plan through ONE lens: ${lens}. ` +
       `VERIFY each "current state" claim against the actual code (rg/Read) — flag any claim that rests on docs/memory rather than code. Set verified_against_code honestly. ` +
       `Be skeptical; default consensus=false if you find a blocker. Each issue needs concrete evidence (file:line / log) and a fix. Skip nitpicks.\n\nPLAN:\n${plan}`,
-      { label: `critic:${String(lens).split(' ')[0]}#${internalRound}`, phase: 'InternalConsensus', model, effort, isolation, agentType, schema: CRITIQUE_SCHEMA }
+      { label: `critic:${String(lens).split(' ')[0]}#${internalRound}`, phase: 'InternalConsensus', model, effort: reviewEffort, isolation, agentType, schema: CRITIQUE_SCHEMA }
     )
   ))).filter(Boolean)
   if (!critiques.length) return { aborted: true, stage: 'internal-critics', needsUser: true, round: internalRound } // all critics died -> can't trust convergence
@@ -278,19 +286,20 @@ while (internalRound < maxInternal) {
   plan = rev.result
 }
 
-// ───────────────────────── 5. External (counterpart second-brain) review loop ─────────────────────────
+// ───────────────────────── 5. External (second-brain) review loop ─────────────────────────
+// With a.cli: the counterpart CLI reviews via agent-tmux. Without: a FRESH Claude opus agent
+// (independent context — it never saw the critics or the revisions) runs the same adversarial prompt.
 phase('ExternalReview')
 let externalRound = 0, externalConsensus = false
 while (externalRound < maxExternal) {
   externalRound++
+  const extPrompt =
+    `Act as an INDEPENDENT adversarial reviewer for an implementation PLAN. Repo: ${repo}.\n${EVIDENCE}\n` +
+    `INDEPENDENTLY verify the plan's "current state" claims with rg/Read and logs/real runs — do not take the plan's or any doc's word for it. Then judge completeness, sequencing, effort realism, and unverified assumptions. ` +
+    `Set verified_against_code + default consensus=false unless genuinely sound. Each issue needs evidence (file:line/log) + fix.\n\nPLAN:\n${plan}`
   const review = await agent(
-    driveCli(
-      `Act as a second-model adversarial reviewer for an implementation PLAN. Repo: ${repo}.\n${EVIDENCE}\n` +
-      `INDEPENDENTLY verify the plan's "current state" claims with rg/Read and logs/real runs — do not take the plan's or any doc's word for it. Then judge completeness, sequencing, effort realism, and unverified assumptions. ` +
-      `Set verified_against_code + default consensus=false unless genuinely sound. Each issue needs evidence (file:line/log) + fix.\n\nPLAN:\n${plan}`,
-      `/tmp/${cli}-extreview-${slug}-${externalRound}.md`
-    ),
-    { label: `${cli}-review#${externalRound}`, phase: 'ExternalReview', model, effort, isolation, agentType, schema: CRITIQUE_SCHEMA }
+    cli ? driveCli(extPrompt, `/tmp/${cli}-extreview-${slug}-${externalRound}.md`) : extPrompt,
+    { label: `${externalTier}-review#${externalRound}`, phase: 'ExternalReview', model, effort: reviewEffort, isolation, agentType, schema: CRITIQUE_SCHEMA }
   )
   if (!review) return { aborted: true, stage: 'external-review', needsUser: true, round: externalRound } // external reviewer (top automated tier) died -> escalate to user
   const blocking = (review.blocking_issues || []).filter(i => i.severity !== 'minor')
@@ -299,7 +308,7 @@ while (externalRound < maxExternal) {
   }
   log(`external round ${externalRound}: ${blocking.length} blocking -> revise`)
   const rev = await runEscalated(`revise-external#${externalRound}`, 'ExternalReview',
-    (fb) => `${CONTEXT}\nThe external reviewer (${cli}) raised these issues; resolve each and RE-VERIFY facts in code/logs. Keep structure. Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
+    (fb) => `${CONTEXT}\nThe independent reviewer (${externalTier}) raised these issues; resolve each and RE-VERIFY facts in code/logs. Keep structure. Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
     { verify: planOk }
   )
   if (!rev.ok) return { aborted: true, stage: 'external-revise', needsUser: true, round: externalRound }

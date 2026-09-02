@@ -155,3 +155,8 @@ Status: proposed
 Rule: delegated wait 的 deadline 規則有實證基礎，勿再以「沒發生過」為由刪減；要改先量。
 Evidence: 24h 內 9 個 sleep 條件迴圈，4 個無 deadline（b2a2306b、37fc267e 等）；b2a2306b 兩次 `Command timed out after 2m 0s`。寫對的兩個（`SECONDS+560`、`timeout 900`）出自同一天同一批工具。
 Status: proposed
+
+## 2026-09-02 | scope: workflows | trigger: paul-photo-gallery plan phase (wf_24e4f4be-7b6) ran 32 agents / 182M input tokens with sonnet drafters + 4-opus critic loop; codex was a hard dependency in 5 recipes
+Rule: workflow recipes floor at opus/low; sonnet only for implementation or data gathering via explicit arg; `cli` optional (fresh Claude opus reviewer default, consensus-gate excepted); commander calls `advisor` before launch, at every gate, before resume.
+Evidence: sessions e53d8e91 (5h plan, Stop hook ×3) vs 06c3993f (32 min, opus reviewer); user ruling 「先改至少 opus low… 不可能用 sonnet 寫 plan… 少了 advisor gate」.
+Status: proposed

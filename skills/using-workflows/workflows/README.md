@@ -44,8 +44,9 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
 ## Workflows currently in this directory
 
 - **`feature-plan-consensus.workflow.js`** — supervised orchestration: turns a
-  "new feature brief" into a v1 implementation plan. Escalation ladder (sonnet →
-  orchestrator self → second brain (`args.cli`) → escalate to user), evidence
+  "new feature brief" into a v1 implementation plan. Escalation ladder (opus worker →
+  orchestrator self → second brain: `args.cli` if given, else a fresh Claude opus →
+  escalate to user; floor opus low, sonnet only via `discoverModel`), evidence
   doctrine (trust code/logs/actual output, never memory or stale .md/.html),
   internal critic consensus loop followed by external adversarial review from
   the second brain — the plan is only written and committed once both gates
@@ -239,8 +240,9 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   arg; it owns the GitHub account guard, so the recipe never falls back to a
   raw `gh pr comment`), establish code ground-truth **before** the bots speak,
   triage every thread against that truth (accept / already-fixed / reject),
-  fix only what is real through an escalation ladder (sonnet workers → self →
-  internal adversarial panel → external codex consensus), push, write a ledger
+  fix only what is real through an escalation ladder (opus workers → self →
+  internal adversarial panel → deciding pass: `externalAgentType` if set, else
+  a fresh Claude opus), push, write a ledger
   under `.workflow/pr-review/<pr>/`, and resolve every handled thread. No
   internal loop: another round = re-run with the same args. Promoted from a
   project-local recipe (53 sessions on one host) with the repo-specific

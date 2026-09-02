@@ -14,10 +14,10 @@ export const meta = {
   description: 'Evidence-driven multi-agent root-cause audit; returns ranked causes + report',
   whenToUse: 'When a bug symptom needs a verified root cause rather than a symptom patch: MECE hypothesis fan-out → evidence per hypothesis (file:line) → fail-closed adversarial verification votes → ranked causal chain with minimal fixes. Tune args.hypotheses/verifyVotes to the stakes.',
   phases: [
-    { title: 'Hypotheses', detail: 'enumerate candidate root causes', model: 'sonnet' },
-    { title: 'Evidence', detail: 'gather evidence per hypothesis', model: 'sonnet' },
-    { title: 'Verify', detail: 'adversarially test each surviving hypothesis', model: 'sonnet' },
-    { title: 'Synthesize', detail: 'rank + report', model: 'sonnet' },
+    { title: 'Hypotheses', detail: 'enumerate candidate root causes', model: 'opus' },
+    { title: 'Evidence', detail: 'gather evidence per hypothesis', model: 'opus' },
+    { title: 'Verify', detail: 'adversarially test each surviving hypothesis', model: 'opus' },
+    { title: 'Synthesize', detail: 'rank + report', model: 'opus' },
   ],
 }
 const a = typeof args === 'string' ? (() => { try { return JSON.parse(args) } catch { return {} } })() : (args || {})
@@ -29,8 +29,8 @@ const N = Math.max(1, a.hypotheses || 5)
 const VOTES = Math.max(1, a.verifyVotes || 2)
 const hints = (a.scopeHints || []).join(', ')
 // Knobs listed EXPLICITLY on every agent() call below (never omitted) so "no model/effort shown"
-// can't be misread as "unsupported". Defaults: sonnet / high.
-const model = a.model || 'sonnet'
+// can't be misread as "unsupported". Default opus/high; floor opus/low (user ruling 2026-09-02).
+const model = a.model || 'opus'
 const effort = a.effort || 'high'
 // Official agent() opts, listed on every call (none reads as "unsupported"). Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit

@@ -15,8 +15,10 @@
 //       "shellcheck scripts/foo/bar.sh",
 //       "./scripts/foo/bar.sh --help"
 //     ],
-//     model: "sonnet",                             // optional, default "sonnet" for implement/fix
-//     effort: "high", timeoutSec: 600,             // optional, external CLI reasoning effort + OUT-file poll timeout
+//     model: "opus",                               // optional, implementer model (default opus; 'sonnet' allowed HERE only — implementation)
+//     effort: "low",                               // optional, implementer effort (default low)
+//     reviewEffort: "high", timeoutSec: 600,       // optional, reviewers' effort + OUT-file poll timeout; reviewers are ALWAYS opus
+//     cli: "codex",                                // OPTIONAL second-model CLI; absent → second reviewer is a fresh Claude opus agent
 //     sessionName: "spec-c1",                       // optional, agent-tmux external session label
 //   }})
 //
@@ -32,9 +34,11 @@
 // Restating the key invariants inline matters: it protects against the implementer skimming
 // the plan file, at ~10 lines' cost. Wrapper shape: an 18-line thin workflow that just calls
 // this recipe — no need to save those shells; write them ad hoc.
-// Second-model reviewer is the external counterpart (args.cli) driven via tmux-agent-tools (agent-tmux <cli>).
-// If the CLI/agent-tmux are unavailable the driver agent() returns null; dual review is an INVARIANT, so a missing
-// reviewer ABORTS the run at the review stage — no silent degradation to single review (P2-A5).
+// Second reviewer: the external counterpart (args.cli) driven via tmux-agent-tools when cli is given; otherwise
+// a FRESH Claude opus agent (independent context). If a reviewer agent() returns null, dual review is an
+// INVARIANT, so the run ABORTS at the review stage — no silent degradation to single review (P2-A5).
+// MODEL POLICY (user ruling 2026-09-02): reviewers and finalizer are ALWAYS opus (floor opus low);
+// `model` governs the implementer only — the one role where 'sonnet' is permitted.
 //
 // NOTE: workflow scripts have no FS/shell — only agents do. All file work happens inside agent() prompts.
 // NESTING: this is a mid-level stage — do NOT call workflow() here (1-level nesting cap). Drive the
@@ -42,11 +46,11 @@
 
 export const meta = {
   name: 'spec-implement-dual-review-verify',
-  description: 'Implement a spec, dual-review (second model via args.cli + claude), apply in-spec fixes, verify (param via args)',
+  description: 'Implement a spec, dual-review (args.cli if given, else a fresh Claude opus + claude reviewer), apply in-spec fixes, verify (param via args)',
   whenToUse: 'When a written spec must become code with independent dual review and command-verified evidence — the main build pipeline. When a consensus-frozen plan.md already exists, pass a plan POINTER as the spec (see the frozen-plan preset in the header).',
   phases: [
-    { title: 'Implement', detail: 'write/edit the target per spec', model: 'sonnet' },
-    { title: 'Review', detail: 'second-model teammate (args.cli) + claude reviewer in parallel' },
+    { title: 'Implement', detail: 'write/edit the target per spec', model: 'opus' },
+    { title: 'Review', detail: 'second reviewer (args.cli if given, else fresh Claude opus) + claude reviewer in parallel' },
     { title: 'Finalize', detail: 'apply real in-spec fixes then run verify commands' },
   ],
 }
@@ -55,19 +59,20 @@ const a = typeof args === 'string' ? (() => { try { return JSON.parse(args) } ca
 for (const k of ['repoPath', 'spec']) if (!a[k]) return { aborted: true, reason: `missing arg: ${k}` }
 
 const repo = a.repoPath
-const model = a.model || 'sonnet'   // listed on every agent() below (never omitted)
-const effort = a.effort || 'high'   // the harness agents' reasoning effort
+const model = a.model || 'opus'     // IMPLEMENTER model only ('sonnet' permitted here)
+const effort = a.effort || 'high'    // implementer effort (default high; floor opus low)
+const reviewModel = 'opus'          // reviewers + finalizer: never below opus (user ruling 2026-09-02)
+const reviewEffort = a.reviewEffort || 'high'
 // Official agent() opts, listed on every call. Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)
-// Second-model reviewer driven via tmux-agent-tools (agent-tmux <cli>), NOT a harness agentType:
-// the openai-codex plugin (codex:codex-rescue) is deprecated/disabled. agent-tmux works regardless
-// of plugin enablement and across repos. Mirrors plan-pipeline / consensus-gate (file-polled).
-// cli is REQUIRED and neutral — NO built-in default (codex/claude are just the common ones). Each CLI's
-// launch flags come from its own agent-tmux profile (codex→--yolo, claude→--dangerously-skip-permissions);
-// EXTRA flags pass raw via a.launchEnv. charset guard blocks shell injection (cli is interpolated into commands).
-if (!/^[a-z0-9][a-z0-9._-]*$/i.test(a.cli || '')) return { aborted: true, reason: "missing/invalid arg: cli ('codex' | 'claude' | any agent-tmux profile name)" }
-const cli = a.cli
+// Second reviewer, WHEN a.cli is given, is driven via tmux-agent-tools (agent-tmux <cli>), NOT a harness
+// agentType; mirrors plan-pipeline / consensus-gate (file-polled). cli is OPTIONAL and neutral
+// (user ruling 2026-09-02: never depend on codex). Absent → a fresh Claude opus reviewer.
+// charset guard blocks shell injection (cli is interpolated into commands).
+if (a.cli != null && !/^[a-z0-9][a-z0-9._-]*$/i.test(a.cli)) return { aborted: true, reason: "invalid arg: cli ('codex' | 'claude' | any agent-tmux profile name, or omit)" }
+const cli = a.cli || null
+const externalTier = cli || 'claude-opus'
 const cliTimeout = Number.isInteger(a.timeoutSec) ? a.timeoutSec : 600
 // sanitize sessionName (emitted into a shell command, like slug) — fall back to a derived safe label
 const cliSession = (typeof a.sessionName === 'string' && /^[A-Za-z0-9._-]+$/.test(a.sessionName))
@@ -107,9 +112,10 @@ phase('Review')
 const reviewPrompt = (who) =>
   `Review the change just implemented against the spec below. Focus (${who}): ${focus}. ` +
   `Return a concise list of CONCRETE issues with file/line references and suggested fixes. If none, say "no issues".\n${SPEC}`
+const deepPass = reviewPrompt('independent deep pass — fresh context, verify against the real code, not the implementer\'s claims')
 const reviews = await parallel([
-  () => agent(driveCli(reviewPrompt('second-model deep pass'), `/tmp/${cli}-review-${cliSession}.md`), { label: `review:${cli}`, phase: 'Review', model, effort, isolation, agentType }),
-  () => agent(reviewPrompt('claude reviewer'), { label: 'review:claude', phase: 'Review', model, effort, isolation, agentType }),
+  () => agent(cli ? driveCli(deepPass, `/tmp/${cli}-review-${cliSession}.md`) : deepPass, { label: `review:${externalTier}`, phase: 'Review', model: reviewModel, effort: reviewEffort, isolation, agentType }),
+  () => agent(reviewPrompt('claude reviewer'), { label: 'review:claude', phase: 'Review', model: reviewModel, effort: reviewEffort, isolation, agentType }),
 ])
 // Detect BOTH reviewers symmetrically — each parallel thunk can return null on failure.
 // Dual review is an INVARIANT: a missing reviewer aborts the run; we never substitute
@@ -149,8 +155,8 @@ const fixed = await agent(
   `"within-spec" (only elaborates what the frozen line left open), "deviation" (small/reversible departure — record it, keep going), or "amendment-needed" (CONTRADICTS a frozen line). ` +
   `If ANY item is amendment-needed, do NOT edit through it: set amendment_needed=true, leave that contradiction unimplemented, and stop.\n` +
   `Report what you changed, paste verification outputs, and return the deviations honestly.\n\n` +
-  `REVIEW A (${cli}):\n${reviews[0]}\n\nREVIEW B (claude):\n${reviews[1]}\n\n${SPEC}`,
-  { label: 'fix-and-verify', phase: 'Finalize', model, effort, isolation, agentType, schema: FINALIZE_SCHEMA }
+  `REVIEW A (${externalTier}):\n${reviews[0]}\n\nREVIEW B (claude):\n${reviews[1]}\n\n${SPEC}`,
+  { label: 'fix-and-verify', phase: 'Finalize', model: reviewModel, effort: reviewEffort, isolation, agentType, schema: FINALIZE_SCHEMA }
 )
 if (!fixed) return { aborted: true, stage: 'finalize', reason: 'finalize agent failed (returned null) — implementation not verified', impl, reviews, external_available: externalAvailable, claude_available: claudeAvailable }
 // Gate on BOTH the boolean AND any amendment-needed deviation — a finalizer that sets the flag false

@@ -30,7 +30,7 @@ export const meta = {
   description: 'Loop connector: route confirmed audit findings — clustered root causes become mini-PRD briefs, singletons become a partitioned-fix list, intent questions go to the human',
   whenToUse: 'Immediately after any *-audit recipe returns confirmed findings and you want the loop to keep moving without hand-writing briefs: normalizes findings onto the findings-schema action semantics, clusters by root cause, writes one mini-PRD per cluster (feed feature-lifecycle-auto), lists singleton fixes for a partitioned fix run, and surfaces intent-challenging findings to the human. Thin by design — all heavy work is delegated downstream.',
   phases: [
-    { title: 'Cluster', detail: 'normalize action per finding + group by shared root cause', model: 'sonnet' },
+    { title: 'Cluster', detail: 'normalize action per finding + group by shared root cause', model: 'opus' },
     { title: 'Brief', detail: 'one mini-PRD per qualifying cluster (problem/why-now/scope/non-goals/done)' },
   ],
 }

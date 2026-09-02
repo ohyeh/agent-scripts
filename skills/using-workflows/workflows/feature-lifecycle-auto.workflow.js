@@ -7,7 +7,10 @@
 //                                               BUILD = spec-implement-dual-review-verify
 //
 // Layering: this shell calls the MID-level stage workflows (one nesting level — the max
-// allowed). Those stages drive the external CLI (args.cli) themselves; the shell never touches the CLI/atoms directly.
+// allowed). Those stages drive the OPTIONAL external CLI (args.cli) themselves; the shell never touches the CLI/atoms directly.
+// COMMANDER DUTY (user ruling 2026-09-02): before invoking this shell, and again at the Gate before
+// autoBuild, the commander calls `advisor` (skill using-workflows §ADVISOR GATE). The shell cannot
+// call tools; the gate lives in the commander.
 //
 //   Workflow({ name: 'feature-lifecycle-auto', args: {
 //     repoPath:   '/abs/repo',                 // REQUIRED
@@ -55,7 +58,7 @@ if (!a.repoPath || !a.brief) {
     `If it is absent or unreadable, fall back to ${GLOBAL_JOB} (expand $HOME). ` +
     `Return the parsed object of whichever existed, with an added "_source":"project"|"global". ` +
     `If neither exists, return {}. Return ONLY the object — no prose.`,
-    { label: 'read-job', phase: 'Plan', model: 'sonnet', effort: 'high', isolation: undefined, agentType: undefined, schema: { type: 'object', properties: { repoPath: { type: 'string' }, brief: { type: 'string' }, slug: { type: 'string' }, mode: { type: 'string' }, _source: { type: 'string' } }, additionalProperties: true } }   // bootstrap: literal defaults (config not read yet); typed properties pin the shape (no `required` — {} is a valid "no job file" answer)
+    { label: 'read-job', phase: 'Plan', model: 'opus', effort: 'low', isolation: undefined, agentType: undefined, schema: { type: 'object', properties: { repoPath: { type: 'string' }, brief: { type: 'string' }, slug: { type: 'string' }, mode: { type: 'string' }, _source: { type: 'string' } }, additionalProperties: true } }   // bootstrap: literal defaults (config not read yet); typed properties pin the shape (no `required` — {} is a valid "no job file" answer)
   )
   // Defense in depth: a loose structured output once wrapped the whole job as one
   // string property ({"input":"{...}"}), making every field read undefined.
@@ -80,16 +83,17 @@ const slug = a.slug || 'feature'
 // ponytail: slug guard mirrors the stage workflows — keep the shell's own boundary check.
 if (!/^[a-zA-Z0-9._-]+$/.test(slug) || slug.includes('..')) return { aborted: true, reason: `invalid slug '${slug}'` }
 // model/effort resolved once and forwarded EXPLICITLY to every nested stage + own agent (never
-// omitted — "not shown" must not read as "unsupported"). Defaults: sonnet / high.
-const model = a.model || 'sonnet'
+// omitted — "not shown" must not read as "unsupported"). Defaults: opus / low (user ruling
+// 2026-09-02: floor opus low; stages keep their reviewers on opus regardless of `model`).
+const model = a.model || 'opus'
 const effort = a.effort || 'high'
 // Official agent() opts, also forwarded to nested stages. Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)
-// Second-model CLI forwarded to every stage — REQUIRED, neutral (no codex default). Validated here so
-// the error surfaces at the shell, not deep in a child stage.
-if (!/^[a-z0-9][a-z0-9._-]*$/i.test(a.cli || '')) return { aborted: true, reason: "missing/invalid arg: cli ('codex' | 'claude' | any agent-tmux profile name)" }
-const cli = a.cli
+// Second-model CLI forwarded to every stage — OPTIONAL, neutral (never depend on codex). Absent → each
+// stage runs a fresh Claude opus reviewer. Validated here so a bad value surfaces at the shell.
+if (a.cli != null && !/^[a-z0-9][a-z0-9._-]*$/i.test(a.cli)) return { aborted: true, reason: "invalid arg: cli ('codex' | 'claude' | any agent-tmux profile name, or omit)" }
+const cli = a.cli || undefined
 
 // ── Phase 1: PLAN — delegate to the chosen mid-level workflow ──────────────────
 phase('Plan')
@@ -98,7 +102,7 @@ if (mode === 'explore') {
   plan = await workflow('feature-plan-consensus', {
     repoPath: a.repoPath, featureBrief: a.brief, slug,
     maxInternalRounds: a.maxInternalRounds, maxExternalRounds: a.maxExternalRounds,
-    cli: a.cli, model, effort, isolation, agentType, timeoutSec: a.timeoutSec,   // forward model/effort/isolation/agentType EXPLICITLY
+    cli, model, effort, reviewEffort: a.reviewEffort, discoverModel: a.discoverModel, isolation, agentType, timeoutSec: a.timeoutSec,   // forward EXPLICITLY
     commit: a.commit === true, push: a.push === true,
   })
   // success path returns planPath + internal/external; any abort sets aborted/needsUser.
@@ -157,7 +161,7 @@ const build = await workflow('spec-implement-dual-review-verify', {
   repoPath: a.repoPath,
   spec: `Implement the frozen plan at ${planPath}. Read it fully first; it is the authoritative spec (consensus-frozen / consensus-passed). Follow its file targets, behavior, and verification steps. Truth = source code and real command output, not memory.`,
   targetFile: a.targetFile,
-  cli: a.cli, model, effort, isolation, agentType, timeoutSec: a.timeoutSec, slug,   // forward model/effort/isolation/agentType + slug
+  cli, model, effort, reviewEffort: a.reviewEffort, isolation, agentType, timeoutSec: a.timeoutSec, slug,   // forward model/effort/isolation/agentType + slug
 })
 const built = !!build && !build.aborted
 return { stage: 'build', mode, passed: built, needsUser: !built, planPath, plan, build }
