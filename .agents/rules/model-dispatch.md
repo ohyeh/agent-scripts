@@ -10,9 +10,9 @@ successor is valid only after live verification per §8.
 
 | Claude tier | Current ID | Role |
 |---|---|---|
-| `sonnet` | `claude-sonnet-5` | default implementation, refactor, research, first review; at effort `low` also covers mechanical search, read-back, solved-pattern batches |
-| `opus` | `claude-opus-4-8` | architecture, hard debugging, adversarial review |
-| `fable` | `claude-fable-5` | scarce; picker rejection falls back to `opus` |
+| `opus` | `claude-opus-5` | DEFAULT worker at effort `medium` (user ruling 2026-09-02): implementation, refactor, research, first review; `high` for architecture, hard debugging, adversarial review |
+| `sonnet` | `claude-sonnet-5` | only by explicit arg: implementation or read-only data gathering; at effort `low` mechanical search, read-back, solved-pattern batches |
+| `fable` | `claude-fable-5-1` | scarce; at `low` often beats opus/sonnet on cost per task — include in any sweep; picker rejection falls back to `opus` |
 
 `haiku` RETIRED 2026-08-01 (user decision; repeated miscounts): former haiku roles run as
 `sonnet` effort `low`; where only `model` is accepted, pass `sonnet`. Claude Agent calls take
@@ -167,7 +167,8 @@ tmux worker mechanics (highest-frequency real-world failure, re-hit by ≥4 sess
 | `high` | planning, risky/adversarial review, root-cause convergence |
 | `xhigh`/`max` | only after two evidenced lower-tier failures or explicit user choice |
 
-Start at the lowest tier that can pass acceptance. Raise one step from failure evidence; first
+Effort names are NOT equivalent across models (Fable 5.1 guide): re-run the sweep when the model
+changes. Default worker = `opus` `medium`. Raise one step from failure evidence; first
 repair decomposition or missing context. Before `xhigh`/`max`, prefer bounded same-tier sampling
 plus a judge when cheaper. Workflow `agent()` calls set effort explicitly. Sol workers never
 exceed `medium`; Sol high+ is reserved for commander/plan/review.

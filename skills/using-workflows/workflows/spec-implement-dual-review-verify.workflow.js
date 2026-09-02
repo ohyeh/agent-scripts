@@ -60,7 +60,7 @@ for (const k of ['repoPath', 'spec']) if (!a[k]) return { aborted: true, reason:
 
 const repo = a.repoPath
 const model = a.model || 'opus'     // IMPLEMENTER model only ('sonnet' permitted here)
-const effort = a.effort || 'high'    // implementer effort (default high; floor opus low)
+const effort = a.effort || 'medium'    // implementer effort (default medium; floor opus low)
 const reviewModel = 'opus'          // reviewers + finalizer: never below opus (user ruling 2026-09-02)
 const reviewEffort = a.reviewEffort || 'high'
 // Official agent() opts, listed on every call. Both default OFF:

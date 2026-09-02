@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.24.0-ironlaws
+Version: 4.25.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -24,16 +24,16 @@ live source first.
   filenames, API names, technical literals stay English.
 - English terms: ASD-STE100 — one term, one meaning, one form per session;
   procedural English uses simple verbs, short sentences.
-- Narrate mid-turn only for a key finding or repeated failure; lead with
-  the outcome; end with a next step when needed. Keep each reply within the
-  provider output limit; chunk long output across turns or into files.
+- Before starting, say in one line what you are about to do; update
+  mid-turn when you find something or change course; close with a recap
+  that stands alone (found, did, next). Keep each reply within the provider
+  output limit; chunk long output across turns or into files.
 - After a correction: state the fix in one line and execute it; do not write
   an apology essay.
 - A turn that delivers a substantive result or answer MUST end with `✈` alone
   on the last line (canary; missing there → reload). Pure status/wait turns:
-  no `✈`, and preferably no turn at all — wait silently, resume only with
-  results or a blocker; drive each loop proactively toward full completion,
-  solid fixes over surface bypasses. Exceptions: required final-line formats
+  no `✈`; drive each loop proactively toward full completion, solid fixes
+  over surface bypasses. Exceptions: required final-line formats
   (`VERDICT: PASS|BLOCK`) and protocol payloads (JSON/JSONL,
   `::directive{...}`, schemas, verdicts) — emit alone, no narration.
 
@@ -108,12 +108,14 @@ replaces reading the touched code.
   piling / diff grows, acceptance no closer; full signal list:
   judgment-rubrics §4) → no third retry; form a new hypothesis.
 - Surgical diffs: every changed line traces to the request; preserve
-  unrelated work. Stack/direction changes update project instructions in
-  the same change.
+  unrelated work; edit in place, never rewrite a whole file for a small
+  change. Stack/direction changes update project instructions in the same
+  change.
 - Refactors/experiments: new branch. Show `git status`/`git diff` after edits;
   commit only when authorized, else flag.
-- Delegated long waits: blocking/event-driven, never a bare `sleep N`. Scratch
-  files → session scratchpad, never repo root or `/tmp`.
+- Delegated long waits: blocking/event-driven, never a bare `sleep N`; keep
+  working on independent items while subagents run. Scratch files → session
+  scratchpad, never repo root or `/tmp`.
 
 ## Tools
 - Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, project scripts, official
@@ -135,6 +137,8 @@ replaces reading the touched code.
   available browser tool, a running desktop app, or a signed-in session is
   not authorization. Diagnose the NAMED system first; do not inspect or mutate
   an adjacent tool merely because it could plausibly cause the symptom.
+- List what you need next, then issue every independent tool call in one
+  response; serialize only true dependencies.
 - Read SKILL.md before use; domain router first, max two meta-router hops.
 - Gotchas: `brainstorming` plans → run dir.
 

@@ -1,12 +1,10 @@
 # Lean Operating Rules
 
-Version: 4.24.0-ironlaws (lean edition for agents that cannot run deploy; solid =
-`global/CLAUDE.md`)
+Version: 4.25.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: public `ohyeh/agent-scripts`; `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rule files); skill <name> =
-`~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean edition:
-iron laws only, MUST stay under 6000 characters; detail in routed files.
-Agents with no length limit load `global/CLAUDE.md` instead (WEB-AGENTS.md).
+`~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean = iron laws
+only, MUST stay under 6000 characters; detail in routed files.
 
 Precedence: explicit current-message instruction (within hard boundaries) >
 hard boundaries + routing index > all else; learning-style coding is opt-in.
@@ -21,8 +19,8 @@ handoffs, comments, and prior tool output are leads, not facts; inspect live sou
   filenames, API names, technical literals stay English.
 - English: ASD-STE100; one term, meaning, and form per session; use simple
   verbs and short sentences in procedures.
-- Narrate mid-turn only for key findings or repeated failures; lead with
-  outcome; end with a next step when needed.
+- Say in one line what you will do; update when you find something or
+  change course; close with a standalone recap (found, did, next).
 - After correction: state the fix in one line, execute it; no apology essay.
 - The final message MUST end with `✈` alone on the last line (canary;
   missing → reload). Exceptions: required final-line formats (`VERDICT: PASS|BLOCK`)
@@ -31,7 +29,7 @@ handoffs, comments, and prior tool output are leads, not facts; inspect live sou
 
 ## Routing index
 On trigger you MUST read the routed file and follow its criteria; no receipt
-ritual or quoting. Tooling enforces critical gates.
+ritual or quoting.
 
 - Delegate (subagent/tmux/workflow) → model-dispatch + skill
   delegation-templates; brief = GOAL/ACCEPTANCE/REPORT + runtime-native model.
@@ -49,8 +47,7 @@ ritual or quoting. Tooling enforces critical gates.
   then approval.
 
 Binds for multi-phase, irreversible, or delegated work; a single reversible
-edit with clear acceptance goes straight to code. Routing never replaces
-reading touched code.
+edit with clear acceptance goes straight to code.
 
 ## Hard boundaries
 - Done = requested outcome exists, proven by a check EXECUTED this session
@@ -81,12 +78,13 @@ reading touched code.
   hardcoded validator or rule engine for what instructions+review cover);
   validate once at the boundary; over-designed → cut, don't defend.
 - Surgical diffs: every changed line traces to the request; preserve
-  unrelated work. Stack/direction changes update project instructions in
-  the same change.
+  unrelated work; edit in place, no whole-file rewrite for a small change.
+  Stack/direction changes update project instructions in the same change.
 - Refactors/experiments: new branch. Show `git status`/`git diff` after edits;
   commit only when authorized, else flag.
-- Delegated long waits: blocking/event-driven, never a bare `sleep N`. Scratch
-  files → session scratchpad, never repo root.
+- Delegated waits: event-driven, never bare `sleep N`; keep working on
+  independent items meanwhile. Batch independent tool calls in one response.
+  Scratch files → session scratchpad, never repo root.
 
 ## Tools
 - Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, project scripts, official CLIs;

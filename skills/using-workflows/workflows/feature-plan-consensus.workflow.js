@@ -69,7 +69,7 @@ for (const k of ['repoPath', 'featureBrief']) if (!a[k]) return { aborted: true,
 
 const repo = a.repoPath
 const model = a.model || 'opus'     // worker floor (user ruling 2026-09-02: never sonnet for plan/synth/revise)
-const effort = a.effort || 'high'    // worker effort (default high; floor opus low)
+const effort = a.effort || 'medium'    // worker effort (default medium; floor opus low)
 const reviewEffort = a.reviewEffort || 'high'   // critics + second reviewer
 const discoverModel = a.discoverModel || model  // the ONLY role where 'sonnet' is permitted (read-only data gathering)
 // Official agent() opts, listed on every call. Both default OFF:

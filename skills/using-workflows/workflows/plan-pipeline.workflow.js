@@ -57,7 +57,7 @@ const planPath = a.planPath || `.workflow/next-direction/plan-${slug}.md`
 const adrDir = a.adrDir || 'docs/adr'
 const maxRounds = a.maxReviewRounds || 6
 const session = a.sessionName || `plan-${slug}`
-const effort = a.effort || 'high'    // drafter / driving agent effort (default high; floor opus low)
+const effort = a.effort || 'medium'    // drafter / driving agent effort (default medium; floor opus low)
 const reviewEffort = a.reviewEffort || 'high'   // in-script fresh reviewer effort
 const model = a.model || 'opus'     // never sonnet: this recipe is planning (user ruling 2026-09-02)
 // Official agent() opts, listed on every call. Both default OFF:

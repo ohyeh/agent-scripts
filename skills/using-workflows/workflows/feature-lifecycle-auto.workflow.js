@@ -86,7 +86,7 @@ if (!/^[a-zA-Z0-9._-]+$/.test(slug) || slug.includes('..')) return { aborted: tr
 // omitted — "not shown" must not read as "unsupported"). Defaults: opus / low (user ruling
 // 2026-09-02: floor opus low; stages keep their reviewers on opus regardless of `model`).
 const model = a.model || 'opus'
-const effort = a.effort || 'high'
+const effort = a.effort || 'medium'   // worker default (user ruling 2026-09-02); reviewers use reviewEffort
 // Official agent() opts, also forwarded to nested stages. Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)

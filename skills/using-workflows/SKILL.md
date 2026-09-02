@@ -89,7 +89,8 @@ scope). Prefer name invocation over scriptPath.
 
 ## MODEL FLOOR (user ruling 2026-09-02)
 
-Every recipe agent runs at least `opus` effort `low`. Planning, synthesis,
+Every recipe agent runs at least `opus` effort `low`; the default worker is
+`opus` effort `medium`, reviewers `high`. Planning, synthesis,
 revision, critique, review, and verdicts NEVER run on `sonnet` — a sonnet-
 written plan is not a plan. `sonnet` is permitted in exactly two roles, and
 only by explicit arg: implementation (`spec-implement…` `model`,

@@ -29,6 +29,7 @@ is blocked. Prefer the user's words over my own paraphrase.
 - Every approach the user REJECTED, quoted in the words they rejected it with.
 - Every correction the user made to a claim, and what the corrected claim was.
 - Any file path, branch, command, identifier, or number the user supplied.
+- Every approach I tried or considered and set aside, and why.
 - Every claim still UNCONFIRMED (no run this session), labelled as such.
 
 ## Immediate Next Steps
