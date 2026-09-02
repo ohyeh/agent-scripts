@@ -79,10 +79,12 @@ Stage recipes (`feature-plan-consensus`, `plan-pipeline`,
 `spec-implement-dual-review-verify`) are normally reached THROUGH
 `feature-lifecycle-auto`; call one directly only when you want just that stage.
 Args auto-fill: `cli` is OPTIONAL (user ruling 2026-09-02: never depend on
-codex) — set it only when the user's words or the repo CLAUDE.md name a
-second-model profile; otherwise OMIT it and every stage runs a FRESH Claude
-`opus` reviewer in an independent context. Never hard-code a name, never
-block a run on an external CLI. `context` = one line (repo abs path + stack +
+codex). Any installed agent-tmux profile is a valid review gate — `codex`,
+`claude-fable-opus` / `claude-fable-gate*`, `cursor` (grok), `agy*` — pick
+one that differs from the substantive author; discover the list live with
+`ls ~/.config/agent-tmux/profiles`. OMIT it and every stage runs a FRESH
+Claude `opus` reviewer in an independent context. Never hard-code a name,
+never block a run on an external CLI that is not installed. `context` = one line (repo abs path + stack +
 scope). Prefer name invocation over scriptPath.
 
 ## MODEL FLOOR (user ruling 2026-09-02)

@@ -90,8 +90,9 @@ Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above 
 3.5 h): every recipe agent runs at least `opus` effort `low`; planning, synthesis, revision,
 critique, review, and verdicts NEVER run on `sonnet`. `sonnet` is allowed in a recipe only for
 implementation or read-only data gathering, and only by explicit arg. The second-model CLI
-(`cli`) is optional — never make a recipe depend on codex; absent, a fresh Claude `opus` agent is
-the second brain. The commander calls `advisor` before launch, at every gate, and before any
+(`cli`) is optional and NOT codex-specific: any agent-tmux profile (codex, claude fable/opus,
+cursor grok, agy) qualifies as the review gate, provided it differs from the author; absent, a
+fresh Claude `opus` agent is the second brain. The commander calls `advisor` before launch, at every gate, and before any
 resume (skill `using-workflows` §ADVISOR GATE).
 
 Before dispatch, resolve the wrapper bundle, run its `agent-tmux <cli> setup`, stop on failure.
