@@ -100,11 +100,12 @@ constraints (Codex-authored, gate-v2 2026-07-19):
 - Human gates MUST return `status: paused` plus `next_action`, preserve `recipe_result`, stop the runner, and resume only via a new explicitly approved invocation.
 - Evidence MUST say `recipe <name> executed natively on Claude runtime via runner (commanded by Codex)`; adapter or child failure is never recipe PASS.
 
-Runtime matrix (Claude Code = `NATIVE` for all 12; Codex column):
+Runtime matrix (Claude Code = `NATIVE` for all 13; Codex column):
 
 | Recipe | Codex |
 |---|---|
 | 3 audits, `findings-triage`, `design-consensus`, `project-direction-review`, `workflow-manifest` (7, no tmux inside) | `ADAPTED: claude-workflow-runner` |
+| `pr-review-triage-resolve` (no tmux; T3 rung spawns `codex:codex-rescue` agent) | `UNTESTED` — only run natively on Claude so far; stop and report |
 | `consensus-gate` (simple verdict outcome only) | `ADAPTED: direct-claude-review` — `references/codex-adapter.md` |
 | `consensus-gate` (as recipe), lifecycle + its 3 stages (5, they launch agent-tmux inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise |
 

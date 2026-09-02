@@ -234,6 +234,18 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   original audit with the **same args**; confirmed findings hitting zero =
   converged. **See the file header for args examples.**
 
+- **`pr-review-triage-resolve.workflow.js`** — PR review-bot triage, ONE-SHOT:
+  summon the review bots on a PR via a repo-owned `triggerScript` (required
+  arg; it owns the GitHub account guard, so the recipe never falls back to a
+  raw `gh pr comment`), establish code ground-truth **before** the bots speak,
+  triage every thread against that truth (accept / already-fixed / reject),
+  fix only what is real through an escalation ladder (sonnet workers → self →
+  internal adversarial panel → external codex consensus), push, write a ledger
+  under `.workflow/pr-review/<pr>/`, and resolve every handled thread. No
+  internal loop: another round = re-run with the same args. Promoted from a
+  project-local recipe (53 sessions on one host) with the repo-specific
+  default removed. **See the file header for args examples.**
+
 ## Shared helper: `_lib/safe.js`
 
 The **canonical repo source** of the three silent-failure guards
