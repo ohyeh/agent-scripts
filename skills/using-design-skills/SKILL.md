@@ -1,6 +1,6 @@
 ---
 name: using-design-skills
-description: Router and conductor for design work that needs skill selection or a multi-stage pipeline: web pages, product UI, mobile screens, HTML reports, diagrams, plan pages, charts, artifacts, motion, plus module and API interface design. It picks one direction authority from the installed roster, assigns an executor per stage, and closes every pipeline with an evidence-first quality loop. Do not invoke for a one-line CSS or copy tweak, for backend-only work, or when the user names one member skill for a single-skill task; those go direct.
+description: Router and conductor for design work that needs skill selection or a multi-stage pipeline, covering web pages, product UI, mobile screens, HTML reports, diagrams, plan pages, charts, artifacts, motion, plus module and API interface design. It picks one direction authority from the installed roster, assigns an executor per stage, and closes every pipeline with an evidence-first quality loop. Do not invoke for a one-line CSS or copy tweak, for backend-only work, or when the user names one member skill for a single-skill task; those go direct.
 ---
 
 # using-design-skills
