@@ -2,3 +2,6 @@
 .workflow/
 __pycache__/
 *.pyc
+
+# session 產物：含絕對家目錄路徑，不進公開 repo
+.claude/handoffs/

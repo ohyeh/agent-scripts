@@ -124,7 +124,16 @@ const privatePatterns = [
 // tarball tree, which has no .git. The tarball holds exactly the tracked files.
 const sensitivePaths = ['.agents', '.claude/handoffs', 'scripts', 'skills']
   .filter((p) => existsSync(join(ROOT, p)));
-const sensitive = spawnSync('grep', ['-rnE', privatePatterns, ...sensitivePaths],
+// In a working tree, scan only TRACKED files: untracked session artifacts under
+// .claude/handoffs/ are gitignored and can never reach the public repo, so
+// grepping them is a false positive on every compaction. In the tarball there is
+// no .git, so fall back to scanning the paths themselves.
+const tracked = spawnSync('git', ['ls-files', '-z', '--', ...sensitivePaths],
+  { cwd: ROOT, encoding: 'utf8' });
+const scanTargets = tracked.status === 0 && tracked.stdout
+  ? tracked.stdout.split('\0').filter(Boolean)
+  : sensitivePaths;
+const sensitive = spawnSync('grep', ['-rnE', privatePatterns, ...scanTargets],
   { cwd: ROOT, encoding: 'utf8' });
 check('public-sensitive-literals', sensitive.status === 1,
   sensitive.status === 1 ? 'no private fleet literals'

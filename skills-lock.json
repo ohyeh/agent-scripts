@@ -486,9 +486,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-skills/SKILL.md",
-      "skillFolderHash": "1b5082d44cde2c0f6b16c2d0338ae393381db42a",
+      "skillFolderHash": "2fec95ec62332c8342e32e382acd424aa0f9a7b3",
       "installedAt": "2026-07-19T11:40:52.644Z",
-      "updatedAt": "2026-08-13T06:46:20.742Z"
+      "updatedAt": "2026-09-03T10:10:02.681Z"
     },
     "using-tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
