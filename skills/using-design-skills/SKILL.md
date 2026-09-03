@@ -1,6 +1,6 @@
 ---
 name: using-design-skills
-description: Meta-router and multi-agent conductor for design work that needs skill selection or a multi-stage pipeline — visual frontend (web pages, landing pages, product UI, mobile screens), data visualization, HTML deliverables (reports/diagrams/plans), artifacts, motion polish, and module/API interface design. The STABLE unified entry point — member skills churn underneath, this router discovers them live, picks one direction authority, delegates image-generation stages to Codex workers, and closes every pipeline with an evidence-first anti-slop quality loop. Do NOT invoke for a one-line CSS/copy tweak, for backend-only work, or when the user explicitly names a single member skill for a single-skill-sized task — those go direct.
+description: Router and conductor for design work that needs skill selection or a multi-stage pipeline: web pages, product UI, mobile screens, HTML reports, diagrams, plan pages, charts, artifacts, motion, plus module and API interface design. It picks one direction authority from the installed roster, assigns an executor per stage, and closes every pipeline with an evidence-first quality loop. Do not invoke for a one-line CSS or copy tweak, for backend-only work, or when the user names one member skill for a single-skill task; those go direct.
 ---
 
 # using-design-skills
@@ -27,7 +27,7 @@ module/API interface design.
 
 Q1 **Base deliverable — who owns the output?** Diagram → `diagram-design` for
 house-style consistency / mermaid / draw.io / PNG-SVG export, else the HTML
-trio · report / plan page → the HTML trio or `plannotator-visual-explainer` ·
+trio · report page → `html` · plan page → `html-plan` ·
 web/mobile → target stack ·
 Artifact → artifact file · data file → `data-report` · module/API/domain →
 Pipeline D · token work → DESIGN.md itself · mockup-only → imagegen output ·
@@ -38,11 +38,13 @@ CURRENT render before rebuild). New + ambitious + imagegen available →
 image-first (imagegen ⇒ image-to-code ⇒ loop); ordinary task → direct build,
 say so when skipping imagegen.
 
-Q3 **Orthogonal specialists (additive).** Charts → `dataviz` if it resolves
-under SELECT (else apply charting best-practices inline — no dedicated chart
-skill is guaranteed installed). Artifact → `artifact-design` (a bundled skill;
-MANDATORY before publishing). Motion/gesture → `apple-design`. Constraint sets,
-loaded inline.
+Q3 **Orthogonal specialists (additive).** Charts from a data file →
+`data-report`; charts inside a page → apply charting best practice inline, since
+`skills-lock.json` holds no dedicated chart skill. Artifact →
+`artifact-design`, a skill bundled with the runtime rather than the lock;
+mandatory before publishing, and skipped explicitly if it does not resolve this
+turn. Motion or gesture → `apple-design`. Agency-grade type, spacing, and shadow
+detail → `high-end-visual-design`. Constraint sets load inline.
 
 Q4 **Executor per stage** — the executor table in
 `references/design-roles.md`. Direction runs INLINE; imagegen/image-to-code →
@@ -57,11 +59,11 @@ fresh reviewer, verdict still PASS/BLOCK. `prototype` → none.
 
 ## SELECT — discover live, then bind roles
 
-1. `ls ~/.claude/skills/ ~/.agents/skills/ 2>/dev/null | sort -u`, cross-check
-   against THIS turn's active available-skills listing — a directory copy that
-   isn't loaded is not invocable; a member gated `disable-model-invocation:
-   true` (check `head -8`) is reached by reading its SKILL.md inline, never
-   via `Skill()`.
+1. `jq -r '.skills|keys[]' ~/.agents/.skill-lock.json` is the
+   installed roster; cross-check against THIS turn's active available-skills
+   listing, because an installed directory that is not loaded is not
+   invocable. A member gated `disable-model-invocation: true` (check
+   `head -8`) is reached by reading its SKILL.md inline, never via `Skill()`.
 2. Exactly ONE direction authority for a visual pipeline (ZERO for Pipeline
    D / prototypes / trivial tweaks). Never stack two — they fight. An unknown
    skill is never auto-promoted to authority.
@@ -132,7 +134,7 @@ re-audits. Hard cap two fix rounds, then route by CAUSE: same-root failures
 + wrong-direction signals (`judgment-rubrics.md` §4) → back to direction ·
 evidence-gap → repair evidence path, re-audit · new/regression → triage
 separately · otherwise → stop and ask the user with the failure trail.
-PASS → persist tokens via design-md, report with the evidence bundle.
+PASS → write the final tokens into DESIGN.md, report with the evidence bundle.
 "Built and audited: PASS" is a completion claim; "built" alone is not.
 
 **Polish/`Operate` mode — human checkpoint first:** the first rendered

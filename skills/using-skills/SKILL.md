@@ -1,143 +1,188 @@
 ---
 name: using-skills
-description: Top-level map of the skill fleet, for "which skill does this need?" when the answer is not obvious. Invoke when a task's ownership is UNCLEAR or it spans MULTIPLE domains. It routes intent → the right router / skill / recipe and names how to invoke each. When the primary goal already names a domain, enter that domain router or member directly instead. Curates the ADOPTED surface only; the full installed roster lives in the skill manifest.
+description: Map from intent to skill, for "which skill does this need?" when the owner is not obvious. Invoke when ownership is unclear or the task spans several domains; go direct when the goal already names its domain or router. Covers every skill in skills-lock.json, grouped by what the user is trying to do.
 ---
 
 # using-skills
 
-The map, not the territory — and the map projects the ADOPTED surface, not the
-installed one. Install granularity is per-repo (`npx skills` pulls whole
-packs); usage granularity is per-skill. The gap between them is bloat, and it
-stays OUT of this file: `~/.agents/.skill-lock.json` records what is installed
-(L0), the generated skill manifest shows the full roster with the gap made
-visible (L1), and this file routes only what is actually in use (L2). Route by
-INTENT, not by remembering ~100 names. When the owner is already obvious, skip
-this map and enter the domain router or member directly.
+Route by intent. Every name below is an entry in `skills-lock.json`, the
+installed roster, so a name here always resolves on this machine.
 
-Legend — **type**: `ROUTER` (meta-router skill) · `SKILL` (direct member) ·
-`RECIPE` (a `~/.claude/workflows/` recipe, entered THROUGH `using-workflows`) ·
-`RULE` (a `~/.agents/rules/` file, not a skill). **mode**: `Skill()`
-model-invocable · `manual` (`disable-model-invocation` — read its SKILL.md
-inline or use its slash command) · `via-router` · `inline` (just do it).
+The kernel routing index in `~/.claude/CLAUDE.md` binds first. When the kernel
+names a trigger — delegation, done/stuck claims, unclear acceptance, retries,
+loop-shaped work, code changes, output shape — its route wins. A few of those
+skills still get a row below so that every lock name resolves in one place; the
+row is a lookup, not a second opinion.
 
-Two-hop max: `using-skills` → domain router → member. Never deeper, and never
-route back here from inside a domain router. Visual work always enters
-`using-design-skills`; `html` does not provide a route around its owner selection.
+Two hops maximum: `using-skills` → domain router → member. Never route back
+here from inside a domain router. Read the live `SKILL.md` before acting;
+never act from memory of an old roster.
 
-## Intent table — "I need to…" → target
+**Mode column**: `Skill()` = model-invocable · `manual` = read its `SKILL.md`
+inline or use its slash command · `via-router` = enter through the router named.
 
-| I need to… | Target | Type · mode |
+## Hop 1: domain routers
+
+| Router | Enter it when | Mode |
 |---|---|---|
-| run loop-shaped work (audit / plan→build / consensus / triage) | `using-workflows` | ROUTER · Skill() |
-| build/critique anything visual (page, screen, HTML deliverable, chart, artifact, motion, module/API design) | `using-design-skills` | ROUTER · Skill() |
-| run/supervise a CLI as a tmux worker, or decide inline-vs-worker | `using-tmux-agent-tools` | ROUTER · Skill() |
-| shape a fuzzy idea before building (parallel divergence: `adhd`) | `brainstorming` | SKILL · Skill() |
-| stress-test a plan/decision/idea (frontier rounds; `grill-with-docs` when ADRs/glossary should be written as you go) | `grilling` | SKILL · Skill() |
-| plan an effort too big for one session — chart it as decision tickets on the issue tracker, resolved one at a time | `wayfinder` | SKILL · manual |
-| not sure which flow fits (kickoff, cross-domain, fuzzy situation) | `ask-nova` | SKILL · manual |
-| check "is it actually done?" | `verification-before-completion` | SKILL · Skill() |
-| dig a weird bug to root cause (loop version) | `root-cause-deep-dive-audit` | RECIPE · via `using-workflows` |
-| reconcile docs/design vs code drift | `docs-vs-code-audit` / `design-vs-code-audit` | RECIPE · via `using-workflows` |
-| sort a pile of audit findings | `findings-triage` | RECIPE · via `using-workflows` |
-| get a second-model verdict on ONE artifact | `consensus-gate` (preferred; `oracle` for a one-off deep review) | RECIPE · via `using-workflows` |
-| diagnose a bug inline | `diagnosing-bugs` | SKILL · Skill() |
-| tidy or restructure code | `simplify` (just-written, behavior-preserving) · `refactor` (structural) | SKILL · Skill() |
-| design a module/interface/domain (code, not pixels) | `design-an-interface` · `codebase-design` · `domain-modeling` | SKILL · Skill() (or via `using-design-skills` Pipeline D) |
-| investigate a question / gather evidence | `research` | SKILL · Skill() |
-| write tests / plan test coverage | `tdd` · `qa-test-planner` | SKILL · Skill() |
-| drive a browser, test a web app, fill forms, screenshot / drive a device or TV app | `agent-browser` · `agent-device` | SKILL · Skill() |
-| read a pasted URL (article, docs page) | `defuddle` (WebFetch replacement; not for `.md` URLs) | SKILL · Skill() |
-| read or produce a PDF | `pdf` | SKILL · Skill() |
-| hand off to a fresh session | `session-handoff` | SKILL · Skill() |
-| write anything meant to be read (in-repo docs, problem writeup, long-form piece → md / html / Artifact / image) | `writing-artifacts` (unified writing entry: Stage 0 genre branch → `documentation-writing` for in-repo software docs, `writing-beats`/`writing-shape` for prose; `stop-slop` throughout, renders via `using-design-skills`) | SKILL · Skill() |
-| commit / release | `git-commit` · `release-plannotator` (that repo only) | SKILL · Skill() |
-| just implement something straightforward | — | inline (no skill; the domain is obvious) |
+| `using-design-skills` | Anything visual: web page, app screen, HTML deliverable, chart, artifact, motion, plus module and API interface design | Skill() |
+| `using-workflows` | Loop-shaped work: audit, consensus, triage, plan→build, lifecycle. Owns the 13 recipes in `~/.claude/workflows/`; this file does not list them | Skill() |
+| `using-tmux-agent-tools` | Running a CLI as a tmux worker, or deciding inline versus worker | Skill() |
 
-Vocabulary loaded as criteria, not stations: `delegation-templates` (SKILL —
-every delegated worker prompt), `unknowns-discovery` (SKILL — surface
-assumptions first), `karpathy-guidelines` + `full-output-enforcement` (SKILL —
-coding discipline), `~/.agents/rules/judgment-rubrics.md` (RULE — decision
-scoring / wrong-direction signals / done-criteria).
+## Shape an idea before building
 
-## Adopted families beyond the table — one line each
+| I need to… | Skill | Mode |
+|---|---|---|
+| explore intent before any creative work (mandatory gate) | `brainstorming` | Skill() |
+| diverge in parallel under different cognitive frames | `adhd` | Skill() |
+| stress-test a plan or decision in frontier rounds | `grilling` | Skill() |
+| pick a flow when the situation is fuzzy or cross-domain | `ask-nova` | manual |
+| surface the map/territory gap in unfamiliar territory | `unknowns-discovery` | Skill() |
+| build a throwaway prototype to answer a design question | `prototype` | Skill() |
+| chart work too big for one session as decision tickets | `wayfinder` | manual |
+| re-pitch a message that did not land | `wait-what` | manual |
 
-- **Meta-routers (backbone)** → this map + `using-design-skills`, `using-workflows`, `using-tmux-agent-tools`; enter a domain router directly when the goal names it.
-- **Design-visual** → `html`/`html-*`, `diagram-design`, `impeccable`, `design-taste-frontend`, `high-end-visual-design`, `apple-design`, `imagegen-*`, `image-to-code`, `data-report` — ALWAYS through `using-design-skills`, the sole arbiter among overlapping anti-slop members (default `impeccable`; new landing pages → `design-taste-frontend`; Apple-grade polish → `apple-design`; house-style diagrams → `diagram-design`, one-off/interactive diagrams → `html-diagram`).
-- **Ideation** → `brainstorming` (mandatory gate before creative work), `adhd` (parallel divergence), `prototype` (throwaway prototype answers a design question).
-- **Grilling** → `grilling` (the implementation — asks each frontier of questions in one round, numbered, each with a recommended answer; dispatches sub-agents for facts). `grill-me` / `grill-with-docs` are manual slash entries into it; the latter runs `domain-modeling` alongside for ADRs/glossary.
-- **Workflow orchestration** → `codex-dynamic-workflows`, via `using-workflows` (approved designs only).
-- **Delegation** → `tmux-agent-tools` + `delegation-templates` via `using-tmux-agent-tools`; in-session parallel dispatch: `dispatching-parallel-agents`, `subagent-driven-development` (direct).
-- **Git ops** → `git-commit`, `resolving-merge-conflicts`; `review-renovate` (supply-chain review, direct).
-- **Ingest** → `defuddle`, `pdf`, `arc-artifact-fetcher` (NOT in the skill lock — unmanaged), `context7-cli` (library docs only; skill discovery belongs to `find-skills`).
-- **Continuity / memory** → `session-handoff`, `shared-memory-intake` (curate shared Codex memory / submit external findings).
-- **Fleet meta** → `skill-creator` owns the create/optimize/eval PROCESS, with `writing-great-skills` loaded as drafting criteria at every write/edit step (the stop-slop pattern); `find-skills` (discovery/install).
-- **Project-specific (Plannotator)** → `pierre-guard`, `release-plannotator` — only inside that repo.
+## Write and change code
 
-## Dormant — installed, not routed
+| I need to… | Skill | Mode |
+|---|---|---|
+| keep coding discipline: surgical diffs, stated assumptions | `karpathy-guidelines` | Skill() |
+| stop truncated or placeholder output on long generations | `full-output-enforcement` | Skill() |
+| tidy just-written code without changing behavior | `simplify` | Skill() |
+| restructure code: extract, rename, break up a god function | `refactor` | Skill() |
+| find deepening opportunities across a whole codebase | `improve-codebase-architecture` | manual |
+| design a deep module interface | `codebase-design` | Skill() |
+| build or sharpen the domain model, CONTEXT.md, an ADR | `domain-modeling` | Skill() |
+| build features test-first | `tdd` | Skill() |
+| plan test coverage, manual cases, regression suites | `qa-test-planner` | Skill() |
+| replace `as` assertions with shoehorn in tests | `migrate-to-shoehorn` | Skill() |
 
-Whole packs or chains that are installed (in the lock, listed in the skill
-manifest) but currently unused. They cost nothing while dormant; wake one by
-reading its SKILL.md and, if it sticks, promote it into the table above:
+## Diagnose and verify
 
-- matt planning/tracker: `triage` · `wizard`
-- niche code-craft: `improve-codebase-architecture`, `migrate-to-shoehorn`, `request-refactor-plan`, `qa`
-- misc singles: `update-deps`
+| I need to… | Skill | Mode |
+|---|---|---|
+| diagnose a hard bug or performance regression inline | `diagnosing-bugs` | Skill() |
+| review a diff defect-first, read-only, every finding | `defect-first-review` | Skill() |
+| check that work is actually done before claiming it | `verification-before-completion` | Skill() |
+| review UI code against Web Interface Guidelines | `web-design-guidelines` | Skill() |
+| get a second-model deep review of one artifact | `oracle` | Skill() |
 
-## Secondary view — the idea→ship lifecycle
+## Delegate and orchestrate
 
-A journey, not the primary index (most tasks enter mid-stream via the table):
-`brainstorming` → `grilling` → plan (via `using-workflows`:
-plan-pipeline / feature-plan-consensus, tracked in a `.workflow/` run dir) →
-build (via `using-workflows` lifecycle, or `using-design-skills` for visual) →
-`verification-before-completion`. Keep brainstorm→plan in ONE context window;
-use `session-handoff` at a session seam, not a `/compact`.
+| I need to… | Skill | Mode |
+|---|---|---|
+| write any worker brief (GOAL/ACCEPTANCE/REPORT) | `delegation-templates` | Skill() |
+| dispatch 2+ independent tasks in this session | `dispatching-parallel-agents` | Skill() |
+| execute a plan's independent tasks as subagents | `subagent-driven-development` | Skill() |
+| drive tmux workers: mechanics and wrappers | `tmux-agent-tools` | via-router |
+| plan and run an explicitly orchestrated agent workflow | `codex-dynamic-workflows` | via-router |
 
-## Curated map vs live availability
+## Read the outside world
 
-This file is CURATED first-hop navigation over the ADOPTED surface. It is NOT
-the inventory of what is installed. For "does skill X exist on this machine /
-which runtime sees it / is it manual-only / how bloated is a source repo",
-consult the generated skill manifest (per-repo roster with the
-installed-vs-adopted gap visible) and the live directories — never assume from
-this map.
+| I need to… | Skill | Mode |
+|---|---|---|
+| read a pasted URL as clean markdown | `defuddle` | Skill() |
+| read, fill, merge, or produce a PDF | `pdf` | Skill() |
+| fetch library documentation, manage ctx7 | `context7-cli` | Skill() |
+| investigate a question against primary sources, write it up | `research` | Skill() |
+| drive a browser: navigate, fill forms, screenshot | `agent-browser` | Skill() |
+| drive an iOS, Android, macOS, or TV app | `agent-device` | Skill() |
 
-## Red flags — rationalizations that have burned us
+## Write for people to read
 
-Naming one and proceeding anyway requires a stated reason:
-- 「這只是小問題，不用 skill」— if the domain is obvious, go direct; if ownership
-  is unclear, let this map decide. Don't skip routing on substantial work — but
-  don't force the map when the owner is already plain.
-- 「我記得那支 skill / recipe 的內容」— members evolve; read the live SKILL.md or
-  recipe header before acting. Never route from memory of an old inventory.
-- 「先做完再回頭套流程」— for loop-shaped or visual work the router picks the RIGHT
-  process first; retrofitting it is how half-done work ships.
-- 「裝了就該路由」— installed ≠ adopted. A dormant pack stays dormant until a
-  real task wakes it; never widen the table to mirror the lock.
+| I need to… | Skill | Mode |
+|---|---|---|
+| turn a fuzzy subject into a finished deliverable (entry point) | `writing-artifacts` | Skill() |
+| write in-repo software docs: README, API, tutorial | `documentation-writing` | Skill() |
+| mine raw fragments before any structure | `writing-fragments` | manual |
+| shape raw material into an article paragraph by paragraph | `writing-shape` | manual |
+| assemble material into a journey of beats | `writing-beats` | manual |
+| remove AI writing patterns from any prose | `stop-slop` | Skill() |
+
+## Visual and HTML output (all through `using-design-skills`)
+
+Listed so a name resolves, not as a bypass. The router picks the owner.
+
+| Skill | Owns |
+|---|---|
+| `impeccable` | Default authority for product UI: dashboards, forms, app shells, polish, critique |
+| `design-taste-frontend` | Landing pages, portfolios, marketing sites, full redesigns |
+| `high-end-visual-design` | Agency-grade type, spacing, shadow, animation specifics |
+| `apple-design` | Springs, gestures, interruptible motion |
+| `hallmark` | Anti-slop greenfield pages, audits, design extraction from a URL or screenshot |
+| `html` | Self-contained HTML reports, explainers, comparisons, decks |
+| `html-diagram` | One-off or interactive diagrams where motion carries meaning |
+| `html-plan` | Plan pages close to the user's own wording |
+| `diagram-design` | House-style typed diagrams, mermaid and draw.io, PNG/SVG export |
+| `data-report` | CSV, Excel, or JSON into a visual report page |
+| `imagegen-frontend-web` | Website design references, one image per concept |
+| `imagegen-frontend-mobile` | App-native mobile screen concepts and flows |
+| `image-to-code` | Generate the design image first, then build to it |
+
+## Git, releases, dependencies
+
+| I need to… | Skill | Mode |
+|---|---|---|
+| commit with a conventional message and staging | `git-commit` | Skill() |
+| resolve an in-progress merge or rebase conflict | `resolving-merge-conflicts` | Skill() |
+| audit and update npm or Bun dependencies | `update-deps` | manual |
+| review a Renovate PR for supply-chain integrity | `review-renovate` | Skill() |
+
+## Session and fleet upkeep
+
+| I need to… | Skill | Mode |
+|---|---|---|
+| hand off to a fresh session | `session-handoff` | Skill() |
+| curate shared Codex memory, or submit findings to it | `shared-memory-intake` | Skill() |
+| create, edit, or eval a skill | `skill-creator` | Skill() |
+| discover and install a skill that does X | `find-skills` | Skill() |
+| move issues and external PRs through triage roles | `triage` | manual |
+| generate a bash wizard for steps only a human can do | `wizard` | Skill() |
+
+## Repo-specific
+
+`pierre-guard` (guards the @pierre/diffs integration) and
+`release-plannotator` (release notes, version bumps) apply inside the
+Plannotator repo only.
+
+## Not in this map
+
+Plugin skills live with their plugins, not in `skills-lock.json`: `code-review`,
+`code-simplifier`, `commit-commands`, `frontend-design`, `figma`,
+`session-report`, `security-guidance`, and the rest under
+`~/.claude/plugins/cache/`. The active available-skills listing shows them.
+Rules files (`~/.agents/rules/*.md`) are not skills; the kernel routes them.
 
 ## Subagent exemption
 
-A delegated worker executing one assigned task does NOT enter this router — the
-dispatcher already routed; the worker follows its brief.
+A worker executing one assigned task does not enter this router. The dispatcher
+already routed; the worker follows its brief.
 
-## Freshness self-check (this map WILL drift)
+## Red flags
 
-It lists intents and paths, not a registry. When routing feels off, confirm the
-map still matches the machine — check the SKILL fleet (not workflow-manifest,
-which inventories recipes), across BOTH runtime dirs:
+Naming one and proceeding anyway needs a stated reason.
+
+- 「這只是小問題，不用 skill」: go direct when the domain is obvious, but do not
+  skip routing on substantial work.
+- 「我記得那支 skill 的內容」: members change. Read the live `SKILL.md` first.
+- 「先做完再回頭套流程」: for loop-shaped or visual work the router picks the
+  process first. Retrofitting ships half-done work.
+
+## Freshness self-check
+
+This map matches `skills-lock.json` at its last edit. When a name here does not
+resolve, or the listing shows a skill this map omits, confirm before trusting it:
 
 ```bash
-installed=$(ls ~/.claude/skills ~/.agents/skills 2>/dev/null | grep -v '^$' | grep -v ':$' | sort -u | wc -l | tr -d ' ')
-locked=$(node -e 'const j=require(process.env.HOME+"/.agents/.skill-lock.json");console.log(Object.keys(j.skills||{}).length)' 2>/dev/null)
-echo "installed(union)=$installed locked=$locked"
+diff <(rg -o '`[a-z][a-z0-9-]+`' ~/.agents/skills/using-skills/SKILL.md | tr -d '`' | sort -u) \
+     <(jq -r '.skills|keys[]' ~/.agents/.skill-lock.json | sort)
 ```
 
-A large mismatch, a station skill that no longer resolves, or a member the
-active available-skills listing does not show → the map is stale: regenerate the
-skill manifest before trusting a name here.
+Names in the left column only are stale references or prose. Names in the right
+column only are installed skills this map has not placed yet.
 
-## NOT-FOUND
+## Nothing fits
 
-No intent fits and it is not loop-shaped or visual → check the Dormant list
-above (installed but unrouted — wake it), then the active available-skills
-listing, then plain inline work. A genuinely new recurring intent → propose a
-new skill/recipe to the user; never improvise a half-router inline.
+Not loop-shaped, not visual, no intent above: check the active available-skills
+listing, then work inline. A new recurring intent goes to the user as a proposal
+for a skill or recipe. Never improvise a router inline.

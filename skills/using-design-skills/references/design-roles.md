@@ -28,7 +28,7 @@ Advisory only: any stage may QUERY it; it never owns direction.
 | Skill | Adds |
 |---|---|
 | `apple-design` | Springs, gestures, interruptible motion — any "make it feel fluid/physical" ask |
-| `dataviz` *(if it resolves under SELECT)* | Load before writing chart/graph/dashboard code in any medium; if absent, apply charting best-practices inline — do not fake a stage |
+| `data-report` | A CSV, Excel, or JSON file into a visual report page. For charts written into a page by hand, `skills-lock.json` has no chart specialist: apply charting best practice inline and say you did, never fake a stage |
 | `artifact-design` *(bundled skill)* | MANDATORY before publishing any Artifact page (`artifact-capabilities` only if the page calls connectors) |
 
 ## Role 3 · Image-first pipeline (Codex delegation)
@@ -41,11 +41,14 @@ at the skill file.
 
 ## Role 4 · Interface/domain design (code, not pixels)
 
-`design-an-interface` (N module shapes via parallel sub-agents),
 `codebase-design` (deep-module vocabulary), `domain-modeling` (terminology,
-ADRs). No visual authority involved.
+ADRs), `prototype` (throwaway build that answers one design question). To
+compare N module shapes, dispatch parallel sub-agents with
+`delegation-templates` and judge them against the `codebase-design` depth
+criteria; no dedicated interface-shaping skill is installed. No visual
+authority involved.
 
-## Role 5 · HTML deliverable trio + gated explainer (daily-driver output owners)
+## Role 5 · HTML deliverable owners (daily drivers)
 
 Self-contained HTML files in the effective-html style. They own page
 STRUCTURE; alone they run visually monotonous — by design: the trio provides
@@ -57,7 +60,6 @@ the skeleton, a Role-1 authority layers visual character on top.
 | `html-diagram` | One-off diagram forms outside that library, or when interaction/Canvas/WebGL carries the meaning. Keep its signature strengths: animated arrows (flow direction legible at a glance), light on prose |
 | `html` | Reports, explainers, comparisons, decks |
 | `html-plan` | Plan pages: pragmatic, close to the user's own wording |
-| `plannotator-visual-explainer` *(only if it resolves under SELECT — not in the base roster; when absent, fall back to the HTML trio + a Role-1 authority)* | Rich visual explainers: plan pages with stat cards/SVG timelines, PR walkthroughs with risk maps, slide decks, data tables. Gated `disable-model-invocation: true` — read its SKILL.md inline per the router's SELECT rule, never via `Skill()` |
 
 Arbitration: `diagram-design` and `html-diagram` are mutually exclusive per
 diagram — never load both. Select and invoke that owner here; do not enter
@@ -71,15 +73,10 @@ Pairing rule: quick internal note → trio alone. Anything the user will look
 at twice or show someone → trio + ONE authority visual layer (via DESIGN.md)
 + quality loop.
 
-**Theme-layer exclusivity:** `plannotator-visual-explainer` ships its own
-theme tokens and delegates its skeleton to `nicobailon/visual-explainer`
-(auto-installs via npx skills if absent) — overriding ONLY the color/type
-layer. That is the same one-authority rule in miniature: when it owns a
-stage, its Plannotator theme IS the visual layer — do NOT stack a Role-1
-authority on top. Want Role-1 character instead? Use the trio, not this.
-**Delivery degrade:** its `plannotator annotate` UI requires the
-`plannotator` CLI; when the CLI is absent, STATE the degrade and deliver
-the same HTML as a plain file/Artifact instead — never fake the UI step.
+**Rich explainer pages** (stat cards, SVG timelines, PR walkthroughs with risk
+maps, slide decks, data tables) have no dedicated owner in
+`skills-lock.json`. Build them with the HTML trio plus one Role-1 authority
+for the visual layer, and say that is what you did.
 
 ## Persistence & probes
 
@@ -100,7 +97,7 @@ scoped edits are NOT delegable — inline by definition.
 | Role 1 direction authority | Inline, main session — sets direction, persists to DESIGN.md |
 | `imagegen-frontend-web/mobile`, `image-to-code` | `agent-tmux codex` persistent worker (image stages + fixes) |
 | Build / implement (non-trivial scope) | `agent-tmux claude` persistent worker; inline only for small scoped edits |
-| Role 4 `design-an-interface` (N shapes) | In-process Agent-tool sub-agents, parallel — native contract, not tmux-governed |
+| Role 4 N-shape comparison | In-process Agent-tool sub-agents, parallel; native contract, not tmux-governed |
 | Role 4 `codebase-design` / `domain-modeling` | Inline — applied as judging criteria, not a separate dispatch |
 | Every review round (incl. Pipeline D's verifier) | FRESH headless one-shot (tier per model-dispatch §5) |
 | Constraint loading (Role 2), DESIGN.md upkeep | Inline |
