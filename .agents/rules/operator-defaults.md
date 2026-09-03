@@ -26,8 +26,10 @@ Chain these for planning and investigation work:
 
 ## Shape every output
 
-- Follow `stop-slop`: active voice, human subject, no adverbs, no em dashes,
-  concrete over vague.
+- Remove mannered prose. When a literal statement is available, use it instead
+  of metaphor, flourish, or language that shows off the writer. Follow
+  `stop-slop`: active voice, human subject, no adverbs, no em dashes, concrete
+  over vague.
 - Re-explain on request through `bro` / `simplified-english`.
 - Prefer structure over a wall of prose (the `adhd` output discipline): diverge,
   then converge; number the options.

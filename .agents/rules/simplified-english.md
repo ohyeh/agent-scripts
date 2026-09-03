@@ -16,6 +16,8 @@ simpler", "in plain words"). You MUST follow it in both cases.
   decision needs choices, give at most two and name the recommended one.
 - Keep technical terms in their original form. Translate no identifier, API
   name, command, or filename.
+- Name things by the identifier in the code. Define a coined label on first use
+  or cut it; never leave a term that only this session understands.
 
 ## On ask: re-explain, do not re-answer
 
