@@ -615,6 +615,15 @@
       "skillFolderHash": "747c924c4767b4d5fa6f1c59985c87a21c918334",
       "installedAt": "2026-08-21T07:50:52.145Z",
       "updatedAt": "2026-08-21T07:50:52.145Z"
+    },
+    "defect-first-review": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/defect-first-review/SKILL.md",
+      "skillFolderHash": "829274cefebbf4d82a981d8add13da66ba31a7e3",
+      "installedAt": "2026-09-03T08:48:35.483Z",
+      "updatedAt": "2026-09-03T08:48:35.483Z"
     }
   },
   "dismissed": {
