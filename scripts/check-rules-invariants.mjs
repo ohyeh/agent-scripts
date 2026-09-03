@@ -139,6 +139,37 @@ check('public-sensitive-literals', sensitive.status === 1,
   sensitive.status === 1 ? 'no private fleet literals'
     : (sensitive.stdout.trim() || `grep exit ${sensitive.status}: ${sensitive.stderr.trim()}`));
 
+// 15. Skill frontmatter must survive a YAML parse. An unquoted ": " inside a
+// scalar makes YAML read a nested mapping, the frontmatter fails with "mapping
+// values are not allowed here", and the skills CLI silently stops discovering
+// the skill: `add` omits it from "Found N skills" and `upgrade -g` prints only
+// "Failed to update" because cli.mjs pipes the child's stderr and discards it.
+// Cost the fleet 2h of a stale deployed router on 2026-09-03.
+const skillsDir = join(ROOT, 'skills');
+const fmOffenders = [];
+let fmChecked = 0;
+if (existsSync(skillsDir)) {
+  for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const p = join(skillsDir, entry.name, 'SKILL.md');
+    if (!existsSync(p)) continue;
+    fmChecked++;
+    const block = readFileSync(p, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (!block) { fmOffenders.push(`${entry.name}: no frontmatter block`); continue; }
+    for (const line of block[1].split(/\r?\n/)) {
+      const kv = line.match(/^([A-Za-z][\w-]*):[ \t]+(.*)$/);
+      if (!kv) continue;
+      const value = kv[2].trim();
+      if (/^['"[{>|]/.test(value)) continue; // quoted, flow, or block scalar
+      if (/:[ \t]/.test(value)) {
+        fmOffenders.push(`${entry.name}: unquoted ": " in ${kv[1]}`);
+      }
+    }
+  }
+}
+check('skill-frontmatter-yaml', fmOffenders.length === 0,
+  fmOffenders.length ? fmOffenders.join('; ') : `${fmChecked} skill frontmatters parse`);
+
 let failed = 0;
 for (const r of results) {
   if (!r.ok) failed++;
