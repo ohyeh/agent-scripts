@@ -160,3 +160,28 @@ Status: proposed
 Rule: workflow recipes floor at opus/low; sonnet only for implementation or data gathering via explicit arg; `cli` optional (fresh Claude opus reviewer default, consensus-gate excepted); commander calls `advisor` before launch, at every gate, before resume.
 Evidence: sessions e53d8e91 (5h plan, Stop hook ×3) vs 06c3993f (32 min, opus reviewer); user ruling 「先改至少 opus low… 不可能用 sonnet 寫 plan… 少了 advisor gate」.
 Status: proposed
+
+## 2026-09-03 | scope: skills | trigger: description 裡未加引號的 `": "` 讓 npx skills 靜默停止發現該 skill，部署的 router 停在舊版兩小時
+Rule: skill frontmatter 是 YAML，任何 scalar 內含 `": "` 必須加引號；`upgrade -g` 只印 `Failed to update` 不給原因（cli.mjs 丟棄子行程 stderr），要用 `add` 直跑才看得到 `Found N skills` 少了誰。
+Evidence: `pipeline: web pages` → PyYAML `mapping values are not allowed here`；修正後 `✓ Updated using-design-skills`；已加 invariant 15，正控 `FAIL skill-frontmatter-yaml (using-design-skills: unquoted ": " in description)`。
+Status: proposed
+
+## 2026-09-03 | scope: evidence | trigger: 用 `grep ... | head -3` 取 `$?` 判定「marker 存在」，實際拿到的是 head 的 0
+Rule: 任何用來當證據的 exit code 都不能穿過 pipe；`grep -c` 或不接管線再取 `$?`。既有規則只寫「harvest 呼叫不要接管線」，同一個坑在 grep 上照樣成立。
+Evidence: `grep -n "..." f | head -3` 印不出任何行卻 `exit=0`；改 `grep -c` 得 `0` 與 `grep -c exit=1`，結論反轉。
+Status: proposed
+
+## 2026-09-03 | scope: evidence | trigger: 對 zsh 腳本跑 `bash -n`，把 linter 不相容當成程式語法錯誤回報
+Rule: 檢查器必須與目標語言相符；回報語法錯誤前先確認 shebang，並用 stash 到 HEAD 重跑確認是否既有。
+Evidence: `bash -n agent-tmux` 報 line 2290 錯誤，`zsh -n` exit=0；stash 到 HEAD 後 bash 同樣報錯，證明與本次改動無關。
+Status: proposed
+
+## 2026-09-03 | scope: waits | trigger: 把 `assign` 的 `result-path delivery UNCONFIRMED` 當成 cursor 的投遞 bug，據此推論「路徑沒送到、pending 永久」
+Rule: 那句警告對 `heuristic_family=generic` 是設計上的必定觸發（`_sentinel_trustworthy` 刻意不標），不是投遞失敗的證據；permanent pending 要看 worker 自己的 state dir。折疊貼上內容的 TUI（cursor 顯示 `[Pasted text #1 +N lines]`）也無法用 pane capture 證實或否證。
+Evidence: `result_path_via_prompt_default` 對 generic 回 true；rv-cursor3 自行寫出 `.../rv-cursor3/result.json` 並升到 `status: success`；pane grep 找不到 marker 但第 7 行是折疊標記。
+Status: proposed
+
+## 2026-09-03 | scope: gates | trigger: SKILL.md 叫 parent 前景跑 `assign --detach`，hook 明文擋掉同一件事，我照 hook 走結果被 600s reap 三次
+Rule: 兩份規範互斥時，修其中一份，不要靜默選一邊照做；派工形狀是 proxy 跑 `assign --detach`、parent 用 bounded background `result wait-required` 收割。
+Evidence: `tmux-assign-host-gate.sh:58` vs 舊 ONE OWNER 段；host-agy／host-cursor2／host-cursor-reprompt 三個 proxy 全數回報 in-flight 而非 terminal。
+Status: proposed
