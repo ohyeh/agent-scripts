@@ -477,9 +477,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-design-skills/SKILL.md",
-      "skillFolderHash": "be6126fcb33e2657f2365884ceb4fdabf8ed0ea5",
+      "skillFolderHash": "e0622fb7a2120197b60163e32feec6e6bda82a2d",
       "installedAt": "2026-07-18T20:48:21.473Z",
-      "updatedAt": "2026-08-28T07:41:40.204Z"
+      "updatedAt": "2026-09-03T12:06:09.546Z"
     },
     "using-skills": {
       "source": "ohyeh/agent-scripts",
