@@ -17,7 +17,7 @@
       "skillPath": "skills/agent-browser/SKILL.md",
       "skillFolderHash": "82def67855a0d2aad7794207951820fa5422fdb0",
       "installedAt": "2026-07-18T20:48:45.740Z",
-      "updatedAt": "2026-08-24T11:12:51.814Z"
+      "updatedAt": "2026-08-24T01:56:03.906Z"
     },
     "agent-device": {
       "source": "callstackincubator/agent-device",
@@ -26,7 +26,7 @@
       "skillPath": "skills/agent-device/SKILL.md",
       "skillFolderHash": "6a74e86df5b4c1b6561c5ad2d72e71da7b794735",
       "installedAt": "2026-07-18T20:47:33.875Z",
-      "updatedAt": "2026-08-11T01:18:22.887Z"
+      "updatedAt": "2026-08-12T01:54:43.089Z"
     },
     "apple-design": {
       "source": "emilkowalski/skills",
@@ -44,7 +44,7 @@
       "skillPath": "skills/ask-nova/SKILL.md",
       "skillFolderHash": "422281061cffbecaf260c4cce044a85e065829a7",
       "installedAt": "2026-08-01T11:44:27.225Z",
-      "updatedAt": "2026-09-01T11:42:03.368Z"
+      "updatedAt": "2026-08-12T01:54:45.311Z"
     },
     "brainstorming": {
       "source": "obra/superpowers",
@@ -53,7 +53,7 @@
       "skillPath": "skills/brainstorming/SKILL.md",
       "skillFolderHash": "881fc4ac82a25e61a58d332426b5673efe060da0",
       "installedAt": "2026-07-18T20:48:18.027Z",
-      "updatedAt": "2026-08-13T00:45:05.637Z"
+      "updatedAt": "2026-08-13T01:53:01.309Z"
     },
     "codebase-design": {
       "source": "mattpocock/skills",
@@ -62,7 +62,7 @@
       "skillPath": "skills/engineering/codebase-design/SKILL.md",
       "skillFolderHash": "344e3efc88ee60663b2e989555c2efdb548fbd42",
       "installedAt": "2026-07-18T20:49:31.166Z",
-      "updatedAt": "2026-08-19T11:01:51.194Z"
+      "updatedAt": "2026-08-20T01:52:30.672Z"
     },
     "codex-dynamic-workflows": {
       "source": "dannymac180/skills",
@@ -80,7 +80,7 @@
       "skillPath": "skills/context7-cli/SKILL.md",
       "skillFolderHash": "5eab610de8c871f2b7fe252c5edf13daa2b07fb6",
       "installedAt": "2026-07-18T22:54:06.464Z",
-      "updatedAt": "2026-09-01T01:18:33.794Z"
+      "updatedAt": "2026-09-01T02:15:51.195Z"
     },
     "data-report": {
       "source": "nexu-io/open-design",
@@ -107,7 +107,7 @@
       "skillPath": "skills/delegation-templates/SKILL.md",
       "skillFolderHash": "ee71da2fa79878caaffabd2988407af88d5f2e81",
       "installedAt": "2026-07-18T20:48:21.471Z",
-      "updatedAt": "2026-09-01T11:42:03.372Z"
+      "updatedAt": "2026-08-31T01:52:19.186Z"
     },
     "design-taste-frontend": {
       "source": "nexu-io/open-design",
@@ -125,7 +125,7 @@
       "skillPath": "skills/engineering/diagnosing-bugs/SKILL.md",
       "skillFolderHash": "99bd56983e42bc752c52da67f1112e4121781cd1",
       "installedAt": "2026-07-18T20:49:31.166Z",
-      "updatedAt": "2026-08-19T11:01:53.015Z"
+      "updatedAt": "2026-08-20T01:52:32.596Z"
     },
     "dispatching-parallel-agents": {
       "source": "obra/superpowers",
@@ -152,7 +152,7 @@
       "skillPath": "skills/engineering/domain-modeling/SKILL.md",
       "skillFolderHash": "388c9822641805ca2dcd5038e68a1d5282437ee5",
       "installedAt": "2026-07-18T20:49:31.166Z",
-      "updatedAt": "2026-08-19T11:01:54.864Z"
+      "updatedAt": "2026-08-20T01:52:34.566Z"
     },
     "find-skills": {
       "source": "vercel-labs/skills",
@@ -197,7 +197,7 @@
       "skillPath": "skills/html/SKILL.md",
       "skillFolderHash": "926c2a2bda2e983c51124c4232e8562ac281dc06",
       "installedAt": "2026-07-18T20:48:35.737Z",
-      "updatedAt": "2026-08-08T09:19:58.705Z"
+      "updatedAt": "2026-08-09T03:31:01.223Z"
     },
     "html-diagram": {
       "source": "plannotator/effective-html",
@@ -206,7 +206,7 @@
       "skillPath": "skills/html-diagram/SKILL.md",
       "skillFolderHash": "9d773f19558970f4074244f1dd6aa0e499209045",
       "installedAt": "2026-07-18T20:48:35.740Z",
-      "updatedAt": "2026-08-08T09:20:05.457Z"
+      "updatedAt": "2026-08-09T03:31:04.474Z"
     },
     "html-plan": {
       "source": "plannotator/effective-html",
@@ -215,7 +215,7 @@
       "skillPath": "skills/html-plan/SKILL.md",
       "skillFolderHash": "799c7fa971764c0110a6f3b5cf3f0bdf6aba5c03",
       "installedAt": "2026-07-18T20:48:35.740Z",
-      "updatedAt": "2026-08-08T09:20:10.324Z"
+      "updatedAt": "2026-08-09T03:31:07.958Z"
     },
     "image-to-code": {
       "source": "Leonxlnx/taste-skill",
@@ -249,9 +249,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "dd4a926f75a983793e8d805071fd818c58394b4a",
+      "skillFolderHash": "f03bc48a924febfe3a6b67d18943452aadd5b40c",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-09-01T11:34:26.932Z"
+      "updatedAt": "2026-09-03T02:25:11.829Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -260,7 +260,7 @@
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
       "skillFolderHash": "3d35cd438f4067b03c8b3792e038960e4ac11526",
       "installedAt": "2026-07-18T20:49:31.167Z",
-      "updatedAt": "2026-08-19T11:01:56.714Z"
+      "updatedAt": "2026-08-20T01:52:36.359Z"
     },
     "karpathy-guidelines": {
       "source": "multica-ai/andrej-karpathy-skills",
@@ -288,7 +288,7 @@
       "skillPath": "skills/oracle/SKILL.md",
       "skillFolderHash": "26cca2ea90a18f55ea56bddd7e5fb318a67f466c",
       "installedAt": "2026-07-18T20:48:42.493Z",
-      "updatedAt": "2026-08-14T01:37:39.870Z"
+      "updatedAt": "2026-08-17T01:57:16.928Z"
     },
     "pdf": {
       "source": "anthropics/skills",
@@ -316,7 +316,7 @@
       "skillPath": "skills/engineering/prototype/SKILL.md",
       "skillFolderHash": "e41d92e171f074a2b6887d8f6faca4a15c83d1ca",
       "installedAt": "2026-07-18T20:49:31.168Z",
-      "updatedAt": "2026-08-19T11:01:58.568Z"
+      "updatedAt": "2026-08-20T01:52:38.168Z"
     },
     "qa-test-planner": {
       "source": "softaworks/agent-toolkit",
@@ -343,7 +343,7 @@
       "skillPath": ".agents/skills/release/SKILL.md",
       "skillFolderHash": "8d1243970f7c66667629a1b0b712725fb301ab37",
       "installedAt": "2026-07-18T21:55:44.675Z",
-      "updatedAt": "2026-08-14T01:37:44.897Z"
+      "updatedAt": "2026-08-17T01:57:25.828Z"
     },
     "research": {
       "source": "mattpocock/skills",
@@ -352,7 +352,7 @@
       "skillPath": "skills/engineering/research/SKILL.md",
       "skillFolderHash": "0a6796c5667e95ed2301ba7381c123b4acb2ae1a",
       "installedAt": "2026-07-18T20:49:31.168Z",
-      "updatedAt": "2026-08-19T11:02:00.347Z"
+      "updatedAt": "2026-08-20T01:52:39.907Z"
     },
     "resolving-merge-conflicts": {
       "source": "mattpocock/skills",
@@ -361,7 +361,7 @@
       "skillPath": "skills/engineering/resolving-merge-conflicts/SKILL.md",
       "skillFolderHash": "77f0d7de3143abbf03e55a63522d30bff31ae908",
       "installedAt": "2026-07-18T20:49:31.168Z",
-      "updatedAt": "2026-08-19T11:02:02.205Z"
+      "updatedAt": "2026-08-20T01:52:41.838Z"
     },
     "review-renovate": {
       "source": "backnotprop/plannotator",
@@ -372,6 +372,15 @@
       "installedAt": "2026-07-18T21:55:44.676Z",
       "updatedAt": "2026-07-18T21:55:44.676Z"
     },
+    "session-handoff": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/session-handoff/SKILL.md",
+      "skillFolderHash": "272f0f13f25aa146ba6dbd0b1d0d576a50fcdd9c",
+      "installedAt": "2026-07-18T20:48:39.017Z",
+      "updatedAt": "2026-09-02T01:51:43.817Z"
+    },
     "shared-memory-intake": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
@@ -379,7 +388,7 @@
       "skillPath": "skills/shared-memory-intake/SKILL.md",
       "skillFolderHash": "707552e7cd08f4bda4e3b05d161ab2db1210aec8",
       "installedAt": "2026-07-26T11:03:52.880Z",
-      "updatedAt": "2026-09-01T11:42:03.373Z"
+      "updatedAt": "2026-08-17T01:56:50.505Z"
     },
     "simplify": {
       "source": "brianlovin/claude-config",
@@ -416,7 +425,7 @@
       "skillPath": "skills/subagent-driven-development/SKILL.md",
       "skillFolderHash": "8133f2b10d4e71e73d867f2e2e365e0778ff0e4e",
       "installedAt": "2026-07-18T20:48:18.029Z",
-      "updatedAt": "2026-08-13T00:45:08.222Z"
+      "updatedAt": "2026-08-13T01:53:03.761Z"
     },
     "tdd": {
       "source": "mattpocock/skills",
@@ -425,7 +434,7 @@
       "skillPath": "skills/engineering/tdd/SKILL.md",
       "skillFolderHash": "79288be15c67b849f22b6572056601090fd20913",
       "installedAt": "2026-07-18T20:49:31.169Z",
-      "updatedAt": "2026-08-19T11:02:04.059Z"
+      "updatedAt": "2026-08-20T01:52:43.630Z"
     },
     "tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
@@ -434,7 +443,7 @@
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
       "skillFolderHash": "c453508dc209a5157fc44e0973893a24a5ee55aa",
       "installedAt": "2026-07-18T20:48:24.825Z",
-      "updatedAt": "2026-08-30T12:26:21.688Z"
+      "updatedAt": "2026-08-31T01:52:33.759Z"
     },
     "triage": {
       "source": "mattpocock/skills",
@@ -443,7 +452,7 @@
       "skillPath": "skills/engineering/triage/SKILL.md",
       "skillFolderHash": "95fa21bf236993cd9af25bd3670476c17fdb95a4",
       "installedAt": "2026-07-18T20:49:31.170Z",
-      "updatedAt": "2026-08-19T11:02:06.088Z"
+      "updatedAt": "2026-08-20T01:52:45.405Z"
     },
     "unknowns-discovery": {
       "source": "ohyeh/agent-scripts",
@@ -452,7 +461,7 @@
       "skillPath": "skills/unknowns-discovery/SKILL.md",
       "skillFolderHash": "a50b831b4218e92fd5bf83af958201e1841378ad",
       "installedAt": "2026-07-18T20:48:21.472Z",
-      "updatedAt": "2026-09-01T11:42:03.374Z"
+      "updatedAt": "2026-07-25T06:09:09.677Z"
     },
     "update-deps": {
       "source": "backnotprop/plannotator",
@@ -470,7 +479,7 @@
       "skillPath": "skills/using-design-skills/SKILL.md",
       "skillFolderHash": "be6126fcb33e2657f2365884ceb4fdabf8ed0ea5",
       "installedAt": "2026-07-18T20:48:21.473Z",
-      "updatedAt": "2026-09-01T11:42:03.374Z"
+      "updatedAt": "2026-08-28T07:41:40.204Z"
     },
     "using-skills": {
       "source": "ohyeh/agent-scripts",
@@ -479,7 +488,7 @@
       "skillPath": "skills/using-skills/SKILL.md",
       "skillFolderHash": "1b5082d44cde2c0f6b16c2d0338ae393381db42a",
       "installedAt": "2026-07-19T11:40:52.644Z",
-      "updatedAt": "2026-09-01T11:42:03.375Z"
+      "updatedAt": "2026-08-13T06:46:20.742Z"
     },
     "using-tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
@@ -488,16 +497,16 @@
       "skillPath": "skills/using-tmux-agent-tools/SKILL.md",
       "skillFolderHash": "33c2301157142fa92810c89cce96c20061b0a804",
       "installedAt": "2026-07-18T20:48:24.826Z",
-      "updatedAt": "2026-08-30T12:26:23.673Z"
+      "updatedAt": "2026-08-31T01:52:36.827Z"
     },
     "using-workflows": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-workflows/SKILL.md",
-      "skillFolderHash": "c787c007f73e9b9fcd61a0ce81bb4ef8ef5852d3",
+      "skillFolderHash": "d8d5f8db0074f8bde4b724098be77fe505c863a0",
       "installedAt": "2026-07-18T20:48:21.473Z",
-      "updatedAt": "2026-09-01T11:42:03.376Z"
+      "updatedAt": "2026-09-03T02:25:06.348Z"
     },
     "verification-before-completion": {
       "source": "obra/superpowers",
@@ -515,7 +524,7 @@
       "skillPath": "skills/engineering/wayfinder/SKILL.md",
       "skillFolderHash": "8ec0462658381bd1606d3f9db14ffc67df6a2a43",
       "installedAt": "2026-07-18T20:49:31.170Z",
-      "updatedAt": "2026-08-19T11:02:08.494Z"
+      "updatedAt": "2026-08-20T01:52:47.135Z"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",
@@ -533,7 +542,7 @@
       "skillPath": "skills/engineering/wizard/SKILL.md",
       "skillFolderHash": "0a163daf092c6f361158ca9627e81f2cb5230574",
       "installedAt": "2026-08-08T03:30:00.000Z",
-      "updatedAt": "2026-08-19T11:02:10.274Z"
+      "updatedAt": "2026-08-20T01:52:48.947Z"
     },
     "writing-artifacts": {
       "source": "ohyeh/agent-scripts",
@@ -542,7 +551,7 @@
       "skillPath": "skills/writing-artifacts/SKILL.md",
       "skillFolderHash": "afffcc78ec092f5e25c368ce8b9896abfdb37d90",
       "installedAt": "2026-08-01T11:44:27.233Z",
-      "updatedAt": "2026-09-01T11:42:03.376Z"
+      "updatedAt": "2026-08-24T01:56:08.974Z"
     },
     "writing-beats": {
       "source": "mattpocock/skills",
@@ -551,7 +560,7 @@
       "skillPath": "skills/in-progress/writing-beats/SKILL.md",
       "skillFolderHash": "3a28fb076fdaaec0927080718abb98fc0f340011",
       "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-19T11:02:12.125Z"
+      "updatedAt": "2026-08-20T01:52:50.999Z"
     },
     "writing-fragments": {
       "source": "mattpocock/skills",
@@ -560,7 +569,7 @@
       "skillPath": "skills/in-progress/writing-fragments/SKILL.md",
       "skillFolderHash": "98e500e0097ec80f52f6a024c5a2ff6d15235bdb",
       "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-19T19:14:46.489Z"
+      "updatedAt": "2026-08-20T01:52:52.732Z"
     },
     "writing-shape": {
       "source": "mattpocock/skills",
@@ -569,7 +578,7 @@
       "skillPath": "skills/in-progress/writing-shape/SKILL.md",
       "skillFolderHash": "ac92229646fccf7315ae139c37b479b3790617f2",
       "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-19T19:14:48.971Z"
+      "updatedAt": "2026-08-20T01:52:54.727Z"
     },
     "wait-what": {
       "source": "mattpocock/skills",
@@ -577,8 +586,26 @@
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/productivity/wait-what/SKILL.md",
       "skillFolderHash": "c119d66111cc1bac94cbc51322cd34ed21aa0446",
-      "installedAt": "2026-08-10T15:14:08.948Z",
-      "updatedAt": "2026-08-19T19:14:51.146Z"
+      "installedAt": "2026-08-10T04:05:47.425Z",
+      "updatedAt": "2026-08-20T01:52:56.967Z"
+    },
+    "grilling": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/productivity/grilling/SKILL.md",
+      "skillFolderHash": "f0732035b8b1b60ae39454e4191caef32fa91903",
+      "installedAt": "2026-08-10T07:08:45.281Z",
+      "updatedAt": "2026-08-21T01:56:30.610Z"
+    },
+    "diagram-design": {
+      "source": "cathrynlavery/diagram-design",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
+      "skillPath": "skills/diagram-design/SKILL.md",
+      "skillFolderHash": "5ee682d5c5d5c33c9d18f1ecfb4e576d6e2ac72e",
+      "installedAt": "2026-08-13T03:09:56.853Z",
+      "updatedAt": "2026-09-03T03:00:19.005Z"
     },
     "hallmark": {
       "source": "nutlope/hallmark",
@@ -586,26 +613,8 @@
       "sourceUrl": "https://github.com/nutlope/hallmark.git",
       "skillPath": "skills/hallmark/SKILL.md",
       "skillFolderHash": "747c924c4767b4d5fa6f1c59985c87a21c918334",
-      "installedAt": "2026-08-21T13:19:23.015Z",
-      "updatedAt": "2026-08-21T13:19:23.015Z"
-    },
-    "defect-first-review": {
-      "source": "ohyeh/agent-scripts",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/defect-first-review/SKILL.md",
-      "skillFolderHash": "829274cefebbf4d82a981d8add13da66ba31a7e3",
-      "installedAt": "2026-09-01T11:41:14.647Z",
-      "updatedAt": "2026-09-01T11:42:03.371Z"
-    },
-    "session-handoff": {
-      "source": "ohyeh/agent-scripts",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/session-handoff/SKILL.md",
-      "skillFolderHash": "272f0f13f25aa146ba6dbd0b1d0d576a50fcdd9c",
-      "installedAt": "2026-09-01T11:42:03.372Z",
-      "updatedAt": "2026-09-01T11:42:03.372Z"
+      "installedAt": "2026-08-21T07:50:52.145Z",
+      "updatedAt": "2026-08-21T07:50:52.145Z"
     }
   },
   "dismissed": {
