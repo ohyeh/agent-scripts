@@ -224,6 +224,7 @@ hook_install "$SRC/.agents/hooks/subagent-ledger.sh"
 install -m 0755 "$SRC/scripts/check-bol-prompt.sh" ~/.agents/hooks/
 hook_install "$SRC/.agents/hooks/context-ledger.sh"
 hook_install "$SRC/.agents/hooks/bash-read-audit.sh"
+hook_install "$SRC/.agents/hooks/artifact-title-gate.sh"
 hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/agents/claude/*.md frontmatter, not settings.json
 hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
 hook_install "$SRC/.agents/hooks/tmux-assign-host-gate.sh"
@@ -253,7 +254,8 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
    --arg postcompact "\"\$HOME/.agents/hooks/postcompact-handoff.sh\"" \
    --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
    --arg conc "\"\$HOME/.agents/hooks/subagent-concurrency-gate.sh\"" \
-   --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" '
+   --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" \
+   --arg arttitle "\"\$HOME/.agents/hooks/artifact-title-gate.sh\"" '
   def ensure(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | if any(.[]; any(.hooks[]?; .command == cmd))
@@ -281,9 +283,10 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
   | ensure("Stop"; $claim)
   | ensureMatched("PreToolUse"; "Agent"; $conc)
   | ensureMatched("PreToolUse"; "*"; $deny)
+  | ensureMatched("PreToolUse"; "Artifact"; $arttitle)
 ' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate deny-replay-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall precompact-instructions postcompact-handoff; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall precompact-instructions postcompact-handoff; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1

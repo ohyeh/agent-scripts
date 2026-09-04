@@ -78,6 +78,15 @@
             "command": "\"$HOME/.agents/hooks/deny-replay-gate.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Artifact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/artifact-title-gate.sh\""
+          }
+        ]
       }
     ],
     "SessionStart": [
