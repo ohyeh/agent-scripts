@@ -182,6 +182,10 @@ fi
 cp "$SRC/skills-lock.json" ~/skills-lock.json
 ( cd ~ && npx -y skills experimental_install )
 rm -f ~/skills-lock.json
+# experimental_install installs the folders but leaves ~/.agents/.skill-lock.json
+# untouched (2026-09-04: local 67 / .44 69 vs repo 70). The README contract is
+# "byte-identical copy", so converge the machine-global lock to the repo lock.
+cp "$SRC/skills-lock.json" ~/.agents/.skill-lock.json
 if [ ! -d ~/.agents/skills ]; then
   echo "FAIL [skills] ~/.agents/skills does not exist after restore" >&2
   exit 1
