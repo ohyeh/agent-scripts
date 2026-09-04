@@ -91,6 +91,15 @@
       "installedAt": "2026-07-18T22:54:22.507Z",
       "updatedAt": "2026-07-18T22:54:22.507Z"
     },
+    "defect-first-review": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/defect-first-review/SKILL.md",
+      "skillFolderHash": "829274cefebbf4d82a981d8add13da66ba31a7e3",
+      "installedAt": "2026-09-03T08:48:35.483Z",
+      "updatedAt": "2026-09-03T08:48:35.483Z"
+    },
     "defuddle": {
       "source": "kepano/obsidian-skills",
       "sourceType": "github",
@@ -126,6 +135,15 @@
       "skillFolderHash": "99bd56983e42bc752c52da67f1112e4121781cd1",
       "installedAt": "2026-07-18T20:49:31.166Z",
       "updatedAt": "2026-08-20T01:52:32.596Z"
+    },
+    "diagram-design": {
+      "source": "cathrynlavery/diagram-design",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
+      "skillPath": "skills/diagram-design/SKILL.md",
+      "skillFolderHash": "5ee682d5c5d5c33c9d18f1ecfb4e576d6e2ac72e",
+      "installedAt": "2026-08-13T03:09:56.853Z",
+      "updatedAt": "2026-09-03T03:09:50.358Z"
     },
     "dispatching-parallel-agents": {
       "source": "obra/superpowers",
@@ -180,6 +198,24 @@
       "skillFolderHash": "883a6a7466f55a9cd9f22cf1cce2d9333fc9b998",
       "installedAt": "2026-07-18T20:47:49.624Z",
       "updatedAt": "2026-07-18T20:47:49.624Z"
+    },
+    "grilling": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/productivity/grilling/SKILL.md",
+      "skillFolderHash": "f0732035b8b1b60ae39454e4191caef32fa91903",
+      "installedAt": "2026-08-10T07:08:45.281Z",
+      "updatedAt": "2026-08-21T01:56:30.610Z"
+    },
+    "hallmark": {
+      "source": "nutlope/hallmark",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/nutlope/hallmark.git",
+      "skillPath": "skills/hallmark/SKILL.md",
+      "skillFolderHash": "747c924c4767b4d5fa6f1c59985c87a21c918334",
+      "installedAt": "2026-08-21T07:50:52.145Z",
+      "updatedAt": "2026-08-21T07:50:52.145Z"
     },
     "high-end-visual-design": {
       "source": "Leonxlnx/taste-skill",
@@ -481,6 +517,15 @@
       "installedAt": "2026-07-18T20:48:21.473Z",
       "updatedAt": "2026-09-03T12:06:09.546Z"
     },
+    "using-grok-bot-app": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/using-grok-bot-app/SKILL.md",
+      "skillFolderHash": "ec4a13129a1ec007587fe8e3b10fb0260fa5d1aa",
+      "installedAt": "2026-09-04T08:30:33.000Z",
+      "updatedAt": "2026-09-04T08:30:33.000Z"
+    },
     "using-skills": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
@@ -516,6 +561,15 @@
       "skillFolderHash": "a4cb0b69aaefeab540947a7f1642bdaad810e37a",
       "installedAt": "2026-07-18T20:48:18.029Z",
       "updatedAt": "2026-07-24T01:12:45.422Z"
+    },
+    "wait-what": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/mattpocock/skills.git",
+      "skillPath": "skills/productivity/wait-what/SKILL.md",
+      "skillFolderHash": "c119d66111cc1bac94cbc51322cd34ed21aa0446",
+      "installedAt": "2026-08-10T04:05:47.425Z",
+      "updatedAt": "2026-08-20T01:52:56.967Z"
     },
     "wayfinder": {
       "source": "mattpocock/skills",
@@ -579,51 +633,6 @@
       "skillFolderHash": "ac92229646fccf7315ae139c37b479b3790617f2",
       "installedAt": "2026-08-03T04:20:00.000Z",
       "updatedAt": "2026-08-20T01:52:54.727Z"
-    },
-    "wait-what": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/productivity/wait-what/SKILL.md",
-      "skillFolderHash": "c119d66111cc1bac94cbc51322cd34ed21aa0446",
-      "installedAt": "2026-08-10T04:05:47.425Z",
-      "updatedAt": "2026-08-20T01:52:56.967Z"
-    },
-    "grilling": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/productivity/grilling/SKILL.md",
-      "skillFolderHash": "f0732035b8b1b60ae39454e4191caef32fa91903",
-      "installedAt": "2026-08-10T07:08:45.281Z",
-      "updatedAt": "2026-08-21T01:56:30.610Z"
-    },
-    "diagram-design": {
-      "source": "cathrynlavery/diagram-design",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
-      "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "5ee682d5c5d5c33c9d18f1ecfb4e576d6e2ac72e",
-      "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-09-03T03:09:50.358Z"
-    },
-    "hallmark": {
-      "source": "nutlope/hallmark",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/nutlope/hallmark.git",
-      "skillPath": "skills/hallmark/SKILL.md",
-      "skillFolderHash": "747c924c4767b4d5fa6f1c59985c87a21c918334",
-      "installedAt": "2026-08-21T07:50:52.145Z",
-      "updatedAt": "2026-08-21T07:50:52.145Z"
-    },
-    "defect-first-review": {
-      "source": "ohyeh/agent-scripts",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/defect-first-review/SKILL.md",
-      "skillFolderHash": "829274cefebbf4d82a981d8add13da66ba31a7e3",
-      "installedAt": "2026-09-03T08:48:35.483Z",
-      "updatedAt": "2026-09-03T08:48:35.483Z"
     }
   },
   "dismissed": {
