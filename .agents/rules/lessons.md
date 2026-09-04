@@ -185,3 +185,28 @@ Status: proposed
 Rule: 兩份規範互斥時，修其中一份，不要靜默選一邊照做；派工形狀是 proxy 跑 `assign --detach`、parent 用 bounded background `result wait-required` 收割。
 Evidence: `tmux-assign-host-gate.sh:58` vs 舊 ONE OWNER 段；host-agy／host-cursor2／host-cursor-reprompt 三個 proxy 全數回報 in-flight 而非 terminal。
 Status: proposed
+
+## 2026-09-04 | scope: judgment | trigger: 已附完整驗證證據（typecheck/lint/unit/e2e 全綠）的回覆結尾仍列三項「待你決定」，使用者「我要決定啥？你不是可以處理嗎？」
+Rule: 回覆已含完整驗證證據時不得再列「待你決定」；可由專案記錄自答的問題（分支狀態、過期 stash、既有規範）自己查、自己處理，只有成本／風險／優先序這類真偏好才問。
+Evidence: a4d33df9@2026-08-31T08:12:05Z 結尾三項待決 → 08:15:40Z 使用者反問 → 08:15:47Z agent 改口「那我做」；同型 f7d8aaa4、492a2dcd。
+Status: proposed
+
+## 2026-09-04 | scope: completion | trigger: 審查產出一批結論後只回「審完了」，使用者「都審完了 你沒任何修正？」
+Rule: 審查結論就是待辦清單：逐條落地並附每條的驗證證據，不得以「審完了」結束一輪。
+Evidence: c48c0d3a 447k cache-break 該輪；W36 dive-A 分類「規則存在但沒執行」。
+Status: proposed
+
+## 2026-09-04 | scope: gates | trigger: W35 retro session 在使用者說「先確認 問清楚再動手」之前已對 grok-bot VM 做 git pull、註冊 hook、改 settings.json
+Rule: 對外部主機（VM、遠端機、別台工作站）的任何寫入是 hard-stop：先問、拿到本回合明文授權再動；kernel 已明列 external side effects，這條是被跳過的執行，不是判斷失準。
+Evidence: 438ab86c@2026-08-28T07:53:56Z；W36 dive-B #7。
+Status: proposed
+
+## 2026-09-04 | scope: measurement | trigger: Layer 1 token 數字引用 analyzer 原始值 uncached 132M／cache break 718，實際去重後 22.1M／103（36 倍誤報）
+Rule: Claude transcript token 統計必先依 `message.id` 去重（同一 assistant message 的串流分段只計一次）；三來源（analyzer、去重、workflow 自記）不一致時不得引用任何一個當結論，先對口徑。正式量尺：`evals/retro-metrics/usage-dedupe.py`。
+Evidence: 本機 26,450 筆 usage 中 2,745 筆無 requestId、1,306 筆只帶 input_tokens 分段；analyzer key `requestId || msg.id(msg_0…) || uuid` 對 workflow 子代理退回 uuid；agy／cursor／codex 三方重跑皆得 22.07M。
+Status: proposed
+
+## 2026-09-04 | scope: deploy | trigger: e9d60e8 只 deploy 到本機即在 handoff 宣稱 deployed，.44 deploy-log 停在 2f9fd14（W1「fleet-deploy 唯一入口」再犯）
+Rule: 「已部署」的宣稱必附每台目標機 deploy-log 的最後 sha（`~/.local/state/agent-scripts/deploy-log.jsonl`），單機驗證不得寫成艦隊驗證。
+Evidence: 本機 deploy-log e9d60e8@09-04T04:19Z；.44 2f9fd14@09-03T12:47Z；.44 缺 `~/.claude/agents/explore-bounded.md`、`~/.agents/hooks/bash-readonly-gate.sh`。
+Status: proposed

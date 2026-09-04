@@ -1,0 +1,172 @@
+{
+  "week": "2026-W36",
+  "window": {
+    "days": 7,
+    "start": "2026-08-28",
+    "end": "2026-09-04",
+    "basis": "mtime (analyzer --since 7d / collector mtime); codex mtime"
+  },
+  "method": "兩機（本機 ohYEHs-MBP-14 + ssh 100.64.190.44）。Claude = session-report analyze-sessions.mjs --json --since 7d（兩機腳本 shasum 相同；只讀 ~/.claude/projects，不含 projects_archived / transcripts）；Codex = .workflow/202609041230-weekly-retro/codex-tokens.py（每 jsonl 最後一筆 payload.info.total_token_usage，sessions+archived_sessions，mtime 7d）；Layer 1 = context-mode-local-insight agent-sessions v4 909d4db。turns = human_messages。W35（08-28）未產出 2026-W35.json，本檔不回填。 Claude uncached/total 正式量尺 = evals/retro-metrics/usage-dedupe.py（message.id 去重），analyzer 僅供對照。",
+  "machines": {
+    "local-mbp14": {
+      "claude": {
+        "sessions": 55,
+        "api_calls": 13646,
+        "turns": 730,
+        "input": 22075310,
+        "cache_create": 48714047,
+        "cache_read": 2028313002,
+        "output": 6044904,
+        "total": 2099102359,
+        "pct_cached": 98.9,
+        "hours_active": 83.3,
+        "cache_breaks_over_100k": 103,
+        "subagent_calls": 249,
+        "workflow_subagent_uncached": 20117383,
+        "workflow_subagent_cache_breaks": 103,
+        "analyzer_raw": {
+          "input": 132141113,
+          "cache_breaks_over_100k": 718,
+          "subagent_total": 859747888,
+          "note": "analyzer 對無 requestId 的 workflow 子代理 transcript 退回 uuid key，串流分段（本機 1,306 筆）重複計入；本欄改採 usage-dedupe.py midkey（message.id 去重）。.44 兩口徑一致（無 requestId 僅 2 筆）"
+        },
+        "zero_turn_gt1M": 0,
+        "canary_pct": 80.7,
+        "goal_accept_report_pct": 87.7,
+        "done_no_evidence_pct": 76.7,
+        "done_no_evidence_n": "23/30",
+        "correction_sessions": 6,
+        "collector_sessions": 57,
+        "collector_subagent_transcripts": 115,
+        "note": "11 個 top-level + 10 個 subagent transcript 來自 scratchpad-probe（09-04 探針），token 量極小但計入 sessions"
+      },
+      "codex": {
+        "files_scanned": 2222,
+        "sessions": 16,
+        "from_archive": 0,
+        "turns": 110,
+        "total": 80367417,
+        "input": 80025657,
+        "cached_input": 76541184,
+        "cache_write": 0,
+        "output": 341760,
+        "reasoning": 151415,
+        "zero_turn_gt1M": 0,
+        "context_windows": {
+          "380000": 14,
+          "258400": 2
+        },
+        "models": {
+          "gpt-5.6-sol": 14,
+          "gpt-5.6-luna": 1,
+          "gpt-5.5": 1
+        }
+      },
+      "agy": {
+        "conversation_dbs_in_window": 12,
+        "trajectories": 12,
+        "steps": 3308,
+        "tokens": "無記帳"
+      },
+      "cursor": {
+        "chats_in_window": 11,
+        "without_meta": 4,
+        "messages": 2794,
+        "tokens": "無記帳"
+      }
+    },
+    "remote-25006931": {
+      "claude": {
+        "sessions": 83,
+        "api_calls": 4079,
+        "turns": 508,
+        "input": 203727,
+        "cache_create": 15783222,
+        "cache_read": 623848865,
+        "output": 2423729,
+        "total": 639835814,
+        "pct_cached": 97.5,
+        "hours_active": 32.1,
+        "cache_breaks_over_100k": 14,
+        "subagent_calls": 53,
+        "subagent_total": 51851027,
+        "workflow_subagent_total": 2475595,
+        "zero_turn_gt1M": 0,
+        "canary_pct": 40.5,
+        "goal_accept_report_pct": 40.5,
+        "done_no_evidence_pct": 62.2,
+        "done_no_evidence_n": "23/37",
+        "correction_sessions": 8,
+        "collector_sessions": 84,
+        "collector_subagent_transcripts": 49
+      },
+      "codex": {
+        "files_scanned": 2456,
+        "sessions": 10,
+        "from_archive": 0,
+        "turns": 40,
+        "total": 11798671,
+        "input": 11693513,
+        "cached_input": 10685952,
+        "cache_write": 0,
+        "output": 105158,
+        "reasoning": 57268,
+        "zero_turn_gt1M": 0,
+        "context_windows": {
+          "380000": 9,
+          "258400": 1
+        },
+        "models": {
+          "gpt-5.6-sol": 8,
+          "gpt-5.6-luna": 2
+        }
+      },
+      "agy": {
+        "conversation_dbs_in_window": 8,
+        "trajectories": 8,
+        "steps": 2222,
+        "tokens": "無記帳"
+      },
+      "cursor": {
+        "chats_in_window": 12,
+        "without_meta": 0,
+        "messages": 2469,
+        "unreadable": 2,
+        "tokens": "無記帳"
+      }
+    }
+  },
+  "findings": [
+    "本機 Claude 2.10B（W35 0.996B，2.1 倍）；uncached 22.1M（W35 5.1M，4.3 倍）；>100k uncached turn 103（W35 34）",
+    "本機 uncached 22.1M 中 20.1M（91%）來自 us-options-terrain 241bb02c 的一次 design-vs-code-audit workflow run（25 agent：4 finder + 21 verifier，每個 verifier 從零重讀同批來源；src/main.ts 283KB 被讀 230 次）",
+    "量尺：analyzer 原始值 uncached 132M／cache break 718 是串流分段重複相加（無 requestId 的 workflow 子代理 transcript 退回 uuid key）；三來源（原始 125.7M／去重 20.1M／workflow 自記 3.46M）差 36 倍，「這場花了多少」目前無單一可信答案",
+    ".44 Claude 640M（W35 884M，−28%）；uncached 0.2M；派工佈局分散為 ~30 個具名 subagent",
+    "done-w/o-evidence 新口徑：本機 76.7%（23/30）、.44 62.2%（23/37）；W35 修尺後首輪，與 96% 舊口徑不可比",
+    ".44 canary 40.5% 對本機 80.7%；GOAL/ACCEPT/REPORT 同 40.5%（.44 healthgo 場多為使用者直接對話）",
+    "Codex 兩機合計 92M，本機 16 場 / .44 10 場，全 0 場 turns=0 且 >1M；cache_write 仍全 0",
+    "e9d60e8（explore-bounded）09-04 04:19Z 只 deploy 到本機；.44 deploy-log 停在 2f9fd14 → W1「fleet-deploy 唯一入口」再次未遵守",
+    ".44 54 場 sdk-py security-review：CLI 2.1.260 binary 含 ultrareview-post-commit／tengu_ultrareview_post_enabled 常式（strings 命中），為 CLI 內建 post-commit ultrareview；使用者側開關未找到（UNCONFIRMED）"
+  ],
+  "gaps": [
+    "mac-mini／grok VM 未量測（使用者指定兩台）",
+    "projects_archived / transcripts 兩機皆未進 analyzer（W7 未落地）",
+    "agy／cursor 無 token 記帳",
+    "Codex USD 無定價表",
+    "§Observe 五列：explore-bounded 09-04 才上線，尚無 /loop 夜，本週只記基線"
+  ],
+  "external_review": {
+    "agy": "gemini-3.8-flash-high",
+    "cursor": "cursor-grok-4.6-high-fast",
+    "codex": "gpt-5.6-sol medium",
+    "files": [
+      ".workflow/202609041230-weekly-retro/opinions/agy.md",
+      ".workflow/202609041230-weekly-retro/opinions/cursor.md",
+      ".workflow/202609041230-weekly-retro/opinions/codex.md"
+    ],
+    "reproduced_midkey_input": [
+      22076524,
+      22076806
+    ],
+    "consensus": "F1 補 deploy；F2 message.id 去重（repo 自帶 usage-dedupe.py）；F3 反對硬上限、改 shared evidence pack；F4 先補證據；F5 反對字串 Stop-gate；lessons 收 L-a/c/e/g/h"
+  }
+}
