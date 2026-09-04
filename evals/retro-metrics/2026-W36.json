@@ -168,5 +168,39 @@
       22076806
     ],
     "consensus": "F1 補 deploy；F2 message.id 去重（repo 自帶 usage-dedupe.py）；F3 反對硬上限、改 shared evidence pack；F4 先補證據；F5 反對字串 Stop-gate；lessons 收 L-a/c/e/g/h"
+  },
+  "context_mode_unified_db": {
+    "method": "ls -ld ~/{.gemini,.codex,.cursor}/context-mode → symlink ~/.claude/context-mode（兩機）；掃 sessions/*.db session_events created_at 2026-08-28..09-04；歸戶用 SessionStart data 'model:*'",
+    "local": {
+      "sessions": 106,
+      "events": 16964,
+      "bytes_avoided_MB": 51.7,
+      "bytes_returned_MB": 5.3,
+      "kept_out_pct": 90.7,
+      "compacts": 44,
+      "rescue_MB": 5.65,
+      "ctx_tool_calls": 1135,
+      "sessions_by_marker": {
+        "claude": 22,
+        "codex": 2,
+        "glm": 5,
+        "unmarked": 55
+      }
+    },
+    "remote_44": {
+      "sessions": 105,
+      "events": 8702,
+      "bytes_avoided_MB": 22.1,
+      "bytes_returned_MB": 6.0,
+      "kept_out_pct": 78.6,
+      "compacts": 22,
+      "rescue_MB": 2.18,
+      "ctx_tool_calls": 388,
+      "sessions_by_marker": {
+        "claude": 28,
+        "unmarked": 77
+      }
+    },
+    "finding": "F23 store 統一、rescue 有效；52%/73% 場次無 CLI 標記，codex/agy/cursor 事件無法歸戶 → X8"
   }
 }
