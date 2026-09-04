@@ -79,6 +79,7 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 | Task | Claude | Codex |
 |---|---|---|
 | locate/inventory | `sonnet` low; `sonnet` medium for synthesis | Terra low |
+| read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
 | implement/refactor/research | `sonnet` | Terra low/medium; Luna medium |
 | review/verification | fresh `sonnet`; risky=`opus` | fresh Sol medium |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
@@ -166,6 +167,15 @@ tmux worker mechanics (highest-frequency real-world failure, re-hit by ≥4 sess
 | `medium` | default implementation, refactor, research, first review |
 | `high` | planning, risky/adversarial review, root-cause convergence |
 | `xhigh`/`max` | only after two evidenced lower-tier failures or explicit user choice |
+
+`model` on an `Agent` call, two cases (both measured 2026-09-04):
+- Built-in `subagent_type` (`general-purpose`, `Explore`, `Plan`): `model` is REQUIRED.
+  Omitting it does NOT inherit the parent (fable parent, four omitted `Explore` calls,
+  opus children); it silently resolves to opus.
+- Custom definition (`explore-bounded`, anything under `global/agents/claude/`): OMIT
+  `model`. The definition binds model/effort/maxTurns; an explicit `model` on the call
+  OVERRIDES it (probe: `explore-bounded` + `model: 'opus'` ran opus). Pass it only to
+  upgrade deliberately, never as the "不知道先 opus" default.
 
 Effort names are NOT equivalent across models (Fable 5.1 guide): re-run the sweep when the model
 changes. Default worker = `opus` `medium`. Raise one step from failure evidence; first

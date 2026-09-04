@@ -18,7 +18,7 @@
 //   return needsUser:true and stop short of any commit.
 // MODEL POLICY (user ruling 2026-09-02): floor = opus effort low. Planning, synthesis, revision,
 //   critique, and review NEVER run on sonnet. sonnet is allowed ONLY for read-only data gathering
-//   (Discover) — pass discoverModel:'sonnet' to opt in; default stays opus.
+//   (Discover) runs on the explore-bounded definition (sonnet, maxTurns 60, read-only gate) by default; discoverModel overrides it.
 //   The second-model CLI is OPTIONAL: no cli → the external loop runs a fresh Claude opus reviewer.
 // CORRECTNESS (non-negotiable): truth = source code, logs, and real command output observed THIS run.
 //   Memory, existing .md/.html docs, comments, and prior plans are NOT truth — they may be stale;
@@ -42,7 +42,7 @@
 //     commit:     false, push: false,             // optional: git gate (= the human approval)
 //     model:      "opus", effort: "low",          // optional worker floor (never below opus low)
 //     reviewEffort: "high",                       // optional: critics / external reviewer effort
-//     discoverModel: "opus"                       // optional: 'sonnet' allowed here ONLY (read-only data gathering)
+//     discoverModel: "opus"                       // optional: overrides the explore-bounded definition's model for Discover only
 //   }})
 //
 // NOTE: workflow scripts have no FS/shell — only agents do. All reads, writes, git happen in agent() prompts.
@@ -71,7 +71,7 @@ const repo = a.repoPath
 const model = a.model || 'opus'     // worker floor (user ruling 2026-09-02: never sonnet for plan/synth/revise)
 const effort = a.effort || 'medium'    // worker effort (default medium; floor opus low)
 const reviewEffort = a.reviewEffort || 'high'   // critics + second reviewer
-const discoverModel = a.discoverModel || model  // the ONLY role where 'sonnet' is permitted (read-only data gathering)
+const discoverModel = a.discoverModel  // undefined by default: the explore-bounded definition binds model (sonnet); an explicit arg OVERRIDES it (measured 2026-09-04)
 // Official agent() opts, listed on every call. Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)
@@ -125,16 +125,16 @@ const EVIDENCE = `CORRECTNESS DOCTRINE (non-negotiable): truth = source code, lo
 const CONTEXT = `Repo: ${repo}.\n${EVIDENCE}\n\nNEW FEATURE BRIEF (a goal to plan toward; verify all "current state" against code):\n${a.featureBrief}${designRefs}`
 
 phase('Orchestrate')
-log(`Step 0 doctrine active — ladder: ${model}→self→${externalTier}→user (budget: worker x${workerTries}, self x${selfTries}, external rung ${escalateExternal ? 'on' : 'off'}); models: workers=${model}/${effort}, discover=${discoverModel}, review=${model}/${reviewEffort}; truth = code/logs only.`)
+log(`Step 0 doctrine active — ladder: ${model}→self→${externalTier}→user (budget: worker x${workerTries}, self x${selfTries}, external rung ${escalateExternal ? 'on' : 'off'}); models: workers=${model}/${effort}, discover=${discoverModel || 'explore-bounded (def)'}, review=${model}/${reviewEffort}; truth = code/logs only.`)
 if (!a.orchestratorModel) log(`note: orchestratorModel unset — the "self" rung inherits the main-loop model; it is a real capability step only if the main loop runs a model above ${model} (else it is a same-model retry).`)
 
 // ───────────────────────── escalation ladder ─────────────────────────
 // Delegate a task; MONITOR via verify(); on rejection, climb the ladder, feeding the
 // monitor's correction into the next attempt. Returns {result, tier, attempt, ok, needsUser}.
 async function runEscalated(label, phaseName, makePrompt, opts = {}) {
-  const { schema, verify, workerModel } = opts
+  const { schema, verify, workerModel, workerAgentType } = opts
   const rungs = [
-    ...Array(workerTries).fill({ tier: workerModel || model, model: workerModel || model }),
+    ...Array(workerTries).fill({ tier: workerModel || (workerAgentType || model), model: workerModel || (workerAgentType ? undefined : model), agentType: workerAgentType }),
     ...Array(selfTries).fill({ tier: 'self', model: a.orchestratorModel }), // undefined -> inherit main-loop (you)
   ]
   if (escalateExternal) rungs.push({ tier: cli, driveCli: true })
@@ -142,7 +142,8 @@ async function runEscalated(label, phaseName, makePrompt, opts = {}) {
   let last = null
   for (let i = 0; i < rungs.length; i++) {
     const r = rungs[i]
-    const o = { label: `${label}:${r.tier}#${i + 1}`, phase: phaseName, effort, isolation, agentType }
+    const o = { label: `${label}:${r.tier}#${i + 1}`, phase: phaseName, isolation, agentType: r.agentType || agentType }
+    if (!r.agentType) o.effort = effort   // a custom definition carries its own effort/model/maxTurns; do not override it here
     if (schema) o.schema = schema
     if (r.model) o.model = r.model   // per-tier model (worker / self / cli-driven) — intentionally varies
     const p = makePrompt(feedback, r.tier)
@@ -243,7 +244,7 @@ async function discoverArea(area) {
       // greenfield is allowed: existing may be empty as long as gaps or open_questions explain the work/unknowns.
       if (ex.length || gp.length || oq.length) return { ok: true }
       return { ok: false, feedback: 'all sections empty — actually probe the code (rg/fd/Read) and report existing/gaps, or list explicit open_questions for what you could not verify.' }
-    }, workerModel: discoverModel }   // read-only data gathering: the one role where sonnet is permitted
+    }, workerModel: discoverModel, workerAgentType: 'explore-bounded' }   // read-only data gathering: sonnet + maxTurns via global/agents/claude/explore-bounded.md
   ).then(x => x.ok ? x.result : null)
 }
 const findings = (await parallel(areas.map(area => () => discoverArea(area)))).filter(Boolean)

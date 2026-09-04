@@ -42,6 +42,9 @@
 #                 puts the pin back and fails closed if it did not stick.
 #   7. cursor   - kernel.mdc, Ponytail instruction rule (if plugin present),
 #                 HUD scripts + statusLine merge (never copies cli-config).
+#   8. agents   - global/agents/<runtime>/ -> that runtime's agent dir
+#                 (claude -> ~/.claude/agents, codex -> ~/.codex/agents),
+#                 rsync --delete + diff, only for sub-dirs present in the repo.
 set -euo pipefail
 
 # macOS ships `md5 -q`; Linux (grok-bot VM) has md5sum only and a non-login ssh
@@ -221,6 +224,7 @@ hook_install "$SRC/.agents/hooks/subagent-ledger.sh"
 install -m 0755 "$SRC/scripts/check-bol-prompt.sh" ~/.agents/hooks/
 hook_install "$SRC/.agents/hooks/context-ledger.sh"
 hook_install "$SRC/.agents/hooks/bash-read-audit.sh"
+hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/agents/claude/*.md frontmatter, not settings.json
 hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
 hook_install "$SRC/.agents/hooks/tmux-assign-host-gate.sh"
 hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
@@ -314,6 +318,35 @@ bash "$SRC/scripts/install-cursor-ponytail.sh"
 bash "$SRC/scripts/install-cursor-hud.sh"
 bash "$SRC/scripts/check-cursor-runtime.sh"
 echo "PASS [cursor] kernel + HUD + ponytail wiring"
+
+# --- Layer 8: agent definitions ----------------------------------------------
+echo "==> [agents] global/agents/<runtime>/ -> runtime agent dirs"
+agents_report=""
+for rt in claude codex; do
+  src="$SRC/global/agents/$rt"
+  [ -d "$src" ] || continue
+  case "$rt" in claude) dst="$HOME/.claude/agents";; codex) dst="$HOME/.codex/agents";; esac
+  # A frontmatter hook whose script is missing is a SILENT ALLOW (measured
+  # 2026-09-04: bogus command path -> `echo x > f` succeeded). Fail closed:
+  # every `command:` a definition references must already be executable here.
+  while IFS= read -r hook_cmd; do
+    hook_path="${hook_cmd//\$HOME/$HOME}"; hook_path="${hook_path//\~/$HOME}"
+    if [ ! -x "$hook_path" ]; then
+      echo "FAIL [agents] $rt definition references hook not installed/executable: $hook_cmd" >&2
+      exit 1
+    fi
+  done < <(grep -h -E '^[[:space:]]*command:[[:space:]]*' "$src"/*.md 2>/dev/null | sed -E 's/^[[:space:]]*command:[[:space:]]*//; s/^"//; s/"$//')
+  mkdir -p "$dst"
+  rsync -a --delete "$src/" "$dst/"
+  agents_diff="$(diff -rq "$dst/" "$src/" || true)"
+  if [ -n "$agents_diff" ]; then
+    echo "FAIL [agents] $rt diff found after rsync:" >&2
+    echo "$agents_diff" >&2
+    exit 1
+  fi
+  agents_report="$agents_report $rt=$(find "$src" -type f | wc -l | tr -d ' ')"
+done
+echo "PASS [agents] 0 diff (${agents_report# })"
 
 # W35 retro F2: a per-host deploy record, so a retro can window "after both
 # hosts ran version X" instead of comparing hosts on different gate versions.

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Regression table for .agents/hooks/bash-readonly-gate.sh: allow=0, deny=2.
+set -uo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+HOOK="$ROOT/.agents/hooks/bash-readonly-gate.sh"
+pass=0; fail=0
+t() { # $1 command, $2 expected exit
+  local r; r=$(jq -cn --arg c "$1" '{tool_name:"Bash",tool_input:{command:$c}}' | bash "$HOOK" >/dev/null 2>&1; echo $?)
+  if [ "$r" = "$2" ]; then pass=$((pass+1)); else fail=$((fail+1)); printf 'FAIL %-50s exit=%s want=%s\n' "$1" "$r" "$2"; fi
+}
+# allow
+t 'rg -n "foo" src/' 0;            t 'fd -e md . | head' 0;          t 'ast-grep -p "fn $A" -l rs' 0
+t 'jq .name package.json' 0;        t 'yq .a b.yaml' 0;               t 'git log -S foo --oneline' 0
+t 'git diff --stat' 0;              t 'cmd 2>&1 | head' 0;            t 'ls >/dev/null 2>&1' 0
+t 'cmd 2>/dev/null' 0;              t 'cmd 2>&1 >/dev/null' 0;        t 'grep -c x f' 0
+t 'cat f | wc -l' 0;                t 'ls -la' 0
+# deny: redirection
+t 'echo x > should-fail.txt' 2;     t 'echo x >> log' 2;              t 'cmd 1>out.txt' 2
+t 'cmd 2>err.txt' 2;                t 'ls >/dev/null; echo x > f' 2;  t 'rg "a>b" .' 2
+# deny: write utilities / interpreters
+t 'rm -f a' 2;                      t 'sed -i "" s/a/b/ f' 2;         t 'rg x | tee out' 2
+t 'ast-grep -p a -r b -U' 2;        t 'python3 -c "open(1)"' 2;       t "python3 - <<'PY'" 2
+t 'node -' 2;                       t 'perl -e "x"' 2;                t 'sudo rm x' 2
+t 'x && mkdir y' 2;                 t 'npx foo' 2
+# deny: wrappers / absolute paths / find
+t 'env python3 -c "open(1)"' 2;     t "/usr/bin/python3 - <<'PY'" 2;  t 'command node -' 2
+t 'exec perl -e x' 2;               t "find . -name '*.tmp' -delete" 2; t 'find . -exec rm {} \;' 2
+t 'sudo env rm -rf x' 2;            t 'ls | xargs rm' 2
+# allow: wrappers around read tools, absolute path read tools
+t 'env rg foo .' 0;                 t '/opt/homebrew/bin/fd -e md' 0;  t 'find . -name "*.md"' 0
+# deny: git
+t 'git commit -m x' 2;              t 'git checkout -- .' 2;          t 'git stash' 2
+# non-Bash tool passes through
+r=$(jq -cn '{tool_name:"Read",tool_input:{file_path:"x"}}' | bash "$HOOK" >/dev/null 2>&1; echo $?); [ "$r" = 0 ] && pass=$((pass+1)) || { fail=$((fail+1)); echo "FAIL non-Bash passthrough"; }
+echo "bash-readonly-gate: $pass passed, $fail failed"
+[ "$fail" -eq 0 ]
