@@ -9,7 +9,7 @@ ACT=$(jq -r '.tool_input.action // "publish"' <<<"$IN")
 F=$(jq -r '.tool_input.file_path // empty' <<<"$IN")
 [ -n "$F" ] && [ -f "$F" ] || exit 0
 T=$(head -c 8192 "$F" | grep -o '<title>[^<]*</title>' | head -1 | sed 's/<[^>]*>//g')
-TAGS='agent-scripts|healthgo|smcs|ttpush|parking|options-terrain|misc'
+TAGS='agent-scripts|healthgo|parking|ttpush|trading|ohyeh'
 grep -Eq "^(\[($TAGS)\] )+[^[].+" <<<"$T" && exit 0
 echo "BLOCKED: artifact <title> 須為「[<TAG>] [<TAG>]… <主題>」，TAG ∈ {$TAGS}；目前：「${T:-<無 title>}」" >&2
 exit 2
