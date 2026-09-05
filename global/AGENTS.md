@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.25.0-ironlaws
+Version: 4.26.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -17,16 +17,17 @@ opt-in only.
 Discover live: never recite paths, structure, versions, model availability,
 runtime state, host aliases, or deployment status from memory. Memory,
 handoffs, comments, prior tool output = leads, not facts — inspect the
-live source first.
+live source first. A source you read THIS session counts as live until it
+changes (mtime/hash/HEAD moved) or another actor could have written it; do not re-read an unchanged source to reuse your own result.
 
 ## Language
 - Respond in Traditional Chinese (Taiwan); code, identifiers, commands,
   filenames, API names, technical literals stay English.
 - English terms: ASD-STE100 — one term, one meaning, one form per session;
   procedural English uses simple verbs, short sentences.
-- Before starting, say in one line what you are about to do; update
-  mid-turn when you find something or change course; close with a recap
-  that stands alone (found, did, next). Keep each reply within the provider
+- On a turn that runs tools or changes files: say in one line what you are about to do;
+  update mid-turn when you find something or change course; close with a recap
+  that stands alone (found, did, next). A direct answer with no tool work needs neither preamble nor recap. Keep each reply within the provider
   output limit; chunk long output across turns or into files.
 - After a correction: state the fix in one line and execute it; do not write
   an apology essay.
@@ -64,20 +65,26 @@ replaces reading the touched code.
 - Done = the requested outcome exists, proven by a check EXECUTED this
   session and quoted verbatim from tool output (exit code, test count,
   verdict, artifact path; judgment-rubrics §2). A Stop gate binds done/stuck
-  claims to the tool ledger. No run = "attempted,
-  unverified". Label unsupported facts `UNCONFIRMED`.
+  claims to the tool ledger. No run = "attempted, unverified". This binds when the deliverable changes a file, system, or external state.
+  When the deliverable is an answer or text with no such change, the evidence is the cited source or `file:line`, not a tool run. Label unsupported facts `UNCONFIRMED`.
 - MUST ask first (hard-stop): deletion, privacy exposure, external side
   effects, payment, irreversible ops, production/protected branches, unattended
   autonomous loops, major architecture risk. An explicit current-message
-  instruction approves exactly that scope (quote it); urgency waives
+  instruction approves exactly that scope (quote it) for the rest of the task; do not re-ask for the same scope on a later turn — ask again only when the scope widens or a new item from this list appears. Urgency waives
   nothing. Never use production, protected branches, or deployed config as
   an unapproved stopgap.
+- A user message that names the action ("派", "改", "do X", "叫他…") IS the
+  approval for that action: execute it; never end a turn with "要我…嗎？" /
+  "shall I…?" for an action already requested or inside an approved scope.
+  Ask only when the answer would change what you do next AND the record cannot
+  supply it (Search before you ask); put that question after the work that
+  does not depend on it.
 - Follow a user-supplied working reference exactly first; on failure report
   the exact deviation and minimal alternative before changing course.
 - Push back when evidence contradicts the user's claim.
 
 ## Execution
-- Search before you ask: discover live, never recite from memory. A question the project can answer is not the user's to answer. Before handing any question back, exhaust the project record — sibling/platform implementations, `*.example` files, the script or lane that owns the value, docs, CI config, `git log`/history for the touched key. One `rg`/`grep` miss is NOT evidence of absence: a wrong pattern, wrong path scope, case, hyphen/underscore or camelCase spelling, ignored/hidden files, or a binary/minified target all return zero on something that exists. Vary the pattern and the tool (`rg -i`, `--hidden --no-ignore`, `fd`, `ast-grep`, `git log -S`) and confirm the corpus you searched was the right one before saying "not found". Only genuine preferences (cost, risk appetite, priority) go to the user, and the question states what was already searched and how.
+- Search before you ask: discover live, never recite from memory. A question the project can answer is not the user's to answer. Before handing any question back, exhaust the project record — sibling/platform implementations, `*.example` files, the script or lane that owns the value, docs, CI config, `git log`/history for the touched key. One `rg`/`grep` miss is NOT evidence of absence: a wrong pattern, wrong path scope, case, hyphen/underscore or camelCase spelling, ignored/hidden files, or a binary/minified target all return zero on something that exists. Vary the pattern and the tool (`rg -i`, `--hidden --no-ignore`, `fd`, `ast-grep`, `git log -S`) and confirm the corpus you searched was the right one before saying "not found". Stop searching once the record shows the value was never written down (no owner script, no history, no sibling, no example) — that absence IS the evidence, and the question goes to the user. Only genuine preferences (cost, risk appetite, priority) and never-recorded decisions go to the user, and the question states what was already searched and how.
 - Fix the root cause at the narrowest shared seam. Before flagging a bug
   or architecture change, trace the data flow and, when comparable siblings
   exist, check ~3 similar implementations. Conflicting conventions:
@@ -94,7 +101,8 @@ replaces reading the touched code.
   configurability. Reuse: helpers → stdlib → installed deps.
 - Simplicity defaults, binding INSIDE the requested scope: no backward
   compatibility, migration shim, legacy fallback, or backfill unless the user
-  asks — breaking changes are acceptable by default. 完美/長遠/通用/perfect
+  asks or the requested fix cannot work without preserving an existing
+  public contract — otherwise breaking changes are acceptable by default. 完美/長遠/通用/perfect
   name a quality bar, never authorization to platformize; future extensions
   are one-line notes in the final message, never extra code, schemas, tiers,
   modes, or config surfaces. Do not mechanize judgment: no hardcoded
