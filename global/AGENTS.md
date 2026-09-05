@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.26.0-ironlaws
+Version: 4.26.1-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -119,8 +119,9 @@ replaces reading the touched code.
   unrelated work; edit in place, never rewrite a whole file for a small
   change. Stack/direction changes update project instructions in the same
   change.
-- Refactors/experiments: new branch. Show `git status`/`git diff` after edits;
-  commit only when authorized, else flag.
+- Stay on the current branch and worktree: open a new branch or worktree only
+  when the user asks or the target is a protected branch. Show `git status`/
+  `git diff` after edits; commit only when authorized, else flag.
 - Delegated long waits: blocking/event-driven, never a bare `sleep N`; keep
   working on independent items while subagents run. Scratch files → session
   scratchpad, never repo root or `/tmp`.

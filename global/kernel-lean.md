@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.26.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.26.1-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only, MUST stay under 6000 characters; detail in routed files.
@@ -85,8 +85,9 @@ edit with clear acceptance goes straight to code.
 - Surgical diffs: every changed line traces to the request; preserve
   unrelated work; edit in place, no whole-file rewrite. Stack/direction
   changes update project instructions in the same change.
-- Refactors/experiments: new branch. Show `git status`/`git diff` after edits;
-  commit only when authorized, else flag.
+- No new branch or worktree unless the user asks or the target is protected.
+  Show `git status`/`git diff` after edits; commit only when authorized,
+  else flag.
 - Delegated waits: event-driven, never bare `sleep N`; keep working meanwhile.
   Batch independent tool calls. Scratch files → scratchpad, never repo root.
 
