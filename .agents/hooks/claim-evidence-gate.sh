@@ -6,6 +6,8 @@
 # so in prose; this gate checks it at the moment of the claim.
 #
 #   positive claim  — done/fixed/verified/完成/修好/測好/… or a ✅ title.
+#       Checked only when a mutating tool (Bash/Edit/Write/…) ran after the
+#       last human prompt (kernel 4.26.0 Done scope); a plain answer exits 0.
 #       Bound by TOKEN EQUALITY: the reply must quote at least one evidence
 #       token (exit=N, N passed, N/M passed, PASS, DEPLOY OK, VERDICT: …)
 #       that a tool actually printed AFTER the last human prompt, as recorded
@@ -73,6 +75,15 @@ calls="$(printf '%s\n' "$window" | grep -c '"tool"')"
 
 reason=""
 if [ "$claim" = "positive" ]; then
+  # Kernel 4.26.0 "Done" scope: the tool-run evidence rule binds only when the
+  # deliverable changed a file, system, or external state. A plain answer
+  # (no mutating tool in the window) cites its source instead — the ledger
+  # has tool names but not Bash commands, so Bash counts as mutating.
+  mutating="$(printf '%s\n' "$window" | jq -r '.tool // empty' 2>/dev/null | grep -cE '^(Bash|Edit|Write|MultiEdit|NotebookEdit)$')"
+  if [ "${mutating:-0}" -eq 0 ]; then
+    jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "${SESSION_ID:-}" '{timestamp:$ts, claim:"positive", session:$sid, blocked:false, skipped:"no-mutating-tool"}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
+    exit 0
+  fi
   observed="$(printf '%s\n' "$window" | jq -r '.evidence[]? // empty' 2>/dev/null | sort -u)"
   quoted="$([ -x "$TOKENIZER" ] && printf '%s' "$last" | bash "$TOKENIZER")"
   if [ -z "$observed" ]; then

@@ -210,3 +210,8 @@ Status: proposed
 Rule: 「已部署」的宣稱必附每台目標機 deploy-log 的最後 sha（`~/.local/state/agent-scripts/deploy-log.jsonl`），單機驗證不得寫成艦隊驗證。
 Evidence: 本機 deploy-log e9d60e8@09-04T04:19Z；.44 2f9fd14@09-03T12:47Z；.44 缺 `~/.claude/agents/explore-bounded.md`、`~/.agents/hooks/bash-readonly-gate.sh`。
 Status: proposed
+
+## 2026-09-05 | scope: maintenance | trigger: kernel 4.26.0 壓 `kernel-lean.md` 進 6000 字元時，只驗字元數＋七個 anchor grep 就宣稱「語義未動」，實際砍掉 `never a silent edit`、`not authorization`、`runtime-native model`、`do not defend`
+Rule: 壓縮規則檔的驗證是「舊版每個指令性子句在新版仍可對應」的逐句 diff，不是字元數與幾個 anchor；連帶刪減要先以 diff 給使用者（maintenance §1），不得在 apply 後才揭露。
+Evidence: 690700d lean 5995/6000 PASS 但 advisor 逐句比對列出 4 條鐵律子句消失；補回並另砍 canary 例外、shared-memory 說明、Canonical 段後 5951。七條規則的依據：Astra `VERDICT: BLOCK` 審查（.workflow/202609051231-kernel-sweet-spot/astra-review.md，gitignored）→ 逐條「保留規則、加上不綁定的條件」；第 7 條來自使用者「快派啊 不要過度詢問」。
+Status: proposed

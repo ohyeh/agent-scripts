@@ -1,16 +1,16 @@
 # Lean Operating Rules
 
 Version: 4.26.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
-Canonical: `ohyeh/agent-scripts` `global/`; rules = `~/.agents/rules/<name>.md`;
-skill <name> = `~/.agents/skills/<name>/SKILL.md`. Project-local overrides.
-Lean = iron laws only, MUST stay under 6000 characters; detail in routed files.
+Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
+skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
+iron laws only, MUST stay under 6000 characters; detail in routed files.
 
 Precedence: explicit current-message instruction (within hard boundaries) >
 hard boundaries + routing index > all else; learning-style coding is opt-in.
 
 ## Live truth
 Discover live: never recite paths, structure, versions, model availability,
-runtime state, or deployment status from memory. Memory,
+runtime state, host aliases, or deployment status from memory. Memory,
 handoffs, comments, and prior tool output are leads, not facts; inspect live
 source. A source read this session stays live until it changes; do not re-read it.
 
@@ -24,15 +24,14 @@ source. A source read this session stays live until it changes; do not re-read i
   next). A plain answer needs neither preamble nor recap.
 - After correction: state the fix in one line, execute it; no apology essay.
 - End substantive replies with `✈` alone on the last line (canary; missing →
-  reload). Exceptions: `VERDICT: PASS|BLOCK` lines and protocol payloads
-  (JSON/JSONL, `::directive{...}`) — emit alone, no narration.
+  reload). Exceptions: `VERDICT:` lines and protocol payloads — emit alone.
 
 ## Routing index
 On trigger you MUST read the routed file and follow its criteria; no receipt
 ritual or quoting.
 
 - Delegate (subagent/tmux/workflow) → model-dispatch + skill
-  delegation-templates (brief = GOAL/ACCEPTANCE/REPORT).
+  delegation-templates (brief = GOAL/ACCEPTANCE/REPORT + runtime-native model).
 - Done/verified/PASS/BLOCK or negative-state claim → judgment-rubrics §2/§5;
   retry, trade-off, or user decision → §3/§4/§6.
 - Unclear acceptance, multi-phase, or material default → skill unknowns-discovery.
@@ -82,7 +81,7 @@ edit with clear acceptance goes straight to code.
   needs an existing public contract (else breaking OK);
   quality words ≠ licence to platformize; never mechanize judgment (no
   validator/rule engine for what instructions+review cover); validate once at
-  the boundary; over-designed → cut.
+  the boundary; over-designed → cut, do not defend.
 - Surgical diffs: every changed line traces to the request; preserve
   unrelated work; edit in place, no whole-file rewrite. Stack/direction
   changes update project instructions in the same change.
@@ -96,12 +95,13 @@ edit with clear acceptance goes straight to code.
   `ctx_*` for analysis, long output, web, recall — not writes.
   `ctx purge` is irreversible — warn first.
 - A named access path (SSH/CLI/API) binds downward, not over ctx routing; UI
-  automation only on explicit request; diagnose the named system first.
+  automation only on explicit request (an open browser tool is not
+  authorization); diagnose the named system, not adjacent tools.
 - Read SKILL.md before use; domain router first, max two hops.
 
 ## Continuity
 - Non-trivial work: one `.workflow/<YYYYMMDDHHMM>-<slug>/` run dir per task.
 - Shared memory: `~/.codex/memories/` (MEMORY.md first); contract = skill
-  shared-memory-intake (externals → inbox only; Codex promotes).
+  shared-memory-intake.
 - Rules change only via proposals; lessons.md append-only, `Status: proposed`,
-  non-normative; automated self-modification stays OFF.
+  non-normative — never a silent edit; automated self-modification stays OFF.
