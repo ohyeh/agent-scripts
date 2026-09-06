@@ -1,6 +1,6 @@
 ---
 name: using-skills
-description: Map from intent to skill, for "which skill does this need?" when the owner is not obvious. Invoke when ownership is unclear or the task spans several domains; go direct when the goal already names its domain or router. Covers every skill in skills-lock.json, grouped by what the user is trying to do.
+description: "Which skill owns this task. Invoke BEFORE doing by hand any of: merge or rebase conflict, .pdf read or fill, Renovate or dependabot PR, release notes or changelog, test plan or QA cases, dependency upgrade, architecture improvement, second-model review, docs writing, commit message, greenfield page, prose cleanup, 「有沒有 skill」, 「用哪個」 — or any task not named in the kernel routing index. Even a 1% chance a skill covers it means invoke this first; it costs one read."
 ---
 
 # using-skills

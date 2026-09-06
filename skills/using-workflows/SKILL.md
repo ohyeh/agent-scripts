@@ -1,6 +1,6 @@
 ---
 name: using-workflows
-description: Meta-router for the workflow recipes in ~/.claude/workflows/ (personal layer) and the current repo's .claude/workflows/ (shadows personal on name collision). Invoke before any loop-shaped work — audits, consensus gates, plan→build lifecycles, findings triage. Even a 1% chance this applies means invoke it.
+description: "Which workflow recipe runs this. Invoke BEFORE any of: audit (docs vs code, design vs code, root cause, project direction), review findings to triage or resolve, PR review comments, feature brief to plan, plan needs a second-model verdict, spec to implement, 「跑一輪審查」, 「幫我 plan」, 「把 findings 處理掉」. After any audit finishes, invoke again to route its findings to triage. Even a 1% chance means invoke it."
 ---
 
 # using-workflows
