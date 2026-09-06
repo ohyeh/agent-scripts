@@ -220,8 +220,8 @@ CS="$HOME/.claude/skills"
 if [ -L "$CS" ] && [ "$(cd "$CS" 2>/dev/null && pwd -P)" = "$(cd "$HOME/.agents/skills" && pwd -P)" ]; then
   echo "PASS [claude-skills] $CS -> $(readlink "$CS")"
 else
-  if [ -e "$CS" ] && [ -n "$(find "$CS" -mindepth 1 -maxdepth 1 ! -type l 2>/dev/null)" ]; then
-    echo "FAIL [claude-skills] $CS holds real entries, refusing to replace: $(find "$CS" -mindepth 1 -maxdepth 1 ! -type l | xargs -n1 basename | tr '\n' ' ')" >&2
+  if [ -e "$CS" ] && [ -n "$(find "$CS" -mindepth 1 -maxdepth 1 ! -type l ! -name .DS_Store 2>/dev/null)" ]; then
+    echo "FAIL [claude-skills] $CS holds real entries, refusing to replace: $(find "$CS" -mindepth 1 -maxdepth 1 ! -type l ! -name .DS_Store | xargs -n1 basename | tr '\n' ' ')" >&2
     exit 1
   fi
   rm -rf "$CS"
