@@ -133,6 +133,22 @@ show it to the user verbatim, and send only after they approve that text.
 - **`article` counts lie.** One `eval` returned a single `article` while the
   snapshot showed dozens. When dumping a whole transcript, prefer the union
   selector `'[role=article],article,[role=group]'`.
+- **一趟抓不全，而且捲到頂會刪資料。** 對話串是虛擬化清單：`scrollTop = 0`
+  一跳到頂，底部節點就被回收，等於邊讀邊刪（一次擷取因此掉了整天份的最新訊息）。
+  可靠做法是兩種獨立方法各跑一趟再取聯集：**錨點法**（抓最頂那則
+  `[role=group]`，`scrollIntoView({block:"start"})`，直到頂端訊息連續數次不變
+  **且**總數不再增長——兩個條件要同時成立，只看一個會把「捲不動」誤判成「到頂」）
+  與**像素法**（`[role=log][aria-label="Conversation transcript"]` 的 `scrollTop`
+  由頂往下每次 0.8 屏）。去重鍵用 `aria-label + 前 120 字`，不要用 DOM 節點參照——
+  同一則訊息被回收重建後是不同節點，內容才是穩定的身分。
+  **兩法數字一致才算抓全**：五個 bot 兩法各自給出 151/151、53/53、38/38、10/10、
+  7/7，那是可信的完整性證據；另一個 bot 兩法給 277 vs 132、聯集 372，就只能標
+  `UNCONFIRMED`。
+- **對話串短，先懷疑擷取方法，不要當成「這個 bot 沒在動」。** 一個每天回報的 bot
+  曾被單趟擷取抓成 24 則、內容全是幾週前的設定過程，據此推論「它從沒回報過」——
+  重抓後是 151 則，日報一直都在它自己的直接對話串上。另外，跨 bot 的往來還有獨立的
+  exchange 串（側欄與訊息裡的 `button[aria-label^="Open exchange with"]`），
+  那是**另一個**容器，不是日報的所在地；要讀跨 bot 對話才需要展開它。
 
 ## Where this came from
 
