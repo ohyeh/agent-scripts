@@ -87,6 +87,7 @@ inline or use its slash command · `via-router` = enter through the router named
 | investigate a question against primary sources, write it up | `research` | Skill() |
 | drive a browser: navigate, fill forms, screenshot | `agent-browser` | Skill() |
 | drive an iOS, Android, macOS, or TV app | `agent-device` | Skill() |
+| read or drive the Grok Bot macOS app (bots, folders, transcripts) | `using-grok-bot-app` | Skill() |
 
 ## Write for people to read
 
