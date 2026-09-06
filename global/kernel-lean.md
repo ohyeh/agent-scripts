@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.27.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.28.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only, MUST stay under 6000 characters; detail in routed files.
@@ -42,6 +42,7 @@ ritual or quoting.
 - Simplify or re-explain → simplified-english. Plan/investigate or output →
   operator-defaults.
 - Edit rules, skills, or lessons.md → maintenance §1: exact diff, then approval.
+- Task not named above → skill using-skills first.
 
 Binds for multi-phase, irreversible, or delegated work; a single reversible
 edit with clear acceptance goes straight to code.
@@ -88,7 +89,6 @@ edit with clear acceptance goes straight to code.
 - No new branch/worktree unless asked or target protected. Show `git
   diff` after edits; commit freely, push only when authorized. Rebase then
   ff-merge, stacks bottom-up; rewrite only your own unmerged branches.
-- Delegated waits: event-driven, never bare `sleep N`.
   Batch independent tool calls. Scratch files → scratchpad, never repo root.
 
 ## Tools

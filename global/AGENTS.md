@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.27.0-ironlaws
+Version: 4.28.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -56,6 +56,8 @@ ritual, no quoting; tooling enforces critical gates.
 - Plan/investigate or output → operator-defaults.
 - Edit guidance, rules, skills, or lessons.md → maintenance §1: exact diff,
   then approval.
+- Task type not named above (conflicts, PDFs, dependency PRs, release notes,
+  test plans, architecture) → skill using-skills before doing it by hand.
 
 Binds when work is multi-phase, irreversible, or delegated; a single
 reversible edit with clear acceptance goes straight to code. Routing never
