@@ -73,15 +73,6 @@
       "installedAt": "2026-07-18T20:47:39.088Z",
       "updatedAt": "2026-07-18T20:47:39.088Z"
     },
-    "context7-cli": {
-      "source": "upstash/context7",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/upstash/context7.git",
-      "skillPath": "skills/context7-cli/SKILL.md",
-      "skillFolderHash": "5eab610de8c871f2b7fe252c5edf13daa2b07fb6",
-      "installedAt": "2026-07-18T22:54:06.464Z",
-      "updatedAt": "2026-09-01T02:15:51.195Z"
-    },
     "data-report": {
       "source": "nexu-io/open-design",
       "sourceType": "github",
@@ -145,15 +136,6 @@
       "installedAt": "2026-08-13T03:09:56.853Z",
       "updatedAt": "2026-09-03T03:09:50.358Z"
     },
-    "dispatching-parallel-agents": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/obra/superpowers.git",
-      "skillPath": "skills/dispatching-parallel-agents/SKILL.md",
-      "skillFolderHash": "15697cb0726c26a66bff737494e8b5266667ba0c",
-      "installedAt": "2026-07-18T20:48:18.028Z",
-      "updatedAt": "2026-07-24T01:12:40.060Z"
-    },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
       "sourceType": "github",
@@ -171,24 +153,6 @@
       "skillFolderHash": "388c9822641805ca2dcd5038e68a1d5282437ee5",
       "installedAt": "2026-07-18T20:49:31.166Z",
       "updatedAt": "2026-08-20T01:52:34.566Z"
-    },
-    "find-skills": {
-      "source": "vercel-labs/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/vercel-labs/skills.git",
-      "skillPath": "skills/find-skills/SKILL.md",
-      "skillFolderHash": "76a98a285cb0434f3d39e1a873823556330e398b",
-      "installedAt": "2026-07-18T20:48:49.916Z",
-      "updatedAt": "2026-07-18T20:48:49.916Z"
-    },
-    "full-output-enforcement": {
-      "source": "Leonxlnx/taste-skill",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
-      "skillPath": "skills/output-skill/SKILL.md",
-      "skillFolderHash": "3dd6ad49b667d15182acddc9d3e4f7763ae33c9c",
-      "installedAt": "2026-07-18T20:49:17.056Z",
-      "updatedAt": "2026-07-18T20:49:17.056Z"
     },
     "git-commit": {
       "source": "github/awesome-copilot",
@@ -317,15 +281,6 @@
       "installedAt": "2026-08-03T04:20:00.000Z",
       "updatedAt": "2026-08-03T04:20:00.000Z"
     },
-    "oracle": {
-      "source": "steipete/oracle",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/steipete/oracle.git",
-      "skillPath": "skills/oracle/SKILL.md",
-      "skillFolderHash": "26cca2ea90a18f55ea56bddd7e5fb318a67f466c",
-      "installedAt": "2026-07-18T20:48:42.493Z",
-      "updatedAt": "2026-08-17T01:57:16.928Z"
-    },
     "pdf": {
       "source": "anthropics/skills",
       "sourceType": "github",
@@ -453,15 +408,6 @@
       "skillFolderHash": "8da1f030185bdfe8471220585162991eaeb970e9",
       "installedAt": "2026-07-24T12:00:39.780Z",
       "updatedAt": "2026-07-24T12:00:39.780Z"
-    },
-    "subagent-driven-development": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/obra/superpowers.git",
-      "skillPath": "skills/subagent-driven-development/SKILL.md",
-      "skillFolderHash": "8133f2b10d4e71e73d867f2e2e365e0778ff0e4e",
-      "installedAt": "2026-07-18T20:48:18.029Z",
-      "updatedAt": "2026-08-13T01:53:03.761Z"
     },
     "tdd": {
       "source": "mattpocock/skills",

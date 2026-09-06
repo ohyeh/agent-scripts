@@ -47,7 +47,6 @@ inline or use its slash command · `via-router` = enter through the router named
 | I need to… | Skill | Mode |
 |---|---|---|
 | keep coding discipline: surgical diffs, stated assumptions | `karpathy-guidelines` | Skill() |
-| stop truncated or placeholder output on long generations | `full-output-enforcement` | Skill() |
 | tidy just-written code without changing behavior | `simplify` | Skill() |
 | restructure code: extract, rename, break up a god function | `refactor` | Skill() |
 | find deepening opportunities across a whole codebase | `improve-codebase-architecture` | manual |
@@ -65,15 +64,12 @@ inline or use its slash command · `via-router` = enter through the router named
 | review a diff defect-first, read-only, every finding | `defect-first-review` | Skill() |
 | check that work is actually done before claiming it | `verification-before-completion` | Skill() |
 | review UI code against Web Interface Guidelines | `web-design-guidelines` | Skill() |
-| get a second-model deep review of one artifact | `oracle` | Skill() |
 
 ## Delegate and orchestrate
 
 | I need to… | Skill | Mode |
 |---|---|---|
 | write any worker brief (GOAL/ACCEPTANCE/REPORT) | `delegation-templates` | Skill() |
-| dispatch 2+ independent tasks in this session | `dispatching-parallel-agents` | Skill() |
-| execute a plan's independent tasks as subagents | `subagent-driven-development` | Skill() |
 | drive tmux workers: mechanics and wrappers | `tmux-agent-tools` | via-router |
 | plan and run an explicitly orchestrated agent workflow | `codex-dynamic-workflows` | via-router |
 
@@ -83,7 +79,6 @@ inline or use its slash command · `via-router` = enter through the router named
 |---|---|---|
 | read a pasted URL as clean markdown | `defuddle` | Skill() |
 | read, fill, merge, or produce a PDF | `pdf` | Skill() |
-| fetch library documentation, manage ctx7 | `context7-cli` | Skill() |
 | investigate a question against primary sources, write it up | `research` | Skill() |
 | drive a browser: navigate, fill forms, screenshot | `agent-browser` | Skill() |
 | drive an iOS, Android, macOS, or TV app | `agent-device` | Skill() |
@@ -136,7 +131,6 @@ Listed so a name resolves, not as a bypass. The router picks the owner.
 | hand off to a fresh session | `session-handoff` | Skill() |
 | curate shared Codex memory, or submit findings to it | `shared-memory-intake` | Skill() |
 | create, edit, or eval a skill | `skill-creator` | Skill() |
-| discover and install a skill that does X | `find-skills` | Skill() |
 | move issues and external PRs through triage roles | `triage` | manual |
 | generate a bash wizard for steps only a human can do | `wizard` | Skill() |
 
