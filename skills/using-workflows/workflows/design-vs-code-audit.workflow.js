@@ -177,4 +177,8 @@ return {
   designWipNotes: designWip.map(f => ({ section: f.section, component: f.component, note: f.verdict.reason })),
   unverified: unverified.map(f => ({ section: f.section, component: f.component, category: f.category, location: f.location, note: 'verifier died — treat as PLAUSIBLE, re-check manually' })),
   degraded: { unauditedSections: failedSections, unverifiedCount: unverified.length },
+  // Loop connector: the audit does not close the loop by itself — fleet scan showed 0/15 audits followed by triage.
+  next: confirmed.length
+    ? 'Run findings-triage NOW: Workflow({ scriptPath: ".claude/workflows/findings-triage.workflow.js", args: { findings: <this.confirmed> } }). Do not hand-write briefs or fixes.'
+    : 'confirmed == 0 → converged. Report and stop.',
 }

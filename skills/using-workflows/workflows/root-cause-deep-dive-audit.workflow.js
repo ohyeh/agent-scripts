@@ -95,4 +95,10 @@ const report = await agent(
 Surviving root-cause candidates (passed adversarial verification): ${JSON.stringify(survivors.map(s => ({ id: s.h.id, claim: s.h.claim, evidence: s.ev.evidence, confidence: s.ev.confidence })))}.
 ${unevaluated.length ? `NOTE: these hypotheses could NOT be evaluated (evidence agent failed) and are neither confirmed nor refuted: ${JSON.stringify(unevaluated)}.\n` : ''}${verifyIncomplete.length ? `CAUTION: these survivors had INCOMPLETE adversarial verification (some verifier agents failed) — treat their survival as lower-confidence: ${JSON.stringify(verifyIncomplete)}.\n` : ''}Rank by likelihood, explain the causal chain for the top cause, and give the smallest fix that addresses the root (not the symptom). State what remains uncertain.`,
   { label: 'rca:synthesize', phase: 'Synthesize', model, effort, isolation, agentType })
-return { symptom: a.symptom, hypotheses: hyp.hypotheses.length, survivors: survivors.map(s => s.h.id), unevaluated, verify_incomplete: verifyIncomplete, report }
+return {
+  symptom: a.symptom, hypotheses: hyp.hypotheses.length, survivors: survivors.map(s => s.h.id), unevaluated, verify_incomplete: verifyIncomplete, report,
+  // Loop connector: the audit does not close the loop by itself.
+  next: survivors.length
+    ? 'Run findings-triage NOW: Workflow({ scriptPath: ".claude/workflows/findings-triage.workflow.js", args: { findings: <one finding per surviving hypothesis, from this.report> } }). Do not hand-write the fix.'
+    : 'No surviving hypothesis → report and stop; consider widening args.symptom.',
+}

@@ -82,4 +82,11 @@ const synthesis = await agent(`You are the chief planner for the project at ${RO
   { label: 'synthesize:roadmap', phase: 'Synthesize', effort: 'high' })
 if (synthesis == null) throw new Error('project-direction-review: synthesis agent failed — no roadmap produced')
 
-return { findings, synthesis, degraded: { failedReaders: deadReaders.map(i => READERS[i].key), failedLenses: LENSES.filter((l, i) => rawProposals[i] == null).map(l => l.key) } }
+return {
+  findings, synthesis,
+  degraded: { failedReaders: deadReaders.map(i => READERS[i].key), failedLenses: LENSES.filter((l, i) => rawProposals[i] == null).map(l => l.key) },
+  // Loop connector: the review does not close the loop by itself.
+  next: (findings || []).length
+    ? 'Run findings-triage NOW: Workflow({ scriptPath: ".claude/workflows/findings-triage.workflow.js", args: { findings: <this.findings> } }). Do not hand-write briefs.'
+    : 'No findings → report the synthesis and stop.',
+}
