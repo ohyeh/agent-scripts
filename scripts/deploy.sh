@@ -211,6 +211,24 @@ if [ -n "$unexpected_skills" ]; then
 fi
 echo "PASS [skills] experimental_install completed; removed $removed_skills stale skill(s)"
 
+# Claude Code reads ~/.claude/skills. Fleet layout: ONE directory symlink
+# ~/.claude/skills -> ../.agents/skills (no per-skill links). Issue #5 came from a
+# host that still had the old per-skill loop and drifted (67 links / 72 skills).
+# Converge: replace a dir that holds only symlinks (or is empty); refuse to touch
+# a dir that holds real content.
+CS="$HOME/.claude/skills"
+if [ -L "$CS" ] && [ "$(cd "$CS" 2>/dev/null && pwd -P)" = "$(cd "$HOME/.agents/skills" && pwd -P)" ]; then
+  echo "PASS [claude-skills] $CS -> $(readlink "$CS")"
+else
+  if [ -e "$CS" ] && [ -n "$(find "$CS" -mindepth 1 -maxdepth 1 ! -type l 2>/dev/null)" ]; then
+    echo "FAIL [claude-skills] $CS holds real entries, refusing to replace: $(find "$CS" -mindepth 1 -maxdepth 1 ! -type l | xargs -n1 basename | tr '\n' ' ')" >&2
+    exit 1
+  fi
+  rm -rf "$CS"
+  ln -s ../.agents/skills "$CS"
+  echo "PASS [claude-skills] converged: $CS -> ../.agents/skills (replaced per-skill links)"
+fi
+
 # --- Layer 5: hooks ------------------------------------------------------------
 # Kernel sentinel hooks (version-upgrade tripwire + session-title nudge) are
 # repo-managed: installed to ~/.agents/hooks/ and registered idempotently in

@@ -26,7 +26,7 @@ is unavailable. Live-used on two fleet nodes at W15/W18.
 
 ## Agent Skills
 
-- **Layout**: skills live in `~/.agents/skills/<name>/` (each with `SKILL.md`); `~/.claude/skills/<name>` symlinks → `../../.agents/skills/<name>`.
+- **Layout**: skills live in `~/.agents/skills/<name>/` (each with `SKILL.md`); `~/.claude/skills` is ONE directory symlink → `../.agents/skills` (no per-skill links; `deploy.sh` converges it).
 - **Provenance**: managed by `npx skills` (vercel-labs/skills CLI); lockfile `~/.agents/.skill-lock.json` records `source`/`sourceUrl`/`skillPath`. Check with `npx skills list -g` (global skills MUST use `-g`; without it, only project-level skills show).
 - **Rebuild (preferred = the repo `skills-lock.json` restore)**: since 2026-07-19 the fleet converges on the repo-root `skills-lock.json` (98-skill union contract). Run from `$HOME` so the CLI installs globally (it restores into `.agents/skills/` relative to cwd): `cd ~ && curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/skills-lock.json -o skills-lock.json && npx -y skills experimental_install && rm skills-lock.json`. This is Layer 4 of the Fast-path `deploy.sh` above and was live-used to converge all three machines (W17/W18). The earlier note that `experimental_install` "only reads project-level and is UNCONFIRMED for global restore" is superseded: with the lock file present in the cwd it performs the global restore. Two manual-only items stay excluded from the lock by design: `commit-commands` (a Claude Code plugin, not a skill) and hand-copied skills with no tool-resolvable source. Fallbacks: `npx skills add <repo> -g` repo by repo (installs under the repo's original name; local renames need manual renaming per the table below), or the offline tar below (preserves local renames exactly).
 - **Offline tar (preferred)**:
@@ -36,8 +36,7 @@ is unavailable. Live-used on two fleet nodes at W15/W18.
   tar -czf agent-skills.tgz -C ~/.agents skills .skill-lock.json
   # target machine
   mkdir -p ~/.agents && tar -xzf agent-skills.tgz -C ~/.agents
-  mkdir -p ~/.claude/skills
-  for d in ~/.agents/skills/*/; do n=$(basename "$d"); ln -sfn "../../.agents/skills/$n" ~/.claude/skills/"$n"; done
+  rm -rf ~/.claude/skills && ln -s ../.agents/skills ~/.claude/skills
   ```
 
 - Other skills: `npx skills list -g`; process-type skills mostly from `vercel-labs/skills`; the lockfile is authoritative.
