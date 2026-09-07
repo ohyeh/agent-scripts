@@ -43,6 +43,11 @@ fi
 # Heredoc owns python stdin, so the Cursor payload cannot be piped. File argv.
 in_file="$(mktemp)"
 printf '%s' "$IN" > "$in_file"
+mkdir -p "$HOME/.local/state/agent-scripts"
+cp "$in_file" "$HOME/.local/state/agent-scripts/last-cursor-pretool.json" 2>/dev/null || true
+printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$HOME/.local/state/agent-scripts/last-cursor-pretool-append.jsonl" 2>/dev/null || true
+cat "$in_file" >> "$HOME/.local/state/agent-scripts/last-cursor-pretool-append.jsonl" 2>/dev/null || true
+printf '\n' >> "$HOME/.local/state/agent-scripts/last-cursor-pretool-append.jsonl" 2>/dev/null || true
 mapped="$(python3 - "$in_file" <<'PY'
 import hashlib, json, sys
 
@@ -116,7 +121,15 @@ out = {
         "command": ti.get("command") or "",
         "prompt": prompt,
         "subagent_type": st,
-        "run_in_background": bool(ti.get("run_in_background", False)),
+        "run_in_background": bool(
+            ti.get("run_in_background", False)
+            or (isinstance(ti.get("block_until_ms"), (int, float)) and int(ti.get("block_until_ms")) == 0)
+            or str(ti.get("block_until_ms", "")).strip() == "0"
+            or (isinstance(ti.get("timeout"), (int, float)) and int(ti.get("timeout")) == 0)
+            or str(ti.get("timeout", "")).strip() == "0"
+            # Cursor/Grok Shell: block_until_ms=0 omits tool_input.timeout entirely
+            or ("command" in ti and "timeout" not in ti)
+        ),
     },
     "session_id": sid,
     "hook_event_name": event_out,
