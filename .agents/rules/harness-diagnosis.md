@@ -20,7 +20,7 @@ re-verify must be treated as UNCONFIRMED, not repeated as fact.
 - Injected into EVERY session before the user types anything: user CLAUDE.md +
   Ponytail hook (minimalism) + Explanatory output style + Learning output style +
   context-mode instructions + ~60 skill descriptions. Several of these conflict.
-- `~/.claude/CLAUDE-FABLE-5.md` (120KB) is a saved copy of the claude.ai system
+- `~/.claude/CLAUDE-FABLE-5.md` (276KB, Fable 5.1) is a saved copy of the claude.ai system
   prompt — reference material only, never load it into context.
 
 ## Top 3 failure modes, each with a fix a weak model can execute
