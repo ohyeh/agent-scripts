@@ -30,6 +30,13 @@ Common footer — include in EVERY delegation:
 > If you cannot meet an acceptance criterion, say which one and why — do not
 > fake it.
 
+`{artifact_path}` is a filesystem path YOU choose and fill in before sending —
+never a field name to harvest on. For a tmux worker the result contract is
+`status`, `summary`, `artifacts`, `errors`, and the payload sits under `.body`;
+`result wait-required --fields status,summary,artifact_path` left two finished
+workers unharvested for ~24 minutes on 2026-09-08. Ask for the produced file as
+`.body.artifacts`.
+
 ## 1. SEARCH / LOCATE  (cheapest capable tier; read-only agent type if available)
 
 ```
