@@ -13,9 +13,11 @@
 # times (the 1 lost an instruction at that single compaction); healthy sessions
 # that day compacted 0–1. Escalated at 3 until 2026-09-02; raised to 6 to measure
 # whether the PostCompact handoff file (postcompact-handoff.sh) removes the loss.
+# W37 (2026-09-11): two 7-compact sessions had zero post-compact corrections;
+# loss no longer observed. Raised to 10 as a guard for runaway sessions only.
 set -u
 
-MAX_COMPACTIONS=6
+MAX_COMPACTIONS=10
 MAX_PROMPTS=20
 MAX_PROMPT_CHARS=200
 MAX_TOTAL_BYTES=6000
