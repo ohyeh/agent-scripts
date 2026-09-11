@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.7.0（2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+Version: 1.8.0（2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey）；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
 ＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
 1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
@@ -52,7 +52,9 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
   （`node <skill-dir>/analyze-sessions.mjs --json --since 7d`），取 `overall`
   的 token 四分類、`cache_breaks_over_100k`、`subagent.calls/total_tokens`、
   `by_subagent_type`、`by_skill`、`top_prompts`。已知瑕疵：`by_project` 的 token
-  歸戶為 0，且它只讀 `~/.claude/projects`（不含 `projects_archived/*.jsonl.gz`、
+  歸戶為 0；`uncached` 未依 message.id 去重不得引用——正式量尺為
+  `evals/retro-metrics/usage-dedupe.py`（midkey；驗收＝同 input 重跑差 0）；
+  且它只讀 `~/.claude/projects`（不含 `projects_archived/*.jsonl.gz`、
   `transcripts/ses_*.jsonl`、codex、agy）——缺的面自行補，不得當成全量。
   Codex 側從 session jsonl 的 `payload.info.total_token_usage` 取
   `input/cached_input/cache_write_input/output/reasoning_output/total`，並記

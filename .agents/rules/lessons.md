@@ -215,3 +215,33 @@ Status: proposed
 Rule: 壓縮規則檔的驗證是「舊版每個指令性子句在新版仍可對應」的逐句 diff，不是字元數與幾個 anchor；連帶刪減要先以 diff 給使用者（maintenance §1），不得在 apply 後才揭露。
 Evidence: 690700d lean 5995/6000 PASS 但 advisor 逐句比對列出 4 條鐵律子句消失；補回並另砍 canary 例外、shared-memory 說明、Canonical 段後 5951。七條規則的依據：Astra `VERDICT: BLOCK` 審查（.workflow/202609051231-kernel-sweet-spot/astra-review.md，gitignored）→ 逐條「保留規則、加上不綁定的條件」；第 7 條來自使用者「快派啊 不要過度詢問」。
 Status: proposed
+
+## 2026-09-11 | scope: authorization | trigger: 使用者點名一個動作（看 PR／本機測試／loop 改 UI），路徑上出現未點名的 push、PR 留言、送訊進外部 app、碰遠端主機
+Rule: named action 只核可該動作本身；相鄰的外部副作用、遠端主機、不可撤回操作仍 MUST ask first，問句放在不依賴它的工作之後；/loop 或 standing instruction 不構成對外送訊授權。
+Evidence: e0770fb0 09-09 02:09「我做不是你做」「沒叫你發」；662042d2 09-09 18:06「你幹嘛用 bot app 亂開」；04a4d282 09-09 01:47「你用 .44 幹啥 你本機測試啊」。
+Status: proposed
+
+## 2026-09-11 | scope: waiting | trigger: /loop、委派 worker 或任何回合在等 bot／CI／Billing／裝置／人
+Rule: 等待協定三件事：(1) 靜默上限——等待 >10 分或每 20 輪必發一行狀態（等什麼、多久、備援）；(2) 回報節奏——委派 brief 的 REPORT 段加「每完成一列／每 15 分 SendMessage 一句進度＋卡點」，0 次中途回報視為缺陷；(3) 停滯 SLA——brief 寫明「N 分無新證據即停滯」，到期先催一次，再過 N/2 即 TaskStop 接手或重派；連續 2 輪無出貨要明說「本輪無出貨」。
+Evidence: 8c580e97 09-10 18:52「不會自己 MONITOR 在這發呆？」19:33「你又在耍智障發呆？」；9897ed3e 09-08 05:22「他停滯了？」05:58「誒 他在空轉啊」（worker 188 calls／0 SendMessage，主代理 21 則「繼續等待」）；662042d2 22:18–22:55「等 Billing」×4 無回報；W36 L-b 未落地即再犯。
+Status: proposed
+
+## 2026-09-11 | scope: judgment | trigger: 同一交付物（UI 規格、多態畫面）在 2 輪內被指出 ≥2 個獨立錯誤
+Rule: 停止一改一；先渲染／列出全部狀態與 ≥3 處 sibling 慣例，整批修，再發布一次。
+Evidence: d6da8f7f 09-05 10:48／10:56／10:59「你內部先盤過啊 不要說一改一」。
+Status: proposed
+
+## 2026-09-11 | scope: git | trigger: 一次開 ≥2 個 PR
+Rule: 先跑 `git log --oneline --graph A B base` 判斷是否 stack；有依賴即底層 → base、上層 → 底層分支；拓樸一行給使用者再開。
+Evidence: 491c3a9f 09-08 07:35 兩支都開向 develop → 07:37「pr stack 你不會？」→ rebase＋retarget 重做。
+Status: proposed
+
+## 2026-09-11 | scope: completion | trigger: 回報 build／compile／install 等背景長程序「還在跑」
+Rule: 「在跑」必附 CPU time 增量或子程序清單；CPU time 不動即判停滯，不寫「正常要這麼久」。
+Evidence: 36361d87 09-0x 08:52–08:53 兩次「活的」→ 08:55 make CPU time 0.4s 殭屍；09:03 再答「正常」後 1 分鐘抓到 miniruby 無限循環。
+Status: proposed
+
+## 2026-09-11 | scope: gates | trigger: 以「沒被引用」為理由刪 image／volume／檔案
+Rule: 除靜態引用（ps／compose）外，`rg` 名稱於 runtime 程式碼與註解；命中 on-demand／pull 語意即不算未使用；刪除仍是 hard-stop。
+Evidence: c9491e2f 15:07 判 vexa-bot 無 container 用 → 15:25 刪 6.55GB → 15:28 compose 註解「runtime spawns vexa-bot on demand」→ 重 pull。
+Status: proposed

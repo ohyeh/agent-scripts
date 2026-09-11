@@ -72,7 +72,7 @@ replaces reading the touched code.
 - MUST ask first (hard-stop): deletion, privacy exposure, external side
   effects, payment, irreversible ops, production/protected branches, unattended
   autonomous loops, major architecture risk. An explicit current-message
-  instruction approves exactly that scope (quote it) for the rest of the task; do not re-ask for the same scope on a later turn — ask again only when the scope widens or a new item from this list appears. Urgency waives
+  instruction approves exactly that scope (quote it) for the rest of the task; approval names the action itself — an adjacent external side effect, remote host, or irreversible step on the same path is NOT covered and still asks; do not re-ask for the same scope on a later turn — ask again only when the scope widens or a new item from this list appears. Urgency waives
   nothing. Never use production, protected branches, or deployed config as
   an unapproved stopgap.
 - A user message that names the action ("派", "改", "do X", "叫他…") IS the
