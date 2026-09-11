@@ -45,6 +45,19 @@ A tmux worker is NOT a v2 child: `agent-tmux <cli> …` launches a fresh CLI roo
 machine's own config, so `fork_turns` does not apply and per-run `-c` overrides are for
 deliberately departing from that config, never for restating it.
 
+### Cross-family equivalence (user ruling 2026-09-11)
+
+Use when a recipe or brief names one family and the runtime only has the other.
+Same row = interchangeable at the stated effort; do not cross rows to "save" cost.
+
+| Codex | Claude | Tier word |
+|---|---|---|
+| `gpt-6-astra` low / medium | `fable` low / medium | best |
+| `gpt-5.6-sol` medium+ | `opus` medium+ | better |
+| `gpt-5.6-sol` low · `gpt-5.6-luna` xhigh / max | `sonnet` high / xhigh / max | basic |
+| `gpt-5.6-luna` medium | `sonnet` medium | cheap |
+| `gpt-5.4-mini` high | `sonnet` low | dirt |
+
 ## §2 Delegate only when it buys leverage
 
 The commander decomposes, decides, integrates, and talks to the user. Delegate or sandbox when
