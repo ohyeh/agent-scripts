@@ -117,8 +117,10 @@ grep -q -- '- uat = staging 記得改' <<<"$out" || { echo "FAIL: recall dropped
 grep -q -- '- 快點測試 驗證' <<<"$out" || { echo "FAIL: recall dropped a text-block prompt" >&2; exit 1; }
 grep -q 'noise\|skip me\|old injection' <<<"$out" && { echo "FAIL: recall leaked tool_result/tag/self output" >&2; exit 1; }
 grep -q 'ESCALATION' <<<"$out" && { echo "FAIL: escalated at 1 compaction" >&2; exit 1; }
-for i in 2 3; do echo '{"type":"user","isCompactSummary":true,"message":{"content":"s"}}' >> "$TR"; done
-grep -q 'ESCALATION: this session has compacted 3 times' <<<"$(run_recall)" || { echo "FAIL: no escalation at 3 compactions" >&2; exit 1; }
+for i in $(seq 2 9); do echo '{"type":"user","isCompactSummary":true,"message":{"content":"s"}}' >> "$TR"; done
+grep -q 'ESCALATION' <<<"$(run_recall)" && { echo "FAIL: escalated below the 10-compaction limit" >&2; exit 1; }
+echo '{"type":"user","isCompactSummary":true,"message":{"content":"s"}}' >> "$TR"
+grep -q 'ESCALATION: this session has compacted 10 times' <<<"$(run_recall)" || { echo "FAIL: no escalation at 10 compactions" >&2; exit 1; }
 for i in $(seq 1 60); do printf '{"type":"user","message":{"content":"%s"}}\n' "$(head -c 300 /dev/zero | tr '\0' x)" >> "$TR"; done
 [[ "$(run_recall | wc -c)" -le 6100 ]] || { echo "FAIL: recall exceeded byte cap" >&2; exit 1; }
 

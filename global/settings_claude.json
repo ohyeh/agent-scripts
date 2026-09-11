@@ -153,6 +153,16 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$HOME/.agents/hooks/skill-router-nudge.sh\""
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
