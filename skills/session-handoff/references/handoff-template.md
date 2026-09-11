@@ -88,6 +88,12 @@ Use this template structure when creating handoff documents. The smart scaffold 
 - [ ] Blocker: [description] - Needs: [what's required to unblock]
 - [ ] Question: [unclear aspect] - Suggested: [potential resolution]
 
+### Ruled-Out Paths
+
+Required when any Blocker is listed. The successor must not re-verify these unless it first refutes the evidence.
+
+- Path: [approach tried] - Evidence: [metric/error that killed it] - Cost: [tokens/turns/time burned]
+
 ### Deferred Items
 
 - Item 1 (deferred because: [reason, e.g., out of scope, needs user input])

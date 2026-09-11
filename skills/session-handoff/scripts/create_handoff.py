@@ -291,6 +291,10 @@ def generate_handoff(
 
 - [ ] [TODO: List any blockers or open questions]
 
+### Ruled-Out Paths
+
+- [TODO: if blocked — Path / Evidence / Cost per ruled-out approach; successors must not re-verify]
+
 ### Deferred Items
 
 - [TODO: Items deferred and why]

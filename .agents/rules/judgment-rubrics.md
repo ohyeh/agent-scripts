@@ -109,6 +109,9 @@ retry of the same idea is forbidden (retry budget in `rules/model-dispatch.md` �
 - [ ] You are fighting the framework/library (patching internals, copying private code).
 - [ ] The explanation of why it will work this time requires more than 3 sentences.
 - [ ] You dispatched another agent while the last one's finding sits unaddressed.
+- [ ] Fresh evidence already proves the path dead (missing external dependency, a measured
+      ceiling) and you have not refuted that evidence — rerunning it is forbidden; report the
+      gap as BLOCK, the missing piece is not compute.
 - [ ] The same command with materially identical inputs returns the same failure
       twice — hard signal: do not run it a third time; change hypothesis. Repeated
       condition checks within one wait that meets the pre-call terminal-condition

@@ -62,6 +62,8 @@ def check_todos(content: str) -> tuple[bool, list[str]]:
 def check_required_sections(content: str) -> tuple[bool, list[str]]:
     """Check that required sections exist and have content."""
     missing = []
+    if re.search(r"^- \[[ x]\] Blocker:", content, re.M) and "### Ruled-Out Paths" not in content:
+        missing.append("Ruled-Out Paths (required when a Blocker is listed)")
     for section in REQUIRED_SECTIONS:
         # Look for section header
         # The scaffold emits some of these at h3 and some at h2, so match any
