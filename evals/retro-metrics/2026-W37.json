@@ -588,7 +588,8 @@
   "F14 curl/wget redirected 未量測（攔截來自 context-mode 插件）",
   "grok VM Claude 只 2 場；grok seats 無 token 記帳",
   "collector 238/171 calls 與 dive-A 重算 408/261 邊界不同，未對齊",
-  "Layer 2 只挖 flagged 場，無隨機對照"
+  "Layer 2 只挖 flagged 場，無隨機對照",
+  "probe.py（機器層）與 W36 codex-tokens.py（Codex）只在 gitignored .workflow/，method 欄指向不可重現路徑；候選：搬入 evals/retro-metrics/（repo 變更，待裁決）"
  ],
  "usd_equiv": {
   "local-mbp14": 1486.32,
