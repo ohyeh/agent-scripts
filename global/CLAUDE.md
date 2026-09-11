@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.28.0-ironlaws
+Version: 4.29.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -33,8 +33,7 @@ changes (mtime/hash/HEAD moved) or another actor could have written it; do not r
   an apology essay.
 - A turn that delivers a substantive result or answer MUST end with `✈` alone
   on the last line (canary; missing there → reload). Pure status/wait turns:
-  no `✈`; drive each loop proactively toward full completion, solid fixes
-  over surface bypasses. Exceptions: required final-line formats
+  no `✈`. Exceptions: required final-line formats
   (`VERDICT: PASS|BLOCK`) and protocol payloads (JSON/JSONL,
   `::directive{...}`, schemas, verdicts) — emit alone, no narration.
 
@@ -96,6 +95,11 @@ replaces reading the touched code.
   error class and reason, and keep key paths observable. Fallbacks are opt-in — offer with trade-off, adopt
   only on explicit user acceptance, never pre-code as default; no honest
   fix → add observability.
+- Loop / long task: each round ends by starting the next round's first
+  step, not by summarizing; finish the whole task, root-cause fixes only.
+  While waiting on an external event emit nothing — speak only when a result
+  arrives, the wait passes the brief's stall limit, or you are blocked on the
+  user. Final answer only: no process narration, no "need more detail?".
 - Solid completion: finish the whole task at the root; a symptom-hiding
   bypass is a failure. Minimal diff breaks ties, never trims scope; scope
   cuts need explicit user acceptance of the loss. Write the minimum complete
