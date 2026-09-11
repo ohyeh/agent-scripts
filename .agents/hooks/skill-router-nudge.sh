@@ -24,22 +24,24 @@ printf '%s' "$P" | grep -Eq 'teammate-message|^Another Claude session|Ran [0-9]+
 
 TABLE="${SKILL_ROUTER_TABLE:-$(dirname "$0")/skill-router-table.tsv}"
 [ -r "$TABLE" ] || exit 0
-kind=""; owner=""
+kind=""; owner=""; path=""; ctx=""
+# First matching row whose owner file exists on THIS host wins; an absent
+# owner does not shadow a later valid row (Codex review 2026-09-11 #4).
 while IFS=$'\t' read -r re k o; do
   case "$re" in ''|'#'*) continue;; esac
-  if printf '%s' "$P" | grep -Eiq -- "$re" 2>/dev/null; then kind="$k"; owner="$o"; break; fi
+  printf '%s' "$P" | grep -Eiq -- "$re" 2>/dev/null || continue
+  case "$k" in
+    skill)  p="$HOME/.agents/skills/$o/SKILL.md"
+            c="this prompt is owned by skill $o — read $p before doing the task by hand (Skill() or Read).";;
+    recipe) p="$HOME/.claude/workflows/$o.workflow.js"
+            c="this prompt matches workflow recipe $o — run it with the Workflow tool, scriptPath $p, when workflows are enabled for this session; otherwise state in one line that the recipe exists and proceed."
+            [ "$o" = consensus-gate ] && c="$c It requires a \`cli\` arg (any agent-tmux profile).";;
+    *) continue;;
+  esac
+  [ -e "$p" ] || continue
+  kind="$k"; owner="$o"; path="$p"; ctx="$c"; break
 done < "$TABLE"
 [ -n "$owner" ] || exit 0
-
-case "$kind" in
-  skill)  path="$HOME/.agents/skills/$owner/SKILL.md"
-          ctx="this prompt is owned by skill $owner — read $path before doing the task by hand (Skill() or Read).";;
-  recipe) path="$HOME/.claude/workflows/$owner.workflow.js"
-          ctx="this prompt matches workflow recipe $owner — run it with the Workflow tool, scriptPath $path, when workflows are enabled for this session; otherwise state in one line that the recipe exists and proceed."
-          [ "$owner" = consensus-gate ] && ctx="$ctx It requires a \`cli\` arg (any agent-tmux profile).";;
-  *) exit 0;;
-esac
-[ -e "$path" ] || exit 0
 
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"; mkdir -p "$DATA_DIR"
 jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg kind "$kind" --arg owner "$owner" \

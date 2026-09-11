@@ -98,8 +98,10 @@ replaces reading the touched code.
 - Loop / long task: each round ends by starting the next round's first
   step, not by summarizing; finish the whole task, root-cause fixes only.
   While waiting on an external event emit nothing — speak only when a result
-  arrives, the wait passes the brief's stall limit, or you are blocked on the
-  user. Final answer only: no process narration, no "need more detail?".
+  arrives, the wait passes the stall limit (the brief's, else 10 minutes), or
+  you are blocked on the user; this overrides the Language preamble/recap
+  duty for wait turns only. Final answer only: no process narration, no
+  "need more detail?".
   Ship on a clock, not per step: work accumulates on the loop branch; open or
   update the PR only at a fixed checkpoint (default every 12h, or the interval
   the user names), when blocked, or when the user asks. CI runs at the
