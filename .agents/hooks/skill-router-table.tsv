@@ -1,7 +1,7 @@
 # regex (grep -E, case-insensitive)	kind	owner
 # kind: skill → ~/.agents/skills/<owner>/SKILL.md ; recipe → ~/.claude/workflows/<owner>.workflow.js
 # First match wins. Validated by scripts/check-skill-router-table.sh (invariants: skill-router-table).
-(git|rebase|merge|分支|branch|cherry-pick)[^。]{0,20}(衝突|conflict)|(衝突|conflict)[^。]{0,20}(git|rebase|merge|分支|branch)	skill	resolving-merge-conflicts
+merge conflicts?|合併衝突|rebase[^。]{0,12}(衝突|conflict|失敗|fail|卡)|(git|branch|分支|cherry-pick)[^。]{0,20}(衝突|conflict)	skill	resolving-merge-conflicts
 renovate|dependabot	skill	review-renovate
 (update|upgrade|升級|更新)[^。]{0,8}(deps|dependenc|套件|依賴)	skill	update-deps
 release ?notes?|changelog|發版說明|版本說明	skill	release-plannotator

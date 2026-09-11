@@ -99,9 +99,10 @@ replaces reading the touched code.
   step, not by summarizing; finish the whole task, root-cause fixes only.
   While waiting on an external event emit nothing — speak only when a result
   arrives, the wait passes the stall limit (the brief's, else 10 minutes), or
-  you are blocked on the user; this overrides the Language preamble/recap
-  duty for wait turns only. Final answer only: no process narration, no
-  "need more detail?".
+  you are blocked on the user. Inside a loop, each round's message is its
+  closing recap only (found, did, next) — no preamble, no mid-turn updates,
+  no "need more detail?"; this overrides the Language turn-shape duty for
+  loop rounds and wait turns. Ordinary turns keep the Language rules.
   Ship on a clock, not per step: work accumulates on the loop branch; open or
   update the PR only at a fixed checkpoint (default every 12h, or the interval
   the user names), when blocked, or when the user asks. CI runs at the
