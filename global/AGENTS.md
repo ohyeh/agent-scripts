@@ -100,6 +100,10 @@ replaces reading the touched code.
   While waiting on an external event emit nothing — speak only when a result
   arrives, the wait passes the brief's stall limit, or you are blocked on the
   user. Final answer only: no process narration, no "need more detail?".
+  Ship on a clock, not per step: work accumulates on the loop branch; open or
+  update the PR only at a fixed checkpoint (default every 12h, or the interval
+  the user names), when blocked, or when the user asks. CI runs at the
+  checkpoint; between checkpoints local checks only — no push, no PR.
 - Solid completion: finish the whole task at the root; a symptom-hiding
   bypass is a failure. Minimal diff breaks ties, never trims scope; scope
   cuts need explicit user acceptance of the loss. Write the minimum complete
