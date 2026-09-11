@@ -4,7 +4,6 @@
 merge conflicts?|合併衝突|rebase[^，。,]{0,12}(衝突|conflict|失敗|fail|卡)|(git|branch|分支|cherry-pick)[^，。,]{0,6}(衝突|conflict)|(衝突|conflict)[^，。,]{0,6}(檔|files?|markers?|<<<<)	skill	resolving-merge-conflicts
 renovate|dependabot	skill	review-renovate
 (update|upgrade|升級|更新)[^。]{0,8}(deps|dependenc|套件|依賴)	skill	update-deps
-release ?notes?|changelog|發版說明|版本說明	skill	release-plannotator
 (讀|填|read|fill|parse)[^。]{0,10}\.?pdf\b	skill	pdf
 test ?plan|測試計畫|測試案例|qa plan	skill	qa-test-planner
 (架構|architecture)[^。]{0,6}(設計|審|評|review|design)|domain model|領域模型	skill	codebase-design
