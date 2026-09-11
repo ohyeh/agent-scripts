@@ -140,6 +140,59 @@ Listed so a name resolves, not as a bypass. The router picks the owner.
 `release-plannotator` (release notes, version bumps) apply inside the
 Plannotator repo only.
 
+## Plugin and bundled skills (present only where the plugin is installed)
+
+Mode `plugin:<name>` = lives in that plugin's cache, not in skills-lock; `bundled` = ships with Claude Code. Check the SKILL.md exists on this host before citing it.
+
+| Skill | Source | Mode |
+|---|---|---|
+| `access` | discord | plugin:discord |
+| `capture-tasks-from-meeting-notes` | atlassian | plugin:atlassian |
+| `codex-cli-runtime` | codex | plugin:codex |
+| `codex-result-handling` | codex | plugin:codex |
+| `configure` | discord | plugin:discord |
+| `context-mode` | context-mode | plugin:context-mode |
+| `ctx-doctor` | context-mode | plugin:context-mode |
+| `ctx-index` | context-mode | plugin:context-mode |
+| `ctx-insight` | context-mode | plugin:context-mode |
+| `ctx-purge` | context-mode | plugin:context-mode |
+| `ctx-search` | context-mode | plugin:context-mode |
+| `ctx-stats` | context-mode | plugin:context-mode |
+| `ctx-upgrade` | context-mode | plugin:context-mode |
+| `dispatching-parallel-agents` | superpowers | plugin:superpowers |
+| `executing-plans` | superpowers | plugin:superpowers |
+| `finishing-a-development-branch` | superpowers | plugin:superpowers |
+| `generate-status-report` | atlassian | plugin:atlassian |
+| `gpt-5-4-prompting` | codex | plugin:codex |
+| `jira-sprint-dashboard` | atlassian | plugin:atlassian |
+| `jira-sprint-dashboard-canvas` | atlassian | plugin:atlassian |
+| `ponytail` | ponytail | plugin:ponytail |
+| `ponytail-audit` | ponytail | plugin:ponytail |
+| `ponytail-debt` | ponytail | plugin:ponytail |
+| `ponytail-gain` | ponytail | plugin:ponytail |
+| `ponytail-help` | ponytail | plugin:ponytail |
+| `ponytail-review` | ponytail | plugin:ponytail |
+| `receiving-code-review` | superpowers | plugin:superpowers |
+| `requesting-code-review` | superpowers | plugin:superpowers |
+| `search-company-knowledge` | atlassian | plugin:atlassian |
+| `spec-to-backlog` | atlassian | plugin:atlassian |
+| `subagent-driven-development` | superpowers | plugin:superpowers |
+| `systematic-debugging` | superpowers | plugin:superpowers |
+| `test-driven-development` | superpowers | plugin:superpowers |
+| `triage-issue` | atlassian | plugin:atlassian |
+| `using-git-worktrees` | superpowers | plugin:superpowers |
+| `using-superpowers` | superpowers | plugin:superpowers |
+| `writing-plans` | superpowers | plugin:superpowers |
+| `writing-skills` | superpowers | plugin:superpowers |
+| `artifact-design` | Claude Code | bundled |
+| `artifact-capabilities` | Claude Code | bundled |
+| `artifact-diagramming` | Claude Code | bundled |
+| `workflow-authoring` | Claude Code | bundled |
+| `loop` | Claude Code | bundled |
+| `claude-api` | Claude Code | bundled |
+| `stop-slop` | Claude Code | bundled |
+| `skill-doctor` | Claude Code | bundled |
+
 ## Not in this map
 
 Plugin skills live with their plugins, not in `skills-lock.json`: `code-review`,

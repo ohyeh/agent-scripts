@@ -58,10 +58,5 @@
     "last_week": "2026-W36",
     "uses": 8,
     "consecutive_zero_weeks": 0
-  },
-  "--help": {
-    "last_week": "2026-W36",
-    "uses": 12,
-    "consecutive_zero_weeks": 0
   }
 }
