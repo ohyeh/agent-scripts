@@ -246,7 +246,7 @@ hook_install "$SRC/.agents/hooks/subagent-ledger.sh"
 install -m 0755 "$SRC/scripts/check-bol-prompt.sh" ~/.agents/hooks/
 hook_install "$SRC/.agents/hooks/context-ledger.sh"
 hook_install "$SRC/.agents/hooks/skill-router-nudge.sh"
-install -m 0644 "$SRC/.agents/hooks/skill-router-table.tsv" ~/.agents/hooks/
+[ "$SRC/.agents/hooks/skill-router-table.tsv" -ef ~/.agents/hooks/skill-router-table.tsv ] || install -m 0644 "$SRC/.agents/hooks/skill-router-table.tsv" ~/.agents/hooks/
 hook_install "$SRC/.agents/hooks/bash-read-audit.sh"
 hook_install "$SRC/.agents/hooks/artifact-title-gate.sh"
 hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/agents/claude/*.md frontmatter, not settings.json

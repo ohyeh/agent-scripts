@@ -1,9 +1,9 @@
 # regex (grep -E, case-insensitive)	kind	owner
 # kind: skill → ~/.agents/skills/<owner>/SKILL.md ; recipe → ~/.claude/workflows/<owner>.workflow.js
 # First match wins. Validated by scripts/check-skill-router-table.sh (invariants: skill-router-table).
-merge conflicts?|合併衝突|rebase[^，。,]{0,12}(衝突|conflict|失敗|fail|卡)|(git|branch|分支|cherry-pick)[^，。,]{0,6}(衝突|conflict)|(衝突|conflict)[^，。,]{0,6}(檔|files?|markers?|<<<<)	skill	resolving-merge-conflicts
-(renovate|dependabot)[^，。,]{0,20}(github actions?|workflow|\.ya?ml|actions/)|(actions?|workflow)[^，。,]{0,20}(renovate|dependabot)	skill	review-renovate
-(update|upgrade|升級|更新|bump)[^，。,]{0,12}(deps|dependenc|套件|依賴|npm|bun)|(npm|bun|package\.json)[^，。,]{0,12}(update|upgrade|升級|更新|dependabot|renovate)	skill	update-deps
+merge conflicts?|合併衝突|rebase[^，。,;；]{0,12}(衝突|conflict|失敗|fail|卡)|(git|branch|分支|cherry-pick)[^，。,;；]{0,6}(衝突|conflict)|(衝突|conflict)[^，。,;；]{0,6}(檔|files?|markers?|<<<<)	skill	resolving-merge-conflicts
+(update|upgrade|升級|更新|bump)[^，。,;；]{0,12}(deps|dependenc|套件|依賴|npm|bun)|(npm|bun|package\.json)[^，。,;；]{0,12}(update|upgrade|升級|更新|dependabot|renovate)	skill	update-deps
+(renovate|dependabot)[^，。,;；]{0,20}(github actions?|workflow|\.ya?ml|actions/)|(actions?|workflow)[^，。,;；]{0,20}(renovate|dependabot)	skill	review-renovate
 (讀|填|read|fill|parse)[^。]{0,10}\.?pdf\b	skill	pdf
 test ?plan|測試計畫|測試案例|qa plan	skill	qa-test-planner
 (架構|architecture)[^。]{0,6}(設計|審|評|review|design)|domain model|領域模型	skill	codebase-design
