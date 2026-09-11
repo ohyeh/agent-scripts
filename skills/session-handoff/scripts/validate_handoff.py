@@ -62,7 +62,8 @@ def check_todos(content: str) -> tuple[bool, list[str]]:
 def check_required_sections(content: str) -> tuple[bool, list[str]]:
     """Check that required sections exist and have content."""
     missing = []
-    if re.search(r"^- \[[ x]\] Blocker:", content, re.M):
+    # any list-item form counts: "- Blocker:", "- [ ] Blocker:", "* [x] Blocker:", "1. Blocker:"
+    if re.search(r"^\s*(?:[-*+]|\d+\.)\s*(?:\[[ xX]\]\s*)?Blocker\s*:", content, re.M | re.I):
         m = re.search(r"### Ruled-Out Paths\n(.*?)(?=\n#{2,3} |\Z)", content, re.S)
         body = m.group(1) if m else ""
         filled = re.search(r"^- Path: (?!\[TODO)\S.*- Evidence: (?!\[)\S.*- Cost: (?!\[)\S", body, re.M)
