@@ -1,0 +1,602 @@
+{
+ "week": "2026-W37",
+ "window": {
+  "days": 7,
+  "start": "2026-09-04",
+  "end": "2026-09-11",
+  "basis": "mtime (usage-dedupe/analyzer --since 7d/collector mtime); codex mtime; context-mode created_at"
+ },
+ "method": "四機（本機 MacBookPro .62；ssh 100.64.190.44；ssh 100.75.172.41 mac-mini；ssh box@100.103.142.47 grok-bot VM），全部唯讀。Claude 正式量尺 = evals/retro-metrics/usage-dedupe.py midkey（message.id 去重；四機各跑兩次，midkey input 重跑差 0；本機 naive/output 差 <1k 為本 session 自身寫入）；analyzer（session-report analyze-sessions.mjs --json --since 7d，四機 shasum 7e660e93）供 sessions/turns/cache_breaks/subagent/by_skill。Codex = .workflow/202609041230-weekly-retro/codex-tokens.py。Layer 1 = context-mode-local-insight agent-sessions（mbp14/p44/grok v4 909d4db；mini v2 a345a85 舊版，無 correction/suspects 欄）。機器層 = .workflow/202609111022-weekly-retro/probe.py。turns = human_messages。",
+ "machines": {
+  "local-mbp14": {
+   "claude": {
+    "sessions": 63,
+    "api_calls": 10409,
+    "turns": 818,
+    "input": 726273,
+    "cache_create": 35537831,
+    "cache_read": 2173722715,
+    "output": 6948464,
+    "total": 2216935283,
+    "pct_cached": 98.1,
+    "hours_active": 82.9,
+    "cache_breaks_over_100k": 41,
+    "subagent_calls": 100,
+    "subagent_total_tokens": 143307085,
+    "dedupe": {
+     "files": 149,
+     "usage_rows": 19664,
+     "rows_without_requestId": 353,
+     "reqkey_input": 2098729,
+     "naive_input": 2195709,
+     "rerun_midkey_input_equal": true
+    },
+    "analyzer_raw_uncached": 2065192,
+    "canary_pct": 85.3,
+    "goal_accept_report_pct": 86.8,
+    "done_no_evidence_pct": 72.2,
+    "done_no_evidence_n": "26/36",
+    "correction_sessions": 6,
+    "collector_sessions": 68,
+    "collector_subagent_transcripts": 85,
+    "top_skill_api_calls": [
+     [
+      "loop",
+      2750
+     ],
+     [
+      "session-handoff",
+      232
+     ],
+     [
+      "using-skills",
+      106
+     ],
+     [
+      "delegation-templates",
+      104
+     ],
+     [
+      "diagnosing-bugs",
+      103
+     ]
+    ]
+   },
+   "codex": {
+    "files_scanned": 2243,
+    "sessions": 22,
+    "from_archive": 1,
+    "turns": 115,
+    "total": 47933931,
+    "input": 47722118,
+    "cached_input": 43377792,
+    "cache_write": 0,
+    "output": 211813,
+    "reasoning": 43147,
+    "zero_turn_gt1M": 0,
+    "context_windows": {
+     "258400": 1,
+     "380000": 21
+    },
+    "models": {
+     "gpt-5.6-sol": 4,
+     "gpt-6-astra": 16,
+     "gpt-5.6-luna": 2
+    }
+   },
+   "agy": {
+    "conversation_dbs_in_window": 14,
+    "trajectories": 14,
+    "steps": 6464,
+    "tokens": "無記帳"
+   },
+   "cursor": {
+    "chats_in_window": 16,
+    "without_meta": 2,
+    "messages": 5088,
+    "unreadable": 3,
+    "tokens": "無記帳"
+   },
+   "grok": "store absent",
+   "collector_head": "909d4db",
+   "collector_schema": "cmli.agent-sessions.v4",
+   "archived_store": {
+    "projects_archived_dirs": 24,
+    "transcripts_files": 73,
+    "files_modified_7d": 0
+   },
+   "context_mode": {
+    "dbs": 21,
+    "sessions": 100,
+    "events": 16426,
+    "bytes_avoided": 75582585,
+    "bytes_returned": 4829382,
+    "kept_out_pct": 94.0,
+    "compacts": 38,
+    "ctx_tool_calls": 393,
+    "marker": {
+     "unmarked": 59,
+     "claude": 37,
+     "glm": 4
+    }
+   },
+   "claim_evidence_7d": {
+    "rows": 222,
+    "blocked": 118,
+    "skipped_no_mutating_tool": 20,
+    "file": true
+   },
+   "bol_7d": {
+    "rows": 95,
+    "fail": 9,
+    "exempt": 14,
+    "file": true
+   },
+   "deny_replay_rows_7d": 14135,
+   "kernel": {
+    ".claude/CLAUDE.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".codex/AGENTS.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".gemini/GEMINI.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".grok/AGENTS.md": {
+     "md5": "e9add371",
+     "version": "4.24.0-ironlaws"
+    }
+   },
+   "context_mode_links": {
+    ".gemini": "/Users/paul.yeh/.claude/context-mode",
+    ".codex": "/Users/paul.yeh/.claude/context-mode",
+    ".cursor": "/Users/paul.yeh/.claude/context-mode",
+    ".grok": "absent"
+   }
+  },
+  "remote-44": {
+   "claude": {
+    "sessions": 26,
+    "api_calls": 1852,
+    "turns": 172,
+    "input": 30724,
+    "cache_create": 7986083,
+    "cache_read": 376835503,
+    "output": 1130475,
+    "total": 385982785,
+    "pct_cached": 97.6,
+    "hours_active": 16,
+    "cache_breaks_over_100k": 14,
+    "subagent_calls": 15,
+    "subagent_total_tokens": 59770209,
+    "dedupe": {
+     "files": 47,
+     "usage_rows": 4223,
+     "rows_without_requestId": 0,
+     "reqkey_input": 30724,
+     "naive_input": 55967,
+     "rerun_midkey_input_equal": true
+    },
+    "analyzer_raw_uncached": 29830,
+    "canary_pct": 55.6,
+    "goal_accept_report_pct": 63,
+    "done_no_evidence_pct": 61.5,
+    "done_no_evidence_n": "8/13",
+    "correction_sessions": 2,
+    "collector_sessions": 27,
+    "collector_subagent_transcripts": 7,
+    "top_skill_api_calls": [
+     [
+      "artifact-design",
+      47
+     ],
+     [
+      "fastlane-uat-distribute",
+      32
+     ],
+     [
+      "session-handoff",
+      19
+     ],
+     [
+      "agent-device",
+      16
+     ],
+     [
+      "commit-commands:commit",
+      9
+     ]
+    ]
+   },
+   "codex": {
+    "files_scanned": 2456,
+    "sessions": 2,
+    "from_archive": 0,
+    "turns": 23,
+    "total": 1707821,
+    "input": 1705047,
+    "cached_input": 1169920,
+    "cache_write": 0,
+    "output": 2774,
+    "reasoning": 174,
+    "zero_turn_gt1M": 0,
+    "context_windows": {
+     "380000": 2
+    },
+    "models": {
+     "gpt-5.6-luna": 1,
+     "gpt-5.6-sol": 1
+    }
+   },
+   "agy": {
+    "conversation_dbs_in_window": 0,
+    "trajectories": 0,
+    "steps": 0,
+    "tokens": "無記帳"
+   },
+   "cursor": {
+    "chats_in_window": 3,
+    "without_meta": 0,
+    "messages": 559,
+    "unreadable": 1,
+    "tokens": "無記帳"
+   },
+   "grok": "store absent",
+   "collector_head": "909d4db",
+   "collector_schema": "cmli.agent-sessions.v4",
+   "archived_store": {
+    "projects_archived_dirs": 16,
+    "transcripts_files": 255,
+    "files_modified_7d": 0
+   },
+   "context_mode": {
+    "dbs": 17,
+    "sessions": 45,
+    "events": 2985,
+    "bytes_avoided": 31716192,
+    "bytes_returned": 1399381,
+    "kept_out_pct": 95.8,
+    "compacts": 12,
+    "ctx_tool_calls": 10,
+    "marker": {
+     "unmarked": 26,
+     "claude": 19
+    }
+   },
+   "claim_evidence_7d": {
+    "rows": 33,
+    "blocked": 18,
+    "skipped_no_mutating_tool": 5,
+    "file": true
+   },
+   "bol_7d": {
+    "rows": 13,
+    "fail": 6,
+    "exempt": 0,
+    "file": true
+   },
+   "deny_replay_rows_7d": 2089,
+   "kernel": {
+    ".claude/CLAUDE.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".codex/AGENTS.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".gemini/GEMINI.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".grok/AGENTS.md": {
+     "md5": "e9add371",
+     "version": "4.24.0-ironlaws"
+    }
+   },
+   "context_mode_links": {
+    ".gemini": "/Users/paul.yeh/.claude/context-mode",
+    ".codex": "/Users/paul.yeh/.claude/context-mode",
+    ".cursor": "/Users/paul.yeh/.claude/context-mode",
+    ".grok": "absent"
+   }
+  },
+  "mac-mini-m2": {
+   "claude": {
+    "sessions": 3,
+    "api_calls": 188,
+    "turns": 17,
+    "input": 483887,
+    "cache_create": 0,
+    "cache_read": 9090752,
+    "output": 23123,
+    "total": 9597762,
+    "pct_cached": 94.7,
+    "hours_active": 1,
+    "cache_breaks_over_100k": 0,
+    "subagent_calls": 0,
+    "subagent_total_tokens": 0,
+    "dedupe": {
+     "files": 3,
+     "usage_rows": 188,
+     "rows_without_requestId": 188,
+     "reqkey_input": 1008641,
+     "naive_input": 1008641,
+     "rerun_midkey_input_equal": true
+    },
+    "analyzer_raw_uncached": 1008641,
+    "canary_pct": 100,
+    "goal_accept_report_pct": 100,
+    "done_no_evidence_pct": 100,
+    "done_no_evidence_n": "2/2",
+    "correction_sessions": null,
+    "collector_sessions": 3,
+    "collector_subagent_transcripts": 0,
+    "top_skill_api_calls": [
+     [
+      "using-tmux-agent-tools",
+      25
+     ],
+     [
+      "loop",
+      12
+     ]
+    ]
+   },
+   "codex": {
+    "files_scanned": 1718,
+    "sessions": 0,
+    "from_archive": 0,
+    "turns": 0,
+    "total": 0,
+    "input": 0,
+    "cached_input": 0,
+    "cache_write": 0,
+    "output": 0,
+    "reasoning": 0,
+    "zero_turn_gt1M": 0,
+    "context_windows": {},
+    "models": {}
+   },
+   "agy": {
+    "conversation_dbs_in_window": 4,
+    "trajectories": 4,
+    "steps": 428,
+    "tokens": "無記帳"
+   },
+   "cursor": "store absent / collector v2",
+   "grok": "store absent",
+   "collector_head": "a345a85",
+   "collector_schema": "cmli.agent-sessions.v2",
+   "archived_store": {
+    "projects_archived_dirs": 18,
+    "transcripts_files": 0,
+    "files_modified_7d": 0
+   },
+   "context_mode": {
+    "dbs": 2,
+    "sessions": 4,
+    "events": 140,
+    "bytes_avoided": 8192,
+    "bytes_returned": 901,
+    "kept_out_pct": 90.1,
+    "compacts": 0,
+    "ctx_tool_calls": 0,
+    "marker": {
+     "glm": 3,
+     "gpt": 1
+    }
+   },
+   "claim_evidence_7d": {
+    "rows": 6,
+    "blocked": 4,
+    "skipped_no_mutating_tool": 2,
+    "file": true
+   },
+   "bol_7d": {
+    "rows": 0,
+    "fail": 0,
+    "exempt": 0,
+    "file": false
+   },
+   "deny_replay_rows_7d": 98,
+   "kernel": {
+    ".claude/CLAUDE.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".codex/AGENTS.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".gemini/GEMINI.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".grok/AGENTS.md": "absent"
+   },
+   "context_mode_links": {
+    ".gemini": "/Users/paul.yeh/.claude/context-mode",
+    ".codex": "/Users/paul.yeh/.claude/context-mode",
+    ".cursor": "/Users/paul.yeh/.claude/context-mode",
+    ".grok": "absent"
+   }
+  },
+  "grok-bot-vm": {
+   "claude": {
+    "sessions": 2,
+    "api_calls": 3,
+    "turns": 2,
+    "input": 48536,
+    "cache_create": 0,
+    "cache_read": 64,
+    "output": 128,
+    "total": 48728,
+    "pct_cached": 0.1,
+    "hours_active": 0,
+    "cache_breaks_over_100k": 0,
+    "subagent_calls": 0,
+    "subagent_total_tokens": 0,
+    "dedupe": {
+     "files": 2,
+     "usage_rows": 3,
+     "rows_without_requestId": 3,
+     "reqkey_input": 97072,
+     "naive_input": 97072,
+     "rerun_midkey_input_equal": true
+    },
+    "analyzer_raw_uncached": 97072,
+    "canary_pct": 50,
+    "goal_accept_report_pct": 100,
+    "done_no_evidence_pct": 0,
+    "done_no_evidence_n": "0/0",
+    "correction_sessions": 0,
+    "collector_sessions": 2,
+    "collector_subagent_transcripts": 0,
+    "top_skill_api_calls": []
+   },
+   "codex": {
+    "files_scanned": 0,
+    "sessions": 0,
+    "from_archive": 0,
+    "turns": 0,
+    "total": 0,
+    "input": 0,
+    "cached_input": 0,
+    "cache_write": 0,
+    "output": 0,
+    "reasoning": 0,
+    "zero_turn_gt1M": 0,
+    "context_windows": {},
+    "models": {}
+   },
+   "agy": {
+    "conversation_dbs_in_window": 29,
+    "trajectories": 29,
+    "steps": 5092,
+    "tokens": "無記帳"
+   },
+   "cursor": {
+    "chats_in_window": 26,
+    "without_meta": 0,
+    "messages": 924,
+    "unreadable": 2,
+    "tokens": "無記帳"
+   },
+   "grok": {
+    "seats_in_window": 26,
+    "child_seats": 264,
+    "orphan_child_seats": 32,
+    "bots_top": [
+     [
+      "US_STOCK",
+      511
+     ],
+     [
+      "NOVA",
+      428
+     ],
+     [
+      "NOVA 替身（封存）",
+      198
+     ],
+     [
+      "cursor-agent proxy",
+      195
+     ],
+     [
+      "旅遊",
+      129
+     ]
+    ]
+   },
+   "collector_head": "909d4db",
+   "collector_schema": "cmli.agent-sessions.v4",
+   "archived_store": {
+    "projects_archived_dirs": 0,
+    "transcripts_files": 0,
+    "files_modified_7d": 0
+   },
+   "context_mode": {
+    "dbs": 7,
+    "sessions": 27,
+    "events": 593,
+    "bytes_avoided": 461403,
+    "bytes_returned": 362912,
+    "kept_out_pct": 56.0,
+    "compacts": 0,
+    "ctx_tool_calls": 35,
+    "marker": {
+     "unmarked": 26,
+     "glm": 1
+    }
+   },
+   "claim_evidence_7d": {
+    "rows": 0,
+    "blocked": 0,
+    "skipped_no_mutating_tool": 0,
+    "file": false
+   },
+   "bol_7d": {
+    "rows": 0,
+    "fail": 0,
+    "exempt": 0,
+    "file": false
+   },
+   "deny_replay_rows_7d": 656,
+   "kernel": {
+    ".claude/CLAUDE.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".codex/AGENTS.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".gemini/GEMINI.md": {
+     "md5": "c18a23c5",
+     "version": "4.28.0-ironlaws"
+    },
+    ".grok/AGENTS.md": "absent"
+   },
+   "context_mode_links": {
+    ".gemini": "/home/box/.claude/context-mode",
+    ".codex": "/home/box/.claude/context-mode",
+    ".cursor": "/home/box/.claude/context-mode",
+    ".grok": "absent"
+   }
+  }
+ },
+ "findings": [
+  "四機首次全量：Claude 94 場/1,009 turns/去重 2.62B/USD 當量 $1,761（W36 兩機 $2,052）；本機 uncached 22.1M→0.73M（W36 91% 為單一 25-agent fan-out，本週無同型）",
+  "上週 backlog X1–X8 有效 1/8（X4 kernel 出口）；X4 配對指標無變化（問句結尾 32→30；「已授權仍留待決」改後被點名 5 次）",
+  "Layer 2 36 筆：規則存在但沒執行 22／規則缺失 3／工具環境 9／使用者側 2；兩大主題＝授權外推（×3）與等待協定缺失（×4）",
+  "mini 的 claude CLI 走 ANTHROPIC_BASE_URL=localhost:8317 GLM proxy（glm-5.3），usage 無 requestId、cache_create 0；mini 無 clone、collector v2、deploy 落後 871680b",
+  "cache break >100k 41（W36 103）：來源為 /loop idle ≥60 分（1h TTL）與 ToolSearch 批次載 schema，非貼文",
+  "Stop hook 5/6「done 無證據」為打回後補證據（hook 有效）；matcher 漏 `# pass N`/`FLEET OK`",
+  "grok VM 26 seats/264 child/32 orphan；context-mode kept-out 56%（他機 90–96%）",
+  "lessons 42/42 proposed，3 筆已裁決四週未折入；skill 連續 3 週零用量 12 支；deny-replay 四機 37,076 行 0 短路",
+  "fleet-deploy 8340c243 只到 2 台且未說明缺哪幾台；.41 落後為第三次單機缺口"
+ ],
+ "gaps": [
+  "mini collector v2（a345a85）無 correction/suspects 欄，糾正未量",
+  "artifact-title-gate 無 stats 檔，有效性無法驗證",
+  "F14 curl/wget redirected 未量測（攔截來自 context-mode 插件）",
+  "grok VM Claude 只 2 場；grok seats 無 token 記帳",
+  "collector 238/171 calls 與 dive-A 重算 408/261 邊界不同，未對齊",
+  "Layer 2 只挖 flagged 場，無隨機對照"
+ ],
+ "usd_equiv": {
+  "local-mbp14": 1486.32,
+  "remote-44": 266.75,
+  "mac-mini-m2": 7.54,
+  "grok-bot-vm": 0.25,
+  "total": 1760.85,
+  "per_turn": 1.745,
+  "note": "cost.py API 費率當量，非帳單；mini 實為 GLM 端點，此欄以 Claude 費率估算不成立"
+ }
+}
