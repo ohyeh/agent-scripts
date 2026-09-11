@@ -1,0 +1,22 @@
+# regex (grep -E, case-insensitive)	kind	owner
+# kind: skill → ~/.agents/skills/<owner>/SKILL.md ; recipe → ~/.claude/workflows/<owner>.workflow.js
+# First match wins. Validated by scripts/check-skill-router-table.sh (invariants: skill-router-table).
+(解|處理|修|resolve|fix)[^。]{0,12}(衝突|conflict)|(rebase|merge)[^。]{0,12}(conflict|卡住|失敗|fail)	skill	resolving-merge-conflicts
+renovate|dependabot	skill	review-renovate
+(update|upgrade|升級|更新)[^。]{0,8}(deps|dependenc|套件|依賴)	skill	update-deps
+release ?notes?|changelog|發版說明|版本說明	skill	release-plannotator
+(讀|填|read|fill|parse)[^。]{0,10}\.?pdf\b	skill	pdf
+test ?plan|測試計畫|測試案例|qa plan	skill	qa-test-planner
+(架構|architecture)[^。]{0,6}(設計|審|評|review|design)|domain model|領域模型	skill	codebase-design
+(issue|問題單|工單)[^。]{0,10}(分流|triage|分類)|\btriage\b	skill	triage
+生圖|產生圖片|image ?gen(eration)?	skill	imagegen-frontend-web
+(hand ?off|交接|接手)[^。]{0,10}(session|下一場|新 session)	skill	session-handoff
+(建|建立|新增|create|new|scaffold)[^。]{0,8}skill\b|skill-creator	skill	skill-creator
+(設計稿|figma|mock ?up|design)[^。]{0,12}(對不上|不一致|vs|對照|落差|audit)	recipe	design-vs-code-audit
+(文件|docs?|readme)[^。]{0,12}(過期|對不上|不一致|vs|審|audit)	recipe	docs-vs-code-audit
+(根因|root ?cause|為什麼會|深挖|deep ?dive)	recipe	root-cause-deep-dive-audit
+(多方|各模型|多模型|第二模型|獨立)[^。]{0,8}(review|審|看)|共識|consensus	recipe	consensus-gate
+(findings?|發現|問題清單)[^。]{0,10}(整理|分級|triage|歸類)	recipe	findings-triage
+(pr|pull request)[^。]{0,12}(review 意見|comments?|留言)[^。]{0,10}(處理|回|resolve)	recipe	pr-review-triage-resolve
+(spec|規格)[^。]{0,12}(實作|implement)|規劃[^。]{0,4}(→|到|then)[^。]{0,4}實作|plan[^。]{0,6}(build|implement)	recipe	spec-implement-dual-review-verify
+(專案|project)[^。]{0,8}(方向|direction|該不該繼續|要不要繼續)	recipe	project-direction-review

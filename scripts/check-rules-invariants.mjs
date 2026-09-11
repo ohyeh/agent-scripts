@@ -170,6 +170,11 @@ if (existsSync(skillsDir)) {
 check('skill-frontmatter-yaml', fmOffenders.length === 0,
   fmOffenders.length ? fmOffenders.join('; ') : `${fmChecked} skill frontmatters parse`);
 
+// skill-router table: regexes compile, owners resolve (skills-lock / recipes)
+const routerTable = spawnSync('bash', [join(ROOT, 'scripts/check-skill-router-table.sh')], { encoding: 'utf8' });
+check('skill-router-table', routerTable.status === 0,
+  (routerTable.stdout + routerTable.stderr).trim().split('\n').slice(-1)[0]);
+
 let failed = 0;
 for (const r of results) {
   if (!r.ok) failed++;

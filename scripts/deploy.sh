@@ -246,6 +246,7 @@ hook_install "$SRC/.agents/hooks/subagent-ledger.sh"
 install -m 0755 "$SRC/scripts/check-bol-prompt.sh" ~/.agents/hooks/
 hook_install "$SRC/.agents/hooks/context-ledger.sh"
 hook_install "$SRC/.agents/hooks/skill-router-nudge.sh"
+install -m 0644 "$SRC/.agents/hooks/skill-router-table.tsv" ~/.agents/hooks/
 hook_install "$SRC/.agents/hooks/bash-read-audit.sh"
 hook_install "$SRC/.agents/hooks/artifact-title-gate.sh"
 hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/agents/claude/*.md frontmatter, not settings.json
@@ -317,6 +318,7 @@ for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-
     exit 1
   fi
 done
+[ -r ~/.agents/hooks/skill-router-table.tsv ] || { echo "FAIL [hooks] skill-router-table.tsv not installed" >&2; exit 1; }
 # The gate fails closed: a missing validator would deny every dispatch, so its presence is a deploy check.
 [ -x ~/.agents/hooks/check-bol-prompt.sh ] || { echo "FAIL [hooks] check-bol-prompt.sh (bol-prompt-gate validator) not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/evidence-tokens.sh ] || { echo "FAIL [hooks] evidence-tokens.sh (shared by context-ledger + claim-evidence-gate) not installed" >&2; exit 1; }
