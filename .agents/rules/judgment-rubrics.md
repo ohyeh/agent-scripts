@@ -101,8 +101,9 @@ authorized work, recapping, or asking to take a reversible in-scope step is dead
 - Negative: offering three defaults, each with "recommended: X", then waiting. Wrong — those recommendations ARE the decision; apply them and report.
 
 ## §4 Wrong-direction signals — change approach, do not retry
-Apply: after every failed attempt. Any TWO of these → the approach is wrong; a third
-retry of the same idea is forbidden (retry budget in `rules/model-dispatch.md` §5):
+Apply: after every failed attempt. Any TWO of these → the approach is wrong; the same idea
+at the same tier is never rerun, and an approach ends after three tiers — every call at the
+same goal counts as a round (retry ladder in `rules/model-dispatch.md` §5):
 - [ ] Each "fix" moves the error somewhere else instead of removing it.
 - [ ] You are adding special cases to make the solution hold (2+ special cases = smell).
 - [ ] The diff keeps growing but the acceptance criteria get no closer.
@@ -169,3 +170,18 @@ paths, or user-facing UI — do not run these unconditionally on every task.
 - [ ] User-facing UI touched: keyboard nav + contrast spot-check (see `impeccable`/
   `web-design-guidelines` skills), not a full audit unless requested.
 Skip silently when none apply — a gate for relevant work, not a checklist tax on every task.
+
+## §8 Persist and review — within caps
+Apply: hard tasks, stalled progress, and final answers.
+- Difficulty alone is not a stopping condition. Within authorized scope and the task budget,
+  split hard work into checkable parts and record intermediate evidence.
+- Same approach: three rounds, each one tier up (`rules/model-dispatch.md` §5); every call at
+  the same goal is round N of that approach. Apply §4 earlier when triggered. A new hypothesis
+  starts new rounds but shares the task budget; renaming or splitting work never resets it.
+  No budget set → at the approach cap, report and ask for a continuation budget before more attempts.
+- Before delivery, read the answer against the original request once and test its weakest
+  material claim with evidence already in hand (§2b). Non-acceptance findings stay NOTEs.
+- Waits keep `rules/model-dispatch.md` §4 deadlines; report at the brief's stall time, else
+  10 minutes; a worker stall at 15 minutes escalates. At any cap: report rule, usage, evidence,
+  open ACCEPTANCE items as `UNCONFIRMED`, and the proposed next step; never extend the cap yourself.
+- Concise/Ponytail limit output and implementation size, not reasoning within these caps.

@@ -196,10 +196,12 @@ repair decomposition or missing context. Before `xhigh`/`max`, prefer bounded sa
 plus a judge when cheaper. Workflow `agent()` calls set effort explicitly. Sol workers never
 exceed `medium`; Sol high+ is reserved for commander/plan/review.
 
-Same approach: two rounds total across all models, counting every agent dispatched at the same
-goal whatever its name (no shopping — `judgment-rubrics.md` §4). Sonnet `low` fails once → Sonnet
-`medium`; fails twice → Opus with the full trail; a third failure triggers `judgment-rubrics.md`
-§4, not another retry. Once the hard part is solved, drop to the cheap execution tier with one worked example.
+Same approach: three rounds total, each one tier UP — worker low/medium → worker high (or a
+stronger model) → advisor (second model, e.g. `consensus-gate`) with the full trail. The same
+tier never runs twice on the same approach. EVERY call at the same goal counts as round N of
+that approach — agent, worker, advisor, or `codex exec`, whatever its name (no shopping —
+`judgment-rubrics.md` §4). A third failure triggers `judgment-rubrics.md` §4 (new hypothesis),
+not a fourth retry. Once the hard part is solved, drop to the cheap execution tier with one worked example.
 
 ## §6 Reviewer independence
 
