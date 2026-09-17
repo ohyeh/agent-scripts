@@ -1,0 +1,167 @@
+<title>[agent-scripts] Retro W38</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#f6f5f0;--panel:#ffffff;--ink:#1e2126;--muted:#5c636e;--line:#dcd9d0;--accent:#0f6f6a;--warn:#b7791f;--bad:#b0413e;--soft:#e9f2f0;
+ --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15171b;--panel:#1d2025;--ink:#e7e5df;--muted:#9aa1ab;--line:#2f333a;--accent:#4fb3ac;--warn:#d9a441;--bad:#d9706c;--soft:#1f2b2a}}
+:root[data-theme="dark"]{--bg:#15171b;--panel:#1d2025;--ink:#e7e5df;--muted:#9aa1ab;--line:#2f333a;--accent:#4fb3ac;--warn:#d9a441;--bad:#d9706c;--soft:#1f2b2a}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:32px 64px}
+main{max-width:960px;margin:0 auto;display:grid;gap:36px}
+h1{font-size:clamp(26px,4vw,34px);font-weight:600;letter-spacing:-.01em;margin:0;text-wrap:balance}
+h2{font-size:18px;font-weight:600;margin:0 0 12px;display:flex;align-items:baseline;gap:10px}
+h2 small{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:400;letter-spacing:.04em;text-transform:uppercase}
+p{margin:0}.muted{color:var(--muted)}
+header{display:grid;gap:8px}
+header .meta{font-family:var(--mono);font-size:12.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);padding:14px 16px;display:grid;gap:2px}
+.kpi b{font-family:var(--mono);font-size:22px;font-weight:500;font-variant-numeric:tabular-nums}
+.kpi span{font-size:12px;color:var(--muted)}.kpi i{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.kpi i.up{color:var(--bad)}.kpi i.down{color:var(--accent)}
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.5;background:var(--panel);border:1px solid var(--line);padding:14px 16px;overflow-x:auto;margin:0}
+.tbl{overflow-x:auto;border:1px solid var(--line);background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.03em;text-transform:uppercase;background:var(--bg)}
+tr:last-child td{border-bottom:0}td.num,th.num{text-align:right;font-family:var(--mono);font-size:12.5px}
+td .w{color:var(--muted);font-size:12px}
+ol.find{margin:0;padding-left:0;list-style:none;display:grid;gap:10px;counter-reset:f}
+ol.find li{display:grid;grid-template-columns:34px 1fr;gap:10px;padding:12px 14px;background:var(--panel);border:1px solid var(--line)}
+ol.find li::before{counter-increment:f;content:"F" counter(f);font-family:var(--mono);font-size:12px;color:var(--accent);padding-top:3px}
+ol.find li b{font-weight:600}
+.bars{display:grid;gap:8px}
+.bar{display:grid;grid-template-columns:minmax(150px,220px) 1fr 48px;gap:12px;align-items:center;font-size:13.5px}
+.bar .t{height:14px;background:var(--line);position:relative}.bar .t i{position:absolute;inset:0 auto 0 0;background:var(--muted)}
+.bar.a .t i{background:var(--bad)}.bar.m .t i{background:var(--warn)}.bar.c .t i{background:var(--accent)}
+.bar .n{font-family:var(--mono);font-size:12.5px;text-align:right}
+.callout{background:var(--soft);border-left:3px solid var(--accent);padding:12px 16px;font-size:14px}
+ul.gap{margin:0;padding-left:18px;display:grid;gap:6px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.status{font-family:var(--mono);font-size:11.5px;padding:1px 6px;border:1px solid var(--line)}
+.status.d{color:var(--warn);border-color:var(--warn)}
+footer{font-family:var(--mono);font-size:12px;color:var(--muted)}
+</style>
+<main>
+<header>
+ <h1>Weekly Retro 2026-W38</h1>
+ <div class="meta"><span>窗口 2026-09-10 → 2026-09-17</span><span>三機唯讀：.44 本機 · .62 · box@.47</span><span>mini .41 跳過</span><span>run 16:02–16:06Z</span></div>
+ <p class="muted">來源：evals/retro-metrics/2026-W38.json · 2026-W38/retro-report.md · layer2.json · next-week-backlog.md</p>
+</header>
+
+<section>
+ <h2>成本與總量 <small>cost.py · API 費率當量</small></h2>
+ <div class="kpis">
+  <div class="kpi"><span>Claude USD 當量</span><b>$1,553</b><i class="down">W37 $1,761（四機）</i></div>
+  <div class="kpi"><span>每輪</span><b>$1.835</b><i class="up">W37 $1.745</i></div>
+  <div class="kpi"><span>sessions / turns</span><b>127 / 846</b><i>W37 94 / 1,009</i></div>
+  <div class="kpi"><span>去重 tokens</span><b>2.35B</b><i class="down">W37 2.62B</i></div>
+  <div class="kpi"><span>cache break &gt;100k</span><b>39</b><i class="down">W37 55</i></div>
+  <div class="kpi"><span>Codex tokens</span><b>50M</b><i>W37 48M · UNPRICED</i></div>
+ </div>
+ <pre style="margin-top:12px">== 2026-W38 (2026-09-10 → 2026-09-17)
+  remote-44            claude $  435.98  (66 場 / 395 輪)  codex 34M UNPRICED
+  local-mbp14          claude $ 1116.55  (58 場 / 448 輪)  codex 16M UNPRICED
+  grok-bot-vm          claude $    0.09  (3 場 / 3 輪)  codex 0M UNPRICED
+  合計 Claude            $ 1552.61   ·  每輪 $1.835</pre>
+</section>
+
+<section>
+ <h2>三機比較 <small>Claude · 括號 W37</small></h2>
+ <div class="tbl"><table>
+  <thead><tr><th>指標</th><th class="num">.44 remote-44</th><th class="num">.62 local-mbp14</th><th class="num">.47 grok-bot-vm</th></tr></thead>
+  <tbody>
+  <tr><td>sessions</td><td class="num">66 <span class="w">(26)</span></td><td class="num">58 <span class="w">(63)</span></td><td class="num">3 <span class="w">(2)</span></td></tr>
+  <tr><td>turns</td><td class="num">395 <span class="w">(172)</span></td><td class="num">448 <span class="w">(818)</span></td><td class="num">3 <span class="w">(2)</span></td></tr>
+  <tr><td>去重 total tokens</td><td class="num">651M <span class="w">(386M)</span></td><td class="num">1,697M <span class="w">(2,217M)</span></td><td class="num">17k <span class="w">(49k)</span></td></tr>
+  <tr><td>output tokens</td><td class="num">2.17M <span class="w">(1.13M)</span></td><td class="num">4.96M <span class="w">(6.95M)</span></td><td class="num">26</td></tr>
+  <tr><td>subagent calls</td><td class="num">15 <span class="w">(15)</span></td><td class="num">49 <span class="w">(100)</span></td><td class="num">0</td></tr>
+  <tr><td>cache break &gt;100k</td><td class="num">10 <span class="w">(14)</span></td><td class="num">29 <span class="w">(41)</span></td><td class="num">0</td></tr>
+  <tr><td>✈ canary</td><td class="num">27.9% <span class="w">(55.6)</span></td><td class="num">83.6% <span class="w">(85.3)</span></td><td class="num">33.3% <span class="w">(50)</span></td></tr>
+  <tr><td>GOAL/ACCEPT/REPORT</td><td class="num">47.1% <span class="w">(63)</span></td><td class="num">83.6% <span class="w">(86.8)</span></td><td class="num">33.3%</td></tr>
+  <tr><td>done 無證據（collector）</td><td class="num">55% 11/20 <span class="w">(61.5)</span></td><td class="num">76.9% 20/26 <span class="w">(72.2)</span></td><td class="num">0</td></tr>
+  <tr><td>correction sessions</td><td class="num">4 <span class="w">(2)</span></td><td class="num">3 <span class="w">(6)</span></td><td class="num">0</td></tr>
+  <tr><td>top skill</td><td class="num">session-handoff 56</td><td class="num">loop 1,627</td><td class="num">—</td></tr>
+  <tr><td>Codex sessions / tokens</td><td class="num">17 / 34M <span class="w">luna 14</span></td><td class="num">18 / 16M <span class="w">astra 17</span></td><td class="num">0</td></tr>
+  <tr><td>agy 軌 / 步</td><td class="num">19 / 5,261</td><td class="num">7 / 1,354</td><td class="num">1 / 2</td></tr>
+  <tr><td>cursor chats / messages</td><td class="num">7 / 1,162</td><td class="num">15 / 2,428 <span class="w">5 無 meta · 3 unreadable</span></td><td class="num">1 / 6</td></tr>
+  <tr><td>grok seats / child / orphan</td><td class="num">—</td><td class="num">—</td><td class="num">16 / 331 / 41 <span class="w">(26 / 264 / 32)</span></td></tr>
+  </tbody></table></div>
+ <p class="muted" style="margin-top:8px;font-size:13px">.44 逐專案 canary：tmux-agent-tools 0/24 · project-c 2/15 · agent-scripts 13/23 · project-b 1/3</p>
+</section>
+
+<section>
+ <h2>Findings <small>9</small></h2>
+ <ol class="find">
+  <li><div><b>總量</b>：三機 127 場 / 846 turns / 2.35B / $1,553；每輪 $1.84（W37 $1.75）。mini 本週不計，跨週合計非同基準。</div></li>
+  <li><div><b>重心移動</b>：.62 turns 818→448、subagent 100→49；.44 turns 172→395、sessions 26→66（tmux-agent-tools 24 場、project-c 15 場）。</div></li>
+  <li><div><b>.44 規則遵循下滑</b>：canary 55.6→27.9%、triplet 63→47.1%、correction 2→4。逐專案：tmux-agent-tools 0/24、project-c 2/15、agent-scripts 13/23 → 掉在 tmux worker 場（不載 kernel）與 project-c，非 kernel 版本。</div></li>
+  <li><div><b>cache break</b>：三機 39（W37 55）；.62 29 筆有 10 筆含 <code>/loop</code>（idle ≥60 分撞 1h TTL）；terrain 12 / agent-scripts 12。</div></li>
+  <li><div><b>Codex</b>：50M；.44 gpt-5.6-luna 為主、.62 gpt-6-astra；cached 93% / 88%。turns 口徑本週換新，跨週僅供參考。</div></li>
+  <li><div><b>其他 CLI</b>：agy 19 / 7 軌；cursor .62 15 chats 有 8 筆缺 meta 或不可讀；grok seats 26→16、orphan child 32→41 續增。</div></li>
+  <li><div><b>艦隊</b>：grok VM kernel 4.29.0 落後 4.30.0；.62 與 .47 無 agent-scripts clone。</div></li>
+  <li><div><b>治理</b>：lessons 46 proposed / 3 adopted；11 支 repo skills 3 支零用量；retro inbox 兩節皆空。</div></li>
+  <li><div><b>W37 gaps 結案 0.5/7</b>：codex-tokens.py 入 repo；probe.py 未重建。</div></li>
+ </ol>
+</section>
+
+<section>
+ <h2>Layer 2 逐場挖掘 <small>72 筆 · W37 36</small></h2>
+ <div class="bars">
+  <div class="bar m"><span>M 量尺誤判</span><div class="t"><i style="width:70.8%"></i></div><span class="n">51</span></div>
+  <div class="bar a"><span>A 規則存在但沒執行</span><div class="t"><i style="width:13.9%"></i></div><span class="n">10</span></div>
+  <div class="bar"><span>D 使用者側／貼文誤判</span><div class="t"><i style="width:13.9%"></i></div><span class="n">10</span></div>
+  <div class="bar c"><span>C 工具環境</span><div class="t"><i style="width:1.4%"></i></div><span class="n">1</span></div>
+ </div>
+ <div class="two" style="margin-top:16px">
+  <div class="tbl"><table>
+   <thead><tr><th>A 類主題</th><th class="num">筆</th><th>案例</th></tr></thead>
+   <tbody>
+   <tr><td>done 無證據</td><td class="num">4</td><td>.44 953c6236 ×2 · .62 f0bda2f3 · .62 1c21ecf9</td></tr>
+   <tr><td>Live truth 誤判</td><td class="num">2</td><td>worker 已完成判 idle · <code>last_agent_message: null</code> 判無產出</td></tr>
+   <tr><td>等待協定</td><td class="num">2</td><td>人在鍵盤前仍留待決 · 定時 25 分醒來「等於發呆」</td></tr>
+   <tr><td>簡化預設／誤讀意圖</td><td class="num">2</td><td>「TEST 過度 SLOP」 · gitSha 注入 vs Settings bundle</td></tr>
+   </tbody></table></div>
+  <div class="callout">collector 的 done-無證據率 55% / 76.9% 中，51/56 是量尺誤判：證據在場但形式（<code>All tests passed!</code>、PASS 表格、量測數字、誠實 <code>UNCONFIRMED</code>）不在 evidence 正則內。真值約 5/56 ≈ 9%。Stop hook 用同一組正則，本 session 也被誤打回一次。<br><br>W37 主題追蹤：授權外推 3 → 0；等待協定缺失 4 → 2。</div>
+ </div>
+</section>
+
+<section>
+ <h2>Gaps <small>7</small></h2>
+ <ul class="gap">
+  <li>W37 backlog X1–X8 隨 .62 的 <code>.workflow/</code> 消失，本週無法評有效性；W38 backlog 改入 repo。</li>
+  <li>mini .41 未採集。</li>
+  <li>機器層 probe.py（Stop hook 命中、deny-replay、fleet-deploy）未重建。</li>
+  <li>Layer 2 只挖 flagged 場，無隨機對照。</li>
+  <li>tmux worker session 是否載 kernel 未裁決。</li>
+  <li>cursor .62 5 chats 無 meta、3 unreadable → messages 低估。</li>
+  <li>grok seats 無 token 記帳；agy/cursor 只有筆數。</li>
+ </ul>
+</section>
+
+<section>
+ <h2>Backlog X9–X16 <small>next-week-backlog.md</small></h2>
+ <div class="tbl"><table>
+  <thead><tr><th>#</th><th>項目</th><th>對應</th><th>狀態</th></tr></thead>
+  <tbody>
+  <tr><td>X9</td><td>evidence matcher 擴充（cmli + claim-evidence-gate 同一組正則）</td><td>F3 · L2</td><td><span class="status">open</span></td></tr>
+  <tr><td>X10</td><td>tmux worker session 載 kernel？或排除於 canary 分母</td><td>F3 · G5</td><td><span class="status d">decision</span></td></tr>
+  <tr><td>X11</td><td>retro 工具鏈全部入 repo：probe.py 重建、collect.sh</td><td>F9 · G3</td><td><span class="status">open</span></td></tr>
+  <tr><td>X12</td><td>艦隊落後：grok 4.29→4.30、.62/.47 補 clone、fleet-deploy 列缺台</td><td>F7</td><td><span class="status d">decision</span></td></tr>
+  <tr><td>X13</td><td>/loop idle cache break：查 10 筆實際 delay</td><td>F4</td><td><span class="status">open</span></td></tr>
+  <tr><td>X14</td><td>lessons 裁決：proposed 46 → ≤30</td><td>F8</td><td><span class="status">open</span></td></tr>
+  <tr><td>X15</td><td>Live truth / 等待協定 4 案 → fixtures</td><td>L2</td><td><span class="status">open</span></td></tr>
+  <tr><td>X16</td><td>Layer 2 隨機對照 10 場</td><td>G4</td><td><span class="status">open</span></td></tr>
+  </tbody></table></div>
+</section>
+
+<section>
+ <h2>待 Paul 決定 <small>本週不動</small></h2>
+ <ul class="gap">
+  <li>tmux worker session 是否載 kernel（X10）</li>
+  <li>是否跑 fleet-deploy 補 grok VM / .62 / .47（X12）</li>
+  <li>是否 push（e604790 起）</li>
+ </ul>
+</section>
+
+<footer>量尺：usage-dedupe.py midkey（三機各兩次差 0）· analyze-sessions.mjs 1c5beaf1 · codex-tokens.py · cmli agent-sessions v4 909d4db · layer2-extract.py</footer>
+</main>
