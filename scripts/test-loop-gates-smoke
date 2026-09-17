@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Smoke for the W38 loop gates: compaction-cap-gate, wakeup-idle-gate, and the
+# single-file postcompact-handoff. Each case is the smallest input that fails
+# if the logic breaks. Runs against the repo copies with HOME redirected.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+WORK="$(mktemp -d -t loop-gates-smoke.XXXXXX)"
+trap 'rm -rf "$WORK"' EXIT
+export HOME="$WORK/home" XDG_STATE_HOME="$WORK/home/.local/state" XDG_DATA_HOME="$WORK/home/.local/share"
+mkdir -p "$HOME"
+PASS=0; FAIL=0
+ok()   { echo "  ok   $1"; PASS=$((PASS + 1)); }
+fail() { echo "  FAIL $1" >&2; FAIL=$((FAIL + 1)); }
+expect_exit() { # $1 label, $2 expected code, then the command...
+  local label="$1" want="$2" got=0; shift 2
+  "$@" >/dev/null 2>"$WORK/stderr" || got=$?
+  if [ "$got" = "$want" ]; then ok "$label (exit $got)"; else fail "$label: exit $got, want $want: $(head -c 200 "$WORK/stderr")"; fi
+}
+
+# --- transcripts: 3 compactions (under cap) and 10 (at cap)
+under="$WORK/under.jsonl"; at="$WORK/at.jsonl"
+for _ in 1 2 3; do echo '{"type":"user","isCompactSummary":true}'; done > "$under"
+for _ in $(seq 10); do echo '{"type":"user","isCompactSummary":true}'; done > "$at"
+
+cap() { # $1 transcript, $2 tool_name, $3 tool_input json
+  printf '%s' "$(jq -cn --arg t "$1" --arg n "$2" --argjson i "$3" '{session_id:"cap-smoke",transcript_path:$t,tool_name:$n,tool_input:$i}')" |
+    bash "$ROOT/.agents/hooks/compaction-cap-gate.sh"
+}
+echo "case: compaction-cap-gate"
+expect_exit "under cap: Edit src allowed"              0 cap "$under" Edit '{"file_path":"/repo/src/a.ts"}'
+expect_exit "at cap: Edit src BLOCKED"                 2 cap "$at"    Edit '{"file_path":"/repo/src/a.ts"}'
+expect_exit "at cap: Write handoff allowed"            0 cap "$at"    Write '{"file_path":"/repo/.claude/handoffs/2026-09-18-x.md"}'
+expect_exit "at cap: git commit allowed"               0 cap "$at"    Bash '{"command":"git commit -m \"docs(handoff): x\""}'
+expect_exit "at cap: npm test BLOCKED"                 2 cap "$at"    Bash '{"command":"npm test"}'
+expect_exit "at cap: ScheduleWakeup stop allowed"      0 cap "$at"    ScheduleWakeup '{"stop":true}'
+expect_exit "at cap: ScheduleWakeup 1800 BLOCKED"      2 cap "$at"    ScheduleWakeup '{"delaySeconds":1800,"noop":true,"prompt":"x"}'
+grep -q 'BLOCKED: this session has compacted 10 times' "$WORK/stderr" && ok "block message names the count" || fail "block message missing count"
+expect_exit "env cap 12 → 10 compactions allowed"     0 env AGENT_HOOKS_MAX_COMPACTIONS=12 bash -c 'printf "%s" "$(jq -cn --arg t "$1" "{session_id:\"cap-smoke\",transcript_path:\$t,tool_name:\"Edit\",tool_input:{file_path:\"/repo/src/a.ts\"}}")" | bash "$2"' _ "$at" "$ROOT/.agents/hooks/compaction-cap-gate.sh"
+n="$(grep -c '"result":"blocked"' "$XDG_DATA_HOME/agent-hooks/compaction-cap-stats.jsonl")"
+[ "$n" = 3 ] && ok "stats: 3 blocked rows logged" || fail "stats: $n blocked rows, want 3"
+
+# --- wakeup-idle-gate: streak of noops
+idle() { # $1 tool_input json, [$2 session]
+  printf '%s' "$(jq -cn --arg s "${2:-idle-smoke}" --argjson i "$1" '{session_id:$s,tool_name:"ScheduleWakeup",tool_input:$i}')" |
+    bash "$ROOT/.agents/hooks/wakeup-idle-gate.sh"
+}
+echo "case: wakeup-idle-gate"
+expect_exit "noop #1 allowed"                          0 idle '{"delaySeconds":1500,"noop":true,"prompt":"x","reason":"waiting"}'
+expect_exit "noop #2 allowed"                          0 idle '{"delaySeconds":1500,"noop":true,"prompt":"x","reason":"waiting"}'
+expect_exit "noop #3 at 1500s BLOCKED"                 2 idle '{"delaySeconds":1500,"noop":true,"prompt":"x","reason":"waiting"}'
+grep -q 'PushNotification' "$WORK/stderr" && grep -q 'self-improvement' "$WORK/stderr" && ok "block message names both exits" || fail "block message missing an exit"
+expect_exit "noop #3 at 3600s allowed"                 0 idle '{"delaySeconds":3600,"noop":true,"prompt":"x","reason":"waiting"}'
+expect_exit "noop #4 at 1200s BLOCKED (streak persists)" 2 idle '{"delaySeconds":1200,"noop":true,"prompt":"x"}'
+expect_exit "real work (noop:false) resets, allowed"   0 idle '{"delaySeconds":600,"noop":false,"prompt":"x"}'
+[ "$(cat "$XDG_STATE_HOME/agent-hooks/idle-smoke/wakeup-noop-streak")" = 0 ] && ok "streak reset to 0" || fail "streak not reset"
+expect_exit "stop:true always allowed"                 0 idle '{"stop":true}'
+expect_exit "other session starts at streak 0"         0 idle '{"delaySeconds":900,"noop":true,"prompt":"x"}' other-sid
+
+# --- postcompact-handoff: one file per session, overwritten
+echo "case: postcompact-handoff single file"
+repo="$WORK/repo"; mkdir -p "$repo"
+pc() { printf '%s' "$(jq -cn --arg c "$repo" --arg t "$at" --arg s "$1" '{session_id:"abcdef1234567890",cwd:$c,trigger:"auto",transcript_path:$t,compact_summary:$s}')" | bash "$ROOT/.agents/hooks/postcompact-handoff.sh" >/dev/null; }
+pc "first summary"; pc "second summary"
+n="$(ls "$repo/.claude/handoffs" | wc -l | tr -d ' ')"
+[ "$n" = 1 ] && ok "two compactions → 1 file" || fail "two compactions → $n files"
+[ -f "$repo/.claude/handoffs/compact-abcdef12.md" ] && ok "file named compact-<sid8>.md" || fail "file name wrong: $(ls "$repo/.claude/handoffs")"
+grep -q 'second summary' "$repo/.claude/handoffs/compact-abcdef12.md" && ok "latest summary wins" || fail "old summary kept"
+grep -q 'Compactions so far: 10' "$repo/.claude/handoffs/compact-abcdef12.md" && ok "compaction count recorded" || fail "count line missing"
+
+# --- compaction-recall points at the single file
+echo "case: compaction-recall handoff pointer"
+out="$(printf '%s' "$(jq -cn --arg c "$repo" --arg t "$at" '{session_id:"abcdef1234567890",cwd:$c,transcript_path:$t}')" | bash "$ROOT/.agents/hooks/compaction-recall.sh" 2>/dev/null || true)"
+# transcript has no human prompts → recall exits early; add one and retry
+echo '{"type":"user","message":{"content":"ship the thing"}}' >> "$at"
+out="$(printf '%s' "$(jq -cn --arg c "$repo" --arg t "$at" '{session_id:"abcdef1234567890",cwd:$c,transcript_path:$t}')" | bash "$ROOT/.agents/hooks/compaction-recall.sh")"
+printf '%s' "$out" | grep -q 'compact-abcdef12.md' && ok "recall names compact-<sid8>.md" || fail "recall pointer wrong: $(printf '%s' "$out" | grep -i handoff)"
+printf '%s' "$out" | grep -q 'BLOCKED by compaction-cap-gate' && ok "recall ESCALATION names the gate" || fail "ESCALATION text stale"
+
+echo "summary: $PASS passed, $FAIL failed"
+[ "$FAIL" = 0 ]
