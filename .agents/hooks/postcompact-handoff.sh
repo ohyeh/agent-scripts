@@ -4,10 +4,16 @@
 # Input (stdin JSON, docs https://code.claude.com/docs/en/hooks): session_id,
 # cwd, trigger ("manual"|"auto"), compact_summary. PostCompact has no decision
 # control and cannot inject context (prior art: anthropics/claude-code#14258),
-# so this hook only writes <cwd>/.claude/handoffs/<ts>-compact.md and runs the
+# so this hook only writes <cwd>/.claude/handoffs/compact-<sid8>.md and runs the
 # vendored validator; its one-line stdout shows in the transcript as status.
 # Pair: precompact-instructions.sh asks the summarizer for the three REQUIRED
 # handoff headings; this hook checks they arrived. Never exits non-zero.
+#
+# ONE file per session, overwritten on every compaction (Paul 2026-09-18, W38
+# retro): the per-compaction <ts>-compact-<sid>.md files worked — post-compact
+# instruction loss stopped — but a 12-compaction loop left 26 files and 11
+# docs(handoff) commits in one day on us-options-terrain. The latest summary
+# is the only one a successor reads; keep that one, commit it at checkpoints.
 set -u
 
 IN="$(cat)"
@@ -23,13 +29,15 @@ session_id="$(printf '%s' "$IN" | jq -r '.session_id // "unknown"')"
 
 dir="$cwd/.claude/handoffs"
 mkdir -p "$dir" || exit 0
-ts="$(date +%Y-%m-%d-%H%M%S)"
-file="$dir/$ts-compact-${session_id:0:8}.md"
+file="$dir/compact-${session_id:0:8}.md"
+transcript="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
+compactions="$( [ -f "$transcript" ] && grep -c '"isCompactSummary":true' "$transcript" 2>/dev/null || echo 0)"
 
 {
   printf '# Session Handoff: compaction (%s)\n\n' "$trigger"
   printf '## Session Metadata\n\n'
   printf -- '- Created: %s\n' "$(date +%Y-%m-%dT%H:%M:%S%z)"
+  printf -- '- Compactions so far: %s (file is overwritten each time; latest only)\n' "${compactions:-0}"
   printf -- '- Project: %s\n' "${cwd/#$HOME/\~}"
   printf -- '- Session: %s\n' "$session_id"
   printf -- '- Source: PostCompact hook (compact_summary)\n\n'

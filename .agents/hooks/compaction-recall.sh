@@ -17,7 +17,8 @@
 # loss no longer observed. Raised to 10 as a guard for runaway sessions only.
 set -u
 
-MAX_COMPACTIONS=10
+# Shared with compaction-cap-gate.sh (the PreToolUse gate that enforces this cap).
+MAX_COMPACTIONS="${AGENT_HOOKS_MAX_COMPACTIONS:-10}"
 MAX_PROMPTS=20
 MAX_PROMPT_CHARS=200
 MAX_TOTAL_BYTES=6000
@@ -51,7 +52,11 @@ Compactions in this session: $compactions. Re-derive current goal and title stat
 # Point at the file postcompact-handoff.sh just wrote so the model can read the
 # full summary back if the re-injected context above looks incomplete.
 CWD="$(printf '%s' "$IN" | jq -r '.cwd // empty')"
-latest_handoff="$(ls -t "${CWD:-.}"/.claude/handoffs/*-compact*.md 2>/dev/null | head -n 1)"
+SID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
+# This session's single overwritten file first (postcompact-handoff.sh since
+# 2026-09-18); the old per-compaction <ts>-compact-*.md names as fallback.
+latest_handoff="${CWD:-.}/.claude/handoffs/compact-${SID:0:8}.md"
+[ -f "$latest_handoff" ] || latest_handoff="$(ls -t "${CWD:-.}"/.claude/handoffs/*-compact*.md 2>/dev/null | head -n 1)"
 if [ -n "$latest_handoff" ]; then
   out="$out
 Latest compact handoff: ${latest_handoff/#$HOME/\~}. Read it before acting if the summary above seems incomplete."
@@ -59,7 +64,7 @@ fi
 
 if [ "$compactions" -ge "$MAX_COMPACTIONS" ]; then
   out="$out
-ESCALATION: this session has compacted $compactions times (limit $MAX_COMPACTIONS). Do not continue building here. Write a handoff (skill session-handoff), rename this title to ↗️ with the next sequence number (session-titles.md §State transitions 4), and tell the user to start the successor session."
+ESCALATION: this session has compacted $compactions times (limit $MAX_COMPACTIONS). Building is now BLOCKED by compaction-cap-gate.sh (no exemption). Do exactly: write the handoff (skill session-handoff), closing recap, rename this title to ↗️ with the next sequence number (session-titles.md §State transitions 4), PushNotification the user to open the successor, ScheduleWakeup {stop:true}, then idle."
 fi
 
 # ponytail: hard byte cap so the recall can never recreate the bloat that
