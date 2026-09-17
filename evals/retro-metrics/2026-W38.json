@@ -1,0 +1,332 @@
+{
+ "week": "2026-W38",
+ "window": {
+  "days": 7,
+  "start": "2026-09-10",
+  "end": "2026-09-17",
+  "basis": "mtime (usage-dedupe/analyzer --since 7d/collector mtime); codex mtime; run 2026-09-17T16:02–16:06Z"
+ },
+ "method": "三機（本機 = .44 2500693-paul，即 W37 的 remote-44；ssh .62 MacBookPro = W37 的 local-mbp14；ssh box@.47 grok-bot VM），全部唯讀；mini .41 依指示跳過。JSON 機器鍵沿用 W37 名稱以便 cost.py 與跨週比對。Claude 正式量尺 = evals/retro-metrics/usage-dedupe.py midkey（三機各跑兩次，midkey 重跑差 0）；analyzer（session-report analyze-sessions.mjs --json --since 7d，三機 shasum 1c5beaf1，較 W37 的 7e660e93 已升版）供 sessions/api_calls/turns/hours/cache_breaks/subagent/by_skill；Codex = evals/retro-metrics/codex-tokens.py（本週新寫入 repo，取每 rollout 最後一筆 total_token_usage；W37 的 .workflow 版已不存在）。Layer 1 = context-mode-local-insight agent-sessions v4 909d4db，以 tar 送 bin/ 到遠端直接 import agent-sessions.mjs（cli.mjs 依賴 MCP sdk 遠端無法載入；grok VM 需 ~/.local/bin/node v22 才有 node:sqlite）。turns = human_messages。",
+ "machines": {
+  "remote-44": {
+   "claude": {
+    "sessions": 66,
+    "api_calls": 2995,
+    "turns": 395,
+    "input": 41880,
+    "cache_create": 9907151,
+    "cache_read": 639257724,
+    "output": 2168702,
+    "total": 651375457,
+    "pct_cached": 98.5,
+    "hours_active": 24.3,
+    "cache_breaks_over_100k": 10,
+    "subagent_calls": 15,
+    "subagent_total_tokens": 10445265,
+    "dedupe": {
+     "files": 83,
+     "usage_rows": 5826,
+     "rows_without_requestId": 1,
+     "reqkey_input": 41880,
+     "naive_input": 75289,
+     "rerun_midkey_input_equal": true
+    },
+    "analyzer_raw_uncached": 36910,
+    "top_skill_api_calls": [
+     [
+      "session-handoff",
+      56
+     ],
+     [
+      "shared-memory-intake",
+      29
+     ],
+     [
+      "agent-browser",
+      21
+     ],
+     [
+      "agent-device",
+      13
+     ],
+     [
+      "using-tmux-agent-tools",
+      12
+     ]
+    ],
+    "cache_breaks_by_project": [
+     [
+      "agent-scripts",
+      6
+     ],
+     [
+      "project-b",
+      3
+     ],
+     [
+      "project-c",
+      1
+     ]
+    ],
+    "cache_breaks_loop_related": 0,
+    "canary_pct": 27.9,
+    "goal_accept_report_pct": 47.1,
+    "done_no_evidence_pct": 55,
+    "done_claiming_sessions": 20,
+    "correction_sessions": 4,
+    "collector_sessions": 68,
+    "collector_subagent_transcripts": 15,
+    "canary_by_project": {
+     "tmux-agent-tools": "0/24",
+     "agent-scripts": "13/23",
+     "project-c": "2/15",
+     "project-b": "1/3",
+     "git": "2/2",
+     "standard-portal-app": "1/1"
+    }
+   },
+   "codex": {
+    "files_scanned": 18,
+    "sessions": 17,
+    "turns": 31,
+    "total": 34198284,
+    "input": 33961591,
+    "cached_input": 31496192,
+    "cache_write": 0,
+    "output": 236693,
+    "reasoning": 129415,
+    "models": {
+     "gpt-5.6-luna": 14,
+     "gpt-6-astra": 2,
+     "gpt-5.6-sol": 1
+    }
+   },
+   "agy": {
+    "conversation_dbs_in_window": 19,
+    "trajectories": 19,
+    "steps": 5261,
+    "tokens": "無記帳"
+   },
+   "cursor": {
+    "chats_in_window": 7,
+    "without_meta": 0,
+    "messages": 1162,
+    "unreadable": 1,
+    "tokens": "無記帳"
+   },
+   "grok": "store absent",
+   "collector_head": "909d4db",
+   "collector_schema": "cmli.agent-sessions.v4",
+   "analyzer_sha": "1c5beaf1",
+   "hostname": "25006931Paul.local",
+   "run_ts": "2026-09-17T16:05:10.469Z"
+  },
+  "local-mbp14": {
+   "claude": {
+    "sessions": 58,
+    "api_calls": 7552,
+    "turns": 448,
+    "input": 1502194,
+    "cache_create": 24310851,
+    "cache_read": 1666026529,
+    "output": 4963289,
+    "total": 1696802863,
+    "pct_cached": 98.5,
+    "hours_active": 47.7,
+    "cache_breaks_over_100k": 29,
+    "subagent_calls": 49,
+    "subagent_total_tokens": 101195816,
+    "dedupe": {
+     "files": 111,
+     "usage_rows": 13533,
+     "rows_without_requestId": 407,
+     "reqkey_input": 2759106,
+     "naive_input": 2788262,
+     "rerun_midkey_input_equal": true
+    },
+    "analyzer_raw_uncached": 2756144,
+    "top_skill_api_calls": [
+     [
+      "loop",
+      1627
+     ],
+     [
+      "using-skills",
+      195
+     ],
+     [
+      "using-design-skills",
+      169
+     ],
+     [
+      "plugin-authoring",
+      143
+     ],
+     [
+      "session-handoff",
+      109
+     ]
+    ],
+    "cache_breaks_by_project": [
+     [
+      "project-a",
+      12
+     ],
+     [
+      "agent-scripts",
+      12
+     ],
+     [
+      "paul-photo-gallery",
+      2
+     ],
+     [
+      "project-c",
+      2
+     ]
+    ],
+    "cache_breaks_loop_related": 10,
+    "canary_pct": 83.6,
+    "goal_accept_report_pct": 83.6,
+    "done_no_evidence_pct": 76.9,
+    "done_claiming_sessions": 26,
+    "correction_sessions": 3,
+    "collector_sessions": 61,
+    "collector_subagent_transcripts": 33
+   },
+   "codex": {
+    "files_scanned": 19,
+    "sessions": 18,
+    "turns": 27,
+    "total": 16019403,
+    "input": 15923548,
+    "cached_input": 13996928,
+    "cache_write": 0,
+    "output": 95855,
+    "reasoning": 18811,
+    "models": {
+     "gpt-6-astra": 17,
+     "gpt-5.6-sol": 1
+    }
+   },
+   "agy": {
+    "conversation_dbs_in_window": 7,
+    "trajectories": 7,
+    "steps": 1354,
+    "tokens": "無記帳"
+   },
+   "cursor": {
+    "chats_in_window": 15,
+    "without_meta": 5,
+    "messages": 2428,
+    "unreadable": 3,
+    "tokens": "無記帳"
+   },
+   "grok": "store absent",
+   "collector_head": "909d4db",
+   "collector_schema": "cmli.agent-sessions.v4",
+   "analyzer_sha": "1c5beaf1",
+   "hostname": "MacBookPro",
+   "run_ts": "2026-09-17T16:05:11.632Z"
+  },
+  "grok-bot-vm": {
+   "claude": {
+    "sessions": 3,
+    "api_calls": 4,
+    "turns": 3,
+    "input": 16925,
+    "cache_create": 0,
+    "cache_read": 0,
+    "output": 26,
+    "total": 16951,
+    "pct_cached": 0.0,
+    "hours_active": 0,
+    "cache_breaks_over_100k": 0,
+    "subagent_calls": 0,
+    "subagent_total_tokens": 0,
+    "dedupe": {
+     "files": 3,
+     "usage_rows": 4,
+     "rows_without_requestId": 4,
+     "reqkey_input": 33850,
+     "naive_input": 33850,
+     "rerun_midkey_input_equal": true
+    },
+    "analyzer_raw_uncached": 33850,
+    "top_skill_api_calls": [],
+    "cache_breaks_by_project": [],
+    "cache_breaks_loop_related": 0,
+    "canary_pct": 33.3,
+    "goal_accept_report_pct": 33.3,
+    "done_no_evidence_pct": 0,
+    "done_claiming_sessions": 0,
+    "correction_sessions": 0,
+    "collector_sessions": 3,
+    "collector_subagent_transcripts": 0
+   },
+   "codex": {
+    "files_scanned": 0,
+    "sessions": 0,
+    "turns": 0,
+    "total": 0,
+    "input": 0,
+    "cached_input": 0,
+    "cache_write": 0,
+    "output": 0,
+    "reasoning": 0,
+    "models": {}
+   },
+   "agy": {
+    "conversation_dbs_in_window": 1,
+    "trajectories": 1,
+    "steps": 2,
+    "tokens": "無記帳"
+   },
+   "cursor": {
+    "chats_in_window": 1,
+    "without_meta": 0,
+    "messages": 6,
+    "unreadable": 0,
+    "tokens": "無記帳"
+   },
+   "grok": {
+    "seats_in_window": 16,
+    "child_seats": 331,
+    "orphan_child_seats": 41
+   },
+   "collector_head": "909d4db",
+   "collector_schema": "cmli.agent-sessions.v4",
+   "analyzer_sha": "1c5beaf1",
+   "hostname": "cursor",
+   "run_ts": "2026-09-17T16:06:14.190Z"
+  }
+ },
+ "usd_equiv": {
+  "remote-44": 435.98,
+  "local-mbp14": 1116.55,
+  "grok-bot-vm": 0.09,
+  "total": 1552.62,
+  "per_turn": 1.835,
+  "note": "cost.py API 費率當量（Opus 5 $5/$25），非帳單"
+ },
+ "findings": [
+  "三機：Claude 127 場/846 turns/去重 2.35B/USD 當量 $1,553（W37 四機 94 場/1,009 turns/2.62B/$1,761；mini 本週不計）。每輪 $1.84（W37 $1.75）",
+  "重心移動：.62 turns 818→448、subagent 100→49；.44 turns 172→395、sessions 26→66（.44 本週主機 tmux-agent-tools 24 場/project-c 15 場）",
+  ".44 規則遵循下滑：canary 55.6→27.9%、GOAL/ACCEPT/REPORT 63→47.1%、correction 2→4；.62 持平（canary 85.3→83.6、triplet 86.8→83.6）但 done 無證據 72.2→76.9%（20/26）。.44 逐專案 canary：tmux-agent-tools 0/24、project-c 2/15、agent-scripts 13/23 → 下滑集中在 tmux worker 場（worker 不載 kernel）與 project-c 專案，同 kernel 4.30.0 的 agent-scripts 場仍 57%",
+  "cache break >100k：三機 39（W37 55）；.62 29 筆中 10 筆 context 含 /loop（idle ≥60 分 1h TTL，W37 同型），project-a 12/agent-scripts 12",
+  "Codex 三機 50M（W37 50M）；.44 17 場以 gpt-5.6-luna 14 場為主、.62 18 場 gpt-6-astra 17 場；cached 比例 .44 93%/.62 88%。Codex turns/sessions 口徑本週換新（codex-tokens.py），跨週僅供參考",
+  "agy .44 19 軌/5,261 步、.62 7 軌/1,354 步；cursor .62 15 chats（5 無 meta、3 unreadable）、.44 7 chats；grok VM seats 16（W37 26）/child 331/orphan 41（W37 32，orphan 續增）",
+  "grok VM kernel 4.29.0，落後 repo 4.30.0；.62 與 .47 皆無 agent-scripts clone（W37 「單機缺口」議題續存，換了機器）",
+  "lessons.md 46 proposed/3 adopted/2 pending（W37 42/42 proposed）；repo skills 11 支本週 3 支零用量（ask-nova、defect-first-review、writing-artifacts）；retro inbox 兩節皆空",
+  "W37 gaps 部分結案 0.5/7：codex-tokens.py 已入 evals/retro-metrics/；機器層 probe.py 仍未重建"
+ ],
+ "gaps": [
+  "W37 backlog（X1–X8，.62 的 .workflow/202609111022-weekly-retro/）已不存在，本週無法評 backlog 有效性，也未產生 W38 backlog；下週 retro 第一個會撞到",
+  "mini .41 本週未採集（依指示跳過），跨週合計不可直接與 W37 四機比",
+  "機器層 probe.py（W37 deploy/hook/deny-replay 指標）未重建，本週無 Stop hook 命中、deny-replay、fleet-deploy 數字",
+  "Layer 2 逐場挖掘（36 筆分類）未做，只有 collector Layer 1 比率",
+  ".44 tmux-agent-tools 0/24 canary：worker session 是否應載 kernel 未裁決",
+  "cursor .62 5 chats 無 meta、3 unreadable → messages 低估",
+  "grok seats 無 token 記帳；agy/cursor 只有筆數"
+ ]
+}
