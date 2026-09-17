@@ -39,7 +39,7 @@
 
 - 交集 1：.62 MEMORY.md:14,23 記「1 個 Stop claim-evidence gate、6 個 PreToolUse gate」＝ F 治理面；無矛盾。
 - 交集 2：.62 MEMORY.md:232,238 記 4.29→4.30 部署流程「synchronized global/AGENTS.md、showed commit」＝ probe `identical: true`；無矛盾。
-- 交集 3：.44 MEMORY.md:47 記「stop hook 說缺證據 → 不要升 done，找出漏的檢查」＝ X9/X11（Stop hook 誤打回）；codex 側學到的是「順從 gate」，Layer 2 學到的是「gate 有誤判」，兩者方向相反但不矛盾（都成立）。
+- 交集 3：.44 MEMORY.md:47 記「stop hook 說缺證據 → 不要升 done，找出漏的檢查」＝ Z1/Z3（Stop hook 誤打回）；codex 側學到的是「順從 gate」，Layer 2 學到的是「gate 有誤判」，兩者方向相反但不矛盾（都成立）。
 - 無交集：canary 下滑、cache break、grok orphan、零用量 skills 在兩機 MEMORY.md 皆 0 hit。
 - .44 codex 09-10 起 0 筆 summary，但 `codex-tokens.py` 量到 .44 codex 17 sessions／34M tokens → memories 擷取在 .44 沒在跑（原因未查，UNCONFIRMED）。
 
