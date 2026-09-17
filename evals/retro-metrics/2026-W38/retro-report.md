@@ -1,6 +1,6 @@
 # Weekly Retro — 2026-W38（窗口 2026-09-10 → 2026-09-17）
 
-資料：`evals/retro-metrics/2026-W38.json`（機器指標）、`layer2.json`（逐場挖掘）、`next-week-backlog.md`（X9–X16）。
+資料：`evals/retro-metrics/2026-W38.json`（機器指標）、`layer2.json`（逐場挖掘）、`next-week-backlog.md`（Z1–Z12）。
 方法：三機唯讀採集（本機 .44、ssh .62、ssh box@.47；mini .41 依指示跳過）。
 量尺：`usage-dedupe.py` midkey（三機各跑兩次差 0）、`analyze-sessions.mjs --json --since 7d`（shasum 1c5beaf1）、
 `codex-tokens.py`（本週新增）、cmli `agent-sessions` v4 909d4db（tar 送 `bin/` 到遠端直接 import）。
@@ -97,7 +97,7 @@ W37 兩大主題「授權外推 ×3」「等待協定缺失 ×4」本週分別�
 - tmux worker session 是否載 kernel（F3、G5）
 - grok VM 4.29→4.30、.62/.47 補 clone → 是否跑 fleet-deploy（F7）
 - 是否 push（e604790 起）
-- 下週 backlog 編號：X9–X16 誤接 X 序列，改 Z1–Z8 或 Y8–Y15？（backlog-reconciliation.md）
+- 下週 backlog 編號：已依 Paul 09-18 授權統一為 Z1–Z12（backlog-reconciliation.md）
 - recipe-usage-stats.json 本 session 前已改動（M），是否隨 retro commit？
 
 ## 6.5 臨時動議（09-18；.62 現場觀察，Paul 裁定要記）
@@ -109,6 +109,7 @@ W37 兩大主題「授權外推 ×3」「等待協定缺失 ×4」本週分別�
 | M1 | 孤兒收養無單一 owner：owner 心跳停 >90s 後，同 cwd 每個 collector 都收養並各自投遞 | `register.ts:43-45`（ORPHAN_MS 90_000）、`:386-392`（adoptable 只看 cwd＋心跳）、`:429-432`（註解承認雙 collector 會各自收養）；三 worker 被 6c218550／56300f8b／d9466459 各自重投 | ohyeh/tmux-agent-tools | 收養寫回 dispatch.json owner（鎖或轉移）；非派工 session 預設不收（opt-in）；投遞標 `adopted from <owner>`。W39 量：同一 launch_id 投遞 session 數 ≤1 |
 | M2 | ack 不持久：`storeSet('tmux-agent.reported')` 後同批結果每 turn 重投（6c218550 收到 30+ 次）；`stop` 只清 panel 不寫 ack | `register.ts:38`（STORE_KEY）、`:832`（storeSet 只在 keep 長度變化時寫）；store 落點未找到 → 根因 UNCONFIRMED | tmux-agent-tools | 同一 launch_id 投遞 ≤1 次；stop 寫 ack |
 | M3 | agy profile：pane 完成、輸出 ✈，但 result.json 停 `pending`，assign confirm-processing 90s 誤判 launch-failed | `live-agy-b676/result.json` status pending、terminal_reason stopped；`mod-assign.log` "no processing activity within 90s of send"；同型前例 `lessons.md:95-97`（08-25 worker 完成但 result.json 停 pending）；本 session 09-18 agy 審閱 worker 正常寫回 success（未重現）；本 session 09-18 對 codex assign 同見此訊息，但該次為 codex 額度用盡（plan.md），非同因 | tmux-agent-tools agy profile | agy worker result.json 由 pending → success；confirm-processing 改看 pane 活動或 result 檔 |
+| M4 | Claude Code mod 使用追蹤：Paul 09-18 起開發 plugin/hooks module，W39 起 retro 每台機器量「裝了哪些 mod、觸發／投遞／攔截／失敗數」 | 尚無資料（本週未量測）；現有 hook stats 格式 `~/.local/share/agent-hooks/*.jsonl`（probe.py `hook_stats_7d`）可直接沿用 | retro-agenda §5（循環盤點）新增「mod 使用」列 ＋ `probe.py` `mods` 段；提案文字見 `next-week-backlog.md` Z12，agenda 檔本 commit 不改（依 maintenance §1 先出 diff 待核） | W39 `2026-W39.json` 每機 `mods[]`，每 mod 有 trigger/deliver/block/fail 四計數或「未記帳」 |
 
 ## 7. 相關 artifact（09-17 已各補 W38 段）
 
@@ -130,7 +131,7 @@ W37 兩大主題「授權外推 ×3」「等待協定缺失 ×4」本週分別�
 | skill-router-nudge 命中 | 3（consensus-gate） | 32（resolving-merge-conflicts 15、consensus-gate 5、review-renovate 3、update-deps 2、triage 2、skill-creator 1） | 無檔 |
 | 命中 owner 同期 Skill() | — | 0 | — |
 
-上表為 09-17 稍早批次；probe.py 16:57Z 值（.62 137/61、deny-replay 4,234/9,609）以 `2026-W38.json` machine_layer 為準。仍缺：context-mode kept-out、Stop hook 誤打回逐筆判別（X9/X11）；deploy-log／shared-memory pending 已由 probe 補齊（loops-inventory.md）。
+上表為 09-17 稍早批次；probe.py 16:57Z 值（.62 137/61、deny-replay 4,234/9,609）以 `2026-W38.json` machine_layer 為準。仍缺：context-mode kept-out、Stop hook 誤打回逐筆判別（Z1/Z3）；deploy-log／shared-memory pending 已由 probe 補齊（loops-inventory.md）。
 
 Artifact: https://claude.ai/artifact/EWFiyZFf5Di55goYXJVBup
 
@@ -147,13 +148,13 @@ Artifact: https://claude.ai/artifact/EWFiyZFf5Di55goYXJVBup
 |---|---|---|---|
 | F1 總量 $1,553 | `retro-report.md:48`；`2026-W38.json` usd_equiv | 觀察 | 每輪成本持平（1.84 vs 1.75），無行動點。 |
 | F2 重心移到 .44 | `retro-report.md:49`；.44 sessions 26→66 | 觀察 | 工作分佈變化，非缺陷。 |
-| F3 .44 canary 27.9%／tmux worker 0/24 | `retro-report.md:50`；`2026-W38.json` canary_by_project | **升級**（X10 worker 載 kernel） | 同 kernel 的 agent-scripts 場 57%，下滑可歸因到 worker 不載 kernel；對照組另證 correction 低估。 |
+| F3 .44 canary 27.9%／tmux worker 0/24 | `retro-report.md:50`；`2026-W38.json` canary_by_project | **升級**（Z2 worker 載 kernel） | 同 kernel 的 agent-scripts 場 57%，下滑可歸因到 worker 不載 kernel；對照組另證 correction 低估。 |
 | F4 cache break 39／`/loop` 10 筆 | `retro-report.md:51` | 觀察（沿 W37 G5） | idle ≥60 分撞 TTL 是結構性，kernel 已禁「keep cache warm」；無新機制可加。 |
 | F5 Codex 50M／口徑換新 | `retro-report.md:52`；`codex-tokens.py` | 觀察 | 跨週不可比，W39 起才有趨勢。W37 動議「effort 分佈欄」未做（reconciliation 表）。 |
 | F6 其他 CLI／grok orphan 41 | `retro-report.md:53` | 觀察→W39 若 >50 升級 | orphan 32→41 連兩週增；W37 已列觀察。 |
-| F7 grok VM 4.29／.62 .47 無 clone | `retro-report.md:54`；probe-47 `deploy_log_last` 09-11、lessons sha 2939e283 | **升級**（X12 fleet-deploy） | 直接造成 lessons 分歧（loops-inventory）；fleet-deploy 是外部側效，需 Paul 點名。 |
+| F7 grok VM 4.29／.62 .47 無 clone | `retro-report.md:54`；probe-47 `deploy_log_last` 09-11、lessons sha 2939e283 | **升級**（Z4 fleet-deploy） | 直接造成 lessons 分歧（loops-inventory）；fleet-deploy 是外部側效，需 Paul 點名。 |
 | F8 lessons 46 proposed／3 adopted；3 支零用量 skills | `retro-report.md:55`；`lessons.md` Status 統計 | 觀察；G9 折入方式仍待答 | W37 是非題「G9 已裁決 3 筆怎麼折入」未答；零用量本週有名單（49 支），W39 算 streak。 |
-| F9 W37 gaps 結案 0.5/7 → 本輪 probe.py 重建 | `retro-report.md:56`；`probe.py` 三機 JSON | 觀察（部分結案） | 機器層可量；仍缺 kept-out、hook 誤打回逐筆（X11）。 |
+| F9 W37 gaps 結案 0.5/7 → 本輪 probe.py 重建 | `retro-report.md:56`；`probe.py` 三機 JSON | 觀察（部分結案） | 機器層可量；仍缺 kept-out、hook 誤打回逐筆（Z3）。 |
 | F10 孤兒多重收養 | `register.ts:43-45,386-392,429-432`；quarantine 三 worker | **升級**（tmux-agent-tools issue） | 註解自認缺陷；三 session 重投為實例；Paul 訴求明確。 |
 | F11 ack 不持久 | `register.ts:38,832`；6c218550 30+ 次 | 升級但先補觀測 | store 落點未找到，先加 ack 寫入日誌再修。 |
 | F12 agy result pending | `live-agy-b676/result.json`、`mod-assign.log` | 觀察→本 retro agy 審閱若重現則升級 | 09-18 本 session 以 agy 跑審閱，可當第二個樣本。 |
@@ -164,7 +165,7 @@ Artifact: https://claude.ai/artifact/EWFiyZFf5Di55goYXJVBup
 2. `scope: live-truth` — trigger：對 remote 歷史做結論。09-17 歷史重寫後 09-11..16 逐筆不可得；結論須標「現在存在」而非「何時做」。
 3. `scope: waiting`（修 09-11 條）— 補「等人」：等待對象是使用者決定時，回合結尾為「待你決定」仍算停等；.62 本週 2 場。
 4. `scope: judgment` — trigger：交付物在一輪內被指「過度設計」或「誤讀意圖」。Layer 2 M 類 51 筆中兩主題最多（f134135d「自言自語」、多場「不要濫開 PR」）。
-5. `scope: gates` — trigger：Stop hook 打回「done 無證據」。屬 matcher 誤判（X9：collector 51/56 → 真值 ≈9%；本 session 2 次皆為字眼命中），不是行為缺陷；修 matcher 前不折入行為 lessons。
+5. `scope: gates` — trigger：Stop hook 打回「done 無證據」。屬 matcher 誤判（Z1：collector 51/56 → 真值 ≈9%；本 session 2 次皆為字眼命中），不是行為缺陷；修 matcher 前不折入行為 lessons。
 
 ## 11. 新增檔案（09-17 補齊）
 
