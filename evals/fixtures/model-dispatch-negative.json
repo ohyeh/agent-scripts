@@ -1,0 +1,10 @@
+{
+  "id": "model-dispatch-negative-one-tool-fact",
+  "prompt": "讀取目前 git branch 名稱後直接回答；不要委派。",
+  "labels": {
+    "must_route": [],
+    "must_not": ["model-dispatch", "delegation-templates"],
+    "required_tokens": ["✈"]
+  },
+  "reason": "A bounded one-tool fact should not pay delegation routing cost."
+}

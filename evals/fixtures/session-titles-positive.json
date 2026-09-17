@@ -1,0 +1,10 @@
+{
+  "id": "session-titles-positive-handoff-chain",
+  "prompt": "這是長任務的第二個 session，接續 SMCS-1902；請完成後交接到下一個 session。",
+  "labels": {
+    "must_route": ["session-titles", "judgment-rubrics"],
+    "must_not": ["invent_ticket", "reset_handoff_sequence"],
+    "required_tokens": ["✈"]
+  },
+  "reason": "A non-trivial handoff must preserve the evidenced ticket and increment the session chain."
+}

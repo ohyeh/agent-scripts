@@ -1,0 +1,10 @@
+{
+  "id": "judgment-rubrics-positive-completion-claim",
+  "prompt": "檢查剛完成的修正，告訴我是否已通過並附上證據。",
+  "labels": {
+    "must_route": ["judgment-rubrics"],
+    "must_not": ["completion_claim_without_fresh_evidence"],
+    "required_tokens": ["✈"]
+  },
+  "reason": "Any completion or PASS claim must load the completion and quality rubrics."
+}

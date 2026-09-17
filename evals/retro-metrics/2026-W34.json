@@ -1,0 +1,29 @@
+{
+  "week": "2026-W34",
+  "window": {"days": 7, "start": "2026-08-14", "end": "2026-08-21", "basis": "event-time"},
+  "method": "unified.py — 三機 ssh、雙 CLI、封存 store 全掃；Claude token 取 message.usage 四欄，Codex 取 payload.info.total_token_usage",
+  "machines": {
+    "local-mbp16": {
+      "claude": {"files": {"projects": 436, "projects_archived": 331, "transcripts": 255}, "sessions": 135, "subagent_transcripts": 72, "turns": 1025, "input": 24372, "cache_create": 36008054, "cache_read": 1366625304, "output": 5787377, "total": 1408445107, "zero_turn_gt1M": 0, "canary_pct": 38.5, "goal_accept_report_pct": 41.5, "done_no_evidence_pct": 93.8, "corrections_per_100_turns": 1.70, "cache_breaks_over_100k": 25},
+      "codex": {"files_scanned": 2444, "sessions": 59, "from_archive": 44, "turns": 344, "total": 659000000, "cached_input": 635900000, "cache_write": 0, "output": 1800000, "reasoning": 701500, "zero_turn_gt1M": 11, "context_windows": {"828400": 21, "380000": 32, "258400": 5, "121600": 1}}
+    },
+    "codex-mbpr": {
+      "claude": {"files": {"projects": 429, "projects_archived": 534, "transcripts": 73}, "sessions": 191, "subagent_transcripts": 171, "turns": 1262, "input": 492999, "cache_create": 72040830, "cache_read": 1424188421, "output": 6435487, "total": 1503157737, "zero_turn_gt1M": 0, "canary_pct": 57.1, "done_no_evidence_pct": 0.0, "cache_breaks_over_100k": 39},
+      "codex": {"files_scanned": 2096, "sessions": 99, "from_archive": 72, "turns": 420, "total": 2050000000, "cached_input": 1980000000, "cache_write": 0, "output": 5700000, "reasoning": 2400000, "zero_turn_gt1M": 57, "context_windows": {"828400": 60, "380000": 17, "258400": 22}}
+    },
+    "codex-mac-mini-m2": {
+      "claude": {"files": {"projects": 143, "projects_archived": 613, "transcripts": 0}, "sessions": 0, "turns": 0, "total": 0, "zero_turn_gt1M": 0},
+      "codex": {"files_scanned": 1718, "sessions": 0, "turns": 0, "total": 0, "zero_turn_gt1M": 0}
+    }
+  },
+  "findings": [
+    "Codex 每輪 3.5M，是 Claude 1.27M 的 2.8 倍",
+    "turns=0 且 >1M 共 68 場，全數在 Codex（Claude 0 場）",
+    "Codex cache_write_input 三機全 0，cached_input 佔 96.7%",
+    "context window 四值混用、兩機比例不同 → model pin 靜默 fallback 為跨機現象",
+    "Codex 158 場中 116 場（73%）來自 archived_sessions",
+    "Claude 封存 1,478 檔 + 328 cloud transcript，窗口內 0 筆（掃過確認，非未量測）",
+    "backlog 落地 7/23；派工場糾正密度為非派工場 26 倍"
+  ],
+  "gaps": ["USD 成本未估（無定價表）", "agy 未納入 token 量測", "by_subagent_type 在 codex-mbpr 歸零"]
+}
