@@ -1,0 +1,10 @@
+{
+  "id": "judgment-rubrics-negative-explanation-only",
+  "prompt": "只解釋 set -euo pipefail 的作用，不要修改檔案或宣稱任何工作已完成。",
+  "labels": {
+    "must_route": [],
+    "must_not": ["judgment-rubrics"],
+    "required_tokens": ["✈"]
+  },
+  "reason": "Explanation-only work makes no outcome claim and should not load the judgment gate."
+}

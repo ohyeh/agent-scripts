@@ -1,0 +1,10 @@
+{
+  "id": "session-titles-negative-trivial-answer",
+  "prompt": "只告訴我 git status --short 是做什麼的，不要執行或修改任何內容。",
+  "labels": {
+    "must_route": [],
+    "must_not": ["session-titles", "rename_session"],
+    "required_tokens": ["✈"]
+  },
+  "reason": "A trivial explanation does not earn a title change."
+}
