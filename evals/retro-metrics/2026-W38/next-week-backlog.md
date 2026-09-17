@@ -15,3 +15,9 @@
 | X16 | **Layer 2 隨機對照**：下週除 flagged 場外抽 10 場未 flagged 隨機讀，估 false negative | G4 | W39 layer2.json 含 `control` 欄 | open |
 
 W37 主題追蹤：授權外推 W37 ×3 → W38 0；等待協定缺失 W37 ×4 → W38 2（X15）。
+
+## 09-18 臨時動議追加（編號沿用問題見 backlog-reconciliation.md）
+
+- X17 tmux-agent 孤兒收養單一 owner＋opt-in＋`adopted from`（F10；落點 ohyeh/tmux-agent-tools；驗收：同 launch_id 投遞 session ≤1）
+- X18 tmux-agent ack 持久化＋stop 寫 ack（F11；驗收：同 launch_id 投遞 ≤1 次）
+- X19 agy profile result.json pending → success；confirm-processing 改判據（F12）
