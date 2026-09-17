@@ -692,5 +692,25 @@
    "entries": 48
   },
   "divergent": true
+ },
+ "decisions": {
+  "date": "2026-09-18",
+  "by": "Paul via bridge",
+  "rulings": {
+   "F1": "觀察",
+   "F2": "觀察",
+   "F3": "升級 → Z2 worker 載 kernel",
+   "F4": "觀察",
+   "F5": "觀察",
+   "F6": "觀察",
+   "F7": "升級 → Z4 列 backlog；fleet-deploy 本身未點名，不跑",
+   "F8": "觀察；G9 折入方式未答，Z6 保留 decision",
+   "F9": "觀察",
+   "F10": "升級 → ohyeh/tmux-agent-tools#323 已開（規格 §6.5 M1）",
+   "F11": "升級但先補觀測（ack 寫入日誌），不直接修",
+   "F12": "觀察"
+  },
+  "lessons_drafts": "not written; 5 drafts sent to Paul for exact-diff review",
+  "push": false
  }
 }

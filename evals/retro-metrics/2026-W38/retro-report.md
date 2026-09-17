@@ -142,22 +142,22 @@ Artifact: https://claude.ai/artifact/EWFiyZFf5Di55goYXJVBup
 - **隨機對照組**（seed 38，非 suspect 場 10+10+3，寬正則）：.44 0/10、.47 0/3 命中；.62 4/10 命中，其中 2 場為 skill 檔頭貼文誤中（38b15e56、fb6b0a41），**2 場為真糾正且 collector 漏抓**：f134135d（agent-scripts，「減少自言自語…每次 LOOP 要主動往下一輪」）、f411d9c4（us-options-terrain，「不要濫開 PR，額度都被用光」）。對照組漏抓率 2/23 → collector correction 計數（F3 的 2→4）為低估，方向仍成立。
 - **配對指標**（W37 動議驗收）：「等下一次 tick」結尾 0/0/0；「待你決定」結尾 .44 0、.62 2（W37 19）；terrain PR 1（≤30）、runs 4（filter UNCONFIRMED）。
 
-## 10. 待 Paul 裁決（§7；只列，不裁）
+## 10. 已裁決（§7；Paul 2026-09-18 經 bridge）
 
-| F | 證據 | 建議 | 理由 |
-|---|---|---|---|
-| F1 總量 $1,553 | `retro-report.md:48`；`2026-W38.json` usd_equiv | 觀察 | 每輪成本持平（1.84 vs 1.75），無行動點。 |
-| F2 重心移到 .44 | `retro-report.md:49`；.44 sessions 26→66 | 觀察 | 工作分佈變化，非缺陷。 |
-| F3 .44 canary 27.9%／tmux worker 0/24 | `retro-report.md:50`；`2026-W38.json` canary_by_project | **升級**（Z2 worker 載 kernel） | 同 kernel 的 agent-scripts 場 57%，下滑可歸因到 worker 不載 kernel；對照組另證 correction 低估。 |
-| F4 cache break 39／`/loop` 10 筆 | `retro-report.md:51` | 觀察（沿 W37 G5） | idle ≥60 分撞 TTL 是結構性，kernel 已禁「keep cache warm」；無新機制可加。 |
-| F5 Codex 50M／口徑換新 | `retro-report.md:52`；`codex-tokens.py` | 觀察 | 跨週不可比，W39 起才有趨勢。W37 動議「effort 分佈欄」未做（reconciliation 表）。 |
-| F6 其他 CLI／grok orphan 41 | `retro-report.md:53` | 觀察→W39 若 >50 升級 | orphan 32→41 連兩週增；W37 已列觀察。 |
-| F7 grok VM 4.29／.62 .47 無 clone | `retro-report.md:54`；probe-47 `deploy_log_last` 09-11、lessons sha 2939e283 | **升級**（Z4 fleet-deploy） | 直接造成 lessons 分歧（loops-inventory）；fleet-deploy 是外部側效，需 Paul 點名。 |
-| F8 lessons 46 proposed／3 adopted；3 支零用量 skills | `retro-report.md:55`；`lessons.md` Status 統計 | 觀察；G9 折入方式仍待答 | W37 是非題「G9 已裁決 3 筆怎麼折入」未答；零用量本週有名單（49 支），W39 算 streak。 |
-| F9 W37 gaps 結案 0.5/7 → 本輪 probe.py 重建 | `retro-report.md:56`；`probe.py` 三機 JSON | 觀察（部分結案） | 機器層可量；仍缺 kept-out、hook 誤打回逐筆（Z3）。 |
-| F10 孤兒多重收養 | `register.ts:43-45,386-392,429-432`；quarantine 三 worker | **升級**（tmux-agent-tools issue） | 註解自認缺陷；三 session 重投為實例；Paul 訴求明確。 |
-| F11 ack 不持久 | `register.ts:38,832`；6c218550 30+ 次 | 升級但先補觀測 | store 落點未找到，先加 ack 寫入日誌再修。 |
-| F12 agy result pending | `live-agy-b676/result.json`、`mod-assign.log` | 觀察→本 retro agy 審閱若重現則升級 | 09-18 本 session 以 agy 跑審閱，可當第二個樣本。 |
+| F | 證據 | 建議 | 理由 | 裁決 |
+|---|---|---|---|---|
+| F1 總量 $1,553 | `retro-report.md:48`；`2026-W38.json` usd_equiv | 觀察 | 每輪成本持平（1.84 vs 1.75），無行動點。 | 觀察 |
+| F2 重心移到 .44 | `retro-report.md:49`；.44 sessions 26→66 | 觀察 | 工作分佈變化，非缺陷。 | 觀察 |
+| F3 .44 canary 27.9%／tmux worker 0/24 | `retro-report.md:50`；`2026-W38.json` canary_by_project | **升級**（Z2 worker 載 kernel） | 同 kernel 的 agent-scripts 場 57%，下滑可歸因到 worker 不載 kernel；對照組另證 correction 低估。 | 升級 → Z2 worker 載 kernel |
+| F4 cache break 39／`/loop` 10 筆 | `retro-report.md:51` | 觀察（沿 W37 G5） | idle ≥60 分撞 TTL 是結構性，kernel 已禁「keep cache warm」；無新機制可加。 | 觀察 |
+| F5 Codex 50M／口徑換新 | `retro-report.md:52`；`codex-tokens.py` | 觀察 | 跨週不可比，W39 起才有趨勢。W37 動議「effort 分佈欄」未做（reconciliation 表）。 | 觀察 |
+| F6 其他 CLI／grok orphan 41 | `retro-report.md:53` | 觀察→W39 若 >50 升級 | orphan 32→41 連兩週增；W37 已列觀察。 | 觀察 |
+| F7 grok VM 4.29／.62 .47 無 clone | `retro-report.md:54`；probe-47 `deploy_log_last` 09-11、lessons sha 2939e283 | **升級**（Z4 fleet-deploy） | 直接造成 lessons 分歧（loops-inventory）；fleet-deploy 是外部側效，需 Paul 點名。 | 升級 → Z4 列 backlog；fleet-deploy 本身未點名，不跑 |
+| F8 lessons 46 proposed／3 adopted；3 支零用量 skills | `retro-report.md:55`；`lessons.md` Status 統計 | 觀察；G9 折入方式仍待答 | W37 是非題「G9 已裁決 3 筆怎麼折入」未答；零用量本週有名單（49 支），W39 算 streak。 | 觀察；G9 折入方式未答，Z6 保留 decision |
+| F9 W37 gaps 結案 0.5/7 → 本輪 probe.py 重建 | `retro-report.md:56`；`probe.py` 三機 JSON | 觀察（部分結案） | 機器層可量；仍缺 kept-out、hook 誤打回逐筆（Z3）。 | 觀察 |
+| F10 孤兒多重收養 | `register.ts:43-45,386-392,429-432`；quarantine 三 worker | **升級**（tmux-agent-tools issue） | 註解自認缺陷；三 session 重投為實例；Paul 訴求明確。 | 升級 → ohyeh/tmux-agent-tools#323 已開（規格 §6.5 M1） |
+| F11 ack 不持久 | `register.ts:38,832`；6c218550 30+ 次 | 升級但先補觀測 | store 落點未找到，先加 ack 寫入日誌再修。 | 升級但先補觀測（ack 寫入日誌），不直接修 |
+| F12 agy result pending | `live-agy-b676/result.json`、`mod-assign.log` | 觀察→本 retro agy 審閱若重現則升級 | 09-18 本 session 以 agy 跑審閱，可當第二個樣本。 | 觀察 |
 
 **lessons 草稿**（proposed；只列不寫入 `lessons.md`）：
 
