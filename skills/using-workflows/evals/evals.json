@@ -1,0 +1,42 @@
+{
+  "skill_name": "using-workflows",
+  "note": "Routing cases for loop-shaped work. One-shot commands and direct domain tasks bypass this router.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "幫我做一次 docs-vs-code audit，找到漂移後整理修正順序。",
+      "expected_output": "ROUTE. This is an audit loop; using-workflows selects docs-vs-code-audit and preserves evidence through the loop.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "請另一個模型針對這一份 migration plan 給出 PASS 或 BLOCK。",
+      "expected_output": "ROUTE. A bounded second-model verdict on one artifact selects consensus-gate.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "先把這個 feature 規劃好，核准後實作，再做獨立驗證。",
+      "expected_output": "ROUTE. The request is a plan-to-build lifecycle with an approval seam and verification stage.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "幫我跑 npm test，回報 exit code。",
+      "expected_output": "NO ROUTE. A single known command is handled inline.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "重新設計 checkout 頁面的視覺和互動。",
+      "expected_output": "NO ROUTE through using-workflows. The primary goal is visual design; enter using-design-skills directly.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "這個 function 為什麼偶爾丟 TypeError？先幫我診斷原因。",
+      "expected_output": "NO ROUTE unless the investigation grows into a repeated audit loop. Start with diagnosing-bugs inline.",
+      "files": []
+    }
+  ]
+}

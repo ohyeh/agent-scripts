@@ -1,0 +1,42 @@
+{
+  "skill_name": "using-skills",
+  "note": "Routing cases for the top-level map. Direct domain ownership bypasses this router; unclear or multi-domain ownership enters it.",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "這個需求要先研究 API、畫 dashboard，最後還要安排第二模型 review，我不知道該叫哪些 skills。",
+      "expected_output": "ROUTE. Ownership spans research, visual design, and a review loop, so using-skills selects the first-hop domain routers without exceeding two hops.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "幫我判斷這個工作到底該用哪個 skill，還是直接做就好。",
+      "expected_output": "ROUTE. The user explicitly asks for fleet routing and ownership is unclear; using-skills returns the smallest suitable first hop or inline.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "做一個新的 iOS 首頁 mockup，先不要寫 code。",
+      "expected_output": "NO ROUTE through using-skills. The primary domain is already visual design; enter using-design-skills directly.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "跑一次 consensus gate，請另一個模型審這份 ADR。",
+      "expected_output": "NO ROUTE through using-skills. This is explicitly loop-shaped; enter using-workflows directly and select consensus-gate.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "用 codex-tmux 開一個 worker 幫我跑完整測試。",
+      "expected_output": "NO ROUTE through using-skills. The tmux-worker domain is explicit; enter using-tmux-agent-tools directly.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "把 README 裡的 port 3000 改成 3001。",
+      "expected_output": "NO ROUTE. This is a straightforward single-file edit with obvious ownership; handle it inline.",
+      "files": []
+    }
+  ]
+}
