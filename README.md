@@ -69,8 +69,8 @@ The skills-only restore below is Layer 4 of that script, kept for the skill-set-
 
 ## Fleet skill restore (`skills-lock.json`)
 
-`skills-lock.json` at the repo root is the fleet's canonical skill set (69 entries, snapshot
-2026-09-03): a byte-identical COPY of the reference machine's
+`skills-lock.json` at the repo root is the fleet's canonical skill set (64 entries, snapshot
+2026-09-17): a byte-identical COPY of the reference machine's
 `~/.agents/.skill-lock.json`, not a union merged from several machines. Every machine
 converges to this same set, so `cmp` between the two files is the check — a repo lock that
 differs from the reference machine's is a defect, whichever side is newer. Two manual-only
