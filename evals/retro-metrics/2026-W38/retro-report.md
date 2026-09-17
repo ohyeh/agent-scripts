@@ -94,4 +94,26 @@ W37 兩大主題「授權外推 ×3」「等待協定缺失 ×4」本週分別�
 - grok VM 4.29→4.30、.62/.47 補 clone → 是否跑 fleet-deploy（F7）
 - 是否 push（e604790 起）
 
+## 7. 相關 artifact（09-17 已各補 W38 段）
+
+- 艦隊儀表板 https://claude.ai/artifact/EZdbYiSrTZp8s3sQw6xc4J（v25：status 列、「W38 更新」section、三機 × 五 CLI 與機器層兩表、相關報告列）
+- Skill 扇出健檢 https://claude.ai/artifact/5QvEAn6hV3t3KHJTsUoGFK（v8：status 列、主要發現 W38 條、coverage caption）
+- 三模型 Kernel 甜蜜點 https://claude.ai/artifact/RP8c6qTTEAT2azKcQJu6fo（v9：status 列、§08 Layer 2 對照行為軸）
+- Skill Routing 現況 https://claude.ai/artifact/Ki6dFPe6zZcjR2he8oyURE（v8：status 列、§06 hook 命中）
+- 856M 重讀帳單 https://claude.ai/artifact/V9sVLjfpdYxkjtprdRT21x（v11：status 列、W38 續追表）
+
+## 8. 機器層補量（09-17 追加；部分關閉 G3）
+
+`~/.local/share/agent-hooks/*.jsonl`，7d（timestamp 2026-09-10..17）：
+
+| | .44 | .62 | grok VM |
+|---|---|---|---|
+| claim-evidence rows / blocked | 110 / 48 | 133 / 59 | 無檔 |
+| bol-prompt rows | 25 | 40 | 無檔 |
+| deny-replay rows / 短路 | 4,212 / 0 | 9,591 / 0 | 0 / 0 |
+| skill-router-nudge 命中 | 3（consensus-gate） | 32（resolving-merge-conflicts 15、consensus-gate 5、review-renovate 3、update-deps 2、triage 2、skill-creator 1） | 無檔 |
+| 命中 owner 同期 Skill() | — | 0 | — |
+
+仍缺：context-mode kept-out、deploy-log sha、shared-memory pending、Stop hook 誤打回逐筆判別（X9/X11）。
+
 Artifact: https://claude.ai/artifact/EWFiyZFf5Di55goYXJVBup
