@@ -328,5 +328,369 @@
   ".44 tmux-agent-tools 0/24 canary：worker session 是否應載 kernel 未裁決",
   "cursor .62 5 chats 無 meta、3 unreadable → messages 低估",
   "grok seats 無 token 記帳；agy/cursor 只有筆數"
- ]
+ ],
+ "machine_layer": {
+  "method": "evals/retro-metrics/probe.py 7 via ssh stdin, 2026-09-17T16:57Z",
+  "remote-44": {
+   "host": "25006931Paul.local",
+   "ts": "2026-09-17T16:57:21Z",
+   "kernel": {
+    "version": "4.30.0-ironlaws",
+    "md5_claude": "426a7620",
+    "md5_codex": "426a7620",
+    "identical": true,
+    "grok_version": "4.24.0-ironlaws",
+    "method": "grep ^Version + md5 of ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md"
+   },
+   "cli_versions": {
+    "claude": "2.1.274 (Claude Code)",
+    "codex": "codex-cli 0.154.0",
+    "agy": "1.2.5",
+    "cursor_agent": "2026.09.15-d2fe57e",
+    "node": "v22.23.2",
+    "method": "<cli> --version | head -1"
+   },
+   "skill_lock": {
+    "sha256": "dbfa7912",
+    "keys": 64,
+    "skills_dir_is_symlink": true,
+    "method": "sha256 ~/.agents/.skill-lock.json; len(.skills)"
+   },
+   "agent_tmux": {
+    "version": "0.40.0",
+    "sha": "e8d0c2e1",
+    "method": "agent-tmux --version; md5 of resolved binary"
+   },
+   "deploy_log_last": {
+    "timestamp": "2026-09-17T03:54:43Z",
+    "host": "25006931Paul.local",
+    "sha": "1414fe0b7d7958bfe5d01e49642d4eb792580985",
+    "method": "tarball"
+   },
+   "agent_scripts_clone": "f3bcf24",
+   "collector": {
+    "cmli_bin": "/opt/homebrew/bin/context-mode-local-insight",
+    "schema": "cmli.agent-sessions.v4",
+    "head": "909d4db",
+    "method": "grep AGENT_SESSIONS_SCHEMA in clone; git log -1"
+   },
+   "shared_memory_pending": {
+    "count": 18,
+    "oldest_days": 27
+   },
+   "hook_stats_7d": {
+    "claim-evidence-stats": {
+     "window": 110,
+     "total": 243
+    },
+    "bol-prompt-stats": {
+     "window": 25,
+     "total": 247
+    },
+    "deny-replay-stats": {
+     "window": 4234,
+     "total": 9740
+    },
+    "skill-router-stats": {
+     "window": 3,
+     "total": 3
+    }
+   },
+   "claim_evidence_blocked_7d": 48,
+   "context_mode_sessions_7d": {
+    "db_files": 11,
+    "kept_out_pct": "本週未量測（需 cmli analytics-core，遠端無 MCP sdk）",
+    "method": "count *.db mtime in window"
+   },
+   "lessons": {
+    "path": "~/.agents/rules/lessons.md",
+    "sha256": "9f787557",
+    "entries": 49
+   }
+  },
+  "local-mbp14": {
+   "host": "MacBookPro",
+   "ts": "2026-09-17T16:57:44Z",
+   "kernel": {
+    "version": "4.30.0-ironlaws",
+    "md5_claude": "426a7620",
+    "md5_codex": "426a7620",
+    "identical": true,
+    "grok_version": "4.24.0-ironlaws",
+    "method": "grep ^Version + md5 of ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md"
+   },
+   "cli_versions": {
+    "claude": "1.0.89 (Claude Code)",
+    "codex": "codex-cli 0.144.3",
+    "agy": "",
+    "cursor_agent": "",
+    "node": "v22.19.0",
+    "method": "<cli> --version | head -1"
+   },
+   "skill_lock": {
+    "sha256": "413b703b",
+    "keys": 64,
+    "skills_dir_is_symlink": true,
+    "method": "sha256 ~/.agents/.skill-lock.json; len(.skills)"
+   },
+   "agent_tmux": {
+    "version": "",
+    "sha": null,
+    "method": "agent-tmux --version; md5 of resolved binary"
+   },
+   "deploy_log_last": {
+    "timestamp": "2026-09-17T11:21:52Z",
+    "host": "MacBookPro",
+    "sha": "d4cc57483b52f4fdfc07d06b8bc6e67a3bc7bf1e",
+    "method": "tarball"
+   },
+   "agent_scripts_clone": null,
+   "collector": {
+    "cmli_bin": "",
+    "schema": null,
+    "head": null,
+    "method": "grep AGENT_SESSIONS_SCHEMA in clone; git log -1"
+   },
+   "shared_memory_pending": {
+    "count": 16,
+    "oldest_days": 20
+   },
+   "hook_stats_7d": {
+    "claim-evidence-stats": {
+     "window": 137,
+     "total": 490
+    },
+    "bol-prompt-stats": {
+     "window": 40,
+     "total": 522
+    },
+    "deny-replay-stats": {
+     "window": 9609,
+     "total": 37964
+    },
+    "skill-router-stats": {
+     "window": 32,
+     "total": 32
+    }
+   },
+   "claim_evidence_blocked_7d": 61,
+   "context_mode_sessions_7d": {
+    "db_files": 17,
+    "kept_out_pct": "本週未量測（需 cmli analytics-core，遠端無 MCP sdk）",
+    "method": "count *.db mtime in window"
+   },
+   "lessons": {
+    "path": "~/.agents/rules/lessons.md",
+    "sha256": "9f787557",
+    "entries": 49
+   }
+  },
+  "grok-bot-vm": {
+   "host": "cursor",
+   "ts": "2026-09-17T16:57:46Z",
+   "kernel": {
+    "version": "4.29.0-ironlaws",
+    "md5_claude": "9eb39d12",
+    "md5_codex": "9eb39d12",
+    "identical": true,
+    "grok_version": null,
+    "method": "grep ^Version + md5 of ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md"
+   },
+   "cli_versions": {
+    "claude": "2.1.268 (Claude Code)",
+    "codex": "codex-cli 0.154.0",
+    "agy": "1.2.4",
+    "cursor_agent": "2026.09.10-fd3934a",
+    "node": "v22.23.2",
+    "method": "<cli> --version | head -1"
+   },
+   "skill_lock": {
+    "sha256": "d48bfa97",
+    "keys": 64,
+    "skills_dir_is_symlink": true,
+    "method": "sha256 ~/.agents/.skill-lock.json; len(.skills)"
+   },
+   "agent_tmux": {
+    "version": "",
+    "sha": null,
+    "method": "agent-tmux --version; md5 of resolved binary"
+   },
+   "deploy_log_last": {
+    "timestamp": "2026-09-11T05:49:53Z",
+    "host": "cursor",
+    "sha": "efb7d7588d30e6d97892cdb97e9ad2dd06ffab18",
+    "method": "clone-tracked"
+   },
+   "agent_scripts_clone": null,
+   "collector": {
+    "cmli_bin": "",
+    "schema": null,
+    "head": null,
+    "method": "grep AGENT_SESSIONS_SCHEMA in clone; git log -1"
+   },
+   "shared_memory_pending": "store absent",
+   "hook_stats_7d": {
+    "claim-evidence-stats": null,
+    "bol-prompt-stats": null,
+    "deny-replay-stats": {
+     "window": 0,
+     "total": 718
+    },
+    "skill-router-stats": null
+   },
+   "claim_evidence_blocked_7d": null,
+   "context_mode_sessions_7d": {
+    "db_files": 1,
+    "kept_out_pct": "本週未量測（需 cmli analytics-core，遠端無 MCP sdk）",
+    "method": "count *.db mtime in window"
+   },
+   "lessons": {
+    "path": "~/.agents/rules/lessons.md",
+    "sha256": "2939e283",
+    "entries": 48
+   }
+  }
+ },
+ "zero_usage_skills": {
+  "method": "Claude analyzer JSON only (3 machines, skill name string count); codex-side ctx-usage-report mentions exist for tmux-agent-tools, brainstorming, impeccable, documentation-writing, diagram-design, skill-creator, defect-first-review, html, release-plannotator, pdf, hallmark — mentions≠Skill() calls; NOT fleet-wide zero. Denominator lock 64 (report F8 uses repo 11).",
+  "used": {
+   "shared-memory-intake": 7,
+   "agent-device": 6,
+   "wayfinder": 3,
+   "delegation-templates": 6,
+   "session-handoff": 10,
+   "unknowns-discovery": 6,
+   "diagnosing-bugs": 3,
+   "using-tmux-agent-tools": 7,
+   "agent-browser": 3,
+   "using-grok-bot-app": 6,
+   "using-design-skills": 5,
+   "diagram-design": 3,
+   "using-workflows": 3,
+   "karpathy-guidelines": 3,
+   "using-skills": 4
+  },
+  "zero": [
+   "adhd",
+   "apple-design",
+   "ask-nova",
+   "brainstorming",
+   "codebase-design",
+   "codex-dynamic-workflows",
+   "data-report",
+   "defect-first-review",
+   "defuddle",
+   "design-taste-frontend",
+   "documentation-writing",
+   "domain-modeling",
+   "git-commit",
+   "grilling",
+   "hallmark",
+   "high-end-visual-design",
+   "html",
+   "html-diagram",
+   "html-plan",
+   "image-to-code",
+   "imagegen-frontend-mobile",
+   "imagegen-frontend-web",
+   "impeccable",
+   "improve-codebase-architecture",
+   "migrate-to-shoehorn",
+   "pdf",
+   "pierre-guard",
+   "prototype",
+   "qa-test-planner",
+   "refactor",
+   "release-plannotator",
+   "research",
+   "resolving-merge-conflicts",
+   "review-renovate",
+   "simplify",
+   "skill-creator",
+   "stop-slop",
+   "tdd",
+   "tmux-agent-tools",
+   "triage",
+   "update-deps",
+   "verification-before-completion",
+   "wait-what",
+   "web-design-guidelines",
+   "wizard",
+   "writing-artifacts",
+   "writing-beats",
+   "writing-fragments",
+   "writing-shape"
+  ]
+ },
+ "paired_indicators": {
+  "method": "scratchpad/w38/inventory.sh PAIRED (last assistant text, 7d)",
+  "tick_endings": {
+   "remote-44": 0,
+   "local-mbp14": 0,
+   "grok-bot-vm": 0
+  },
+  "pending_decision_endings": {
+   "remote-44": 0,
+   "local-mbp14": 2,
+   "grok-bot-vm": 0,
+   "local-mbp14_ids": [
+    "f0bda2f3",
+    "1c21ecf9"
+   ],
+   "w37": 19,
+   "target": "<=5"
+  },
+  "compact_summaries": {
+   "remote-44": 11,
+   "local-mbp14": 58,
+   "grok-bot-vm": 0
+  },
+  "terrain_since_0911": {
+   "prs": 1,
+   "runs": 4,
+   "runs_filter": "UNCONFIRMED"
+  }
+ },
+ "outliers": {
+  "method": "session-outliers.py 7",
+  "turns0_over_1M": {
+   "remote-44": 0,
+   "local-mbp14": 0,
+   "codex_all": 0
+  },
+  "control_group": {
+   "seed": 38,
+   "sampled": {
+    "remote-44": 10,
+    "local-mbp14": 10,
+    "grok-bot-vm": 3
+   },
+   "true_corrections_missed": [
+    "f134135d",
+    "f411d9c4"
+   ],
+   "false_hits_skill_header": [
+    "38b15e56",
+    "fb6b0a41"
+   ]
+  }
+ },
+ "lessons_fleet": {
+  "remote-44": {
+   "path": "~/.agents/rules/lessons.md",
+   "sha256": "9f787557",
+   "entries": 49
+  },
+  "local-mbp14": {
+   "path": "~/.agents/rules/lessons.md",
+   "sha256": "9f787557",
+   "entries": 49
+  },
+  "grok-bot-vm": {
+   "path": "~/.agents/rules/lessons.md",
+   "sha256": "2939e283",
+   "entries": 48
+  },
+  "divergent": true
+ }
 }
