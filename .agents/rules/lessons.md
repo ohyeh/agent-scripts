@@ -249,3 +249,28 @@ Status: proposed
 ## 2026-09-15 | scope: release | trigger: scrub.sh scans `rev-list --all`, so the 1715 history hits that entered origin/main between 2026-08-10 and 09-11 make the push gate unsatisfiable for every push; staged tree cleaned to 0 hits (9d67d15), history untouched
 Rule: history-wide findings need a user decision — rewrite + force-push (irreversible, public repo) or a scoped gate (origin/main..HEAD + staged) — never a silent pattern weakening; until then record "staged 0 / history N" in the push evidence. Also: repo-local `user.name` was `PaulYeh`, scrub accepts only `JENHAO YEH`; set locally 2026-09-15.
 Status: proposed
+
+## 2026-09-18 | scope: live-truth | trigger: 回報版本、狀態、計數或指標時沿用上輪 retro、handoff、記憶或註解裡的值
+Rule: 每個對外數字必須來自本 session 執行的探針或讀取（file:line／命令輸出）；沿用值一律標「本週未量測」，不得與實測值同列不標。
+Evidence: W38 Layer 2 A 類 10 筆中 4 筆為沿用（layer2.json）；儀表板 09-17 被要求「沿用的數字全部換掉或標本週未量測」（bridge 指示）；來源 F3、F9。
+Status: proposed
+
+## 2026-09-18 | scope: live-truth | trigger: 對 GitHub remote 歷史下結論（誰在何時做了什麼），而 remote 有 squash／force-push 痕跡
+Rule: 先 `git log origin/<branch> --since` 確認歷史是否重寫；重寫後只可斷言「現在存在」，不可斷言「何時、為誰做」，並在報告開頭標明證據限制。
+Evidence: ohyeh/agent-scripts 2026-09-17 重寫為 8 支 squash commit（9f4f9b4..d4cc574），09-11..16 逐筆不可得；backlog-reconciliation.md:6；來源 F9、§1 對帳。
+Status: proposed
+
+## 2026-09-18 | scope: waiting | trigger: 回合結尾是「待你決定」「要我…嗎」，而等待對象是使用者本人（非 bot／CI／裝置）
+Rule: 補 09-11 waiting 條：等人也算停等。已點名的動作直接做；真需使用者決定的問題放在不依賴它的工作之後，且一回合只留一題；「待你決定」結尾 W39 起以 paired_indicators 量測，門檻由 W39 retro 依實測定。
+Evidence: .62 本週 2 場結尾為「待你決定」（f0bda2f3、1c21ecf9）；W37 19 場（口徑不同，UNCONFIRMED）；paired_indicators 2026-W38.json；來源 F3、Y1 對帳。
+Status: proposed
+
+## 2026-09-18 | scope: judgment | trigger: 同一場內被使用者指出「自言自語／沒意義輸出」或「不要濫開 PR／過度設計」
+Rule: 每輪只出 recap（found、did、next），不重述計畫；一個任務一支 PR，開第二支前先問；被指出後下一輪即改，不解釋。
+Evidence: f134135d 09-1x「減少自言自語、沒意義輸出…每次 LOOP 要主動往下一輪前進」；f411d9c4「就說不要濫開 PR 啊 我額度都被你們用光了」；兩場皆 collector 漏抓（對照組 2/10）；Layer 2 M 類 51 筆兩主題最多；來源 F3、§9 對照組。
+Status: proposed
+
+## 2026-09-18 | scope: gates | trigger: Stop hook 以「done 字眼無證據 token」打回
+Rule: 先判別是 matcher 誤中（回覆內已有 exit code／PASS／file:line 但正則沒認）還是真無證據；誤中只補逐字 token 不改行為敘述，且記一筆到 Z1（matcher 擴充）；真無證據才降級為「attempted, unverified」。此條不折入行為 lessons，屬 matcher 缺陷。
+Evidence: collector done-無證據 51/56 為正則誤判、真值 ≈9%（layer2.json、backlog Z1）；本 session 被打回 2 次皆為字眼命中；claim-evidence-gate.sh:56,59；來源 F9、Y4 對帳。
+Status: proposed
