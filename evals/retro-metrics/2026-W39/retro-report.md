@@ -77,6 +77,20 @@ local-mbp14 的 Claude token 以行內時間戳嚴格窗口為 2,554,150,642，c
 11. **F11 治理停滯**：三 repo 在 09-18 之後 remote 0 commit。W38 backlog 做了 5/12；已證實有效 0 項，其中 1 項倒退（Z6），其餘成效未量，不等於無效。lessons proposed 46 → 51。local-mbp14 shared-memory pending 16 → 21，一筆未消化。零用量 skill 44 支；W38 只算 Claude analyzer、W39 加了 mentions，跨週 streak 的可比性 UNCONFIRMED。
 12. **F12 公開 repo 洩漏主機名**：已 push 的 `2026-W38.json` 在 `machines.*.hostname` 寫了實際主機名。W39 已改寫為機器鍵；W39 產物中的舊主機名與一筆測試帳密明文，已在審閱後遮罩。
 13. **F13 艦隊 kernel 一致**：採集時三機皆 4.30.0（md5 426a7620），W38 的 grok VM 落後已消失。4.31.0 已在本機 commit dc8dc05，未 push。Opus 5.5 的 `modelSettings` effort key 是否生效，待新 session 驗。
+14. **F14 遠端遙控期與長任務**（使用者 09-24 指出本週不在家、全程遠端，retro 初版漏看）：以 `promptSource` 區分，在家期間以 `typed` 為主；09-19 至 09-23 幾乎只有 `queued`，即 agent 還在忙時就先送出的訊息。每日 typed/queued：09-18 161/24，09-19 8/43，09-20 3/30，09-21 0/33，09-22 0/10，09-23 4/38。local-mbp14 的比較如下：
+
+    | 期間 | 真人訊息 | 使用者回覆 p50／p90 | agent 每則訊息後工作 p50／p90 | 每則訊息 token | compaction |
+    |---|---|---|---|---|---|
+    | W38 在家 | 295 | 2.3／17.9 分 | 1.7／21.7 分 | 5.2M | 54 |
+    | 09-17..18 在家 | 213 | 1.8／12.0 分 | 1.2／12.6 分 | 4.7M | 10 |
+    | 09-19..23 遠端 | 167 | 12.3／109.8 分 | 2.7／37.1 分 | 8.0M | 29 |
+
+    - 使用者每回一次要 12 分鐘，agent 卻只工作 2.7 分鐘就停下等人，一輪來回的等待多半落在使用者端。
+    - 遠端 5 天用了 1.33B token（去重後），f57972bc 佔 34.1%，47d84cf3 佔 24.0%。兩場都是 `/loop` 指揮 session，分別跑了 42 小時與 20.6 小時，共有 77 次 ScheduleWakeup、43 次派工、23 次追問 worker。
+    - 成本來源是 context 大小，不是 wakeup 次數。兩場每次 API 呼叫的 context 中位數約 266k、p90 約 350k，共 2,872 次呼叫。wakeup 本身約 77 × 266k ≈ 20M，佔比很小。
+    - 每則真人訊息的 token 升到 8.0M，高出在家期間 55–70%。這是每輪成本 +54.6% 的主因（F2）。
+    - 查進度的訊息只有 1 則（1%），agent 以問句收尾 8/157，都不是主要摩擦。遠端期間的主要摩擦，是 e4fe0066 的 R2 請示與 47d84cf3 的閒置 wakeup（F4、F6）。
+    - 方法：`origin.kind=human` 的 top-level user 訊息，按行內 timestamp 切期間；token 以 `(message.id, requestId)` 去重。正例：W37 的 queued 為 65/610，W38 為 44/281，所以這個欄位在前幾週就有值，不是本週才出現。「queued＝遠端」是推論，因為 Remote Control 送來的訊息沒有其他獨立標記；每場都有 bridge-session 紀錄，所以 bridge 分不出遠端。
 
 ## 4. 改動配對指標（W38 行為改動，local-mbp14）
 
@@ -150,3 +164,19 @@ inbox 待討論三條，隨手記 0 條：
 - **D6 Grok Bot 憑證相關 shell 執行**：是否要另開一次安全檢視。
 - **D7 臨時動議與訴求**：本週還有沒有想討論的題目或對 agent 的不滿。
 - **各 finding 的裁決**：§6 的建議欄。
+
+## 9. 裁決紀錄（使用者 2026-09-24：「前幾項都ＯＫ」）
+
+- **D1**：不改寫歷史，改用前進 commit 遮罩。W36、W37、W38 共 7 個檔的主機名與 SSH 使用者已換成機器鍵。`scripts/scrub.sh` 的 HOST_RE 新增兩種寫法：完整機型主機名、小寫序號變體，只增不減。
+- **D2**：push 4.31.0 並部署三機。
+- **D3**：三條 lessons 以 `Status: proposed` 追加到 `.agents/rules/lessons.md`。
+- **D4**：`retro-agenda.md` 不變式新增「腳本跑完不等於數字正確」一條。
+- **D5**：已刪除 scratchpad 的 remote-44 複本，實際 298M，不是 157M。
+- **D6**：已檢視。Grok Bot 在 remote-44 從桌面一張 2025-10-31 的截圖 OCR 出 Apple ID 密碼，寫成 0600 暫存檔。它把檔案 scp 到 mac mini 的 /tmp，遠端讀取後立即刪除，再以環境變數交給 `xcodes download`。Apple 回 503，三次都失敗。
+  - 密碼沒有出現在指令文字或 terminal 輸出，只在兩台自有機器之間傳遞。
+  - remote-44 桌面沒有殘留的暫存檔。mac mini 的 /tmp 無法從 remote-44 驗證，因為公鑰被拒，標 UNCONFIRMED。腳本讀完密碼的下一行就是刪除。
+  - 根因是明文密碼存在桌面截圖裡，而 agent 能讀到它。建議把密碼移到 Keychain 或密碼管理器，並刪除截圖；共用團隊帳號可以考慮輪替密碼。這三件由使用者決定。
+- **D7**：使用者提兩題。
+  - 一是遠端使用型態與長任務，本週漏看，已補 F14。
+  - 二是持續研究 agfnow/agentflow，見 `agentflow-research.md`，待使用者挑選要採用哪幾項（W39-18）。
+- **§6**：待使用者看完優先順序說明後裁決。

@@ -22,3 +22,11 @@
 | W39-15 | **量 context 組成**：每次呼叫重讀 ~170k，system prompt 約 72k，其餘來源拆出來 | F2 | 量測 | 三大 session 各一張 context 組成表 | open |
 
 W38 續留（見 `backlog-reconciliation.md`）：Z2 worker 載 kernel、Z4 fleet-deploy、Z6 lessons 裁決、Z7 fixture、Z12 probe 加 mods 段。
+
+W39 補列（F14、D7；2026-09-24 追加）：
+
+| # | 項目 | 對應 | 落點 | 驗收 | 狀態 |
+|---|---|---|---|---|---|
+| W39-16 | **遠端模式工作型態**：訊息以 queued 到達、或使用者回覆 p50 超過 10 分鐘時，每輪先做完所有不依賴使用者的工作，問題集中在最後一次問；完成或卡住時發推播 | F14 | agent-scripts routed rule（operator-defaults） | 下次遠端期間以 F14 方法重算：agent 每則訊息後工作 p50 ≥ 5 分（W39 為 2.7）；每則真人訊息 token 不高於在家期間 +20% | open |
+| W39-17 | **長 loop session 的 context 上限**：`/loop` 指揮 session 每次呼叫的 context 中位數約 266k；讀檔等雜務交給 worker，或在門檻處交接新 session | F14、F2 | agent-scripts；tmux-agent-tools | `/loop` session 每次呼叫的 context 中位數 ≤ 150k；每則真人訊息 token ≤ 5M | open |
+| W39-18 | **agentflow 採用挑選**：研究結果見 `agentflow-research.md` §3、§5，由使用者挑選 | D7 | 依挑選項目 | 使用者逐項標「採用／不採用」；採用項各開一條有驗收的 backlog | decision |
