@@ -92,6 +92,19 @@ local-mbp14 的 Claude token 以行內時間戳嚴格窗口為 2,554,150,642，c
     - 查進度的訊息只有 1 則（1%），agent 以問句收尾 8/157，都不是主要摩擦。遠端期間的主要摩擦，是 e4fe0066 的 R2 請示與 47d84cf3 的閒置 wakeup（F4、F6）。
     - 方法：`origin.kind=human` 的 top-level user 訊息，按行內 timestamp 切期間；token 以 `(message.id, requestId)` 去重。正例：W37 的 queued 為 65/610，W38 為 44/281，所以這個欄位在前幾週就有值，不是本週才出現。「queued＝遠端」是推論，因為 Remote Control 送來的訊息沒有其他獨立標記；每場都有 bridge-session 紀錄，所以 bridge 分不出遠端。
 
+15. **F15 tmux-agent mod 首週**（使用者 09-24 指出首次 retro 未跑；mod 0.7.x 於 09-18 上線；只量 local-mbp14 的 top-level transcript 與 `~/.local/state/tmux-agent-tools/*/mod-assign.log`）
+    - 工具呼叫 221 次：assign 83、peek 51、tell 44、stop 37、keys 6。其中 37 次（17%）被輸入檢查退回，原因包括 brief 缺 GOAL/ACCEPTANCE/REPORT、tell 空字串、名稱不合規、keys 不在白名單。檢查有效，是 agent 呼叫時參數給錯。
+    - assign 回執：collector active 97 次、NONE 2 次；transcript 提到 collector paused 15 次，未逐筆追因（UNCONFIRMED）。
+    - 投遞 566 次，只對應 42 組不重複的 (session, worker, 狀態)，多出的 524 次都在修正前：09-17 16:55 起 6c218550 共 124 次、09-18 03:39 起 a454348f 共 396 次。09-18T10:42 之後重複投遞為 0，每一次重複前都有 tell 或 assign 開新一輪。這是修正有效的正例。
+    - 真正的 launch 失敗 9 次。7 次是送出後 90 秒內 CLI 沒有處理動作，重送一次仍無：claude 2、codex 1、claude-fable-gate 1、claude-fable 1、codex-astra 2。另 2 次是 grok 卡在核准對話框。
+    - stalled 通知 1 次；Bash 直接呼叫 agent-tmux 被 gate 擋 8 次。
+    - README 列為 UNCONFIRMED 的長期行為（連續數小時的 10 秒 tick、hot reload 後 session.start）本週仍未量測。
+16. **F16 長任務的 skill 與 workflow**（≥10 小時或 ≥3 次 compaction 的 10 場）
+    - skill 多半只在開頭載入 1 次。f57972bc 跑 72 小時、compaction 10 次，只載入 using-tmux-agent-tools 1 次。47d84cf3 跑 27 小時、compaction 10 次，只載入 loop 1 次。
+    - Workflow 工具整週只有 e4fe0066 用過 2 次。長任務都是 ScheduleWakeup 迴圈加 tmux worker 手動串起來，using-workflows 的 recipe 沒被採用。原因未查（UNCONFIRMED）。
+    - 5 場長 session 共 114 次 Bash 錯誤。66 次是指令本身非 0 結束，例如 xcodebuild exit 128，屬正常失敗。42 次是 hook 或 gate 擋下：agent-device 未指定 --device 的 gate 共 11 次，另有 context-mode 的 curl 轉向與 tmux Bash gate。同一個 gate 在同一場被擋多次，表示 agent 沒從第一次被擋學到。
+    - Stop hook「Completion claim」在長 session 反覆打回：f57972bc 11 次、cab30519 8 次、74ad6bf2 8 次。與 F7 的 matcher 誤判同源（W39-9）。
+
 ## 4. 改動配對指標（W38 行為改動，local-mbp14）
 
 | 改動 | 指標 | 前 → 後 | 判定 |

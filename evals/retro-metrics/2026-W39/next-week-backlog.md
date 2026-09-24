@@ -31,3 +31,9 @@ W39 補列（F14、D7；2026-09-24 追加）：
 | W39-17 | **長 loop session 的 context 上限**：`/loop` 指揮 session 每次呼叫的 context 中位數約 266k；讀檔等雜務交給 worker，或在門檻處交接新 session | F14、F2 | agent-scripts；tmux-agent-tools | `/loop` session 每次呼叫的 context 中位數 ≤ 150k；每則真人訊息 token ≤ 5M | open |
 | W39-18 | **agentflow 採用挑選**：研究結果見 `agentflow-research.md` §3、§5，由使用者挑選 | D7 | 依挑選項目 | 使用者逐項標「採用／不採用」；採用項各開一條有驗收的 backlog | decision |
 | W39-19 | **證據綁 commit sha**（使用者 09-24 選定，取代 mtime 與時間戳）：worker 的 result.json 帶產出所在的完整 commit sha，collector 收到後以 `git cat-file -e` 驗證存在且在該 worker 分支上，才算完成 | D7、F1 | tmux-agent-tools collector | 造兩個反例：sha 不存在、sha 不在 worker 分支，collector 都判未完成；正常案例判完成 1 次 | open |
+| W39-20 | **stall 通知要有證據**：只陳述「pane N 分鐘未變、尚未確認卡住」並附 pane 尾行；只有尾行命中已知失敗字樣才標 stalled | D7 agentflow | tmux-agent-tools mod | 安靜但仍在工作的 worker 不標 stalled；卡在額度的 worker 會標 | in progress（09-24） |
+| W39-21 | **launch 失敗「任務沒送到 CLI」**：7 次送出後 90 秒無處理動作，跨 claude、codex、fable、astra profile | F15 | tmux-agent-tools assign | 逐次查 pane 截圖或 log 找根因；W40 同類失敗 ≤ 1 次 | open |
+| W39-22 | **mod 工具參數錯誤 17%**：工具說明寫清楚必填格式（brief 三段、keys 白名單、名稱規則） | F15 | tmux-agent-tools mod tool schema | W40 被退回比例 < 5% | open |
+| W39-23 | **長任務重複撞同一個 gate**：同一場第二次被同一 gate 擋，要先讀它的說明再改做法；agent-device 預設帶 --device | F16 | agent-scripts skill agent-device；gate 訊息 | W40 每場同一 gate 被擋 ≤ 2 次 | open |
+| W39-24 | **mod 長期行為驗證**：從 72 小時級 session 的 collector 紀錄，驗證 10 秒 tick 連續、hot reload 後 session.start 重觸發 | F15 | tmux-agent-tools | 兩項各有一筆實測證據，README 移除 UNCONFIRMED | open |
+| W39-25 | **長任務為何不用 workflow**：查 Workflow 與 using-workflows 在長任務沒被採用的原因 | F16 | agent-scripts using-workflows | 列出原因並對應一條改動或明確不改 | open |
