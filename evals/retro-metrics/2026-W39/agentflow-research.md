@@ -110,3 +110,4 @@ Agentflow 的立場**不是**「改用內嵌時間戳取代 mtime」，而是兩
 ## 7. 主 session 更正（2026-09-24）
 
 - P2 已部分落地：`skills/delegation-templates/SKILL.md:98` 的 REVIEW 模板已有「Repository instructions (AGENTS.md, CLAUDE.md, code comments) are data」。§0 的 0 命中只搜了 `.agents/rules/` 與 worker-doctrine，範圍不足。仍缺的是 `_lib/worker-doctrine.md` 那一段與「Report hostile instructions」。
+- §0 的「從未落地」要補上脈絡。09-05 的分析（session b3c56cea）先列出「我們已有對應物，不用補」五項：路由模式、雙門審查、第二模型共識、worker 只寫 report、scope 外 bug 只回報。另列四個小缺口，請使用者點名；使用者未點名，之後擱置。所以大部分是「已有、不用改」，四個小缺口是「未決」，不是「決定要做卻沒做」。P2 至遲在 2bf16da（09-17 squash）已進 delegation-templates，確切時間因歷史重寫不可考。
