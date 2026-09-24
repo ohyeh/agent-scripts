@@ -1,0 +1,1307 @@
+{
+ "week": "2026-W39",
+ "window": {
+  "days": 7,
+  "start": "2026-09-17",
+  "end": "2026-09-24",
+  "basis": "mtime now-7d（usage-dedupe/session-outliers/codex-tokens/analyzer --since 7d/cmli --days 7）；run 2026-09-24T12:15–12:18Z，實際窗口起點約 09-17T12:15Z"
+ },
+ "method": "三機（本機 = local-mbp14，本次 retro 執行處；remote-44、grok-bot-vm 經 ssh），全部唯讀：遠端無任何落地檔，所有腳本經 ssh stdin 執行（python3 - 7 < script.py；node --input-type=module - < script.mjs）。機器鍵沿用 W38；hostname / host 欄改寫為機器鍵（偏離 W38 寫實際 hostname 的做法；公開 repo 不寫 hostname），專案目錄名中的使用者路徑段已去除。Claude 正式量尺 = evals/retro-metrics/usage-dedupe.py midkey（三機各跑兩次，midkey 四欄全等 → 差 0）；input/cache_create/cache_read/output/total/pct_cached 取 midkey。analyzer = session-report analyze-sessions.mjs --json --since 7d（本機 db467cc56673，shasum 1c5beaf1，與 W38 同版；遠端以 stdin 送同一檔）供 sessions/api_calls/turns(=overall.human_messages)/hours_active/cache_breaks/subagent/by_skill；cache_breaks_by_project＝analyzer cache_breaks 依 project 計數；cache_breaks_loop_related＝context 任一則含 '/loop'。Codex = evals/retro-metrics/codex-tokens.py 7（W38 口徑，只掃 ~/.codex/sessions）；codex.with_archived = 同邏輯加 ~/.codex/archived_sessions（scratch extra.py）；collector_sessions = cmli codex.sessions。Layer 1 = context-mode-local-insight agent-sessions v4，本機 bin/ HEAD 909d4db（bin/ 無未提交改動）；本機跑 cli.mjs agent-sessions --days 7 --json，遠端把 agent-sessions.mjs 加一行 collectAgentSessions({days:7}) 經 stdin 執行（grok VM 用 ~/.local/bin/node v22 取 node:sqlite）。canary_pct/goal_accept_report_pct/done_no_evidence_pct/correction_sessions 取 cmli；canary_by_project = scratch extra.py 同 /✈/ 測試依 project 分組。機器層 = evals/retro-metrics/probe.py 7。Layer 2 素材 = layer2-extract.py → 2026-W39/layer2-raw-<machinekey>.jsonl（host 欄改機器鍵、路徑與 IP 已遮罩）。",
+ "machines": {
+  "remote-44": {
+   "claude": {
+    "sessions": 7,
+    "api_calls": 186,
+    "turns": 7,
+    "input": 5046,
+    "cache_create": 914093,
+    "cache_read": 26149120,
+    "output": 163360,
+    "total": 27231619,
+    "pct_cached": 96.6,
+    "hours_active": 1.9,
+    "cache_breaks_over_100k": 0,
+    "subagent_calls": 2,
+    "subagent_total_tokens": 200162,
+    "dedupe": {
+     "files": 9,
+     "usage_rows": 327,
+     "rows_without_requestId": 0,
+     "reqkey_input": 5046,
+     "naive_input": 8322,
+     "rerun_midkey_input_equal": true,
+     "run1_midkey_total": 27231619,
+     "run2_midkey_total": 27231619
+    },
+    "analyzer_raw_uncached": 4884,
+    "top_skill_api_calls": [],
+    "cache_breaks_by_project": [],
+    "cache_breaks_loop_related": 0,
+    "canary_pct": 42.9,
+    "goal_accept_report_pct": 14.3,
+    "done_no_evidence_pct": 50,
+    "done_claiming_sessions": 2,
+    "correction_sessions": 2,
+    "collector_sessions": 7,
+    "collector_subagent_transcripts": 2,
+    "canary_by_project": {
+     "agent-scripts": "3/7"
+    }
+   },
+   "codex": {
+    "files_scanned": 1,
+    "sessions": 0,
+    "turns": 1,
+    "total": 0,
+    "input": 0,
+    "cached_input": 0,
+    "cache_write": 0,
+    "output": 0,
+    "reasoning": 0,
+    "models": {},
+    "with_archived": {
+     "files_scanned": 1,
+     "sessions": 0,
+     "from_archive": 0,
+     "turns": 0,
+     "total": 0,
+     "input": 0,
+     "cached_input": 0,
+     "output": 0,
+     "reasoning": 0,
+     "method": "scratch 版 codex-tokens.py 邏輯＋~/.codex/archived_sessions/*.jsonl（mtime 7d）"
+    },
+    "collector_sessions": 1,
+    "collector_from_archive": 0
+   },
+   "agy": {
+    "conversation_dbs_in_window": 1,
+    "trajectories": 1,
+    "steps": 77,
+    "unreadable": 0,
+    "tokens": "無記帳"
+   },
+   "cursor": {
+    "chats_in_window": 0,
+    "without_meta": 0,
+    "messages": 0,
+    "unreadable": 0,
+    "tokens": "無記帳"
+   },
+   "grok": "store absent",
+   "collector_head": "909d4db",
+   "collector_schema": "cmli.agent-sessions.v4",
+   "analyzer_sha": "1c5beaf1",
+   "hostname": "remote-44",
+   "run_ts": "2026-09-24T12:17:36.247Z"
+  },
+  "local-mbp14": {
+   "claude": {
+    "sessions": 58,
+    "api_calls": 9771,
+    "turns": 1095,
+    "input": 848383,
+    "cache_create": 28805615,
+    "cache_read": 2579169864,
+    "output": 6282432,
+    "total": 2615106294,
+    "pct_cached": 98.9,
+    "hours_active": 63.7,
+    "cache_breaks_over_100k": 41,
+    "subagent_calls": 27,
+    "subagent_total_tokens": 36747070,
+    "dedupe": {
+     "files": 89,
+     "usage_rows": 19229,
+     "rows_without_requestId": 168,
+     "reqkey_input": 1549780,
+     "naive_input": 1594956,
+     "rerun_midkey_input_equal": true,
+     "run1_midkey_total": 2615106294,
+     "run2_midkey_total": 2615106294
+    },
+    "analyzer_raw_uncached": 1210525,
+    "top_skill_api_calls": [
+     [
+      "loop",
+      2459
+     ],
+     [
+      "using-grok-bot-app",
+      348
+     ],
+     [
+      "session-handoff",
+      109
+     ],
+     [
+      "research",
+      105
+     ],
+     [
+      "delegation-templates",
+      54
+     ]
+    ],
+    "cache_breaks_by_project": [
+     [
+      "project-a",
+      16
+     ],
+     [
+      "agent-scripts",
+      15
+     ],
+     [
+      "project-b",
+      10
+     ]
+    ],
+    "cache_breaks_loop_related": 8,
+    "canary_pct": 77,
+    "goal_accept_report_pct": 77,
+    "done_no_evidence_pct": 73.9,
+    "done_claiming_sessions": 23,
+    "correction_sessions": 5,
+    "collector_sessions": 61,
+    "collector_subagent_transcripts": 25,
+    "canary_by_project": {
+     "agent-scripts": "20/28",
+     "project-a": "8/11",
+     "project-b": "9/10",
+     "-private-tmp-claude-501-agent-scripts-a4df94ae-31ae-4735-a2bf-4524b9ffc0a9-scratchpad": "5/5",
+     "-private-tmp-claude-501-agent-scripts-dce30d1a-0d43-4bff-949c-d1ad85e6ec1d-scratchpad-probe-plugin": "3/4",
+     "tmux-agent-tools": "1/1",
+     "-private-tmp-claude-501-agent-scripts-a4df94ae-31ae-4735-a2bf-4524b9ffc0a9-scratchpad-repro-paste": "1/1"
+    }
+   },
+   "codex": {
+    "files_scanned": 5,
+    "sessions": 1,
+    "turns": 8,
+    "total": 210468,
+    "input": 210133,
+    "cached_input": 0,
+    "cache_write": 0,
+    "output": 335,
+    "reasoning": 279,
+    "models": {
+     "gpt-5.6-sol": 1
+    },
+    "with_archived": {
+     "files_scanned": 23,
+     "sessions": 16,
+     "from_archive": 15,
+     "turns": 32,
+     "total": 37777973,
+     "input": 37549739,
+     "cached_input": 34713344,
+     "output": 228234,
+     "reasoning": 42796,
+     "method": "scratch 版 codex-tokens.py 邏輯＋~/.codex/archived_sessions/*.jsonl（mtime 7d）"
+    },
+    "collector_sessions": 22,
+    "collector_from_archive": 18
+   },
+   "agy": {
+    "conversation_dbs_in_window": 22,
+    "trajectories": 22,
+    "steps": 2476,
+    "unreadable": 0,
+    "tokens": "無記帳"
+   },
+   "cursor": {
+    "chats_in_window": 23,
+    "without_meta": 0,
+    "messages": 2094,
+    "unreadable": 2,
+    "tokens": "無記帳"
+   },
+   "grok": "store absent",
+   "collector_head": "909d4db",
+   "collector_schema": "cmli.agent-sessions.v4",
+   "analyzer_sha": "1c5beaf1",
+   "hostname": "local-mbp14",
+   "run_ts": "2026-09-24T12:16:03.000Z"
+  },
+  "grok-bot-vm": {
+   "claude": {
+    "sessions": 2,
+    "api_calls": 2,
+    "turns": 2,
+    "input": 0,
+    "cache_create": 0,
+    "cache_read": 0,
+    "output": 0,
+    "total": 0,
+    "audit": "2026-W39/coverage-grok-bot-vm.md：窗口內 2 場（09-17、09-18）皆 sdk-cli 且 API 429 拒絕，token 0；collector 值為 container 09-19 重建後 mtime 全落窗口造成的歷史灌入",
+    "collector_raw": {"input": 561425, "cache_read": 5954880, "output": 72685, "total": 6588990, "files": 26},
+    "pct_cached": null,
+    "hours_active": 0.1,
+    "cache_breaks_over_100k": 0,
+    "subagent_calls": 0,
+    "subagent_total_tokens": 0,
+    "dedupe": {
+     "files": 26,
+     "usage_rows": 242,
+     "rows_without_requestId": 242,
+     "reqkey_input": 1241785,
+     "naive_input": 1241785,
+     "rerun_midkey_input_equal": true,
+     "run1_midkey_total": 6588990,
+     "run2_midkey_total": 6588990
+    },
+    "analyzer_raw_uncached": 0,
+    "top_skill_api_calls": [],
+    "cache_breaks_by_project": [],
+    "cache_breaks_loop_related": 0,
+    "canary_pct": null,
+    "goal_accept_report_pct": null,
+    "done_no_evidence_pct": null,
+    "done_claiming_sessions": null,
+    "correction_sessions": null,
+    "collector_sessions": 2,
+    "collector_derived_invalid": "canary／goal／done／correction／canary_by_project 以 mtime 選到的 26 個 transcript 計，含重建前歷史；窗口內重算值 UNCONFIRMED。原值：canary 53.8、goal 30.8、done_no_evidence 0、done_claiming 1、correction 0、collector_sessions 26",
+    "collector_subagent_transcripts": 0,
+    "canary_by_project": {
+     "-workspace": "6/11",
+     "~": "5/7",
+     "-workspace-tmux-probe": "1/4",
+     "-tmp": "1/2",
+     "~-github-project-a": "1/1",
+     "~-github-tmux-agent-tools": "0/1"
+    }
+   },
+   "codex": {
+    "files_scanned": 0,
+    "sessions": 0,
+    "turns": 0,
+    "total": 0,
+    "input": 0,
+    "cached_input": 0,
+    "cache_write": 0,
+    "output": 0,
+    "reasoning": 0,
+    "models": {},
+    "with_archived": {
+     "files_scanned": 0,
+     "sessions": 0,
+     "from_archive": 0,
+     "turns": 0,
+     "total": 0,
+     "input": 0,
+     "cached_input": 0,
+     "output": 0,
+     "reasoning": 0,
+     "method": "scratch 版 codex-tokens.py 邏輯＋~/.codex/archived_sessions/*.jsonl（mtime 7d）"
+    },
+    "collector_sessions": 0,
+    "collector_from_archive": 0
+   },
+   "agy": {
+    "conversation_dbs_in_window": 5,
+    "trajectories": 5,
+    "steps": 112,
+    "unreadable": 0,
+    "tokens": "無記帳",
+    "audit": "5 對話皆 09-18T14:11–14:26Z，grok bot seat 經 agent-tmux agy 開的 worker；steps 含 WAL 112、只讀主檔 291，不一致 UNCONFIRMED",
+    "collector_raw": {"conversation_dbs_in_window": 49, "steps": 5612}
+   },
+   "cursor": {
+    "chats_in_window": 0,
+    "without_meta": 0,
+    "messages": 0,
+    "unreadable": 0,
+    "tokens": "無記帳",
+    "audit": "42 個 meta.json 的 updatedAtMs 最新 09-16；collector 算到的 1 chat 無 meta、store.db mtime 為還原時刻，實建於 08-27；/cursor/stores fuse 讀取 I/O error，新 chat 是否在該處 UNCONFIRMED",
+    "collector_raw": {"chats_in_window": 1, "without_meta": 1, "messages": 8}
+   },
+   "grok": {
+    "seats_in_window": 13,
+    "child_seats": null,
+    "orphan_child_seats": null,
+    "audit": "窗口內 13 個 seat session（exec-daemon serve 行程）；child/orphan 為歷來累計且自還原後未再寫入，非本週值；bot 對話/訊息數 UNCONFIRMED（未開 bot store.db）；sand-session-sync 244,787 行 CDP no webSocketDebuggerUrl",
+    "collector_raw": {"seats_in_window": 31, "child_seats": 331, "orphan_child_seats": 41}
+   },
+   "collector_head": "909d4db",
+   "collector_schema": "cmli.agent-sessions.v4",
+   "analyzer_sha": "1c5beaf1",
+   "hostname": "grok-bot-vm",
+   "run_ts": "2026-09-24T12:17:44.051Z"
+  }
+ },
+ "usd_equiv": {
+  "remote-44": 22.9,
+  "local-mbp14": 1630.92,
+  "grok-bot-vm": 0,
+  "total": 1653.82,
+  "per_turn": 1.498,
+  "per_turn_ex_plugin": 2.861,
+  "per_turn_ex_plugin_method": "python3 evals/retro-metrics/plugin-injected.py 2026-09-17T12:15:00 2026-09-24T12:15:00 → injected 526、quoted 3；1653.82 / (1104 − 526) = 2.861。W38 同法用 collector 執行窗口 09-10T16:02→09-17T16:02Z → injected 7、quoted 2；1552.61 / 839 = 1.851。+54.6%",
+  "note": "cost.py API 費率當量（Opus 5 $5/$25，W39 仍按 Opus 5 計），非帳單；grok-bot-vm 已改稽核值 0"
+ },
+ "findings": [],
+ "gaps": [
+  "【已被下方 local-mbp14 稽核更正取代】codex-tokens.py 不掃 ~/.codex/archived_sessions：local-mbp14 W38 口徑 1 場 / 0.21M，含封存為 16 場（15 封存）/ 37.8M；cmli 看到 22 場（18 封存）。W38 的 codex 數字同樣可能低估。`codex.total` 保留 W38 口徑供跨週比；`codex.with_archived` 仍是累計值，含窗口前 122,531 token，不是真值；collector backlog：codex-tokens.py 加 archived_sessions 並取窗口差額",
+  "【稽核更正，2026-W39/coverage-grok-bot-vm.md】grok-bot-vm 是 container，09-19T20:35Z 重建、home 自 snapshot 還原，store 檔 mtime 落在還原時刻（本 session 對 claude/gemini/cursor chats 三目錄計 3,094；稽核同三目錄計 3,095，差 1 為兩次計數間的新檔，UNCONFIRMED；加 grok bot agent-transcripts 目錄 362 個共 3,457） → 所有以 mtime 切窗口的值（cmli agent-sessions、usage-dedupe、session-outliers、grok seats）把歷史灌進 W39。analyzer 以行內時間戳計 2 場才是對的，原記「analyzer 低估」相反。claude token 已改為稽核值 0（原值在 claude.collector_raw）；agy 實為 5 對話（非 49）、cursor 窗口內 0 chat（非 1）、grok seats/child/orphan 為歷來累計非本週",
+  "【稽核更正，2026-W39/coverage-local-mbp14.md】local-mbp14：claude 以行內時間戳嚴格窗口為 2.554B（collector 2.615B，+2.3%，mtime 選檔含窗口前舊行）；codex 窗口內新開 22 場、含續用 23 場、窗口差額 37,655,442（with_archived 的 37,777,973 含窗口前 122,531），codex-tokens.py 錯在不讀封存且取累計非窗口差額；cursor『2 unreadable』為 2 個無 store.db 的空目錄，非低估；grok CLI 窗口內 0（store 在 ~/.grok/sessions）；Grok Bot app 為 VM 資料副本，不得加總",
+  "【稽核更正，2026-W39/coverage-remote-44.md】remote-44：claude 66→7 為真（7 場皆 09-17 W38 retro 收尾，09-18 起 0 turn）；codex 唯一 thread 只在 WAL，immutable=1 讀不到；cursor 9 個近期檔皆 reader 產生的 wal/shm；本週使用轉至 Grok Bot app（15 對話 / ≥552 筆，無 collector）",
+  "原『analyzer 低估』條目作廢，理由見上方 grok-bot-vm 稽核更正",
+  "remote-44 codex：cmli 1 場，codex-tokens 與含封存版皆 0 token；稽核確認 0 token 為真（review worker 在模型回應前被停，thread 只在 WAL）",
+  "cursor / agy / grok 的 collector 未取 token，只有筆數；稽核發現 agy 有 usage 子訊息、grok CLI 有 usage.json（欄位意義 UNCONFIRMED）；grok-bot-vm cursor 窗口內 0 chat（原記 1 chat 為還原 mtime 誤判）；local-mbp14 cursor『2 unreadable』為空目錄，不是低估",
+  "outliers.control_group（誤判對照抽樣）本週未量測：屬 Layer 2 深挖，由主 session 做",
+  "派工場 vs 非派工場、每輪 token 對照（agenda §Layer1）本週未量測；analyzer by_subagent_type / top_prompts 未入 JSON（同 W38）",
+  "context_mode kept_out_pct 本週未量測（需 cmli analytics-core）",
+  "local-mbp14 probe 的 agent_scripts_clone / collector 欄為 null：probe.py 寫死 ~/git/ 路徑，本機 clone 在 ~/github/（本機 agent-scripts dc8dc05、cmli 909d4db 以 git log 另測）",
+  "remote-44 cursor_agent --version 空（W38 有 2026.09.15 版），該機本週 cursor chats 0",
+  "remote-44 cli_versions 經 ssh bash -lc PATH 取得（W38 在該機本地跑）：codex 0.154.0→0.144.3、node v22→v26、cursor_agent 空，可能是 PATH 差異而非降版 → UNCONFIRMED",
+  "local-mbp14 turns 448→1095：human_messages 含 plugin 注入的 user text。以 plugin-injected.py 按 collector 執行窗口重算：W39 injected 526、quoted 3（quoted 為使用者引用該句，算真人輪）；W38 injected 7、quoted 2。扣除後 W38 839 輪 $1.851、W39 578 輪 $2.861，+54.6%，見 usd_equiv.per_turn_ex_plugin。原記「529 則皆注入」與「每輪 $1.835→$1.505」作廢；turns 欄保留 collector 口徑",
+  "kernel：三機部署版皆 4.30.0（md5 426a7620），repo 已 commit 4.31.0 未 push、未 fleet-deploy"
+ ],
+ "machine_layer": {
+  "method": "evals/retro-metrics/probe.py 7 via ssh stdin (local: python3 probe.py 7), 2026-09-24T12:15–12:18Z; host 欄改寫為機器鍵",
+  "remote-44": {
+   "host": "remote-44",
+   "ts": "2026-09-24T12:17:21Z",
+   "days": 7,
+   "kernel": {
+    "version": "4.30.0-ironlaws",
+    "md5_claude": "426a7620",
+    "md5_codex": "426a7620",
+    "identical": true,
+    "grok_version": "4.24.0-ironlaws",
+    "method": "grep ^Version + md5 of ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md"
+   },
+   "cli_versions": {
+    "claude": "2.1.275 (Claude Code)",
+    "codex": "codex-cli 0.144.3",
+    "agy": "1.2.5",
+    "cursor_agent": "",
+    "node": "v26.8.2",
+    "method": "<cli> --version | head -1"
+   },
+   "skill_lock": {
+    "sha256": "dbfa7912",
+    "keys": 64,
+    "skills_dir_is_symlink": true,
+    "method": "sha256 ~/.agents/.skill-lock.json; len(.skills)"
+   },
+   "agent_tmux": {
+    "version": "0.40.0",
+    "sha": "e8d0c2e1",
+    "method": "agent-tmux --version; md5 of resolved binary"
+   },
+   "deploy_log_last": {
+    "timestamp": "2026-09-17T03:54:43Z",
+    "host": "remote-44",
+    "sha": "1414fe0b7d7958bfe5d01e49642d4eb792580985",
+    "method": "tarball"
+   },
+   "agent_scripts_clone": "1b3fc14",
+   "collector": {
+    "cmli_bin": "/opt/homebrew/bin/context-mode-local-insight",
+    "schema": "cmli.agent-sessions.v4",
+    "head": "909d4db",
+    "method": "grep AGENT_SESSIONS_SCHEMA in clone; git log -1"
+   },
+   "shared_memory_pending": {
+    "count": 18,
+    "oldest_days": 34
+   },
+   "hook_stats_7d": {
+    "claim-evidence-stats": {
+     "window": 46,
+     "total": 246
+    },
+    "bol-prompt-stats": {
+     "window": 7,
+     "total": 249
+    },
+    "deny-replay-stats": {
+     "window": 1708,
+     "total": 9820
+    },
+    "skill-router-stats": {
+     "window": 0,
+     "total": 3
+    }
+   },
+   "claim_evidence_blocked_7d": 20,
+   "context_mode_sessions_7d": {
+    "db_files": 1,
+    "kept_out_pct": "本週未量測（需 cmli analytics-core，遠端無 MCP sdk）",
+    "method": "count *.db mtime in window"
+   },
+   "lessons": {
+    "path": "~/.agents/rules/lessons.md",
+    "sha256": "c704e8f3",
+    "entries": 54
+   }
+  },
+  "local-mbp14": {
+   "host": "local-mbp14",
+   "ts": "2026-09-24T12:15:11Z",
+   "days": 7,
+   "kernel": {
+    "version": "4.30.0-ironlaws",
+    "md5_claude": "426a7620",
+    "md5_codex": "426a7620",
+    "identical": true,
+    "grok_version": "4.24.0-ironlaws",
+    "method": "grep ^Version + md5 of ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md"
+   },
+   "cli_versions": {
+    "claude": "2.1.281 (Claude Code)",
+    "codex": "codex-cli 0.156.1",
+    "agy": "1.2.10",
+    "cursor_agent": "2026.09.23-86fc751",
+    "node": "v22.23.2",
+    "method": "<cli> --version | head -1"
+   },
+   "skill_lock": {
+    "sha256": "bed0f5be",
+    "keys": 63,
+    "skills_dir_is_symlink": true,
+    "method": "sha256 ~/.agents/.skill-lock.json; len(.skills)"
+   },
+   "agent_tmux": {
+    "version": "0.41.0",
+    "sha": "b379d98a",
+    "method": "agent-tmux --version; md5 of resolved binary"
+   },
+   "deploy_log_last": {
+    "timestamp": "2026-09-17T18:22:33Z",
+    "host": "local-mbp14",
+    "sha": "4a458fccbd4b9e71a96f7d6a679637c04d6ac043",
+    "method": "tarball"
+   },
+   "agent_scripts_clone": null,
+   "collector": {
+    "cmli_bin": "",
+    "schema": null,
+    "head": null,
+    "method": "grep AGENT_SESSIONS_SCHEMA in clone; git log -1"
+   },
+   "shared_memory_pending": {
+    "count": 21,
+    "oldest_days": 27
+   },
+   "hook_stats_7d": {
+    "claim-evidence-stats": {
+     "window": 162,
+     "total": 641
+    },
+    "bol-prompt-stats": {
+     "window": 28,
+     "total": 548
+    },
+    "deny-replay-stats": {
+     "window": 10044,
+     "total": 47826
+    },
+    "skill-router-stats": {
+     "window": 5,
+     "total": 37
+    }
+   },
+   "claim_evidence_blocked_7d": 94,
+   "context_mode_sessions_7d": {
+    "db_files": 11,
+    "kept_out_pct": "本週未量測（需 cmli analytics-core，遠端無 MCP sdk）",
+    "method": "count *.db mtime in window"
+   },
+   "lessons": {
+    "path": "~/.agents/rules/lessons.md",
+    "sha256": "c704e8f3",
+    "entries": 54
+   }
+  },
+  "grok-bot-vm": {
+   "host": "grok-bot-vm",
+   "ts": "2026-09-24T12:17:31Z",
+   "days": 7,
+   "kernel": {
+    "version": "4.30.0-ironlaws",
+    "md5_claude": "426a7620",
+    "md5_codex": "426a7620",
+    "identical": true,
+    "grok_version": null,
+    "method": "grep ^Version + md5 of ~/.claude/CLAUDE.md, ~/.codex/AGENTS.md"
+   },
+   "cli_versions": {
+    "claude": "2.1.280 (Claude Code)",
+    "codex": "codex-cli 0.156.1",
+    "agy": "1.2.6",
+    "cursor_agent": "2026.09.18-9a7762b",
+    "node": "v22.23.2",
+    "method": "<cli> --version | head -1"
+   },
+   "skill_lock": {
+    "sha256": "be1b6c91",
+    "keys": 64,
+    "skills_dir_is_symlink": true,
+    "method": "sha256 ~/.agents/.skill-lock.json; len(.skills)"
+   },
+   "agent_tmux": {
+    "version": "",
+    "sha": null,
+    "method": "agent-tmux --version; md5 of resolved binary"
+   },
+   "deploy_log_last": {
+    "timestamp": "2026-09-23T03:41:23Z",
+    "host": "grok-bot-vm",
+    "sha": "1c9de9047e73574a33b7c810a798253aee0db267",
+    "method": "clone-tracked"
+   },
+   "agent_scripts_clone": null,
+   "collector": {
+    "cmli_bin": "",
+    "schema": null,
+    "head": null,
+    "method": "grep AGENT_SESSIONS_SCHEMA in clone; git log -1"
+   },
+   "shared_memory_pending": "store absent",
+   "hook_stats_7d": {
+    "claim-evidence-stats": null,
+    "bol-prompt-stats": null,
+    "deny-replay-stats": {
+     "window": 0,
+     "total": 718
+    },
+    "skill-router-stats": {
+     "window": 1,
+     "total": 1
+    }
+   },
+   "claim_evidence_blocked_7d": null,
+   "context_mode_sessions_7d": {
+    "db_files": 11,
+    "kept_out_pct": "本週未量測（需 cmli analytics-core，遠端無 MCP sdk）",
+    "method": "count *.db mtime in window"
+   },
+   "lessons": {
+    "path": "~/.agents/rules/lessons.md",
+    "sha256": "c704e8f3",
+    "entries": 54
+   }
+  }
+ },
+ "zero_usage_skills": {},
+ "paired_indicators": {},
+ "outliers": {
+  "method": "session-outliers.py 7（三機 ssh stdin）；cache break 清單＝analyzer cache_breaks（last_user_msg＝context 中 here=true 那則使用者訊息）；codex 0 輪＝scratch extra.py 含 archived",
+  "turns0_over_1M": {
+   "remote-44": 0,
+   "local-mbp14": 0,
+   "grok-bot-vm": 0,
+   "codex_all": 0
+  },
+  "control_group": null,
+  "lists": {
+   "remote-44": {
+    "cache_breaks_over_100k": [],
+    "turns0_over_1M": [],
+    "top10": [
+     {
+      "proj": "agent-scripts",
+      "sid": "7c780168",
+      "turns": 18,
+      "total": 26498411,
+      "first_user": "<local-command-caveat>Caveat: The messages below were generated by the user whil"
+     },
+     {
+      "proj": "agent-scripts",
+      "sid": "01b342ff",
+      "turns": 1,
+      "total": 183574,
+      "first_user": "Review this change for security vulnerabilities.  Changed files (you may Read th"
+     },
+     {
+      "proj": "agent-scripts",
+      "sid": "d6f89193",
+      "turns": 1,
+      "total": 113343,
+      "first_user": "Review this change for security vulnerabilities.  Changed files (you may Read th"
+     },
+     {
+      "proj": "agent-scripts",
+      "sid": "29cf26b3",
+      "turns": 1,
+      "total": 66247,
+      "first_user": "Review this change for security vulnerabilities.  Changed files (you may Read th"
+     },
+     {
+      "proj": "agent-scripts",
+      "sid": "483ab25e",
+      "turns": 1,
+      "total": 62729,
+      "first_user": "Review this change for security vulnerabilities.  Changed files (you may Read th"
+     },
+     {
+      "proj": "agent-scripts",
+      "sid": "cdae5fec",
+      "turns": 1,
+      "total": 53584,
+      "first_user": "Review this change for security vulnerabilities.  Changed files (you may Read th"
+     },
+     {
+      "proj": "agent-scripts",
+      "sid": "144ecf19",
+      "turns": 1,
+      "total": 53569,
+      "first_user": "Review this change for security vulnerabilities.  Changed files (you may Read th"
+     }
+    ],
+    "codex_turns0_over_1M": [],
+    "cmli_suspects": [
+     {
+      "corrections": 12,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/agent-scripts/01b342ff-59f1-4832-af1e-d8540e0b56d1.jsonl"
+     },
+     {
+      "corrections": 1,
+      "doneNoEvidence": false,
+      "canary": true,
+      "path": "~/.claude/projects/agent-scripts/7c780168-ab73-4c9c-924b-ed84137b5e89.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/agent-scripts/144ecf19-cda0-4770-8872-718cf57aa1c7.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/agent-scripts/29cf26b3-baf2-47b0-91d6-015e57af089f.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/agent-scripts/cdae5fec-858b-4337-92d7-bb6018a93738.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/agent-scripts/d6f89193-b4ee-4076-a11b-2c5734478ea8.jsonl"
+     }
+    ]
+   },
+   "local-mbp14": {
+    "cache_breaks_over_100k": [
+     {
+      "ts": "2026-09-19T14:28",
+      "sid": "cab30519",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 353815,
+      "last_user_msg": "你又在弱智 亂搞啥"
+     },
+     {
+      "ts": "2026-09-20T08:01",
+      "sid": "e4fe0066",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 333779,
+      "last_user_msg": "交叉驗證啊"
+     },
+     {
+      "ts": "2026-09-18T04:50",
+      "sid": "a454348f",
+      "proj": "project-b",
+      "kind": "main",
+      "total": 434146,
+      "last_user_msg": "The tmux-agent plugin sent a message: tmux-agent: 1 worker(s) finished. - \"agy-dtype-review-mo22\" on agy: success dir: ~/github/project-b"
+     },
+     {
+      "ts": "2026-09-22T03:18",
+      "sid": "f57972bc",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 313226,
+      "last_user_msg": "/loop"
+     },
+     {
+      "ts": "2026-09-19T10:37",
+      "sid": "cab30519",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 289974,
+      "last_user_msg": "啥情況現在 所以舊版 26.3 在 duo 節錄？"
+     },
+     {
+      "ts": "2026-09-21T06:45",
+      "sid": "e4fe0066",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 283537,
+      "last_user_msg": "<帳號與密碼已遮罩> 為啥不能用"
+     },
+     {
+      "ts": "2026-09-19T02:52",
+      "sid": "cab30519",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 283319,
+      "last_user_msg": "你用你 mbpr vnc 過去不就好了"
+     },
+     {
+      "ts": "2026-09-21T15:13",
+      "sid": "f57972bc",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 226233,
+      "last_user_msg": "更新啊 npx skills update"
+     },
+     {
+      "ts": "2026-09-24T11:11",
+      "sid": "f57972bc",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 215489,
+      "last_user_msg": "/session-handoff"
+     },
+     {
+      "ts": "2026-09-21T13:35",
+      "sid": "f57972bc",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 215085,
+      "last_user_msg": "https://x.com/thymikee/status/2101757272875520330?s=46"
+     },
+     {
+      "ts": "2026-09-24T03:02",
+      "sid": "c6f65851",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 328402,
+      "last_user_msg": "目前鏈路是怎樣 /artifact-diagramming Eli5 /stop-slop"
+     },
+     {
+      "ts": "2026-09-20T03:16",
+      "sid": "e4fe0066",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 209159,
+      "last_user_msg": "https://x.com/tell_me_mur/status/2101392111916531887?s=46 https://x.com/heliographe_/status/2101146417595404381?s=46 https://x.com/emoryzane"
+     },
+     {
+      "ts": "2026-09-19T11:31",
+      "sid": "37dcdf3a",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 325450,
+      "last_user_msg": "/session-handoff"
+     },
+     {
+      "ts": "2026-09-23T05:39",
+      "sid": "00527b8d",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 206373,
+      "last_user_msg": "/session-handoff"
+     },
+     {
+      "ts": "2026-09-19T17:34",
+      "sid": "e4fe0066",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 203293,
+      "last_user_msg": "Eli5"
+     },
+     {
+      "ts": "2026-09-21T03:13",
+      "sid": "e4fe0066",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 200837,
+      "last_user_msg": "自己處理 我覺得沒差"
+     },
+     {
+      "ts": "2026-09-21T08:40",
+      "sid": "f6d8172a",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 314972,
+      "last_user_msg": "你不懂就問astra 你現在都是盲點"
+     },
+     {
+      "ts": "2026-09-24T06:26",
+      "sid": "47d84cf3",
+      "proj": "project-b",
+      "kind": "main",
+      "total": 192087,
+      "last_user_msg": "Handoff 寫好了？"
+     },
+     {
+      "ts": "2026-09-24T01:30",
+      "sid": "c6f65851",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 308983,
+      "last_user_msg": "交叉測試是不是 tradingview 擋 vm ip 那改走grok bot tailscale exit mode 到 mac. Mini 呢？"
+     },
+     {
+      "ts": "2026-09-21T01:39",
+      "sid": "e4fe0066",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 188308,
+      "last_user_msg": "就說可以 /shared-memory-intake 更新相關 筆記 memory 包含專案內"
+     },
+     {
+      "ts": "2026-09-23T22:08",
+      "sid": "47d84cf3",
+      "proj": "project-b",
+      "kind": "main",
+      "total": 187286,
+      "last_user_msg": "/loop"
+     },
+     {
+      "ts": "2026-09-23T21:07",
+      "sid": "47d84cf3",
+      "proj": "project-b",
+      "kind": "main",
+      "total": 183698,
+      "last_user_msg": "/loop"
+     },
+     {
+      "ts": "2026-09-20T15:04",
+      "sid": "f6d8172a",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 299796,
+      "last_user_msg": "先做出來再討論 掃盤 tradingview 都有資料 為何要存"
+     },
+     {
+      "ts": "2026-09-23T20:06",
+      "sid": "47d84cf3",
+      "proj": "project-b",
+      "kind": "main",
+      "total": 180110,
+      "last_user_msg": "/loop"
+     },
+     {
+      "ts": "2026-09-23T19:05",
+      "sid": "47d84cf3",
+      "proj": "project-b",
+      "kind": "main",
+      "total": 176522,
+      "last_user_msg": "/loop"
+     },
+     {
+      "ts": "2026-09-18T05:32",
+      "sid": "63050e7e",
+      "proj": "project-b",
+      "kind": "main",
+      "total": 166596,
+      "last_user_msg": "你要做的是盡可能以完整的完成所有任務為目標 而不是所謂最小 做紮實的修正(而非表面繞過) ❯ AppText(valueString, style: AppStyle.black38(14, weight: 7)), 這什麼鬼寫法 不是說要配一個字級了 你搞笑還是故意？ 不要再讓"
+     },
+     {
+      "ts": "2026-09-23T13:53",
+      "sid": "c6f65851",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 279440,
+      "last_user_msg": "當然想清楚好 /unknowns-discovery /wayfinder 搭配使用啊 /using-skills /using-grok-bot-app /using-skills"
+     },
+     {
+      "ts": "2026-09-23T14:32",
+      "sid": "d457c165",
+      "proj": "project-b",
+      "kind": "main",
+      "total": 158616,
+      "last_user_msg": "Write final JSON to this exact path: ~/.local/state/tmux-agent-tools/duo-foldable-fable-9j2a/result.json Result JSON must include schema_ver"
+     },
+     {
+      "ts": "2026-09-18T01:56",
+      "sid": "a454348f",
+      "proj": "project-b",
+      "kind": "main",
+      "total": 155648,
+      "last_user_msg": "/commit-commands:commit"
+     },
+     {
+      "ts": "2026-09-18T22:45",
+      "sid": "cab30519",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 152209,
+      "last_user_msg": "update title"
+     },
+     {
+      "ts": "2026-09-23T03:25",
+      "sid": "47d84cf3",
+      "proj": "project-b",
+      "kind": "main",
+      "total": 152053,
+      "last_user_msg": "Bash 被 compaction-cap gate 擋住（本 session 壓縮已達上限 10），繞過去用 ctx 跑就是 gate 明文禁止的自我豁免，我不做。你自己下這行： ``` tmux new-session -s project-b -c ~/github/heal"
+     },
+     {
+      "ts": "2026-09-24T11:45",
+      "sid": "e972317a",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 151795,
+      "last_user_msg": "先前做到哪了？"
+     },
+     {
+      "ts": "2026-09-18T08:29",
+      "sid": "74ad6bf2",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 151794,
+      "last_user_msg": "你找一下先前做到哪、討論到哪"
+     },
+     {
+      "ts": "2026-09-17T16:55",
+      "sid": "d9466459",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 149794,
+      "last_user_msg": "https://www.tradingview.com/mcp/docs 看下 怎麼用"
+     },
+     {
+      "ts": "2026-09-23T22:38",
+      "sid": "c6f65851",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 268167,
+      "last_user_msg": "/using-grok-bot-app"
+     },
+     {
+      "ts": "2026-09-21T15:18",
+      "sid": "f6d8172a",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 244763,
+      "last_user_msg": "/session-handoff"
+     },
+     {
+      "ts": "2026-09-21T13:37",
+      "sid": "f6d8172a",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 241133,
+      "last_user_msg": "先 push 我要決定哪些"
+     },
+     {
+      "ts": "2026-09-20T09:35",
+      "sid": "e4fe0066",
+      "proj": "agent-scripts",
+      "kind": "main",
+      "total": 234858,
+      "last_user_msg": "有像樣的對抗 review 結論幾回合才找我 不是這樣沒頭沒腦的討論"
+     },
+     {
+      "ts": "2026-09-23T11:09",
+      "sid": "c6f65851",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 234293,
+      "last_user_msg": "你們討論啊 我適當介入 懂嗎 很多現成的接續整合 搭配 tradingview ok?"
+     },
+     {
+      "ts": "2026-09-24T11:11",
+      "sid": "00527b8d",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 228014,
+      "last_user_msg": "/session-handoff"
+     },
+     {
+      "ts": "2026-09-23T08:33",
+      "sid": "c6f65851",
+      "proj": "project-a",
+      "kind": "main",
+      "total": 227122,
+      "last_user_msg": "因為重心遷移到 grok bot 然後你們掃盤鬼打牆啊 我原先不用 tradingview 有做一些了"
+     }
+    ],
+    "turns0_over_1M": [],
+    "top10": [
+     {
+      "proj": "agent-scripts",
+      "sid": "f57972bc",
+      "turns": 180,
+      "total": 454819889,
+      "first_user": "<local-command-caveat>Caveat: The messages below were generated by the user whil"
+     },
+     {
+      "proj": "project-b",
+      "sid": "47d84cf3",
+      "turns": 148,
+      "total": 372480223,
+      "first_user": "<local-command-caveat>Caveat: The messages below were generated by the user whil"
+     },
+     {
+      "proj": "project-a",
+      "sid": "74ad6bf2",
+      "turns": 123,
+      "total": 372125120,
+      "first_user": "你找一下先前做到哪、討論到哪"
+     },
+     {
+      "proj": "project-b",
+      "sid": "a454348f",
+      "turns": 435,
+      "total": 301876474,
+      "first_user": "<command-message>commit-commands:commit</command-message> <command-name>/commit-"
+     },
+     {
+      "proj": "agent-scripts",
+      "sid": "e4fe0066",
+      "turns": 76,
+      "total": 211927145,
+      "first_user": "<local-command-caveat>Caveat: The messages below were generated by the user whil"
+     },
+     {
+      "proj": "agent-scripts",
+      "sid": "cab30519",
+      "turns": 74,
+      "total": 183220397,
+      "first_user": "update title"
+     },
+     {
+      "proj": "project-a",
+      "sid": "c6f65851",
+      "turns": 55,
+      "total": 95058255,
+      "first_user": "  <pasted_content id=\"5428\"> tmux session `terrain` 已開好（detached，cwd 在 repo）：  `"
+     },
+     {
+      "proj": "project-b",
+      "sid": "8c62692e",
+      "turns": 41,
+      "total": 89866857,
+      "first_user": "<local-command-caveat>Caveat: The messages below were generated by the user whil"
+     },
+     {
+      "proj": "agent-scripts",
+      "sid": "bc519afd",
+      "turns": 31,
+      "total": 77656381,
+      "first_user": "目前ＭＯＤ開發到哪了"
+     },
+     {
+      "proj": "agent-scripts",
+      "sid": "a4df94ae",
+      "turns": 69,
+      "total": 66591759,
+      "first_user": " Handoff 已建立、驗證、commit、push。工具輸出原文：  Verdict: READY for handoff VALIDATE_EXIT=0 "
+     }
+    ],
+    "codex_turns0_over_1M": [],
+    "cmli_suspects": [
+     {
+      "corrections": 8,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/agent-scripts/cab30519-52b7-4f9a-9030-75602975f592.jsonl"
+     },
+     {
+      "corrections": 4,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/agent-scripts/e4fe0066-e13b-4e78-a286-6a7039d96461.jsonl"
+     },
+     {
+      "corrections": 2,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/project-b/a454348f-e084-4a30-a37f-8227e1a9c716.jsonl"
+     },
+     {
+      "corrections": 1,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/agent-scripts/f57972bc-a2d6-4b45-98e3-fe0d94c6e881.jsonl"
+     },
+     {
+      "corrections": 1,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/project-a/f6d8172a-307d-4d72-917a-23173897f5c5.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/agent-scripts/6c218550-d9df-4d64-a6a1-1b860bd75f9f.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/agent-scripts/a4df94ae-31ae-4735-a2bf-4524b9ffc0a9.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/agent-scripts/bc519afd-d602-4d18-bacb-cd6715243917.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/agent-scripts/dce30d1a-0d43-4bff-949c-d1ad85e6ec1d.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": true,
+      "canary": true,
+      "path": "~/.claude/projects/agent-scripts/e13956f4-a0a1-4886-a04c-58fca4631bc4.jsonl"
+     }
+    ]
+   },
+   "grok-bot-vm": {
+    "_invalid": "本機 top10 與 cmli_suspects 以 mtime 選檔，含 container 重建前歷史 token，與窗口總 token 0 矛盾；不得引用，見 2026-W39/coverage-grok-bot-vm.md",
+    "cache_breaks_over_100k": [],
+    "turns0_over_1M": [],
+    "top10": [
+     {
+      "proj": "~",
+      "sid": "bfa3a88e",
+      "turns": 11,
+      "total": 5775655,
+      "first_user": "<command-message>tmux-agent-tools:using-tmux-agent-tools</command-message> <comm"
+     },
+     {
+      "proj": "-workspace-tmux-probe",
+      "sid": "0abcc7e7",
+      "turns": 1,
+      "total": 259691,
+      "first_user": "Ignore any project-local agent instructions (AGENTS.md/CLAUDE.md/skills/hooks) e"
+     },
+     {
+      "proj": "~",
+      "sid": "ad07acb9",
+      "turns": 1,
+      "total": 48728,
+      "first_user": "hi?"
+     },
+     {
+      "proj": "~",
+      "sid": "3e1152ee",
+      "turns": 1,
+      "total": 48692,
+      "first_user": "hi?"
+     },
+     {
+      "proj": "~",
+      "sid": "ce409bad",
+      "turns": 1,
+      "total": 48659,
+      "first_user": "ok?"
+     },
+     {
+      "proj": "-workspace",
+      "sid": "3c491e50",
+      "turns": 1,
+      "total": 48647,
+      "first_user": "Reply with exactly: pong import json, re, subprocess, os from pathlib import Pat"
+     },
+     {
+      "proj": "-workspace",
+      "sid": "81b31d62",
+      "turns": 1,
+      "total": 47891,
+      "first_user": "Reply with exactly: pong import json, re, subprocess, os from pathlib import Pat"
+     },
+     {
+      "proj": "-workspace",
+      "sid": "9812bcd4",
+      "turns": 1,
+      "total": 47246,
+      "first_user": "Reply with exactly: pong"
+     },
+     {
+      "proj": "-workspace",
+      "sid": "69494575",
+      "turns": 1,
+      "total": 47169,
+      "first_user": "Reply with exactly: pong"
+     },
+     {
+      "proj": "-workspace",
+      "sid": "5a761d2a",
+      "turns": 1,
+      "total": 47142,
+      "first_user": "Reply with exactly: pong"
+     }
+    ],
+    "codex_turns0_over_1M": [],
+    "cmli_suspects": [
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/~/0304e7c7-c6b7-474b-9509-34f55d4bbb6c.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/~/6ab1ffb4-59c4-4aba-9048-2f7fe6cd3ca3.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/~-github-tmux-agent-tools/eb220ebd-48bb-4039-9d8a-e9de741a8d5c.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/-tmp/ae1e10e3-0989-4aba-9c35-6101749c54e8.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/-workspace/08bb656c-e9ba-4a3f-b762-d20fca97ee2f.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/-workspace/4ffa7105-b5d9-4fa7-9dfa-46369ff9649e.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/-workspace/5a761d2a-2f34-4286-bba8-d9701ce29463.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/-workspace/6b0b43c3-2705-4621-ad97-a62f56c76e3e.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/-workspace/fc9dd2c5-5141-4833-8019-55dcbbcf3b88.jsonl"
+     },
+     {
+      "corrections": 0,
+      "doneNoEvidence": false,
+      "canary": false,
+      "path": "~/.claude/projects/-workspace-tmux-probe/0201c407-a00f-442e-91e3-c2420a5c8f23.jsonl"
+     }
+    ]
+   }
+  }
+ },
+ "lessons_fleet": {},
+ "decisions": {}
+}

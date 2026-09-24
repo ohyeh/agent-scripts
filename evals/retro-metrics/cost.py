@@ -22,5 +22,5 @@ for f in sorted(glob.glob(os.path.join(os.path.dirname(__file__) or ".","*.json"
     for m,v in d["machines"].items():
         c=v.get("claude",{}); cost=usd(c,w); tot+=cost
         print(f"  {m:20s} claude ${cost:8.2f}  ({c.get('sessions',0)} 場 / {c.get('turns',0)} 輪)"
-              f"  codex {v.get('codex',{}).get('total',0)/1e6:.0f}M UNPRICED")
+              f"  codex {(v.get('codex',{}).get('with_archived') or v.get('codex',{})).get('total',0)/1e6:.0f}M UNPRICED")
     print(f"  {'合計 Claude':20s} ${tot:8.2f}   ·  每輪 ${tot/max(1,sum(v.get('claude',{}).get('turns',0) for v in d['machines'].values())):.3f}")
