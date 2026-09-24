@@ -274,3 +274,18 @@ Status: proposed
 Rule: 先判別是 matcher 誤中（回覆內已有 exit code／PASS／file:line 但正則沒認）還是真無證據；誤中只補逐字 token 不改行為敘述，且記一筆到 Z1（matcher 擴充）；真無證據才降級為「attempted, unverified」。此條不折入行為 lessons，屬 matcher 缺陷。
 Evidence: collector done-無證據 51/56 為正則誤判、真值 ≈9%（layer2.json、backlog Z1）；本 session 被打回 2 次皆為字眼命中；claim-evidence-gate.sh:56,59；來源 F9、Y4 對帳。
 Status: proposed
+
+## 2026-09-24 | scope: judgment | trigger: 回報負面結論（不行、找不到、不支援、沒回應）
+Rule: 回報前確認三件事：實際送出的輸入、新功能的官方文件、使用者點名的幫手。缺一項就標 UNCONFIRMED 並繼續做，不得以負面結論收尾。
+Evidence: W39 cab30519 與 e4fe0066 兩場的使用者糾正中，R1 類 12 筆（evals/retro-metrics/2026-W39/layer2-corrections.md）；來源 W39 F6。
+Status: proposed
+
+## 2026-09-24 | scope: waiting | trigger: 使用者已給常駐授權（例如「實驗機自由發揮」）之後，又逐次請示
+Rule: 常駐授權要寫進 run dir 與 compaction 摘要的固定欄位，摘要不得改寫成「需核准」。裁決分歧時先跑反駁回合，到 3 回合上限才找使用者。
+Evidence: W39 R2 類 8 筆；e4fe0066 的 compaction 摘要把「實驗機自由發揮」改寫成「需核准」（layer2-corrections.md）；來源 W39 F6、backlog W39-11。
+Status: proposed
+
+## 2026-09-24 | scope: completion | trigger: 回報 UI 結論（畫面正常、版面已修、狀態已顯示）
+Rule: UI 結論必須附本輪真實截圖，並涵蓋需求點名的每個狀態；只給表格或文字描述不算完成。
+Evidence: W39 R3 類 4 筆（layer2-corrections.md）；來源 W39 F6。
+Status: proposed

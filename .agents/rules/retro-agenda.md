@@ -16,6 +16,9 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 - 真相源是 GitHub remote（`gh api` / fetch 後的 log），本地 clone 只是 lead。
 - 每個數字自帶產生方法（collector 的 `{value, method, tier}` 契約；手排指令要附原文）。
 - 全量不抽樣（judgment-rubrics §5）。缺量測面就明寫「本週未量測」，不得沉默略過。
+- 腳本跑完不等於數字正確（使用者裁定 2026-09-24，W39 F1）：Layer 1 每個值以行內時間戳切窗口，
+  不用檔案 mtime；每個 0 值附正例對照，即同一查法在更寬窗口得到 >0；重跑差 0 只證明可重現。
+  缺任一項標 UNCONFIRMED，不得進成本表。
 - 產物落在 `agent-scripts/.workflow/<YYYYMMDDHHMM>-weekly-retro/`，至少三檔：
   `plan.md`、`retro-report.md`、`next-week-backlog.md`。
 
