@@ -18,10 +18,10 @@ expect_exit() { # $1 label, $2 expected code, then the command...
   if [ "$got" = "$want" ]; then ok "$label (exit $got)"; else fail "$label: exit $got, want $want: $(head -c 200 "$WORK/stderr")"; fi
 }
 
-# --- transcripts: 3 compactions (under cap) and 10 (at cap)
+# --- transcripts: 3 compactions (under cap) and 20 (at cap)
 under="$WORK/under.jsonl"; at="$WORK/at.jsonl"
 for _ in 1 2 3; do echo '{"type":"user","isCompactSummary":true}'; done > "$under"
-for _ in $(seq 10); do echo '{"type":"user","isCompactSummary":true}'; done > "$at"
+for _ in $(seq 20); do echo '{"type":"user","isCompactSummary":true}'; done > "$at"
 
 cap() { # $1 transcript, $2 tool_name, $3 tool_input json
   printf '%s' "$(jq -cn --arg t "$1" --arg n "$2" --argjson i "$3" '{session_id:"cap-smoke",transcript_path:$t,tool_name:$n,tool_input:$i}')" |
@@ -35,8 +35,8 @@ expect_exit "at cap: git commit allowed"               0 cap "$at"    Bash '{"co
 expect_exit "at cap: npm test BLOCKED"                 2 cap "$at"    Bash '{"command":"npm test"}'
 expect_exit "at cap: ScheduleWakeup stop allowed"      0 cap "$at"    ScheduleWakeup '{"stop":true}'
 expect_exit "at cap: ScheduleWakeup 1800 BLOCKED"      2 cap "$at"    ScheduleWakeup '{"delaySeconds":1800,"noop":true,"prompt":"x"}'
-grep -q 'BLOCKED: this session has compacted 10 times' "$WORK/stderr" && ok "block message names the count" || fail "block message missing count"
-expect_exit "env cap 12 → 10 compactions allowed"     0 env AGENT_HOOKS_MAX_COMPACTIONS=12 bash -c 'printf "%s" "$(jq -cn --arg t "$1" "{session_id:\"cap-smoke\",transcript_path:\$t,tool_name:\"Edit\",tool_input:{file_path:\"/repo/src/a.ts\"}}")" | bash "$2"' _ "$at" "$ROOT/.agents/hooks/compaction-cap-gate.sh"
+grep -q 'BLOCKED: this session has compacted 20 times' "$WORK/stderr" && ok "block message names the count" || fail "block message missing count"
+expect_exit "env cap 22 → 20 compactions allowed"     0 env AGENT_HOOKS_MAX_COMPACTIONS=22 bash -c 'printf "%s" "$(jq -cn --arg t "$1" "{session_id:\"cap-smoke\",transcript_path:\$t,tool_name:\"Edit\",tool_input:{file_path:\"/repo/src/a.ts\"}}")" | bash "$2"' _ "$at" "$ROOT/.agents/hooks/compaction-cap-gate.sh"
 n="$(grep -c '"result":"blocked"' "$XDG_DATA_HOME/agent-hooks/compaction-cap-stats.jsonl")"
 [ "$n" = 3 ] && ok "stats: 3 blocked rows logged" || fail "stats: $n blocked rows, want 3"
 
@@ -66,7 +66,7 @@ n="$(ls "$repo/.claude/handoffs" | wc -l | tr -d ' ')"
 [ "$n" = 1 ] && ok "two compactions → 1 file" || fail "two compactions → $n files"
 [ -f "$repo/.claude/handoffs/compact-abcdef12.md" ] && ok "file named compact-<sid8>.md" || fail "file name wrong: $(ls "$repo/.claude/handoffs")"
 grep -q 'second summary' "$repo/.claude/handoffs/compact-abcdef12.md" && ok "latest summary wins" || fail "old summary kept"
-grep -q 'Compactions so far: 10' "$repo/.claude/handoffs/compact-abcdef12.md" && ok "compaction count recorded" || fail "count line missing"
+grep -q 'Compactions so far: 20' "$repo/.claude/handoffs/compact-abcdef12.md" && ok "compaction count recorded" || fail "count line missing"
 
 # --- postcompact-handoff: correlation fields + standing-authorization check
 echo "case: postcompact-handoff correlation fields"

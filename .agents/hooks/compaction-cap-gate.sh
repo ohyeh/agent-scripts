@@ -20,7 +20,7 @@
 # AGENT_HOOKS_MAX_COMPACTIONS overrides both), so the two never disagree.
 set -u
 
-MAX_COMPACTIONS="${AGENT_HOOKS_MAX_COMPACTIONS:-10}"
+MAX_COMPACTIONS="${AGENT_HOOKS_MAX_COMPACTIONS:-20}"
 
 IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0

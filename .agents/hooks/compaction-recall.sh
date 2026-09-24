@@ -15,10 +15,11 @@
 # whether the PostCompact handoff file (postcompact-handoff.sh) removes the loss.
 # W37 (2026-09-11): two 7-compact sessions had zero post-compact corrections;
 # loss no longer observed. Raised to 10 as a guard for runaway sessions only.
+# W39 (2026-09-24): long tasks hit 10 this week; raised to 20 (Paul).
 set -u
 
 # Shared with compaction-cap-gate.sh (the PreToolUse gate that enforces this cap).
-MAX_COMPACTIONS="${AGENT_HOOKS_MAX_COMPACTIONS:-10}"
+MAX_COMPACTIONS="${AGENT_HOOKS_MAX_COMPACTIONS:-20}"
 MAX_PROMPTS=20
 MAX_PROMPT_CHARS=200
 MAX_TOTAL_BYTES=6000
