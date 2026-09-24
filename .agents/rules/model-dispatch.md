@@ -10,7 +10,7 @@ successor is valid only after live verification per §8.
 
 | Claude tier | Current ID | Role |
 |---|---|---|
-| `opus` | `claude-opus-5` | DEFAULT worker at effort `medium` (user ruling 2026-09-02): implementation, refactor, research, first review; `high` for architecture, hard debugging, adversarial review |
+| `opus` | `claude-opus-5-5` (live 2026-09-24; API default effort `medium`, effort sweep pending) | DEFAULT worker at effort `medium` (user ruling 2026-09-02): implementation, refactor, research, first review; `high` for architecture, hard debugging, adversarial review |
 | `sonnet` | `claude-sonnet-5` | only by explicit arg: implementation or read-only data gathering; at effort `low` mechanical search, read-back, solved-pattern batches |
 | `fable` | `claude-fable-5-1` | scarce; at `low` often beats opus/sonnet on cost per task — include in any sweep; picker rejection falls back to `opus` |
 

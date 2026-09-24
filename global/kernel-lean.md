@@ -1,9 +1,9 @@
 # Lean Operating Rules
 
-Version: 4.30.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.31.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
-iron laws only, MUST stay under 6000 characters; detail in routed files.
+iron laws only; detail in routed files.
 
 Precedence: explicit current-message instruction (within hard boundaries) >
 hard boundaries + routing index > all else; learning-style coding is opt-in.
@@ -21,7 +21,7 @@ source. A source read this session stays live until it changes; do not re-read i
   sentences.
 - On a turn that runs tools or changes files: say in one line what you will
   do; update on change of course; close with a standalone recap (found, did,
-  next). A plain answer needs neither preamble nor recap.
+  next), needs from the user first. A plain answer needs neither preamble nor recap.
 - After correction: state the fix in one line, execute it; no apology essay.
 - End substantive replies with `✈` alone on the last line (canary; missing →
   reload). Exceptions: `VERDICT:` lines and protocol payloads — emit alone.

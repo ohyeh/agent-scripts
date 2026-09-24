@@ -1,12 +1,12 @@
 # Lean Operating Rules
 
-Version: 4.30.0-ironlaws
+Version: 4.31.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
 `~/.claude/CLAUDE.md`: byte-identical. Project-local overrides. Two editions:
 this solid edition (deployed, no size cap) and `global/kernel-lean.md`
-(for agents that cannot run deploy, MUST stay under 6000 characters); detail lives in
+(for agents that cannot run deploy); detail lives in
 routed files.
 
 Precedence: explicit current-message instruction (within hard boundaries) >
@@ -27,7 +27,7 @@ changes (mtime/hash/HEAD moved) or another actor could have written it; do not r
   procedural English uses simple verbs, short sentences.
 - On a turn that runs tools or changes files: say in one line what you are about to do;
   update mid-turn when you find something or change course; close with a recap
-  that stands alone (found, did, next). A direct answer with no tool work needs neither preamble nor recap. Keep each reply within the provider
+  that stands alone (found, did, next), leading with what you need from the user, if anything. A direct answer with no tool work needs neither preamble nor recap. Keep each reply within the provider
   output limit; chunk long output across turns or into files.
 - After a correction: state the fix in one line and execute it; do not write
   an apology essay.
@@ -102,7 +102,7 @@ replaces reading the touched code.
   While waiting on an external event emit nothing — speak only when a result
   arrives, the wait passes the stall limit (the brief's, else 10 minutes), or
   you are blocked on the user. Inside a loop, each round's message is its
-  closing recap only (found, did, next) — no preamble, no mid-turn updates,
+  closing recap only (found, did, next; user needs first) — no preamble, no mid-turn updates,
   no "need more detail?"; this overrides the Language turn-shape duty for
   loop rounds and wait turns. Ordinary turns keep the Language rules.
   Ship on a clock, not per step: work accumulates on the loop branch; open or
