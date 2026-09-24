@@ -6,7 +6,7 @@
   "end": "2026-09-11",
   "basis": "mtime (usage-dedupe/analyzer --since 7d/collector mtime); codex mtime; context-mode created_at"
  },
- "method": "四機（本機 MacBookPro .62；ssh .44；ssh .41 mac-mini；ssh .47 grok-bot VM），全部唯讀。Claude 正式量尺 = evals/retro-metrics/usage-dedupe.py midkey（message.id 去重；四機各跑兩次，midkey input 重跑差 0；本機 naive/output 差 <1k 為本 session 自身寫入）；analyzer（session-report analyze-sessions.mjs --json --since 7d，四機 shasum 7e660e93）供 sessions/turns/cache_breaks/subagent/by_skill。Codex = .workflow/202609041230-weekly-retro/codex-tokens.py。Layer 1 = context-mode-local-insight agent-sessions（mbp14/p44/grok v4 909d4db；mini v2 a345a85 舊版，無 correction/suspects 欄）。機器層 = .workflow/202609111022-weekly-retro/probe.py。turns = human_messages。",
+ "method": "四機（本機 local-mbp14 .62；ssh .44；ssh .41 mac-mini；ssh .47 grok-bot VM），全部唯讀。Claude 正式量尺 = evals/retro-metrics/usage-dedupe.py midkey（message.id 去重；四機各跑兩次，midkey input 重跑差 0；本機 naive/output 差 <1k 為本 session 自身寫入）；analyzer（session-report analyze-sessions.mjs --json --since 7d，四機 shasum 7e660e93）供 sessions/turns/cache_breaks/subagent/by_skill。Codex = .workflow/202609041230-weekly-retro/codex-tokens.py。Layer 1 = context-mode-local-insight agent-sessions（mbp14/p44/grok v4 909d4db；mini v2 a345a85 舊版，無 correction/suspects 欄）。機器層 = .workflow/202609111022-weekly-retro/probe.py。turns = human_messages。",
  "machines": {
   "local-mbp14": {
    "claude": {

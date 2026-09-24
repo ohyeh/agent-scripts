@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$(mktemp -d -t loop-gates-smoke.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
-export HOME="$WORK/home" XDG_STATE_HOME="$WORK/home/.local/state" XDG_DATA_HOME="$WORK/home/.local/share"
+export HOME="$WORK/fakehome" XDG_STATE_HOME="$WORK/fakehome/.local/state" XDG_DATA_HOME="$WORK/fakehome/.local/share"
 mkdir -p "$HOME"
 PASS=0; FAIL=0
 ok()   { echo "  ok   $1"; PASS=$((PASS + 1)); }

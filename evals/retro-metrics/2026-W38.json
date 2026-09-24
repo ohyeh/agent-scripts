@@ -6,7 +6,7 @@
   "end": "2026-09-17",
   "basis": "mtime (usage-dedupe/analyzer --since 7d/collector mtime); codex mtime; run 2026-09-17T16:02–16:06Z"
  },
- "method": "三機（本機 = .44 2500693-paul，即 W37 的 remote-44；ssh .62 MacBookPro = W37 的 local-mbp14；ssh box@.47 grok-bot VM），全部唯讀；mini .41 依指示跳過。JSON 機器鍵沿用 W37 名稱以便 cost.py 與跨週比對。Claude 正式量尺 = evals/retro-metrics/usage-dedupe.py midkey（三機各跑兩次，midkey 重跑差 0）；analyzer（session-report analyze-sessions.mjs --json --since 7d，三機 shasum 1c5beaf1，較 W37 的 7e660e93 已升版）供 sessions/api_calls/turns/hours/cache_breaks/subagent/by_skill；Codex = evals/retro-metrics/codex-tokens.py（本週新寫入 repo，取每 rollout 最後一筆 total_token_usage；W37 的 .workflow 版已不存在）。Layer 1 = context-mode-local-insight agent-sessions v4 909d4db，以 tar 送 bin/ 到遠端直接 import agent-sessions.mjs（cli.mjs 依賴 MCP sdk 遠端無法載入；grok VM 需 ~/.local/bin/node v22 才有 node:sqlite）。turns = human_messages。",
+ "method": "三機（本機 = .44 remote-44，即 W37 的 remote-44；ssh .62 local-mbp14 = W37 的 local-mbp14；ssh .47 grok-bot VM），全部唯讀；mini .41 依指示跳過。JSON 機器鍵沿用 W37 名稱以便 cost.py 與跨週比對。Claude 正式量尺 = evals/retro-metrics/usage-dedupe.py midkey（三機各跑兩次，midkey 重跑差 0）；analyzer（session-report analyze-sessions.mjs --json --since 7d，三機 shasum 1c5beaf1，較 W37 的 7e660e93 已升版）供 sessions/api_calls/turns/hours/cache_breaks/subagent/by_skill；Codex = evals/retro-metrics/codex-tokens.py（本週新寫入 repo，取每 rollout 最後一筆 total_token_usage；W37 的 .workflow 版已不存在）。Layer 1 = context-mode-local-insight agent-sessions v4 909d4db，以 tar 送 bin/ 到遠端直接 import agent-sessions.mjs（cli.mjs 依賴 MCP sdk 遠端無法載入；grok VM 需 ~/.local/bin/node v22 才有 node:sqlite）。turns = human_messages。",
  "machines": {
   "remote-44": {
    "claude": {
@@ -118,7 +118,7 @@
    "collector_head": "909d4db",
    "collector_schema": "cmli.agent-sessions.v4",
    "analyzer_sha": "1c5beaf1",
-   "hostname": "25006931Paul.local",
+   "hostname": "remote-44",
    "run_ts": "2026-09-17T16:05:10.469Z"
   },
   "local-mbp14": {
@@ -226,7 +226,7 @@
    "collector_head": "909d4db",
    "collector_schema": "cmli.agent-sessions.v4",
    "analyzer_sha": "1c5beaf1",
-   "hostname": "MacBookPro",
+   "hostname": "local-mbp14",
    "run_ts": "2026-09-17T16:05:11.632Z"
   },
   "grok-bot-vm": {
@@ -297,7 +297,7 @@
    "collector_head": "909d4db",
    "collector_schema": "cmli.agent-sessions.v4",
    "analyzer_sha": "1c5beaf1",
-   "hostname": "cursor",
+   "hostname": "grok-bot-vm",
    "run_ts": "2026-09-17T16:06:14.190Z"
   }
  },
@@ -332,7 +332,7 @@
  "machine_layer": {
   "method": "evals/retro-metrics/probe.py 7 via ssh stdin, 2026-09-17T16:57Z",
   "remote-44": {
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "ts": "2026-09-17T16:57:21Z",
    "kernel": {
     "version": "4.30.0-ironlaws",
@@ -363,7 +363,7 @@
    },
    "deploy_log_last": {
     "timestamp": "2026-09-17T03:54:43Z",
-    "host": "25006931Paul.local",
+    "host": "remote-44",
     "sha": "1414fe0b7d7958bfe5d01e49642d4eb792580985",
     "method": "tarball"
    },
@@ -409,7 +409,7 @@
    }
   },
   "local-mbp14": {
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "ts": "2026-09-17T16:57:44Z",
    "kernel": {
     "version": "4.30.0-ironlaws",
@@ -440,7 +440,7 @@
    },
    "deploy_log_last": {
     "timestamp": "2026-09-17T11:21:52Z",
-    "host": "MacBookPro",
+    "host": "local-mbp14",
     "sha": "d4cc57483b52f4fdfc07d06b8bc6e67a3bc7bf1e",
     "method": "tarball"
    },
@@ -486,7 +486,7 @@
    }
   },
   "grok-bot-vm": {
-   "host": "cursor",
+   "host": "grok-bot-vm",
    "ts": "2026-09-17T16:57:46Z",
    "kernel": {
     "version": "4.29.0-ironlaws",
@@ -517,7 +517,7 @@
    },
    "deploy_log_last": {
     "timestamp": "2026-09-11T05:49:53Z",
-    "host": "cursor",
+    "host": "grok-bot-vm",
     "sha": "efb7d7588d30e6d97892cdb97e9ad2dd06ffab18",
     "method": "clone-tracked"
    },

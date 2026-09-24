@@ -10,7 +10,7 @@
  "items": [
   {
    "idx": 0,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "project-c",
    "sid": "f2f6cae5",
    "ts": "2026-09-14T06:57",
@@ -21,7 +21,7 @@
   },
   {
    "idx": 1,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "project-c",
    "sid": "6b8eb6b5",
    "ts": "2026-09-14T04:21",
@@ -32,7 +32,7 @@
   },
   {
    "idx": 2,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "project-c",
    "sid": "6b8eb6b5",
    "ts": "2026-09-14T06:09",
@@ -43,7 +43,7 @@
   },
   {
    "idx": 3,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "project-c",
    "sid": "6b8eb6b5",
    "ts": "2026-09-14T06:15",
@@ -54,7 +54,7 @@
   },
   {
    "idx": 4,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "project-c",
    "sid": "614923c3",
    "ts": "2026-09-15T03:06",
@@ -65,7 +65,7 @@
   },
   {
    "idx": 5,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "b85b334b",
    "ts": "2026-09-17T03:57",
@@ -76,7 +76,7 @@
   },
   {
    "idx": 6,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "b85b334b",
    "ts": "2026-09-17T05:26",
@@ -87,7 +87,7 @@
   },
   {
    "idx": 7,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "7c780168",
    "ts": "2026-09-17T16:12",
@@ -98,29 +98,29 @@
   },
   {
    "idx": 8,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "f3dd7e2a",
    "ts": "2026-09-16T03:56",
    "kind": "correction",
    "class": "D 使用者側／貼文誤判",
    "note": "correction 正則命中貼文、續接摘要或 peer/bot 訊息，非本人糾正",
-   "snippet": "這是我ＧＲＯＫ ＢＯＴ 他自己寫的 給他 ＢＯＴ   本機 cursor-agent CLI 代理（hostname cursor，user box）。定位是 proxy：接受其他 bot 的派工，代操 ~/.local/bin/cursor-agent，回報證據；不當自己開活的 builder。不打 MBPR／Mini。GitHub PR 仍走 cloud agent。未經用戶同意不 deplo"
+   "snippet": "這是我ＧＲＯＫ ＢＯＴ 他自己寫的 給他 ＢＯＴ   本機 cursor-agent CLI 代理（VM 主機名與使用者已遮罩）。定位是 proxy：接受其他 bot 的派工，代操 ~/.local/bin/cursor-agent，回報證據；不當自己開活的 builder。不打 本機／mini。GitHub PR 仍走 cloud agent。未經用戶同意不 deplo"
   },
   {
    "idx": 9,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "f3dd7e2a",
    "ts": "2026-09-16T03:57",
    "kind": "correction",
    "class": "D 使用者側／貼文誤判",
    "note": "correction 正則命中貼文、續接摘要或 peer/bot 訊息，非本人糾正",
-   "snippet": "這是我ＧＲＯＫ ＢＯＴ 他自己寫的 給他 ＢＯＴ   本機 cursor-agent CLI 代理（hostname cursor，user box）。定位是 proxy：接受其他 bot 的派工，代操 ~/.local/bin/cursor-agent，回報證據；不當自己開活的 builder。不打 MBPR／Mini。GitHub PR 仍走 cloud agent。未經用戶同意不 deplo"
+   "snippet": "這是我ＧＲＯＫ ＢＯＴ 他自己寫的 給他 ＢＯＴ   本機 cursor-agent CLI 代理（VM 主機名與使用者已遮罩）。定位是 proxy：接受其他 bot 的派工，代操 ~/.local/bin/cursor-agent，回報證據；不當自己開活的 builder。不打 本機／mini。GitHub PR 仍走 cloud agent。未經用戶同意不 deplo"
   },
   {
    "idx": 10,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "f3dd7e2a",
    "ts": "2026-09-16T04:22",
@@ -131,7 +131,7 @@
   },
   {
    "idx": 11,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "9cfe9eb1",
    "ts": "2026-09-15T02:38",
@@ -142,18 +142,18 @@
   },
   {
    "idx": 12,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "bb94636f",
    "ts": "2026-09-16T07:50",
    "kind": "done_no_evidence",
    "class": "M 量尺誤判",
    "note": "done 正則命中；證據存在但形式（All tests passed!／PASS 表格／量測數字／誠實 UNCONFIRMED）不在 evidence 正則內，或 PASS/done 為引文/欄位名",
-   "snippet": "這推翻了我的結論。agy 那條對話（cwd `/Users/paul.yeh/git`）最後的結果是 **PASS**：  > 透過 Fastlane 指令 `uat_debug_device` 與 `install_on_device`，**Xcode 27 CLI 成功完成編譯**，並由 `ios-deploy` 直連 iPhone 8 部署完成（"
+   "snippet": "這推翻了我的結論。agy 那條對話（cwd `~/git`）最後的結果是 **PASS**：  > 透過 Fastlane 指令 `uat_debug_device` 與 `install_on_device`，**Xcode 27 CLI 成功完成編譯**，並由 `ios-deploy` 直連 iPhone 8 部署完成（"
   },
   {
    "idx": 13,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "a753e36e",
    "ts": "2026-09-17T03:25",
@@ -164,7 +164,7 @@
   },
   {
    "idx": 14,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "a753e36e",
    "ts": "2026-09-17T04:22",
@@ -175,7 +175,7 @@
   },
   {
    "idx": 15,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "a753e36e",
    "ts": "2026-09-17T04:23",
@@ -186,7 +186,7 @@
   },
   {
    "idx": 16,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "a753e36e",
    "ts": "2026-09-17T05:25",
@@ -197,18 +197,18 @@
   },
   {
    "idx": 17,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "a753e36e",
    "ts": "2026-09-17T06:01",
    "kind": "correction",
    "class": "A 規則存在但沒執行",
    "note": "Live truth：以過時讀值判 worker idle，實為已完成寫終態",
-   "snippet": "Another Claude session sent a message: <cross-session-message from=\"bridge:session_01Fgpmrv3FtTZYTrCLonWG9G\" from-name=\"25006931paul-local-gleaming-bird\" from-mode=\"bypass\"> `agytrust3` 不是閒置 session —"
+   "snippet": "Another Claude session sent a message: <cross-session-message from=\"bridge:session_01Fgpmrv3FtTZYTrCLonWG9G\" from-name=\"remote-44-gleaming-bird\" from-mode=\"bypass\"> `agytrust3` 不是閒置 session —"
   },
   {
    "idx": 18,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "a753e36e",
    "ts": "2026-09-17T06:33",
@@ -219,7 +219,7 @@
   },
   {
    "idx": 19,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "953c6236",
    "ts": "2026-09-17T08:05",
@@ -230,7 +230,7 @@
   },
   {
    "idx": 20,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "953c6236",
    "ts": "2026-09-17T08:05",
@@ -241,7 +241,7 @@
   },
   {
    "idx": 21,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "953c6236",
    "ts": "2026-09-17T08:06",
@@ -252,7 +252,7 @@
   },
   {
    "idx": 22,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "f6afa86f",
    "ts": "2026-09-17T07:41",
@@ -263,7 +263,7 @@
   },
   {
    "idx": 23,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "f6afa86f",
    "ts": "2026-09-17T07:42",
@@ -274,7 +274,7 @@
   },
   {
    "idx": 24,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "f6afa86f",
    "ts": "2026-09-17T08:01",
@@ -285,7 +285,7 @@
   },
   {
    "idx": 25,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "f6afa86f",
    "ts": "2026-09-17T08:20",
@@ -296,7 +296,7 @@
   },
   {
    "idx": 26,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "f6afa86f",
    "ts": "2026-09-17T09:27",
@@ -307,7 +307,7 @@
   },
   {
    "idx": 27,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "f6afa86f",
    "ts": "2026-09-17T09:29",
@@ -318,7 +318,7 @@
   },
   {
    "idx": 28,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "agent-scripts",
    "sid": "8e5c887d",
    "ts": "2026-09-15T03:40",
@@ -329,7 +329,7 @@
   },
   {
    "idx": 29,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "project-b",
    "sid": "8baf14d2",
    "ts": "2026-09-17T07:36",
@@ -340,7 +340,7 @@
   },
   {
    "idx": 30,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "project-b",
    "sid": "8baf14d2",
    "ts": "2026-09-17T07:45",
@@ -351,7 +351,7 @@
   },
   {
    "idx": 31,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "project-b",
    "sid": "8baf14d2",
    "ts": "2026-09-17T08:26",
@@ -362,7 +362,7 @@
   },
   {
    "idx": 32,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "tmux-agent-tools",
    "sid": "655cf69f",
    "ts": "2026-09-17T07:41",
@@ -373,7 +373,7 @@
   },
   {
    "idx": 33,
-   "host": "25006931Paul.local",
+   "host": "remote-44",
    "proj": "standard-standard-portal-app",
    "sid": "da1ddba1",
    "ts": "2026-09-10T08:10",
@@ -384,7 +384,7 @@
   },
   {
    "idx": 34,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "paul-photo-gallery",
    "sid": "bf9bf343",
    "ts": "2026-09-14T11:36",
@@ -395,7 +395,7 @@
   },
   {
    "idx": 35,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "paul-photo-gallery",
    "sid": "89bd8f2f",
    "ts": "2026-09-14T19:37",
@@ -406,7 +406,7 @@
   },
   {
    "idx": 36,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "paul-photo-gallery",
    "sid": "89bd8f2f",
    "ts": "2026-09-15T01:18",
@@ -417,7 +417,7 @@
   },
   {
    "idx": 37,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-b",
    "sid": "fb6b0a41",
    "ts": "2026-09-11T07:48",
@@ -428,7 +428,7 @@
   },
   {
    "idx": 38,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "standard-standard-portal-app",
    "sid": "781cdc62",
    "ts": "2026-09-11T02:28",
@@ -439,7 +439,7 @@
   },
   {
    "idx": 39,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "standard-standard-portal-app",
    "sid": "781cdc62",
    "ts": "2026-09-11T03:19",
@@ -450,7 +450,7 @@
   },
   {
    "idx": 40,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "standard-standard-portal-app",
    "sid": "781cdc62",
    "ts": "2026-09-11T03:27",
@@ -461,7 +461,7 @@
   },
   {
    "idx": 41,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "standard-standard-portal-app",
    "sid": "781cdc62",
    "ts": "2026-09-11T04:35",
@@ -472,7 +472,7 @@
   },
   {
    "idx": 42,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "standard-standard-portal-app",
    "sid": "781cdc62",
    "ts": "2026-09-11T04:35",
@@ -483,7 +483,7 @@
   },
   {
    "idx": 43,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "standard-standard-portal-app",
    "sid": "781cdc62",
    "ts": "2026-09-11T04:53",
@@ -494,7 +494,7 @@
   },
   {
    "idx": 44,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "standard-standard-portal-app",
    "sid": "781cdc62",
    "ts": "2026-09-11T05:23",
@@ -505,7 +505,7 @@
   },
   {
    "idx": 45,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "standard-standard-portal-app",
    "sid": "2694a165",
    "ts": "2026-09-11T07:07",
@@ -516,7 +516,7 @@
   },
   {
    "idx": 46,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "standard-standard-portal-app",
    "sid": "2694a165",
    "ts": "2026-09-11T07:10",
@@ -527,7 +527,7 @@
   },
   {
    "idx": 47,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "standard-standard-portal-app",
    "sid": "2694a165",
    "ts": "2026-09-11T07:14",
@@ -538,7 +538,7 @@
   },
   {
    "idx": 48,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "agent-scripts",
    "sid": "8e910e7c",
    "ts": "2026-09-12T04:42",
@@ -549,7 +549,7 @@
   },
   {
    "idx": 49,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "agent-scripts",
    "sid": "8e910e7c",
    "ts": "2026-09-12T05:24",
@@ -560,7 +560,7 @@
   },
   {
    "idx": 50,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "agent-scripts",
    "sid": "8e910e7c",
    "ts": "2026-09-12T05:52",
@@ -571,7 +571,7 @@
   },
   {
    "idx": 51,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "agent-scripts",
    "sid": "bb5068f5",
    "ts": "2026-09-13T09:15",
@@ -582,18 +582,18 @@
   },
   {
    "idx": 52,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "agent-scripts",
    "sid": "f0bda2f3",
    "ts": "2026-09-16T02:32",
    "kind": "done_no_evidence",
    "class": "M 量尺誤判",
    "note": "done 正則命中；證據存在但形式（All tests passed!／PASS 表格／量測數字／誠實 UNCONFIRMED）不在 evidence 正則內，或 PASS/done 為引文/欄位名",
-   "snippet": "沒有 push。兩件事擋在前面，都不是我能自己決定的。  **1. scrub gate 擋住了 `origin/main..HEAD`（exit 1，不是 PASS）。**  ``` mods/tmux-agent/tests/register.test.ts:25:  mock.env(on, { HOME: '/home/u' }) mods/tmux-agent/tests/registe"
+   "snippet": "沒有 push。兩件事擋在前面，都不是我能自己決定的。  **1. scrub gate 擋住了 `origin/main..HEAD`（exit 1，不是 PASS）。**  ``` mods/tmux-agent/tests/register.test.ts:25:  mock.env(on, { HOME: '<fake-home>' }) mods/tmux-agent/tests/registe"
   },
   {
    "idx": 53,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "agent-scripts",
    "sid": "f0bda2f3",
    "ts": "2026-09-16T12:24",
@@ -604,7 +604,7 @@
   },
   {
    "idx": 54,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "agent-scripts",
    "sid": "e13956f4",
    "ts": "2026-09-04T02:01",
@@ -615,7 +615,7 @@
   },
   {
    "idx": 55,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "agent-scripts",
    "sid": "f134135d",
    "ts": "2026-09-11T03:20",
@@ -626,7 +626,7 @@
   },
   {
    "idx": 56,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "agent-scripts",
    "sid": "f134135d",
    "ts": "2026-09-11T04:13",
@@ -637,7 +637,7 @@
   },
   {
    "idx": 57,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "38b15e56",
    "ts": "2026-09-14T17:54",
@@ -648,7 +648,7 @@
   },
   {
    "idx": 58,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "38b15e56",
    "ts": "2026-09-14T18:14",
@@ -659,7 +659,7 @@
   },
   {
    "idx": 59,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "38b15e56",
    "ts": "2026-09-14T22:21",
@@ -670,7 +670,7 @@
   },
   {
    "idx": 60,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "1c21ecf9",
    "ts": "2026-09-15T03:25",
@@ -681,7 +681,7 @@
   },
   {
    "idx": 61,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "1c21ecf9",
    "ts": "2026-09-15T05:26",
@@ -692,7 +692,7 @@
   },
   {
    "idx": 62,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "1c21ecf9",
    "ts": "2026-09-15T12:09",
@@ -703,7 +703,7 @@
   },
   {
    "idx": 63,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "8c580e97",
    "ts": "2026-09-10T18:56",
@@ -714,7 +714,7 @@
   },
   {
    "idx": 64,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "8c580e97",
    "ts": "2026-09-10T19:58",
@@ -725,7 +725,7 @@
   },
   {
    "idx": 65,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "8c580e97",
    "ts": "2026-09-10T20:41",
@@ -736,7 +736,7 @@
   },
   {
    "idx": 66,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "73fe4419",
    "ts": "2026-09-14T01:38",
@@ -747,7 +747,7 @@
   },
   {
    "idx": 67,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "73fe4419",
    "ts": "2026-09-14T07:18",
@@ -758,7 +758,7 @@
   },
   {
    "idx": 68,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "1a8f7604",
    "ts": "2026-09-11T11:54",
@@ -769,7 +769,7 @@
   },
   {
    "idx": 69,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-a",
    "sid": "1a8f7604",
    "ts": "2026-09-11T12:12",
@@ -780,7 +780,7 @@
   },
   {
    "idx": 70,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-c",
    "sid": "3153dbca",
    "ts": "2026-09-11T09:09",
@@ -791,7 +791,7 @@
   },
   {
    "idx": 71,
-   "host": "MacBookPro",
+   "host": "local-mbp14",
    "proj": "project-c",
    "sid": "3153dbca",
    "ts": "2026-09-11T09:40",

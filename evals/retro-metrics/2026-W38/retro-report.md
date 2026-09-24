@@ -1,7 +1,7 @@
 # Weekly Retro — 2026-W38（窗口 2026-09-10 → 2026-09-17）
 
 資料：`evals/retro-metrics/2026-W38.json`（機器指標）、`layer2.json`（逐場挖掘）、`next-week-backlog.md`（Z1–Z12）。
-方法：三機唯讀採集（本機 .44、ssh .62、ssh box@.47；mini .41 依指示跳過）。
+方法：三機唯讀採集（本機 .44、ssh .62、ssh .47；mini .41 依指示跳過）。
 量尺：`usage-dedupe.py` midkey（三機各跑兩次差 0）、`analyze-sessions.mjs --json --since 7d`（shasum 1c5beaf1）、
 `codex-tokens.py`（本週新增）、cmli `agent-sessions` v4 909d4db（tar 送 `bin/` 到遠端直接 import）。
 機器鍵沿用 W37：`remote-44` = 本機 .44、`local-mbp14` = .62、`grok-bot-vm` = .47。
@@ -102,7 +102,7 @@ W37 兩大主題「授權外推 ×3」「等待協定缺失 ×4」本週分別�
 
 ## 6.5 臨時動議（09-18；.62 現場觀察，Paul 裁定要記）
 
-證據目錄：.62 `/private/tmp/claude-501/-Users-paul-yeh-github-agent-scripts/6c218550-…/scratchpad/tmux-agent-quarantine/{live-agy-b676,live-cursor-b67r,smoke-test-vc8n}/`；程式 `~/github/tmux-agent-tools/mods/tmux-agent/hooks/register.ts`（HEAD ddf74e3 09-17）。這三個 worker **不是**本 retro 派的：本 session 在 .62 只用 ssh stdin 跑 `probe.py`／`inventory.sh`／collector，沒有 `agent-tmux assign`；dispatch.json `owner` 為 2615a468（.62 本地 session）。
+證據目錄：.62 `<scratchpad>/6c218550-…/scratchpad/tmux-agent-quarantine/{live-agy-b676,live-cursor-b67r,smoke-test-vc8n}/`；程式 `~/github/tmux-agent-tools/mods/tmux-agent/hooks/register.ts`（HEAD ddf74e3 09-17）。這三個 worker **不是**本 retro 派的：本 session 在 .62 只用 ssh stdin 跑 `probe.py`／`inventory.sh`／collector，沒有 `agent-tmux assign`；dispatch.json `owner` 為 2615a468（.62 本地 session）。
 
 | # | 動議 | 證據 | 落點 | 驗收 |
 |---|---|---|---|---|

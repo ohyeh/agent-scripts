@@ -1,6 +1,6 @@
 # W38 三機循環盤點（retro-agenda §5）
 
-量測：`scratchpad/w38/inventory.sh`（唯讀）＋ `probe.py` 2026-09-17T16:57Z；.44＝本機、.62＝MacBookPro、.47＝grok VM（box）。mac-mini .41 本週跳過（Paul 指定）。
+量測：`scratchpad/w38/inventory.sh`（唯讀）＋ `probe.py` 2026-09-17T16:57Z；.44＝本機、.62＝local-mbp14、.47＝grok VM（box）。mac-mini .41 本週跳過（Paul 指定）。
 
 ## lessons.md
 
