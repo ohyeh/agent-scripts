@@ -7,7 +7,7 @@
 # `newCustomInstructions`; for manual /compact the hook text is APPENDED after
 # the user's own instructions (`${user}\n\n${hook}`), never replacing them.
 # The built-in summary template already demands verbatim user messages (§6),
-# so this payload only adds what the template lacks: the three headings
+# so this payload only adds what the template lacks: the four headings
 # that make the summary a valid session-handoff document, which
 # postcompact-handoff.sh then writes to <cwd>/.claude/handoffs/ and validates
 # with skills/session-handoff/scripts/validate_handoff.py.
@@ -18,8 +18,15 @@ set -u
 MAX_BYTES=6000
 
 read -r -d '' PAYLOAD <<'EOF' || true
-After the numbered sections, add these three headings verbatim (level-2
+After the numbered sections, add these four headings verbatim (level-2
 markdown, exact titles) so the summary validates as a session handoff:
+
+## Standing Authorizations
+Every standing approval or scope grant the user gave (e.g. "push is OK",
+"實驗機自由發揮"), quoted verbatim, each with the scope it covers. Copy every
+entry from any earlier summary forward unchanged. Never restate one as "needs
+approval". List revoked ones with the user's revoking words. Write "None" if
+there are none.
 
 ## Current State Summary
 What is done and proven (quote the evidence line), what is in progress, what

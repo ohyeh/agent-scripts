@@ -15,7 +15,7 @@
 | W39-8 | **tmux-agent 殘餘重送與收養 opt-in**：12/61 殘餘重送找根因；0.7.0 的 opt-in 做反要改回 | F3、M1、M2 | tmux-agent-tools #323 | 同 launch_id 投遞恰好 1 次（不是 0 次）；owner 正常完成時收到 1 次；非派工 session 預設不收；明示 opt-in 的 session 收養成功 1 次 | open |
 | W39-9 | **evidence matcher 擴充（W38 Z1，第三週）** | F7 | cmli；`claim-evidence-gate.sh` | 先人工標註 W39 42 筆 done-claim；重跑後誤判 ≤ 5 筆且漏判 ≤ 2 筆（對標註集） | open |
 | W39-10 | **糾正句粗篩修正**：排除續接摘要與注入文字；補辱罵字；建標註集 | F7 | agent-scripts `layer2-extract.py`；cmli | 以 W39 兩場人工 33 筆為標註集（3 筆正當請示標為非糾正），逐筆比對 precision ≥ 0.8、recall ≥ 0.8 | open |
-| W39-11 | **compaction 摘要保留常駐授權** | F6 R2 | agent-scripts `.agents/hooks/precompact-instructions.sh` | 摘要模板有固定欄位；e4fe0066 型案例重放時不再改寫成「需核准」 | open |
+| W39-11 | **compaction 摘要保留常駐授權** | F6 R2 | agent-scripts `.agents/hooks/precompact-instructions.sh` | 摘要模板有固定欄位；e4fe0066 型案例重放時不再改寫成「需核准」 | in progress：09-24 precompact 加「Standing Authorizations」固定標題；postcompact 在缺段時標示，並記錄 CLI、model、effort、advisor、雲端 session、git sha。smoke 32/32；重放未做 |
 | W39-12 | **grok bot VM 錯誤洪流**：查 244,787 行 CDP 錯誤的來源與影響 | F10 | grok bot | 說明錯誤來源；log 加逐行時間戳後，以 7 天為基線，每日錯誤行數下降 ≥ 90%；或在 7 天觀測期內證明無害：seat 任務成功率不低於前 7 天，且錯誤行出現的時段內沒有 seat 失敗 | open |
 | W39-13 | **retro 工具修正**：recipe-usage-stats.sh 改按週計；ctx-usage-report.py 處理 WAL 與查詢錯誤；probe.py 本機路徑不寫死 `~/git/` | F11 | agent-scripts `scripts/`、`evals/retro-metrics/` | recipe-usage-stats.sh 對「本週 0、上週 >0」的 recipe 回報 0；ctx-usage-report.py 在 WAL DB 上成功，且一個 DB 打不開時其餘照常輸出並記錯誤類別；probe.py 在本機 clone 路徑回報非 null | open |
 | W39-14 | **Opus 5.5 effort 驗證與比較**：新 session 看 effort 是否為 medium；review 角色做一次 low/medium 比較 | F13 | agent-scripts `model-dispatch.md` §8 | 新 session 記錄 effort 顯示值；review 角色用同一組 5 個 diff、同一模型分別跑 low 與 medium，比較抓到的 bug 數、誤報數與成本 | open |
@@ -30,3 +30,4 @@ W39 補列（F14、D7；2026-09-24 追加）：
 | W39-16 | **遠端模式工作型態**：訊息以 queued 到達、或使用者回覆 p50 超過 10 分鐘時，每輪先做完所有不依賴使用者的工作，問題集中在最後一次問；完成或卡住時發推播 | F14 | agent-scripts routed rule（operator-defaults） | 下次遠端期間以 F14 方法重算：agent 每則訊息後工作 p50 ≥ 5 分（W39 為 2.7）；每則真人訊息 token 不高於在家期間 +20% | open |
 | W39-17 | **長 loop session 的 context 上限**：`/loop` 指揮 session 每次呼叫的 context 中位數約 266k；讀檔等雜務交給 worker，或在門檻處交接新 session | F14、F2 | agent-scripts；tmux-agent-tools | `/loop` session 每次呼叫的 context 中位數 ≤ 150k；每則真人訊息 token ≤ 5M | open |
 | W39-18 | **agentflow 採用挑選**：研究結果見 `agentflow-research.md` §3、§5，由使用者挑選 | D7 | 依挑選項目 | 使用者逐項標「採用／不採用」；採用項各開一條有驗收的 backlog | decision |
+| W39-19 | **證據綁 commit sha**（使用者 09-24 選定，取代 mtime 與時間戳）：worker 的 result.json 帶產出所在的完整 commit sha，collector 收到後以 `git cat-file -e` 驗證存在且在該 worker 分支上，才算完成 | D7、F1 | tmux-agent-tools collector | 造兩個反例：sha 不存在、sha 不在 worker 分支，collector 都判未完成；正常案例判完成 1 次 | open |

@@ -6,7 +6,7 @@
 # control and cannot inject context (prior art: anthropics/claude-code#14258),
 # so this hook only writes <cwd>/.claude/handoffs/compact-<sid8>.md and runs the
 # vendored validator; its one-line stdout shows in the transcript as status.
-# Pair: precompact-instructions.sh asks the summarizer for the three REQUIRED
+# Pair: precompact-instructions.sh asks the summarizer for the four REQUIRED
 # handoff headings; this hook checks they arrived. Never exits non-zero.
 #
 # ONE file per session, overwritten on every compaction (Paul 2026-09-18, W38
@@ -31,7 +31,19 @@ dir="$cwd/.claude/handoffs"
 mkdir -p "$dir" || exit 0
 file="$dir/compact-${session_id:0:8}.md"
 transcript="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
-compactions="$( [ -f "$transcript" ] && grep -c '"isCompactSummary":true' "$transcript" 2>/dev/null || echo 0)"
+compactions="$(grep -c '"isCompactSummary":true' "$transcript" 2>/dev/null)"
+# Correlation fields (Paul 2026-09-24, W39 retro): last value of each key in
+# the transcript, so a handoff joins to cost/usage rows and the claude.ai
+# session. Empty when the transcript lacks the key.
+last() { grep -F "$1" "$transcript" 2>/dev/null | tail -n 1 | jq -r "$2 // empty" 2>/dev/null; }
+model="$(grep -F '"type":"assistant"' "$transcript" 2>/dev/null | grep -vF '"<synthetic>"' | tail -n 1 | jq -r '.message.model // empty' 2>/dev/null)"
+advisor="$(last '"advisorModel"' .advisorModel)"
+effort="$(last '"effort"' .effort)"
+version="$(last '"version"' .version)"
+entry="$(last '"entrypoint"' .entrypoint)"
+cloud="$(last '"bridge-session"' .bridgeSessionId)"
+branch="$(git -C "$cwd" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+sha="$(git -C "$cwd" rev-parse HEAD 2>/dev/null)"
 
 {
   printf '# Session Handoff: compaction (%s)\n\n' "$trigger"
@@ -40,18 +52,24 @@ compactions="$( [ -f "$transcript" ] && grep -c '"isCompactSummary":true' "$tran
   printf -- '- Compactions so far: %s (file is overwritten each time; latest only)\n' "${compactions:-0}"
   printf -- '- Project: %s\n' "${cwd/#$HOME/\~}"
   printf -- '- Session: %s\n' "$session_id"
+  printf -- '- Cloud session: %s\n' "${cloud:-none}"
+  printf -- '- CLI: claude-code %s (entrypoint %s)\n' "${version:-unknown}" "${entry:-unknown}"
+  printf -- '- Model: %s · effort %s · advisor %s\n' "${model:-unknown}" "${effort:-unknown}" "${advisor:-none}"
+  printf -- '- Git: %s @ %s\n' "${branch:-none}" "${sha:-none}"
+  printf -- '- Transcript: %s\n' "${transcript/#$HOME/\~}"
   printf -- '- Source: PostCompact hook (compact_summary)\n\n'
   printf '%s\n' "$summary"
 } > "$file"
+grep -q '^## Standing Authorizations' "$file" || auth_note=" — no Standing Authorizations section"
 
 validator="$HOME/.agents/skills/session-handoff/scripts/validate_handoff.py"
 if [ -f "$validator" ] && command -v python3 >/dev/null 2>&1; then
   if python3 "$validator" "$file" >/dev/null 2>&1; then
-    echo "[postcompact-handoff] READY ${file/#$HOME/\~}"
+    echo "[postcompact-handoff] READY ${file/#$HOME/\~}${auth_note:-}"
   else
     echo "[postcompact-handoff] BLOCKED (missing required sections) ${file/#$HOME/\~} — run: python3 $validator $file"
   fi
 else
-  echo "[postcompact-handoff] WRITTEN (validator unavailable) ${file/#$HOME/\~}"
+  echo "[postcompact-handoff] WRITTEN (validator unavailable) ${file/#$HOME/\~}${auth_note:-}"
 fi
 exit 0

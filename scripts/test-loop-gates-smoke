@@ -68,6 +68,24 @@ n="$(ls "$repo/.claude/handoffs" | wc -l | tr -d ' ')"
 grep -q 'second summary' "$repo/.claude/handoffs/compact-abcdef12.md" && ok "latest summary wins" || fail "old summary kept"
 grep -q 'Compactions so far: 10' "$repo/.claude/handoffs/compact-abcdef12.md" && ok "compaction count recorded" || fail "count line missing"
 
+# --- postcompact-handoff: correlation fields + standing-authorization check
+echo "case: postcompact-handoff correlation fields"
+tr2="$WORK/meta.jsonl"
+printf '%s\n' '{"type":"bridge-session","bridgeSessionId":"cse_TEST"}' \
+  '{"type":"assistant","version":"9.9.9","entrypoint":"cli","advisorModel":"adv-x","effort":"medium","message":{"model":"model-y"}}' \
+  '{"type":"assistant","message":{"model":"<synthetic>"}}' > "$tr2"
+git -C "$repo" init -q && git -C "$repo" -c user.name=t -c user.email=t@t commit -q --allow-empty -m init
+pcm() { printf '%s' "$(jq -cn --arg c "$repo" --arg t "$1" --arg s "$2" '{session_id:"feedbeef00000000",cwd:$c,trigger:"auto",transcript_path:$t,compact_summary:$s}')" | bash "$ROOT/.agents/hooks/postcompact-handoff.sh"; }
+st="$(pcm "$tr2" "no auth heading here")"
+hf="$repo/.claude/handoffs/compact-feedbeef.md"
+grep -q 'Cloud session: cse_TEST' "$hf" && ok "cloud session id" || fail "cloud session missing"
+grep -q 'CLI: claude-code 9.9.9 (entrypoint cli)' "$hf" && ok "cli + version" || fail "cli line wrong: $(grep CLI "$hf")"
+grep -q 'Model: model-y · effort medium · advisor adv-x' "$hf" && ok "model/effort/advisor, synthetic skipped" || fail "model line wrong: $(grep Model "$hf")"
+grep -q "Git: .* @ $(git -C "$repo" rev-parse HEAD)" "$hf" && ok "git full commit sha" || fail "git line wrong: $(grep Git: "$hf")"
+case "$st" in *"no Standing Authorizations section"*) ok "missing auth section flagged" ;; *) fail "auth section not flagged: $st" ;; esac
+pcm "$WORK/absent.jsonl" "x" >/dev/null
+grep -q 'Compactions so far: 0 (' "$hf" && ok "no transcript → single 0" || fail "count wrong: $(grep Compactions "$hf")"
+
 # --- compaction-recall points at the single file
 echo "case: compaction-recall handoff pointer"
 out="$(printf '%s' "$(jq -cn --arg c "$repo" --arg t "$at" '{session_id:"abcdef1234567890",cwd:$c,transcript_path:$t}')" | bash "$ROOT/.agents/hooks/compaction-recall.sh" 2>/dev/null || true)"
