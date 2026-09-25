@@ -59,7 +59,7 @@ Same row = interchangeable at the stated effort; do not cross rows to "save" cos
 ### Role tiers (user ruling 2026-09-25)
 
 - Advisor: only `fable` 5.1, `gpt-6-astra`, `opus` 5.5 medium+; prefer them for planning and review.
-- Execution: `grok-4.7-xhigh-fast` (Cursor quota) or `opus` 5.5 low/medium (Claude Code quota).
+- Execution: `grok-4.7-xhigh-fast` (Cursor quota) or `opus` 5.5 low/medium (Claude Code or Cursor quota); pick by the quota left.
 - Sol, Luna, grok: one-shot output is suspect, 2–3 rounds may fix it; grok opinions carry low weight.
 
 ## §2 Delegate only when it buys leverage
