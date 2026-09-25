@@ -24,7 +24,7 @@ For non-trivial work, add these filled lines before ACCEPTANCE:
 Common footer — include in EVERY delegation:
 
 > REPORT: return ONLY short conclusion bullets + `file:line` per claim +
-> verification evidence if you changed anything. Hard cap 30 lines. Long
+> verification evidence if you changed anything. Long
 > artifacts → write to `{artifact_path}` and return the path. Do not paste file
 > contents or logs.
 > If you cannot meet an acceptance criterion, say which one and why — do not

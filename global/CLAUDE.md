@@ -99,11 +99,10 @@ replaces reading the touched code.
   fix → add observability.
 - Loop / long task: each round ends by starting the next round's first
   step, not by summarizing; finish the whole task, root-cause fixes only.
-  While waiting on an external event emit nothing — speak only when a result
+  While waiting on an external event, speak only when a result
   arrives, the wait passes the stall limit (the brief's, else 10 minutes), or
   you are blocked on the user. Inside a loop, each round's message is its
-  closing recap only (found, did, next; user needs first) — no preamble, no mid-turn updates,
-  no "need more detail?"; this overrides the Language turn-shape duty for
+  closing recap only (found, did, next; user needs first); this overrides the Language turn-shape duty for
   loop rounds and wait turns. Ordinary turns keep the Language rules.
   Ship on a clock, not per step: work accumulates on the loop branch; open or
   update the PR only at a fixed checkpoint (default every 12h, or the interval

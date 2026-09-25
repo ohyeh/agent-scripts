@@ -2,7 +2,7 @@
 # PreToolUse gate on ScheduleWakeup (W38 retro, Paul 2026-09-18 ruling):
 # an idle loop does not keep ticking.
 #
-# Why: the kernel's Loop rule ("while waiting emit nothing") is prose. Measured
+# Why: the kernel's Loop rule ("while waiting, speak only when a result arrives") is prose. Measured
 # 2026-09-09..15 on .62: us-options-terrain chain A scheduled 90 wakeups, 39 of
 # them noop:true ("等 bot 下一刀", 25–30 min heartbeats) — the source of that
 # project's 12 cache breaks >100k (W38 F4). After the W37 retro terrain fell to

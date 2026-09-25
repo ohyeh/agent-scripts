@@ -82,7 +82,7 @@ Two packet-shape hard rules (each learned from a real delegation failure):
   to port or explicitly retire — "route move" is not a description.
 
 > REPORT: short conclusions only; `file:line` per claim; fresh command + exit code + key lines for
-> changed work. Hard cap 30 lines; longer material goes to the declared artifact. Missing
+> changed work; longer material goes to the declared artifact. Missing
 > acceptance is reported, never concealed.
 
 Subagents cannot delegate further unless the task explicitly authorizes it.

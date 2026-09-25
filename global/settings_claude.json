@@ -227,9 +227,6 @@
   "alwaysThinkingEnabled": true,
   "effortLevel": "low",
   "modelSettings": {
-    "claude-opus-5": {
-      "effortLevel": "medium"
-    },
     "gpt-5.6-sol": {
       "effortLevel": "medium"
     },
