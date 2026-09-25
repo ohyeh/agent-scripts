@@ -22,13 +22,11 @@ and Workflow `agent(prompt, {effort})`.
 | Codex role | Model | Start effort | Ceiling/contract |
 |---|---|---|---|
 | commander | `gpt-5.6-sol` | `medium` | `xhigh` only for materially large/hard work |
-| plan | `gpt-5.6-sol` | `medium` | `high`; `xhigh` only for major architecture/security/ambiguity |
-| review/judgment | fresh `gpt-5.6-sol` | `medium` | reviewer is not the author |
-| execution | `gpt-5.6-terra`; CLI `gpt-5.6-luna`; explicit Sol; or external | Terra/Luna low/medium; Sol low/medium | Terra/Luna may rise to `max`; Sol workers stop at `medium` |
+| plan | `gpt-6-astra` | `medium` | `high`; `xhigh` only for major architecture/security/ambiguity |
+| review/judgment | fresh `gpt-6-astra` | `medium` | reviewer is not the author |
+| execution | `gpt-6-luna`; explicit Sol; or external | Luna `xhigh`/`max`; Sol low/medium | Sol workers stop at `medium` |
 
-Native collaboration exposes Terra and Sol. Luna is the Codex CLI spawned-child default
-(`[agents] default_subagent_model`, verified live at codex-cli 0.149.0) — read the live catalog
-before requesting it elsewhere. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
+Codex models: `gpt-6-astra`, `gpt-5.6-sol`, `gpt-6-sol`, `gpt-6-luna` — no others. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
 for an explicit latency need. Sol `max` needs concrete evidence. Never hard-code context-window
 values; the live catalog is authoritative.
 
@@ -54,9 +52,15 @@ Same row = interchangeable at the stated effort; do not cross rows to "save" cos
 |---|---|---|
 | `gpt-6-astra` low / medium | `fable` low / medium | best |
 | `gpt-5.6-sol` medium+ | `opus` medium+ | better |
-| `gpt-5.6-sol` low · `gpt-5.6-luna` xhigh / max | `sonnet` high / xhigh / max | basic |
-| `gpt-5.6-luna` medium | `sonnet` medium | cheap |
-| `gpt-5.4-mini` high | `sonnet` low | dirt |
+| `gpt-5.6-sol` low · `gpt-6-luna` xhigh / max | `sonnet` high / xhigh / max | basic |
+| — | `sonnet` medium | cheap |
+| — | `sonnet` low | dirt |
+
+### Role tiers (user ruling 2026-09-25)
+
+- Advisor: only `fable` 5.1, `gpt-6-astra`, `opus` 5.5 medium+; prefer them for planning and review.
+- Execution: `grok-4.7-xhigh-fast` (Cursor quota) or `opus` 5.5 low/medium (Claude Code quota).
+- Sol, Luna, grok: one-shot output is suspect, 2–3 rounds may fix it; grok opinions carry low weight.
 
 ## §2 Delegate only when it buys leverage
 
@@ -91,12 +95,12 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 
 | Task | Claude | Codex |
 |---|---|---|
-| locate/inventory | `sonnet` low; `sonnet` medium for synthesis | Terra low |
+| locate/inventory | `sonnet` low; `sonnet` medium for synthesis | Luna xhigh |
 | read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
-| implement/refactor/research | `sonnet` | Terra low/medium; Luna medium |
-| review/verification | fresh `sonnet`; risky=`opus` | fresh Sol medium |
+| implement/refactor/research | `sonnet` | Luna xhigh |
+| review/verification | fresh `sonnet`; risky=`opus` | fresh Astra medium |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
-| apply solved pattern | `sonnet` low | Terra low |
+| apply solved pattern | `sonnet` low | Luna xhigh |
 | dispatch external CLI worker | supervision proxy: `general-purpose` subagent on `sonnet` low hosting the ONE blocking `assign` call | same (proxy hosts the one `assign`) |
 
 Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
@@ -199,7 +203,7 @@ Effort names are NOT equivalent across models (Fable 5.1 guide): re-run the swee
 changes. Default worker = `opus` `medium`. Raise one step from failure evidence; first
 repair decomposition or missing context. Before `xhigh`/`max`, prefer bounded same-tier sampling
 plus a judge when cheaper. Workflow `agent()` calls set effort explicitly. Sol workers never
-exceed `medium`; Sol high+ is reserved for commander/plan/review.
+exceed `medium`; Sol high+ is reserved for the commander.
 
 Same approach: three rounds total, each one tier UP — worker low/medium → worker high (or a
 stronger model) → advisor (second model, e.g. `consensus-gate`) with the full trail. The same
@@ -212,7 +216,7 @@ not a fourth retry. Once the hard part is solved, drop to the cheap execution ti
 
 Above the trivial single-file/low-risk threshold, the author is not the verifier. Files need
 fresh read-back (Claude `sonnet` low; Codex cheap fresh worker); code needs the real
-test/build/flow; high-risk judgment needs Claude `opus`, Codex fresh Sol, or 2–3 candidates plus
+test/build/flow; high-risk judgment needs Claude `opus`, Codex fresh Astra, or 2–3 candidates plus
 an independent judge. At the trivial threshold, the author's real command with quoted exit
 code/key lines suffices. Completion/quality criteria: `judgment-rubrics.md` §2/§5, read before reporting.
 
