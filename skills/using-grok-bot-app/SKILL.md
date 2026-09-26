@@ -78,7 +78,17 @@ Reach for the full transcript only when the preview is not enough.
 
 **Waiting for a reply?** Do not poll. The `grok-watch` mod (plugin
 `grok-watch@agent-scripts`, from `ohyeh/agent-scripts`) watches a bot by UUID and wakes the session once
-when its reply settles.
+when its reply settles. The wake carries the preview only; read the transcript
+below when that is not enough. The mod never starts or clicks the app, so a
+bad state in its panel is fixed from this skill:
+
+| Panel state | Fix |
+|---|---|
+| `port-down` | [Connect](#connect): app runs without the debug port; restart needs the user's OK |
+| `renderer-missing` | Window closed: `open -a "Grok Bot"`, no restart |
+| `bot-not-found` | Re-read the roster; check the UUID |
+| `selector-not-observed`, `eval-error` | App changed its DOM: update the roster read here and the mod's `bin/sidebar.mjs` together |
+| `node-too-old` | Not the app: the login-`PATH` node needs 22+ |
 
 Full transcript of one bot — this requires selecting it, which changes what the
 user sees on screen. The active bot is marked `aria-current="page"`, so capture
