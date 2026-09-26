@@ -38,6 +38,11 @@ agent-browser tab      # expect one target: file://…/app.asar/dist/renderer/in
 If the port is already listening, skip straight to `connect` — no restart, no
 approval needed, nothing lost.
 
+**Listening but no target** (`/json/list` is `[]`): the app is running with its
+window closed. `open -a "Grok Bot"` (no `--args`) reopens the window without a
+restart. Check the list before `agent-browser connect`: against a port with no
+page it launches its own browser instead (close it with `agent-browser close`).
+
 ## Address bots by UUID, never by name
 
 Every sidebar entry is `button[data-agent-id="<uuid>"]` with the human-readable
@@ -64,10 +69,16 @@ agent-browser eval '(() => JSON.stringify({
 }))()'
 ```
 
-The sidebar text carries each bot's **last message preview and timestamp**, so
-"what did RULES last say" and "which bots moved today" are answerable without
-opening anything. Reach for the full transcript only when the preview is not
-enough.
+Each row also carries its **last message preview** in `aria-description`, a
+`, Unread activity` suffix on `aria-label` when something new landed, and
+`[data-grok-state]` (`working` while the bot replies, `idle` when done). A
+composer draft shows as a `Draft: …` preview. The sidebar has **no
+timestamps** (0.59.1); only the open transcript has `time[datetime]` (ISO UTC).
+Reach for the full transcript only when the preview is not enough.
+
+**Waiting for a reply?** Do not poll. The `grok-watch` mod (plugin
+`grok-watch@agent-scripts`, from `ohyeh/agent-scripts`) watches a bot by UUID and wakes the session once
+when its reply settles.
 
 Full transcript of one bot — this requires selecting it, which changes what the
 user sees on screen. The active bot is marked `aria-current="page"`, so capture
@@ -80,16 +91,17 @@ agent-browser eval '(async () => {
     ?.getAttribute("data-agent-id");
   document.querySelector("button[data-agent-id^=\"<uuid8>\"]").click();
   await new Promise(r => setTimeout(r, 2500));
-  const g = [...document.querySelectorAll("[role=group][aria-label$=\"message\"]")];
-  return JSON.stringify({prev, count: g.length, msgs: g.slice(-5).map(m =>
-    m.getAttribute("aria-label") + ": " + (m.innerText||"").replace(/\s+/g," ").slice(0,200))});
+  const log = document.querySelector("[role=log][aria-label=\"Conversation transcript\"]");
+  return JSON.stringify({prev, tail: (log?.innerText || "").slice(-1500)});
 })()'
 ```
 
-Messages live in `[role=group]` nodes whose `aria-label` is `"<bot> message"`
-or `"Your message"`, nested in `article` elements. Slice the text — a long
-transcript will otherwise dump tens of thousands of characters into context for
-no gain.
+Read the transcript as text from the `log "Conversation transcript"`
+container: each message is the sender's name, the body, then a `9:58 PM`
+line. On 0.59.1 the `[role=group]` message nodes have an **empty**
+`aria-label`, so the older `[aria-label$="message"]` selector returns nothing.
+Slice the text — a long transcript will otherwise dump tens of thousands of
+characters into context for no gain.
 
 **Put the screen back.** Selecting a bot is a visible change to the user's app,
 so click the captured `prev` UUID when you are done, and say that you did.
@@ -152,7 +164,8 @@ show it to the user verbatim, and send only after they approve that text.
 
 ## Where this came from
 
-Everything above was executed against version `0.39.0` on macOS. The app ships
+Everything above was executed against version `0.39.0` on macOS; the
+sidebar attributes and the transcript read were re-checked on `0.59.1`. The app ships
 an embedded `Grok Bot's Computer` panel (a bot can hand its screen over for
 interactive login and take it back) which is visible in the tree but unexplored
 — if a task needs it, expect to map it yourself and write down what you find.
