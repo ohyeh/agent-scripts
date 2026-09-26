@@ -31,6 +31,10 @@ const done = (state, extra = {}) => {
 
 setTimeout(() => done('timeout', { ms: DEADLINE_MS }), DEADLINE_MS).unref()
 
+// Global WebSocket is Node 22+; an older node on the login PATH must say so, not look like a CDP error.
+if (typeof WebSocket === 'undefined') done('node-too-old', { node: process.version })
+else main().catch(e => done('eval-error', { error: String(e) }))
+
 async function main() {
   let targets
   try {
@@ -61,5 +65,3 @@ async function main() {
     ws.close()
   }
 }
-
-main().catch(e => done('eval-error', { error: String(e) }))

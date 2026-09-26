@@ -8,7 +8,9 @@ the bot finishes a new reply. The session no longer has to poll.
 
 - `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`; without it the plugin does not load
   and the tools do not appear.
-- `node` on the login `PATH` (the mod runs `command -v node` through `/bin/sh -lc`).
+- Node 22+ (global `WebSocket`) as the `node` on the login `PATH`: the mod runs
+  `command -v node` through `/bin/sh -lc`, which on macOS can differ from your
+  shell's node. An older one shows `node-too-old` in the panel.
 - Grok Bot started with `--remote-debugging-port=9231` and its window open (see
   the `using-grok-bot-app` skill). The mod never starts, restarts or clicks the app.
 
@@ -55,7 +57,7 @@ watch fires once it settles. Observed on Grok Bot 0.59.1.
 `bin/sidebar.mjs` fetches `/json/list` on `127.0.0.1:9231`, opens the renderer
 page's own WebSocket and sends one `Runtime.evaluate` with a constant
 expression. It prints one JSON line (`ok`, `port-down`, `renderer-missing`,
-`wrong-url`, `selector-not-observed`, `eval-error` or `timeout`) and exits
+`wrong-url`, `selector-not-observed`, `eval-error`, `timeout` or `node-too-old`) and exits
 within 2.5 s. The panel adds `no-process` (no `node`) and `helper-failed`
 (the run itself failed; the error is in the debug log). It sends no other CDP method.
 

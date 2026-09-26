@@ -47,3 +47,10 @@ test('server never answers → timeout within the deadline', async () => {
   assert.deepEqual([r.code, r.out.state], [2, 'timeout'])
   assert.ok(Date.now() - t0 < 3000)
 })
+
+test('no global WebSocket (Node < 22) → node-too-old', async () => {
+  const r = await new Promise(res =>
+    execFile('node', ['--no-experimental-websocket', HELPER, '1'], (err, stdout) =>
+      res({ code: err?.code ?? 0, out: JSON.parse(stdout) })))
+  assert.deepEqual([r.code, r.out.state], [2, 'node-too-old'])
+})

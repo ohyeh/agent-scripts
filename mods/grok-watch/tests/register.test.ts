@@ -21,9 +21,9 @@ const down = JSON.stringify({ state: 'port-down', error: 'fetch failed' })
 function world(
   on: On,
   reads: string[],
-  answers: Array<'accept' | 'drop' | Promise<'accept' | 'drop'>> = [],
-  /** node: what `command -v node` prints; hold: every helper run waits on it. */
-  opts: { node?: string; hold?: Promise<void>; spawnFails?: number } = {},
+  answers: Array<'accept' | 'drop' | 'undef' | Promise<'accept' | 'drop'>> = [],
+  /** node: what `command -v node` prints; hold: every helper run waits on it; beforeGet: runs inside a store.get, after the value is captured. */
+  opts: { node?: string; hold?: Promise<void>; spawnFails?: number; beforeGet?: (key: string) => Promise<void> } = {},
 ) {
   const woken: string[] = []
   const toasts: string[] = []
@@ -41,7 +41,11 @@ function world(
     return { value: undefined }
   })
   const kv = new Map<string, unknown>()
-  on('store.get', ($, e) => ({ value: kv.get(e.key) }))
+  on('store.get', async ($, e) => {
+    const value = kv.get(e.key)
+    if (opts.beforeGet) await opts.beforeGet(e.key)
+    return { value }
+  })
   on('store.set', ($, e) => {
     kv.set(e.key, e.value)
     return { value: undefined }
@@ -71,11 +75,15 @@ function world(
   on('prompt.submit', async ($, e) => {
     const answer = await (answers[woken.length] ?? 'accept')
     woken.push(e.text)
+    if (answer === 'undef') return { text: e.text, drop: undefined }
     return answer === 'drop' ? { drop: 'refused in test' } : { text: e.text }
   })
   return { woken, toasts, kv, runs: () => helperRuns, lookups: () => lookups }
 }
 
+// The test lib declares no timers; the runtime has them. One macrotask lets engine dispatches settle.
+const macrotask = () =>
+  new Promise<void>(r => (globalThis as unknown as { setTimeout: (f: () => void, ms: number) => void }).setTimeout(r, 0))
 const start = { cwd: '/work', surface: 'terminal' as const, isInteractive: true }
 const key = `grok-watch.watch.sess-A.${UUID}`
 
@@ -344,5 +352,113 @@ describe('two sessions, one bot (T4)', () => {
     expect(w.woken, 'one wake for this session').toHaveLength(1)
     expect(w.kv.get(theirs), "sess-B's watch is its own to advance").toEqual({ botUuid: UUID, gen: 1, seen: 'A' })
     expect(textOf(await $.ui.render(band())), 'a beating session is no orphan').not.toContain('orphaned')
+  })
+})
+
+describe('review 0.1.1 fixes', () => {
+  test('a bot with no reply yet: its first reply wakes', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('')), ok(row('A')), ok(row('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 2)
+    expect(w.woken).toHaveLength(1)
+  })
+
+  test('a submit that answers with drop: undefined is accepted, not lost', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A')), ok(row('B'))], ['undef'])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 2)
+    expect(w.woken).toHaveLength(1)
+    expect((w.kv.get(key) as { lost?: number }).lost).toBeUndefined()
+    expect(w.toasts.join()).not.toContain('lost')
+  })
+
+  test('a lost count written during a tick survives that tick', async ($, on) => {
+    const clock = mock.clock(on)
+    let release!: (a: 'drop') => void
+    const slow = new Promise<'drop'>(r => { release = r })
+    let armed = false
+    const w = world(on, [ok(row('A')), ok(row('B')), ok(row('C')), ok(row('C'))], [slow], {
+      // The tick for C reads the record, then the drop for B lands before it writes back.
+      beforeGet: async k => {
+        if (!armed || k !== key) return
+        armed = false
+        release('drop')
+        for (let i = 0; i < 100 && !(w.kv.get(key) as { lost?: number } | undefined)?.lost; i++) await macrotask()
+      },
+    })
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    armed = true
+    await clock.advance(TICK)
+    expect(w.woken).toHaveLength(2)
+    const rec = w.kv.get(key) as { lost?: number; seen: string }
+    expect(rec.seen).toBe('C')
+    expect(rec.lost, 'the tick did not write the stale record over the count').toBe(1)
+  })
+
+  test('unwatch → re-watch during a tick: the stale tick neither writes nor wakes', async ($, on) => {
+    const clock = mock.clock(on)
+    let armed = false
+    const w = world(on, [ok(row('A')), ok(row('B')), ok(row('B')), ok(row('B'))], [], {
+      beforeGet: async k => {
+        if (!armed || k !== key) return
+        armed = false
+        await $.tool.call({ tool: UNWATCH, botUuid: UUID })
+        await $.tool.call({ tool: WATCH, botUuid: UUID })
+      },
+    })
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    armed = true
+    await clock.advance(TICK * 2)
+    expect(w.woken, 'the re-watch baselined on B').toHaveLength(0)
+    expect((w.kv.get(key) as { gen: number; seen: string }).gen).toBe(2)
+  })
+
+  test('after a sleep, another session gets ORPHAN_MS to beat before its watches are pruned', async ($, on) => {
+    // mock.clock fires every wait it crosses, so a sleep cannot be modelled with it: a hand clock,
+    // where one fire() runs each pending every() once at the time the test sets.
+    let t = 100_000
+    let open!: () => void
+    let gate = new Promise<void>(r => { open = r })
+    on('clock.now', () => ({ value: t }))
+    on('clock.every', async () => {
+      await gate
+      return { value: undefined }
+    })
+    const fire = async (at: number) => {
+      t = at
+      const was = open
+      gate = new Promise<void>(r => { open = r })
+      was()
+      for (let i = 0; i < 20; i++) await macrotask()
+    }
+    const w = world(on, [ok(row('A'))])
+    const theirs = `grok-watch.watch.sess-B.${OTHER}`
+    w.kv.set(theirs, { botUuid: OTHER, gen: 1, seen: 'x' })
+    w.kv.set('grok-watch.hb.sess-B', 100_000)
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await fire(110_000)
+    const woke = 110_000 + 25 * 3600_000
+    await fire(woke)
+    await fire(woke + TICK)
+    await fire(woke + TICK * 2)
+    expect(w.kv.has(theirs), 'held for the first rounds after the sleep').toBe(true)
+    await fire(woke + 100_000)
+    expect(w.kv.has(theirs), 'still silent after ORPHAN_MS: pruned').toBe(false)
+  })
+
+  test('a row id that is not a full UUID never becomes a watch', async ($, on) => {
+    const w = world(on, [ok(row('A', 'idle', { id: '201040cc-evil\u001b' }))])
+    await $.session.start(start)
+    const r = await $.tool.call({ tool: WATCH, botUuid: '201040cc' })
+    expect(JSON.stringify(r)).toContain('matches 0 bots')
+    expect([...w.kv.keys()].some(k => k.startsWith('grok-watch.watch.'))).toBe(false)
   })
 })

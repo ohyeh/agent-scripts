@@ -1,4 +1,4 @@
 {
-  "description": "Registers grok_watch / grok_unwatch; the registering session reads the Grok Bot sidebar on a clock and wakes itself on a new reply.",
+  "description": "Registers the watch / unwatch tools; the registering session reads the Grok Bot sidebar on a clock and wakes itself on a new reply.",
   "modules": ["./register.ts"]
 }
