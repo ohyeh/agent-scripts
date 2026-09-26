@@ -1,2 +1,2 @@
-./register.ts hooks: session.start
-./register.ts calls: nothing on $
+./register.ts hooks: session.start, tool.call{tool=mcp__grok-watch__watch}, tool.call{tool=mcp__grok-watch__unwatch}
+./register.ts calls: $.clock.every, $.clock.now (via heartbeat), $.process.run (via read), $.prompt.submit (via deliver), $.session.id, $.store.delete, $.store.get (via deliver, tick), $.store.keys (via mine), $.store.set, $.tool.register, $.ui.toast (via deliver)
