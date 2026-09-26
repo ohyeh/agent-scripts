@@ -1,5 +1,10 @@
 # Changelog
 
+## grok-bot-watch 0.3.0
+
+- `[ ▸ ]` on a row (`o` with one watch) opens it to the last 5 replies that woke this session, newest first, plus the reply already there at watch time (`before watch`). They are the sidebar previews (≤ 140 chars) the mod already read, kept in the watch record (~1 KB per watch): no transcript read and no click in the app. A same-text reply is its own entry, so a repeat or a stopped reply shows in the list. The open row's lines come out of the same row budget (up to 9 rows), so the workers panel keeps its rows and digits.
+- The tick and the wake/lost counts now rewrite a record one at a time, in call order, so a count landing mid-tick no longer writes a stale `armed` over the tick's (review 0.2.1, low). Unwatch and a new watch go through the same queue, so a tick mid-rewrite cannot write a deleted watch back (review 0.3.0, medium); unwatch closes the open row; stored previews are cut to 200 chars. 50 tests pass; each new behaviour put back fails a test (9 mutations).
+
 ## grok-bot-watch 0.2.1
 
 - A reply whose text equals the last one now wakes when a read saw it streaming. Live 0.2.0: NOVA answered `收到` twice and the second never woke, because `armed` was only set before the first baseline. Replies that start and settle inside one 10 s tick with the same text still merge. 43 tests pass; each half of the fix put back fails the new test.

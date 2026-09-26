@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Function-hook mods that ship beside the agent-scripts skills.",
-    "version": "0.2.1"
+    "version": "0.3.0"
   },
   "plugins": [
     {
       "name": "grok-bot-watch",
       "source": "./mods/grok-bot-watch",
       "description": "Function-hook mod: watches a Grok Bot bot by UUID over a read-only CDP sidebar read and wakes this session when a new reply lands. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "author": {
         "name": "PaulYeh"
       },

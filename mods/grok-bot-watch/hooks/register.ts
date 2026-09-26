@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
 // to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.2.1'
+const MOD_VERSION = '0.3.0'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -13,6 +13,8 @@ const HB_PREFIX = 'grok-bot-watch.hb.'
 const ORPHAN_MS = 90_000
 const PRUNE_MS = 24 * 3600_000
 const PANEL_ROWS = 4
+/** Replies kept per watch for the expanded row, each cut to 200 chars (the sidebar gave ≤ 140 on 0.59.1). */
+const RECENT = 5
 // Not the workers panel's cyan: two bands stacked must read as two panels.
 const ACCENT = 'magenta'
 /** A reply this recent is shown as new. */
@@ -26,7 +28,11 @@ type $ = EngineInterface
 type Row = { id: string; name: string; unread: boolean; preview: string; busy: string | null; current: boolean }
 type Read = { state: string; rows?: Row[]; error?: string }
 /** seen: last settled preview (null = no baseline yet); armed: a reply was seen in progress since the last settled read. */
-type Watch = { botUuid: string; gen: number; seen: string | null; armed?: boolean; lost?: number; wakes?: number; lastWake?: number }
+type Watch = {
+  botUuid: string; gen: number; seen: string | null; armed?: boolean; lost?: number; wakes?: number; lastWake?: number
+  /** Settled previews that woke us, oldest first; t is unset for the one already there at watch time. */
+  recent?: Array<{ t?: number; text: string }>
+}
 
 /** A reply is done: not streaming, not the user's draft, not empty. A row with no state element (NOTE, seen live) counts as idle. */
 const settled = (r: Row) => (r.busy === 'idle' || r.busy === null) && r.preview !== '' && !r.preview.startsWith('Draft:')
@@ -62,6 +68,27 @@ type State = {
   /** When the last read answered ok. */
   lastRead?: number
   folded: boolean
+  /** The watch whose recent replies the panel shows. */
+  open?: string
+  /** Every read-modify-write of this session's records, in call order: a tick and a wake count never write over each other. */
+  writes: Promise<unknown>
+}
+
+/** Runs a write to this session's records after every earlier one; a failure reaches the caller, not the queue. */
+function enqueue<T>(s: State, run: () => Promise<T>): Promise<T> {
+  const p = s.writes.then(run)
+  s.writes = p.catch(() => undefined)
+  return p
+}
+
+/** Rewrites one record inside the write queue; f returns undefined to leave it. Resolves whether it wrote. */
+function rewrite(s: State, $: $, key: string, f: (w: Watch) => Watch | undefined): Promise<boolean> {
+  return enqueue(s, async () => {
+    const w = (await $.store.get(key)) as Watch | undefined
+    const n = w && f(w)
+    if (n) await $.store.set(key, n)
+    return !!n
+  })
 }
 
 async function mine(s: State, $: $) {
@@ -105,15 +132,14 @@ function readOnce(s: State, $: $): Promise<Read> {
 
 // Ack first (user decision Q-8): the record already says "seen" when this runs,
 // so a refused submit is a lost wake, never a duplicate. Not awaited by the tick.
-async function deliver($: $, key: string, gen: number, row: Row, at: number) {
+async function deliver(s: State, $: $, key: string, gen: number, row: Row, at: number) {
   let why: string
   try {
     const r = await $.prompt.submit({ text: wakeText(row) })
     if (r.drop === undefined) {
       // Counted only once the engine took it: a lost wake is not a wake.
       try {
-        const w = (await $.store.get(key)) as Watch | undefined
-        if (w?.gen === gen) await $.store.set(key, { ...w, wakes: (w.wakes ?? 0) + 1, lastWake: at })
+        await rewrite(s, $, key, w => (w.gen === gen ? { ...w, wakes: (w.wakes ?? 0) + 1, lastWake: at } : undefined))
       } catch (err) {
         $.ui.log(`grok-bot-watch: could not count a wake: ${String(err)}`, { to: 'debug' })
       }
@@ -126,8 +152,7 @@ async function deliver($: $, key: string, gen: number, row: Row, at: number) {
   }
   $.ui.toast(`grok-bot-watch: a wake for ${clean(row.name, 40)} is lost (ack-first; ${clean(why, 120)})`)
   try {
-    const w = (await $.store.get(key)) as Watch | undefined
-    if (w?.gen === gen) await $.store.set(key, { ...w, lost: (w.lost ?? 0) + 1 })
+    await rewrite(s, $, key, w => (w.gen === gen ? { ...w, lost: (w.lost ?? 0) + 1 } : undefined))
   } catch (err) {
     $.ui.log(`grok-bot-watch: could not count a lost wake: ${String(err)}`, { to: 'debug' })
   }
@@ -155,18 +180,19 @@ async function tick(s: State, $: $) {
     s.live.set(k, row)
     const { next, wake } = step(w, row)
     if (next === w) continue
-    const now = (await $.store.get(k)) as Watch | undefined
-    if (now?.gen !== w.gen) continue
-    await $.store.set(k, { ...now, seen: next.seen, armed: next.armed })
-    if (wake) void deliver($, k, w.gen, row, t)
+    const recent = (now: Watch) => (wake ? { recent: [...(now.recent ?? []), { t, text: row.preview.slice(0, 200) }].slice(-RECENT) } : {})
+    const wrote = await rewrite(s, $, k, now => (now.gen === w.gen ? { ...now, seen: next.seen, armed: next.armed, ...recent(now) } : undefined))
+    if (wrote && wake) void deliver(s, $, k, w.gen, row, t)
   }
   $.ui.invalidate('ui.render')
 }
 
 /** Drop one of this session's watches: the unwatch tool and the panel's button. */
 async function unwatchKey(s: State, $: $, key: string) {
-  await $.store.delete(key)
+  // Queued: a tick mid-rewrite would otherwise write the deleted record back.
+  await enqueue(s, () => $.store.delete(key))
   for (const m of [s.status, s.names, s.live]) m.delete(key)
+  if (s.open === key) s.open = undefined
   $.ui.invalidate('ui.render')
 }
 
@@ -261,7 +287,7 @@ async function panelData(s: State, $: $): Promise<Panel> {
 }
 
 export const register: Register = on => {
-  const s: State = { sid: '', seq: 0, status: new Map(), names: new Map(), live: new Map(), folded: false }
+  const s: State = { sid: '', seq: 0, status: new Map(), names: new Map(), live: new Map(), folded: false, writes: Promise.resolve() }
 
   on('session.start', async ($, e, next) => {
     s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
@@ -310,9 +336,10 @@ export const register: Register = on => {
     const key = `${PREFIX}${s.sid}.${uuid}`
     let w: Watch = { botUuid: uuid, gen: ++s.seq, seen: null }
     if (row) w = step(w, row).next
+    if (w.seen !== null) w = { ...w, recent: [{ text: w.seen.slice(0, 200) }] }
     // Beat before the record: another session's prune reads a watch with no beat as a day old.
     await $.store.set(`${HB_PREFIX}${s.sid}`, await $.clock.now())
-    await $.store.set(key, w)
+    await enqueue(s, () => $.store.set(key, w))
     if (row) {
       s.names.set(key, row.name)
       s.live.set(key, row)
@@ -346,7 +373,7 @@ export const register: Register = on => {
     const below = await next(e)
     const { bots: rows, orphans } = await panelData(s, $)
     if (!rows.length && !orphans.length) return below
-    const budget = Math.min(PANEL_ROWS, e.props.maxRows - rowsOf(below))
+    const budget = Math.min(PANEL_ROWS + (s.open ? RECENT : 0), e.props.maxRows - rowsOf(below))
     if (budget < 1) return below
     const { Box, Text, Button } = $.ui.resolve(e)
     const width = e.props.bodyColumns
@@ -375,7 +402,7 @@ export const register: Register = on => {
     // A row: glyph, then name, uuid8 and state cut to fit beside `[ unwatch ]`, then the preview in what is left.
     const rowOf = (r: Bot) => {
       // What is cut first: the uuid8, then the name (kept to 8 cells), and the state last; it is why the row is there.
-      let room = width - 4 - 12
+      let room = width - 4 - 12 - 6
       const state = fit(`${r.state} `, Math.max(0, room - 9))
       room -= cells(state)
       const name = fit(r.name, Math.min(24, room - 1))
@@ -389,13 +416,25 @@ export const register: Register = on => {
           Text({ bold: true, children: `${name} ` }),
           Text({ dimColor: true, children: id }),
           Text({ color: r.color, children: state }),
+          Button({ key: `open-${r.key}`, label: s.open === r.key ? '▾' : '▸', dimColor: true, ...(rows.length === 1 ? { hotkey: 'o' } : {}),
+            onPress: () => {
+              s.open = s.open === r.key ? undefined : r.key
+              $.ui.invalidate('ui.render')
+            } }),
           Button({ key: `unwatch-${r.key}`, label: 'unwatch', dimColor: true, ...(rows.length === 1 ? { hotkey: 'u' } : {}),
             onPress: () => void unwatchKey(s, $, r.key).catch(err => $.ui.log(`grok-bot-watch: unwatch failed: ${String(err)}`, { to: 'debug' })) }),
           Text({ dimColor: true, wrap: 'truncate-end', children: r.preview ? ` 「${r.preview}」` : '' }),
         ],
       })
     }
-    const lines = [...rows.map(rowOf), ...orphans.map(o => Text({ dimColor: true, wrap: 'truncate-end', children: `  ${o}` }))]
+    // The open row's replies sit under it, newest first; they come out of the same budget.
+    const history = (r: Bot) => {
+      if (s.open !== r.key) return []
+      const seen = [...(r.w.recent ?? [])].reverse()
+      if (!seen.length) return [Text({ dimColor: true, children: '      no reply seen yet' })]
+      return seen.map(h => Text({ dimColor: true, wrap: 'truncate-end', children: `      ${h.t === undefined ? 'before watch' : `${ago(now - h.t)} ago`} · 「${clean(h.text, 200)}」` }))
+    }
+    const lines = [...rows.flatMap(r => [rowOf(r), ...history(r)]), ...orphans.map(o => Text({ dimColor: true, wrap: 'truncate-end', children: `  ${o}` }))]
     const room = budget - 1
     // One row left: the first bot, not a bare "+N more"; the header still counts them all.
     const shown = lines.length <= room ? lines : room === 1 ? lines.slice(0, 1) : [...lines.slice(0, room - 1), Text({ dimColor: true, children: `  +${lines.length - room + 1} more` })]

@@ -90,6 +90,12 @@ const macrotask = () =>
 const start = { cwd: '/work', surface: 'terminal' as const, isInteractive: true }
 const key = `grok-bot-watch.watch.sess-A.${UUID}`
 
+const PLUGIN = 'grok-bot-watch'
+type Node = { type?: string; children?: unknown; props?: Record<string, unknown> }
+const kidsOf = (n: Node) => [n.children ?? n.props?.children].flat() as Node[]
+const nodes = (n: unknown): Node[] =>
+  Array.isArray(n) ? n.flatMap(nodes) : n && typeof n === 'object' ? [n as Node, ...nodes(kidsOf(n as Node))] : []
+
 describe('eligibility (S2)', () => {
   test('a new settled reply after the baseline wakes once', async ($, on) => {
     const clock = mock.clock(on)
@@ -479,7 +485,6 @@ describe('review 0.1.1 fixes', () => {
 })
 
 describe('panel 0.2.0', () => {
-  const PLUGIN = 'grok-bot-watch'
 
   test('a streaming bot shows replying, in the header count too; the preview rides on the row', async ($, on) => {
     const clock = mock.clock(on)
@@ -546,10 +551,6 @@ describe('panel 0.2.0', () => {
 })
 
 describe('review 0.2.0 fixes', () => {
-  type Node = { type?: string; children?: unknown; props?: Record<string, unknown> }
-  const kidsOf = (n: Node) => [n.children ?? n.props?.children].flat() as Node[]
-  const nodes = (n: unknown): Node[] =>
-    Array.isArray(n) ? n.flatMap(nodes) : n && typeof n === 'object' ? [n as Node, ...nodes(kidsOf(n as Node))] : []
   const cellsOf = (t: string) => [...t].reduce((a, ch) => a + (/[\u2e80-\ua4cf\uac00-\ud7a3\uff00-\uff60]/.test(ch) ? 2 : 1), 0)
 
   test('a refused wake is not counted as a wake: no new reply, no woke', async ($, on) => {
@@ -585,7 +586,7 @@ describe('review 0.2.0 fixes', () => {
     const tree = await $.ui.render(band({ maxRows: 4 }))
     expect(textOf(tree).replace(/\n/g, '')).toContain('+2 more')
     const buttons = nodes(tree).filter(n => n.type === 'Button')
-    expect(buttons.some(b => b.props?.hotkey === 'u')).toBe(false)
+    expect(buttons.some(b => b.props?.hotkey === 'u' || b.props?.hotkey === 'o')).toBe(false)
   })
 
   test('a narrow band cuts name and state, never the unwatch button', async ($, on) => {
@@ -641,5 +642,123 @@ describe('review 0.2.0 fixes', () => {
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     expect(textOf(await $.ui.render(band())).replace(/\n/g, '')).toContain('first words')
+  })
+})
+
+describe('recent replies 0.3.0', () => {
+  test('each wake keeps its preview, the last 5, oldest first; the watch seeds the reply already there', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A')), ...['B', 'C', 'D', 'E', 'F', 'G'].map(p => ok(row(p)))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    expect((w.kv.get(key) as { recent: Array<{ t?: number; text: string }> }).recent).toEqual([{ text: 'A' }])
+    await clock.advance(TICK * 6)
+    const recent = (w.kv.get(key) as { recent: Array<{ t?: number; text: string }> }).recent
+    expect(recent.map(r => r.text)).toEqual(['C', 'D', 'E', 'F', 'G'])
+    expect(recent.every(r => typeof r.t === 'number')).toBe(true)
+  })
+
+  test('the same text twice is two entries', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('收到')), ok(row('收到', 'working')), ok(row('收到'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    expect((w.kv.get(key) as { recent: Array<{ text: string }> }).recent.map(r => r.text)).toEqual(['收到', '收到'])
+  })
+
+  test('▸ opens the row with its replies newest first and o as hotkey; ▾ closes it', async ($, on) => {
+    const clock = mock.clock(on)
+    world(on, [ok(row('A')), ok(row('B'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    let tree = await $.ui.render(band())
+    const open = nodes(tree).find(n => n.type === 'Button' && n.props?.key === `open-${key}`)!
+    expect(open.props?.hotkey).toBe('o')
+    expect(textOf(tree)).not.toContain('before watch')
+    await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
+    const t = (await flat($))
+    expect(t).toContain('0s ago · 「B」')
+    expect(t).toContain('before watch · 「A」')
+    expect(t.indexOf('「B」」') === -1 && t.indexOf('0s ago · 「B」') < t.indexOf('before watch · 「A」')).toBe(true)
+    await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
+    tree = await $.ui.render(band())
+    expect(textOf(tree)).not.toContain('before watch')
+  })
+
+  test('an open row still leaves the workers rows: history is cut to the budget', async ($, on) => {
+    const clock = mock.clock(on)
+    world(on, [ok(row('A')), ...['B', 'C', 'D'].map(p => ok(row(p)))], [], { floorRows: 3 })
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    await $.ui.render(band())
+    await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
+    // 7 rows, the floor drew 3: header, the row, one history line, then +N more.
+    const t = textOf(await $.ui.render(band({ maxRows: 7 }))).replace(/\n/g, '')
+    expect(t).toContain('worker 2')
+    expect(t).toContain('「D」')
+    expect(t).toContain('+3 more')
+    expect(t).not.toContain('「C」')
+    // With room, the band grows past its 4 rows to hold every kept reply.
+    expect(textOf(await $.ui.render(band({ maxRows: 40 }))).replace(/\n/g, '')).toContain('before watch · 「A」')
+  })
+
+  test('unwatch while a tick rewrites the record: the watch stays gone', async ($, on) => {
+    const clock = mock.clock(on)
+    let gets = -1
+    const w = world(on, [ok(row('A')), ok(row('B')), ok(row('B'))], [], {
+      // The tick reads the record, then rewrites it; unwatch lands inside that rewrite's read.
+      beforeGet: async k => {
+        if (gets < 0 || k !== key || ++gets !== 2) return
+        void $.tool.call({ tool: UNWATCH, botUuid: UUID })
+        for (let i = 0; i < 5; i++) await macrotask()
+      },
+    })
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    gets = 0
+    await clock.advance(TICK)
+    for (let i = 0; i < 20; i++) await macrotask()
+    expect(w.kv.has(key), 'the tick did not write the deleted record back').toBe(false)
+  })
+
+  test('unwatch closes the open row: a re-watch starts closed', async ($, on) => {
+    mock.clock(on)
+    world(on, [ok(row('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await $.ui.render(band())
+    await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
+    expect(await flat($)).toContain('before watch')
+    await $.tool.call({ tool: UNWATCH, botUuid: UUID })
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    expect(await flat($)).not.toContain('before watch')
+  })
+
+  test('a wake count that lands mid-tick keeps the armed flag that tick wrote', async ($, on) => {
+    const clock = mock.clock(on)
+    let release!: (a: 'accept') => void
+    const slow = new Promise<'accept'>(r => { release = r })
+    let armed = false
+    const w = world(on, [ok(row('A')), ok(row('B')), ok(row('B', 'working')), ok(row('B', 'working'))], [slow], {
+      // The wake for B reads the record; the tick that sees B streaming again lands before it writes back.
+      beforeGet: async k => {
+        if (!armed || k !== key) return
+        armed = false
+        void clock.advance(TICK)
+        for (let i = 0; i < 100 && !(w.kv.get(key) as { armed?: boolean } | undefined)?.armed; i++) await macrotask()
+      },
+    })
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    armed = true
+    release('accept')
+    for (let i = 0; i < 200 && !(w.kv.get(key) as { wakes?: number; armed?: boolean }).armed; i++) await macrotask()
+    const rec = w.kv.get(key) as { wakes?: number; armed?: boolean }
+    expect(rec.wakes).toBe(1)
+    expect(rec.armed, 'the count did not write the stale record over the flag').toBe(true)
   })
 })

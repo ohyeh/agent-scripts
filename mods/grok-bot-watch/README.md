@@ -35,8 +35,11 @@ During development, load the directory: `claude --plugin-dir mods/grok-bot-watch
 Above the prompt, only while a watch or an orphan exists:
 
 ```
-▌grok bot watch v0.2.1 · 1 bot · 1 replying · read 4s ago [ hide ]
-  ◐ NOVA 替身 w39 201040cc · replying [ unwatch ] 「第 4 條只當輔助…」
+▌grok bot watch v0.3.0 · 1 bot · read 4s ago [ hide ]
+  ● NOVA 替身 w39 201040cc · waiting · woke 2× 5m ago [ ▾ ] [ unwatch ] 「第二次收到」
+      5m ago · 「第二次收到」
+      12m ago · 「收到」
+      before watch · 「收到」
 ```
 
 | Glyph | Means |
@@ -50,7 +53,11 @@ Above the prompt, only while a watch or an orphan exists:
 The row also counts wakes (`woke 2× 5m ago`) and lost wakes, and ends with the
 bot's last preview. `[ hide ]` (`f` with the band focused) folds the band to its
 header line; it never disappears while a watch is armed. `[ unwatch ]` (`u`,
-one watch only) stops that watch. The band takes at most 4 rows, and only what
+one watch only) stops that watch. `[ ▸ ]` (`o`, one watch only) opens the row
+to the last 5 new replies the mod saw (a lost wake is listed too), newest
+first: the sidebar previews (≤ 140 characters on 0.59.1, stored cut to 200),
+kept in the watch record. Read the
+transcript (skill) for more. The band takes at most 4 rows (9 with a row open), and only what
 the band's `maxRows` leaves after the plugins below it drew theirs, so a workers
 panel keeps its rows and digit hotkeys; with one row left it shows the header
 only. It uses letter hotkeys only. The row count of the panels below is measured
