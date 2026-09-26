@@ -1,0 +1,2 @@
+./register.ts hooks: session.start
+./register.ts calls: nothing on $

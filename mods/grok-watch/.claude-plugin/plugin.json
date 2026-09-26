@@ -1,0 +1,13 @@
+{
+  "name": "grok-watch",
+  "version": "0.1.0",
+  "description": "Watch a Grok Bot bot by UUID and let the mod own the wait: the registering session reads the app's sidebar on a clock and submits a prompt when a new reply lands.",
+  "author": {
+    "name": "PaulYeh",
+    "url": "https://github.com/ohyeh"
+  },
+  "repository": "https://github.com/ohyeh/agent-scripts",
+  "keywords": ["grok-bot", "cdp", "watch"],
+  "displayName": "Grok Bot Watch",
+  "license": "MIT"
+}

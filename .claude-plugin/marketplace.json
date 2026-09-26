@@ -1,0 +1,24 @@
+{
+  "name": "agent-scripts",
+  "owner": {
+    "name": "PaulYeh",
+    "url": "https://github.com/ohyeh"
+  },
+  "metadata": {
+    "description": "Function-hook mods that ship beside the agent-scripts skills.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "grok-watch",
+      "source": "./mods/grok-watch",
+      "description": "Function-hook mod: watches a Grok Bot bot by UUID over a read-only CDP sidebar read and wakes this session when a new reply lands. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.1.0",
+      "author": {
+        "name": "PaulYeh"
+      },
+      "category": "development",
+      "keywords": ["grok-bot", "cdp", "mod", "hooks"]
+    }
+  ]
+}
