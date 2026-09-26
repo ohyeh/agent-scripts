@@ -4,9 +4,22 @@ A Claude Code function-hook mod. You watch a Grok Bot bot by UUID; the mod
 reads the app's sidebar every 10 s and submits one prompt to this session when
 the bot finishes a new reply. The session no longer has to poll.
 
-Needs `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`, `node` on the login `PATH`, and
-Grok Bot started with `--remote-debugging-port=9231` (see the
-`using-grok-bot-app` skill). The mod never starts, restarts or clicks the app.
+## Requirements
+
+- `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`; without it the plugin does not load
+  and the tools do not appear.
+- `node` on the login `PATH` (the mod runs `command -v node` through `/bin/sh -lc`).
+- Grok Bot started with `--remote-debugging-port=9231` and its window open (see
+  the `using-grok-bot-app` skill). The mod never starts, restarts or clicks the app.
+
+## Install
+
+```sh
+claude plugin marketplace add ohyeh/agent-scripts
+claude plugin install grok-watch@agent-scripts
+```
+
+During development, load the directory: `claude --plugin-dir mods/grok-watch`.
 
 ## Tools
 

@@ -330,3 +330,19 @@ describe('review fixes', () => {
     expect(textOf(await $.ui.render(band()))).toContain(' ok')
   })
 })
+
+describe('two sessions, one bot (T4)', () => {
+  test("each session owns its own watch: ours wakes once, the other's record is left to it", async ($, on) => {
+    const clock = mock.clock(on, { now: 100_000 })
+    const w = world(on, [ok(row('A')), ok(row('B')), ok(row('B'))])
+    const theirs = `grok-watch.watch.sess-B.${UUID}`
+    w.kv.set(theirs, { botUuid: UUID, gen: 1, seen: 'A' })
+    w.kv.set('grok-watch.hb.sess-B', 100_000)
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 2)
+    expect(w.woken, 'one wake for this session').toHaveLength(1)
+    expect(w.kv.get(theirs), "sess-B's watch is its own to advance").toEqual({ botUuid: UUID, gen: 1, seen: 'A' })
+    expect(textOf(await $.ui.render(band())), 'a beating session is no orphan').not.toContain('orphaned')
+  })
+})
