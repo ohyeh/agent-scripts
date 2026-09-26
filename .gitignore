@@ -6,3 +6,6 @@ __pycache__/
 # session 產物：含絕對家目錄路徑，不進公開 repo
 **/.claude/handoffs/
 .claude/types/
+
+# Claude Code 2.1.283+ writes this on each mod load (extends its own ignored .claude-plugin/types)
+mods/*/tsconfig.json
