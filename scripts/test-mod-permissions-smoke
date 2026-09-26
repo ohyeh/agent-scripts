@@ -44,11 +44,13 @@ fi
 
 actual="$(mktemp)"
 trap 'rm -f "$actual"' EXIT
-# Only the derived surface lines; the header carries an absolute path.
-"$CLAUDE" plugin validate "$MOD" 2>&1 | grep '❯' | sed 's/^[[:space:]]*❯ //' > "$actual"
+# Only the derived surface lines; the header carries an absolute path. Captured
+# first: under pipefail a failed validate or an empty grep would exit silently.
+vout="$("$CLAUDE" plugin validate "$MOD" 2>&1 || true)"
+printf '%s\n' "$vout" | grep '❯' | sed 's/^[[:space:]]*❯ //' > "$actual" || true
 if [[ ! -s "$actual" ]]; then
   bad "plugin validate printed no surface lines"
-  "$CLAUDE" plugin validate "$MOD" >&2 || true
+  printf '%s\n' "$vout" >&2
   echo "$pass passed, $fail failed" >&2
   exit 1
 fi

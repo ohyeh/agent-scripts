@@ -17,7 +17,8 @@ Grok Bot started with `--remote-debugging-port=9231` (see the
 
 ## What counts as a new reply
 
-A read is *settled* when the row's `data-grok-state` is `idle` and its preview
+A read is *settled* when the row's `data-grok-state` is `idle` (or the row has
+none, like a pinned note) and its preview
 is non-empty and does not start with `Draft:`. A wake fires when a settled
 preview differs from the last settled one. A reply already streaming when you
 watch fires once it settles. Observed on Grok Bot 0.59.1.
@@ -42,7 +43,8 @@ watch fires once it settles. Observed on Grok Bot 0.59.1.
 page's own WebSocket and sends one `Runtime.evaluate` with a constant
 expression. It prints one JSON line (`ok`, `port-down`, `renderer-missing`,
 `wrong-url`, `selector-not-observed`, `eval-error` or `timeout`) and exits
-within 2.5 s. It sends no other CDP method.
+within 2.5 s. The panel adds `no-process` (no `node`) and `helper-failed`
+(the run itself failed; the error is in the debug log). It sends no other CDP method.
 
 ## Checks
 

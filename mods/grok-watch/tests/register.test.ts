@@ -23,11 +23,13 @@ function world(
   reads: string[],
   answers: Array<'accept' | 'drop' | Promise<'accept' | 'drop'>> = [],
   /** node: what `command -v node` prints; hold: every helper run waits on it. */
-  opts: { node?: string; hold?: Promise<void> } = {},
+  opts: { node?: string; hold?: Promise<void>; spawnFails?: number } = {},
 ) {
   const woken: string[] = []
   const toasts: string[] = []
   let helperRuns = 0
+  let lookups = 0
+  let spawnErrors = 0
   on('session.id', () => ({ value: 'sess-A' }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('tool.register', ($, e) => ({ value: { tool: e.name } }))
@@ -50,7 +52,15 @@ function world(
   })
   on('store.keys', () => ({ value: [...kv.keys()] }))
   on('process.run', async ($, e) => {
-    if (e.argv[0] === '/bin/sh') return { value: { exitCode: 0, stdout: opts.node ?? '/n/node\n', stderr: '' } }
+    if (e.argv[0] === '/bin/sh') {
+      lookups += 1
+      return { value: { exitCode: 0, stdout: opts.node ?? 'profile says hi\n/n/node\n', stderr: '' } }
+    }
+    if (e.argv[0] !== '/n/node') throw new Error(`spawn ENOENT ${e.argv[0]}`)
+    if ((opts.spawnFails ?? 0) > helperRuns + spawnErrors) {
+      spawnErrors += 1
+      throw new Error('spawn EACCES /n/node')
+    }
     const out = reads[Math.min(helperRuns, reads.length - 1)]!
     helperRuns += 1
     if (opts.hold) await opts.hold
@@ -63,7 +73,7 @@ function world(
     woken.push(e.text)
     return answer === 'drop' ? { drop: 'refused in test' } : { text: e.text }
   })
-  return { woken, toasts, kv, runs: () => helperRuns }
+  return { woken, toasts, kv, runs: () => helperRuns, lookups: () => lookups }
 }
 
 const start = { cwd: '/work', surface: 'terminal' as const, isInteractive: true }
@@ -251,7 +261,7 @@ describe('panel and orphans (T7, T4)', () => {
 })
 
 describe('degraded states (S3, T6)', () => {
-  for (const [bad, state] of [['not json', 'eval-error'], ['THROW', 'timeout'], [down, 'port-down']] as const) {
+  for (const [bad, state] of [['not json', 'eval-error'], ['THROW', 'helper-failed'], [down, 'port-down']] as const) {
     test(`${state}: no wake, the panel says so, and the reply after recovery wakes once`, async ($, on) => {
       const clock = mock.clock(on)
       const w = world(on, [ok(row('A')), bad, ok(row('B')), ok(row('B'))])
@@ -288,5 +298,35 @@ describe('degraded states (S3, T6)', () => {
     expect(w.runs(), 'the tick and the second call joined the first read').toBe(1)
     release()
     await Promise.all([first, second])
+  })
+})
+
+describe('review fixes', () => {
+  test('a draft at watch time does not arm: clearing it back to the old reply never wakes', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('Draft: hi')), ok(row('A')), ok(row('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 2)
+    expect(w.woken).toHaveLength(0)
+  })
+
+  test('a row without a state element (NOTE) still wakes on a new reply', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A', null as unknown as string)), ok(row('B', null as unknown as string))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    expect(w.woken).toHaveLength(1)
+  })
+
+  test('a failed spawn is helper-failed, and node is looked up again', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A'))], [], { spawnFails: 1 })
+    await $.session.start(start)
+    expect(JSON.stringify(await $.tool.call({ tool: WATCH, botUuid: UUID }))).toContain('helper-failed')
+    await clock.advance(TICK)
+    expect(w.lookups(), 'looked up again after the failure').toBe(2)
+    expect(textOf(await $.ui.render(band()))).toContain(' ok')
   })
 })

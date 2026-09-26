@@ -22,12 +22,14 @@ type Read = { state: string; rows?: Row[]; error?: string }
 /** seen: last settled preview (null = no baseline yet); armed: a reply was in progress before the baseline. */
 type Watch = { botUuid: string; gen: number; seen: string | null; armed?: boolean; lost?: number }
 
-/** A reply is done: not streaming, not the user's draft, not empty. */
-const settled = (r: Row) => r.busy === 'idle' && r.preview !== '' && !r.preview.startsWith('Draft:')
+/** A reply is done: not streaming, not the user's draft, not empty. A row with no state element (NOTE, seen live) counts as idle. */
+const settled = (r: Row) => (r.busy === 'idle' || r.busy === null) && r.preview !== '' && !r.preview.startsWith('Draft:')
+/** Before a baseline exists, only a reply in progress (or a bot with no reply yet) makes the next settled read new; a draft does not. */
+const inProgress = (r: Row) => (r.busy !== 'idle' && r.busy !== null) || r.preview === ''
 
 /** The record after one read of the watched row, and whether that read is a new settled reply. */
 function step(w: Watch, row: Row): { next: Watch; wake: boolean } {
-  if (!settled(row)) return { next: w.seen === null && !w.armed ? { ...w, armed: true } : w, wake: false }
+  if (!settled(row)) return { next: w.seen === null && !w.armed && inProgress(row) ? { ...w, armed: true } : w, wake: false }
   if (row.preview === w.seen) return { next: w, wake: false }
   return { next: { ...w, seen: row.preview, armed: false }, wake: w.seen !== null || !!w.armed }
 }
@@ -42,7 +44,7 @@ const wakeText = (row: Row) =>
   '```'
 
 /** Per-registration state; top-level functions take it because the validator only follows $ into them. */
-type State = { sid: string; node?: string; inflight?: Promise<Read>; seq: number; status: Map<string, string>; names: Map<string, string> }
+type State = { sid: string; node?: string; inflight?: Promise<Read>; lastState?: string; lastBeat?: number; seq: number; status: Map<string, string>; names: Map<string, string> }
 
 async function mine(s: State, $: $) {
   return (await $.store.keys()).filter(k => k.startsWith(`${PREFIX}${s.sid}.`))
@@ -50,7 +52,8 @@ async function mine(s: State, $: $) {
 
 async function read(s: State, $: $): Promise<Read> {
   try {
-    s.node ??= (await $.process.run(['/bin/sh', '-lc', 'command -v node'], { timeoutMs: 3000 })).stdout.trim() || undefined
+    // Last line: a login profile may print before command -v answers.
+    s.node ??= (await $.process.run(['/bin/sh', '-lc', 'command -v node'], { timeoutMs: 3000 })).stdout.trim().split('\n').pop() || undefined
   } catch (err) {
     return { state: 'no-process', error: String(err) }
   }
@@ -63,13 +66,20 @@ async function read(s: State, $: $): Promise<Read> {
       return { state: 'eval-error', error: `helper exit ${r.exitCode}: ${r.stderr.slice(0, 200)}` }
     }
   } catch (err) {
-    return { state: 'timeout', error: String(err) }
+    // A node that moved (nvm) or a bad lookup fails every spawn: look it up again next time.
+    s.node = undefined
+    // The engine's rejection text is not a contract: timeout vs spawn failure goes to the debug log, not the state.
+    return { state: 'helper-failed', error: String(err) }
   }
 }
 
 /** At most one helper at a time: a tick skips while one runs, a tool call shares its result. */
 function readOnce(s: State, $: $): Promise<Read> {
-  s.inflight ??= read(s, $).finally(() => {
+  s.inflight ??= read(s, $).then(res => {
+    if (res.error && res.state !== s.lastState) $.ui.log(`grok-watch: sidebar ${res.state}: ${res.error.slice(0, 300)}`, { to: 'debug' })
+    s.lastState = res.state
+    return res
+  }).finally(() => {
     s.inflight = undefined
   })
   return s.inflight
@@ -78,16 +88,21 @@ function readOnce(s: State, $: $): Promise<Read> {
 // Ack first (user decision Q-8): the record already says "seen" when this runs,
 // so a refused submit is a lost wake, never a duplicate. Not awaited by the tick.
 async function deliver($: $, key: string, gen: number, row: Row) {
-  let delivered = false
+  let why: string
   try {
-    delivered = !('drop' in (await $.prompt.submit({ text: wakeText(row) })))
-  } catch {
-    delivered = false
+    const r = await $.prompt.submit({ text: wakeText(row) })
+    if (!('drop' in r)) return
+    why = `dropped: ${r.drop}`
+  } catch (err) {
+    why = `threw: ${String(err)}`
   }
-  if (delivered) return
-  const w = (await $.store.get(key)) as Watch | undefined
-  if (w?.gen === gen) await $.store.set(key, { ...w, lost: (w.lost ?? 0) + 1 })
-  $.ui.toast(`grok-watch: a wake for ${clean(row.name, 40)} was refused by the engine and is lost (ack-first)`)
+  $.ui.toast(`grok-watch: a wake for ${clean(row.name, 40)} is lost (ack-first; ${clean(why, 120)})`)
+  try {
+    const w = (await $.store.get(key)) as Watch | undefined
+    if (w?.gen === gen) await $.store.set(key, { ...w, lost: (w.lost ?? 0) + 1 })
+  } catch (err) {
+    $.ui.log(`grok-watch: could not count a lost wake: ${String(err)}`, { to: 'debug' })
+  }
 }
 
 async function tick(s: State, $: $) {
@@ -120,7 +135,11 @@ async function tick(s: State, $: $) {
 /** Beats while this session watches; drops another session's watches once its beat is a day old. */
 async function heartbeat(s: State, $: $) {
   const now = await $.clock.now()
+  // Just woke from a sleep (our own beat is stale too): every other beat looks old. Skip one prune round.
+  const slept = s.lastBeat !== undefined && now - s.lastBeat > ORPHAN_MS
+  s.lastBeat = now
   if ((await mine(s, $)).length) await $.store.set(`${HB_PREFIX}${s.sid}`, now)
+  if (slept) return
   const keys = await $.store.keys()
   // ponytail: prune walks beats, so a watch whose session never beat is shown orphaned but never pruned;
   // unreachable while watch writes the beat first. Walk watch keys too if that ever changes.
