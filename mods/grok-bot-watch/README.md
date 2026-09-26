@@ -35,7 +35,7 @@ During development, load the directory: `claude --plugin-dir mods/grok-bot-watch
 Above the prompt, only while a watch or an orphan exists:
 
 ```
-▌grok bot watch v0.2.0 · 1 bot · 1 replying · read 4s ago [ hide ]
+▌grok bot watch v0.2.1 · 1 bot · 1 replying · read 4s ago [ hide ]
   ◐ NOVA 替身 w39 201040cc · replying [ unwatch ] 「第 4 條只當輔助…」
 ```
 
@@ -67,7 +67,10 @@ watch fires once it settles. Observed on Grok Bot 0.59.1.
 ## Limits
 
 - **Once per preview, not per message.** Two replies inside one 10 s tick can
-  merge; two replies with the same preview text merge.
+  merge; two replies with the same preview text merge unless a read saw the
+  second one streaming.
+- **A stopped reply wakes too.** A reply seen streaming that is stopped and
+  falls back to the old text still wakes once, with that old preview.
 - **Ack first.** The watch is marked seen before the prompt is submitted, so a
   wake is never duplicated; a submit the engine refuses is lost, counted in
   the panel and toasted, never retried.

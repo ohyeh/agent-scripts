@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
 // to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.2.0'
+const MOD_VERSION = '0.2.1'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -25,7 +25,7 @@ const CTRL_RE = /[\u0000-\u001f\u007f-\u009f]/g
 type $ = EngineInterface
 type Row = { id: string; name: string; unread: boolean; preview: string; busy: string | null; current: boolean }
 type Read = { state: string; rows?: Row[]; error?: string }
-/** seen: last settled preview (null = no baseline yet); armed: a reply was in progress before the baseline. */
+/** seen: last settled preview (null = no baseline yet); armed: a reply was seen in progress since the last settled read. */
 type Watch = { botUuid: string; gen: number; seen: string | null; armed?: boolean; lost?: number; wakes?: number; lastWake?: number }
 
 /** A reply is done: not streaming, not the user's draft, not empty. A row with no state element (NOTE, seen live) counts as idle. */
@@ -35,8 +35,12 @@ const inProgress = (r: Row) => (r.busy !== 'idle' && r.busy !== null) || r.previ
 
 /** The record after one read of the watched row, and whether that read is a new settled reply. */
 function step(w: Watch, row: Row): { next: Watch; wake: boolean } {
-  if (!settled(row)) return { next: w.seen === null && !w.armed && inProgress(row) ? { ...w, armed: true } : w, wake: false }
-  if (row.preview === w.seen) return { next: w, wake: false }
+  if (!settled(row)) {
+    // After a baseline only streaming arms: a reply seen working wakes on settle even with the same text (NOVA "收到" twice, 0.2.0 live).
+    const arm = !w.armed && (w.seen === null ? inProgress(row) : row.busy !== 'idle' && row.busy !== null)
+    return { next: arm ? { ...w, armed: true } : w, wake: false }
+  }
+  if (row.preview === w.seen && !w.armed) return { next: w, wake: false }
   return { next: { ...w, seen: row.preview, armed: false }, wake: w.seen !== null || !!w.armed }
 }
 

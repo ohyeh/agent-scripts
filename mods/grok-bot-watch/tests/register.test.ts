@@ -121,6 +121,15 @@ describe('eligibility (S2)', () => {
     expect(w.woken).toHaveLength(1)
   })
 
+  test('a reply with the same text as the last one wakes when it was seen working (0.2.0 live: 收到 twice)', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('收到')), ok(row('收到', 'working')), ok(row('收到')), ok(row('收到'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 4)
+    expect(w.woken).toHaveLength(1)
+  })
+
   test('a watch made while the bot is already working fires on completion (sampler log 23:33)', async ($, on) => {
     const clock = mock.clock(on)
     const P = '第 4 條只當輔助，不要當必要條件。'
@@ -507,7 +516,7 @@ describe('panel 0.2.0', () => {
     expect(await flat($)).toContain('NOVA')
     await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above-prompt' })
     const folded = await flat($)
-    expect(folded).toContain('▌grok bot watch v0.2.0 · 1 bot')
+    expect(folded).toMatch(/▌grok bot watch v\d+\.\d+\.\d+ · 1 bot/)
     expect(folded, 'folded: no bot row').not.toContain('NOVA')
     await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above-prompt' })
     expect(await flat($)).toContain('NOVA')

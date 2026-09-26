@@ -1,6 +1,6 @@
 {
   "name": "grok-bot-watch",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Watch a Grok Bot bot by UUID and let the mod own the wait: the registering session reads the app's sidebar on a clock and submits a prompt when a new reply lands.",
   "author": {
     "name": "PaulYeh",
