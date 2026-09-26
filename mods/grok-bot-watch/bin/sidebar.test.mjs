@@ -54,3 +54,18 @@ test('no global WebSocket (Node < 22) → node-too-old', async () => {
       res({ code: err?.code ?? 0, out: JSON.parse(stdout) })))
   assert.deepEqual([r.code, r.out.state], [2, 'node-too-old'])
 })
+
+// The eval's transcript parse, run on the text the app renders (0.59.1 shapes plus review 0.4.0 cases).
+test('convo: sender before the first blank line, body whole, badges and date lines dropped', async () => {
+  const { readFileSync } = await import('node:fs')
+  const src = readFileSync(HELPER, 'utf8').match(/const READ = `([\s\S]*?)`\n/)[1].replace(/\\\\/g, '\\')
+  const parse = text => new Function('document', `return ${src}`)({
+    querySelectorAll: () => [],
+    querySelector: sel => (sel.includes('transcript') ? { innerText: text } : null),
+  }).convo
+  assert.deepEqual(parse('x\n\n11:45 PM\nToday 1:33 AM\nYou\n\nmeet at 9:58 PM\n\n1:33 AM\nNEW\nNOVA 替身\n\n收到\nline 2\n\n1:34 AM\nNOVA 替身 is working'), [
+    { who: 'You', text: 'meet at 9:58 PM', at: '1:33 AM' },
+    { who: 'NOVA 替身', text: '收到 line 2', at: '1:34 AM' },
+  ])
+  assert.deepEqual(parse(''), [])
+})

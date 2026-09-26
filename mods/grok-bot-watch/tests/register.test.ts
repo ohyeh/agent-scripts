@@ -762,3 +762,51 @@ describe('recent replies 0.3.0', () => {
     expect(rec.armed, 'the count did not write the stale record over the flag').toBe(true)
   })
 })
+
+describe('conversation of the open bot 0.4.0', () => {
+  const convo = [
+    { who: 'You', text: '請回收到', at: '2:03 AM' },
+    { who: 'NOVA', text: '收到', at: '2:04 AM' },
+  ]
+  const withConvo = (...rows: Row[]) => JSON.stringify({ state: 'ok', rows, convo })
+
+  test('open in the app: the row opens to both sides, oldest first', async ($, on) => {
+    const clock = mock.clock(on)
+    world(on, [ok(row('A')), withConvo(row('收到'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    await $.ui.render(band())
+    await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
+    const t = await flat($)
+    expect(t).toContain('2:03 AM You · 「請回收到」')
+    expect(t.indexOf('2:03 AM You')).toBeLessThan(t.indexOf('2:04 AM NOVA · 「收到」'))
+    expect(t).not.toContain('before watch')
+  })
+
+  test('a failed read drops the conversation: the row falls back until the app answers', async ($, on) => {
+    const clock = mock.clock(on)
+    world(on, [ok(row('A')), withConvo(row('A')), down])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    await $.ui.render(band())
+    await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
+    expect(await flat($)).toContain('請回收到')
+    await clock.advance(TICK)
+    expect(await flat($)).not.toContain('請回收到')
+  })
+
+  test('not open in the app: the row falls back to the replies that woke us', async ($, on) => {
+    const clock = mock.clock(on)
+    world(on, [ok(row('A')), withConvo(row('收到', 'idle', { current: false }), row('X', 'idle', { id: OTHER, current: true }))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    await $.ui.render(band())
+    await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
+    const t = await flat($)
+    expect(t).not.toContain('請回收到')
+    expect(t).toContain('before watch · 「A」')
+  })
+})

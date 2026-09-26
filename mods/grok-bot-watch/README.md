@@ -35,11 +35,10 @@ During development, load the directory: `claude --plugin-dir mods/grok-bot-watch
 Above the prompt, only while a watch or an orphan exists:
 
 ```
-▌grok bot watch v0.3.0 · 1 bot · read 4s ago [ hide ]
+▌grok bot watch v0.4.0 · 1 bot · read 4s ago [ hide ]
   ● NOVA 替身 w39 201040cc · waiting · woke 2× 5m ago [ ▾ ] [ unwatch ] 「第二次收到」
-      5m ago · 「第二次收到」
-      12m ago · 「收到」
-      before watch · 「收到」
+      2:03 AM You · 「請再回一次「第二次收到」」
+      2:03 AM NOVA 替身 w39 · 「第二次收到」
 ```
 
 | Glyph | Means |
@@ -53,8 +52,10 @@ Above the prompt, only while a watch or an orphan exists:
 The row also counts wakes (`woke 2× 5m ago`) and lost wakes, and ends with the
 bot's last preview. `[ hide ]` (`f` with the band focused) folds the band to its
 header line; it never disappears while a watch is armed. `[ unwatch ]` (`u`,
-one watch only) stops that watch. `[ ▸ ]` (`o`, one watch only) opens the row
-to the last 5 new replies the mod saw (a lost wake is listed too), newest
+one watch only) stops that watch. `[ ▸ ]` (`o`, one watch only) opens the row.
+When the bot is the one open in the app, it shows the last 5 messages of both
+sides, oldest first, read from the transcript on screen (the mod never clicks a
+bot open). Otherwise it shows the last 5 new replies the mod saw (a lost wake is listed too), newest
 first: the sidebar previews (≤ 140 characters on 0.59.1, stored cut to 200),
 kept in the watch record. Read the
 transcript (skill) for more. The band takes at most 4 rows (9 with a row open), and only what

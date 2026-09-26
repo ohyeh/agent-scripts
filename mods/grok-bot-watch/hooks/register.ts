@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
 // to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.3.0'
+const MOD_VERSION = '0.4.0'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -26,7 +26,9 @@ const CTRL_RE = /[\u0000-\u001f\u007f-\u009f]/g
 
 type $ = EngineInterface
 type Row = { id: string; name: string; unread: boolean; preview: string; busy: string | null; current: boolean }
-type Read = { state: string; rows?: Row[]; error?: string }
+type Msg = { who: string; text: string; at: string }
+/** convo: the last messages of the bot open in the app (the row with current), from its transcript. */
+type Read = { state: string; rows?: Row[]; convo?: Msg[]; error?: string }
 /** seen: last settled preview (null = no baseline yet); armed: a reply was seen in progress since the last settled read. */
 type Watch = {
   botUuid: string; gen: number; seen: string | null; armed?: boolean; lost?: number; wakes?: number; lastWake?: number
@@ -70,6 +72,8 @@ type State = {
   folded: boolean
   /** The watch whose recent replies the panel shows. */
   open?: string
+  /** The last messages of the bot open in the app, from the last read; never persisted. */
+  convo?: { id: string; msgs: Msg[] }
   /** Every read-modify-write of this session's records, in call order: a tick and a wake count never write over each other. */
   writes: Promise<unknown>
 }
@@ -165,11 +169,15 @@ async function tick(s: State, $: $) {
   const res = await readOnce(s, $)
   const t = await $.clock.now()
   if (res.state !== 'ok' || !res.rows) {
+    // What the app shows now is unknown: no stale conversation under an open row.
+    s.convo = undefined
     for (const k of keys) s.status.set(k, res.state)
     $.ui.invalidate('ui.render')
     return
   }
   s.lastRead = t
+  const shown = res.rows.find(r => r.current)
+  s.convo = shown && res.convo?.length ? { id: shown.id, msgs: res.convo } : undefined
   for (const k of keys) {
     const w = (await $.store.get(k)) as Watch | undefined
     if (!w) continue
@@ -430,6 +438,10 @@ export const register: Register = on => {
     // The open row's replies sit under it, newest first; they come out of the same budget.
     const history = (r: Bot) => {
       if (s.open !== r.key) return []
+      // The bot open in the app: both sides of its conversation, oldest first, as a chat reads.
+      if (s.convo?.id === r.w.botUuid) {
+        return s.convo.msgs.map(m => Text({ dimColor: true, wrap: 'truncate-end', children: `      ${clean(m.at, 12)} ${clean(m.who, 24)} · 「${clean(m.text, 200)}」` }))
+      }
       const seen = [...(r.w.recent ?? [])].reverse()
       if (!seen.length) return [Text({ dimColor: true, children: '      no reply seen yet' })]
       return seen.map(h => Text({ dimColor: true, wrap: 'truncate-end', children: `      ${h.t === undefined ? 'before watch' : `${ago(now - h.t)} ago`} · 「${clean(h.text, 200)}」` }))

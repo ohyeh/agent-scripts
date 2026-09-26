@@ -9,7 +9,9 @@ const PORT = Number(process.argv[2] ?? 9231)
 const DEADLINE_MS = 2500
 const RENDERER = /app\.asar\/dist\/renderer\/index\.html$/
 
-const READ = `(() => [...document.querySelectorAll("button[data-agent-id]")].map(b => {
+// convo: the last 5 messages of the bot open in the app, parsed from its transcript text
+// (0.59.1: sender line, body, then a "9:58 PM" line; no per-message node). Read, never clicked open.
+const READ = `(() => ({ rows: [...document.querySelectorAll("button[data-agent-id]")].map(b => {
   const label = b.getAttribute("aria-label") || "";
   return {
     id: b.getAttribute("data-agent-id"),
@@ -19,7 +21,23 @@ const READ = `(() => [...document.querySelectorAll("button[data-agent-id]")].map
     busy: b.querySelector("[data-grok-state]")?.getAttribute("data-grok-state") ?? null,
     current: b.getAttribute("aria-current") === "page"
   };
-}))()`
+}), convo: (() => {
+  const log = document.querySelector('[role=log][aria-label="Conversation transcript"]');
+  if (!log) return [];
+  const parts = log.innerText.split(/\\n\\n(\\d{1,2}:\\d{2} [AP]M)(?:\\n|$)/);
+  const msgs = [];
+  for (let i = 0; i + 1 < parts.length; i += 2) {
+    // The sender is the line right before the first blank line; a "NEW" badge or a date
+    // separator above it is dropped; the body is kept whole, a time inside it included.
+    const c = parts[i].replace(/^\\n+/, "");
+    const k = c.indexOf("\\n\\n");
+    if (k < 0) continue;
+    const who = c.slice(0, k).split("\\n").pop();
+    const text = c.slice(k + 2).split("\\n").filter(Boolean).join(" ").slice(0, 200);
+    if (who && text) msgs.push({ who, text, at: parts[i + 1] });
+  }
+  return msgs.slice(-5);
+})() }))()`
 
 // Exit only after stdout drains: on macOS a pipe is async, and exit() could cut a long line.
 let finished = false
@@ -59,8 +77,8 @@ async function main() {
     const err = msg.error?.message ?? msg.result?.exceptionDetails?.text
     if (err) done('eval-error', { error: err })
     else {
-      const rows = msg.result.result.value
-      done(rows.length ? 'ok' : 'selector-not-observed', { rows })
+      const { rows, convo } = msg.result.result.value
+      done(rows.length ? 'ok' : 'selector-not-observed', { rows, convo })
     }
     ws.close()
   }
