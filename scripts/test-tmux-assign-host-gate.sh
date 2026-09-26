@@ -27,5 +27,12 @@ t "subagent result"   0 '{"tool_name":"Bash","agent_type":"h","session_id":"s","
 t "background result" 0 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex result wait-required w1 --fields status --json","run_in_background":true}}'
 t "parent stop ok"    0 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex stop w1"}}'
 t "result --help"     0 '{"tool_name":"Bash","session_id":"s","tool_input":{"command":"agent-tmux codex result --help"}}'
+CX='"transcript_path":"/Users/u/.codex/sessions/2026/09/26/rollout-x.jsonl"'
+t "codex parent assign" 2 "{\"tool_name\":\"Bash\",$CX,\"session_id\":\"s\",\"tool_input\":{\"command\":\"$V\"}}"
+t "codex parent status" 2 "{\"tool_name\":\"Bash\",$CX,\"session_id\":\"s\",\"tool_input\":{\"command\":\"agent-tmux codex status w1\"}}"
+t "codex commander ok"  0 "{\"tool_name\":\"Bash\",$CX,\"session_id\":\"s\",\"tool_input\":{\"command\":\"tmux-agent-commander assign codex w1 /tmp /p.md\"}}"
+msg="$(printf '%s' "{\"tool_name\":\"Bash\",$CX,\"session_id\":\"s\",\"tool_input\":{\"command\":\"$V\"}}" | "$H" 2>&1 >/dev/null)"
+case "$msg" in *tmux-agent-commander*) echo "ok   codex denial names the commander";; *) echo "FAIL codex denial names the commander"; fail=1;; esac
+case "$msg" in *run_in_background*) echo "FAIL codex denial mentions run_in_background"; fail=1;; *) echo "ok   codex denial has no Claude-only option";; esac
 bash -n "$H" && echo "ok   bash -n"
 exit $fail

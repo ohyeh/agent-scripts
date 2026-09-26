@@ -54,6 +54,14 @@ mkdir -p "$(dirname "$LOG")" 2>/dev/null && jq -cn \
 [ "$AGENT_TYPE" = "ABSENT" ] || exit 0
 [ "$BACKGROUND" != "true" ] || exit 0
 
+# Codex has no subagent host or run_in_background; its supported host is the
+# commander, whose collector delivers the result into this pane.
+case "$(printf '%s' "$IN" | jq -r '.transcript_path // ""')" in
+  */.codex/*)
+    echo "BLOCKED: on Codex, dispatch with \`tmux-agent-commander assign <profile> <name> <dir> <prompt-file>\` (resolve it from the installed tmux-agent-tools bundle), then end your turn — the commander collector sends the worker result into this pane. Do not host \`agent-tmux <cli> assign\` or poll status|capture|probe|result in the foreground." >&2
+    exit 2 ;;
+esac
+
 if [ "$HIT" = "assign" ]; then
   echo "BLOCKED: \`agent-tmux <cli> assign\` (including --detach) must not run in the parent session's foreground. Per model-dispatch.md §4 (2026-08-17 ruling), the canonical host is a supervision proxy: ONE \`general-purpose\` subagent on sonnet low whose brief orders it to run the single assign call FIRST, then report exit code + status/summary (no status/capture/probe/result, no reading the worker's output). run_in_background is a FALLBACK, allowed only after a proxy attempt failed, with the reason logged in the run dir." >&2
 else

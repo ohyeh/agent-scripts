@@ -318,6 +318,30 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
   | ensureMatched("PreToolUse"; "ScheduleWakeup"; $idle)
 ' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
 
+# Codex sends Claude-shaped hook payloads (live dump 2026-09-26), so the tool/stop gates run as-is.
+if [ -d ~/.codex ]; then
+  CODEX_HOOKS=~/.codex/hooks.json
+  [ -f "$CODEX_HOOKS" ] || echo '{}' > "$CODEX_HOOKS"
+  tmp_codex="$(mktemp)"
+  jq --arg router "\"\$HOME/.agents/hooks/skill-router-nudge.sh\"" \
+     --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
+     --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
+     --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" \
+     --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" \
+     --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" '
+    def ensureMatched(ev; matcher; cmd):
+      .hooks[ev] = ((.hooks[ev] // [])
+        | if any(.[]; any(.hooks[]?; .command == cmd))
+          then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":cmd}]}] end);
+    ensureMatched("UserPromptSubmit"; ""; $router)
+    | ensureMatched("PreToolUse"; "Bash"; $audit)
+    | ensureMatched("PreToolUse"; "Bash"; $assignhost)
+    | ensureMatched("PreToolUse"; "*"; $deny)
+    | ensureMatched("PostToolUse"; "*"; $ledger)
+    | ensureMatched("Stop"; ""; $claim)
+  ' "$CODEX_HOOKS" > "$tmp_codex" && mv "$tmp_codex" "$CODEX_HOOKS"
+fi
+
 for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2

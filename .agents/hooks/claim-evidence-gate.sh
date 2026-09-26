@@ -68,7 +68,7 @@ MARKER="$STATE_DIR/claim-checked-$csha"
 : > "$MARKER"
 
 # Window: everything after the last human prompt (transcript ISO ms → seconds; ledger ISO s; both UTC).
-since="$(grep '"type":"user"' "$TRANSCRIPT" 2>/dev/null | grep -v 'tool_result' | grep -o '"timestamp":"[^"]*"' | tail -1 | cut -d'"' -f4 | cut -c1-19)"
+since="$(grep -E '"type":"(user|UserMessage)"' "$TRANSCRIPT" 2>/dev/null | grep -v 'tool_result' | grep -o '"timestamp":"[^"]*"' | tail -1 | cut -d'"' -f4 | cut -c1-19)"
 [ -n "$since" ] || exit 0
 window="$(jq -c --arg s "$since" 'select(.timestamp[0:19] >= $s)' "$LEDGER" 2>/dev/null)"
 calls="$(printf '%s\n' "$window" | grep -c '"tool"')"

@@ -143,7 +143,12 @@ run_claim() { # $1 sid, $2 last_assistant_message, [$3 transcript]
 BEFORE='{"timestamp":"2025-12-31T23:59:00Z","tool":"Bash","evidence":["exit=0"]}'
 RUN0='{"timestamp":"2026-01-01T00:00:05Z","tool":"Bash","evidence":["exit=0","18/18 passed"]}'
 READ='{"timestamp":"2026-01-01T00:00:06Z","tool":"Read","evidence":[]}'
-ledger_for c1 "$BEFORE";           [[ "$(run_claim c1 '修好了，應該沒問題')" == block ]]            || { echo "FAIL: claim with nothing run not blocked" >&2; exit 1; }
+EDIT0='{"timestamp":"2026-01-01T00:00:05Z","tool":"Edit","evidence":[]}'
+ledger_for c1 "$BEFORE" "$EDIT0";  [[ "$(run_claim c1 '修好了，應該沒問題')" == block ]]            || { echo "FAIL: claim with nothing run not blocked" >&2; exit 1; }
+ledger_for c1b "$BEFORE";          [[ -z "$(run_claim c1b '修好了，應該沒問題')" ]]                  || { echo "FAIL: plain answer (no mutating tool) blocked" >&2; exit 1; }
+TRX="$WORK/transcript-codex.jsonl"   # Codex rollout: a real user turn is an item_completed UserMessage
+printf '%s\n' '{"timestamp":"2026-01-01T00:00:00.000Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage"}}}' > "$TRX"
+ledger_for c13 "$BEFORE" "$EDIT0"; [[ "$(run_claim c13 '修好了，應該沒問題' "$TRX")" == block ]]  || { echo "FAIL: Codex transcript claim not blocked" >&2; exit 1; }
 ledger_for c2 "$BEFORE" "$RUN0";   [[ "$(run_claim c2 '修好了，應該沒問題')" == block ]]            || { echo "FAIL: claim quoting no token not blocked" >&2; exit 1; }
 ledger_for c3 "$BEFORE" "$RUN0";   [[ "$(run_claim c3 'Fixed. `npm test` exit 1')" == block ]]        || { echo "FAIL: mismatched token not blocked" >&2; exit 1; }
 ledger_for c4 "$BEFORE" "$RUN0";   [[ -z "$(run_claim c4 'Fixed. `npm test` → exit 0, 18/18 passed')" ]] || { echo "FAIL: bound claim blocked" >&2; exit 1; }
