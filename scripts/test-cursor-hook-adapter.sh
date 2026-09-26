@@ -158,6 +158,18 @@ else
   fail=1
 fi
 
+# claude-only.sh: the Third-Party Imports copy (raw payload, cursor_version) stays silent;
+# a Claude payload, even one naming cursor_version in a command, reaches the hook as-is.
+ONLY=.agents/hooks/claude-only.sh
+raw='{"cursor_version":"2026.09.26","hook_event_name":"stop","status":"completed"}'
+claude='{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"rg cursor_version"}}'
+out="$(printf '%s' "$raw" | "$ONLY" sh -c 'echo ran; exit 2')"; ec=$?
+if [ "$ec" = 0 ] && [ -z "$out" ]; then printf 'ok   %-36s silent\n' "claude-only skips Cursor import"
+else printf 'FAIL %-36s ec=%s out=%s\n' "claude-only skips Cursor import" "$ec" "$out"; fail=1; fi
+out="$(printf '%s' "$claude" | "$ONLY" sh -c 'cat; exit 2')"; ec=$?
+if [ "$ec" = 2 ] && [ "$out" = "$claude" ]; then printf 'ok   %-36s passthrough\n' "claude-only runs Claude payload"
+else printf 'FAIL %-36s ec=%s out=%s\n' "claude-only runs Claude payload" "$ec" "$out"; fail=1; fi
+
 bash -n "$ADAPT" && echo "ok   bash -n adapter"
 bash -n scripts/install-cursor-hooks.sh && echo "ok   bash -n install"
 bash -n scripts/check-cursor-hooks.sh && echo "ok   bash -n check"

@@ -253,6 +253,7 @@ hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/a
 hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
 hook_install "$SRC/.agents/hooks/tmux-assign-host-gate.sh"
 hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
+hook_install "$SRC/.agents/hooks/claude-only.sh"
 hook_install "$SRC/.agents/hooks/agy-adapt.sh"
 hook_install "$SRC/.agents/hooks/compaction-recall.sh"
 hook_install "$SRC/.agents/hooks/precompact-instructions.sh"
@@ -267,7 +268,10 @@ hook_install "$SRC/.agents/hooks/wakeup-idle-gate.sh"
 SETTINGS=~/.claude/settings.json
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
 tmp_settings="$(mktemp)"
-jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
+# Every settings.json hook runs behind claude-only.sh: Cursor's Third-Party Imports would
+# otherwise run it a second time next to its ~/.cursor/hooks.json copy.
+jq --arg only "\"\$HOME/.agents/hooks/claude-only.sh\"" \
+   --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
    --arg ts "\"\$HOME/.agents/hooks/session-title-sentinel.sh\"" \
    --arg bolold "\"\$HOME/.agents/hooks/bol-prompt-warn.sh\"" \
    --arg bol "\"\$HOME/.agents/hooks/bol-prompt-gate.sh\"" \
@@ -286,18 +290,24 @@ jq --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
    --arg router "\"\$HOME/.agents/hooks/skill-router-nudge.sh\"" \
    --arg compcap "\"\$HOME/.agents/hooks/compaction-cap-gate.sh\"" \
    --arg idle "\"\$HOME/.agents/hooks/wakeup-idle-gate.sh\"" '
-  def ensure(ev; cmd):
+  def ensure(ev; bare): ($only + " " + bare) as $cmd |
     .hooks[ev] = ((.hooks[ev] // [])
-      | if any(.[]; any(.hooks[]?; .command == cmd))
-        then . else . + [{"hooks":[{"type":"command","command":cmd}]}] end);
-  def ensureMatched(ev; matcher; cmd):
+      | if any(.[]; any(.hooks[]?; .command == $cmd))
+        then . else . + [{"hooks":[{"type":"command","command":$cmd}]}] end);
+  def ensureMatched(ev; matcher; bare): ($only + " " + bare) as $cmd |
     .hooks[ev] = ((.hooks[ev] // [])
-      | if any(.[]; any(.hooks[]?; .command == cmd))
-        then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":cmd}]}] end);
+      | if any(.[]; any(.hooks[]?; .command == $cmd))
+        then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":$cmd}]}] end);
+  # pre-wrapper deploys registered the bare path; wrap it in place so nothing runs twice
+  def wrapBare:
+    .hooks |= with_entries(.value |= map(.hooks |= map(
+      if (.command | type) == "string" and (.command | test("^\"\\$HOME/\\.agents/hooks/[^\" ]+\\.sh\"$"))
+      then .command = $only + " " + .command else . end)));
   def retire(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | map(.hooks |= map(select(.command != cmd))) | map(select(.hooks | length > 0)));
   retire("PreToolUse"; $bolold)
+  | wrapBare
   | ensure("SessionStart"; $vs)
   | ensure("Stop"; $ts)
   | ensureMatched("PreToolUse"; "Agent"; $bol)
@@ -367,6 +377,7 @@ done
 [ -x ~/.agents/hooks/check-bol-prompt.sh ] || { echo "FAIL [hooks] check-bol-prompt.sh (bol-prompt-gate validator) not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/evidence-tokens.sh ] || { echo "FAIL [hooks] evidence-tokens.sh (shared by context-ledger + claim-evidence-gate) not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/cursor-adapt.sh ] || { echo "FAIL [hooks] cursor-adapt.sh not installed" >&2; exit 1; }
+[ -x ~/.agents/hooks/claude-only.sh ] || { echo "FAIL [hooks] claude-only.sh (settings.json hook wrapper) not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/agy-adapt.sh ] || { echo "FAIL [hooks] agy-adapt.sh not installed" >&2; exit 1; }
 if [ -e ~/.agents/hooks/bol-prompt-warn.sh ] || grep -q 'bol-prompt-warn' "$SETTINGS"; then
   echo "FAIL [hooks] retired bol-prompt-warn.sh still installed or registered" >&2
