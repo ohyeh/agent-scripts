@@ -57,8 +57,8 @@ mkdir -p "$(dirname "$LOG")" 2>/dev/null && jq -cn \
 # Codex has no subagent host or run_in_background; its supported host is the
 # commander, whose collector delivers the result into this pane.
 case "$(printf '%s' "$IN" | jq -r '.transcript_path // ""')" in
-  */.codex/*)
-    echo "BLOCKED: on Codex, dispatch with \`tmux-agent-commander assign <profile> <name> <dir> <prompt-file>\` (resolve it from the installed tmux-agent-tools bundle), then end your turn — the commander collector sends the worker result into this pane. Do not host \`agent-tmux <cli> assign\` or poll status|capture|probe|result in the foreground." >&2
+  */.codex/*|*/antigravity-cli/*)
+    echo "BLOCKED: on Codex or agy, dispatch with \`tmux-agent-commander assign <profile> <name> <dir> <prompt-file>\` (resolve it from the installed tmux-agent-tools bundle), then end your turn — the commander collector sends the worker result into this pane. Do not host \`agent-tmux <cli> assign\` or poll status|capture|probe|result in the foreground." >&2
     exit 2 ;;
 esac
 

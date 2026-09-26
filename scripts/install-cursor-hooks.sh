@@ -35,7 +35,10 @@ subagent-ledger|subagentStop||false
 bash-read-audit|preToolUse|Shell|false
 agent-device-target-gate|preToolUse|Shell|true
 tmux-assign-host-gate|preToolUse|Shell|true
+deny-replay-gate|preToolUse||true
 context-ledger|postToolUse||false
+claim-evidence-gate|beforeSubmitPrompt||false
+claim-evidence-gate|stop||false
 '
 
 while IFS='|' read -r name event matcher fail_closed; do

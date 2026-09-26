@@ -111,9 +111,40 @@ else
   fail=1
 fi
 
+# --- claim-evidence-gate via adapter (beforeSubmitPrompt stamp + stop) ---
+install -m 0755 .agents/hooks/claim-evidence-gate.sh .agents/hooks/evidence-tokens.sh "$HOME/.agents/hooks/"
+CTRX="$HOME/cursor-trx.jsonl"
+cursor_claim() { # $1 = reply text; prints the adapter's stop output
+  printf '%s\n' '{"role":"user","message":{"content":[{"type":"text","text":"do it"}]}}' > "$CTRX"
+  jq -cn --arg t "$1" '{role:"assistant",message:{content:[{type:"text",text:$t}]}}' >> "$CTRX"
+  jq -cn --arg t "$CTRX" '{hook_event_name:"stop",conversation_id:"sessK",status:"completed",loop_count:0,transcript_path:$t}' \
+    | bash "$HOME/.agents/hooks/cursor-adapt.sh" claim-evidence-gate
+}
+pre="$(printf '%s' '{"hook_event_name":"beforeSubmitPrompt","conversation_id":"sessK","prompt":"do it"}' | bash "$HOME/.agents/hooks/cursor-adapt.sh" claim-evidence-gate)"
+[ "$(printf '%s' "$pre" | jq -r .continue)" = true ] && printf 'ok   %-36s continue\n' "claim prompt stamp" || { printf 'FAIL %-36s out=%s\n' "claim prompt stamp" "$pre"; fail=1; }
+sleep 1
+printf '%s' '{"hook_event_name":"postToolUse","tool_name":"Shell","conversation_id":"sessK","tool_input":{"command":"make test"},"tool_output":"{\"output\":\"12 passed\\n\",\"exitCode\":0}"}' \
+  | bash "$HOME/.agents/hooks/cursor-adapt.sh" context-ledger >/dev/null
+ev="$(jq -r '.evidence[]?' "$HOME/.local/state/agent-hooks/sessK/ledger.jsonl" | sort | paste -sd, -)"
+[ "$ev" = "12 passed,exit=0" ] && printf 'ok   %-36s %s\n' "ledger evidence from tool_output" "$ev" || { printf 'FAIL %-36s got=%s\n' "ledger evidence from tool_output" "$ev"; fail=1; }
+out="$(cursor_claim '全部已完成並驗證通過。')"
+case "$out" in *followup_message*judgment-rubrics*) printf 'ok   %-36s followup\n' "claim unquoted -> followup";; *) printf 'FAIL %-36s out=%s\n' "claim unquoted -> followup" "$out"; fail=1;; esac
+out="$(cursor_claim '完成，12 passed。')"
+[ "$out" = '{}' ] && printf 'ok   %-36s {}\n' "claim quoted passes" || { printf 'FAIL %-36s out=%s\n' "claim quoted passes" "$out"; fail=1; }
+
+# --- deny-replay-gate via adapter: a call a gate denied may not be resent as-is ---
+install -m 0755 .agents/hooks/deny-replay-gate.sh "$HOME/.agents/hooks/"
+REPLAY='{"hook_event_name":"preToolUse","tool_name":"Shell","conversation_id":"sessR","tool_input":{"command":"agent-tmux cursor assign job /tmp /p.md","timeout":30000}}'
+OTHER='{"hook_event_name":"preToolUse","tool_name":"Shell","conversation_id":"sessR","tool_input":{"command":"git status","timeout":30000}}'
+t "replay: first call allowed"     0 deny-replay-gate "$REPLAY"
+t "replay: host gate denies"       2 tmux-assign-host-gate "$REPLAY"
+t "replay: same call now blocked"  2 deny-replay-gate "$REPLAY"
+t "replay: other call allowed"     0 deny-replay-gate "$OTHER"
+
 # --- tmux-assign-host-gate via adapter ---
-ASSIGN='{"hook_event_name":"preToolUse","tool_name":"Shell","conversation_id":"c1","tool_input":{"command":"agent-tmux cursor assign job /tmp /p.md"}}'
-ASSIGN_CHILD='{"hook_event_name":"preToolUse","tool_name":"Shell","subagent_id":"s1","subagent_type":"generalPurpose","conversation_id":"c1","tool_input":{"command":"agent-tmux cursor assign job /tmp /p.md"}}'
+# Live Cursor foreground Shell always carries timeout; a missing one is block_until_ms=0 (background).
+ASSIGN='{"hook_event_name":"preToolUse","tool_name":"Shell","conversation_id":"c1","tool_input":{"command":"agent-tmux cursor assign job /tmp /p.md","timeout":30000}}'
+ASSIGN_CHILD='{"hook_event_name":"preToolUse","tool_name":"Shell","subagent_id":"s1","subagent_type":"generalPurpose","conversation_id":"c1","tool_input":{"command":"agent-tmux cursor assign job /tmp /p.md","timeout":30000}}'
 ASSIGN_BG='{"hook_event_name":"preToolUse","tool_name":"Shell","conversation_id":"c1","tool_input":{"command":"agent-tmux cursor assign job /tmp /p.md","run_in_background":true}}'
 t "assign parent deny" 2 tmux-assign-host-gate "$ASSIGN"
 t "assign Task-hosted allow" 0 tmux-assign-host-gate "$ASSIGN_CHILD"

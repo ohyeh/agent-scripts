@@ -149,6 +149,8 @@ ledger_for c1b "$BEFORE";          [[ -z "$(run_claim c1b '修好了，應該沒
 TRX="$WORK/transcript-codex.jsonl"   # Codex rollout: a real user turn is an item_completed UserMessage
 printf '%s\n' '{"timestamp":"2026-01-01T00:00:00.000Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage"}}}' > "$TRX"
 ledger_for c13 "$BEFORE" "$EDIT0"; [[ "$(run_claim c13 '修好了，應該沒問題' "$TRX")" == block ]]  || { echo "FAIL: Codex transcript claim not blocked" >&2; exit 1; }
+PATCH0='{"timestamp":"2026-01-01T00:00:05Z","tool":"apply_patch","evidence":[]}'
+ledger_for c14 "$BEFORE" "$PATCH0"; [[ "$(run_claim c14 '修好了，應該沒問題' "$TRX")" == block ]] || { echo "FAIL: Codex apply_patch-only claim not blocked" >&2; exit 1; }
 ledger_for c2 "$BEFORE" "$RUN0";   [[ "$(run_claim c2 '修好了，應該沒問題')" == block ]]            || { echo "FAIL: claim quoting no token not blocked" >&2; exit 1; }
 ledger_for c3 "$BEFORE" "$RUN0";   [[ "$(run_claim c3 'Fixed. `npm test` exit 1')" == block ]]        || { echo "FAIL: mismatched token not blocked" >&2; exit 1; }
 ledger_for c4 "$BEFORE" "$RUN0";   [[ -z "$(run_claim c4 'Fixed. `npm test` → exit 0, 18/18 passed')" ]] || { echo "FAIL: bound claim blocked" >&2; exit 1; }
@@ -188,5 +190,18 @@ run_deny 'npm test'  || { echo "FAIL: re-running a plain failing command was blo
 run_deny 'ls -la'    || { echo "FAIL: a fresh call was blocked" >&2; exit 1; }
 check_jsonl "$TEST_DATA/agent-hooks/deny-replay-stats.jsonl" 3 '(.tool=="Bash") and (.replay_blocked|type)=="boolean"'
 [[ "$(jq -r 'select(.replay_blocked==true)|.tool' "$TEST_DATA/agent-hooks/deny-replay-stats.jsonl" | wc -l | tr -d ' ')" == 1 ]]
+# Codex rollout shape (live 2026-09-26): exec JS input + "Command blocked by PreToolUse hook" output.
+TR6="$WORK/rollout-deny.jsonl"
+printf '%s\n' \
+  '{"type":"response_item","payload":{"type":"custom_tool_call","call_id":"c1","name":"exec","input":"text(await tools.exec_command({cmd:\"gated-cmd \\\"x\\\"\",max_output_tokens:1000}));\n"}}' \
+  '{"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c1","output":[{"type":"input_text","text":"Script failed\nCommand blocked by PreToolUse hook: BLOCKED: no"}]}}' > "$TR6"
+run_codex_deny() { printf '%s' "$(jq -cn --arg tp "$TR6" --arg c "$1" '{tool_name:"Bash",transcript_path:$tp,tool_input:{command:$c}}')" \
+  | HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" bash "$ROOT/.agents/hooks/deny-replay-gate.sh" >/dev/null 2>&1; }
+if run_codex_deny 'gated-cmd "x"'; then echo "FAIL: Codex replay of a BLOCKED call was not short-circuited" >&2; exit 1; fi
+run_codex_deny 'gated-cmd "y"' || { echo "FAIL: a fresh Codex call was blocked" >&2; exit 1; }
+printf '%s\n' \
+  '{"type":"response_item","payload":{"type":"custom_tool_call","call_id":"c2","name":"exec","input":"text(await tools.exec_command({cmd:\"rg phrase\",max_output_tokens:1000}));\n"}}' \
+  '{"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c2","output":[{"type":"input_text","text":"Script completed\nOutput:\nx.sh:3: Command blocked by PreToolUse hook: y"}]}}' >> "$TR6"
+run_codex_deny 'rg phrase' || { echo "FAIL: output that only mentions the deny phrase was treated as a deny" >&2; exit 1; }
 
 echo "JSONL hooks smoke: bol denies incomplete briefs + proxy briefs missing declared fields; concurrency gate denies the 6th subagent; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call"

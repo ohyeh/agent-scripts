@@ -16,7 +16,7 @@ say_pass() { echo "PASS [cursor-hooks] $*"; }
 [ -x "$ADAPT" ] || say_fail "adapter not executable: \$HOME/.agents/hooks/cursor-adapt.sh"
 [ -f "$JSON" ] || say_fail "missing \$HOME/.cursor/hooks.json"
 
-for name in bol-prompt-gate subagent-concurrency-gate subagent-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate context-ledger; do
+for name in bol-prompt-gate subagent-concurrency-gate subagent-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate context-ledger claim-evidence-gate deny-replay-gate; do
   [ -x "${HOOK_DIR}/fleet-${name}.sh" ] || say_fail "wrapper missing: \$HOME/.cursor/hooks/fleet-${name}.sh"
 done
 
@@ -29,8 +29,10 @@ hooks = data.get("hooks") or {}
 want = {
     "subagentStart": ["./hooks/fleet-bol-prompt-gate.sh", "./hooks/fleet-subagent-concurrency-gate.sh", "./hooks/fleet-subagent-ledger.sh"],
     "subagentStop": ["./hooks/fleet-subagent-ledger.sh"],
-    "preToolUse": ["./hooks/fleet-bash-read-audit.sh", "./hooks/fleet-agent-device-target-gate.sh", "./hooks/fleet-tmux-assign-host-gate.sh"],
+    "preToolUse": ["./hooks/fleet-bash-read-audit.sh", "./hooks/fleet-agent-device-target-gate.sh", "./hooks/fleet-tmux-assign-host-gate.sh", "./hooks/fleet-deny-replay-gate.sh"],
     "postToolUse": ["./hooks/fleet-context-ledger.sh"],
+    "beforeSubmitPrompt": ["./hooks/fleet-claim-evidence-gate.sh"],
+    "stop": ["./hooks/fleet-claim-evidence-gate.sh"],
 }
 errors = []
 for event, cmds in want.items():

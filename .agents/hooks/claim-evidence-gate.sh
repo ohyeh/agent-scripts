@@ -25,8 +25,8 @@
 # claim (false block measured 2026-08-27 on 「完成宣告 gate」).
 # Fires once per distinct (title, reply); marker prefix claim-checked- (the
 # retired done-claim-checked- markers from session-title-sentinel are inert).
-# Claude Code only: reads the Claude jsonl and emits {decision: block};
-# cursor-adapt.sh skips it like session-title-sentinel.
+# Reads a Claude or Codex jsonl and emits {decision: block}; agy-adapt.sh feeds it a
+# synthesized transcript + ledger. cursor-adapt.sh feeds it a prompt stamp + last reply.
 set -u
 
 IN="$(cat)"
@@ -79,7 +79,7 @@ if [ "$claim" = "positive" ]; then
   # deliverable changed a file, system, or external state. A plain answer
   # (no mutating tool in the window) cites its source instead — the ledger
   # has tool names but not Bash commands, so Bash counts as mutating.
-  mutating="$(printf '%s\n' "$window" | jq -r '.tool // empty' 2>/dev/null | grep -cE '^(Bash|Edit|Write|MultiEdit|NotebookEdit)$')"
+  mutating="$(printf '%s\n' "$window" | jq -r '.tool // empty' 2>/dev/null | grep -cE '^(Bash|Edit|Write|MultiEdit|NotebookEdit|apply_patch)$')"
   if [ "${mutating:-0}" -eq 0 ]; then
     jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "${SESSION_ID:-}" '{timestamp:$ts, claim:"positive", session:$sid, blocked:false, skipped:"no-mutating-tool"}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
     exit 0

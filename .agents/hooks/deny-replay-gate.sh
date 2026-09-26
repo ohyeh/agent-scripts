@@ -40,6 +40,24 @@ prior="$(tail -n 400 "$TRANSCRIPT" | jq -rs --arg tool "$TOOL" '
   | $uses[] | select(.id as $i | $denied | index($i)) | .input' 2>/dev/null \
   | while IFS= read -r inp; do printf '%s' "$inp" | jq -cS . | $SHASUM | cut -d' ' -f1; done | sort -u)"
 
+# Codex rollout: a denied call is a custom_tool_call "exec" whose JS input holds
+# cmd:"…", answered by a custom_tool_call_output saying "Command blocked by
+# PreToolUse hook" (live 2026-09-26: a replay passed, 0 replay_blocked). The
+# Codex hook payload is {command} only, so that is the fingerprint to rebuild.
+# Anchored on the live deny shape ("Script failed … \nCommand blocked by …") so a
+# command whose OUTPUT merely mentions the phrase (rg while debugging) is not a deny.
+if [ "$TOOL" = Bash ]; then
+  codex="$(tail -n 400 "$TRANSCRIPT" | jq -rs '
+    [ .[] | .payload? // empty | select(.type? == "custom_tool_call_output")
+      | select((.output | if type == "string" then . else ([.[]?.text? // empty] | join(" ")) end)
+               | test("^Script failed\\b[\\s\\S]*\\nCommand blocked by PreToolUse hook: "))
+      | .call_id ] as $denied
+    | .[] | .payload? // empty | select(.type? == "custom_tool_call" and (.call_id as $c | $denied | index($c)))
+    | .input | capture("cmd:(?<s>\"(?:[^\"\\\\]|\\\\.)*\")").s | fromjson | {command: .} | tojson' 2>/dev/null \
+    | while IFS= read -r inp; do printf '%s' "$inp" | jq -cS . | $SHASUM | cut -d' ' -f1; done)"
+  prior="$(printf '%s\n%s\n' "$prior" "$codex" | sed '/^$/d' | sort -u)"
+fi
+
 hit=false
 if printf '%s\n' "$prior" | grep -Fqx "$SHA"; then hit=true; fi
 jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg tool "$TOOL" --arg sha "$SHA" --argjson hit "$hit" \

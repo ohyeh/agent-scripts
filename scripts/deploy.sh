@@ -253,6 +253,7 @@ hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/a
 hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
 hook_install "$SRC/.agents/hooks/tmux-assign-host-gate.sh"
 hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
+hook_install "$SRC/.agents/hooks/agy-adapt.sh"
 hook_install "$SRC/.agents/hooks/compaction-recall.sh"
 hook_install "$SRC/.agents/hooks/precompact-instructions.sh"
 hook_install "$SRC/.agents/hooks/postcompact-handoff.sh"
@@ -342,6 +343,19 @@ if [ -d ~/.codex ]; then
   ' "$CODEX_HOOKS" > "$tmp_codex" && mv "$tmp_codex" "$CODEX_HOOKS"
 fi
 
+# agy rejects ~/.gemini/config/hooks.json whole when any key is not agy-format, so the
+# fleet owns its own plugin dir instead (whole-file, idempotent overwrite).
+if [ -d ~/.gemini/config ]; then
+  AGY_PLUGIN=~/.gemini/config/plugins/agent-scripts
+  mkdir -p "$AGY_PLUGIN"
+  printf '{"name":"agent-scripts"}\n' > "$AGY_PLUGIN/plugin.json"
+  jq -n --arg a "\$HOME/.agents/hooks/agy-adapt.sh" '{"agent-scripts":{
+    PreToolUse:[{matcher:"run_command",hooks:[
+      {type:"command",command:($a+" PreToolUse tmux-assign-host-gate")},
+      {type:"command",command:($a+" PreToolUse bash-read-audit")}]}],
+    Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$AGY_PLUGIN/hooks.json"
+fi
+
 for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
@@ -353,6 +367,7 @@ done
 [ -x ~/.agents/hooks/check-bol-prompt.sh ] || { echo "FAIL [hooks] check-bol-prompt.sh (bol-prompt-gate validator) not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/evidence-tokens.sh ] || { echo "FAIL [hooks] evidence-tokens.sh (shared by context-ledger + claim-evidence-gate) not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/cursor-adapt.sh ] || { echo "FAIL [hooks] cursor-adapt.sh not installed" >&2; exit 1; }
+[ -x ~/.agents/hooks/agy-adapt.sh ] || { echo "FAIL [hooks] agy-adapt.sh not installed" >&2; exit 1; }
 if [ -e ~/.agents/hooks/bol-prompt-warn.sh ] || grep -q 'bol-prompt-warn' "$SETTINGS"; then
   echo "FAIL [hooks] retired bol-prompt-warn.sh still installed or registered" >&2
   exit 1

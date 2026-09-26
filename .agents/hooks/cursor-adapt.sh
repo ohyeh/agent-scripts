@@ -10,8 +10,7 @@
 #   claude-version-sentinel  — Claude CLI version tripwire
 #   session-title-sentinel   — Stop output is Claude {decision:block}; Cursor
 #                              stop wants followup_message, and greps Claude jsonl
-#   claim-evidence-gate      — same shape as session-title-sentinel (Claude jsonl
-#                              + {decision:block}); Cursor has no ledger deed axis
+# claim-evidence-gate runs through its own branch below (beforeSubmitPrompt + stop).
 # tmux-assign-host-gate IS registered: parent Shell has no subagent_id →
 # agent_type ABSENT → deny. Task-hosted Shell with subagent_id passes.
 set -u
@@ -38,6 +37,37 @@ fi
 if [ ! -x "$HOOK" ]; then
   printf '%s\n' "{\"agent_message\":\"cursor-adapt: missing $NAME.sh\"}"
   exit 1
+fi
+
+# claim-evidence-gate: Cursor stop carries no reply text and its transcript has
+# no timestamps. beforeSubmitPrompt stamps the human-prompt time; stop hands the
+# gate that stamp as a one-line transcript plus the turn's last assistant text,
+# and maps {decision:block} to Cursor's {followup_message}. The ledger is the
+# one context-ledger already writes from postToolUse tool_output.
+if [ "$NAME" = claim-evidence-gate ]; then
+  ev="$(printf '%s' "$IN" | jq -r '.hook_event_name // ""' 2>/dev/null)"
+  sid="$(printf '%s' "$IN" | jq -r '.conversation_id // .session_id // ""' 2>/dev/null)"
+  state="$HOME/.local/state/agent-hooks/${sid:-unknown}"; mkdir -p "$state"
+  case "$ev" in
+    beforeSubmitPrompt)
+      printf '{"type":"user","timestamp":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$state/cursor-prompt.jsonl"
+      printf '%s\n' '{"continue":true}'; exit 0 ;;
+    stop)
+      trx="$(printf '%s' "$IN" | jq -r '.transcript_path // ""')"
+      last=""
+      [ -f "$trx" ] && last="$(jq -rs '(map(.role) | rindex("user")) as $u | .[(($u // -1) + 1):]
+        | map(select(.role == "assistant") | [.message.content[]? | select(.type == "text") | .text] | join(""))
+        | map(select(. != "")) | last // ""' "$trx" 2>/dev/null)"
+      out="$(jq -cn --arg sid "$sid" --arg t "$state/cursor-prompt.jsonl" --arg m "$last" \
+          --argjson again "$(printf '%s' "$IN" | jq '(.loop_count // 0) > 0')" \
+          '{hook_event_name:"Stop", session_id:$sid, transcript_path:$t, stop_hook_active:$again, last_assistant_message:$m}' \
+        | "$HOOK" 2>/dev/null)"
+      if [ "$(printf '%s' "$out" | jq -r '.decision // ""' 2>/dev/null)" = block ]; then
+        printf '%s' "$out" | jq -c '{followup_message: .reason}'
+      else printf '%s\n' '{}'; fi
+      exit 0 ;;
+  esac
+  emit_ok; exit 0
 fi
 
 # Heredoc owns python stdin, so the Cursor payload cannot be piped. File argv.
@@ -138,6 +168,22 @@ out = {
     "transcript_path": src.get("transcript_path") or "",
     "stop_hook_active": bool(src.get("stop_hook_active", False)),
 }
+# context-ledger reads tool_response. Cursor postToolUse sends tool_output, and for
+# Shell it is a JSON string {"output","exitCode"} (live 2026-09-26) — without this
+# every Cursor ledger line had evidence:[] and the claim gate could never match.
+resp = src.get("tool_output")
+if isinstance(resp, str):
+    try:
+        resp = json.loads(resp)
+    except json.JSONDecodeError:
+        pass
+if isinstance(resp, dict) and "output" in resp:
+    text = str(resp.get("output") or "")
+    if resp.get("exitCode") is not None:
+        text += f"\nexit code {resp.get('exitCode')}"
+    resp = {"stdout": text}
+if resp is not None:
+    out["tool_response"] = resp
 json.dump(out, sys.stdout, separators=(",", ":"))
 PY
 )" || {
@@ -146,6 +192,14 @@ PY
   exit 1
 }
 rm -f "$in_file"
+
+# deny-replay-gate reads prior hook denies as Claude tool_use/tool_result pairs;
+# Cursor's transcript has no tool results, so every deny below is also logged in
+# that shape and the gate reads the log instead.
+DENY_LOG="$HOME/.local/state/agent-hooks/$(printf '%s' "$mapped" | jq -r '.session_id // "unknown"')/cursor-denies.jsonl"
+if [ "$NAME" = deny-replay-gate ]; then
+  mapped="$(printf '%s' "$mapped" | jq -c --arg t "$DENY_LOG" '.transcript_path = $t')"
+fi
 
 stderr_file="$(mktemp)"
 stdout_file="$(mktemp)"
@@ -157,6 +211,10 @@ set -e
 
 if [ "$ec" -eq 2 ]; then
   msg="$(cat "$stderr_file")"
+  mkdir -p "$(dirname "$DENY_LOG")"
+  id="cursor-deny-$(date +%s)-$$"
+  printf '%s' "$mapped" | jq -c --arg id "$id" '{type:"assistant",message:{content:[{type:"tool_use",id:$id,name:.tool_name,input:.tool_input}]}}' >> "$DENY_LOG"
+  jq -cn --arg id "$id" --arg m "$msg" '{type:"user",message:{content:[{type:"tool_result",tool_use_id:$id,content:$m}]}}' >> "$DENY_LOG"
   python3 -c 'import json,sys; m=sys.stdin.read(); print(json.dumps({"permission":"deny","agent_message":m,"user_message":m}))' <<<"$msg"
   exit 2
 fi
