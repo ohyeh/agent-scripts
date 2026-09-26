@@ -9,6 +9,9 @@ const WATCH_TOOL = 'mcp__grok-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-watch__unwatch'
 const PREFIX = 'grok-watch.watch.'
 const HB_PREFIX = 'grok-watch.hb.'
+const ORPHAN_MS = 90_000
+const PRUNE_MS = 24 * 3600_000
+const PANEL_ROWS = 4
 const UUID_RE = /^[0-9a-f-]{8,36}$/
 // eslint-disable-next-line no-control-regex
 const CTRL_RE = /[\u0000-\u001f\u007f-\u009f]/g
@@ -39,7 +42,7 @@ const wakeText = (row: Row) =>
   '```'
 
 /** Per-registration state; top-level functions take it because the validator only follows $ into them. */
-type State = { sid: string; node?: string; reading: boolean; seq: number; status: Map<string, string> }
+type State = { sid: string; node?: string; reading: boolean; seq: number; status: Map<string, string>; names: Map<string, string> }
 
 async function mine(s: State, $: $) {
   return (await $.store.keys()).filter(k => k.startsWith(`${PREFIX}${s.sid}.`))
@@ -92,6 +95,7 @@ async function tick(s: State, $: $) {
   }
   if (res.state !== 'ok' || !res.rows) {
     for (const k of keys) s.status.set(k, res.state)
+    $.ui.invalidate('ui.render')
     return
   }
   for (const k of keys) {
@@ -100,6 +104,7 @@ async function tick(s: State, $: $) {
     const row = res.rows.find(r => r.id === w.botUuid)
     s.status.set(k, row ? 'ok' : 'bot-not-found')
     if (!row) continue
+    s.names.set(k, row.name)
     const { next, wake } = step(w, row)
     if (next === w) continue
     const now = (await $.store.get(k)) as Watch | undefined
@@ -107,14 +112,44 @@ async function tick(s: State, $: $) {
     await $.store.set(k, next)
     if (wake) void deliver($, k, w.gen, row)
   }
+  $.ui.invalidate('ui.render')
 }
 
+/** Beats while this session watches; drops another session's watches once its beat is a day old. */
 async function heartbeat(s: State, $: $) {
-  if ((await mine(s, $)).length) await $.store.set(`${HB_PREFIX}${s.sid}`, await $.clock.now())
+  const now = await $.clock.now()
+  if ((await mine(s, $)).length) await $.store.set(`${HB_PREFIX}${s.sid}`, now)
+  const keys = await $.store.keys()
+  for (const hb of keys.filter(k => k.startsWith(HB_PREFIX) && k !== `${HB_PREFIX}${s.sid}`)) {
+    if (now - Number(await $.store.get(hb)) < PRUNE_MS) continue
+    const sid = hb.slice(HB_PREFIX.length)
+    for (const k of keys.filter(k => k.startsWith(`${PREFIX}${sid}.`))) await $.store.delete(k)
+    await $.store.delete(hb)
+  }
+}
+
+/** This session's watches, then other sessions' watches whose owner stopped beating. */
+async function panelLines(s: State, $: $): Promise<string[]> {
+  const now = await $.clock.now()
+  const keys = await $.store.keys()
+  const lines: string[] = []
+  for (const k of keys.filter(k => k.startsWith(`${PREFIX}${s.sid}.`))) {
+    const w = (await $.store.get(k)) as Watch | undefined
+    if (!w) continue
+    const name = clean(s.names.get(k) ?? w.botUuid.slice(0, 8), 40)
+    lines.push(`grok-watch ● ${name} (${w.botUuid.slice(0, 8)}) ${s.status.get(k) ?? 'pending'}${w.lost ? ` · ${w.lost} wake lost` : ''}`)
+  }
+  for (const k of keys.filter(k => k.startsWith(PREFIX) && !k.startsWith(`${PREFIX}${s.sid}.`))) {
+    const sid = k.slice(PREFIX.length).split('.')[0]!
+    const beat = Number(await $.store.get(`${HB_PREFIX}${sid}`))
+    if (now - beat < ORPHAN_MS) continue
+    lines.push(`grok-watch ○ ${k.slice(-36, -28)} orphaned (session ${sid.slice(0, 8)}; nobody polls it)`)
+  }
+  return lines
 }
 
 export const register: Register = on => {
-  const s: State = { sid: '', reading: false, seq: 0, status: new Map() }
+  const s: State = { sid: '', reading: false, seq: 0, status: new Map(), names: new Map() }
 
   on('session.start', async ($, e, next) => {
     s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
@@ -162,7 +197,10 @@ export const register: Register = on => {
     const key = `${PREFIX}${s.sid}.${uuid}`
     let w: Watch = { botUuid: uuid, gen: ++s.seq, seen: null }
     if (row) w = step(w, row).next
+    // Beat before the record: another session's prune reads a watch with no beat as a day old.
+    await $.store.set(`${HB_PREFIX}${s.sid}`, await $.clock.now())
     await $.store.set(key, w)
+    if (row) s.names.set(key, row.name)
     s.status.set(key, row ? 'ok' : res.state === 'ok' ? 'bot-not-found' : res.state)
     return {
       result:
@@ -180,5 +218,18 @@ export const register: Register = on => {
     await $.store.delete(hits[0]!)
     s.status.delete(hits[0]!)
     return { result: 'grok-watch: unwatched. No new wake is submitted; one already submitted may still arrive.' }
+  })
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.props.hasSurvey) return next(e)
+    const below = await next(e)
+    const lines = await panelLines(s, $)
+    if (!lines.length) return below
+    const { Box, Text } = $.ui.resolve(e)
+    const shown = lines.length > PANEL_ROWS ? [...lines.slice(0, PANEL_ROWS - 1), `grok-watch +${lines.length - PANEL_ROWS + 1} more`] : lines
+    return Box({
+      flexDirection: 'column',
+      children: [below, ...shown.map(l => Text({ dimColor: l.includes('○'), wrap: 'truncate-end', children: l }))],
+    })
   })
 }

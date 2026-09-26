@@ -25,6 +25,9 @@ function world(on: On, reads: string[], answers: Array<'accept' | 'drop' | Promi
   on('session.id', () => ({ value: 'sess-A' }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('tool.register', ($, e) => ({ value: { tool: e.name } }))
+  // The band's floor, as core answers it: its own (empty) drawing.
+  on('ui.render', () => ({ type: 'engine', ref: 0 }))
+  on('ui.invalidate', () => ({ value: undefined }))
   on('ui.toast', ($, e) => {
     toasts.push(String((e as unknown as { text: string }).text))
     return { value: undefined }
@@ -182,5 +185,58 @@ describe('delivery (Q-8 ack first, S5, S6, S7)', () => {
     expect(text).not.toContain('\u001b')
     expect(text.split('```').length, 'only the two fences of the frame').toBe(3)
     expect(text.split('\n').find(l => l.startsWith('preview: '))!.length).toBeLessThanOrEqual('preview: '.length + 500)
+  })
+})
+
+const band = () => ({
+  surface: 'terminal' as const,
+  component: 'AbovePrompt' as const,
+  requestId: 'above-prompt',
+  viewport: { columns: 100, rows: 50 },
+  props: { hasSurvey: false, isWorking: false, maxRows: 40, bodyColumns: 80, scroll: { offset: 0, bodyRows: 39 }, view: {} },
+})
+
+function textOf(node: unknown): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(textOf).join('\n')
+  const el = node as { props?: Record<string, unknown>; children?: unknown }
+  return [textOf(el.props?.children), textOf(el.children)].filter(Boolean).join('\n')
+}
+
+describe('panel and orphans (T7, T4)', () => {
+  test('no watch and no orphan: the band is left alone', async ($, on) => {
+    mock.clock(on)
+    world(on, [ok(row('A'))])
+    await $.session.start(start)
+    expect(textOf(await $.ui.render(band()))).not.toContain('grok-watch')
+  })
+
+  test('a watch shows name, uuid8 and state, then a lost wake', async ($, on) => {
+    const clock = mock.clock(on)
+    world(on, [ok(row('A')), ok(row('B'))], ['drop'])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    expect(textOf(await $.ui.render(band()))).toContain('● NOVA (201040cc) ok')
+    await clock.advance(TICK)
+    expect(textOf(await $.ui.render(band()))).toContain('1 wake lost')
+  })
+
+  test("a silent session's watch is an orphan row; a beating one is not shown; a day-old one is pruned", async ($, on) => {
+    const clock = mock.clock(on, { now: 100_000 })
+    const w = world(on, [ok(row('A'))])
+    w.kv.set(`grok-watch.watch.sess-B.${OTHER}`, { botUuid: OTHER, gen: 1, seen: 'x' })
+    w.kv.set('grok-watch.hb.sess-B', 0)
+    w.kv.set(`grok-watch.watch.sess-C.${OTHER}`, { botUuid: OTHER, gen: 1, seen: 'x' })
+    w.kv.set('grok-watch.hb.sess-C', 99_000)
+    await $.session.start(start)
+    const text = textOf(await $.ui.render(band()))
+    expect(text).toContain('○ 0e9cd37b orphaned (session sess-B')
+    expect(text).not.toContain('sess-C')
+    expect(w.runs(), 'nobody polls for an orphan').toBe(0)
+    w.kv.set('grok-watch.hb.sess-B', clock.now() - 24 * 3600_000)
+    await clock.advance(TICK)
+    expect(w.kv.has(`grok-watch.watch.sess-B.${OTHER}`), 'pruned after a day').toBe(false)
+    expect(w.kv.has('grok-watch.hb.sess-B')).toBe(false)
   })
 })
