@@ -1,4 +1,4 @@
-# grok-watch
+# grok-bot-watch
 
 A Claude Code function-hook mod. You watch a Grok Bot bot by UUID; the mod
 reads the app's sidebar every 10 s and submits one prompt to this session when
@@ -18,17 +18,40 @@ the bot finishes a new reply. The session no longer has to poll.
 
 ```sh
 claude plugin marketplace add ohyeh/agent-scripts
-claude plugin install grok-watch@agent-scripts
+claude plugin install grok-bot-watch@agent-scripts
 ```
 
-During development, load the directory: `claude --plugin-dir mods/grok-watch`.
+During development, load the directory: `claude --plugin-dir mods/grok-bot-watch`.
 
 ## Tools
 
 | Tool | Input | Does |
 |---|---|---|
-| `mcp__grok-watch__watch` | `botUuid`: full UUID or an 8+ char prefix | Records a watch for this session; the current reply is the baseline |
-| `mcp__grok-watch__unwatch` | `botUuid` | Deletes the watch; no new wake is submitted |
+| `mcp__grok-bot-watch__watch` | `botUuid`: full UUID or an 8+ char prefix | Records a watch for this session; the current reply is the baseline |
+| `mcp__grok-bot-watch__unwatch` | `botUuid` | Deletes the watch; no new wake is submitted |
+
+## Panel
+
+Above the prompt, only while a watch or an orphan exists:
+
+```
+▌grok bot watch v0.2.0 · 1 bot · 1 replying · read 4s ago [ hide ]
+  ◐ NOVA 替身 w39 201040cc · replying [ unwatch ] 「第 4 條只當輔助…」
+```
+
+| Glyph | Means |
+|---|---|
+| `●` waiting | idle; the next new reply wakes this session |
+| `◐` replying | the bot is streaming; the wake comes when it settles |
+| `✦` new reply | woke this session in the last 2 minutes |
+| `▲` a state | the read failed (`port-down`, …); fixes: `using-grok-bot-app` skill |
+| `○` orphaned | another session's watch that nobody polls |
+
+The row also counts wakes (`woke 2× 5m ago`) and lost wakes, and ends with the
+bot's last preview. `[ hide ]` (`f` with the band focused) folds the band to its
+header line; it never disappears while a watch is armed. `[ unwatch ]` (`u`,
+one watch only) stops that watch. The band stays small and uses letter hotkeys
+only, so it does not take rows or digits from the workers panel below it.
 
 ## What counts as a new reply
 
@@ -66,5 +89,5 @@ within 2.5 s. The panel adds `no-process` (no `node`) and `helper-failed`
 ```sh
 scripts/test-mod-permissions-smoke   # pinned permission surface + plugin test
 scripts/test-mod-typecheck-smoke     # tsc over mods/
-node --test mods/grok-watch/bin/sidebar.test.mjs
+node --test mods/grok-bot-watch/bin/sidebar.test.mjs
 ```

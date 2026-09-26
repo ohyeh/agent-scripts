@@ -3,8 +3,8 @@ import { describe, expect, mock, test } from 'claude-code/testing'
 
 const UUID = '201040cc-5be6-4d04-9f18-62f181a84677'
 const OTHER = '0e9cd37b-0000-4000-8000-000000000000'
-const WATCH = 'mcp__grok-watch__watch' as const
-const UNWATCH = 'mcp__grok-watch__unwatch' as const
+const WATCH = 'mcp__grok-bot-watch__watch' as const
+const UNWATCH = 'mcp__grok-bot-watch__unwatch' as const
 const TICK = 10_000
 
 type Row = { id: string; name: string; unread: boolean; preview: string; busy: string | null; current: boolean }
@@ -85,7 +85,7 @@ function world(
 const macrotask = () =>
   new Promise<void>(r => (globalThis as unknown as { setTimeout: (f: () => void, ms: number) => void }).setTimeout(r, 0))
 const start = { cwd: '/work', surface: 'terminal' as const, isInteractive: true }
-const key = `grok-watch.watch.sess-A.${UUID}`
+const key = `grok-bot-watch.watch.sess-A.${UUID}`
 
 describe('eligibility (S2)', () => {
   test('a new settled reply after the baseline wakes once', async ($, on) => {
@@ -231,12 +231,15 @@ function textOf(node: unknown): string {
   return [textOf(el.props?.children), textOf(el.children)].filter(Boolean).join('\n')
 }
 
+/** The band as one line of text: each Text node is its own entry in textOf. */
+const flat = async ($: { ui: { render: (e: ReturnType<typeof band>) => Promise<unknown> } }) => textOf(await $.ui.render(band())).replace(/\n/g, '')
+
 describe('panel and orphans (T7, T4)', () => {
   test('no watch and no orphan: the band is left alone', async ($, on) => {
     mock.clock(on)
     world(on, [ok(row('A'))])
     await $.session.start(start)
-    expect(textOf(await $.ui.render(band()))).not.toContain('grok-watch')
+    expect(textOf(await $.ui.render(band()))).not.toContain('grok-bot-watch')
   })
 
   test('a watch shows name, uuid8 and state, then a lost wake', async ($, on) => {
@@ -244,27 +247,27 @@ describe('panel and orphans (T7, T4)', () => {
     world(on, [ok(row('A')), ok(row('B'))], ['drop'])
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
-    expect(textOf(await $.ui.render(band()))).toContain('● NOVA (201040cc) ok')
+    expect(await flat($)).toContain('● NOVA 201040cc · waiting')
     await clock.advance(TICK)
-    expect(textOf(await $.ui.render(band()))).toContain('1 wake lost')
+    expect(await flat($)).toContain('1 lost')
   })
 
   test("a silent session's watch is an orphan row; a beating one is not shown; a day-old one is pruned", async ($, on) => {
     const clock = mock.clock(on, { now: 100_000 })
     const w = world(on, [ok(row('A'))])
-    w.kv.set(`grok-watch.watch.sess-B.${OTHER}`, { botUuid: OTHER, gen: 1, seen: 'x' })
-    w.kv.set('grok-watch.hb.sess-B', 0)
-    w.kv.set(`grok-watch.watch.sess-C.${OTHER}`, { botUuid: OTHER, gen: 1, seen: 'x' })
-    w.kv.set('grok-watch.hb.sess-C', 99_000)
+    w.kv.set(`grok-bot-watch.watch.sess-B.${OTHER}`, { botUuid: OTHER, gen: 1, seen: 'x' })
+    w.kv.set('grok-bot-watch.hb.sess-B', 0)
+    w.kv.set(`grok-bot-watch.watch.sess-C.${OTHER}`, { botUuid: OTHER, gen: 1, seen: 'x' })
+    w.kv.set('grok-bot-watch.hb.sess-C', 99_000)
     await $.session.start(start)
     const text = textOf(await $.ui.render(band()))
     expect(text).toContain('○ 0e9cd37b orphaned (session sess-B')
     expect(text).not.toContain('sess-C')
     expect(w.runs(), 'nobody polls for an orphan').toBe(0)
-    w.kv.set('grok-watch.hb.sess-B', clock.now() - 24 * 3600_000)
+    w.kv.set('grok-bot-watch.hb.sess-B', clock.now() - 24 * 3600_000)
     await clock.advance(TICK)
-    expect(w.kv.has(`grok-watch.watch.sess-B.${OTHER}`), 'pruned after a day').toBe(false)
-    expect(w.kv.has('grok-watch.hb.sess-B')).toBe(false)
+    expect(w.kv.has(`grok-bot-watch.watch.sess-B.${OTHER}`), 'pruned after a day').toBe(false)
+    expect(w.kv.has('grok-bot-watch.hb.sess-B')).toBe(false)
   })
 })
 
@@ -335,7 +338,7 @@ describe('review fixes', () => {
     expect(JSON.stringify(await $.tool.call({ tool: WATCH, botUuid: UUID }))).toContain('helper-failed')
     await clock.advance(TICK)
     expect(w.lookups(), 'looked up again after the failure').toBe(2)
-    expect(textOf(await $.ui.render(band()))).toContain(' ok')
+    expect(await flat($)).toContain('NOVA 201040cc · waiting')
   })
 })
 
@@ -343,9 +346,9 @@ describe('two sessions, one bot (T4)', () => {
   test("each session owns its own watch: ours wakes once, the other's record is left to it", async ($, on) => {
     const clock = mock.clock(on, { now: 100_000 })
     const w = world(on, [ok(row('A')), ok(row('B')), ok(row('B'))])
-    const theirs = `grok-watch.watch.sess-B.${UUID}`
+    const theirs = `grok-bot-watch.watch.sess-B.${UUID}`
     w.kv.set(theirs, { botUuid: UUID, gen: 1, seen: 'A' })
-    w.kv.set('grok-watch.hb.sess-B', 100_000)
+    w.kv.set('grok-bot-watch.hb.sess-B', 100_000)
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     await clock.advance(TICK * 2)
@@ -439,9 +442,9 @@ describe('review 0.1.1 fixes', () => {
       for (let i = 0; i < 20; i++) await macrotask()
     }
     const w = world(on, [ok(row('A'))])
-    const theirs = `grok-watch.watch.sess-B.${OTHER}`
+    const theirs = `grok-bot-watch.watch.sess-B.${OTHER}`
     w.kv.set(theirs, { botUuid: OTHER, gen: 1, seen: 'x' })
-    w.kv.set('grok-watch.hb.sess-B', 100_000)
+    w.kv.set('grok-bot-watch.hb.sess-B', 100_000)
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     await fire(110_000)
@@ -459,6 +462,73 @@ describe('review 0.1.1 fixes', () => {
     await $.session.start(start)
     const r = await $.tool.call({ tool: WATCH, botUuid: '201040cc' })
     expect(JSON.stringify(r)).toContain('matches 0 bots')
-    expect([...w.kv.keys()].some(k => k.startsWith('grok-watch.watch.'))).toBe(false)
+    expect([...w.kv.keys()].some(k => k.startsWith('grok-bot-watch.watch.'))).toBe(false)
+  })
+})
+
+describe('panel 0.2.0', () => {
+  const PLUGIN = 'grok-bot-watch'
+
+  test('a streaming bot shows replying, in the header count too; the preview rides on the row', async ($, on) => {
+    const clock = mock.clock(on)
+    world(on, [ok(row('A')), ok(row('P', 'working'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    const t = await flat($)
+    expect(t).toContain('◐ NOVA 201040cc · replying')
+    expect(t).toContain('1 bot · 1 replying')
+    expect(t).toContain('「P」')
+  })
+
+  test('a wake is counted in the record: new reply first, then woke N× with its age', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A')), ok(row('B'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    const rec = w.kv.get(key) as { wakes?: number; lastWake?: number }
+    expect(rec.wakes).toBe(1)
+    expect(rec.lastWake).toBe(clock.now())
+    expect(await flat($)).toContain('✦ NOVA 201040cc · new reply 0s ago · woke 1×')
+    await clock.advance(180_000)
+    expect(await flat($)).toContain('● NOVA 201040cc · waiting · woke 1× 3m ago')
+  })
+
+  test('hide folds the band to its header line, show brings the rows back', async ($, on) => {
+    const clock = mock.clock(on)
+    world(on, [ok(row('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    expect(await flat($)).toContain('NOVA')
+    await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above-prompt' })
+    const folded = await flat($)
+    expect(folded).toContain('▌grok bot watch v0.2.0 · 1 bot')
+    expect(folded, 'folded: no bot row').not.toContain('NOVA')
+    await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above-prompt' })
+    expect(await flat($)).toContain('NOVA')
+  })
+
+  test('the unwatch button deletes the watch and the band goes away', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A')), ok(row('B'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await $.ui.render(band())
+    await $.ui.press({ plugin: PLUGIN, key: `unwatch-${key}`, requestId: 'above-prompt' })
+    expect(w.kv.has(key)).toBe(false)
+    expect(await flat($)).not.toContain('grok bot watch')
+    await clock.advance(TICK)
+    expect(w.woken, 'nothing is watched any more').toHaveLength(0)
+  })
+
+  test('a composer draft is shown as a draft, not as the reply', async ($, on) => {
+    const clock = mock.clock(on)
+    world(on, [ok(row('A')), ok(row('Draft: hi'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    expect(await flat($)).toContain('NOVA 201040cc · draft in composer')
   })
 })

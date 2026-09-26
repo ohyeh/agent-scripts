@@ -3,7 +3,7 @@
 # MOD_VERSION (the watch receipt prints it) and the latest CHANGELOG heading.
 set -euo pipefail
 cd "$(dirname "${(%):-%x}")/.."
-MOD="${MOD:-mods/grok-watch}"; NAME="${MOD:t}"
+MOD="${MOD:-mods/grok-bot-watch}"; NAME="${MOD:t}"
 want="$(jq -r '.version' "$MOD/.claude-plugin/plugin.json")"
 FAIL=0
 check() { if [[ "$2" == "$want" ]]; then echo "  ok   $1 ($2)"; else echo "  FAIL $1: expected '$want', got '$2'" >&2; FAIL=1; fi; }

@@ -23,7 +23,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 CLAUDE="${CLAUDE_BIN:-claude}"
-MOD="${MOD:-mods/grok-watch}"
+MOD="${MOD:-mods/grok-bot-watch}"
 PINNED="$MOD/permissions.txt"
 
 pass=0

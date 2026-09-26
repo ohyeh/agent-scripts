@@ -1,0 +1,2 @@
+./register.ts hooks: session.start, tool.call{tool=mcp__grok-bot-watch__watch}, tool.call{tool=mcp__grok-bot-watch__unwatch}, ui.render{component=AbovePrompt}
+./register.ts calls: $.clock.every, $.clock.now, $.process.run (via read), $.prompt.submit (via deliver), $.session.id, $.store.delete (via heartbeat, unwatchKey), $.store.get (via deliver, heartbeat, panelData, tick), $.store.keys (via heartbeat, mine, panelData), $.store.set, $.tool.register, $.ui.invalidate, $.ui.log (via deliver, readOnce), $.ui.resolve, $.ui.toast (via deliver)

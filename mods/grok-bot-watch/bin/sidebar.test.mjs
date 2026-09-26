@@ -1,4 +1,4 @@
-// node --test mods/grok-watch/bin/sidebar.test.mjs — the helper's degraded states.
+// node --test mods/grok-bot-watch/bin/sidebar.test.mjs — the helper's degraded states.
 // The ok path needs a CDP WebSocket; it is checked live against the app (T1 note).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
