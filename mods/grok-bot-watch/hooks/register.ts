@@ -101,11 +101,21 @@ function readOnce(s: State, $: $): Promise<Read> {
 
 // Ack first (user decision Q-8): the record already says "seen" when this runs,
 // so a refused submit is a lost wake, never a duplicate. Not awaited by the tick.
-async function deliver($: $, key: string, gen: number, row: Row) {
+async function deliver($: $, key: string, gen: number, row: Row, at: number) {
   let why: string
   try {
     const r = await $.prompt.submit({ text: wakeText(row) })
-    if (r.drop === undefined) return
+    if (r.drop === undefined) {
+      // Counted only once the engine took it: a lost wake is not a wake.
+      try {
+        const w = (await $.store.get(key)) as Watch | undefined
+        if (w?.gen === gen) await $.store.set(key, { ...w, wakes: (w.wakes ?? 0) + 1, lastWake: at })
+      } catch (err) {
+        $.ui.log(`grok-bot-watch: could not count a wake: ${String(err)}`, { to: 'debug' })
+      }
+      $.ui.invalidate('ui.render')
+      return
+    }
     why = `dropped: ${r.drop}`
   } catch (err) {
     why = `threw: ${String(err)}`
@@ -143,8 +153,8 @@ async function tick(s: State, $: $) {
     if (next === w) continue
     const now = (await $.store.get(k)) as Watch | undefined
     if (now?.gen !== w.gen) continue
-    await $.store.set(k, { ...now, seen: next.seen, armed: next.armed, ...(wake ? { wakes: (now.wakes ?? 0) + 1, lastWake: t } : {}) })
-    if (wake) void deliver($, k, w.gen, row)
+    await $.store.set(k, { ...now, seen: next.seen, armed: next.armed })
+    if (wake) void deliver($, k, w.gen, row, t)
   }
   $.ui.invalidate('ui.render')
 }
@@ -174,6 +184,34 @@ async function heartbeat(s: State, $: $) {
     for (const k of keys.filter(k => k.startsWith(`${PREFIX}${sid}.`))) await $.store.delete(k)
     await $.store.delete(hb)
   }
+}
+
+/** Terminal cells: CJK and other fullwidth text takes 2. */
+const cells = (t: string) => [...t].reduce((n, ch) => n + (/[\u1100-\u115f\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/.test(ch) ? 2 : 1), 0)
+/** The longest prefix of t that fits in max cells, with … when cut. */
+function fit(t: string, max: number): string {
+  if (cells(t) <= max) return t
+  let out = ''
+  for (const ch of t) {
+    if (cells(out + ch) + 1 > max) break
+    out += ch
+  }
+  return max > 0 ? `${out}…` : ''
+}
+
+/**
+ * Rows a drawn tree takes: a column stacks its children, a row is as tall as its tallest, a leaf is a line.
+ * ponytail: assumes every Text fits its line (the workers panel truncates its own); an engine element counts 0.
+ */
+function rowsOf(n: unknown): number {
+  if (Array.isArray(n)) return n.reduce((a: number, c) => a + rowsOf(c), 0)
+  if (!n || typeof n !== 'object') return 0
+  // A drawn element carries its children beside props (seen in a render dump), a built one may hold them in props.
+  const el = n as { type?: string; children?: unknown; props?: { flexDirection?: string; children?: unknown } }
+  if (el.type === 'engine') return 0
+  if (el.type !== 'Box') return 1
+  const kids = [el.children ?? el.props?.children].flat(9)
+  return el.props?.flexDirection === 'column' ? kids.reduce((a: number, c) => a + rowsOf(c), 0) : Math.max(1, ...kids.map(rowsOf))
 }
 
 const ago = (ms: number) => (ms < 60_000 ? `${Math.max(0, Math.round(ms / 1000))}s` : ms < 3600_000 ? `${Math.round(ms / 60_000)}m` : `${Math.round(ms / 3600_000)}h`)
@@ -271,7 +309,10 @@ export const register: Register = on => {
     // Beat before the record: another session's prune reads a watch with no beat as a day old.
     await $.store.set(`${HB_PREFIX}${s.sid}`, await $.clock.now())
     await $.store.set(key, w)
-    if (row) s.names.set(key, row.name)
+    if (row) {
+      s.names.set(key, row.name)
+      s.live.set(key, row)
+    }
     s.status.set(key, row ? 'ok' : res.state === 'ok' ? 'bot-not-found' : res.state)
     return {
       result:
@@ -291,53 +332,69 @@ export const register: Register = on => {
     return { result: 'grok-bot-watch: unwatched. No new wake is submitted; one already submitted may still arrive.' }
   })
 
-  // Small on purpose: the band's rows are shared with the workers panel, which
-  // counts only its own against maxRows. Header + one line per bot, the preview
-  // folded into that line. Letter hotkeys only, never r, q or a digit (workers').
+  // The band's rows are shared with every plugin below (the workers panel counts
+  // only its own against maxRows), so this draws in what is left: header, then
+  // one line per bot, then nothing at all when even the header does not fit —
+  // a taller tree scrolls and disarms every digit hotkey in the band.
+  // Letter hotkeys only, never r, q or a digit (workers').
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
     const below = await next(e)
     const { bots: rows, orphans } = await panelData(s, $)
     if (!rows.length && !orphans.length) return below
+    const budget = Math.min(PANEL_ROWS, e.props.maxRows - rowsOf(below))
+    if (budget < 1) return below
     const { Box, Text, Button } = $.ui.resolve(e)
+    const width = e.props.bodyColumns
     const now = await $.clock.now()
     const replying = rows.filter(r => r.glyph === '◐').length
     const summary =
       `${rows.length} bot${rows.length === 1 ? '' : 's'}` +
       (replying ? ` · ${replying} replying` : '') +
       (s.lastRead !== undefined ? ` · read ${ago(now - s.lastRead)} ago` : '')
+    const folded = s.folded || budget === 1
+    const title = '▌grok bot watch '
     const header = Box({
       flexDirection: 'row',
       children: [
-        Text({ bold: true, color: ACCENT, children: '▌grok bot watch ' }),
-        Text({ dimColor: true, wrap: 'truncate-end', children: `v${MOD_VERSION} · ${summary} ` }),
-        Button({ key: 'fold', label: s.folded ? 'show' : 'hide', hotkey: 'f', dimColor: true, onPress: () => {
-          s.folded = !s.folded
+        Text({ bold: true, color: ACCENT, children: title }),
+        // Room for the title and `[ show ]`/`[ hide ]`: the summary is what gets cut.
+        Text({ dimColor: true, children: fit(`v${MOD_VERSION} · ${summary} `, width - cells(title) - 9) }),
+        Button({ key: 'fold', label: folded ? 'show' : 'hide', hotkey: 'f', dimColor: true, onPress: () => {
+          s.folded = !folded
           $.ui.invalidate('ui.render')
         } }),
       ],
     })
     // Folded is one line, not gone: a wake can still arrive, and nothing else says so.
-    if (s.folded) return Box({ flexDirection: 'column', children: [below, header] })
-    const lines = [
-      ...rows.map(r =>
-        Box({
-          key: r.key,
-          flexDirection: 'row',
-          children: [
-            Text({ color: r.color, children: `  ${r.glyph} ` }),
-            Text({ bold: true, children: `${r.name} ` }),
-            Text({ dimColor: true, children: `${r.w.botUuid.slice(0, 8)} · ` }),
-            Text({ color: r.color, children: `${r.state} ` }),
-            Button({ key: `unwatch-${r.key}`, label: 'unwatch', dimColor: true, ...(rows.length === 1 ? { hotkey: 'u' } : {}),
-              onPress: () => void unwatchKey(s, $, r.key) }),
-            Text({ dimColor: true, wrap: 'truncate-end', children: r.preview ? ` 「${r.preview}」` : '' }),
-          ],
-        })),
-      ...orphans.map(o => Text({ dimColor: true, wrap: 'truncate-end', children: `  ${o}` })),
-    ]
-    const room = PANEL_ROWS - 1
-    const shown = lines.length > room ? [...lines.slice(0, room - 1), Text({ dimColor: true, children: `  +${lines.length - room + 1} more` })] : lines
+    if (folded) return Box({ flexDirection: 'column', children: [below, header] })
+    // A row: glyph, then name, uuid8 and state cut to fit beside `[ unwatch ]`, then the preview in what is left.
+    const rowOf = (r: Bot) => {
+      // What is cut first: the uuid8, then the name (kept to 8 cells), and the state last; it is why the row is there.
+      let room = width - 4 - 12
+      const state = fit(`${r.state} `, Math.max(0, room - 9))
+      room -= cells(state)
+      const name = fit(r.name, Math.min(24, room - 1))
+      room -= cells(name) + 1
+      const id = fit(`${r.w.botUuid.slice(0, 8)} · `, room)
+      return Box({
+        key: r.key,
+        flexDirection: 'row',
+        children: [
+          Text({ color: r.color, children: `  ${r.glyph} ` }),
+          Text({ bold: true, children: `${name} ` }),
+          Text({ dimColor: true, children: id }),
+          Text({ color: r.color, children: state }),
+          Button({ key: `unwatch-${r.key}`, label: 'unwatch', dimColor: true, ...(rows.length === 1 ? { hotkey: 'u' } : {}),
+            onPress: () => void unwatchKey(s, $, r.key).catch(err => $.ui.log(`grok-bot-watch: unwatch failed: ${String(err)}`, { to: 'debug' })) }),
+          Text({ dimColor: true, wrap: 'truncate-end', children: r.preview ? ` 「${r.preview}」` : '' }),
+        ],
+      })
+    }
+    const lines = [...rows.map(rowOf), ...orphans.map(o => Text({ dimColor: true, wrap: 'truncate-end', children: `  ${o}` }))]
+    const room = budget - 1
+    // One row left: the first bot, not a bare "+N more"; the header still counts them all.
+    const shown = lines.length <= room ? lines : room === 1 ? lines.slice(0, 1) : [...lines.slice(0, room - 1), Text({ dimColor: true, children: `  +${lines.length - room + 1} more` })]
     return Box({ flexDirection: 'column', children: [below, header, ...shown] })
   })
 }

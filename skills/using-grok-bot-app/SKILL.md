@@ -76,8 +76,8 @@ composer draft shows as a `Draft: …` preview. The sidebar has **no
 timestamps** (0.59.1); only the open transcript has `time[datetime]` (ISO UTC).
 Reach for the full transcript only when the preview is not enough.
 
-**Waiting for a reply?** Do not poll. The `grok-watch` mod (plugin
-`grok-watch@agent-scripts`, from `ohyeh/agent-scripts`) watches a bot by UUID and wakes the session once
+**Waiting for a reply?** Do not poll. The `grok-bot-watch` mod (plugin
+`grok-bot-watch@agent-scripts`, from `ohyeh/agent-scripts`) watches a bot by UUID and wakes the session once
 when its reply settles. The wake carries the preview only; read the transcript
 below when that is not enough. The mod never starts or clicks the app, so a
 bad state in its panel is fixed from this skill:

@@ -23,7 +23,7 @@ function world(
   reads: string[],
   answers: Array<'accept' | 'drop' | 'undef' | Promise<'accept' | 'drop'>> = [],
   /** node: what `command -v node` prints; hold: every helper run waits on it; beforeGet: runs inside a store.get, after the value is captured. */
-  opts: { node?: string; hold?: Promise<void>; spawnFails?: number; beforeGet?: (key: string) => Promise<void> } = {},
+  opts: { node?: string; hold?: Promise<void>; spawnFails?: number; beforeGet?: (key: string) => Promise<void>; floorRows?: number } = {},
 ) {
   const woken: string[] = []
   const toasts: string[] = []
@@ -34,7 +34,10 @@ function world(
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('tool.register', ($, e) => ({ value: { tool: e.name } }))
   // The band's floor, as core answers it: its own (empty) drawing.
-  on('ui.render', () => ({ type: 'engine', ref: 0 }))
+  on('ui.render', () =>
+    opts.floorRows
+      ? ({ type: 'Box', props: { flexDirection: 'column' }, children: Array.from({ length: opts.floorRows }, (_, i) => ({ type: 'Text', props: {}, children: [`worker ${i}`] })) }) as never
+      : { type: 'engine', ref: 0 })
   on('ui.invalidate', () => ({ value: undefined }))
   on('ui.toast', ($, e) => {
     toasts.push(String((e as unknown as { text: string }).text))
@@ -215,12 +218,12 @@ describe('delivery (Q-8 ack first, S5, S6, S7)', () => {
   })
 })
 
-const band = () => ({
+const band = (props: { maxRows?: number; bodyColumns?: number } = {}) => ({
   surface: 'terminal' as const,
   component: 'AbovePrompt' as const,
   requestId: 'above-prompt',
   viewport: { columns: 100, rows: 50 },
-  props: { hasSurvey: false, isWorking: false, maxRows: 40, bodyColumns: 80, scroll: { offset: 0, bodyRows: 39 }, view: {} },
+  props: { hasSurvey: false, isWorking: false, maxRows: 40, bodyColumns: 80, scroll: { offset: 0, bodyRows: 39 }, view: {}, ...props },
 })
 
 function textOf(node: unknown): string {
@@ -530,5 +533,104 @@ describe('panel 0.2.0', () => {
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     await clock.advance(TICK)
     expect(await flat($)).toContain('NOVA 201040cc · draft in composer')
+  })
+})
+
+describe('review 0.2.0 fixes', () => {
+  type Node = { type?: string; children?: unknown; props?: Record<string, unknown> }
+  const kidsOf = (n: Node) => [n.children ?? n.props?.children].flat() as Node[]
+  const nodes = (n: unknown): Node[] =>
+    Array.isArray(n) ? n.flatMap(nodes) : n && typeof n === 'object' ? [n as Node, ...nodes(kidsOf(n as Node))] : []
+  const cellsOf = (t: string) => [...t].reduce((a, ch) => a + (/[\u2e80-\ua4cf\uac00-\ud7a3\uff00-\uff60]/.test(ch) ? 2 : 1), 0)
+
+  test('a refused wake is not counted as a wake: no new reply, no woke', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A')), ok(row('B'))], ['drop'])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    expect((w.kv.get(key) as { wakes?: number }).wakes).toBeUndefined()
+    const t = await flat($)
+    expect(t).toContain('waiting · 1 lost')
+    expect(t).not.toContain('woke')
+    expect(t).not.toContain('new reply')
+  })
+
+  test('the band draws in the rows left: header only at 1, nothing at 0', async ($, on) => {
+    mock.clock(on)
+    world(on, [ok(row('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    const one = textOf(await $.ui.render(band({ maxRows: 1 }))).replace(/\n/g, '')
+    expect(one).toContain('▌grok bot watch')
+    expect(one).not.toContain('NOVA')
+    expect(textOf(await $.ui.render(band({ maxRows: 0 })))).not.toContain('grok bot watch')
+  })
+
+  test('four watches on a short band: +N more, and no u hotkey when several can be unwatched', async ($, on) => {
+    mock.clock(on)
+    const ids = ['a', 'b', 'c', 'd'].map(c => `${c.repeat(8)}-0000-4000-8000-000000000000`)
+    world(on, [ok(...ids.map((id, i) => row(`P${i}`, 'idle', { id, name: `bot${i}` })))])
+    await $.session.start(start)
+    for (const id of ids) await $.tool.call({ tool: WATCH, botUuid: id })
+    const tree = await $.ui.render(band({ maxRows: 4 }))
+    expect(textOf(tree).replace(/\n/g, '')).toContain('+2 more')
+    const buttons = nodes(tree).filter(n => n.type === 'Button')
+    expect(buttons.some(b => b.props?.hotkey === 'u')).toBe(false)
+  })
+
+  test('a narrow band cuts name and state, never the unwatch button', async ($, on) => {
+    mock.clock(on)
+    const long = '很長的機器人名稱'.repeat(5)
+    world(on, [ok(row('A', 'idle', { name: long }))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    const tree = await $.ui.render(band({ bodyColumns: 40 }))
+    const r = nodes(tree).find(n => n.type === 'Box' && kidsOf(n).some(c => c?.type === 'Button' && c.props?.key === `unwatch-${key}`))!
+    const kids = kidsOf(r)
+    const at = kids.findIndex(n => n.type === 'Button')
+    expect(at, 'the button is drawn').toBeGreaterThan(0)
+    const before = kids.slice(0, at).map(n => kidsOf(n).join('')).join('')
+    expect(cellsOf(before) + 12, 'glyph, name, id and state fit beside [ unwatch ]').toBeLessThanOrEqual(40)
+    expect(before, 'the state survives the cut').toContain('waiting')
+  })
+
+  test('rows a plugin below already drew come off the budget', async ($, on) => {
+    mock.clock(on)
+    world(on, [ok(row('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    // The floor draws none: header and row fit in 2.
+    expect(textOf(await $.ui.render(band({ maxRows: 2 }))).replace(/\n/g, '')).toContain('NOVA')
+  })
+
+  test('a floor of 3 rows in a 4-row band leaves the header only', async ($, on) => {
+    mock.clock(on)
+    world(on, [ok(row('A'))], [], { floorRows: 3 })
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    const t = textOf(await $.ui.render(band({ maxRows: 4 }))).replace(/\n/g, '')
+    expect(t).toContain('worker 2')
+    expect(t).toContain('▌grok bot watch')
+    expect(t, 'no room for the row').not.toContain('NOVA')
+  })
+
+  test('one row left for two bots shows the first bot, not a bare +N more', async ($, on) => {
+    mock.clock(on)
+    world(on, [ok(row('A'), row('B', 'idle', { id: OTHER, name: 'ECHO' }))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await $.tool.call({ tool: WATCH, botUuid: OTHER })
+    const t = textOf(await $.ui.render(band({ maxRows: 2 }))).replace(/\n/g, '')
+    expect(t).toContain('NOVA')
+    expect(t).not.toContain('more')
+  })
+
+  test('the panel shows the preview the watch call read, before any tick', async ($, on) => {
+    mock.clock(on)
+    world(on, [ok(row('first words'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    expect(textOf(await $.ui.render(band())).replace(/\n/g, '')).toContain('first words')
   })
 })

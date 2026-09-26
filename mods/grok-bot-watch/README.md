@@ -50,8 +50,11 @@ Above the prompt, only while a watch or an orphan exists:
 The row also counts wakes (`woke 2× 5m ago`) and lost wakes, and ends with the
 bot's last preview. `[ hide ]` (`f` with the band focused) folds the band to its
 header line; it never disappears while a watch is armed. `[ unwatch ]` (`u`,
-one watch only) stops that watch. The band stays small and uses letter hotkeys
-only, so it does not take rows or digits from the workers panel below it.
+one watch only) stops that watch. The band takes at most 4 rows, and only what
+the band's `maxRows` leaves after the plugins below it drew theirs, so a workers
+panel keeps its rows and digit hotkeys; with one row left it shows the header
+only. It uses letter hotkeys only. The row count of the panels below is measured
+from their rendered tree, a heuristic: a line that wraps counts as one.
 
 ## What counts as a new reply
 
