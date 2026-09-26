@@ -42,7 +42,7 @@ const wakeText = (row: Row) =>
   '```'
 
 /** Per-registration state; top-level functions take it because the validator only follows $ into them. */
-type State = { sid: string; node?: string; reading: boolean; seq: number; status: Map<string, string>; names: Map<string, string> }
+type State = { sid: string; node?: string; inflight?: Promise<Read>; seq: number; status: Map<string, string>; names: Map<string, string> }
 
 async function mine(s: State, $: $) {
   return (await $.store.keys()).filter(k => k.startsWith(`${PREFIX}${s.sid}.`))
@@ -67,6 +67,14 @@ async function read(s: State, $: $): Promise<Read> {
   }
 }
 
+/** At most one helper at a time: a tick skips while one runs, a tool call shares its result. */
+function readOnce(s: State, $: $): Promise<Read> {
+  s.inflight ??= read(s, $).finally(() => {
+    s.inflight = undefined
+  })
+  return s.inflight
+}
+
 // Ack first (user decision Q-8): the record already says "seen" when this runs,
 // so a refused submit is a lost wake, never a duplicate. Not awaited by the tick.
 async function deliver($: $, key: string, gen: number, row: Row) {
@@ -83,16 +91,10 @@ async function deliver($: $, key: string, gen: number, row: Row) {
 }
 
 async function tick(s: State, $: $) {
-  if (s.reading) return
+  if (s.inflight) return
   const keys = await mine(s, $)
   if (!keys.length) return
-  s.reading = true
-  let res: Read
-  try {
-    res = await read(s, $)
-  } finally {
-    s.reading = false
-  }
+  const res = await readOnce(s, $)
   if (res.state !== 'ok' || !res.rows) {
     for (const k of keys) s.status.set(k, res.state)
     $.ui.invalidate('ui.render')
@@ -120,6 +122,8 @@ async function heartbeat(s: State, $: $) {
   const now = await $.clock.now()
   if ((await mine(s, $)).length) await $.store.set(`${HB_PREFIX}${s.sid}`, now)
   const keys = await $.store.keys()
+  // ponytail: prune walks beats, so a watch whose session never beat is shown orphaned but never pruned;
+  // unreachable while watch writes the beat first. Walk watch keys too if that ever changes.
   for (const hb of keys.filter(k => k.startsWith(HB_PREFIX) && k !== `${HB_PREFIX}${s.sid}`)) {
     if (now - Number(await $.store.get(hb)) < PRUNE_MS) continue
     const sid = hb.slice(HB_PREFIX.length)
@@ -149,7 +153,7 @@ async function panelLines(s: State, $: $): Promise<string[]> {
 }
 
 export const register: Register = on => {
-  const s: State = { sid: '', reading: false, seq: 0, status: new Map(), names: new Map() }
+  const s: State = { sid: '', seq: 0, status: new Map(), names: new Map() }
 
   on('session.start', async ($, e, next) => {
     s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
@@ -182,7 +186,7 @@ export const register: Register = on => {
   on('tool.call', { tool: WATCH_TOOL }, async ($, e) => {
     const want = String((e as unknown as { botUuid?: unknown }).botUuid ?? '').toLowerCase()
     if (!UUID_RE.test(want)) return { deny: 'grok-watch: botUuid must be a UUID or an 8+ char hex prefix' }
-    const res = await read(s, $)
+    const res = await readOnce(s, $)
     const hits = res.rows?.filter(r => r.id.startsWith(want)) ?? []
     if (want.length < 36 && hits.length !== 1) {
       return {

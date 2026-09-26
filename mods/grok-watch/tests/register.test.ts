@@ -18,7 +18,13 @@ const down = JSON.stringify({ state: 'port-down', error: 'fetch failed' })
  * scripted sidebar (one helper line per read, the last one repeats) and a
  * prompt.submit that records every wake and answers from `answers`.
  */
-function world(on: On, reads: string[], answers: Array<'accept' | 'drop' | Promise<'accept' | 'drop'>> = []) {
+function world(
+  on: On,
+  reads: string[],
+  answers: Array<'accept' | 'drop' | Promise<'accept' | 'drop'>> = [],
+  /** node: what `command -v node` prints; hold: every helper run waits on it. */
+  opts: { node?: string; hold?: Promise<void> } = {},
+) {
   const woken: string[] = []
   const toasts: string[] = []
   let helperRuns = 0
@@ -43,10 +49,13 @@ function world(on: On, reads: string[], answers: Array<'accept' | 'drop' | Promi
     return { value: undefined }
   })
   on('store.keys', () => ({ value: [...kv.keys()] }))
-  on('process.run', ($, e) => {
-    if (e.argv[0] === '/bin/sh') return { value: { exitCode: 0, stdout: '/n/node\n', stderr: '' } }
+  on('process.run', async ($, e) => {
+    if (e.argv[0] === '/bin/sh') return { value: { exitCode: 0, stdout: opts.node ?? '/n/node\n', stderr: '' } }
     const out = reads[Math.min(helperRuns, reads.length - 1)]!
     helperRuns += 1
+    if (opts.hold) await opts.hold
+    // THROW: the engine rejects the run at its timeout.
+    if (out === 'THROW') throw new Error('process.run: timed out')
     return { value: { exitCode: 0, stdout: out, stderr: '' } }
   })
   on('prompt.submit', async ($, e) => {
@@ -238,5 +247,46 @@ describe('panel and orphans (T7, T4)', () => {
     await clock.advance(TICK)
     expect(w.kv.has(`grok-watch.watch.sess-B.${OTHER}`), 'pruned after a day').toBe(false)
     expect(w.kv.has('grok-watch.hb.sess-B')).toBe(false)
+  })
+})
+
+describe('degraded states (S3, T6)', () => {
+  for (const [bad, state] of [['not json', 'eval-error'], ['THROW', 'timeout'], [down, 'port-down']] as const) {
+    test(`${state}: no wake, the panel says so, and the reply after recovery wakes once`, async ($, on) => {
+      const clock = mock.clock(on)
+      const w = world(on, [ok(row('A')), bad, ok(row('B')), ok(row('B'))])
+      await $.session.start(start)
+      await $.tool.call({ tool: WATCH, botUuid: UUID })
+      await clock.advance(TICK)
+      expect(w.woken).toHaveLength(0)
+      expect(textOf(await $.ui.render(band()))).toContain(state)
+      await clock.advance(TICK * 2)
+      expect(w.woken).toHaveLength(1)
+    })
+  }
+
+  test('no node on the login PATH: no-process, no crash, no wake', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A'))], [], { node: '' })
+    await $.session.start(start)
+    expect(JSON.stringify(await $.tool.call({ tool: WATCH, botUuid: UUID }))).toContain('no-process')
+    await clock.advance(TICK * 2)
+    expect(w.woken).toHaveLength(0)
+    expect(textOf(await $.ui.render(band()))).toContain('no-process')
+  })
+
+  test('a watch call during a slow read shares it: one helper process at a time', async ($, on) => {
+    const clock = mock.clock(on)
+    let release!: () => void
+    const hold = new Promise<void>(r => { release = r })
+    const w = world(on, [ok(row('A'))], [], { hold })
+    await $.session.start(start)
+    const first = $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    const second = $.tool.call({ tool: WATCH, botUuid: OTHER })
+    await clock.advance(TICK)
+    expect(w.runs(), 'the tick and the second call joined the first read').toBe(1)
+    release()
+    await Promise.all([first, second])
   })
 })
