@@ -4,6 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
 // to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
+const MOD_VERSION = '0.1.1'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-watch__unwatch'
@@ -227,7 +228,7 @@ export const register: Register = on => {
     s.status.set(key, row ? 'ok' : res.state === 'ok' ? 'bot-not-found' : res.state)
     return {
       result:
-        `grok-watch: watching ${row ? clean(row.name, 80) : uuid} (${uuid}); sidebar ${s.status.get(key)}. ` +
+        `grok-watch ${MOD_VERSION}: watching ${row ? clean(row.name, 80) : uuid} (${uuid}); sidebar ${s.status.get(key)}. ` +
         'The mod reads the sidebar every 10 s and submits one prompt per new settled reply: end the turn. ' +
         'Ack-first: a wake the engine refuses is lost, not retried.',
     }

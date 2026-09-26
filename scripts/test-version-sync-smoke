@@ -1,0 +1,14 @@
+#!/usr/bin/env zsh
+# The mod version must agree in the marketplace entry, the plugin manifest,
+# MOD_VERSION (the watch receipt prints it) and the latest CHANGELOG heading.
+set -euo pipefail
+cd "$(dirname "${(%):-%x}")/.."
+MOD="${MOD:-mods/grok-watch}"; NAME="${MOD:t}"
+want="$(jq -r '.version' "$MOD/.claude-plugin/plugin.json")"
+FAIL=0
+check() { if [[ "$2" == "$want" ]]; then echo "  ok   $1 ($2)"; else echo "  FAIL $1: expected '$want', got '$2'" >&2; FAIL=1; fi; }
+check "marketplace $NAME entry" "$(jq -r --arg n "$NAME" '.plugins[] | select(.name == $n) | .version' .claude-plugin/marketplace.json)"
+check "marketplace metadata.version" "$(jq -r '.metadata.version' .claude-plugin/marketplace.json)"
+check "$MOD MOD_VERSION" "$(sed -n "s/^const MOD_VERSION = '\\(.*\\)'$/\\1/p" "$MOD/hooks/register.ts")"
+check "CHANGELOG latest $NAME" "$(grep -m1 -oE "^## $NAME [0-9]+\.[0-9]+\.[0-9]+" CHANGELOG.md | awk '{print $3}')"
+exit $FAIL
