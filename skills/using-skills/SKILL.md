@@ -114,11 +114,40 @@ Listed so a name resolves, not as a bypass. The router picks the owner.
 | move issues and external PRs through triage roles | `triage` | manual |
 | generate a bash wizard for steps only a human can do | `wizard` | Skill() |
 
-## Outside this map
+## Plugin and bundled skills the fleet relies on
 
-Plugin and bundled skills are not in `skills-lock.json`; the runtime's
-available-skills listing is their live source, so this map does not copy them.
-Rules files (`~/.agents/rules/*.md`) are not skills; the kernel routes them.
+Not in `skills-lock.json`. Listed only when the plugin is enabled in
+`~/.claude/settings.json` and the skill shows in the available-skills listing;
+a disabled plugin's skills do not belong here. Mode `plugin:<name>` = lives in
+that plugin's cache; `bundled` = ships with Claude Code.
+
+| Skill | Source | Mode |
+|---|---|---|
+| `context-mode` | context-mode | plugin:context-mode |
+| `ctx-doctor` | context-mode | plugin:context-mode |
+| `ctx-index` | context-mode | plugin:context-mode |
+| `ctx-insight` | context-mode | plugin:context-mode |
+| `ctx-purge` | context-mode | plugin:context-mode |
+| `ctx-search` | context-mode | plugin:context-mode |
+| `ctx-stats` | context-mode | plugin:context-mode |
+| `ctx-upgrade` | context-mode | plugin:context-mode |
+| `ponytail` | ponytail | plugin:ponytail |
+| `ponytail-audit` | ponytail | plugin:ponytail |
+| `ponytail-debt` | ponytail | plugin:ponytail |
+| `ponytail-gain` | ponytail | plugin:ponytail |
+| `ponytail-help` | ponytail | plugin:ponytail |
+| `ponytail-review` | ponytail | plugin:ponytail |
+| `artifact-design` | Claude Code | bundled |
+| `artifact-capabilities` | Claude Code | bundled |
+| `artifact-diagramming` | Claude Code | bundled |
+| `workflow-authoring` | Claude Code | bundled |
+| `loop` | Claude Code | bundled |
+| `claude-api` | Claude Code | bundled |
+
+Other enabled plugins (`code-review`, `commit-commands`, `pr-review-toolkit`,
+`session-report`, `frontend-design`, `security-guidance`) show in the listing
+with their own descriptions. Rules files (`~/.agents/rules/*.md`) are not
+skills; the kernel routes them.
 
 ## Subagent exemption
 
@@ -145,7 +174,8 @@ diff <(rg -o '`[a-z][a-z0-9-]+`' ~/.agents/skills/using-skills/SKILL.md | tr -d 
      <(jq -r '.skills|keys[]' ~/.agents/.skill-lock.json | sort)
 ```
 
-Names in the left column only are stale references or prose. Names in the right
+Names in the left column only are the plugin/bundled section, mode words, or
+stale references; check the ones outside that section. Names in the right
 column only are installed skills this map has not placed yet.
 
 ## Nothing fits
