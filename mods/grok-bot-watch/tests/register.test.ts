@@ -33,6 +33,7 @@ function world(
   on('session.id', () => ({ value: 'sess-A' }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('tool.register', ($, e) => ({ value: { tool: e.name } }))
+  on('command.register', ($, e) => ({ value: { command: e.name } }))
   // The band's floor, as core answers it: its own (empty) drawing.
   on('ui.render', () =>
     opts.floorRows
@@ -806,5 +807,55 @@ describe('conversation of the open bot 0.4.0', () => {
     const t = await flat($)
     expect(t).not.toContain('請回收到')
     expect(t).toContain('before watch · 「A」')
+  })
+})
+
+/** The bot-id field is drawn: an Input's placeholder is no Text, so look for its key. */
+const hasField = async ($: { ui: { render: (e: ReturnType<typeof band>) => Promise<unknown> } }) => JSON.stringify(await $.ui.render(band())).includes('"add-input"')
+
+/** `/grok-bot-watch <args>` typed at the prompt. */
+const cmd = (args: string) => ({ command: 'grok-bot-watch', args, origin: { kind: 'composer' as const }, presentation: { isFullscreen: false, columns: 120 } })
+
+describe('watch from the panel 0.5.0', () => {
+  test('bare /grok-bot-watch opens the field with no watch; Enter on a prefix watches and closes it', async ($, on) => {
+    mock.clock(on)
+    const w = world(on, [ok(row('A'))])
+    await $.session.start(start)
+    expect(await flat($), 'no watch: no band').not.toContain('grok bot watch')
+    await $.command.run(cmd(''))
+    await $.ui.render(band())
+    await $.ui.input({ plugin: PLUGIN, key: 'add-input', text: '201040cc', requestId: 'above-prompt' })
+    expect(w.kv.has(key), 'the prefix resolved to the full UUID').toBe(true)
+    expect(w.toasts).toContain('grok-bot-watch: watching NOVA')
+    expect(await flat($)).toContain('● NOVA 201040cc · waiting')
+    expect(await hasField($), 'the field closed').toBe(false)
+  })
+
+  test('a refused id keeps the field open and toasts why; Enter on nothing closes it', async ($, on) => {
+    mock.clock(on)
+    const w = world(on, [ok(row('A'))])
+    await $.session.start(start)
+    await $.command.run(cmd(''))
+    await $.ui.render(band())
+    await $.ui.input({ plugin: PLUGIN, key: 'add-input', text: 'deadbeef', requestId: 'above-prompt' })
+    expect(w.toasts.some(x => x.includes('matches 0 bots'))).toBe(true)
+    expect([...w.kv.keys()].some(k => k.startsWith('grok-bot-watch.watch.')), 'nothing watched').toBe(false)
+    expect(await hasField($), 'still open for another try').toBe(true)
+    await $.ui.input({ plugin: PLUGIN, key: 'add-input', text: '', requestId: 'above-prompt' })
+    expect(await flat($)).not.toContain('grok bot watch')
+  })
+
+  test('/grok-bot-watch <id> watches at once; [ + ] toggles the field', async ($, on) => {
+    mock.clock(on)
+    const w = world(on, [ok(row('A'))])
+    await $.session.start(start)
+    const r = await $.command.run(cmd(` ${UUID} `))
+    expect(r.text).toBe('grok-bot-watch: watching NOVA.')
+    expect(w.kv.has(key)).toBe(true)
+    await $.ui.render(band())
+    await $.ui.press({ plugin: PLUGIN, key: 'add', requestId: 'above-prompt' })
+    expect(await hasField($)).toBe(true)
+    await $.ui.press({ plugin: PLUGIN, key: 'add', requestId: 'above-prompt' })
+    expect(await hasField($)).toBe(false)
   })
 })

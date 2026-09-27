@@ -30,13 +30,16 @@ During development, load the directory: `claude --plugin-dir mods/grok-bot-watch
 | `mcp__grok-bot-watch__watch` | `botUuid`: full UUID or an 8+ char prefix | Records a watch for this session; the current reply is the baseline |
 | `mcp__grok-bot-watch__unwatch` | `botUuid` | Deletes the watch; no new wake is submitted |
 
+The person can watch without asking the model: `/grok-bot-watch <uuid or 8+ char
+prefix>` watches at once, bare `/grok-bot-watch` opens the panel's field.
+
 ## Panel
 
 Above the prompt, only while this session has a watch. Another session's
 watch is never shown: a wake belongs to the conversation that armed it.
 
 ```
-▌grok bot watch v0.4.1 · 1 bot · read 4s ago [ hide ]
+▌grok bot watch v0.5.0 · 1 bot · read 4s ago [ + ] [ hide ]
   ● NOVA 替身 w39 201040cc · waiting · woke 2× 5m ago [ ▾ ] [ unwatch ] 「第二次收到」
       2:03 AM You · 「請再回一次「第二次收到」」
       2:03 AM NOVA 替身 w39 · 「第二次收到」
@@ -52,7 +55,10 @@ watch is never shown: a wake belongs to the conversation that armed it.
 The row also counts wakes (`woke 2× 5m ago`) and lost wakes, and ends with the
 bot's last preview. `[ hide ]` (`f` with the band focused) folds the band to its
 header line; it never disappears while a watch is armed. `[ unwatch ]` (`u`,
-one watch only) stops that watch. `[ ▸ ]` (`o`, one watch only) opens the row.
+one watch only) stops that watch. `[ + ]` (`w`) opens a field above the rows:
+type a UUID or an 8+ char prefix and Enter watches it; a refused id stays in
+the field with a toast saying why, and Enter on nothing closes it. The field
+is the same path as the `watch` tool. Mobile has no text field: use the command. `[ ▸ ]` (`o`, one watch only) opens the row.
 When the bot is the one open in the app, it shows the last 5 messages of both
 sides, oldest first, read from the transcript on screen (the mod never clicks a
 bot open). Otherwise it shows the last 5 new replies the mod saw (a lost wake is listed too), newest

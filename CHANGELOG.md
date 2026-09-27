@@ -1,5 +1,9 @@
 # Changelog
 
+## grok-bot-watch 0.5.0
+
+- Watch without asking the model. `[ + ]` (`w`) in the panel header opens a bot-id field; Enter on a UUID or an 8+ char prefix watches it through the same path as the `watch` tool (`watchBot`), a refused id stays in the field with a toast saying why, Enter on nothing closes it. `/grok-bot-watch <id>` watches at once; bare, it opens the field, the way in while no watch keeps the band up. Mobile has no Input, so there only the command works. Deleting was already `[ unwatch ]`.
+
 ## grok-bot-watch 0.4.1
 
 - The panel draws this session's watches only. 0.2.0 copied the workers panel's orphan idea without its other half: there an orphan is adopted by a collector in the same cwd so the result still lands; here a wake only means something to the conversation that armed it, so no session can take another's watch, and the `○ orphaned` row stayed in every session until the day-old prune. Each session watches its own bot; a dead session's record is still pruned after a day.
