@@ -29,6 +29,28 @@ inline or use its slash command · `via-router` = enter through the router named
 | `using-workflows` | Loop-shaped work: audit, consensus, triage, plan→build, lifecycle. Owns the recipes in `~/.claude/workflows/`; this file does not list them | Skill() |
 | `using-tmux-agent-tools` | Running a CLI as a tmux worker, or deciding inline versus worker | Skill() |
 
+## Flows: situation → handoff → artifact → loop
+
+Conditional handoffs, not a pipeline. Use only the stages the task needs,
+inside the scope the user authorized. A domain router that owns a pipeline
+keeps it. Loop-shaped work or a named recipe goes to `using-workflows`, which
+picks or bypasses; a fresh reviewer alone does not make a recipe. Not every
+skill is a link: tools, generators and constraint sets come from the map.
+
+| Situation | Handoff | Artifact per step | Loop closes when |
+|---|---|---|---|
+| New feature, acceptance unclear | `unknowns-discovery` (when its trigger holds) → `prototype` for a design question, or `wayfinder` when too big for one session → implement (`tdd` when the user wants test-first) → `verification-before-completion` before any done claim → `defect-first-review` when risk or the user asks | stated defaults → design answer or decision tickets → diff and tests → quoted check output → findings | findings fixed and re-verified; a repeated finding → `lessons.md`, `Status: proposed` |
+| Bug or regression | `diagnosing-bugs` (many competing hypotheses → enter `using-workflows` instead) → `verification-before-completion` → `defect-first-review` on the fix diff when risk warrants | repro and failing signal → fix and regression test → original scenario re-run → findings | regression test stays in the repo |
+| Test plan, skill named by the user | `qa-test-planner` → only when execution is authorized: `agent-browser` (web) or `agent-device` (app) → a bug → Bug row; tracker issues → `triage` | cases → execution evidence → bug report | a missed case goes back into the plan |
+| Pause or hand off | `session-handoff`; reusable knowledge for Codex → `shared-memory-intake` (inbox only) | handoff doc → inbox entry | the next session starts from the doc |
+
+Owner pointers (their chains stay with them): codebase-wide deepening →
+`improve-codebase-architecture`; interface, domain or visual design →
+`using-design-skills`; writing for people → `writing-artifacts`; tmux workers →
+`using-tmux-agent-tools`; loops and recipes → `using-workflows`; a skill edit →
+`skill-creator` (draft, eval), then rule `maintenance` §1 (exact diff, approval)
+before any install or deploy.
+
 ## Shape an idea before building
 
 | I need to… | Skill | Mode |
@@ -174,8 +196,8 @@ diff <(rg -o '`[a-z][a-z0-9-]+`' ~/.agents/skills/using-skills/SKILL.md | tr -d 
      <(jq -r '.skills|keys[]' ~/.agents/.skill-lock.json | sort)
 ```
 
-Names in the left column only are the plugin/bundled section, mode words, or
-stale references; check the ones outside that section. Names in the right
+Names in the left column only are the plugin/bundled section, mode words, rule
+names, or stale references; check the ones outside that section. Names in the right
 column only are installed skills this map has not placed yet.
 
 ## Nothing fits
