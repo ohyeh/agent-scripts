@@ -1,5 +1,9 @@
 # Changelog
 
+## grok-bot-watch 0.5.2
+
+- The band no longer vanishes on the last `[ unwatch ]` (live 0.5.1: the next watch then needed `/grok-bot-watch` again). A session that has watched a bot keeps `0 bots [ + ] [ close ]`; `[ close ]` (`f`, the fold slot, since there is nothing to fold) hides it until the next watch. A session that never watched still shows nothing. 57 tests pass; dropping the flag fails the unwatch test (1 fail).
+
 ## grok-bot-watch 0.5.1
 
 - Live 0.5.0 fixes: the command's reply no longer reads `grok-bot-watch: grok-bot-watch:` (the engine already prefixes the plugin name), and a row whose bot name was never read (the app's CDP port was down at watch time) draws its uuid8 once, not `201040cc 201040cc`. 57 tests pass; the new test fails with the old row (1 fail).

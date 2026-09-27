@@ -526,7 +526,7 @@ describe('panel 0.2.0', () => {
     expect(await flat($)).toContain('NOVA')
   })
 
-  test('the unwatch button deletes the watch and the band goes away', async ($, on) => {
+  test('the unwatch button deletes the watch; the band stays with [ + ] until [ close ]', async ($, on) => {
     const clock = mock.clock(on)
     const w = world(on, [ok(row('A')), ok(row('B'))])
     await $.session.start(start)
@@ -534,9 +534,14 @@ describe('panel 0.2.0', () => {
     await $.ui.render(band())
     await $.ui.press({ plugin: PLUGIN, key: `unwatch-${key}`, requestId: 'above-prompt' })
     expect(w.kv.has(key)).toBe(false)
-    expect(await flat($)).not.toContain('grok bot watch')
+    const t = await flat($)
+    expect(t, 'the header stays: the next watch is one [ + ] away').toContain('0 bots')
+    expect(t).not.toContain('NOVA')
     await clock.advance(TICK)
     expect(w.woken, 'nothing is watched any more').toHaveLength(0)
+    await $.ui.render(band())
+    await $.ui.press({ plugin: PLUGIN, key: 'close', requestId: 'above-prompt' })
+    expect(await flat($)).not.toContain('grok bot watch')
   })
 
   test('a composer draft is shown as a draft, not as the reply', async ($, on) => {

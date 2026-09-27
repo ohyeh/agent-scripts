@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
 // to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.5.1'
+const MOD_VERSION = '0.5.2'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -74,6 +74,8 @@ type State = {
   open?: string
   /** The panel's bot-id field is drawn: `[ + ]` or `/grok-bot-watch` opened it. */
   adding?: boolean
+  /** This session has watched a bot: the band stays up with `0 bots [ + ]` after the last unwatch, until `[ close ]`. */
+  used?: boolean
   /** The last messages of the bot open in the app, from the last read; never persisted. */
   convo?: { id: string; msgs: Msg[] }
   /** Every read-modify-write of this session's records, in call order: a tick and a wake count never write over each other. */
@@ -319,6 +321,7 @@ async function watchBot(s: State, $: $, raw: string): Promise<{ deny: string } |
     s.live.set(key, row)
   }
   s.status.set(key, row ? 'ok' : res.state === 'ok' ? 'bot-not-found' : res.state)
+  s.used = true
   return {
     label: row ? clean(row.name, 40) : uuid.slice(0, 8),
     result:
@@ -397,7 +400,7 @@ export const register: Register = on => {
     if (e.props.hasSurvey) return next(e)
     const below = await next(e)
     const rows = await panelData(s, $)
-    if (!rows.length && !s.adding) return below
+    if (!rows.length && !s.adding && !s.used) return below
     const budget = Math.min(PANEL_ROWS + (s.open ? RECENT : 0), e.props.maxRows - rowsOf(below))
     if (budget < 1) return below
     const els = $.ui.resolve(e)
@@ -422,10 +425,17 @@ export const register: Register = on => {
           s.folded = false
           $.ui.invalidate('ui.render')
         } }),
-        Button({ key: 'fold', label: folded ? 'show' : 'hide', hotkey: 'f', dimColor: true, onPress: () => {
-          s.folded = !folded
-          $.ui.invalidate('ui.render')
-        } }),
+        // No watch left: nothing to fold, so the same slot closes the band until the next watch.
+        rows.length
+          ? Button({ key: 'fold', label: folded ? 'show' : 'hide', hotkey: 'f', dimColor: true, onPress: () => {
+            s.folded = !folded
+            $.ui.invalidate('ui.render')
+          } })
+          : Button({ key: 'close', label: 'close', hotkey: 'f', dimColor: true, onPress: () => {
+            s.used = false
+            s.adding = false
+            $.ui.invalidate('ui.render')
+          } }),
       ],
     })
     // Folded is one line, not gone: a wake can still arrive, and nothing else says so.
