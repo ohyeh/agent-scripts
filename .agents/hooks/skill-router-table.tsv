@@ -1,14 +1,10 @@
 # regex (grep -E, case-insensitive)	kind	owner
 # kind: skill → ~/.agents/skills/<owner>/SKILL.md ; recipe → ~/.claude/workflows/<owner>.workflow.js
 # First match wins. Validated by scripts/check-skill-router-table.sh (invariants: skill-router-table).
-merge conflicts?|合併衝突|rebase[^，。,;；]{0,12}(衝突|conflict|失敗|fail|卡)|(git|branch|分支|cherry-pick)[^，。,;；]{0,6}(衝突|conflict)|conflict markers?|衝突標記|<<<<<<<|conflicted files?	skill	resolving-merge-conflicts
-(update|upgrade|升級|更新|bump)[^，。,;；]{0,20}(deps|dependenc|套件|依賴|npm|bun)|(npm|bun|package\.json)[^，。,;；]{0,12}(update|upgrade|升級|更新|dependabot|renovate)	skill	update-deps
-(renovate|dependabot)[^，。,;；]{0,20}(github actions?|workflow|\.ya?ml|actions/)|(actions?|workflow)[^，。,;；]{0,20}(renovate|dependabot)	skill	review-renovate
 (讀|填|read|fill|parse)[^。]{0,10}\.?pdf\b	skill	pdf
 test ?plan|測試計畫|測試案例|qa plan	skill	qa-test-planner
 (架構|architecture)[^。]{0,6}(設計|審|評|review|design)|domain model|領域模型	skill	codebase-design
 (issue|問題單|工單)[^。]{0,10}(分流|triage|分類)|\btriage\b	skill	triage
-生圖|產生圖片|image ?gen(eration)?	skill	imagegen-frontend-web
 (hand ?off|交接|接手)[^。]{0,10}(session|下一場|新 session)	skill	session-handoff
 (建|建立|新增|create|new|scaffold)[^。]{0,8}skill\b|skill-creator	skill	skill-creator
 (設計稿|figma|mock ?up|design)[^。]{0,12}(對不上|不一致|vs|對照|落差|audit)	recipe	design-vs-code-audit

@@ -46,15 +46,6 @@
       "installedAt": "2026-08-01T11:44:27.225Z",
       "updatedAt": "2026-08-12T01:54:45.311Z"
     },
-    "brainstorming": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/obra/superpowers.git",
-      "skillPath": "skills/brainstorming/SKILL.md",
-      "skillFolderHash": "881fc4ac82a25e61a58d332426b5673efe060da0",
-      "installedAt": "2026-07-18T20:48:18.027Z",
-      "updatedAt": "2026-08-13T01:53:01.309Z"
-    },
     "codebase-design": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -109,15 +100,6 @@
       "installedAt": "2026-07-18T20:48:21.471Z",
       "updatedAt": "2026-09-17T09:48:25.569Z"
     },
-    "design-taste-frontend": {
-      "source": "nexu-io/open-design",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/nexu-io/open-design.git",
-      "skillPath": "skills/taste-skill/SKILL.md",
-      "skillFolderHash": "83183b5ba14405a701beda4c8531c1b61909f146",
-      "installedAt": "2026-07-18T20:48:09.947Z",
-      "updatedAt": "2026-07-18T20:48:09.947Z"
-    },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -154,15 +136,6 @@
       "installedAt": "2026-07-18T20:49:31.166Z",
       "updatedAt": "2026-08-20T01:52:34.566Z"
     },
-    "git-commit": {
-      "source": "github/awesome-copilot",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/github/awesome-copilot.git",
-      "skillPath": "skills/git-commit/SKILL.md",
-      "skillFolderHash": "883a6a7466f55a9cd9f22cf1cce2d9333fc9b998",
-      "installedAt": "2026-07-18T20:47:49.624Z",
-      "updatedAt": "2026-07-18T20:47:49.624Z"
-    },
     "grilling": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -180,15 +153,6 @@
       "skillFolderHash": "747c924c4767b4d5fa6f1c59985c87a21c918334",
       "installedAt": "2026-08-21T07:50:52.145Z",
       "updatedAt": "2026-08-21T07:50:52.145Z"
-    },
-    "high-end-visual-design": {
-      "source": "Leonxlnx/taste-skill",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
-      "skillPath": "skills/soft-skill/SKILL.md",
-      "skillFolderHash": "1b5943432ddd1b980206968c529a323cc992dbec",
-      "installedAt": "2026-07-18T20:49:17.058Z",
-      "updatedAt": "2026-07-18T20:49:17.058Z"
     },
     "html": {
       "source": "plannotator/effective-html",
@@ -217,33 +181,6 @@
       "installedAt": "2026-07-18T20:48:35.740Z",
       "updatedAt": "2026-08-09T03:31:07.958Z"
     },
-    "image-to-code": {
-      "source": "Leonxlnx/taste-skill",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
-      "skillPath": "skills/image-to-code-skill/SKILL.md",
-      "skillFolderHash": "701b3cb89c061fcf98a98f639e0b0b5c0b492479",
-      "installedAt": "2026-07-18T20:46:38.286Z",
-      "updatedAt": "2026-07-18T20:46:38.286Z"
-    },
-    "imagegen-frontend-mobile": {
-      "source": "Leonxlnx/taste-skill",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
-      "skillPath": "skills/imagegen-frontend-mobile/SKILL.md",
-      "skillFolderHash": "9901fcde67e9506a706912107825fdfb72e01f30",
-      "installedAt": "2026-07-18T20:49:17.054Z",
-      "updatedAt": "2026-07-18T20:49:17.054Z"
-    },
-    "imagegen-frontend-web": {
-      "source": "Leonxlnx/taste-skill",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
-      "skillPath": "skills/imagegen-frontend-web/SKILL.md",
-      "skillFolderHash": "3b5117d349200e33f9c3399344681620079dcc18",
-      "installedAt": "2026-07-18T20:49:17.056Z",
-      "updatedAt": "2026-07-18T20:49:17.056Z"
-    },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
@@ -262,25 +199,6 @@
       "installedAt": "2026-07-18T20:49:31.167Z",
       "updatedAt": "2026-08-20T01:52:36.359Z"
     },
-    "karpathy-guidelines": {
-      "source": "multica-ai/andrej-karpathy-skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/multica-ai/andrej-karpathy-skills.git",
-      "skillPath": "skills/karpathy-guidelines/SKILL.md",
-      "skillFolderHash": "e119339197d600aa39a24fd7a95c946800c9c949",
-      "pluginName": "andrej-karpathy-skills",
-      "installedAt": "2026-07-18T20:47:58.231Z",
-      "updatedAt": "2026-07-18T20:47:58.231Z"
-    },
-    "migrate-to-shoehorn": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/misc/migrate-to-shoehorn/SKILL.md",
-      "skillFolderHash": "0aea91a3599a4bf7aeec17e3262d4cbcfcbeec23",
-      "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-03T04:20:00.000Z"
-    },
     "pdf": {
       "source": "anthropics/skills",
       "sourceType": "github",
@@ -290,15 +208,6 @@
       "pluginName": "document-skills",
       "installedAt": "2026-07-18T20:45:54.145Z",
       "updatedAt": "2026-07-18T20:45:54.145Z"
-    },
-    "pierre-guard": {
-      "source": "backnotprop/plannotator",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
-      "skillPath": ".agents/skills/pierre-guard/SKILL.md",
-      "skillFolderHash": "01929be984b93b60d4931afeeb74cdcbc1acdf0e",
-      "installedAt": "2026-07-18T21:55:44.672Z",
-      "updatedAt": "2026-07-18T21:55:44.672Z"
     },
     "prototype": {
       "source": "mattpocock/skills",
@@ -318,24 +227,6 @@
       "installedAt": "2026-07-18T20:48:39.016Z",
       "updatedAt": "2026-07-18T20:48:39.016Z"
     },
-    "refactor": {
-      "source": "github/awesome-copilot",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/github/awesome-copilot.git",
-      "skillPath": "skills/refactor/SKILL.md",
-      "skillFolderHash": "01cfb6a412faf9d680880cc3f631c419121a9916",
-      "installedAt": "2026-07-18T20:47:49.626Z",
-      "updatedAt": "2026-07-18T20:47:49.626Z"
-    },
-    "release-plannotator": {
-      "source": "backnotprop/plannotator",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
-      "skillPath": ".agents/skills/release/SKILL.md",
-      "skillFolderHash": "8d1243970f7c66667629a1b0b712725fb301ab37",
-      "installedAt": "2026-07-18T21:55:44.675Z",
-      "updatedAt": "2026-08-17T01:57:25.828Z"
-    },
     "research": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -344,24 +235,6 @@
       "skillFolderHash": "0a6796c5667e95ed2301ba7381c123b4acb2ae1a",
       "installedAt": "2026-07-18T20:49:31.168Z",
       "updatedAt": "2026-08-20T01:52:39.907Z"
-    },
-    "resolving-merge-conflicts": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/engineering/resolving-merge-conflicts/SKILL.md",
-      "skillFolderHash": "77f0d7de3143abbf03e55a63522d30bff31ae908",
-      "installedAt": "2026-07-18T20:49:31.168Z",
-      "updatedAt": "2026-08-20T01:52:41.838Z"
-    },
-    "review-renovate": {
-      "source": "backnotprop/plannotator",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
-      "skillPath": ".agents/skills/review-renovate/SKILL.md",
-      "skillFolderHash": "7be697b0a4898605a0df735afedd7349b121c06b",
-      "installedAt": "2026-07-18T21:55:44.676Z",
-      "updatedAt": "2026-07-18T21:55:44.676Z"
     },
     "session-handoff": {
       "source": "ohyeh/agent-scripts",
@@ -380,15 +253,6 @@
       "skillFolderHash": "707552e7cd08f4bda4e3b05d161ab2db1210aec8",
       "installedAt": "2026-07-26T11:03:52.880Z",
       "updatedAt": "2026-08-17T01:56:50.505Z"
-    },
-    "simplify": {
-      "source": "brianlovin/claude-config",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/brianlovin/claude-config.git",
-      "skillPath": "skills/simplify/SKILL.md",
-      "skillFolderHash": "83566973442dc05bcf5abbe83053e8a8e5f50b6b",
-      "installedAt": "2026-07-18T20:47:29.471Z",
-      "updatedAt": "2026-07-18T20:47:29.471Z"
     },
     "skill-creator": {
       "source": "anthropics/skills",
@@ -444,15 +308,6 @@
       "skillFolderHash": "a50b831b4218e92fd5bf83af958201e1841378ad",
       "installedAt": "2026-07-18T20:48:21.472Z",
       "updatedAt": "2026-07-25T06:09:09.677Z"
-    },
-    "update-deps": {
-      "source": "backnotprop/plannotator",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/backnotprop/plannotator.git",
-      "skillPath": ".agents/skills/update-deps/SKILL.md",
-      "skillFolderHash": "413b965103f5492d7e3197c55224430b1321a49e",
-      "installedAt": "2026-07-18T21:55:44.677Z",
-      "updatedAt": "2026-07-18T21:55:44.677Z"
     },
     "using-design-skills": {
       "source": "ohyeh/agent-scripts",

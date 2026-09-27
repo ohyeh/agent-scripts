@@ -37,8 +37,8 @@ ritual or quoting.
 - Unclear acceptance, multi-phase, or material default → skill unknowns-discovery.
 - Loop-shaped work (audit/consensus/triage/plan→build) → skill using-workflows.
 - Non-trivial session lifecycle → session-titles.
-- Any code change → skill karpathy-guidelines (assumptions, success criteria,
-  verify step per plan step).
+- Any code change → state assumptions, success criteria, verify step per
+  plan step.
 - Simplify or re-explain → simplified-english. Plan/investigate or output →
   operator-defaults. Hard task, stalled, or final answer → judgment-rubrics §8.
 - Edit rules, skills, or lessons.md → maintenance §1: exact diff, then approval.

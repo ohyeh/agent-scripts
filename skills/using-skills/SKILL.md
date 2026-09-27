@@ -1,6 +1,6 @@
 ---
 name: using-skills
-description: "Which skill owns this task. Invoke BEFORE doing by hand any of: merge or rebase conflict, .pdf read or fill, Renovate or dependabot PR, release notes or changelog, test plan or QA cases, dependency upgrade, architecture improvement, second-model review, docs writing, commit message, greenfield page, prose cleanup, 「有沒有 skill」, 「用哪個」 — or any task not named in the kernel routing index. Even a 1% chance a skill covers it means invoke this first; it costs one read."
+description: "Which skill owns this task. Invoke BEFORE doing by hand any of: .pdf read or fill, test plan or QA cases, architecture improvement, second-model review, docs writing, greenfield page, prose cleanup, 「有沒有 skill」, 「用哪個」 — or any task not named in the kernel routing index. Even a 1% chance a skill covers it means invoke this first; it costs one read."
 ---
 
 # using-skills
@@ -33,7 +33,6 @@ inline or use its slash command · `via-router` = enter through the router named
 
 | I need to… | Skill | Mode |
 |---|---|---|
-| explore intent before any creative work (mandatory gate) | `brainstorming` | Skill() |
 | diverge in parallel under different cognitive frames | `adhd` | Skill() |
 | stress-test a plan or decision in frontier rounds | `grilling` | Skill() |
 | pick a flow when the situation is fuzzy or cross-domain | `ask-nova` | manual |
@@ -46,15 +45,11 @@ inline or use its slash command · `via-router` = enter through the router named
 
 | I need to… | Skill | Mode |
 |---|---|---|
-| keep coding discipline: surgical diffs, stated assumptions | `karpathy-guidelines` | Skill() |
-| tidy just-written code without changing behavior | `simplify` | Skill() |
-| restructure code: extract, rename, break up a god function | `refactor` | Skill() |
 | find deepening opportunities across a whole codebase | `improve-codebase-architecture` | manual |
 | design a deep module interface | `codebase-design` | Skill() |
 | build or sharpen the domain model, CONTEXT.md, an ADR | `domain-modeling` | Skill() |
 | build features test-first | `tdd` | Skill() |
 | plan test coverage, manual cases, regression suites | `qa-test-planner` | Skill() |
-| replace `as` assertions with shoehorn in tests | `migrate-to-shoehorn` | Skill() |
 
 ## Diagnose and verify
 
@@ -101,9 +96,7 @@ Listed so a name resolves, not as a bypass. The router picks the owner.
 
 | Skill | Owns |
 |---|---|
-| `impeccable` | Default authority for product UI: dashboards, forms, app shells, polish, critique |
-| `design-taste-frontend` | Landing pages, portfolios, marketing sites, full redesigns |
-| `high-end-visual-design` | Agency-grade type, spacing, shadow, animation specifics |
+| `impeccable` | Direction authority: product UI, landing and marketing pages, redesigns, polish, critique |
 | `apple-design` | Springs, gestures, interruptible motion |
 | `hallmark` | Anti-slop greenfield pages, audits, design extraction from a URL or screenshot |
 | `html` | Self-contained HTML reports, explainers, comparisons, decks |
@@ -111,18 +104,6 @@ Listed so a name resolves, not as a bypass. The router picks the owner.
 | `html-plan` | Plan pages close to the user's own wording |
 | `diagram-design` | House-style typed diagrams, mermaid and draw.io, PNG/SVG export |
 | `data-report` | CSV, Excel, or JSON into a visual report page |
-| `imagegen-frontend-web` | Website design references, one image per concept |
-| `imagegen-frontend-mobile` | App-native mobile screen concepts and flows |
-| `image-to-code` | Generate the design image first, then build to it |
-
-## Git, releases, dependencies
-
-| I need to… | Skill | Mode |
-|---|---|---|
-| commit with a conventional message and staging | `git-commit` | Skill() |
-| resolve an in-progress merge or rebase conflict | `resolving-merge-conflicts` | Skill() |
-| audit and update npm or Bun dependencies | `update-deps` | manual |
-| review a Renovate PR for supply-chain integrity | `review-renovate` | Skill() |
 
 ## Session and fleet upkeep
 
@@ -133,12 +114,6 @@ Listed so a name resolves, not as a bypass. The router picks the owner.
 | create, edit, or eval a skill | `skill-creator` | Skill() |
 | move issues and external PRs through triage roles | `triage` | manual |
 | generate a bash wizard for steps only a human can do | `wizard` | Skill() |
-
-## Repo-specific
-
-`pierre-guard` (guards the @pierre/diffs integration) and
-`release-plannotator` (release notes, version bumps) apply inside the
-Plannotator repo only.
 
 ## Plugin and bundled skills (present only where the plugin is installed)
 

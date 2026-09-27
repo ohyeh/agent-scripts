@@ -49,16 +49,16 @@ ritual, no quoting; tooling enforces critical gates.
 - Retry, non-obvious trade-off, or user decision → judgment-rubrics §3/§4/§6.
 - Loop-shaped work (audit/consensus/triage/plan→build) → skill using-workflows.
 - Non-trivial session lifecycle → session-titles.
-- Any code change → skill karpathy-guidelines: state assumptions, success
-  criteria first, every plan step has a verify check.
+- Any code change → state assumptions, success criteria first, every plan
+  step has a verify check.
 - Simplify or re-explain request → simplified-english.
 - Plan/investigate or output → operator-defaults.
 - Hard task, stalled progress, or final answer → judgment-rubrics §8 (persist within
   caps: same approach ≤3 rounds, each one tier up; every call counts).
 - Edit guidance, rules, skills, or lessons.md → maintenance §1: exact diff,
   then approval.
-- Task type not named above (conflicts, PDFs, dependency PRs, release notes,
-  test plans, architecture) → skill using-skills before doing it by hand.
+- Task type not named above (PDFs, test plans, architecture) → skill
+  using-skills before doing it by hand.
 
 Binds when work is multi-phase, irreversible, or delegated; a single
 reversible edit with clear acceptance goes straight to code. Routing never
@@ -166,7 +166,6 @@ replaces reading the touched code.
 - List what you need next, then issue every independent tool call in one
   response; serialize only true dependencies.
 - Read SKILL.md before use; domain router first, max two meta-router hops.
-- Gotchas: `brainstorming` plans → run dir.
 
 ## Continuity
 - Non-trivial work: one `.workflow/<YYYYMMDDHHMM>-<slug>/` run dir per task

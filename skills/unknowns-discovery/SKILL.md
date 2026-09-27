@@ -85,7 +85,7 @@ small spec changes can cause drastically different implementations.
 ## §4 Interview — one question at a time
 
 Apply: the user explicitly asks to be interviewed ("interview me"), OR ambiguity
-remains after brainstorming.
+remains after initial exploration.
 
 - [ ] User-invoked interview: multi-turn is authorized — one question per turn,
       wait for the answer before the next.

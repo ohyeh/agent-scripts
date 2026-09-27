@@ -30,25 +30,21 @@ house-style consistency / mermaid / draw.io / PNG-SVG export, else the HTML
 trio · report page → `html` · plan page → `html-plan` ·
 web/mobile → target stack ·
 Artifact → artifact file · data file → `data-report` · module/API/domain →
-Pipeline D · token work → DESIGN.md itself · mockup-only → imagegen output ·
+Pipeline D · token work → DESIGN.md itself · mockup-only → static HTML mockup, no build loop ·
 "would this work?" → `prototype`, alone, no loop.
 
 Q2 **Variant.** Existing interface → audit-first (authority critiques the
-CURRENT render before rebuild). New + ambitious + imagegen available →
-image-first (imagegen ⇒ image-to-code ⇒ loop); ordinary task → direct build,
-say so when skipping imagegen.
+CURRENT render before rebuild). New → direct build.
 
 Q3 **Orthogonal specialists (additive).** Charts from a data file →
 `data-report`; charts inside a page → apply charting best practice inline, since
 `skills-lock.json` holds no dedicated chart skill. Artifact →
 `artifact-design`, a skill bundled with the runtime rather than the lock;
 mandatory before publishing, and skipped explicitly if it does not resolve this
-turn. Motion or gesture → `apple-design`. Agency-grade type, spacing, and shadow
-detail → `high-end-visual-design`. Constraint sets load inline.
+turn. Motion or gesture → `apple-design`. Constraint sets load inline.
 
 Q4 **Executor per stage** — the executor table in
-`references/design-roles.md`. Direction runs INLINE; imagegen/image-to-code →
-agent-tmux codex persistent worker; non-trivial build → agent-tmux claude persistent
+`references/design-roles.md`. Direction runs INLINE; non-trivial build → agent-tmux claude persistent
 worker; every review → FRESH headless one-shot, never the author.
 
 Q5 **Verifier.** Render in scope → the visual quality loop below (full Gate 0

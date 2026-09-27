@@ -9,8 +9,7 @@ Capability flags when classifying an unlisted skill (may carry several):
 
 | Skill | Reach for it when | Its audit rubric (used by the quality loop) |
 |---|---|---|
-| `design-taste-frontend` | Landing pages, portfolios, marketing sites, full redesigns | Its pre-flight check |
-| `impeccable` | Product UI: dashboards, forms, settings, app shells; polish/critique of existing interfaces | Its "AI slop test" |
+| `impeccable` | Product UI, landing and marketing pages, portfolios, redesigns; polish/critique of existing interfaces | Its "AI slop test" |
 
 If a selected authority ships no usable checklist, the reviewer falls back to
 impeccable's AI slop test as the default rubric. A skill that cannot support
@@ -18,7 +17,7 @@ an evidence-backed PASS/BLOCK audit is not an authority for this loop.
 
 **Vocabulary reference (web, not a skill):** https://namethatui.com/ — the
 "what is this component called" dictionary. Consult it (via ctx_fetch, or
-ask the user to look) when a spec, worker prompt, or imagegen prompt
+ask the user to look) when a spec or worker prompt
 describes a UI element vaguely: naming the component correctly upgrades
 search results, member-skill routing, and generation quality in one move.
 Advisory only: any stage may QUERY it; it never owns direction.
@@ -30,14 +29,6 @@ Advisory only: any stage may QUERY it; it never owns direction.
 | `apple-design` | Springs, gestures, interruptible motion — any "make it feel fluid/physical" ask |
 | `data-report` | A CSV, Excel, or JSON file into a visual report page. For charts written into a page by hand, `skills-lock.json` has no chart specialist: apply charting best practice inline and say you did, never fake a stage |
 | `artifact-design` *(bundled skill)* | MANDATORY before publishing any Artifact page (`artifact-capabilities` only if the page calls connectors) |
-
-## Role 3 · Image-first pipeline (Codex delegation)
-
-`imagegen-frontend-web` / `imagegen-frontend-mobile` generate
-section-by-section design reference images; `image-to-code` implements code
-to match them. All three are written FOR Codex (image generation is
-unavailable inline) — these stages always dispatch to a Codex worker pointed
-at the skill file.
 
 ## Role 4 · Interface/domain design (code, not pixels)
 
@@ -87,15 +78,13 @@ one design question (no loop — disposable by contract).
 
 ## Executor table (per-stage dispatch)
 
-Delegable stages are the heavy units: image generation, image-to-code,
-build beyond a small scope, and every review. Constraint loading and small
+Delegable stages are the heavy units: build beyond a small scope, and every review. Constraint loading and small
 scoped edits are NOT delegable — inline by definition.
 
 | Stage | Executor |
 |---|---|
 | Route, judge, integrate, talk to user | Main session (you) |
 | Role 1 direction authority | Inline, main session — sets direction, persists to DESIGN.md |
-| `imagegen-frontend-web/mobile`, `image-to-code` | `agent-tmux codex` persistent worker (image stages + fixes) |
 | Build / implement (non-trivial scope) | `agent-tmux claude` persistent worker; inline only for small scoped edits |
 | Role 4 N-shape comparison | In-process Agent-tool sub-agents, parallel; native contract, not tmux-governed |
 | Role 4 `codebase-design` / `domain-modeling` | Inline — applied as judging criteria, not a separate dispatch |
@@ -104,9 +93,7 @@ scoped edits are NOT delegable — inline by definition.
 
 ## Auto-fill defaults (ask only what's genuinely the user's call)
 
-- Role 1 authority: landing/marketing/portfolio → `design-taste-frontend`;
-  product UI/dashboard/redesign-critique → `impeccable`; light-touch →
-  `impeccable`. Ask only when the task straddles two about equally.
+- Role 1 authority: `impeccable`, the one authority in the lock.
 - DESIGN.md path: `{repo}/DESIGN.md` unless a docs convention exists.
 - Gate 0 viewports: desktop + mobile for any responsive deliverable.
 - `cli` for delegated stages: `~/.agents/rules/model-dispatch.md` §5; don't

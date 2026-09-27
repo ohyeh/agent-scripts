@@ -9,7 +9,6 @@ Chain these for planning and investigation work:
 
 - `wayfinder`: plan an effort too big for one session as decision tickets on the
   issue tracker.
-- `brainstorming`: diverge on a fuzzy idea before building.
 - `unknowns-discovery`: surface assumptions and unknowns first.
 - `ask-nova`: pick the flow when the fit is unclear.
 - `diagnosing-bugs` (or `diagnose`): trace a bug to its root cause.

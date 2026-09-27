@@ -31,7 +31,7 @@ recommended answer — then wait. Typical first frontier:
 - Is the deliverable visual/interface-shaped? (→ using-design-skills owns it)
 - Is the work loop-shaped — audit / consensus / triage / plan→build? (→
   using-workflows owns it)
-- How settled is the idea? (fuzzy → brainstorming / grilling first)
+- How settled is the idea? (fuzzy → grilling first)
 
 Facts discoverable from the environment: look them up, don't ask. Decisions
 are the user's: ask and wait.

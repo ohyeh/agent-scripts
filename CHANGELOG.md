@@ -1,5 +1,9 @@
 # Changelog
 
+## skills roster 2026-09-27
+
+- The lock drops 16 skills (64 → 48), judged by what a skill carries, not how often it ran. Removed: `karpathy-guidelines`, `git-commit`, `refactor`, `simplify`, `resolving-merge-conflicts` (generic discipline the kernel already states); `brainstorming` (its approval wait conflicts with the kernel; its visual companion goes with it); `high-end-visual-design`, `design-taste-frontend` (prose-only taste, same job as `impeccable`, now the one direction authority); `image-to-code`, `imagegen-frontend-web`, `imagegen-frontend-mobile` (the image-first pipeline is gone from `using-design-skills`); `pierre-guard` (upstream 404), `release-plannotator`, `review-renovate`, `migrate-to-shoehorn`, `update-deps` (bound to projects and tools no local repo uses). The kernel, routers, router hook table and design evals drop every reference; `deploy.sh` removes the directories on each machine at its next deploy.
+
 ## grok-bot-watch 0.5.2
 
 - The band no longer vanishes on the last `[ unwatch ]` (live 0.5.1: the next watch then needed `/grok-bot-watch` again). A session that has watched a bot keeps `0 bots [ + ] [ close ]`; `[ close ]` (`f`, the fold slot, since there is nothing to fold) hides it until the next watch. A session that never watched still shows nothing. 57 tests pass; dropping the flag fails the unwatch test (1 fail).

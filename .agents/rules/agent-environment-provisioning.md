@@ -68,10 +68,9 @@ Shared statusline wrapper (Claude Code + Cursor CLI): `scripts/claude-hud-status
 | --- | --- | --- |
 | `codex-dynamic-workflows` | workflow orchestration (plan/state/approval gate) | `dannymac180/skills` ✓ installed |
 | `html` / `html-plan` / `html-diagram` | designed pages & interactive SVG | `plannotator/effective-html` ✓ installed |
-| `design-taste-frontend` | visual taste | `nexu-io/open-design` (skillPath `skills/taste-skill` → renamed locally) ✓ installed |
 | `impeccable` | detail-quality gatekeeping | `pbakaus/impeccable` ✓ installed |
 
-> That task also used `high-end-visual-design` / `minimalist-ui` / `brandkit` at the time; they are no longer on this machine (no lockfile entry, no directory under `~/.agents/skills/`, live-checked 2026-07-10) — **no need** to restore them on rebuild. `design-taste-frontend` is a local rename (the repo's folder is `taste-skill`): a faithful restore = offline tar (preserves the rename); `npx skills add nexu-io/open-design -g` reinstalls under the repo's original name and needs manual renaming.
+> That task also used `design-taste-frontend`, `high-end-visual-design`, `minimalist-ui` and `brandkit`; none is in the lock now (removed 2026-09-27) — **no need** to restore them on rebuild.
 
 ## Dynamic Workflow Recipes (live-verified 2026-07-10)
 
