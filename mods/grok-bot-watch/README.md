@@ -32,10 +32,11 @@ During development, load the directory: `claude --plugin-dir mods/grok-bot-watch
 
 ## Panel
 
-Above the prompt, only while a watch or an orphan exists:
+Above the prompt, only while this session has a watch. Another session's
+watch is never shown: a wake belongs to the conversation that armed it.
 
 ```
-▌grok bot watch v0.4.0 · 1 bot · read 4s ago [ hide ]
+▌grok bot watch v0.4.1 · 1 bot · read 4s ago [ hide ]
   ● NOVA 替身 w39 201040cc · waiting · woke 2× 5m ago [ ▾ ] [ unwatch ] 「第二次收到」
       2:03 AM You · 「請再回一次「第二次收到」」
       2:03 AM NOVA 替身 w39 · 「第二次收到」
@@ -47,7 +48,6 @@ Above the prompt, only while a watch or an orphan exists:
 | `◐` replying | the bot is streaming; the wake comes when it settles |
 | `✦` new reply | woke this session in the last 2 minutes |
 | `▲` a state | the read failed (`port-down`, …); fixes: `using-grok-bot-app` skill |
-| `○` orphaned | another session's watch that nobody polls |
 
 The row also counts wakes (`woke 2× 5m ago`) and lost wakes, and ends with the
 bot's last preview. `[ hide ]` (`f` with the band focused) folds the band to its
@@ -84,8 +84,8 @@ watch fires once it settles. Observed on Grok Bot 0.59.1.
   the panel and toasted, never retried.
 - **Unwatch is not a cancel.** A prompt already handed to the engine may still
   arrive.
-- **Only the registering session polls.** If it stops, other sessions show its
-  watches as `orphaned` after 90 s; they are deleted after a day.
+- **Only the registering session polls.** If it stops, its watches stop
+  too and are deleted after a day; a new session runs `watch` again.
 - App text in a wake is data: control characters and code fences are stripped,
   name capped at 80 and preview at 500 characters, inside a fenced block.
 

@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
 // to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.4.0'
+const MOD_VERSION = '0.4.1'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -214,7 +214,7 @@ async function heartbeat(s: State, $: $) {
   if ((await mine(s, $)).length) await $.store.set(`${HB_PREFIX}${s.sid}`, now)
   if (s.pruneAfter !== undefined && now < s.pruneAfter) return
   const keys = await $.store.keys()
-  // ponytail: prune walks beats, so a watch whose session never beat is shown orphaned but never pruned;
+  // ponytail: prune walks beats, so a watch whose session never beat is never pruned;
   // unreachable while watch writes the beat first. Walk watch keys too if that ever changes.
   for (const hb of keys.filter(k => k.startsWith(HB_PREFIX) && k !== `${HB_PREFIX}${s.sid}`)) {
     if (now - Number(await $.store.get(hb)) < PRUNE_MS) continue
@@ -255,10 +255,11 @@ function rowsOf(n: unknown): number {
 const ago = (ms: number) => (ms < 60_000 ? `${Math.max(0, Math.round(ms / 1000))}s` : ms < 3600_000 ? `${Math.round(ms / 60_000)}m` : `${Math.round(ms / 3600_000)}h`)
 
 type Bot = { key: string; w: Watch; name: string; glyph: string; color: string; state: string; preview?: string }
-type Panel = { bots: Bot[]; orphans: string[] }
-
-/** What the band draws: this session's watches with live state, then other sessions' watches nobody polls. */
-async function panelData(s: State, $: $): Promise<Panel> {
+/**
+ * What the band draws: this session's watches with live state, nothing else. A watch wakes the one
+ * conversation that armed it, so another session's watch, live or dead, is nobody else's to show or take.
+ */
+async function panelData(s: State, $: $): Promise<Bot[]> {
   const now = await $.clock.now()
   const keys = await $.store.keys()
   const bots: Bot[] = []
@@ -284,14 +285,7 @@ async function panelData(s: State, $: $): Promise<Panel> {
       ...(row?.preview ? { preview: clean(row.preview, 200) } : {}),
     })
   }
-  const orphans: string[] = []
-  for (const k of keys.filter(k => k.startsWith(PREFIX) && !k.startsWith(`${PREFIX}${s.sid}.`))) {
-    const sid = k.slice(PREFIX.length).split('.')[0]!
-    const beat = Number(await $.store.get(`${HB_PREFIX}${sid}`))
-    if (now - beat < ORPHAN_MS) continue
-    orphans.push(`○ ${k.slice(-36, -28)} orphaned (session ${sid.slice(0, 8)}; nobody polls it)`)
-  }
-  return { bots, orphans }
+  return bots
 }
 
 export const register: Register = on => {
@@ -379,8 +373,8 @@ export const register: Register = on => {
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
     const below = await next(e)
-    const { bots: rows, orphans } = await panelData(s, $)
-    if (!rows.length && !orphans.length) return below
+    const rows = await panelData(s, $)
+    if (!rows.length) return below
     const budget = Math.min(PANEL_ROWS + (s.open ? RECENT : 0), e.props.maxRows - rowsOf(below))
     if (budget < 1) return below
     const { Box, Text, Button } = $.ui.resolve(e)
@@ -446,7 +440,7 @@ export const register: Register = on => {
       if (!seen.length) return [Text({ dimColor: true, children: '      no reply seen yet' })]
       return seen.map(h => Text({ dimColor: true, wrap: 'truncate-end', children: `      ${h.t === undefined ? 'before watch' : `${ago(now - h.t)} ago`} · 「${clean(h.text, 200)}」` }))
     }
-    const lines = [...rows.flatMap(r => [rowOf(r), ...history(r)]), ...orphans.map(o => Text({ dimColor: true, wrap: 'truncate-end', children: `  ${o}` }))]
+    const lines = rows.flatMap(r => [rowOf(r), ...history(r)])
     const room = budget - 1
     // One row left: the first bot, not a bare "+N more"; the header still counts them all.
     const shown = lines.length <= room ? lines : room === 1 ? lines.slice(0, 1) : [...lines.slice(0, room - 1), Text({ dimColor: true, children: `  +${lines.length - room + 1} more` })]

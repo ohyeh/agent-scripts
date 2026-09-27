@@ -1,5 +1,9 @@
 # Changelog
 
+## grok-bot-watch 0.4.1
+
+- The panel draws this session's watches only. 0.2.0 copied the workers panel's orphan idea without its other half: there an orphan is adopted by a collector in the same cwd so the result still lands; here a wake only means something to the conversation that armed it, so no session can take another's watch, and the `○ orphaned` row stayed in every session until the day-old prune. Each session watches its own bot; a dead session's record is still pruned after a day.
+
 ## grok-bot-watch 0.4.0
 
 - An open row shows the conversation itself when that bot is the one open in the app: the last 5 messages of both sides, oldest first, with their times. The helper parses them from the transcript already on screen in the same read-only eval (0.59.1 has no per-message node: sender, body, then a `9:58 PM` line); it still never clicks. Another bot's row keeps the 0.3.0 list of replies that woke us. Review 0.4.0 (1 medium, 6 low): the sender is the line before the first blank line and the body is kept whole, so a message whose text ends in a time is no longer dropped; a failed read clears the conversation instead of showing a stale one. 12-hour times only (the app's format on 0.59.1). 53 + 6 tests pass; live: the helper read 5 messages from NOVA's open transcript.

@@ -252,8 +252,8 @@ function textOf(node: unknown): string {
 /** The band as one line of text: each Text node is its own entry in textOf. */
 const flat = async ($: { ui: { render: (e: ReturnType<typeof band>) => Promise<unknown> } }) => textOf(await $.ui.render(band())).replace(/\n/g, '')
 
-describe('panel and orphans (T7, T4)', () => {
-  test('no watch and no orphan: the band is left alone', async ($, on) => {
+describe('panel (T7, T4)', () => {
+  test('no watch of ours: the band is left alone', async ($, on) => {
     mock.clock(on)
     world(on, [ok(row('A'))])
     await $.session.start(start)
@@ -270,7 +270,7 @@ describe('panel and orphans (T7, T4)', () => {
     expect(await flat($)).toContain('1 lost')
   })
 
-  test("a silent session's watch is an orphan row; a beating one is not shown; a day-old one is pruned", async ($, on) => {
+  test("another session's watch is never drawn, silent or beating; a day-old one is pruned", async ($, on) => {
     const clock = mock.clock(on, { now: 100_000 })
     const w = world(on, [ok(row('A'))])
     w.kv.set(`grok-bot-watch.watch.sess-B.${OTHER}`, { botUuid: OTHER, gen: 1, seen: 'x' })
@@ -278,10 +278,8 @@ describe('panel and orphans (T7, T4)', () => {
     w.kv.set(`grok-bot-watch.watch.sess-C.${OTHER}`, { botUuid: OTHER, gen: 1, seen: 'x' })
     w.kv.set('grok-bot-watch.hb.sess-C', 99_000)
     await $.session.start(start)
-    const text = textOf(await $.ui.render(band()))
-    expect(text).toContain('○ 0e9cd37b orphaned (session sess-B')
-    expect(text).not.toContain('sess-C')
-    expect(w.runs(), 'nobody polls for an orphan').toBe(0)
+    expect(textOf(await $.ui.render(band())), 'no row, no header: nothing of ours').not.toContain('grok bot watch')
+    expect(w.runs(), "nobody polls another session's watch").toBe(0)
     w.kv.set('grok-bot-watch.hb.sess-B', clock.now() - 24 * 3600_000)
     await clock.advance(TICK)
     expect(w.kv.has(`grok-bot-watch.watch.sess-B.${OTHER}`), 'pruned after a day').toBe(false)
@@ -372,7 +370,7 @@ describe('two sessions, one bot (T4)', () => {
     await clock.advance(TICK * 2)
     expect(w.woken, 'one wake for this session').toHaveLength(1)
     expect(w.kv.get(theirs), "sess-B's watch is its own to advance").toEqual({ botUuid: UUID, gen: 1, seen: 'A' })
-    expect(textOf(await $.ui.render(band())), 'a beating session is no orphan').not.toContain('orphaned')
+    expect(textOf(await $.ui.render(band())), 'only our row is drawn').not.toContain('sess-B')
   })
 })
 
