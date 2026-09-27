@@ -39,7 +39,6 @@ inline or use its slash command · `via-router` = enter through the router named
 | surface the map/territory gap in unfamiliar territory | `unknowns-discovery` | Skill() |
 | build a throwaway prototype to answer a design question | `prototype` | Skill() |
 | chart work too big for one session as decision tickets | `wayfinder` | manual |
-| re-pitch a message that did not land | `wait-what` | manual |
 
 ## Write and change code
 

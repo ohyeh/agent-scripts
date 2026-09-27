@@ -363,15 +363,6 @@
       "installedAt": "2026-07-18T20:48:18.029Z",
       "updatedAt": "2026-07-24T01:12:45.422Z"
     },
-    "wait-what": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/productivity/wait-what/SKILL.md",
-      "skillFolderHash": "c119d66111cc1bac94cbc51322cd34ed21aa0446",
-      "installedAt": "2026-08-10T04:05:47.425Z",
-      "updatedAt": "2026-08-20T01:52:56.967Z"
-    },
     "wayfinder": {
       "source": "mattpocock/skills",
       "sourceType": "github",
