@@ -371,7 +371,7 @@ export const register: Register = on => {
     if (!e.args.trim()) {
       s.adding = true
       $.ui.invalidate('ui.render')
-      return { text: 'grok-bot-watch: type the bot UUID (or an 8+ char prefix) in the field above the prompt, then Enter.' }
+      return { text: 'grok-bot-watch: the field is open above the prompt: ctrl+x tab (or a click) to focus the band, type the bot UUID or an 8+ char prefix, Enter.' }
     }
     const r = await watchBot(s, $, e.args)
     $.ui.invalidate('ui.render')
