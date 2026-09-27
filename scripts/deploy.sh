@@ -196,6 +196,7 @@ fi
 allowed_skills="$(jq -r '.skills | keys[]' "$SRC/skills-lock.json")"
 removed_skills=0
 while IFS= read -r installed_skill; do
+  [ "$installed_skill" = synced ] && continue  # owned by Claude Code account-skill sync, not the lock
   if ! grep -Fqx "$installed_skill" <<<"$allowed_skills"; then
     rm -rf "$HOME/.agents/skills/$installed_skill"
     removed_skills=$((removed_skills + 1))
@@ -203,7 +204,7 @@ while IFS= read -r installed_skill; do
 done < <(find "$HOME/.agents/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
 
 unexpected_skills="$(comm -23 \
-  <(find "$HOME/.agents/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort) \
+  <(find "$HOME/.agents/skills" -mindepth 1 -maxdepth 1 -type d ! -name synced -exec basename {} \; | sort) \
   <(printf '%s\n' "$allowed_skills" | sort))"
 if [ -n "$unexpected_skills" ]; then
   echo "FAIL [skills] stale managed skills remain: $unexpected_skills" >&2
