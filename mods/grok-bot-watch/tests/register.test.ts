@@ -845,12 +845,24 @@ describe('watch from the panel 0.5.0', () => {
     expect(await flat($)).not.toContain('grok bot watch')
   })
 
+  test('app down: a full UUID still watches, and the row draws the uuid8 once (0.5.0 live)', async ($, on) => {
+    mock.clock(on)
+    world(on, [down])
+    await $.session.start(start)
+    await $.command.run(cmd(''))
+    await $.ui.render(band())
+    await $.ui.input({ plugin: PLUGIN, key: 'add-input', text: UUID, requestId: 'above-prompt' })
+    const t = await flat($)
+    expect(t).toContain('▲ 201040cc port-down')
+    expect(t).not.toContain('201040cc 201040cc')
+  })
+
   test('/grok-bot-watch <id> watches at once; [ + ] toggles the field', async ($, on) => {
     mock.clock(on)
     const w = world(on, [ok(row('A'))])
     await $.session.start(start)
     const r = await $.command.run(cmd(` ${UUID} `))
-    expect(r.text).toBe('grok-bot-watch: watching NOVA.')
+    expect(r.text, 'the engine adds the plugin name').toBe('watching NOVA.')
     expect(w.kv.has(key)).toBe(true)
     await $.ui.render(band())
     await $.ui.press({ plugin: PLUGIN, key: 'add', requestId: 'above-prompt' })

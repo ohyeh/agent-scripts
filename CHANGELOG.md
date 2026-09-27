@@ -1,5 +1,9 @@
 # Changelog
 
+## grok-bot-watch 0.5.1
+
+- Live 0.5.0 fixes: the command's reply no longer reads `grok-bot-watch: grok-bot-watch:` (the engine already prefixes the plugin name), and a row whose bot name was never read (the app's CDP port was down at watch time) draws its uuid8 once, not `201040cc 201040cc`. 57 tests pass; the new test fails with the old row (1 fail).
+
 ## grok-bot-watch 0.5.0
 
 - Watch without asking the model. `[ + ]` (`w`) in the panel header opens a bot-id field; Enter on a UUID or an 8+ char prefix watches it through the same path as the `watch` tool (`watchBot`), a refused id stays in the field with a toast saying why, Enter on nothing closes it. `/grok-bot-watch <id>` watches at once; bare, it opens the field, the way in while no watch keeps the band up. Mobile has no Input, so there only the command works. Deleting was already `[ unwatch ]`.

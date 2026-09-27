@@ -39,7 +39,7 @@ Above the prompt, only while this session has a watch. Another session's
 watch is never shown: a wake belongs to the conversation that armed it.
 
 ```
-▌grok bot watch v0.5.0 · 1 bot · read 4s ago [ + ] [ hide ]
+▌grok bot watch v0.5.1 · 1 bot · read 4s ago [ + ] [ hide ]
   ● NOVA 替身 w39 201040cc · waiting · woke 2× 5m ago [ ▾ ] [ unwatch ] 「第二次收到」
       2:03 AM You · 「請再回一次「第二次收到」」
       2:03 AM NOVA 替身 w39 · 「第二次收到」

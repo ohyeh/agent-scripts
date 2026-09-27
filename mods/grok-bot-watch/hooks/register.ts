@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
 // to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.5.0'
+const MOD_VERSION = '0.5.1'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -371,11 +371,12 @@ export const register: Register = on => {
     if (!e.args.trim()) {
       s.adding = true
       $.ui.invalidate('ui.render')
-      return { text: 'grok-bot-watch: the field is open above the prompt: ctrl+x tab (or a click) to focus the band, type the bot UUID or an 8+ char prefix, Enter.' }
+      // The engine prefixes a command's text with the plugin's name: no second one here.
+      return { text: 'the field is open above the prompt: ctrl+x tab (or a click) to focus the band, type the bot UUID or an 8+ char prefix, Enter.' }
     }
     const r = await watchBot(s, $, e.args)
     $.ui.invalidate('ui.render')
-    return { text: 'deny' in r ? r.deny : `grok-bot-watch: watching ${r.label}.` }
+    return { text: 'deny' in r ? r.deny.replace(/^grok-bot-watch: /, '') : `watching ${r.label}.` }
   })
 
   on('tool.call', { tool: UNWATCH_TOOL }, async ($, e) => {
@@ -437,7 +438,8 @@ export const register: Register = on => {
       room -= cells(state)
       const name = fit(r.name, Math.min(24, room - 1))
       room -= cells(name) + 1
-      const id = fit(`${r.w.botUuid.slice(0, 8)} · `, room)
+      // No name read yet: the name already is the uuid8, so it is not drawn twice.
+      const id = r.name === r.w.botUuid.slice(0, 8) ? '' : fit(`${r.w.botUuid.slice(0, 8)} · `, room)
       return Box({
         key: r.key,
         flexDirection: 'row',
