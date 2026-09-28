@@ -14,7 +14,7 @@
 // Cluster-vs-singleton is the "duplication count → abstraction level" rule replayed on fixes: N independent nits
 // get N parallel patches; N findings sharing one bad abstraction get ONE plan.
 // Re-audit stop condition (connector 2, lives in the CALLER): after fixes/build, re-run the SAME
-// audit with the SAME args — confirmed findings reaching zero = the loop converged.
+// audit with the SAME args — confirmed AND unverified/unaudited reaching zero = the loop converged.
 //
 //   Workflow({ scriptPath: ".claude/workflows/findings-triage.workflow.js", args: {
 //     findings: [...],            // REQUIRED: confirmed findings from any audit recipe; any shape
@@ -146,5 +146,5 @@ return {
   noOp,
   unclassified: [],                     // non-empty only when the clusterer died — re-run triage, never auto-fix
   degraded: { clusterFailed: false, unbriefedClusters: unbriefed, overflowClusters: overflow },
-  nextStep: 'after fixes: re-run the ORIGINATING audit with the SAME args — zero confirmed findings = loop converged (connector 2)',
+  nextStep: 'after fixes: re-run the ORIGINATING audit with the SAME args — zero confirmed AND zero unverified/unaudited = loop converged (connector 2)',
 }

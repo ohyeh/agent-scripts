@@ -64,7 +64,7 @@ audit (docs-vs-code | design-vs-code | root-cause-deep-dive)
   │                        → spec-implement-dual-review-verify
   → re-run the ORIGINATING audit, SAME args
   │                        connector ②: lives in YOU, not in code
-  → confirmed == 0 → converged, report · else → back to findings-triage
+  → confirmed == 0 AND no unverified/unaudited (§9.2) → converged, report · else → back to findings-triage / re-check
 ```
 
 Entry points off the loop:

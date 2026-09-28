@@ -179,7 +179,10 @@ return {
   unverified: unverified.map(f => ({ section: f.section, component: f.component, category: f.category, location: f.location, note: f.verdict ? `verifier undecided (${f.verdict.reason}) — treat as PLAUSIBLE, re-check manually` : 'verifier died — treat as PLAUSIBLE, re-check manually' })),
   degraded: { unauditedSections: failedSections, unverifiedCount: unverified.length },
   // Loop connector: the audit does not close the loop by itself — fleet scan showed 0/15 audits followed by triage.
-  next: confirmed.length
-    ? 'Run findings-triage NOW: Workflow({ scriptPath: ".claude/workflows/findings-triage.workflow.js", args: { findings: <this.confirmed> } }). Do not hand-write briefs or fixes.'
-    : 'confirmed == 0 → converged. Report and stop.',
+  // judgment-rubrics §9.2: unverified findings or unaudited sections are unknown, not clean — never "converged".
+  next: [
+    confirmed.length ? 'Run findings-triage NOW: Workflow({ scriptPath: ".claude/workflows/findings-triage.workflow.js", args: { findings: <this.confirmed> } }). Do not hand-write briefs or fixes.' : '',
+    unverified.length ? `${unverified.length} unverified finding(s): re-check each (see this.unverified) before any convergence claim.` : '',
+    failedSections.length ? `UNAUDITED sections [${failedSections.join(', ')}]: re-run the audit for them before any convergence claim.` : '',
+  ].filter(Boolean).join(' ') || 'confirmed == 0, unverified == 0, no unaudited section → converged. Report and stop.',
 }

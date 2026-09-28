@@ -322,11 +322,14 @@ while (externalRound < maxExternal) {
   )
   if (!rev.ok) return { aborted: true, stage: 'external-revise', needsUser: true, round: externalRound }
   plan = rev.result
+  // judgment-rubrics §9.1: the internal verdict judged the previous plan; it does not carry over to the revision.
+  if (internalConsensus) { internalConsensus = false; log(`external revision #${externalRound} changed the plan — internal consensus no longer applies (needs a re-run on the final plan)`) }
 }
 
 // ───────────────────────── 6. Commit (consensus + approval gated) ─────────────────────────
 phase('Commit')
-const bothConsensus = internalConsensus && externalConsensus
+// judgment-rubrics §9.2: an undiscovered area is unknown scope, so the plan cannot pass the gate.
+const bothConsensus = internalConsensus && externalConsensus && undiscoveredAreas.length === 0
 const wantCommit = a.commit === true && bothConsensus
 const wantPush = wantCommit && a.push === true
 const COMMIT_SCHEMA = {
@@ -342,7 +345,7 @@ const commit = await agent(
   `1) Ensure final plan markdown is at ${planPath} (mkdir -p ${outDir}); write ${outDir}/final-report.md noting internal consensus=${internalConsensus} (rounds ${internalRound}), external consensus=${externalConsensus} (rounds ${externalRound}).\n` +
   (wantCommit
     ? `2) APPROVED: git add ONLY the artifacts under ${outDir} (verify with 'git status --porcelain' that nothing outside ${outDir} is staged; if anything else is staged, unstage it). Commit "docs(plan): ${slug} v1 implementation plan (internal+external consensus)". ${wantPush ? 'Then push current branch.' : 'Do NOT push.'} Report the staged_files list and commit sha.`
-    : `2) Do NOT git add/commit/push — ${bothConsensus ? 'commit not approved (args.commit!=true)' : 'consensus NOT reached; needs user decision'}. Just confirm files written (committed=false, pushed=false).`) +
+    : `2) Do NOT git add/commit/push — ${bothConsensus ? 'commit not approved (args.commit!=true)' : undiscoveredAreas.length ? `discovery failed for ${undiscoveredAreas.join(', ')}; needs user decision` : 'consensus NOT reached; needs user decision'}. Just confirm files written (committed=false, pushed=false).`) +
   `\nReturn the schema honestly (committed/pushed reflect what you actually did).`,
   { label: 'commit-plan', phase: 'Commit', model, effort, isolation, agentType, schema: COMMIT_SCHEMA }
 )

@@ -100,5 +100,7 @@ return {
   // Loop connector: the audit does not close the loop by itself.
   next: survivors.length
     ? 'Run findings-triage NOW: Workflow({ scriptPath: ".claude/workflows/findings-triage.workflow.js", args: { findings: <one finding per surviving hypothesis, from this.report> } }). Do not hand-write the fix.'
-    : 'No surviving hypothesis → report and stop; consider widening args.symptom.',
+    : unevaluated.length
+      ? `No surviving hypothesis, but ${unevaluated.length} could not be evaluated (judgment-rubrics §9.2: unknown, not refuted) — re-run for those before reporting "no root cause".`
+      : 'No surviving hypothesis → report and stop; consider widening args.symptom.',
 }
