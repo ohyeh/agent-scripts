@@ -193,3 +193,35 @@ Apply: hard tasks, stalled progress, and final answers.
   10 minutes; a worker stall at 15 minutes escalates. At any cap: report rule, usage, evidence,
   open ACCEPTANCE items as `UNCONFIRMED`, and the proposed next step; never extend the cap yourself.
 - Concise/Ponytail limit output and implementation size, not reasoning within these caps.
+
+## §9 Judge outputs used for decisions
+Apply when you define a judge's output, use that output to choose an action, or report an
+event probability. A judge is any model or scorer, from any vendor, whose output is used to
+choose an action. Ordinary completion claims use §2/§5; preference scores use §6; do not
+repeat those checks here. This section does not require another judge call.
+1. Name the event. A judge output answers one stated question about one input ("this diff has
+   a reproducible P0/P1 defect"). It applies only to the input it judged; after that input
+   changes, check again under §2 whether the evidence still applies.
+2. Unknown is not a pass. A pass is any result that lets an action continue or drops a
+   concern. If evidence is missing or a required judge gives no usable output (§2), return a
+   non-passing result in the required format with the reason, and keep the affected action
+   blocked; never guess or add a label. A new output format must let "unknown" differ from a
+   proven negative. Fix the cause within scope (§1 escalation, §3 questions, §4/§8 limits).
+   If an optional judge fails, continue only on an approved path that does not use its
+   output, and report the failure.
+3. Scores are not probabilities. Call a number an event probability only when it is
+   calibrated on outcomes for that event on the intended workload; cite source and version.
+   Label any other number, such as a self-reported confidence or a vote share, a raw score.
+   Before using a judge output to reduce review, cite outcome evidence for that decision on
+   the intended workload. Lower price does not mean less review; a stronger model does not
+   by itself prove lower risk.
+4. Evidence and approval come first. Use available check results within their tested scope.
+   Follow the task's review order and reuse unchanged evidence (§2). A judge output cannot
+   waive a required check, an approval, or completion evidence (§2/§3); resolve a failing
+   required check in the owning workflow before passing the affected gate.
+- Positive: A required triage judge times out. Keep the affected findings unclassified and do
+  not send them to auto-fix. Report the timeout and gather the missing evidence within the
+  current scope and budget. Ask the user only when §3 or §8 requires it.
+- Negative: "This raw score is 0.92. I have no outcome evaluation for reducing review, but I
+  will skip the required review and merge without the required approval." A raw score cannot
+  replace review evidence or approval.

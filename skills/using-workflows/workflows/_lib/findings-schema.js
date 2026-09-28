@@ -31,12 +31,14 @@ const FINDING_SHAPE = {
 // Adversarial-verify verdict for one finding. Fail-closed convention: a dead
 // verifier is NOT a pass — count it via failClosedRefutes (safe.js) or surface
 // the finding in an `unverified` bucket (never silently drop).
+// `unknown` is not `refuted` (judgment-rubrics §9.2): only `refuted` may drop a
+// finding; `unknown` goes to the `unverified` bucket like a dead verifier.
 const VERDICT_SHAPE = {
   type: 'object',
-  required: ['isReal', 'severity', 'reason'],
+  required: ['verdict', 'severity', 'reason'],
   additionalProperties: false,
   properties: {
-    isReal: { type: 'boolean', description: 'true only if re-proven against ground truth' },
+    verdict: { type: 'string', enum: ['real', 'refuted', 'unknown'], description: 'real = re-proven against ground truth; refuted = proven not a defect; unknown = evidence missing' },
     severity: { type: 'string', enum: ['error', 'warning', 'info'] },
     reason: { type: 'string', description: 'what was re-checked and why the verdict' },
     fix_hint: { type: 'string' },

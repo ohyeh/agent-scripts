@@ -95,13 +95,14 @@ Findings (JSON):
 ${JSON.stringify(FINDINGS)}`,
   { label: 'cluster', phase: 'Cluster', schema: CLUSTER_SCHEMA, effort: 'high' }
 )
-// fail-closed: dead clusterer → nothing is lost; every finding degrades to a directFix candidate.
+// fail-closed (judgment-rubrics §9.2): dead clusterer → nothing is lost and nothing is auto-fixed;
+// every finding stays unclassified, because an unknown action is not a pass.
 if (clustered == null) {
-  log('WARNING: cluster agent died — degrading ALL findings to directFix (no briefs, no ask-user detection this run)')
+  log('WARNING: cluster agent died — ALL findings stay unclassified (no briefs, no directFix, no ask-user detection this run)')
   return {
-    briefs: [], askUser: [], noOp: [],
-    directFix: FINDINGS.map((f, i) => ({ idx: i, finding: f })),
-    degraded: { clusterFailed: true, note: 'action/cluster judgment unavailable — re-run for PRD routing; directFix list is complete, nothing dropped' },
+    briefs: [], directFix: [], askUser: [], noOp: [],
+    unclassified: FINDINGS.map((f, i) => ({ idx: i, finding: f })),
+    degraded: { clusterFailed: true, note: 'action/cluster judgment unavailable — re-run triage; unclassified list is complete, nothing dropped, nothing sent to auto-fix' },
   }
 }
 
@@ -143,6 +144,7 @@ return {
   directFix,                            // → partitioned fix run (disjoint ownership, SKIP+report, never invent — see design-vs-code-audit header)
   askUser,                              // → the human; the machine never decides intent
   noOp,
+  unclassified: [],                     // non-empty only when the clusterer died — re-run triage, never auto-fix
   degraded: { clusterFailed: false, unbriefedClusters: unbriefed, overflowClusters: overflow },
   nextStep: 'after fixes: re-run the ORIGINATING audit with the SAME args — zero confirmed findings = loop converged (connector 2)',
 }

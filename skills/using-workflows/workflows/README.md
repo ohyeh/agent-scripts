@@ -227,8 +227,9 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   written together into one mini-PRD (problem/why-now/scope/out-of-scope/
   done-criteria) and fed straight into `feature-lifecycle-auto`; a singleton
   finding goes into the directFix list for a direct partitioned-fix. The
-  fail-closed floor is "never drop a finding": a dead clusterer degrades
-  everything to directFix (loses routing precision, never loses data); a
+  fail-closed floor is "never drop a finding, never auto-fix an unknown": a
+  dead clusterer returns everything in `unclassified` (re-run triage; nothing
+  goes to directFix — judgment-rubrics §9.2); a
   dead brief writer puts the cluster into `unbriefedClusters`; overflow past
   `maxBriefs` goes to directFix. Closed-loop connector ② (the re-audit stop
   condition) lives on the caller's side: after fixes land, re-run the

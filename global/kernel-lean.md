@@ -34,6 +34,8 @@ ritual or quoting.
   delegation-templates (brief = GOAL/ACCEPTANCE/REPORT + runtime-native model).
 - Done/verified/PASS/BLOCK or negative-state claim → judgment-rubrics §2/§5;
   retry, trade-off, or user decision → §3/§4/§6.
+- Define or use judge outputs to choose an action, or report an event probability
+  → judgment-rubrics §9.
 - Unclear acceptance, multi-phase, or material default → skill unknowns-discovery.
 - Loop-shaped work (audit/consensus/triage/plan→build) → skill using-workflows.
 - Non-trivial session lifecycle → session-titles.
