@@ -247,14 +247,18 @@ async function discoverArea(area) {
     }, workerModel: discoverModel, workerAgentType: 'explore-bounded' }   // read-only data gathering: sonnet + maxTurns via global/agents/claude/explore-bounded.md
   ).then(x => x.ok ? x.result : null)
 }
-const findings = (await parallel(areas.map(area => () => discoverArea(area)))).filter(Boolean)
+const rawFindings = await parallel(areas.map(area => () => discoverArea(area)))
+const findings = rawFindings.filter(Boolean)
 if (!findings.length) return { aborted: true, stage: 'discover', needsUser: true }
+// A failed area is unknown, not empty: keep it visible so the plan cannot silently skip it.
+const undiscoveredAreas = areas.filter((x, i) => rawFindings[i] == null).map(x => x.key)
+if (undiscoveredAreas.length) log(`WARNING: discovery failed for ${undiscoveredAreas.join(', ')} — passed to synthesis as open questions`)
 
 // ───────────────────────── 3. Synthesize v1 draft ─────────────────────────
 phase('Synthesize')
 const synth = await runEscalated('synthesize', 'Synthesize',
   (fb) => `${CONTEXT}\nSynthesize the discovery findings into a FIRST-VERSION implementation plan. ${PLAN_SECTIONS}\n` +
-    `Write it to ${planPath} (mkdir -p ${outDir}) AND return the full markdown.\n${fb}\nFINDINGS:\n${JSON.stringify(findings, null, 2)}`,
+    `Write it to ${planPath} (mkdir -p ${outDir}) AND return the full markdown.\n${fb}\n${undiscoveredAreas.length ? `UNDISCOVERED AREAS (discovery failed — list each as an open question; do NOT plan them from memory): ${undiscoveredAreas.join(', ')}\n` : ''}FINDINGS:\n${JSON.stringify(findings, null, 2)}`,
   { verify: planOk }
 )
 if (!synth.ok) return { aborted: true, stage: 'synthesize', needsUser: true, synth }
@@ -265,19 +269,23 @@ phase('InternalConsensus')
 let internalRound = 0, internalConsensus = false
 while (internalRound < maxInternal) {
   internalRound++
-  const critiques = (await parallel(lenses.map(lens => () =>
+  let critiques = (await parallel(lenses.map(lens => () =>
     agent(
       `${CONTEXT}\nAdversarially critique this v1 plan through ONE lens: ${lens}. ` +
       `VERIFY each "current state" claim against the actual code (rg/Read) — flag any claim that rests on docs/memory rather than code. Set verified_against_code honestly. ` +
       `Be skeptical; default consensus=false if you find a blocker. Each issue needs concrete evidence (file:line / log) and a fix. Skip nitpicks.\n\nPLAN:\n${plan}`,
       { label: `critic:${String(lens).split(' ')[0]}#${internalRound}`, phase: 'InternalConsensus', model, effort: reviewEffort, isolation, agentType, schema: CRITIQUE_SCHEMA }
     )
-  ))).filter(Boolean)
+  )))
+  const missingLenses = lenses.filter((l, i) => critiques[i] == null)
+  critiques = critiques.filter(Boolean)
   if (!critiques.length) return { aborted: true, stage: 'internal-critics', needsUser: true, round: internalRound } // all critics died -> can't trust convergence
   const blocking = critiques.flatMap(c => (c.blocking_issues || []).filter(i => i.severity !== 'minor'))
-  if (critiques.every(c => c.consensus && c.verified_against_code === true) && blocking.length === 0) {
+  if (!missingLenses.length && critiques.every(c => c.consensus && c.verified_against_code === true) && blocking.length === 0) {
     internalConsensus = true; log(`internal consensus in round ${internalRound}`); break
   }
+  // judgment-rubrics §9.2: a dead critic is not a pass — no consensus from a partial panel; re-run the full panel
+  if (missingLenses.length && blocking.length === 0) { log(`internal round ${internalRound}: critic(s) missing for ${missingLenses.join(', ')} -> re-run critics, no consensus`); continue }
   log(`internal round ${internalRound}: ${blocking.length} blocking -> revise`)
   const rev = await runEscalated(`revise-internal#${internalRound}`, 'InternalConsensus',
     (fb) => `${CONTEXT}\nRevise the plan to resolve these critic issues; RE-VERIFY each asserted fact in code. Keep structure (${PLAN_SECTIONS}). Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
@@ -344,6 +352,7 @@ if (!commit) return { aborted: true, stage: 'commit', needsUser: true, planPath,
 return {
   planPath,
   areas: areas.map(x => x.key),
+  undiscoveredAreas,
   internal: { consensus: internalConsensus, rounds: internalRound },
   external: { consensus: externalConsensus, rounds: externalRound },
   needsUser: !bothConsensus,

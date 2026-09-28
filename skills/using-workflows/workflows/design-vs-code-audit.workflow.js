@@ -108,10 +108,10 @@ const FINDINGS_SCHEMA = {
 
 const VERDICT_SCHEMA = {
   type: 'object',
-  required: ['isReal', 'isDesignWip', 'severity', 'reason'],
+  required: ['verdict', 'isDesignWip', 'severity', 'reason'],
   additionalProperties: false,
   properties: {
-    isReal: { type: 'boolean', description: 'true if the drift genuinely exists in code after re-checking' },
+    verdict: { type: 'string', enum: ['real', 'refuted', 'unknown'], description: 'real = drift proven in code; refuted = proven not a drift; unknown = could not prove either way' },
     isDesignWip: { type: 'boolean', description: 'true if this is design-side WIP, not a code bug' },
     severity: { type: 'string', enum: ['high', 'med', 'low'] },
     reason: { type: 'string', description: 'what you re-checked and why the verdict' },
@@ -136,7 +136,7 @@ const results = await pipeline(
     if (!res.findings || !res.findings.length) return { section: s.key, wipNote: res.wipNote, verified: [] }
     return parallel(res.findings.map(f => () =>
       agent(
-        `Adversarially verify ONE design-vs-code drift finding for the "${s.key}" section of the project at ${ROOT}. Default to skeptical — only confirm if you can prove it in the code.\n\n${DESIGN_SOURCE}\n\nFinding:\n- component: ${f.component}\n- category: ${f.category}\n- design says: ${f.designExpectation}\n- code reality (claimed): ${f.codeReality}\n- location: ${f.location}\n- reporter confidence: ${f.confidence}/5\n\nRe-Read the cited code (${f.location}) and related files in ${JSON.stringify(s.files)}. Check: (a) is the claimed code-reality actually true, or is it implemented somewhere the finder missed? (b) is this just design-WIP (design unfinished), not a code bug? (c) how severe is it for a user? You may re-check the design refs (${JSON.stringify(s.designRefs)}) to confirm the expectation. Return your verdict.`,
+        `Adversarially verify ONE design-vs-code drift finding for the "${s.key}" section of the project at ${ROOT}. Default to skeptical — only confirm if you can prove it in the code. If you can neither prove nor disprove it, return verdict=unknown (never refuted).\n\n${DESIGN_SOURCE}\n\nFinding:\n- component: ${f.component}\n- category: ${f.category}\n- design says: ${f.designExpectation}\n- code reality (claimed): ${f.codeReality}\n- location: ${f.location}\n- reporter confidence: ${f.confidence}/5\n\nRe-Read the cited code (${f.location}) and related files in ${JSON.stringify(s.files)}. Check: (a) is the claimed code-reality actually true, or is it implemented somewhere the finder missed? (b) is this just design-WIP (design unfinished), not a code bug? (c) how severe is it for a user? You may re-check the design refs (${JSON.stringify(s.designRefs)}) to confirm the expectation. Return your verdict.`,
         { label: `verify:${s.key}:${f.component}`.slice(0, 60), phase: 'Verify', schema: VERDICT_SCHEMA, ...effortOpt, ...modelOpt }
       ).then(v => ({ ...f, section: s.key, verdict: v }))
     )).then(vs => vs.map((v, i) => v || { ...res.findings[i], section: s.key, verdict: null }))
@@ -153,13 +153,14 @@ for (const r of results) {
 const deadPipelines = nullIndices(results)
 if (deadPipelines.length) failedSections.push(...deadPipelines.map(i => SECTIONS[i].key))
 
-const confirmed = all.filter(f => f.verdict && f.verdict.isReal && !f.verdict.isDesignWip)
+// judgment-rubrics §9.2: only `refuted` drops a finding; `unknown` is surfaced like a dead verifier.
+const confirmed = all.filter(f => f.verdict && f.verdict.verdict === 'real' && !f.verdict.isDesignWip)
 const designWip = all.filter(f => f.verdict && f.verdict.isDesignWip)
-const dropped = all.filter(f => f.verdict && !f.verdict.isReal && !f.verdict.isDesignWip)
-const unverified = all.filter(f => !f.verdict)
+const dropped = all.filter(f => f.verdict && f.verdict.verdict === 'refuted' && !f.verdict.isDesignWip)
+const unverified = all.filter(f => !f.verdict || (f.verdict.verdict === 'unknown' && !f.verdict.isDesignWip))
 
 if (failedSections.length) log(`WARNING: finder failed for sections [${failedSections.join(', ')}] — those surfaces are UNAUDITED, not clean`)
-if (unverified.length) log(`WARNING: ${unverified.length} finding(s) lost their verifier — reported as unverified, not dropped`)
+if (unverified.length) log(`WARNING: ${unverified.length} finding(s) lost their verifier or were undecided — reported as unverified, not dropped`)
 log(`audit done: ${confirmed.length} confirmed real, ${designWip.length} design-WIP, ${dropped.length} false-positive, ${unverified.length} unverified`)
 
 const bySection = {}
@@ -175,7 +176,7 @@ return {
   },
   confirmed: confirmed.map(f => ({ section: f.section, component: f.component, category: f.category, severity: f.verdict.severity, design: f.designExpectation, code: f.codeReality, location: f.location, fixHint: f.verdict.fixHint })),
   designWipNotes: designWip.map(f => ({ section: f.section, component: f.component, note: f.verdict.reason })),
-  unverified: unverified.map(f => ({ section: f.section, component: f.component, category: f.category, location: f.location, note: 'verifier died — treat as PLAUSIBLE, re-check manually' })),
+  unverified: unverified.map(f => ({ section: f.section, component: f.component, category: f.category, location: f.location, note: f.verdict ? `verifier undecided (${f.verdict.reason}) — treat as PLAUSIBLE, re-check manually` : 'verifier died — treat as PLAUSIBLE, re-check manually' })),
   degraded: { unauditedSections: failedSections, unverifiedCount: unverified.length },
   // Loop connector: the audit does not close the loop by itself — fleet scan showed 0/15 audits followed by triage.
   next: confirmed.length

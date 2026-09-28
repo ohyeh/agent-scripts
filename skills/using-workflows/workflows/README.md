@@ -191,11 +191,11 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   audit target. Split into regions by `sections`, one finder per region
   (a seven-category drift taxonomy: MISSING/HALF_DONE/STATE_MACHINE/
   OVERLAP/ORDER/TEXT/STYLE) → each finding gets adversarially verified
-  one by one (isReal/isDesignWip/severity/fixHint). **Three-state design-WIP**
+  one by one (verdict real/refuted/unknown, isDesignWip, severity, fixHint). **Three-state design-WIP**
   (`wip: false/'partial'/true`): when the design itself is unfinished, a
   missing component doesn't count as a code bug — a dimension docs audits
   don't have. Fail-closed: a dead finder tags its region UNAUDITED (never
-  "clean"), a dead verifier puts that finding in the `unverified` bucket and
+  "clean"), a dead or undecided (`unknown`) verifier puts that finding in the `unverified` bucket and
   surfaces it (never silently drops it). Audit-only (a scout); follow-up
   fixes go through the partitioned-fix pattern noted in the file header
   (mutually exclusive ownership, SKIP+report, never invent missing
