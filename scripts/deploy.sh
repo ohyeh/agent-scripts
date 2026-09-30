@@ -439,8 +439,10 @@ echo "PASS [agents] 0 diff (${agents_report# })"
 # hosts ran version X" instead of comparing hosts on different gate versions.
 mkdir -p ~/.local/state/agent-scripts
 deploy_method=tarball; [ "$CLONE_TRACKED" = 1 ] && deploy_method=clone-tracked
-printf '{"timestamp":"%s","host":"%s","sha":"%s","method":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$(hostname)" "$DEPLOYED_SHA" "$deploy_method" >> ~/.local/state/agent-scripts/deploy-log.jsonl
-echo "PASS [deploy-log] appended $(hostname) @ ${DEPLOYED_SHA:0:7} -> ~/.local/state/agent-scripts/deploy-log.jsonl"
+# Stable name: macOS `hostname` follows DHCP/network; LocalHostName does not.
+host_id="$(scutil --get LocalHostName 2>/dev/null || hostname -s)"
+printf '{"timestamp":"%s","host":"%s","sha":"%s","method":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$host_id" "$DEPLOYED_SHA" "$deploy_method" >> ~/.local/state/agent-scripts/deploy-log.jsonl
+echo "PASS [deploy-log] appended $host_id @ ${DEPLOYED_SHA:0:7} -> ~/.local/state/agent-scripts/deploy-log.jsonl"
 echo "==> DEPLOY OK — all layers PASS"
 }
 

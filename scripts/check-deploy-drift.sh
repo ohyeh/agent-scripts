@@ -23,9 +23,11 @@ LOG="${DEPLOY_LOG:-$HOME/.local/state/agent-scripts/deploy-log.jsonl}"
 
 [ -r "$LOG" ] || { echo "FAIL [drift] no deploy log at $LOG — host never deployed, or state was wiped" >&2; exit 1; }
 
-deployed="$(jq -r --arg h "$(hostname)" \
-  'select(.host==$h) | select(.sha|test("^[0-9a-f]{40}$")) | .sha' "$LOG" 2>/dev/null | tail -1)"
-[ -n "$deployed" ] || { echo "FAIL [drift] no valid 40-char sha for $(hostname) in $LOG" >&2; exit 1; }
+# The log is per-machine (deploy.sh appends to its own ~), so the last valid
+# entry IS this host's deploy. No filter on .host: macOS `hostname` moves with
+# the network, and one machine logged under two names (2026-09-30).
+deployed="$(jq -r 'select(.sha|test("^[0-9a-f]{40}$")) | .sha' "$LOG" | tail -1)"
+[ -n "$deployed" ] || { echo "FAIL [drift] no valid 40-char sha in $LOG" >&2; exit 1; }
 
 remote="$(git ls-remote "$REPO_GIT_URL" "$RELEASE_REF" | cut -f1)"
 case "$remote" in
