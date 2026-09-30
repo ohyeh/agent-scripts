@@ -21,12 +21,12 @@ and Workflow `agent(prompt, {effort})`.
 
 | Codex role | Model | Start effort | Ceiling/contract |
 |---|---|---|---|
-| commander | `gpt-5.6-sol` | `medium` | `xhigh` only for materially large/hard work |
+| commander | `gpt-6.1-sol` | `medium` | `xhigh` only for materially large/hard work |
 | plan | `gpt-6-astra` | `medium` | `high`; `xhigh` only for major architecture/security/ambiguity |
 | review/judgment | fresh `gpt-6-astra` | `medium` | reviewer is not the author |
 | execution | `gpt-6-luna`; explicit Sol; or external | Luna `xhigh`/`max`; Sol low/medium | Sol workers stop at `medium` |
 
-Codex models: `gpt-6-astra`, `gpt-5.6-sol`, `gpt-6-sol`, `gpt-6-luna` — no others. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
+Codex models: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna` — no others. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
 for an explicit latency need. Sol `max` needs concrete evidence. Never hard-code context-window
 values; the live catalog is authoritative.
 
@@ -51,8 +51,8 @@ Same row = interchangeable at the stated effort; do not cross rows to "save" cos
 | Codex | Claude | Tier word |
 |---|---|---|
 | `gpt-6-astra` low / medium | `fable` low / medium | best |
-| `gpt-5.6-sol` medium+ | `opus` medium+ | better |
-| `gpt-5.6-sol` low · `gpt-6-luna` xhigh / max | `sonnet` high / xhigh / max | basic |
+| `gpt-6.1-sol` medium+ | `opus` medium+ | better |
+| `gpt-6.1-sol` low · `gpt-6-luna` xhigh / max | `sonnet` high / xhigh / max | basic |
 | — | `sonnet` medium | cheap |
 | — | `sonnet` low | dirt |
 
