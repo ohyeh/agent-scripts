@@ -34,6 +34,9 @@ Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
       cited live source; otherwise attribute it, relay the verified part, mark the rest `UNCONFIRMED`.
 - [ ] Evidence came from execution THIS session, not from memory or expectation.
 - [ ] Independently verified. Classify by what the change affects, not by file count or diff size. Reversible change: author-run real command/test with quoted exit code suffices (§2b). Irreversible or outward-facing change: a fresh-context agent (not the author) verified it — files: read-back; code: tests or a real run; claims: spot-check.
+- [ ] A review or verification verdict names the exact input it judged: a commit sha, or for
+      uncommitted work the file list plus each file's sha256. A verdict on content that changed
+      afterwards does not count for the new content.
 - [ ] `git status`/`git diff` shown; work committed or the uncommitted state explicitly flagged.
 - [ ] Anything inferred-but-unverified is labeled `UNCONFIRMED` in the report.
 - [ ] Claims about file contents rest on full, non-truncated auditable reads — a grep/rg

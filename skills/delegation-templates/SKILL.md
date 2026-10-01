@@ -91,6 +91,7 @@ OUTPUT: findings to {artifact_path}; return path + a ≤10-bullet summary.
 
 ```
 GOAL: Adversarially review {diff/files/claim}. Assume it is broken until proven otherwise.
+REVIEWED INPUT: {commit sha | file list + sha256} — the verdict binds to this (judgment-rubrics §2).
 CHECK:
 - Claims vs reality: for each stated behavior, find the code or run the command that proves it.
 - {task-specific checks: edge cases, error paths, security, contradictions between docs}.
