@@ -111,6 +111,7 @@ log('implementation done, starting dual review')
 phase('Review')
 const reviewPrompt = (who) =>
   `Review the change just implemented against the spec below. Focus (${who}): ${focus}. ` +
+  `Every new concept or abstraction (type, layer, option, config surface, helper used once) must name the spec line or reproduced failure that requires it; one that cannot is an issue. This check targets unrequested abstractions only — never flag the change for covering the full requested scope. ` +
   `Return a concise list of CONCRETE issues with file/line references and suggested fixes. If none, say "no issues".\n${SPEC}`
 const deepPass = reviewPrompt('independent deep pass — fresh context, verify against the real code, not the implementer\'s claims')
 const reviews = await parallel([
