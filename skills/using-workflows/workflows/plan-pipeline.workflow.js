@@ -18,8 +18,8 @@
 //     repoPath: "/abs/repo",
 //     slug: "<slug>",                               // names the plan/direction files
 //     brief: "<the topic / feature idea to plan>",  // REQUIRED seed for the direction doc
-//     directionPath: ".workflow/<YYYYMMDDHHMM>-<slug>/direction.md",  // ① output (default derives from slug)
-//     planPath: ".workflow/<YYYYMMDDHHMM>-<slug>/plan.md",            // ② output (default derives from slug)
+//     directionPath: ".workflow/<YYYYMMDDHHMM>-<slug>/direction.md",  // ① output (default .workflow/next-direction/<slug>-direction.md)
+//     planPath: ".workflow/<YYYYMMDDHHMM>-<slug>/plan.md",            // ② output (default .workflow/next-direction/plan-<slug>.md)
 //     adrDir: "docs/adr",                           // ③ output dir (default "docs/adr")
 //     maxReviewRounds: 6,                           // review→fix freeze rounds per artifact (default 6)
 //     cli: "codex",                                 // OPTIONAL second-model CLI; absent → in-script opus draft / fresh-opus review loop

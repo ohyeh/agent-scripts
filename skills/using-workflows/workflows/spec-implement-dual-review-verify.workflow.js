@@ -16,7 +16,7 @@
 //       "./scripts/foo/bar.sh --help"
 //     ],
 //     model: "opus",                               // optional, implementer model (default opus; 'sonnet' allowed HERE only — implementation)
-//     effort: "low",                               // optional, implementer effort (default low)
+//     effort: "low",                               // optional, implementer effort (default medium)
 //     reviewEffort: "high", timeoutSec: 600,       // optional, reviewers' effort + OUT-file poll timeout; reviewers are ALWAYS opus
 //     cli: "codex",                                // OPTIONAL second-model CLI; absent → second reviewer is a fresh Claude opus agent
 //     sessionName: "spec-c1",                       // optional, agent-tmux external session label
@@ -114,7 +114,7 @@ const reviewPrompt = (who) =>
   `Return a concise list of CONCRETE issues with file/line references and suggested fixes. If none, say "no issues".\n${SPEC}`
 const deepPass = reviewPrompt('independent deep pass — fresh context, verify against the real code, not the implementer\'s claims')
 const reviews = await parallel([
-  () => agent(cli ? driveCli(deepPass, `/tmp/${cli}-review-${cliSession}.md`) : deepPass, { label: `review:${externalTier}`, phase: 'Review', model: reviewModel, effort: reviewEffort, isolation, agentType }),
+  () => agent(cli ? driveCli(deepPass, `/tmp/${cli}-review-${cliSession}.md`) : deepPass, { label: `review:${externalTier}`, phase: 'Review', model: reviewModel, effort: reviewEffort, isolation, agentType }),   // cli: conduit only
   () => agent(reviewPrompt('claude reviewer'), { label: 'review:claude', phase: 'Review', model: reviewModel, effort: reviewEffort, isolation, agentType }),
 ])
 // Detect BOTH reviewers symmetrically — each parallel thunk can return null on failure.

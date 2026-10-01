@@ -83,7 +83,7 @@ const slug = a.slug || 'feature'
 // ponytail: slug guard mirrors the stage workflows — keep the shell's own boundary check.
 if (!/^[a-zA-Z0-9._-]+$/.test(slug) || slug.includes('..')) return { aborted: true, reason: `invalid slug '${slug}'` }
 // model/effort resolved once and forwarded EXPLICITLY to every nested stage + own agent (never
-// omitted — "not shown" must not read as "unsupported"). Defaults: opus / low (user ruling
+// omitted — "not shown" must not read as "unsupported"). Defaults: opus / medium (user ruling
 // 2026-09-02: floor opus low; stages keep their reviewers on opus regardless of `model`).
 const model = a.model || 'opus'
 const effort = a.effort || 'medium'   // worker default (user ruling 2026-09-02); reviewers use reviewEffort
@@ -115,7 +115,7 @@ if (mode === 'explore') {
     commitPush: a.commit === true || a.push === true,
   })
   planClean = !!plan && plan.passed === true && plan.ready_for_build === true
-  planPath = a.planPath || plan?.plan?.outPath || plan?.artifacts?.plan
+  planPath = a.planPath || plan?.plan?.path
 }
 
 // ── Persist the EXECUTION-side run config into the project (Claude-format) ──────

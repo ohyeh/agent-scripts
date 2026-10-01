@@ -26,7 +26,7 @@ export const meta = {
 //   outputLanguage (optional) default 'Traditional Chinese (Taiwan), code identifiers as-is'.
 //
 // Publish step (NOT in this recipe — Workflow scripts can't call Artifact):
-//   after the run, the main loop calls Artifact({file_path: outPath, favicon: '🧩', url: <existing manifest url>}).
+//   after the run, the main loop calls Artifact({file_path: outPath, url: <existing manifest url>}).
 
 // ── SAFE_LIB (canonical repo source: skills/using-workflows/workflows/_lib/safe.js — keep byte-identical) ──
 const coalesceNull = (arr, fb) => arr.map((r, i) => (r == null ? fb(i) : r))
@@ -149,5 +149,5 @@ return {
   render: rendered,
   summary: { machinesScanned: okScans.length, repoDir: REPO_DIR, repoRecipes: repoScan.recipes.length, exhaustBases: okScans.reduce((n, s) => n + s.exhaust.length, 0), tagTotals: totals },
   degraded: { unscanned: deadScans, unjudgedMachines: unjudged },
-  publishHint: `Artifact({file_path: '${a.outPath}', favicon: '🧩', url: '<existing manifest url to redeploy>'})`,
+  publishHint: `Artifact({file_path: '${a.outPath}', url: '<existing manifest url to redeploy>'})`,
 }

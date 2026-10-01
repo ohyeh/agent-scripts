@@ -9,7 +9,7 @@
 // Why these exist: agent() returns null on failure, parallel() yields a null entry for a failed
 // thunk, and a pipeline stage that throws drops its item to a raw null. Downstream filter(Boolean)
 // / {...r} then SILENTLY swallow the failure while the run still looks complete. These helpers make
-// every failure surface (by index) instead of vanishing. See .claude/memory/lessons.md L1.
+// every failure surface (by index) instead of vanishing.
 
 // ── SAFE_LIB (canonical repo source: skills/using-workflows/workflows/_lib/safe.js — keep byte-identical) ──
 const coalesceNull = (arr, fb) => arr.map((r, i) => (r == null ? fb(i) : r))

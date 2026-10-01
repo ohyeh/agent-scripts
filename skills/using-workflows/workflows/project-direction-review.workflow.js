@@ -85,8 +85,6 @@ if (synthesis == null) throw new Error('project-direction-review: synthesis agen
 return {
   findings, synthesis,
   degraded: { failedReaders: deadReaders.map(i => READERS[i].key), failedLenses: LENSES.filter((l, i) => rawProposals[i] == null).map(l => l.key) },
-  // Loop connector: the review does not close the loop by itself.
-  next: (findings || []).length
-    ? 'Run findings-triage NOW: Workflow({ scriptPath: ".claude/workflows/findings-triage.workflow.js", args: { findings: <this.findings> } }). Do not hand-write briefs.'
-    : 'No findings → report the synthesis and stop.',
+  // Loop connector: `findings` are reader summaries, not audit findings — the roadmap feeds plan-pipeline.
+  next: 'Report the roadmap. To freeze a chosen workstream: Workflow({ scriptPath: "~/.claude/workflows/plan-pipeline.workflow.js", args: { repoPath: <root>, slug: <slug>, brief: <that workstream> } }).',
 }

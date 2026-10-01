@@ -29,7 +29,7 @@
 // uses disjoint discovery packets, and gates git operations behind explicit args (approval rule).
 //
 // Invoke reliably via absolute scriptPath (independent of discovery/name):
-//   Workflow({ scriptPath: "~/Desktop/workflows/recipes/feature-plan-consensus.workflow.js", args: {
+//   Workflow({ scriptPath: "~/.claude/workflows/feature-plan-consensus.workflow.js", args: {
 //     repoPath:   "/abs/path/to/repo",
 //     featureBrief: "What the new feature is + goals + product decisions/links (multi-line).",
 //     slug:       "coin-wallet-rename",          // .workflow/<YYYYMMDDHHMM>-<slug>/ dir (default 'feature-plan')
@@ -206,7 +206,7 @@ const CRITIQUE_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['consensus', 'verified_against_code', 'blocking_issues'],
   properties: {
     consensus: { type: 'boolean' },
-    verified_against_code: { type: 'boolean', description: 'MUST be true: you actually checked the plan claims with rg/Read/logs this pass. If you did not verify, set false (and consensus cannot be trusted).' },
+    verified_against_code: { type: 'boolean', description: 'true only if you checked the plan claims with rg/Read/logs this pass; false otherwise (the gate then rejects consensus).' },
     blocking_issues: { type: 'array', items: {
       type: 'object', additionalProperties: false, required: ['issue', 'evidence', 'fix'],
       properties: { issue: { type: 'string' }, area: { type: 'string' }, severity: { type: 'string', enum: ['blocker', 'major', 'minor'] }, evidence: { type: 'string', description: 'REQUIRED: file:line or log excerpt proving the issue (no code evidence = not a valid issue)' }, fix: { type: 'string' } },
