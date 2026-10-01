@@ -153,7 +153,7 @@ tmux worker mechanics (highest-frequency real-world failure, re-hit by ≥4 sess
 
 | Effort | Use |
 |---|---|
-| `low` | mechanical execution, read-back, solved pattern, supervision proxy |
+| `low` | `opus`/`fable` mechanical execution (never `sonnet`: floor `medium`, §1) |
 | `medium` | default implementation, refactor, research, first review |
 | `high` | planning, risky/adversarial review, root-cause convergence |
 | `xhigh`/`max` | only after two evidenced lower-tier failures or explicit user choice |
