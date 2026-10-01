@@ -87,7 +87,7 @@ before any install or deploy.
 |---|---|---|
 | write any worker brief (GOAL/ACCEPTANCE/REPORT) | `delegation-templates` | Skill() |
 | drive tmux workers: mechanics and wrappers | `tmux-agent-tools` | via-router |
-| plan and run an explicitly orchestrated agent workflow | `codex-dynamic-workflows` | via-router |
+| plan and run an explicitly orchestrated agent workflow | `codex-dynamic-workflows` | Skill() |
 
 ## Read the outside world
 

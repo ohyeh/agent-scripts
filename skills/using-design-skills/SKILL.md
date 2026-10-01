@@ -77,7 +77,7 @@ fresh reviewer, verdict still PASS/BLOCK. `prototype` → none.
   prompt READS it. Workers have no chat memory — never carry direction in chat only.
 - **Dispatch**: tmux dispatches route through `using-tmux-agent-tools`;
   worker prompts from `delegation-templates`; tiers per
-  `~/.agents/rules/model-dispatch.md` §5, verification §7. Fanout/dialogue
+  `~/.agents/rules/model-dispatch.md` §4–§5, reviewer independence §6. Fanout/dialogue
   need the user's exact authorization.
 - **Loop topology (fixed)**: the BUILDER is a persistent worker — BLOCK
   findings return to the SAME builder (worker-reuse protocol). Each REVIEWER
