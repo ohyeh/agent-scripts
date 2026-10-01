@@ -144,7 +144,8 @@ learned its result path, and its `pending` was therefore permanent.
 
 ## Dispatch shape C — supervision proxy brief (typed contract)
 
-The subagent that HOSTS the one blocking `assign` gets this brief verbatim. It is
+Only for a Claude session WITHOUT the tmux-agent mod (with it, dispatch via
+`mcp__tmux-agent__assign`; no proxy). The subagent that HOSTS the one `assign --detach` gets this brief verbatim. It is
 a fixed schema, not prose; `check-bol-prompt.sh` validates the three declared
 fields and nothing else.
 
@@ -153,7 +154,7 @@ PROXY_MODE: agent-tmux-assign
 WORKER_ARTIFACT: {absolute path the WORKER writes — the parent reads it, you do not}
 
 GOAL
-Run exactly one blocking `agent-tmux {cli} assign {name} {dir} {prompt-file}` call, then report.
+Run exactly one `agent-tmux {cli} assign --detach {name} {dir} {prompt-file}` call, then report. The parent owns the wait.
 
 ACCEPTANCE
 That one call returns. No status/capture/probe/result/second-wait call is made.

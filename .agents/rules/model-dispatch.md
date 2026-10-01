@@ -100,7 +100,7 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 | review/verification | fresh `opus` medium; risky=`opus` high | fresh Astra medium |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` medium | Luna xhigh |
-| dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: supervision proxy, `general-purpose` subagent on `sonnet` hosting the ONE blocking `assign` call | same |
+| dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: proxy runs `assign --detach`, the parent owns the wait (`using-tmux-agent-tools` §ONE OWNER) | same |
 
 Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
 2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
@@ -114,57 +114,21 @@ resume (skill `using-workflows` §ADVISOR GATE).
 
 `tmux-agent` mod loaded (the tool `mcp__tmux-agent__assign` exists; 2026-10-01 user ruling): dispatch
 and wait exactly as `using-tmux-agent-tools` §COLLECTOR says (owner). No proxy, no parent listener.
-The proxy, listener, `pending` and teardown paragraphs below govern a Claude session WITHOUT the
-mod; the deadline, cancel and concurrency rules bind both.
+The deadline, cancel and concurrency rules below bind both.
 
-Before dispatch, resolve the wrapper bundle, run its `agent-tmux <cli> setup`, stop on failure.
-Then dispatch external asynchronous workers with ONE `agent-tmux <cli> assign <name> <dir>
-<prompt-file>` call; the sequence it encodes (start → result init → send --from-file → confirm
-the pane is processing → one blocking supervise --result-required) IS the supervision. Canonical
-host (2026-08-17 user ruling): a supervision proxy — ONE `general-purpose` subagent on `sonnet`
-— owns that single `assign` call, holds its stepwise output, and reports exit code +
-status/summary only. Its brief MUST order: run the command FIRST, then report; no
-status/capture/probe/result, no reading or judging the worker's output. Proxy failure is judged
-ONLY by its terminal report or by evidence the assign never launched the worker (no state dir);
-idle/'finished' mailbox heartbeats DURING the blocking assign are noise, never failure
-(misread by two sessions, 2026-08-18). Parent foreground `assign` (ALL forms, `--detach`
-included — the gate cannot verify the reaping premise) and parent foreground
-`status`/`capture`/`probe`/`result` polling are gate-denied (per-worker polling proxy RETIRED
-2026-08-08, W32 M5); a fallback harvest runs as a background task, reason logged. Inside a proxy
-or background fallback, judge `result --json` as `.present` → `.valid` → `.body.status`, then `stop`.
+No mod: dispatch, wait, `pending` handling and teardown follow `using-tmux-agent-tools`
+§ONE OWNER (owner). Under local Claude Code (a foreground call is reaped at ~600s) a
+`general-purpose` proxy subagent runs `agent-tmux <cli> assign --detach` after `setup`, and the
+PARENT owns the wait with bounded background `result wait-required` calls. Parent foreground
+`assign`, any form, is gate-denied (`tmux-assign-host-gate.sh`). Incidents behind these rules:
+c48c0d3a (2h40m orphaned wait; proxy stood down 12s too late), 2026-08-30 (foreground reaped at
+600s, exit 143; agy never saw its result path, so its `pending` was permanent).
 
 Every delegated wait MUST have an explicit terminal condition and an enforced
 wall-clock deadline before its first wait or poll call. Prefer a blocking/event-driven
 wait; if the tool has none, poll only that condition within the same deadline.
 An attempt count alone is not a deadline. Expiry ends that wait; starting it
 again with materially identical inputs is a retry.
-
-Backgrounded is NOT terminal (measured 2026-08-30): the harness reaps a foreground Bash call at
-~600s, and the reaped proxy cannot wait on the task — a subagent has no `TaskOutput` — so it can
-only report in-flight. Any non-terminal proxy report is a dispatch PROTOCOL FAILURE, never
-supervision and never a reason to idle: the parent OWNS the wait and MUST open the listener
-itself, `run_in_background` with `result wait-required <name> --fields <csv> --wait <N> --json`.
-Ownership IS the mechanism — a parent-launched background task re-invokes the session on exit,
-one orphaned by a terminated subagent notifies nobody (c48c0d3a: 2h40m dead). Measured 2026-08-30:
-a parent-owned background task ran 781s to completion, exit 0, and did notify the session, while a
-foreground call was reaped at exactly 600s (exit 143) — the ~600s limit binds the FOREGROUND call
-only, so a bounded listener longer than 10 minutes is legitimate as a background task. Never pipe the
-listener: a trailing `| tail` reports `tail`'s status, so `exit 2` reads as success — judge it by
-validated JSON, never by exit code.
-
-`pending` is neither proof of failure nor licence to wait forever; it is a TERMINATING
-PROCEDURE. Within the bound, keep waiting. Bound expires still `pending` → re-prompt the worker
-ONCE with the literal path from `result --path <name>`, then one more bounded wait. Only then may
-a pane capture stand in, always labelled UNCONFIRMED — a scrape is never a verified answer and
-never a basis for shipping. `assign` warns `result-path delivery UNCONFIRMED` when it could not
-confirm the worker was told that path; a worker that never learned it can NEVER write result.json,
-so its `pending` is permanent (2026-08-30: agy dropped both injected prefixes during a 95s boot,
-its own transcript proving it never saw the path, and the answer existed only in the pane).
-Teardown order is fixed: stand the proxy DOWN BEFORE stopping the worker it supervises — stopping
-first strands the proxy on a signal that can no longer arrive (c48c0d3a, 12s apart). And never
-brief a proxy to return the worker's output verbatim: §4 forbids it from reading that output, and
-when result.json is `pending` the brief is unsatisfiable by any legal means. Have the WORKER write
-findings to a declared artifact path and read that file yourself.
 
 A user instruction to cancel named work takes effect at once: end its process and its
 identified descendants, verify termination, report the result, and only then look at
@@ -177,13 +141,13 @@ record — sessions that delegated drew 26× the corrections of sessions that di
 `bol-prompt-gate.sh` PreToolUse hook against the SubagentStart/Stop ledger; the same hook
 denies any Agent brief missing GOAL/ACCEPTANCE/REPORT. Ask "must this be delegated?" first.
 
-Worker lifecycle (2026-08-18 user ruling): workers are SESSION TEAMMATES, not disposables — they live and die with the session. Team slot cap (user ruling 2026-08-18): at most 3 persistent named workers per session TOTAL across all CLIs — opening more requires the user's explicit request. Bring a worker up once (first task via `assign`), feed every later task to the SAME worker with `send-wait` (each hosted the same way — proxy), `stop` only at session end. Per-task start/stop churn is a defect: it burns bring-up cost and amplifies the upstream Codex FD-leak (lessons 2026-08-18 EMFILE). One-shot throwaway workers are the EXCEPTION, only for isolation (different repo/trust scope) or genuine parallel fanout.
+Worker lifecycle (2026-08-18 user ruling): workers are SESSION TEAMMATES, not disposables — they live and die with the session. Team slot cap (user ruling 2026-08-18): at most 3 persistent named workers per session TOTAL across all CLIs — opening more requires the user's explicit request. Bring a worker up once (first task via `assign`), feed every later task to the SAME worker with `send-wait` (each dispatched the same way), `stop` only at session end. Per-task start/stop churn is a defect: it burns bring-up cost and amplifies the upstream Codex FD-leak (lessons 2026-08-18 EMFILE). One-shot throwaway workers are the EXCEPTION, only for isolation (different repo/trust scope) or genuine parallel fanout.
 
 tmux worker mechanics (highest-frequency real-world failure, re-hit by ≥4 sessions):
 - Dispatch is `assign` — never hand-chain the steps. A worker started with `--prompt-file` sits idle with no task; the symptom mimics an account/auth hang (`assign` makes that shape impossible and catches "task never reached the CLI").
 - Before declaring any profile/worker unusable: read `skills/tmux-agent-tools/scripts/profiles/README.md` (bin= may need a bare env override such as `CLAUDE="$(command -v claude)"`).
 - Headless codex: always `codex exec … < /dev/null` (add `--skip-git-repo-check` outside a trusted repo) or it hangs on stdin.
-- A worker stuck longer than ~15 min escalates to the user as a blocker; the proxy's blocking wait IS the mechanism.
+- A worker stuck longer than ~15 min escalates to the user as a blocker.
 
 ## §5 Effort and retry ladder
 
