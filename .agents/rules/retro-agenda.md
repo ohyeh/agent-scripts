@@ -25,6 +25,8 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 ## 議程（固定收集清單，依序）
 
 ### 1. 上週 backlog 對帳 — 做了沒、有效沒
+開跑前先讀上一輪的 Retro artifact 和艦隊儀表板（URL 以 Artifact list 現場查），
+把上週的 TL;DR「共識後預計這樣做」和「需要你決定」逐條列成本輪起點，再對照本版議程開始。
 逐項對 `next-week-backlog.md`：GitHub commit/issue 為證據，驗收條件逐字檢查。
 「有效沒」與「做了沒」分開評：merge 了但行為沒變 = 做了、無效。
 
