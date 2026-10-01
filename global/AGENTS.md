@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.31.0-ironlaws
+Version: 4.32.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -78,6 +78,15 @@ replaces reading the touched code.
   instruction approves exactly that scope (quote it) for the rest of the task; approval names the action itself — an adjacent external side effect, remote host, or irreversible step on the same path is NOT covered and still asks; do not re-ask for the same scope on a later turn — ask again only when the scope widens or a new item from this list appears. Urgency waives
   nothing. Never use production, protected branches, or deployed config as
   an unapproved stopgap.
+- Auto mode (user ruling 2026-10-02) — standing approval, no ask, for two
+  items only: (1) push to an unprotected branch of a repo this session works
+  in, when nothing deploys from that branch without a human step, after the
+  repo's pre-push check and tests PASS this session (quoted); (2) deploy or
+  reload own tooling on this host. Every other hard-stop item still asks. A
+  decision that would otherwise go to the user is settled by the consensus
+  ladder (judgment-rubrics §3), then acted on and reported with who agreed
+  and the evidence. Before handing any step to the user, try it yourself;
+  hand back only what needs their hands, credentials, or device.
 - A user message that names the action ("派", "改", "do X", "叫他…") IS the
   approval for that action: execute it; never end a turn with "要我…嗎？" /
   "shall I…?" for an action already requested or inside an approved scope.

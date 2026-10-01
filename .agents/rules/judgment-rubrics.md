@@ -86,7 +86,12 @@ minted new non-acceptance findings; the screen did not change.)
 ## §3 When to stop and ask the user
 Apply: continuously. Ask FIRST (hard-stop list): data deletion, privacy exposure,
 external side effects (emails, tickets, deploys, payments), irreversible operations,
-production/protected-branch changes, major architectural risk.
+production/protected-branch changes, major architectural risk. Kernel auto mode
+exempts two items: push to an unprotected branch ("unprotected" = the remote reports
+no branch protection) that nothing deploys from without a human step, after the repo's
+pre-push check and tests PASS this session; and deploy or reload own tooling on this
+host. Other hosts, fleet-deploy, force push, history rewrite, deletion, and messages
+to people or outside services still ask.
 Before any change to a file or external state other than run-dir records, identify the
 sentence in the request that authorizes it and its exact target. A how-to, diagnostic,
 review, or hypothetical question authorizes no change — answer it instead of editing.
@@ -107,6 +112,17 @@ act. A menu with a recommendation per option is still a question (the user redoe
 Every other use of their turn carries a decision they own, a result, or a blocker; confirming
 authorized work, recapping, or asking to take a reversible in-scope step is dead weight — do the work.
 - Negative: offering three defaults, each with "recommended: X", then waiting. Wrong — those recommendations ARE the decision; apply them and report.
+Consensus ladder — only for a decision that, after the known-answer test, would still
+go to the user (the known-answer test settles the rest without a ladder):
+1. Default: up to 3 adversarial rounds of your own (state the answer, attack it,
+   revise), or one `advisor` call.
+2. High risk (kernel or rules semantics, public contract, data shape, hard to undo):
+   add one external reviewer from the model-dispatch §1 Advisor row, through the mod.
+3. Ask the user only when the ladder splits, the question is a genuine preference the
+   record cannot answer (cost, risk appetite, priority), or acting would override an
+   explicit user instruction.
+Report the decision, who agreed, and the evidence; the user overrides after the fact.
+Guidance edits (maintenance §1) still need the user's approval of the exact diff.
 
 ## §4 Wrong-direction signals — change approach, do not retry
 Apply: after every failed attempt. Any TWO of these → the approach is wrong; the same idea

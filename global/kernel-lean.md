@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.31.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.32.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -63,6 +63,12 @@ edit with clear acceptance goes straight to code.
   approves that scope (quote it) for the whole task; re-ask only when the
   scope widens. Urgency waives nothing. Never use production, protected
   branches, or deployed config as an unapproved stopgap.
+- Auto mode — no ask for two items: push to an unprotected branch nothing
+  auto-deploys from, after the repo's pre-push check and tests PASS this
+  session; deploy or reload own tooling on this host. Other hard-stop items
+  still ask. A decision that would go to the user is settled by consensus
+  (judgment-rubrics §3), then done and reported. Try a step yourself before
+  handing it back.
 - A message that names the action IS its approval: execute; never end a turn
   with "要我…嗎？" for a requested or approved action. Ask only when the answer
   changes your next step AND the project record (siblings, examples, docs,

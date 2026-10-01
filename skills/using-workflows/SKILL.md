@@ -85,6 +85,11 @@ one that differs from the substantive author; discover the list live with
 Claude `opus` reviewer in an independent context. Never hard-code a name,
 never block a run on an external CLI that is not installed. `context` = one line (repo abs path + stack +
 scope). Prefer name invocation over scriptPath.
+A workflow agent can call `mcp__tmux-agent__assign`, but the collector delivers
+the result to the MAIN session (using-tmux-agent-tools §COLLECTOR), never into
+the script (measured 2026-10-01, worker `wfprobe`); a `runtime: tmux/<profile>`
+line inside `agent()` is not intercepted. Recipes that need a worker's result
+inside the script (`consensus-gate`, `cli` review gates) keep the conduit agent.
 
 ## MODEL FLOOR (user ruling 2026-09-02)
 
