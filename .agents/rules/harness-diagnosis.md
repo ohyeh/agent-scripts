@@ -13,7 +13,7 @@ re-verify must be treated as UNCONFIRMED, not repeated as fact.
   The Agent tool has NO `effort` parameter — effort comes from the agent definition
   (`.claude/agents/*.md` frontmatter) or `Workflow` script `agent(..., {effort})`
   (`low|medium|high|xhigh|max`), otherwise it inherits the session effort.
-- Current model IDs: `claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5`,
+- Current model IDs: `claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`,
   `claude-haiku-4-5-20251001`. A flagged Opus 5.5 message moves the session to an
   older model; the `/config` toggle "Switch models when a message is flagged" controls
   it (settings.json key UNCONFIRMED).

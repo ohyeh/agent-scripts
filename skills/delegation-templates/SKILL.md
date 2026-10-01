@@ -109,7 +109,7 @@ Do not fix anything; report only.
 ```
 Agent({
   subagent_type: "explore-bounded" | "general-purpose" | ...,   // read-only search: model-dispatch §4
-  model: "sonnet" | "opus",   // cheapest tier that can pass ACCEPTANCE (haiku retired 2026-08-01; former haiku roles = sonnet at effort low)
+  model: "sonnet" | "opus",   // cheapest tier that can pass ACCEPTANCE (model and effort: model-dispatch §1)
   description: "{3-5 words}",
   prompt: "{filled template + common footer}"
 })

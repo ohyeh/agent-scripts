@@ -289,3 +289,8 @@ Status: proposed
 Rule: UI 結論必須附本輪真實截圖，並涵蓋需求點名的每個狀態；只給表格或文字描述不算完成。
 Evidence: W39 R3 類 4 筆（layer2-corrections.md）；來源 W39 F6。
 Status: proposed
+
+## 2026-10-01 | scope: model-dispatch | trigger: `sonnet` alias 的實際 model ID 變了
+Rule: §1 表的 model ID 要以本機 transcript 的 `message.model` 為準；alias 換版時同一個 commit 更新 §1 與 harness-diagnosis 的 ID 清單。
+Evidence: agent-scripts 專案 transcript：`claude-sonnet-5` 最後一次 2026-09-26T18:31Z；`claude-sonnet-5-5` 自 2026-10-01T11:55Z 起出現。來源 W40 remote-44 稽核 A。
+Status: proposed

@@ -11,11 +11,11 @@ successor is valid only after live verification per §8.
 | Claude tier | Current ID | Role |
 |---|---|---|
 | `opus` | `claude-opus-5-5` (live 2026-09-24; API default effort `medium`, effort sweep pending) | DEFAULT worker at effort `medium` (user ruling 2026-09-02): implementation, refactor, research, first review; `high` for architecture, hard debugging, adversarial review |
-| `sonnet` | `claude-sonnet-5` | only by explicit arg: implementation or read-only data gathering; at effort `low` mechanical search, read-back, solved-pattern batches |
+| `sonnet` | `claude-sonnet-5-5` (live 2026-10-01) | only by explicit arg: implementation or read-only data gathering; effort floor `medium` (user ruling 2026-10-01: at `low` it skips instructions); mechanical search, read-back, solved-pattern batches at `medium` |
 | `fable` | `claude-fable-5-1` | scarce; at `low` often beats opus/sonnet on cost per task — include in any sweep; picker rejection falls back to `opus` |
 
 `haiku` RETIRED 2026-08-01 (user decision; repeated miscounts): former haiku roles run as
-`sonnet` effort `low`; where only `model` is accepted, pass `sonnet`. Claude Agent calls take
+`sonnet` effort `medium`; where only `model` is accepted, pass `sonnet`. Claude Agent calls take
 `model`, not `effort` (plain calls inherit session effort); effort exists in agent frontmatter
 and Workflow `agent(prompt, {effort})`.
 
@@ -54,7 +54,6 @@ Same row = interchangeable at the stated effort; do not cross rows to "save" cos
 | `gpt-6.1-sol` medium+ | `opus` medium+ | better |
 | `gpt-6.1-sol` low · `gpt-6-luna` xhigh / max | `sonnet` high / xhigh / max | basic |
 | — | `sonnet` medium | cheap |
-| — | `sonnet` low | dirt |
 
 ### Role tiers (user ruling 2026-09-25)
 
@@ -95,13 +94,13 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 
 | Task | Claude | Codex |
 |---|---|---|
-| locate/inventory | `sonnet` low; `sonnet` medium for synthesis | Luna xhigh |
+| locate/inventory | `sonnet` medium; `sonnet` high for synthesis | Luna xhigh |
 | read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
 | implement/refactor/research | `sonnet` | Luna xhigh |
 | review/verification | fresh `sonnet`; risky=`opus` | fresh Astra medium |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
-| apply solved pattern | `sonnet` low | Luna xhigh |
-| dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: supervision proxy, `general-purpose` subagent on `sonnet` low hosting the ONE blocking `assign` call | same |
+| apply solved pattern | `sonnet` medium | Luna xhigh |
+| dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: supervision proxy, `general-purpose` subagent on `sonnet` hosting the ONE blocking `assign` call | same |
 
 Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
 2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
@@ -123,7 +122,7 @@ Then dispatch external asynchronous workers with ONE `agent-tmux <cli> assign <n
 <prompt-file>` call; the sequence it encodes (start → result init → send --from-file → confirm
 the pane is processing → one blocking supervise --result-required) IS the supervision. Canonical
 host (2026-08-17 user ruling): a supervision proxy — ONE `general-purpose` subagent on `sonnet`
-low — owns that single `assign` call, holds its stepwise output, and reports exit code +
+— owns that single `assign` call, holds its stepwise output, and reports exit code +
 status/summary only. Its brief MUST order: run the command FIRST, then report; no
 status/capture/probe/result, no reading or judging the worker's output. Proxy failure is judged
 ONLY by its terminal report or by evidence the assign never launched the worker (no state dir);
@@ -220,7 +219,7 @@ not a fourth retry. Once the hard part is solved, drop to the cheap execution ti
 ## §6 Reviewer independence
 
 Above the trivial single-file/low-risk threshold, the author is not the verifier. Files need
-fresh read-back (Claude `sonnet` low; Codex cheap fresh worker); code needs the real
+fresh read-back (Claude `sonnet` medium; Codex cheap fresh worker); code needs the real
 test/build/flow; high-risk judgment needs Claude `opus`, Codex fresh Astra, or 2–3 candidates plus
 an independent judge. At the trivial threshold, the author's real command with quoted exit
 code/key lines suffices. Completion/quality criteria: `judgment-rubrics.md` §2/§5, read before reporting.
