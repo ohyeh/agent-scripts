@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Minimal per-recipe usage tracker (A3): counts a recipe's mentions under a
 # .workflow run-dir tree for the current ISO week and maintains a
-# consecutive_zero_weeks counter in a JSON stats file — the signal
-# design-consensus's MOVED.md attic-tag cites (0 direct uses). Idempotent
+# consecutive_zero_weeks counter in a JSON stats file — the signal an
+# attic-tag removal cites (0 direct uses). Idempotent
 # within a week: re-running the same week is a no-op.
 #
 # Usage: scripts/recipe-usage-stats.sh <recipe-name> [workflow-dir] [stats-file]

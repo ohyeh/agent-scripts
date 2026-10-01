@@ -13,7 +13,8 @@ RETIRED='brainstorming canary-source-proof design-taste-frontend git-commit
 high-end-visual-design image-to-code imagegen-frontend-mobile
 imagegen-frontend-web karpathy-guidelines migrate-to-shoehorn pierre-guard
 refactor release-plannotator resolving-merge-conflicts review-renovate simplify
-update-deps wait-what edit-article tmux-delegate diagnose bro'
+update-deps wait-what edit-article tmux-delegate diagnose bro
+design-consensus'
 files=$(ls "$ROOT"/global/*.md "$ROOT"/.agents/rules/*.md "$ROOT"/skills/*/SKILL.md \
   "$ROOT"/skills/*/references/*.md 2>/dev/null | grep -v '/lessons\.md$')
 fail=0

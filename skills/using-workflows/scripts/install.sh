@@ -9,7 +9,9 @@
 # ships (stale managed files) before writing anything.
 #   missing/unreadable manifest -> "MANIFEST_REQUIRED" on stderr, exit 4
 #   invalid manifest entry      -> "INVALID_MANIFEST_ENTRY <rel>" on stderr, exit 2
-#   stale managed file present  -> "STALE_MANAGED <rel>" line(s) on stderr, exit 3
+#   stale managed file present  -> "STALE_MANAGED <rel>" line(s) on stderr, exit 3;
+#                                  with --force they are removed instead
+#                                  ("removed stale: <path>"), after validation
 # All of the above are validated BEFORE anything under DEST is created or
 # written -- a failing run must leave DEST exactly as it found it (absent or
 # unchanged). Only once validation and the stale check pass does the
@@ -54,7 +56,11 @@ while IFS= read -r rel; do
   case "$rel" in ''|/*|..|../*|*/..|*/../*) echo "INVALID_MANIFEST_ENTRY $rel" >&2; exit 2;; esac
   if [ -e "$dest/$rel" ] || [ -L "$dest/$rel" ]; then printf '%s\n' "$rel" >> "$tmp/stale-present.txt"; fi
 done < "$tmp/stale-candidates.txt"
-if [ -s "$tmp/stale-present.txt" ]; then sed 's/^/STALE_MANAGED /' "$tmp/stale-present.txt" >&2; exit 3; fi
+if [ -s "$tmp/stale-present.txt" ] && [ "$force" -ne 1 ]; then
+  sed 's/^/STALE_MANAGED /' "$tmp/stale-present.txt" >&2
+  echo "Re-run with --force to remove them (a retired recipe leaves the bundle this way)." >&2
+  exit 3
+fi
 
 conflicts=()
 while IFS= read -r f; do
@@ -74,6 +80,13 @@ fi
 # --- mutation phase: validation and the stale check above have both passed,
 #     so it is now safe to create/write under DEST. ---
 mkdir -p "$dest/_lib"
+
+# Stale managed files: listed in the previous manifest, no longer shipped.
+# Only manifest-listed paths are touched; user files outside it are never removed.
+while IFS= read -r rel; do
+  rm -f "$dest/$rel"
+  echo "removed stale: $dest/$rel"
+done < "$tmp/stale-present.txt"
 
 while IFS= read -r f; do
   rel="${f#"$src"/}"

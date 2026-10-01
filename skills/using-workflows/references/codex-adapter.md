@@ -8,7 +8,7 @@ workflow」. Codex-side gate opinion: RECOMMEND-WITH-CONSTRAINTS (gate-v2).
 The recipe executes NATIVELY on Claude runtime; Codex commands and supervises.
 `claude-workflow-runner` is this adapter protocol label, not an installed command;
 the executable runner path is `agent-tmux claude`.
-Day-one eligible (no tmux inside): `design-consensus`, `design-vs-code-audit`,
+Day-one eligible (no tmux inside): `design-vs-code-audit`,
 `docs-vs-code-audit`, `findings-triage`, `project-direction-review`,
 `root-cause-deep-dive-audit`, `workflow-manifest`. The five tmux-launching
 recipes (`consensus-gate` as recipe, `feature-plan-consensus`, `plan-pipeline`,

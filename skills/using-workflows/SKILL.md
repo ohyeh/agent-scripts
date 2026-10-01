@@ -71,7 +71,6 @@ Entry points off the loop:
 - weird bug → `root-cause-deep-dive-audit` · docs/design drifted → the matching audit
 - ONE artifact needs a second-model verdict → `consensus-gate` — ONE round,
   irreversible/behavior-tier changes only; NOT a default station
-- N-angle generative design consensus → `design-consensus`
 - "what should this project do next" → `project-direction-review`
 - recipe fleet inventory / machine drift → `workflow-manifest`
 
@@ -128,11 +127,11 @@ constraints (Codex-authored, gate-v2 2026-07-19):
 - Human gates MUST return `status: paused` plus `next_action`, preserve `recipe_result`, stop the runner, and resume only via a new explicitly approved invocation.
 - Evidence MUST say `recipe <name> executed natively on Claude runtime via runner (commanded by Codex)`; adapter or child failure is never recipe PASS.
 
-Runtime matrix (Claude Code = `NATIVE` for all 13; Codex column):
+Runtime matrix (Claude Code = `NATIVE` for all 12; Codex column):
 
 | Recipe | Codex |
 |---|---|
-| 3 audits, `findings-triage`, `design-consensus`, `project-direction-review`, `workflow-manifest` (7, no tmux inside) | `ADAPTED: claude-workflow-runner` |
+| 3 audits, `findings-triage`, `project-direction-review`, `workflow-manifest` (6, no tmux inside) | `ADAPTED: claude-workflow-runner` |
 | `pr-review-triage-resolve` (no tmux; T3 rung = fresh Claude opus unless `externalAgentType` is set) | `UNTESTED` — only run natively on Claude so far; stop and report |
 | `consensus-gate` (simple verdict outcome only) | `ADAPTED: direct-claude-review` — `references/codex-adapter.md` |
 | `consensus-gate` (as recipe), lifecycle + its 3 stages when `cli` IS set (5, they launch agent-tmux inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise |

@@ -108,7 +108,7 @@ skill 提及次數；`--agent codex|claude` 可分側）。**零用量 skill ＝
 減去該報告的呼叫與提及集合**，兩者都為零才算零用量；只看提及會誤殺被程式化
 呼叫的 skill。rules 的零用量仍無工具（W32 缺口續留）。
 連續零週 ≥ 4 → attic 掛牌提案；掛牌後又有使用 → 撤牌
-（W32 的 design-consensus 教訓：單週快照會誤殺）。
+（W32 教訓：單週快照會誤殺；該案 recipe 已於 2026-10-01 退役，見 git log）。
 
 ### 6.5 臨時動議與使用者訴求
 常設收件匣：`agent-scripts/.workflow/retro/inbox.md`（兩節：待討論議題＋本週隨手記；

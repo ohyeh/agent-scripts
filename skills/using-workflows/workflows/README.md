@@ -156,20 +156,6 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   2 rounds of codex review to reach AGREE. **See the file header for args
   examples.**
 
-- **`design-consensus.workflow.js`** — a domain-agnostic design consensus
-  judge panel: N independent designers each propose from an assigned angle →
-  mutual adversarial cross-attack (find real-world failure points and call
-  out the parts worth keeping) → a judge synthesizes one consensus spec that
-  would actually ship (explicitly lists what was rejected and why). All
-  domain detail lives in `args.context` (required: background + task + hard
-  constraints); `angles`/`outputLanguage`/`synthesisSpec` are overridable. A
-  dead proposer degrades gracefully (aborts if fewer than 2 survive), a dead
-  attacker gets that proposal flagged "unreviewed" so the judge weighs it
-  with more suspicion, a dead synthesis step aborts rather than shipping a
-  half-finished result. Harvested from a one-off
-  aurora-reader-homepage-consensus run. **See the file header for args
-  examples.**
-
 - **`project-direction-review.workflow.js`** — domain-agnostic project
   direction review: Understand (5 parallel readers scan plans/pending
   decisions/runtime health/constraints-lessons/consumer-gaps, using an
@@ -260,7 +246,7 @@ Because workflow scripts are self-contained (the runtime doesn't support
 embedded copy that needs syncing before deployment.
 Recipes currently embedding it: `root-cause-deep-dive-audit`
 (failClosedRefutes), `docs-vs-code-audit` (coalesceNull + nullIndices),
-`design-consensus`/`project-direction-review`/`design-vs-code-audit`
+`project-direction-review`/`design-vs-code-audit`
 (nullIndices), `workflow-manifest`/`findings-triage`
 (coalesceNull + nullIndices). See `.claude/memory/lessons.md` L1 for details.
 
