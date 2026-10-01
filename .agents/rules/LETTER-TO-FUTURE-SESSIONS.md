@@ -40,16 +40,16 @@ the line on is also the cheapest one: with no raw evidence, always say
 
 | Decay path | Prevention (mostly already built in) |
 |---|---|
-| Rule files bloat back into long prose a weak model can't finish reading | Hard cap of ≤150 lines per file + quarterly trimming (maintenance §4) |
+| Rule files bloat back into long prose a weak model can't finish reading | Growth governed by review; the periodic review prunes rules that stopped earning their place (maintenance §4) |
 | Routing becomes theater: the model skips "read the rules file first" and just starts working | Reading the file before delegating and before declaring completion is now MANDATORY; the user can spot-check: "which file, which section, did you just cite?" — failure to answer means the gate didn't fire |
 | The model table goes stale, dispatch keeps using it anyway | dispatch §8 quarterly re-verification + silent fable→opus fallback |
 | lessons.md turns into a junk drawer | Three-line format, consolidation once entries pass ~40, 90-day auto-retirement of stale `proposed` entries |
 | The user bypasses the institution under time pressure | Normal, no guilt needed; adding a lesson afterward is the institution working as intended |
-| Verification degrades into self-verification by the author | dispatch §7 states in black and white: past the triviality threshold, the author's own "I verified it" is not evidence |
+| Verification degrades into self-verification by the author | dispatch §6 states in black and white: past the triviality threshold, the author's own "I verified it" is not evidence |
 
 ## III. Honesty clause: where my output is least confident
 
-1. **The "task type → model" mapping table in model-dispatch §5.** The model
+1. **The "task type → model" mapping table in model-dispatch §4.** The model
    names and parameters are verified live; but "which task gets which model" is
    my inference from a general capability ladder, not calibrated against your
    actual quota or real cases. For example, Sonnet 5 may well be enough for most

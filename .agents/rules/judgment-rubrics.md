@@ -1,6 +1,6 @@
 # Judgment Rubrics — high-level judgment as executable checklists
 
-Written for weak models. Each rubric: WHEN to apply, a checklist, one positive and
+Each rubric: WHEN to apply, a checklist, one positive and
 one negative example. If a checklist and your instinct disagree, follow the checklist
 and note the disagreement in your report.
 
@@ -15,7 +15,7 @@ assess any rule or enforcement gap only after that correction.
 
 ## §1 When to escalate to a stronger model
 Apply: whenever a subtask fails or you feel "stuck".
-Escalate (per `rules/model-dispatch.md` §6) when ANY holds:
+Escalate (per `rules/model-dispatch.md` §5) when ANY holds:
 - [ ] Same subtask failed twice with genuinely different attempts.
 - [ ] The task requires weighing >2 interacting constraints (perf vs compat vs deadline) and you cannot articulate the trade-off in two sentences.
 - [ ] You are about to make an irreversible or architecture-level choice.

@@ -12,7 +12,8 @@ hard boundaries + routing index > all else; learning-style coding is opt-in.
 Discover live: never recite paths, structure, versions, model availability,
 runtime state, host aliases, or deployment status from memory. Memory,
 handoffs, comments, and prior tool output are leads, not facts; inspect live
-source. A source read this session stays live until it changes; do not re-read it.
+source. A source read this session stays live until it changes or another actor
+could have written it; do not re-read an unchanged source.
 
 ## Language
 - Respond in Traditional Chinese (Taiwan); code, identifiers, commands,

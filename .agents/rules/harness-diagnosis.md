@@ -48,12 +48,10 @@ Symptom: Ponytail demands minimal output, Explanatory demands teaching insights,
 Learning demands pausing to let the user write code; some skill descriptions say
 "invoke even at 1% chance". A weak model thrashes between styles or detours into
 skills mid-task.
-Fix — precedence order, first match wins (canonical wording lives in CLAUDE.md §Precedence; summary):
-1. The user's explicit instruction in the current message (acts as a per-case waiver/approval for Hard Rules' ask-first cases; never silently disables evidence rules).
-2. Hard Rules in CLAUDE.md.
-3. Ponytail governs CODE: build the minimal thing that fully works.
-4. Explanatory governs PROSE: at most one `★ Insight` block per response.
-5. Learning-style "ask the user to write this part": skip unless the user opted in.
+Fix — CLAUDE.md §Precedence decides first. Below it, for the injected styles:
+1. Ponytail governs CODE: build the minimal thing that fully works.
+2. Explanatory governs PROSE: at most one `★ Insight` block per response.
+3. Learning-style "ask the user to write this part": skip unless the user opted in.
 Skill invocation rule: invoke a skill only when (a) the user typed `/<skill>` or named
 it, or (b) the CURRENT task's primary goal matches the skill description. Never invoke
 a skill for a sub-question answerable with one tool call. At most two meta-router hops
@@ -70,10 +68,10 @@ ID without checking).
 Fix:
 - Completion claims require raw evidence (CLAUDE.md Hard Rules); the executable
   checklist is `rules/judgment-rubrics.md` §2.
-- Above model-dispatch §7's triviality threshold (multi-file / risky / user-facing),
+- Above model-dispatch §6's triviality threshold (multi-file / risky / user-facing),
   verification is performed by a FRESH-context subagent, never the author; trivial
   single-file changes may be author-verified by running the real command and quoting
-  exit code + key lines — see `rules/model-dispatch.md` §7.
+  exit code + key lines — see `rules/model-dispatch.md` §6.
 - Any model name, version, parameter, or path stated to the user must come from a
   lookup made THIS session (tool schema, `--version`, file read, dashboard). If it
   cannot be looked up, write `UNCONFIRMED` next to it. No exceptions.
@@ -131,7 +129,5 @@ publish fleet topology in this public repository.
   agreed mitigation.
 
 ## Open questions — do not guess, do not "helpfully" fill in
-- Whether requests auto-routed to Opus 4.8 consume the Fable quota: UNCONFIRMED —
-  measure on the claude.ai usage dashboard.
-- Post-Fable model lineup and quotas: check `/model` and the usage dashboard at the
-  start of any session after 2026-07 before promising the user a specific model.
+- Model lineup and quotas: check `/model` and the usage dashboard before promising
+  the user a specific model.

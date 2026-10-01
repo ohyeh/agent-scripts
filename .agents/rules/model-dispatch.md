@@ -96,8 +96,8 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 |---|---|---|
 | locate/inventory | `sonnet` medium; `sonnet` high for synthesis | Luna xhigh |
 | read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
-| implement/refactor/research | `sonnet` | Luna xhigh |
-| review/verification | fresh `sonnet`; risky=`opus` | fresh Astra medium |
+| implement/refactor/research | `opus` medium (`sonnet` only by explicit arg, §1) | Luna xhigh |
+| review/verification | fresh `opus` medium; risky=`opus` high | fresh Astra medium |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` medium | Luna xhigh |
 | dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: supervision proxy, `general-purpose` subagent on `sonnet` hosting the ONE blocking `assign` call | same |

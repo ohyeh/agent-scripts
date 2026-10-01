@@ -9,13 +9,13 @@ take over their work unless the user explicitly assigns it.
 
 Governs the routed rules at `~/.agents/rules/` and the two native global files
 (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md` — maintained separately, never symlinked).
-Written for weak models. This §1 matrix is the SINGLE authority on edit permissions —
+This §1 matrix is the SINGLE authority on edit permissions for every agent —
 no other file grants or denies edit rights; "agent guidance" in CLAUDE.md means this
 file set plus installed skills. If you are unsure which row applies, use the stricter one.
 
 ## §1 Edit permission matrix
 
-| File | Weak model may… | Requires user approval |
+| File | Agent may (no approval)… | Requires user approval |
 |---|---|---|
 | `rules/lessons.md` | Append entries freely (format §3; new entries always `Status: proposed`) | Deleting/rewriting old entries; any `proposed → adopted` transition (happens only with the approved diff that folds the lesson into a rules file) |
 | `rules/model-dispatch.md` §1 table | Update model values after LIVE verification (schema/`/model`), log it in lessons.md | Changing the ladder or contracts (§2–§7) |
