@@ -101,7 +101,7 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 | review/verification | fresh `sonnet`; risky=`opus` | fresh Astra medium |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` low | Luna xhigh |
-| dispatch external CLI worker | supervision proxy: `general-purpose` subagent on `sonnet` low hosting the ONE blocking `assign` call | same (proxy hosts the one `assign`) |
+| dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: supervision proxy, `general-purpose` subagent on `sonnet` low hosting the ONE blocking `assign` call | same |
 
 Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
 2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
@@ -112,6 +112,11 @@ implementation or read-only data gathering, and only by explicit arg. The second
 cursor grok, agy) qualifies as the review gate, provided it differs from the author; absent, a
 fresh Claude `opus` agent is the second brain. The commander calls `advisor` before launch, at every gate, and before any
 resume (skill `using-workflows` §ADVISOR GATE).
+
+`tmux-agent` mod loaded (the tool `mcp__tmux-agent__assign` exists; 2026-10-01 user ruling): dispatch
+and wait exactly as `using-tmux-agent-tools` §COLLECTOR says (owner). No proxy, no parent listener.
+The proxy, listener, `pending` and teardown paragraphs below govern a Claude session WITHOUT the
+mod; the deadline, cancel and concurrency rules bind both.
 
 Before dispatch, resolve the wrapper bundle, run its `agent-tmux <cli> setup`, stop on failure.
 Then dispatch external asynchronous workers with ONE `agent-tmux <cli> assign <name> <dir>
