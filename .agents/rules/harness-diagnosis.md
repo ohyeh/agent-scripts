@@ -34,8 +34,8 @@ permanently occupies the context window and degrades all later reasoning.
 Fix — mechanical routing, no judgment needed:
 - Command output expected > 20 lines, or unpredictable → `ctx_batch_execute` /
   `ctx_execute`; print only the derived answer.
-- Need content from > 3 files, or unsure which file → `Explore` subagent
-  (`model: "sonnet"` — haiku is retired per model-dispatch §1); its report returns
+- Need content from > 3 files, or unsure which file → `explore-bounded`
+  subagent (model-dispatch §4 owns the type and model); its report returns
   conclusions + `file:line` references, not file contents.
 - `Read` is ONLY for a PROJECT file you are about to `Edit`, and only the needed line
   range. Exempt: routed rules files under `~/.agents/rules/` (mandatory reads per
@@ -118,9 +118,8 @@ publish fleet topology in this public repository.
 - Session rename endpoint: `PUT https://api.anthropic.com/v1/code/sessions/
   <cse_id>` with subscription OAuth bearer from Keychain
   (`Claude Code-credentials`) + `anthropic-beta: oauth-2025-04-20`; body
-  `{"title":"..."}`. The `cse_…` id lives in the session's own transcript
-  jsonl (also reachable via the documented `transcript_path`). Recipe:
-  `session-titles.md` §Runtime control, verified against CLI 2.1.220.
+  `{"title":"..."}`. Resolve the `cse_…` id and run the write exactly as
+  `session-titles.md` §Runtime control says (owner; disk registry only).
 - Local title record: `claude-agent-sdk` (pip) `rename_session(uuid, title,
   cwd)` writes the rename into the local jsonl; offline, no cloud effect.
 

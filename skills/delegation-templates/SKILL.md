@@ -1,6 +1,6 @@
 ---
 name: delegation-templates
-description: Fill-in-the-blank prompt templates for delegating work to subagents or tmux workers - SEARCH/LOCATE, IMPLEMENT, REFACTOR, RESEARCH, REVIEW/VERIFY. Invoke BEFORE writing any delegation prompt (Agent tool, agent-tmux worker, or fanout task) so the prompt ships with explicit GOAL, ACCEPTANCE, and REPORT sections instead of a vague ask. Not for deciding WHETHER to delegate or for driving workers after launch (see the tmux-delegate agent and the tmux-agent-tools skill for those).
+description: Fill-in-the-blank prompt templates for delegating work to subagents or tmux workers - SEARCH/LOCATE, IMPLEMENT, REFACTOR, RESEARCH, REVIEW/VERIFY. Invoke BEFORE writing any delegation prompt (Agent tool, agent-tmux worker, or fanout task) so the prompt ships with explicit GOAL, ACCEPTANCE, and REPORT sections instead of a vague ask. Not for deciding WHETHER to delegate or for driving workers after launch (see the using-tmux-agent-tools and tmux-agent-tools skills for those).
 ---
 
 # Delegation Prompt Templates
@@ -87,7 +87,7 @@ ACCEPTANCE:
 OUTPUT: findings to {artifact_path}; return path + a ≤10-bullet summary.
 ```
 
-## 5. REVIEW / VERIFY  (fresh context; stronger tier when the change is risky; NEVER the author)
+## 5. REVIEW / VERIFY  (when judgment-rubrics §2 calls for a fresh verifier; stronger tier when the change is risky; NEVER the author)
 
 ```
 GOAL: Adversarially review {diff/files/claim}. Assume it is broken until proven otherwise.
@@ -108,7 +108,7 @@ Do not fix anything; report only.
 
 ```
 Agent({
-  subagent_type: "Explore" | "general-purpose" | ...,
+  subagent_type: "explore-bounded" | "general-purpose" | ...,   // read-only search: model-dispatch §4
   model: "sonnet" | "opus",   // cheapest tier that can pass ACCEPTANCE (haiku retired 2026-08-01; former haiku roles = sonnet at effort low)
   description: "{3-5 words}",
   prompt: "{filled template + common footer}"
@@ -179,5 +179,5 @@ Ownership boundaries: this skill owns the prompt body (templates + footers +
 addendum). The dispatch shapes above are illustrative carriers showing where
 the filled prompt lands — the authoritative rules for deciding WHETHER to
 delegate, constructing invocations, and supervising workers after launch live
-in the tmux-delegate agent and the tmux-agent-tools skill, and are not
+in the using-tmux-agent-tools and tmux-agent-tools skills, and are not
 restated here.

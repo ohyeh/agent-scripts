@@ -175,6 +175,11 @@ const routerTable = spawnSync('bash', [join(ROOT, 'scripts/check-skill-router-ta
 check('skill-router-table', routerTable.status === 0,
   (routerTable.stdout + routerTable.stderr).trim().split('\n').slice(-1)[0]);
 
+// dead refs: live guidance must not name a retired skill/agent/command
+const deadRefs = spawnSync('bash', [join(ROOT, 'scripts/check-dead-refs.sh')], { encoding: 'utf8' });
+check('dead-refs', deadRefs.status === 0,
+  (deadRefs.stdout + deadRefs.stderr).trim().split('\n').slice(-1)[0]);
+
 let failed = 0;
 for (const r of results) {
   if (!r.ok) failed++;

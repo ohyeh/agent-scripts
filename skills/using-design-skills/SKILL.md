@@ -45,7 +45,9 @@ turn. Motion or gesture → `apple-design`. Constraint sets load inline.
 
 Q4 **Executor per stage** — the executor table in
 `references/design-roles.md`. Direction runs INLINE; non-trivial build → agent-tmux claude persistent
-worker; every review → FRESH headless one-shot, never the author.
+worker; every review → fresh one-shot, never the author (headed vs headless:
+`using-tmux-agent-tools` §QUESTIONS; whether a change needs a fresh reviewer:
+judgment-rubrics §2).
 
 Q5 **Verifier.** Render in scope → the visual quality loop below (full Gate 0
 screenshot evidence). DESIGN.md-only → document-only evidence (file
@@ -79,7 +81,7 @@ fresh reviewer, verdict still PASS/BLOCK. `prototype` → none.
   need the user's exact authorization.
 - **Loop topology (fixed)**: the BUILDER is a persistent worker — BLOCK
   findings return to the SAME builder (worker-reuse protocol). Each REVIEWER
-  is a fresh headless one-shot, never the builder, never reused.
+  is a fresh one-shot, never the builder, never reused.
 - Worker-prompt addendum: "DESIGN CONTEXT: read `{repo}/DESIGN.md` first;
   conform to its tokens. SKILL: read and follow `{member-SKILL.md}` first."
 - **Diagram house defaults** (these override a member's opt-in gate, never its

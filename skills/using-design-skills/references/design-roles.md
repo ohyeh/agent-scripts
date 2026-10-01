@@ -88,7 +88,7 @@ scoped edits are NOT delegable — inline by definition.
 | Build / implement (non-trivial scope) | `agent-tmux claude` persistent worker; inline only for small scoped edits |
 | Role 4 N-shape comparison | In-process Agent-tool sub-agents, parallel; native contract, not tmux-governed |
 | Role 4 `codebase-design` / `domain-modeling` | Inline — applied as judging criteria, not a separate dispatch |
-| Every review round (incl. Pipeline D's verifier) | FRESH headless one-shot (tier per model-dispatch §5) |
+| Every review round (incl. Pipeline D's verifier) | FRESH one-shot (tier per model-dispatch §5) |
 | Constraint loading (Role 2), DESIGN.md upkeep | Inline |
 
 ## Auto-fill defaults (ask only what's genuinely the user's call)

@@ -1,7 +1,7 @@
 # Simplified Technical English
 
 Use this rule for two cases: an ASD-STE100 register question, and an explicit
-ask to simplify or re-explain your last message (`/bro`, "說白話", "explain
+ask to simplify or re-explain your last message ("說白話", "explain
 simpler", "in plain words"). You MUST follow it in both cases.
 
 ## Always: controlled English

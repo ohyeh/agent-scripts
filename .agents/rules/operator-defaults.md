@@ -11,7 +11,7 @@ Chain these for planning and investigation work:
   issue tracker.
 - `unknowns-discovery`: surface assumptions and unknowns first.
 - `ask-nova`: pick the flow when the fit is unclear.
-- `diagnosing-bugs` (or `diagnose`): trace a bug to its root cause.
+- `diagnosing-bugs`: trace a bug to its root cause.
 
 ## Before you act
 
@@ -33,7 +33,7 @@ Chain these for planning and investigation work:
   of metaphor, flourish, or language that shows off the writer. Follow
   `stop-slop`: active voice, human subject, no adverbs, no em dashes, concrete
   over vague.
-- Re-explain on request through `bro` / `simplified-english`.
+- Re-explain on request through the `simplified-english` rule.
 - Prefer structure over a wall of prose (the `adhd` output discipline): diverge,
   then converge; number the options.
 - Run the full `adhd` parallel divergence at key, high-stakes, open-ended

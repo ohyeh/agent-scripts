@@ -48,7 +48,7 @@ Pick ONE:
 
 ## Stage 3 — tighten
 
-`edit-article` over the draft, with `stop-slop` loaded as criteria for the
+Tighten the draft inline, with `stop-slop` loaded as criteria for the
 whole run (not just this stage): no filler, no hedging, no AI-slop cadence.
 
 ## Stage 4 — render (format branch)
