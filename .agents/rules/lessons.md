@@ -136,3 +136,23 @@ Status: proposed
 Rule: model ID 只寫在 model-dispatch §1（其他檔案只指向 §1），以本機 transcript 的 `message.model` 為準；alias 換版時只改 §1。
 Evidence: agent-scripts 專案 transcript：`claude-sonnet-5` 最後一次 2026-09-26T18:31Z；`claude-sonnet-5-5` 自 2026-10-01T11:55Z 起出現。來源 W40 remote-44 稽核 A。
 Status: proposed
+
+## 2026-10-01 | scope: operator | trigger: 交付要使用者自己跑的指令
+Rule: 給可直接複製的整行（絕對路徑已展開），並說在哪裡跑；不要只給路徑和參數說明。
+Evidence: tui-retro retro-report §4 L1：只給路徑和參數，使用者回「我不知道怎下指令」。
+Status: proposed
+
+## 2026-10-01 | scope: operator | trigger: 對使用者提到內部項目
+Rule: 不用內部代號（P7、F1、Q-4）當主語；先說它是什麼、在畫面哪裡，代號放括號。
+Evidence: tui-retro retro-report §4 L2：使用者回「這啥」。
+Status: proposed
+
+## 2026-10-01 | scope: search | trigger: 使用者限定了要看的範圍
+Rule: 先找能回答問題的最小來源，留在使用者給的範圍內；不要擴張到整台機器的 session 紀錄。
+Evidence: tui-retro retro-report §2 A6：掃了整台遠端的 Claude/Codex workflow 紀錄，使用者喊停「掃 git repo .workflow 就好」。
+Status: proposed
+
+## 2026-10-01 | scope: live-truth | trigger: 使用者說工作在某台機器做的
+Rule: 那是 lead，不是事實；先在每台候選機器找 run dir（`.workflow/`）再下結論。
+Evidence: tui-retro retro-report §4 L4：run dir 在本機，不在使用者說的那台。
+Status: proposed
