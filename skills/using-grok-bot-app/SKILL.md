@@ -160,15 +160,56 @@ does not send (seen live); a form submit in the paste's own tick sends nothing.
 When it opened the bot, it clicks back to the bot that was open before, unless
 someone opened another one meanwhile.
 
-The app shows every message from this account as `You`, Paul's and ours
-alike. Start each message with your session tag and a sender mark,
-`[w:<sid8>] ⟨Claude⟩ …` (Codex: `⟨Codex⟩`), and ask for the reply to start with the
-same tag on the same line. The bot echoes a tag only to a tagged message; an
-untagged message is Paul's, and its answer carries no tag and wakes no watcher.
-`[w:*]` is a broadcast (for example a RULES announcement) and wakes every watcher.
-`不需回覆` / FYI means no reply at all, not even 收到. Send tests go to a sandbox
-bot only, never to a working conversation. The grok-bot-watch band adds the tag
-and mark from its open row. A message to one of our own agents (a
+**Who an agent talks to.** Only the agent front, `NOVA 替身·agent`. The human
+front (`NOVA 替身 w<NN>`, rotated weekly) serves Paul alone, so his conversation
+stays his. The agent front dispatches specialist bots over exchanges, quotes
+the original text when it forwards, and answers in its main conversation with
+your tag; what needs Paul goes to him through the human front. Send tests go to
+`sandbox` only, never to a working conversation.
+
+**Message format.** The app shows every message from this account as `You`,
+Paul's and ours alike, so the first line carries a fixed header that a filter
+can read (NOVA consensus 2026-10-04):
+
+```
+[w:<sid8>] ⟨Claude⟩ #<task> <kind>｜<body>
+^\[w:([0-9a-z]{8}|\*)\](?: ⟨([A-Za-z]+)⟩)?(?: #([a-z0-9-]+))?(?: (問|結果|進度|公告|交辦))?｜
+```
+
+- `[w:<sid8>]`: who the reply is for; the bot echoes it on the same line, never
+  on a line of its own (the sidebar preview shows only the start). `[w:*]` is a
+  broadcast and wakes every watcher. An untagged message is Paul's; its answer
+  carries no tag and wakes nobody.
+- `⟨Claude⟩` / `⟨Codex⟩` / `⟨agy⟩`: only on an agent's message sent as `You`. A bot
+  has its own name and adds no mark; a mark never states a position.
+- `#<task>`: lowercase ASCII, digits and `-`; the first one to open the topic
+  names it and everyone keeps it. It replaces threads: only a person can start
+  a thread, and a Reply (`reply_to`) only quotes one older message.
+- `<kind>`: one of `問 結果 進度 公告 交辦`, optional. No progress-only message;
+  past about 2 minutes, one `進度` line with an ETA.
+- `不需回覆` / FYI means no reply at all, not even 收到.
+
+The grok-bot-watch band adds the tag and mark from its open row.
+
+**First use in an environment.** The mechanism needs four bots; UUIDs differ
+per account, so find them by name (one `sidebar.mjs` read):
+
+```sh
+node scripts/sidebar.mjs | jq -r '.rows[] | "\(.id[0:8])  \(.name)"' \
+  | grep -E 'Main Bot|NOVA 替身·agent|^.{10}RULES$|^.{10}sandbox$'
+```
+
+| Role | Name | Job |
+|---|---|---|
+| main bot | `…, Main Bot` | creates the others; once they exist, agents go through the agent front |
+| agent front | `NOVA 替身·agent` | the job above; escalates to the main bot only through the human front |
+| rules | `RULES` | keeps the short rules in USER-MEMORY and syncs shared memory |
+| sandbox | `sandbox` | send and format tests; no reply to `不需回覆` |
+
+For each missing one, ask the main bot to create it with that job and the
+message format above, and wait for its name and UUID. Then ask RULES to write
+the message format as a short rule. Until the agent front exists, write to the
+main bot with the full header. A message to one of our own agents (a
 Claude session, Codex, NOVA) inside an approved task — status, evidence, a
 question, a review request, tag coordination, delegation of reversible work —
 goes without approval of its text (owner ruling 2026-10-03). Confirm the
