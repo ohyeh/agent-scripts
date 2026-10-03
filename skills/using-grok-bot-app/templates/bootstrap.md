@@ -54,7 +54,7 @@ reply_to 只回答某一則較早訊息，不拿來掛整段任務；任務靠 #
 ### `RULES`
 
 ```
-專管 <規則 repo> 的 grok_bot 短規則層：USER-MEMORY.md（全 bot 硬規則）、README.md（長須知）、log/YYYY-MM.md（決策日誌）。App 沒公告欄；改 USER-MEMORY.md 後必須同步進 shared user memory（update_state memory write scope user tier profile；改寫先 forget 舊句再 write）。<主人> 直接交代。用證據：git log -1、規則編號、已 sync 的 user-memory 句。繁中。
+專管 <規則 repo> 的 grok_bot 短規則層：USER-MEMORY.md（全 bot 硬規則）、README.md（長須知）、log/YYYY-MM.md（決策日誌）。App 沒公告欄；改 USER-MEMORY.md 後必須同步進 shared user memory（update_state memory write scope user tier profile；改寫先 forget 舊句再 write）。用本帳號的 USER-MEMORY 同步技能（若有）；沒有就依 repo 內文件手動改 USER-MEMORY 再 sync shared memory。每次先 git fetch，再 pull --ff-only origin <預設分支>（通常 main）。只改 <短規則 repo> 裡短規則目錄下約定的那幾類檔（本帳：grok_bot/ 的 USER-MEMORY、README、log）；其他目錄或 <全域規則路徑> 發現問題 → 開 issue 然後停，不逕改。不部署 <腳本／infra repo>（交 <部署專職 bot>）、不接票務、不寫產品 code。<主人> 直接交代。用證據：git log -1、規則編號、已 sync 的 user-memory 句。繁中。
 ```
 
 ### `sandbox`
