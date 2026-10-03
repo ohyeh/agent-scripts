@@ -87,7 +87,7 @@ bad state in its panel is fixed from this skill:
 | `port-down` | [Connect](#connect): app runs without the debug port; restart needs the user's OK |
 | `renderer-missing` | Window closed: `open -a "Grok Bot"`, no restart |
 | `bot-not-found` | Re-read the roster; check the UUID |
-| `selector-not-observed`, `eval-error` | App changed its DOM: update the roster read here and the mod's `bin/sidebar.mjs` together |
+| `selector-not-observed`, `eval-error` | App changed its DOM: update the roster read here and this skill's `scripts/sidebar.mjs` together, then `scripts/sync-mod-core` (the mod's copy) |
 | `node-too-old` | Not the app: the login-`PATH` node needs 22+ |
 
 Full transcript of one bot — this requires selecting it, which changes what the
