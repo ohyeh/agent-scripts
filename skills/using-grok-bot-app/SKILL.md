@@ -216,8 +216,10 @@ node scripts/sidebar.mjs | jq -r '.rows[] | "\(.id[0:8])  \(.name)"' \
 | rules | `RULES` | keeps the short rules in USER-MEMORY and syncs shared memory |
 | sandbox | `sandbox` | send and format tests; no reply to `不需回覆` |
 
-For each missing one, ask the main bot to create it with that job and the
-message format above, and wait for its name and UUID. No main bot means no
+`templates/bootstrap.md` has the text to paste: one request per missing bot to
+the main bot, the full rule for RULES, and a check on `sandbox`. For each
+missing one, ask the main bot to create it with that job, and wait for its name
+and UUID. No main bot means no
 account to build on: ask Paul. Then ask RULES to write
 the message format as a short rule. Until the agent front exists, write to the
 main bot with the full header. A message to one of our own agents (a

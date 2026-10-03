@@ -11,7 +11,7 @@
 ## grok-bot-watch 0.9.1
 
 - `send.mjs` counts the sent message by its letters and digits, so a Markdown body (tables, lists, code, links) that the transcript shows rendered is confirmed `sent`, not a false `unconfirmed` (3 seen on 2026-10-04; live on sandbox after the fix: `sent`).
-- `using-grok-bot-app`: a wake is a hint; when an answer is late, read the agent front's transcript by tag and `#<task>`. First use checks five bots, the human front included; no main bot goes to Paul. Consensus: NOVA PASS, advisor PASS, Sol BLOCK (P1/P2 taken in), Paul 2026-10-04.
+- `using-grok-bot-app`: `templates/bootstrap.md` sets the mechanism up in a new environment (bot requests + the full rule for RULES). A wake is a hint; when an answer is late, read the agent front's transcript by tag and `#<task>`. First use checks five bots, the human front included; no main bot goes to Paul. Consensus: NOVA PASS, advisor PASS, Sol BLOCK (P1/P2 taken in), Paul 2026-10-04.
 
 ## grok-bot-watch 0.9.0
 
