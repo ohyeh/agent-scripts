@@ -236,6 +236,7 @@ function page({ bots = [A, B], current = B, drafts = {}, log = {}, accepts = tru
     requestSubmit() {
       const at = p.current
       onSubmit(p)
+      p.noLog = false
       if (!accepts) return
       p.submitted.push(at)
       ;(p.log[at] ??= []).push(p.box[at])
@@ -257,7 +258,8 @@ function page({ bots = [A, B], current = B, drafts = {}, log = {}, accepts = tru
     querySelector(sel) {
       if (sel === 'button[aria-current=page]') return { getAttribute: () => p.current }
       if (sel === 'div[contenteditable=true]') return composer
-      if (sel.startsWith('[role=log]')) return { innerText: (p.log[p.current] ?? []).map(m => `You\n\n${m}\n\n1:58 PM`).join('\n\n') }
+      // An entry is a string (from You) or { who, text }; no transcript at all while p.noLog.
+      if (sel.startsWith('[role=log]')) return p.noLog ? null : { innerText: (p.log[p.current] ?? []).map(m => `${m.who ?? 'You'}\n\n${m.text ?? m}\n\n1:58 PM`).join('\n\n') }
       return null
     },
     querySelectorAll(sel) {
@@ -352,4 +354,19 @@ test('real page script: B, whose transcript holds the text, is open after the se
   const p = page({ current: A, log: { [B]: ['reply', 'reply'] }, onSubmit: p => (p.current = B) })
   assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'unconfirmed')
   assert.deepEqual(p.submitted, [A])
+})
+
+test('real page script: a bot echoing the text, or quoting "You reply", is not a message from You: not-sent (Sol r3 P2)', async () => {
+  const p = page({ current: A, accepts: false, onSubmit: p => (p.log[A] = [{ who: 'NOVA', text: 'reply' }, { who: 'NOVA', text: 'You reply' }]) })
+  assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'not-sent')
+})
+
+test('real page script: no transcript before the submit gives no baseline: at best unconfirmed (Sol r3 P2)', async () => {
+  const p = page({ current: A, log: { [A]: ['reply'] }, accepts: false })
+  p.noLog = true
+  assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'not-sent')
+  const q = page({ current: A })
+  q.noLog = true
+  assert.equal(await send(q.d, 'aaaaaaaa', 'reply'), 'unconfirmed')
+  assert.deepEqual(q.submitted, [A])
 })

@@ -66,20 +66,29 @@ export async function send(d, id, text) {
   const { state, before } = await d.submit(id, text)
   if (state !== 'submitted' && state !== 'pending') return state
   // One more copy from "You" in the target's own transcript: an old copy or another bot's text never counts (Sol r2).
-  if (await until(async () => ((await d.sent(id, text)) ?? -1) > before)) return 'sent'
+  // No transcript to count before the submit: nothing to compare with, so at best unconfirmed (Sol r3 P2).
+  if (before >= 0 && (await until(async () => ((await d.sent(id, text)) ?? -1) > before))) return 'sent'
   // Still in the target's composer, as pasted: the form did not take it. Another bot's draft is never touched (Sol r2 P1).
   if (state === 'pending' && (await d.unsend(id, text))) return 'not-sent'
   return 'unconfirmed'
 }
 
-/** In-page: how many "You <text>" the open transcript holds (the sender line, then the body). -1: no transcript. */
+/**
+ * In-page: how many messages of the open transcript are from "You" with exactly this body, split as
+ * sidebar.mjs splits them (sender line, blank line, body, then a "9:58 PM" line). A bot's reply that
+ * quotes the text is not one (Sol r3 P2). -1: no transcript.
+ */
 const MINE = text => `(() => {
   const l = document.querySelector('[role=log][aria-label="Conversation transcript"]');
   if (!l) return -1;
-  const hay = l.innerText.replace(/\\s+/g, ' ');
-  const needle = ${JSON.stringify('You ' + norm(text))};
+  const want = ${JSON.stringify(norm(text))};
+  const parts = l.innerText.split(/\\n\\n(\\d{1,2}:\\d{2} [AP]M)(?:\\n|$)/);
   let n = 0;
-  for (let i = hay.indexOf(needle); i >= 0; i = hay.indexOf(needle, i + 1)) n++;
+  for (let i = 0; i + 1 < parts.length; i += 2) {
+    const c = parts[i].replace(/^\\n+/, '');
+    const k = c.indexOf('\\n\\n');
+    if (k >= 0 && c.slice(0, k).split('\\n').pop() === 'You' && c.slice(k + 2).replace(/\\s+/g, ' ').trim() === want) n++;
+  }
   return n;
 })()`
 const OPEN = id => `(document.querySelector('button[aria-current=page]')?.getAttribute('data-agent-id') ?? '').startsWith(${JSON.stringify(id)})`

@@ -143,9 +143,10 @@ checks and its actions: the bot is open and the composer empty, paste, the
 composer holds the text (whitespace-normalized); then 50 ms for the app's form
 state, and again with no gap: same bot, same text, submit the composer's form.
 It clears only a paste it just checked, and only while that bot is still open.
-It prints `sent` once the target bot's transcript holds one more `You <message>`
-than just before the submit (an old copy or another bot's transcript never
-counts); otherwise `unconfirmed`, `draft`, `moved` (another
+It prints `sent` once the target bot's transcript holds one more message from
+`You` with exactly this body than just before the submit (an old copy, a bot's
+echo or another bot's transcript never counts; no transcript before the submit
+means no baseline, so at best `unconfirmed`); otherwise `unconfirmed`, `draft`, `moved` (another
 bot opened in the 50 ms; the text stays in the first bot's composer), `edited`,
 `not-pasted`, `not-sent`, `no-bot`, `not-open`, `down`.
 
