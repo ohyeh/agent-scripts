@@ -117,9 +117,11 @@ Awards, or FWA. "Correct and clean" is not the bar.
    up to 3 critique rounds with `advisor` or an opus/sonnet one-shot.
    Fix between rounds. Stop when a round finds nothing that moves the work
    toward the bar.
-2. External (optional, your call): add one fresh CLI reviewer
-   (`consensus-gate`, `args.cli`) when the internal rounds split or the
-   deliverable is high risk. State in the report why you added or skipped it.
+2. External (optional, judged by difficulty): add one fresh CLI reviewer
+   (`consensus-gate`, `args.cli`) for hard work — a new visual direction,
+   complex interaction or motion, or high stakes — or when the internal
+   rounds split. Skip it for easy work. State in the report why you added
+   or skipped it.
 3. User: last, with the Gate 0 evidence bundle.
 Each round must find a gap to the bar or stop. Never add a round only to
 show a review happened.
