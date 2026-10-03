@@ -50,12 +50,13 @@ if ! [[ ${ncpu:-} =~ $num && ${l1:-} =~ $num && ${l5:-} =~ $num && ${mp:-} =~ $n
 fi
 over() { awk -v a="$1" -v n="$ncpu" -v k="$2" 'BEGIN{exit !(a > n*k)}'; }
 suspects() {  # top 5 by CPU + top 5 by memory (ps sorts numerically), deduped;
-               # runtime is info only; credentials in arguments are masked
-  { LC_ALL=C /bin/ps -ww -axo pid=,etime=,%cpu=,rss=,command= -r | head -5
-    LC_ALL=C /bin/ps -ww -axo pid=,etime=,%cpu=,rss=,command= -m | head -5; } |
+               # runtime is info only. Executable path only (comm), never argv:
+               # arguments can carry tokens, URLs or prompts into model context.
+  { LC_ALL=C /bin/ps -ww -axo pid=,etime=,%cpu=,rss=,comm= -r | head -5
+    LC_ALL=C /bin/ps -ww -axo pid=,etime=,%cpu=,rss=,comm= -m | head -5; } |
   awk '!seen[$1]++ {c=$5; for(i=6;i<=NF;i++) c=c" "$i
-    printf "  pid %s  up %s  cpu %s%%  mem %dMB  %.160s\n",$1,$2,$3,$4/1024,c}' |
-  perl -pe 's/((?:token|secret|password|passwd|api[_-]?key|auth)\S*?[=:\s])\S+/$1***/gi'
+    if (length(c) > 90) c="..." substr(c, length(c)-86)   # keep the tail: the app name
+    printf "  pid %s  up %s  cpu %s%%  mem %dMB  %s\n",$1,$2,$3,$4/1024,c}'
 }
 list=$(suspects 2>&1) && [ -n "$list" ] || list="  (suspect list unavailable: $list)"
 state="load1 $l1, load5 $l5 on $ncpu cores, memory pressure level $mp"
@@ -66,7 +67,7 @@ Next, in this order:
 1. Feed a live worker (tell / send-wait) instead of starting a new one.
 2. Do it inline if the task is small.
 3. Offload to a remote host: $offload
-4. Show the list above to the user and ask which to stop; some are needed (simulators, a live browser). Never kill without approval; re-check PID and command first.
+4. Show the list above to the user and ask which to stop; some are needed (simulators, a live browser). Never kill without approval; re-check the PID (ps -p <pid> -o command=) first.
 5. Retry once later, never in a loop."
 if over "$l1" "$DENY" || over "$l5" "$DENY" || [ "$mp" -ge 4 ]; then
   printf 'BLOCKED by host-load-gate: %s (deny over %sx cores or pressure critical).\n%s\n' "$state" "$DENY" "$advice" >&2
