@@ -214,6 +214,9 @@ A current-task instruction such as read-only or do not send overrides this grant
   重抓後是 151 則，日報一直都在它自己的直接對話串上。另外，跨 bot 的往來還有獨立的
   exchange 串（側欄與訊息裡的 `button[aria-label^="Open exchange with"]`），
   那是**另一個**容器，不是日報的所在地；要讀跨 bot 對話才需要展開它。
+- **沒有獨立的 thread。** `reply_to` 的回覆仍在主對話串，上面多一段被回訊息的引用
+  （`[data-has-reply=true]`、`Jump to replied message`）。拿它把整段任務掛在同一則訊息下，
+  每則都會帶同一段舊引用（0.66.0 實測，2026-10-04）。
 
 ## Where this came from
 

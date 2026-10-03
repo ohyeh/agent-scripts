@@ -112,8 +112,9 @@ It cuts noise; it is not isolation or delivery (review: Sol r1, NOVA 2026-10-03)
 
 - The bot's echo is best effort. A reply that drops the tag, or has it cut off
   the preview, wakes nobody: the session sees it only in the panel or the transcript.
-- A reply in a thread may not reach the main transcript or the sidebar preview:
-  the line that should wake a session goes in the main conversation, tagged.
+- There is no separate thread (seen live on 0.66.0, sandbox bot): a `reply_to`
+  reply shows in the main transcript under a quote of the message it answers,
+  and the sidebar preview still starts with the reply's own tag, so it wakes as usual.
 - A reply that opens by quoting another tag is taken as that session's.
 - The sidebar shows one preview per bot. Two replies settling within one 10 s read
   keep only the last: the first session's reply is never seen.
