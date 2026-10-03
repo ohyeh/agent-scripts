@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
 // to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.7.4'
+const MOD_VERSION = '0.7.5'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
