@@ -4,7 +4,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { connect } from 'node:net'
-import { BUDGET_MS, T, judge, recover, tcpLock } from './ensure.mjs'
+import { BUDGET_MS, QUIT_MS, T, judge, recover, tcpLock } from './ensure.mjs'
 
 const renderer = { type: 'page', url: 'file:///Applications/Grok%20Bot.app/Contents/Resources/app.asar/dist/renderer/index.html' }
 
@@ -20,10 +20,10 @@ test('judge: down, ok, no-window, and a listener that is not Grok Bot is taken',
  * One app and one lock shared by every caller. app: 'off' | 'no-port' | 'up' | 'no-window';
  * foreign: someone else listens on the port. Effects advance a fake clock: by `slow`, each
  * takes its whole T bound. stuck: reopen does not bring the window back. quitTakes: ms from
- * a plain quit to exit (a forced one is instant). launchTakes: ms from launch to the renderer
+ * a plain quit to exit; killTakes: the same for a forced one. launchTakes: ms from launch to the renderer
  * (seen live: about 3 s). deaf: a launch never brings the renderer up.
  */
-function world(app, { foreign = false, slow = false, stuck = false, quitTakes = 0, launchTakes = 0, deaf = false } = {}) {
+function world(app, { foreign = false, slow = false, stuck = false, quitTakes = 0, killTakes = 0, launchTakes = 0, deaf = false } = {}) {
   const w = { app, foreign, events: [], locked: false, t: 0, offAt: null, upAt: null }
   const cost = ms => {
     if (slow) w.t += ms
@@ -55,8 +55,9 @@ function world(app, { foreign = false, slow = false, stuck = false, quitTakes = 
     quit: force => {
       cost(T.sh)
       w.events.push(slow ? `${force ? 'kill' : 'quit'}@${w.t}` : force ? 'kill' : 'quit')
-      if (force || !quitTakes) [w.app, w.offAt] = ['off', null]
-      else w.offAt ??= w.t + quitTakes
+      const takes = force ? killTakes : quitTakes
+      if (!takes) [w.app, w.offAt] = ['off', null]
+      else w.offAt = Math.min(w.offAt ?? Infinity, w.t + takes)
     },
     sidebarOk: async () => (cost(T.sidebar), w.app === 'up' && !w.foreign),
     lock: () => {
@@ -135,20 +136,24 @@ const quitThenLaunched = w => {
   return q < 0 || w.events.slice(q).some(e => e.startsWith('launch'))
 }
 
-test('every effect at its bound, lock at 29 s, reopen fails, quit hangs: no quit without time to relaunch (Sol r4 P1)', async () => {
-  const w = world('no-window', { slow: true, stuck: true, quitTakes: 26_000, launchTakes: 3_000 })
-  w.locked = true
-  const d = w.d()
-  const sleep = d.sleep
-  d.sleep = async ms => {
-    await sleep(ms)
-    if (w.t >= 29_000) w.locked = false
-  }
-  const out = await recover(d)
-  assert.ok(w.t <= BUDGET_MS && BUDGET_MS < 90_000, `${out} at ${w.t} ms: ${w.events}`)
-  assert.ok(quitThenLaunched(w), `quit, never relaunched: ${w.events}`)
-  assert.ok(['busy', 'restarted'].includes(out), out)
-})
+// The lock comes free at 16 s or 22 s: the wait guard lets it through, then quit plus relaunch
+// no longer fits. Each effect at its bound, the reopen fails, the quit hangs, the kill takes 2.5 s.
+for (const free of [16_000, 22_000]) {
+  test(`every effect at its bound, lock free at ${free / 1000} s: no quit without the time to relaunch (Sol r4/r5 P1)`, async () => {
+    const w = world('no-window', { slow: true, stuck: true, quitTakes: 26_000, killTakes: 2_500, launchTakes: 6_000 })
+    w.locked = true
+    const d = w.d()
+    const sleep = d.sleep
+    d.sleep = async ms => {
+      await sleep(ms)
+      if (w.t >= free) w.locked = false
+    }
+    const out = await recover(d)
+    assert.ok(w.t <= BUDGET_MS && BUDGET_MS < 90_000, `${out} at ${w.t} ms: ${w.events}`)
+    assert.ok(quitThenLaunched(w), `quit, never relaunched: ${w.events}`)
+    assert.ok(['busy', 'restarted'].includes(out), `${out}: ${w.events}`)
+  })
+}
 
 test('the lock never comes free: busy inside the budget, nothing done', async () => {
   const w = world('no-port', { slow: true })
@@ -163,6 +168,27 @@ test('a quit that hangs is forced, then relaunched, inside the budget (Sol r4 P1
   assert.equal(await recover(w.d()), 'restarted')
   assert.ok(w.t <= BUDGET_MS, `took ${w.t} ms`)
   assert.deepEqual(w.events.map(e => e.split('@')[0]), ['quit', 'kill', 'launch'])
+})
+
+test('a forced quit that takes 2.5 s with 2 s pgreps: still relaunched, inside the budget (Sol r5 P1)', async () => {
+  const w = world('no-port', { slow: true, quitTakes: 26_000, killTakes: 2_500, launchTakes: 3_000 })
+  assert.equal(await recover(w.d()), 'restarted')
+  assert.ok(w.t <= BUDGET_MS, `took ${w.t} ms`)
+  assert.deepEqual(w.events.map(e => e.split('@')[0]), ['quit', 'kill', 'launch'])
+})
+
+test('the quit phase, from SIGTERM to the launch, stays inside QUIT_MS when the kill lands at the end of its window', async () => {
+  const w = world('no-port', { slow: true, quitTakes: 26_000, killTakes: 2_900 })
+  assert.equal(await recover(w.d()), 'restarted')
+  const at = name => Number(w.events.find(e => e.startsWith(name)).split('@')[1])
+  const took = at('launch') - T.open - (at('quit') - T.sh)
+  assert.ok(took <= QUIT_MS, `quit phase took ${took} ms, QUIT_MS is ${QUIT_MS}`)
+})
+
+test('a forced quit that outlasts its 3 s: failed:quit, inside the budget', async () => {
+  const w = world('no-port', { slow: true, quitTakes: 26_000, killTakes: 8_000 })
+  assert.equal(await recover(w.d()), 'failed:quit')
+  assert.ok(w.t <= BUDGET_MS, `took ${w.t} ms`)
 })
 
 test('every effect at its bound and the launch never answers: failed:launch, still inside the budget', async () => {

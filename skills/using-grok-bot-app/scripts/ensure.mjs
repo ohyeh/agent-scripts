@@ -39,8 +39,10 @@ export const BUDGET_MS = 75_000
 export const T = { fetch: 1500, sh: 2000, sidebar: 4000, open: 10_000 }
 const LOOK_MS = T.fetch + 2 * T.sh // pages, then lsof + pgrep
 const PROBE_MS = LOOK_MS + T.sidebar // one round of waiting for the app
+/** One wait for an exit: the window, then a last pgrep that starts at its end (2 pgreps can straddle it). */
+const goneMs = ms => ms + 2 * T.sh
 /** SIGTERM and up to 10 s for it, then SIGKILL and up to 3 s. */
-const QUIT_MS = T.sh + 10_000 + T.sh + 3_000
+export const QUIT_MS = T.sh + goneMs(10_000) + T.sh + goneMs(3_000)
 const LAUNCH_MS = T.open + 15_000
 /** Quit plus relaunch: nothing destructive starts with less left. */
 export const RECOVER_MS = QUIT_MS + LAUNCH_MS
@@ -69,10 +71,15 @@ export async function recover(d) {
     for (; d.now() + PROBE_MS <= by; await d.sleep(500)) if ((await look()) === 'ok' && (await d.sidebarOk())) return true
     return false
   }
+  // Still running only when a look that started at or after the window's end says so (Sol r5 P1).
   const gone = async ms => {
     const by = d.now() + ms
-    for (; d.running(); await d.sleep(250)) if (d.now() + T.sh + 250 > by) return false
-    return true
+    for (;;) {
+      const at = d.now()
+      if (!d.running()) return true
+      if (at >= by) return false
+      await d.sleep(Math.min(250, Math.max(0, by - d.now())))
+    }
   }
   let release = null
   for (; !(release = await d.lock()); await d.sleep(1000)) {
