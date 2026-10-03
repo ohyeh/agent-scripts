@@ -108,6 +108,18 @@ describe('eligibility (S2)', () => {
     expect(w.woken[0]).toContain('preview: B')
   })
 
+  test('a reply tagged for another session does not wake; mine and untagged do (primary bot)', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A')), ok(row('[w:sess-B12] for B')), ok(row('[w:sess-A] for me')), ok(row('untagged'))])
+    await $.session.start(start)
+    const r = await $.tool.call({ tool: WATCH, botUuid: UUID })
+    expect(JSON.stringify(r)).toContain('[w:sess-A]')
+    await clock.advance(TICK * 3)
+    expect(w.woken).toHaveLength(2)
+    expect(w.woken[0]).toContain('preview: [w:sess-A] for me')
+    expect(w.woken[1]).toContain('preview: untagged')
+  })
+
   test('an empty preview, a draft and the old reply again never wake', async ($, on) => {
     const clock = mock.clock(on)
     const w = world(on, [ok(row('A')), ok(row('')), ok(row('Draft: hi')), ok(row('A'))])

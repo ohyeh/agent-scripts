@@ -32,7 +32,7 @@ const READ = `(() => ({ rows: [...document.querySelectorAll("button[data-agent-i
     const c = parts[i].replace(/^\\n+/, "");
     const k = c.indexOf("\\n\\n");
     if (k < 0) continue;
-    // An email card (0.59.1: "New email", "Ready to send", From … Subject, then the body) has no
+    // An email card (0.66.0: "New email", "Ready to send", From … Subject, then the body) has no
     // sender line of its own: it belongs to the message above it.
     const head = c.slice(0, k).split("\\n");
     const who = head[0] === "New email" ? (msgs.at(-1)?.who ?? "?") + " · New email" : head.pop();

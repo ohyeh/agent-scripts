@@ -8,9 +8,13 @@
 
 - The lock drops 16 skills (64 → 48), judged by what a skill carries, not how often it ran. Removed: `karpathy-guidelines`, `git-commit`, `refactor`, `simplify`, `resolving-merge-conflicts` (generic discipline the kernel already states); `brainstorming` (its approval wait conflicts with the kernel; its visual companion goes with it); `high-end-visual-design`, `design-taste-frontend` (prose-only taste, same job as `impeccable`, now the one direction authority); `image-to-code`, `imagegen-frontend-web`, `imagegen-frontend-mobile` (the image-first pipeline is gone from `using-design-skills`); `pierre-guard` (upstream 404), `release-plannotator`, `review-renovate`, `migrate-to-shoehorn`, `update-deps` (bound to projects and tools no local repo uses). Then `wait-what` (48 → 47): the kernel-routed `simplified-english` rule already re-explains a message that did not land. The kernel, routers, router hook table and design evals drop every reference; `deploy.sh` removes the directories on each machine at its next deploy.
 
+## grok-bot-watch 0.6.2
+
+- A shared (primary) bot no longer wakes every watcher for every reply, once the bot echoes a tag. The watch receipt gives this session's tag, `[w:<sid8>]`; the session starts what it sends with it, and a settled reply that starts with another session's tag is recorded as seen but wakes nobody here. An untagged reply wakes every watcher, as before, so nothing changes until the bot echoes. Does not fix two replies settling inside one 10 s read (one preview per bot); per-task watch is the follow-up once the app's async-task rows are mapped.
+
 ## grok-bot-watch 0.6.1
 
-- The conversation read names an email card's sender. A "New email" card (From … Subject, then the body) has no sender line; the parser took its last field label, so the open row showed `Subject` as who said it. It now reads `<sender above> · New email`. Seen live on US_STOCK; the new parse case fails on 0.6.0.
+- The conversation read names an email card's sender. A "New email" card (From … Subject, then the body) has no sender line; the parser took its last field label, so the open row showed `Subject` as who said it. It now reads `<sender above> · New email`. Seen live on US_STOCK (app 0.66.0); the new parse case fails on 0.6.0.
 - `grok-bot-tui`: the list scrolls with the selection (a `↓ N more` line keeps its own row), a degraded read says how to fix it (the skill's Connect steps), the header counts replying and unread bots, and the detail wraps long messages and keeps the newest when the terminal is short (`↑ N earlier lines`). 8 TUI tests.
 
 ## grok-bot-watch 0.6.0

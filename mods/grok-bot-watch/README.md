@@ -80,6 +80,14 @@ is non-empty and does not start with `Draft:`. A wake fires when a settled
 preview differs from the last settled one. A reply already streaming when you
 watch fires once it settles. Observed on Grok Bot 0.59.1.
 
+## Sharing a bot between sessions
+
+A primary bot serves many sessions, and every session watching it sees the same
+sidebar row. The watch receipt gives this session's tag, `[w:<sid8>]`. Start each
+message you send the bot with it, and have the bot start its reply with the same
+tag: a reply tagged for another session is recorded as seen and wakes nobody
+here. An untagged reply still wakes every watcher, so this needs the bot to echo.
+
 ## Limits
 
 - **Once per preview, not per message.** Two replies inside one 10 s tick can

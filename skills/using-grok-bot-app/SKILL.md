@@ -184,7 +184,7 @@ show it to the user verbatim, and send only after they approve that text.
 ## Where this came from
 
 Everything above was executed against version `0.39.0` on macOS; the
-sidebar attributes and the transcript read were re-checked on `0.59.1`. The app ships
+sidebar attributes and the transcript read were re-checked on `0.59.1` and `0.66.0`. The app ships
 an embedded `Grok Bot's Computer` panel (a bot can hand its screen over for
 interactive login and take it back) which is visible in the tree but unexplored
 — if a task needs it, expect to map it yourself and write down what you find.
