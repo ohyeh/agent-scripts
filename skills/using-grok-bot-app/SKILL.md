@@ -188,7 +188,7 @@ can read (NOVA consensus 2026-10-04):
   a thread, and a Reply (`reply_to`) only quotes one older message.
 - `<kind>`: one of `問 結果 進度 公告 交辦`, optional. No progress-only message;
   past about 2 minutes, one `進度` line with an ETA.
-- `不需回覆` / FYI means no reply at all, not even 收到.
+- `不需回覆` / FYI means no reply at all, not even `收到`.
 
 The regex is for filters. A wake needs only the tag at the start: a reply that
 drops the `｜` still wakes, but the filter misses it. The grok-bot-watch band
@@ -254,27 +254,35 @@ A current-task instruction such as read-only or do not send overrides this grant
 - **`article` counts lie.** One `eval` returned a single `article` while the
   snapshot showed dozens. When dumping a whole transcript, prefer the union
   selector `'[role=article],article,[role=group]'`.
-- **一趟抓不全，而且捲到頂會刪資料。** 對話串是虛擬化清單：`scrollTop = 0`
-  一跳到頂，底部節點就被回收，等於邊讀邊刪（一次擷取因此掉了整天份的最新訊息）。
-  可靠做法是兩種獨立方法各跑一趟再取聯集：**錨點法**（抓最頂那則
-  `[role=group]`，`scrollIntoView({block:"start"})`，直到頂端訊息連續數次不變
-  **且**總數不再增長——兩個條件要同時成立，只看一個會把「捲不動」誤判成「到頂」）
-  與**像素法**（`[role=log][aria-label="Conversation transcript"]` 的 `scrollTop`
-  由頂往下每次 0.8 屏）。去重鍵用 `aria-label + 前 120 字`，不要用 DOM 節點參照——
-  同一則訊息被回收重建後是不同節點，內容才是穩定的身分。
-  **兩法數字一致才算抓全**：五個 bot 兩法各自給出 151/151、53/53、38/38、10/10、
-  7/7，那是可信的完整性證據；另一個 bot 兩法給 277 vs 132、聯集 372，就只能標
-  `UNCONFIRMED`。
-- **對話串短，先懷疑擷取方法，不要當成「這個 bot 沒在動」。** 一個每天回報的 bot
-  曾被單趟擷取抓成 24 則、內容全是幾週前的設定過程，據此推論「它從沒回報過」——
-  重抓後是 151 則，日報一直都在它自己的直接對話串上。另外，跨 bot 的往來還有獨立的
-  exchange 串（側欄與訊息裡的 `button[aria-label^="Open exchange with"]`），
-  那是**另一個**容器，不是日報的所在地；要讀跨 bot 對話才需要展開它。
-- **Reply 和 thread 是兩回事。** Reply（`reply_to`）的回覆仍在主對話串，上面多一段被回訊息的引用
-  （`[data-has-reply=true]`、`Jump to replied message`）；拿它把整段任務掛在同一則訊息下，
-  每則都會帶同一段舊引用（0.66.0 實測，2026-10-04）。真正的 thread 是 iOS 的「Start a thread」，
-  桌面版是 `sand_tasks` flag 後面的「Task thread」側邊面板，這台 Mac 沒顯示；thread 裡的回覆
-  會不會出現在側欄預覽，`UNCONFIRMED`。
+- **One pass misses messages, and a jump to the top deletes them.** The
+  transcript is a virtual list: `scrollTop = 0` jumps to the top and recycles
+  the bottom nodes, so the read deletes as it goes (one capture lost a whole
+  day of the newest messages). Run two independent methods and take the union.
+  **Anchor method**: take the top `[role=group]` and
+  `scrollIntoView({block:"start"})` until the top message stays the same for
+  several rounds **and** the total stops growing. Both conditions must hold;
+  one alone takes "cannot scroll" for "at the top". **Pixel method**: move the
+  `scrollTop` of `[role=log][aria-label="Conversation transcript"]` down from
+  the top by 0.8 screen per step. Deduplicate by `aria-label` + the first 120
+  characters, not by DOM node: a recycled message comes back as a new node,
+  and only its content is a stable identity. **The capture is complete only
+  when both methods give the same count**: five bots gave 151/151, 53/53,
+  38/38, 10/10 and 7/7, which is evidence of completeness; one bot gave 277 vs
+  132 with a union of 372, so it stays `UNCONFIRMED`.
+- **A short transcript points at the capture first, not at an idle bot.** One
+  pass caught 24 messages of a bot that reports daily, all setup from weeks
+  before, and that led to "it never reported". A new capture found 151; the
+  daily reports were in its own direct transcript all along. Bot-to-bot talk
+  has a separate exchange thread (`button[aria-label^="Open exchange with"]` in
+  the sidebar and in messages). That is **another** container, not where the
+  daily reports are; open it only to read talk between bots.
+- **Reply and thread are different things.** A Reply (`reply_to`) answer stays
+  in the main transcript under a quote of the message it answers
+  (`[data-has-reply=true]`, `Jump to replied message`). If you hang a whole
+  task on one message this way, every answer carries the same old quote (seen
+  on 0.66.0, 2026-10-04). A real thread is iOS "Start a thread"; on desktop it
+  is the "Task thread" side panel behind the `sand_tasks` flag, not shown on
+  this Mac. Whether thread replies reach the sidebar preview is `UNCONFIRMED`.
 
 ## Where this came from
 

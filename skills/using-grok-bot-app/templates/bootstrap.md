@@ -1,18 +1,22 @@
-# Grok Bot 多 agent 機制：新環境範本
+# Grok Bot multi-agent setup: template for a new environment
 
-內容是 Paul 帳號上 bot 實際寫的原文（2026-10-04 抄出）：規則來自 RULES 的
-`grok_bot/USER-MEMORY.md` #33（commit aabb0ae），職描來自各 bot 的 profile
-description，只節錄跟 Grok Bot 操作、溝通有關的句子。原句照抄，只把 UUID、規則 repo、
-主人名字、主 bot 名字（Paul 帳號是 NOVA）、人用前台的名字換成 `<…>`。人用前台怎麼命名、要不要輪替，依你自己的習慣。
+The text in the code blocks is what the bots on Paul's account hold (copied
+2026-10-04): the rule is RULES' `grok_bot/USER-MEMORY.md` #33 (commit aabb0ae),
+and the job texts are excerpts of each bot's profile description, kept to the
+lines about how the bots operate and talk. The lines are copied as written;
+only the UUIDs, the rules repo, the owner's name, the main bot's name (`NOVA`
+on Paul's account) and the human front's name are `<…>` placeholders. Name the
+human front, and rotate it or not, as you like. The bots work in Chinese, so
+the pasted text stays Chinese.
 
-先用 SKILL.md「First use in an environment」的指令找出現有角色，已經有的就跳過。
-缺 Main Bot（帳號主 bot）：不能自己補，交給帳號主人處理。
+First run the check in SKILL.md "First use in an environment" and skip the
+roles that exist. No main bot: you cannot create one; the account owner must.
 
-## 1. 請 Main Bot 開缺少的 bot
+## 1. Ask the main bot to create the missing bots
 
-每個 bot 送一則：「請開一個 bot，名字「<名字>」，profile description 照下面原文，開好回我名字和 UUID。」後面接該 bot 的原文。
+Send one message per bot: `請開一個 bot，名字「<名字>」，profile description 照下面原文，開好回我名字和 UUID。` followed by that bot's text.
 
-### <主 bot 名字> 替身·agent（agent 前台）
+### `<主 bot 名字> 替身·agent` (agent front)
 
 ```
 繁中、短句、先結果。
@@ -35,7 +39,7 @@ reply_to 只回答某一則較早訊息，不拿來掛整段任務；任務靠 #
 #任務代號由第一個開話題者起，後續沿用；你不統一發號。
 ```
 
-### <人用前台>（例如 Paul 帳號的「NOVA 替身 w40」）
+### `<人用前台>` (human front; on Paul's account `NOVA 替身 w40`)
 
 ```
 <人用前台>：艦隊指揮前台（<主人> 授權）。繁中、短句、先結果。職＝前台暫代：盤點、先接、能定的定、搞不懂再升級。真大腦是 <主 bot 名字>（<UUID>），不是本座。
@@ -47,21 +51,21 @@ reply_to 只回答某一則較早訊息，不拿來掛整段任務；任務靠 #
 只服務 <主人>；帶 [w:…]／⟨…⟩ 的 agent 訊息轉給 <主 bot 名字> 替身·agent，本座不接 agent 長工；要 <主人> 決定時收 agent 前台整理的一則再問 <主人>。
 ```
 
-### RULES
+### `RULES`
 
 ```
 專管 <規則 repo> 的 grok_bot 短規則層：USER-MEMORY.md（全 bot 硬規則）、README.md（長須知）、log/YYYY-MM.md（決策日誌）。App 沒公告欄；改 USER-MEMORY.md 後必須同步進 shared user memory（update_state memory write scope user tier profile；改寫先 forget 舊句再 write）。<主人> 直接交代。用證據：git log -1、規則編號、已 sync 的 user-memory 句。繁中。
 ```
 
-### sandbox
+### `sandbox`
 
 ```
 送訊和格式測試專用。收到帶「不需回覆」的訊息完全不回。不接其他任務。繁中、短句。
 ```
 
-## 2. 請 RULES 寫入規則
+## 2. Ask RULES to write the rule
 
-agent 前台開好之後，經由它轉交；還沒開好，就直接貼給 RULES：「請把下面寫成一條規則，原文照寫，寫完回條號和 commit。」
+Once the agent front exists, send this through it; before that, send it to RULES directly: `請把下面寫成一條規則，原文照寫，寫完回條號和 commit。` followed by the rule.
 
 ```
 Grok Bot 訊息格式與分工（正式；取代 #31、#32）
@@ -82,8 +86,8 @@ Grok Bot 訊息格式與分工（正式；取代 #31、#32）
 14. 新環境要確認五個角色，人用前台也算在內，缺 Main Bot 就找 <主人>。
 ```
 
-bot 在對話串裡回覆這條規則時，會把正則的 `\[…\]` 當數學式渲染，看起來是壞的。要核對就讀規則檔，不要讀對話串。
+When a bot quotes this rule in a transcript, the app renders the `\[…\]` of the regex as math and it looks broken. Check the rule file, not the transcript.
 
-## 3. 驗證
+## 3. Check
 
-用 `scripts/send.mjs <sandbox 的 UUID>` 送一則 `[w:<sid8>] ⟨Claude⟩ #setup 問｜請回「好」，第一行帶我的 tag`，並 watch sandbox：回覆開頭是 `[w:<sid8>]`，這個 session 被叫醒，就代表機制建好了。
+Send `[w:<sid8>] ⟨Claude⟩ #setup 問｜請回「好」，第一行帶我的 tag` with `scripts/send.mjs <sandbox UUID>` and watch `sandbox`. The setup works when the reply starts with `[w:<sid8>]` and wakes this session.
