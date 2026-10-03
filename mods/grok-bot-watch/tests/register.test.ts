@@ -126,7 +126,7 @@ describe('eligibility (S2)', () => {
     expect(w.woken[1]).toContain('preview: untagged')
   })
 
-  test('two local- fallback ids get distinct tags, not their shared 8-char prefix (Sol r1 P1)', async ($, on) => {
+  test('a local- fallback id gets a hash tag, not the 8-char prefix every fallback shares (Sol r1 P1)', async ($, on) => {
     const clock = mock.clock(on)
     // The other fallback session's reply, under its own tag (any 8 [0-9a-z] that is not ours).
     const w = world(on, [ok(row('A')), ok(row('[w:0000abcd] for the other session'))], [], { sid: 'local-ab111111' })
