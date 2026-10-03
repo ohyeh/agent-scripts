@@ -8,6 +8,10 @@
 
 - The lock drops 16 skills (64 → 48), judged by what a skill carries, not how often it ran. Removed: `karpathy-guidelines`, `git-commit`, `refactor`, `simplify`, `resolving-merge-conflicts` (generic discipline the kernel already states); `brainstorming` (its approval wait conflicts with the kernel; its visual companion goes with it); `high-end-visual-design`, `design-taste-frontend` (prose-only taste, same job as `impeccable`, now the one direction authority); `image-to-code`, `imagegen-frontend-web`, `imagegen-frontend-mobile` (the image-first pipeline is gone from `using-design-skills`); `pierre-guard` (upstream 404), `release-plannotator`, `review-renovate`, `migrate-to-shoehorn`, `update-deps` (bound to projects and tools no local repo uses). Then `wait-what` (48 → 47): the kernel-routed `simplified-english` rule already re-explains a message that did not land. The kernel, routers, router hook table and design evals drop every reference; `deploy.sh` removes the directories on each machine at its next deploy.
 
+## grok-bot-watch 0.7.4
+
+- `ensure.mjs` review fixes (Sol r3 `VERDICT: BLOCK`, two P1). The recovery lock is a listening socket on `127.0.0.1:<port+1>` instead of a lock directory: the kernel makes it exclusive and frees it when the holder exits or is killed, so there is no stale takeover to race and no other caller's lock to release. Lock wait and recovery share one 75 s budget inside the callers' 90 s, and nothing destructive starts with less than 45 s left (reopen, quit, launch): a caller that gets the lock late returns `busy`. 10 tests; dropping the budget guard fails the late-lock one; the lock test kills a holder with SIGKILL and takes the port. Live: three callers after a kill → one `launched`, two `ok`, one process.
+
 ## grok-bot-watch 0.7.3
 
 - A wake says who the reply is for, before the app text: "it answers a message from this session" when it starts with this session's tag, else "it may answer another session's message … check the conversation before acting". Seen live: an untagged NOVA reply to the agent-scripts session woke a us-options-terrain session, which took it as its own.

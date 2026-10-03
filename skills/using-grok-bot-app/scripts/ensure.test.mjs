@@ -2,7 +2,8 @@
 // over a fake app (no process is started or stopped). The real restart is checked live.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { judge, recover } from './ensure.mjs'
+import { spawn } from 'node:child_process'
+import { BUDGET_MS, judge, recover, tcpLock } from './ensure.mjs'
 
 const renderer = { type: 'page', url: 'file:///Applications/Grok%20Bot.app/Contents/Resources/app.asar/dist/renderer/index.html' }
 
@@ -95,4 +96,43 @@ test('another caller fixes the app while this one waits for the lock: re-checked
   }
   assert.equal(await recover(d), 'ok')
   assert.deepEqual(w.events, [])
+})
+
+test('the lock comes free too late for a safe quit-and-relaunch: busy, nothing quit (Sol r3 P1)', async () => {
+  const w = world('no-port')
+  w.locked = true
+  const d = w.d()
+  const sleep = d.sleep
+  d.sleep = async ms => {
+    await sleep(ms)
+    if (w.t >= 35_000) w.locked = false // a peer died holding it, freed at 35 s
+  }
+  assert.equal(await recover(d), 'busy')
+  assert.deepEqual(w.events, [])
+})
+
+test('a recovery that starts finishes inside the budget, under the callers\' 90 s', async () => {
+  const w = world('no-port')
+  assert.equal(await recover(w.d()), 'restarted')
+  assert.ok(w.t <= BUDGET_MS && BUDGET_MS < 90_000, `took ${w.t} ms of fake time`)
+})
+
+test('tcpLock: exclusive while held, free after release, and free when its holder is killed (Sol r3 P1)', async () => {
+  const port = 39877
+  const a = await tcpLock(port)
+  assert.ok(a)
+  assert.equal(await tcpLock(port), null, 'a second taker is refused')
+  await a()
+  const b = await tcpLock(port)
+  assert.ok(b, 'free after release')
+  await b()
+  // A holder that is killed, not released: the kernel frees the port.
+  const child = spawn(process.execPath, ['-e', `require('net').createServer().listen(${port}, '127.0.0.1', () => console.log('held'))`])
+  await new Promise(r => child.stdout.once('data', r))
+  assert.equal(await tcpLock(port), null, 'held by the child')
+  child.kill('SIGKILL')
+  await new Promise(r => child.once('exit', r))
+  const c = await tcpLock(port)
+  assert.ok(c, 'free after the holder was killed')
+  await c()
 })

@@ -9,7 +9,7 @@
 //   restarted   the app ran without the port: quit, then relaunched with it
 //   launched    the app was not running: launched with the port
 //   port-taken  a process that is not Grok Bot listens on the port: left alone (exit 2)
-//   busy        another caller held the recovery lock too long (exit 2)
+//   busy        another caller held the recovery lock until too little time was left (exit 2)
 //   failed      the renderer did not answer in time (exit 2)
 //   unsupported not macOS (exit 2)
 // Usage: ensure.mjs [port]   (default: $GROK_BOT_CDP_PORT, else 39231)
@@ -18,18 +18,24 @@
 // recovery is serialized by a lock and re-checked under it: a late caller must not quit
 // the app an earlier one just relaunched (Sol r2 P1). A listener counts as Grok Bot only
 // when its pid is a Grok Bot process: an empty target list proves nothing (Sol r2 P1).
+// The lock is a listening socket on 127.0.0.1:<port+1>: the kernel makes it exclusive and
+// frees it when its holder exits or is killed, so there is no stale lock to reclaim and
+// no one else's lock to release (Sol r3 P1: a lock directory's stale takeover raced).
+// Lock wait and recovery share one budget that ends before the caller's timeout, and no
+// quit starts without time for the relaunch (Sol r3 P1).
 
 import { execFile, execFileSync } from 'node:child_process'
-import { mkdirSync, realpathSync, rmdirSync, statSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { realpathSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { fileURLToPath } from 'node:url'
 
 const PORT = Number(process.argv[2] || process.env.GROK_BOT_CDP_PORT || 39231)
 const APP = 'Grok Bot'
 const RENDERER = /app\.asar\/dist\/renderer\/index\.html$/
-/** A lock older than this is from a caller that died mid-recovery (its own worst case is about 60 s). */
-const STALE_LOCK_MS = 120_000
+/** The whole run: lock wait plus recovery. Callers give the process 90 s. */
+export const BUDGET_MS = 75_000
+/** What the worst recovery needs (reopen 10 s, quit 10 s, launch 25 s): nothing destructive starts with less left. */
+export const RECOVER_MS = 45_000
 
 /** What the port says: down, the renderer, a Grok Bot listener with no window, or someone else's. */
 export function judge(pages, ownerIsApp) {
@@ -51,17 +57,19 @@ export async function recover(d) {
     for (const end = d.now() + ms; d.now() < end; await d.sleep(500)) if ((await look()) === 'ok' && (await d.sidebarOk())) return true
     return false
   }
+  const end = d.now() + BUDGET_MS
   let release = null
-  for (const end = d.now() + 90_000; !(release = d.lock()); await d.sleep(1000)) {
+  for (; !(release = await d.lock()); await d.sleep(1000)) {
     // Another caller is recovering: its result is ours once the port answers.
     if ((await look()) === 'ok') return 'ok'
-    if (d.now() >= end) return 'busy'
+    if (d.now() >= end - RECOVER_MS) return 'busy'
   }
   try {
     // Re-checked under the lock: what an earlier caller did is now visible.
     const now = await look()
     if (now === 'ok') return 'ok'
     if (now === 'taken') return 'port-taken'
+    if (d.now() > end - RECOVER_MS) return 'busy'
     if (now === 'no-window') {
       d.open(false)
       if (await waitOk(10_000)) return 'reopened'
@@ -76,9 +84,9 @@ export async function recover(d) {
       if (d.running()) return 'failed:quit'
     }
     d.open(true)
-    return (await waitOk(25_000)) ? (was ? 'restarted' : 'launched') : 'failed:launch'
+    return (await waitOk(Math.max(5_000, end - d.now()))) ? (was ? 'restarted' : 'launched') : 'failed:launch'
   } finally {
-    release()
+    await release()
   }
 }
 
@@ -92,7 +100,7 @@ const sh = (cmd, args) => {
 const appPids = () => sh('pgrep', ['-x', APP]).split('\n').filter(Boolean)
 // The sibling read-only helper, in both packages (skill scripts/, mod bin/).
 const SIDEBAR = fileURLToPath(new URL('./sidebar.mjs', import.meta.url))
-const LOCK = join(tmpdir(), `grok-bot-ensure-${PORT}.lock`)
+const LOCK_PORT = PORT + 1
 
 const real = {
   now: () => Date.now(),
@@ -113,24 +121,16 @@ const real = {
   open: withPort => execFileSync('open', ['-a', APP, ...(withPort ? ['--args', `--remote-debugging-port=${PORT}`] : [])], { timeout: 10_000 }),
   quit: () => sh('pkill', ['-x', APP]),
   sidebarOk: () => new Promise(res => execFile(process.execPath, [SIDEBAR, String(PORT)], { timeout: 4000 }, err => res(!err))),
-  lock: () => {
-    try {
-      mkdirSync(LOCK)
-    } catch {
-      try {
-        if (Date.now() - statSync(LOCK).mtimeMs < STALE_LOCK_MS) return null
-        rmdirSync(LOCK)
-        mkdirSync(LOCK)
-      } catch {
-        return null
-      }
-    }
-    return () => {
-      try {
-        rmdirSync(LOCK)
-      } catch {}
-    }
-  },
+  lock: () => tcpLock(LOCK_PORT),
+}
+
+/** Exclusive while held, freed by the kernel when this process exits: resolves to a release fn, or null when held elsewhere. */
+export function tcpLock(port) {
+  return new Promise(res => {
+    const srv = createServer()
+    srv.once('error', () => res(null))
+    srv.listen(port, '127.0.0.1', () => res(() => new Promise(done => srv.close(() => done()))))
+  })
 }
 
 const say = (out, extra = {}) => {
