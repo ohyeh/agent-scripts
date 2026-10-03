@@ -8,7 +8,8 @@
 // it just checked, never a draft (Sol review of 0.8.0, P1).
 // Read-only callers use sidebar.mjs instead.
 // One JSON line on stdout: { state, port, ... }. Exit 0 only for "sent".
-//   sent         the transcript of the open bot shows the message
+//   sent         the target bot's transcript holds one more "You <message>" than just
+//                before the submit (not any old copy, not another bot's transcript)
 //   unconfirmed  submitted, but the transcript did not show it within 5 s (the bot
 //                was switched, or the app is slow): check the app before resending
 //   empty        no text on stdin
@@ -39,9 +40,10 @@ const norm = s => s.replace(/\s+/g, ' ').trim()
 /**
  * The send, over injected effects so the test drives it without an app. d: count(id) → rows matching,
  * composer() → its text or null, current() → the open bot's id, click(id), sleep(ms),
- * submit(id, text) → the in-page step's verdict (one evaluate: 'submitted' | 'pending' | 'not-open' |
- * 'draft' | 'not-pasted' | 'moved' | 'edited'), shown(text) → the open transcript holds it (null: unreadable),
- * unsend(text) → removes the composer's text only when it is exactly this text.
+ * submit(id, text) → { state, before }: the in-page step's verdict (one evaluate: 'submitted' | 'pending' |
+ * 'not-open' | 'draft' | 'not-pasted' | 'moved' | 'edited') and how many "You <text>" the target's transcript
+ * held just before the submit; sent(id, text) → that count now (null: the target is not open or no
+ * transcript); unsend(id, text) → clears the composer only while the target is open and it holds this text.
  */
 export async function send(d, id, text) {
   if (!norm(text)) return 'empty'
@@ -61,13 +63,26 @@ export async function send(d, id, text) {
     await d.click(id)
     if (!(await until(async () => (await d.current())?.startsWith(id) && (await d.composer()) !== null))) return 'not-open'
   }
-  const step = await d.submit(id, text)
-  if (step !== 'submitted' && step !== 'pending') return step
-  if (await until(async () => (await d.shown(text)) === true)) return 'sent'
-  // Still in the composer, exactly as pasted: the form did not take it. Anything else is not ours to touch.
-  if (step === 'pending' && (await d.unsend(text))) return 'not-sent'
+  const { state, before } = await d.submit(id, text)
+  if (state !== 'submitted' && state !== 'pending') return state
+  // One more copy from "You" in the target's own transcript: an old copy or another bot's text never counts (Sol r2).
+  if (await until(async () => ((await d.sent(id, text)) ?? -1) > before)) return 'sent'
+  // Still in the target's composer, as pasted: the form did not take it. Another bot's draft is never touched (Sol r2 P1).
+  if (state === 'pending' && (await d.unsend(id, text))) return 'not-sent'
   return 'unconfirmed'
 }
+
+/** In-page: how many "You <text>" the open transcript holds (the sender line, then the body). -1: no transcript. */
+const MINE = text => `(() => {
+  const l = document.querySelector('[role=log][aria-label="Conversation transcript"]');
+  if (!l) return -1;
+  const hay = l.innerText.replace(/\\s+/g, ' ');
+  const needle = ${JSON.stringify('You ' + norm(text))};
+  let n = 0;
+  for (let i = hay.indexOf(needle); i >= 0; i = hay.indexOf(needle, i + 1)) n++;
+  return n;
+})()`
+const OPEN = id => `(document.querySelector('button[aria-current=page]')?.getAttribute('data-agent-id') ?? '').startsWith(${JSON.stringify(id)})`
 
 /**
  * The in-page send. Its checks and the paste are one synchronous run, and so are the re-checks and the
@@ -78,25 +93,27 @@ export async function send(d, id, text) {
 const SUBMIT = (id, text) => `window.__grokBotSend = (async () => {
   const norm = s => s.replace(/\\s+/g, ' ').trim();
   const want = ${JSON.stringify(norm(text))};
+  const mine = () => ${MINE(text)};
   const open = () => (document.querySelector('button[aria-current=page]')?.getAttribute('data-agent-id') ?? '').startsWith(${JSON.stringify(id)});
   const box = () => document.querySelector('div[contenteditable=true]');
   let c = box();
-  if (!c || !open()) return 'not-open';
-  if (norm(c.innerText)) return 'draft';
+  if (!c || !open()) return { state: 'not-open' };
+  if (norm(c.innerText)) return { state: 'draft' };
   c.focus();
   const dt = new DataTransfer();
   dt.setData('text/plain', ${JSON.stringify(text)});
   c.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
   if (norm(c.innerText) !== want || !c.closest('form')) {
     c.focus(); document.execCommand('selectAll'); document.execCommand('delete');
-    return 'not-pasted';
+    return { state: 'not-pasted' };
   }
   await new Promise(r => setTimeout(r, 50));
   c = box();
-  if (!open()) return 'moved';
-  if (!c || norm(c.innerText) !== want) return 'edited';
+  if (!open()) return { state: 'moved' };
+  if (!c || norm(c.innerText) !== want) return { state: 'edited' };
+  const before = mine();
   c.closest('form').requestSubmit();
-  return norm(c.innerText) ? 'pending' : 'submitted';
+  return { state: norm(c.innerText) ? 'pending' : 'submitted', before };
 })()`
 
 async function cdp(port) {
@@ -125,20 +142,22 @@ async function cdp(port) {
     waiting.set(++seq, r => (r.error || r.result?.exceptionDetails ? rej(new Error(JSON.stringify(r.error ?? r.result.exceptionDetails).slice(0, 200))) : res(r.result?.result?.value)))
     ws.send(JSON.stringify({ id: seq, method: 'Runtime.evaluate', params: { expression: expr, returnByValue: true, awaitPromise: true } }))
   })
+  return { close: () => ws.close(), d: effects(ev) }
+}
+
+/** The send's effects as page expressions, over ev(expression) → value: CDP here, a fake DOM in the test. */
+export function effects(ev) {
   const row = id => `document.querySelectorAll('button[data-agent-id^=${JSON.stringify(id)}]')`
   const box = `document.querySelector('div[contenteditable=true]')`
   return {
-    close: () => ws.close(),
-    d: {
-      count: id => ev(`${row(id)}.length`),
-      composer: () => ev(`${box}?.innerText ?? null`),
-      current: () => ev(`document.querySelector('button[aria-current=page]')?.getAttribute('data-agent-id') ?? null`),
-      click: id => ev(`${row(id)}[0].click()`),
-      submit: (id, text) => ev(SUBMIT(id, text)),
-      shown: text => ev(`(() => { const l = document.querySelector('[role=log][aria-label="Conversation transcript"]'); return l ? l.innerText.replace(/\\s+/g, ' ').includes(${JSON.stringify(norm(text))}) : null })()`),
-      unsend: text => ev(`(() => { const c = ${box}; if (!c || c.innerText.replace(/\\s+/g, ' ').trim() !== ${JSON.stringify(norm(text))}) return false; c.focus(); document.execCommand('selectAll'); document.execCommand('delete'); return true })()`),
-      sleep: ms => new Promise(r => setTimeout(r, ms)),
-    },
+    count: id => ev(`${row(id)}.length`),
+    composer: () => ev(`${box}?.innerText ?? null`),
+    current: () => ev(`document.querySelector('button[aria-current=page]')?.getAttribute('data-agent-id') ?? null`),
+    click: id => ev(`${row(id)}[0].click()`),
+    submit: (id, text) => ev(SUBMIT(id, text)),
+    sent: (id, text) => ev(`(() => { if (!${OPEN(id)}) return null; const n = ${MINE(text)}; return n < 0 ? null : n })()`),
+    unsend: (id, text) => ev(`(() => { const c = ${box}; if (!${OPEN(id)} || !c || c.innerText.replace(/\\s+/g, ' ').trim() !== ${JSON.stringify(norm(text))}) return false; c.focus(); document.execCommand('selectAll'); document.execCommand('delete'); return true })()`),
+    sleep: ms => new Promise(r => setTimeout(r, ms)),
   }
 }
 

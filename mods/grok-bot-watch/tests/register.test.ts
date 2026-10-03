@@ -70,6 +70,7 @@ function world(
     if (e.argv[0] !== '/n/node') throw new Error(`spawn ENOENT ${e.argv[0]}`)
     if (e.argv[1]?.endsWith('/bin/send.mjs')) {
       sends.push({ bot: e.argv[2]!, stdin: String(e.init?.stdin) })
+      if (opts.sendState === 'THROW') throw new Error('process.run: timed out')
       return { value: { exitCode: 0, stdout: JSON.stringify({ state: opts.sendState ?? 'sent', port: 39231 }), stderr: '' } }
     }
     if (e.argv[1]?.endsWith('/bin/ensure.mjs')) {
@@ -976,6 +977,14 @@ describe('reply from the panel 0.8.0', () => {
     await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: 'hi', requestId: 'above-prompt' })
     await macrotask()
     expect(w.toasts).toContain('grok-bot-watch: unconfirmed for NOVA: check the app before resending')
+  })
+
+  test('a helper run that throws may have sent: check the app, never "not sent" (Sol r2 P2)', async ($, on) => {
+    const w = await openRow($, on, { sendState: 'THROW' })
+    await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: 'hi', requestId: 'above-prompt' })
+    await macrotask()
+    expect(w.toasts.some(t => t.startsWith('grok-bot-watch: unconfirmed for NOVA: check the app before resending'))).toBe(true)
+    expect(w.toasts.some(t => t.includes('not sent'))).toBe(false)
   })
 
   test('a send the app refuses toasts why (a draft in the composer is left alone)', async ($, on) => {

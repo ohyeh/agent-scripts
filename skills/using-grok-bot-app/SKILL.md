@@ -152,8 +152,8 @@ Send with `scripts/send.mjs <bot-uuid-or-prefix> < message` (stdin is the
 message): it opens the bot, then in one in-page script checks the composer (a
 single TipTap `div[contenteditable=true]` inside a form) is empty, pastes, checks
 the text, waits 50 ms for the app's form state, checks bot and text again and
-submits the form. It prints one JSON line; `sent` (exit 0) means the transcript
-shows the message, `unconfirmed`/`timeout`/`failed` mean it may have gone (look
+submits the form. It prints one JSON line; `sent` (exit 0) means the target
+bot's transcript gained one more `You <message>` than before the submit, `unconfirmed`/`timeout`/`failed` mean it may have gone (look
 before resending). It refuses `draft` when the composer already holds text and
 never clears anything but its own just-checked paste. A synthetic Enter keydown
 does not send (seen live); a form submit in the paste's own tick sends nothing. Start the message with

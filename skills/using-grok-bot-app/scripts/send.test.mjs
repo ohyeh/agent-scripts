@@ -2,7 +2,7 @@
 // The fake's submit is atomic, as the real one is (one Runtime.evaluate). The real send is checked live.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { send } from './send.mjs'
+import { effects, send } from './send.mjs'
 
 const A = 'aaaaaaaa-1111-4222-8333-444444444444'
 const B = 'bbbbbbbb-1111-4222-8333-444444444444'
@@ -16,6 +16,8 @@ const norm = s => s.replace(/\s+/g, ' ').trim()
 function app({ drafts = {}, stuck = false, lossy = false, deaf = false, settle = () => {}, ids = [A, B] } = {}) {
   const a = { current: B, box: { ...drafts }, log: {}, events: [], hidden: false }
   const box = () => a.box[a.current] ?? ''
+  /** The open transcript's copies of this text sent by "You". */
+  const mine = text => (a.log[a.current] ?? []).filter(m => norm(m) === norm(text)).length
   a.d = {
     count: async id => ids.filter(x => x.startsWith(id)).length,
     composer: async () => (a.hidden ? null : box()),
@@ -26,27 +28,28 @@ function app({ drafts = {}, stuck = false, lossy = false, deaf = false, settle =
     },
     // The page's script, in one step: nothing else runs in between.
     submit: async (id, text) => {
-      if (!a.current.startsWith(id)) return 'not-open'
-      if (norm(box())) return 'draft'
+      if (!a.current.startsWith(id)) return { state: 'not-open' }
+      if (norm(box())) return { state: 'draft' }
       a.events.push('paste')
       a.box[a.current] = lossy ? text.slice(0, 3) : text
       if (norm(box()) !== norm(text)) {
         a.box[a.current] = ''
-        return 'not-pasted'
+        return { state: 'not-pasted' }
       }
       const at = a.current
       settle(a)
-      if (a.current !== at) return 'moved'
-      if (norm(box()) !== norm(text)) return 'edited'
+      if (a.current !== at) return { state: 'moved' }
+      if (norm(box()) !== norm(text)) return { state: 'edited' }
+      const before = mine(text)
       a.events.push('submit')
-      if (deaf) return 'pending'
+      if (deaf) return { state: 'pending', before }
       ;(a.log[a.current] ??= []).push(box())
       a.box[a.current] = ''
-      return 'submitted'
+      return { state: 'submitted', before }
     },
-    shown: async text => (a.hidden ? null : (a.log[a.current] ?? []).some(m => norm(m) === norm(text))),
-    unsend: async text => {
-      if (norm(box()) !== norm(text)) return false
+    sent: async (id, text) => (a.hidden || !a.current.startsWith(id) ? null : mine(text)),
+    unsend: async (id, text) => {
+      if (!a.current.startsWith(id) || norm(box()) !== norm(text)) return false
       a.events.push('unsend')
       a.box[a.current] = ''
       return true
@@ -151,10 +154,10 @@ test('the form keeps the text: removed again (it is exactly ours), not-sent', as
 
 test('the form keeps the text and the user edits it: left alone, unconfirmed', async () => {
   const a = app({ deaf: true })
-  const shown = a.d.shown
-  a.d.shown = async t => {
+  const sent = a.d.sent
+  a.d.sent = async (id, t) => {
     a.box[A] = 'hi, and more'
-    return shown(t)
+    return sent(id, t)
   }
   assert.equal(await send(a.d, 'aaaaaaaa', 'hi'), 'unconfirmed')
   assert.equal(a.box[A], 'hi, and more')
@@ -186,4 +189,167 @@ test('the user types in the wait after the paste: edited, nothing submitted, the
   assert.equal(await send(a.d, 'aaaaaaaa', 'reply'), 'edited')
   assert.equal(a.box[A], 'reply and mine')
   assert.equal(a.log[A], undefined)
+})
+
+test('the form keeps the text and the user opens B, whose draft is the same text: B\'s draft kept, unconfirmed (Sol r2 P1)', async () => {
+  const a = app({ deaf: true, drafts: { [B]: 'reply' } })
+  a.current = A
+  const sent = a.d.sent
+  a.d.sent = async (id, t) => {
+    a.current = B
+    return sent(id, t)
+  }
+  assert.equal(await send(a.d, 'aaaaaaaa', 'reply'), 'unconfirmed')
+  assert.equal(a.box[B], 'reply')
+  assert.equal(a.box[A], 'reply')
+})
+
+test('an old copy of the same text in the transcript is not this send: the form kept it, not-sent (Sol r2 P2)', async () => {
+  const a = app({ deaf: true })
+  a.current = A
+  a.log[A] = ['reply']
+  assert.equal(await send(a.d, 'aaaaaaaa', 'reply'), 'not-sent')
+})
+
+test('another bot\'s transcript holding the text is not this send: unconfirmed (Sol r2 P2)', async () => {
+  const a = app()
+  a.log[B] = ['reply', 'reply']
+  const submit = a.d.submit
+  a.d.submit = async (id, t) => {
+    const r = await submit(id, t)
+    a.log[A] = []
+    a.current = B
+    return r
+  }
+  a.current = A
+  assert.equal(await send(a.d, 'aaaaaaaa', 'reply'), 'unconfirmed')
+})
+
+/**
+ * The REAL page expressions (effects) over a minimal fake DOM: one composer per bot, a transcript per bot
+ * drawn as "You\n\n<text>\n\n<time>" as the app does. accepts: the form takes a submit. onWait: what the
+ * user does in the in-page 50 ms wait. onSubmit: what happens right as the form is submitted.
+ */
+function page({ bots = [A, B], current = B, drafts = {}, log = {}, accepts = true, onWait = () => {}, onSubmit = () => {} } = {}) {
+  const p = { current, box: { ...drafts }, log: structuredClone(log), cleared: [], submitted: [] }
+  const form = {
+    requestSubmit() {
+      const at = p.current
+      onSubmit(p)
+      if (!accepts) return
+      p.submitted.push(at)
+      ;(p.log[at] ??= []).push(p.box[at])
+      p.box[at] = ''
+    },
+  }
+  const composer = {
+    get innerText() {
+      return p.box[p.current] ?? ''
+    },
+    focus() {},
+    dispatchEvent(e) {
+      if (e.type === 'paste') p.box[p.current] = (p.box[p.current] ?? '') + e.clipboardData.getData('text/plain')
+      return true
+    },
+    closest: () => form,
+  }
+  const document = {
+    querySelector(sel) {
+      if (sel === 'button[aria-current=page]') return { getAttribute: () => p.current }
+      if (sel === 'div[contenteditable=true]') return composer
+      if (sel.startsWith('[role=log]')) return { innerText: (p.log[p.current] ?? []).map(m => `You\n\n${m}\n\n1:58 PM`).join('\n\n') }
+      return null
+    },
+    querySelectorAll(sel) {
+      const id = /\^="([^"]+)"/.exec(sel)[1]
+      return bots.filter(b => b.startsWith(id)).map(b => ({ click: () => (p.current = b) }))
+    },
+    execCommand(cmd) {
+      if (cmd === 'delete') {
+        p.cleared.push(p.current)
+        p.box[p.current] = ''
+      }
+      return true
+    },
+  }
+  class DataTransfer {
+    d = {}
+    setData(k, v) {
+      this.d[k] = v
+    }
+    getData(k) {
+      return this.d[k]
+    }
+  }
+  class ClipboardEvent {
+    constructor(type, init) {
+      this.type = type
+      this.clipboardData = init.clipboardData
+    }
+  }
+  const wait = f => {
+    onWait(p)
+    f()
+  }
+  const ev = async expr =>
+    new Function('document', 'DataTransfer', 'ClipboardEvent', 'window', 'setTimeout', `return (${expr})`)(document, DataTransfer, ClipboardEvent, {}, wait)
+  p.d = { ...effects(ev), sleep: async () => {} }
+  return p
+}
+
+test('real page script: sends to A from B, once, and the transcript count proves it', async () => {
+  const p = page()
+  assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'sent')
+  assert.deepEqual(p.submitted, [A])
+  assert.deepEqual(p.log[A], ['reply'])
+  assert.deepEqual(p.cleared, [])
+})
+
+test('real page script: hostile text goes through literally, nothing in it runs', async () => {
+  const text = "it's `x` ${globalThis.pwned = 1} \\   \"q\""
+  const p = page({ current: A })
+  assert.equal(await send(p.d, 'aaaaaaaa', text), 'sent')
+  assert.deepEqual(p.log[A], [text])
+  assert.equal(globalThis.pwned, undefined)
+})
+
+test('real page script: a draft is refused, never cleared', async () => {
+  const p = page({ current: A, drafts: { [A]: 'mine' } })
+  assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'draft')
+  assert.equal(p.box[A], 'mine')
+  assert.deepEqual(p.cleared, [])
+})
+
+test('real page script: B opened in the wait → moved; A keeps the paste, nothing submitted or cleared', async () => {
+  const p = page({ current: A, onWait: p => (p.current = B) })
+  assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'moved')
+  assert.equal(p.box[A], 'reply')
+  assert.deepEqual([p.submitted, p.cleared], [[], []])
+})
+
+test('real page script: a keystroke in the wait → edited; left as is', async () => {
+  const p = page({ current: A, onWait: p => (p.box[A] += '!') })
+  assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'edited')
+  assert.equal(p.box[A], 'reply!')
+  assert.deepEqual([p.submitted, p.cleared], [[], []])
+})
+
+test('real page script: an old copy in the transcript and a form that refuses → not-sent, only A\'s own paste cleared (Sol r2 P2)', async () => {
+  const p = page({ current: A, log: { [A]: ['reply'] }, accepts: false })
+  assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'not-sent')
+  assert.deepEqual(p.cleared, [A])
+})
+
+test('real page script: the form refuses and B, with the same text as its draft, is opened → B kept, unconfirmed (Sol r2 P1)', async () => {
+  const p = page({ current: A, drafts: { [B]: 'reply' }, accepts: false, onSubmit: p => (p.current = B) })
+  assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'unconfirmed')
+  assert.equal(p.box[B], 'reply')
+  assert.equal(p.box[A], 'reply')
+  assert.deepEqual(p.cleared, [])
+})
+
+test('real page script: B, whose transcript holds the text, is open after the send → unconfirmed, not sent (Sol r2 P2)', async () => {
+  const p = page({ current: A, log: { [B]: ['reply', 'reply'] }, onSubmit: p => (p.current = B) })
+  assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'unconfirmed')
+  assert.deepEqual(p.submitted, [A])
 })

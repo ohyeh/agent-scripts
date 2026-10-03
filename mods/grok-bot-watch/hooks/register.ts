@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.8.2'
+const MOD_VERSION = '0.8.3'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -231,7 +231,8 @@ async function sendTo(s: State, $: $, w: Watch, name: string, text: string) {
       : `grok-bot-watch: not sent to ${name}: ${out.state}`,
     )
   } catch (err) {
-    $.ui.toast(`grok-bot-watch: not sent to ${name}: ${clean(String(err), 120)}`)
+    // The run failed, timed out or printed no verdict: the helper may already have submitted (Sol r2 P2).
+    $.ui.toast(`grok-bot-watch: unconfirmed for ${name}: check the app before resending (${clean(String(err), 80)})`)
   } finally {
     s.sending = undefined
     $.ui.invalidate('ui.render')

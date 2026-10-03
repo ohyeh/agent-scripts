@@ -68,7 +68,8 @@ and Enter sends it to that bot, prefixed with this session's tag so its answer
 wakes this session only (Sharing a bot between sessions); text that already
 starts with a tag goes as typed. `bin/send.mjs` opens the bot in the app and
 sends it; a toast says `sent`, `… check the app before resending` when it may
-have gone but was not seen (`unconfirmed`, `timeout`, `failed`), or why not. A
+have gone but was not seen (`unconfirmed`, `timeout`, `failed`, or the helper run
+itself failing), or why not. A
 draft already in the app's composer is someone typing: nothing is sent and the
 draft is never cleared (`draft`). One send at a time. Mobile has no text field. When the bot is the one open in the app, the row shows the last 5 messages of both
 sides, oldest first, read from the transcript on screen (only a send clicks a
@@ -141,8 +142,10 @@ The send is one `Runtime.evaluate`, so no click or keystroke lands between its
 checks and its actions: the bot is open and the composer empty, paste, the
 composer holds the text (whitespace-normalized); then 50 ms for the app's form
 state, and again with no gap: same bot, same text, submit the composer's form.
-It clears only a paste it just checked. It prints `sent` once the open bot's
-transcript shows the message; otherwise `unconfirmed`, `draft`, `moved` (another
+It clears only a paste it just checked, and only while that bot is still open.
+It prints `sent` once the target bot's transcript holds one more `You <message>`
+than just before the submit (an old copy or another bot's transcript never
+counts); otherwise `unconfirmed`, `draft`, `moved` (another
 bot opened in the 50 ms; the text stays in the first bot's composer), `edited`,
 `not-pasted`, `not-sent`, `no-bot`, `not-open`, `down`.
 
