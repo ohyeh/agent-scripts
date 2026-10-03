@@ -92,7 +92,8 @@ for event, cmd, entry in wanted:
     new_arr = []
     for item in arr:
         if isinstance(item, dict) and item.get("command") in (cmd, cmd[len("bash "):]):
-            new_arr.append(entry)
+            if not replaced:  # old and new forms of one hook collapse to one entry
+                new_arr.append(entry)
             replaced = True
         else:
             new_arr.append(item)

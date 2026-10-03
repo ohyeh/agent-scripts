@@ -311,11 +311,26 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
       then .command = $only + " " + .command
       elif (.command | type) == "string" and (.command | startswith("\"$HOME/.agents/hooks/claude-only.sh\" "))
       then .command = "bash " + .command else . end)));
+  # repo-owned hooks once per event+matcher: a host that held both the old and the
+  # new form of one hook would otherwise run it twice after the rewrite
+  def dedupeFleet:
+    .hooks |= with_entries(.value |= (
+      reduce .[] as $g ({seen: {}, out: []};
+        ($g.matcher // "") as $m
+        | (reduce ($g.hooks // [])[] as $h ({seen: .seen, keep: []};
+            (if ($h.command | type) == "string" and ($h.command | test("/\\.agents/hooks/"))
+             then $m + " " + $h.command else null end) as $k
+            | if $k != null and .seen[$k] then .
+              else .keep += [$h] | (if $k != null then .seen[$k] = true else . end) end)) as $r
+        | .seen = $r.seen
+        | if ($r.keep | length) > 0 then .out += [$g + {hooks: $r.keep}] else . end)
+      | .out));
   def retire(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | map(.hooks |= map(select(.command != cmd))) | map(select(.hooks | length > 0)));
   retire("PreToolUse"; $bolold)
   | wrapBare
+  | dedupeFleet
   | ensure("SessionStart"; $vs)
   | ensure("Stop"; $ts)
   | ensureMatched("PreToolUse"; "Agent"; $bol)
@@ -358,6 +373,22 @@ if [ -d ~/.codex ]; then
     .hooks |= with_entries(.value |= map(.hooks |= map(
       if (.command | type) == "string" and (.command | test("^\"\\$HOME/\\.agents/hooks/[^\" ]+\\.sh\"$"))
       then .command = "bash " + .command else . end)))
+    # repo-owned hooks once per event+matcher: a host that held both the old and the
+    # new form of one hook would otherwise run it twice after the rewrite
+    def dedupeFleet:
+      .hooks |= with_entries(.value |= (
+        reduce .[] as $g ({seen: {}, out: []};
+          ($g.matcher // "") as $m
+          | (reduce ($g.hooks // [])[] as $h ({seen: .seen, keep: []};
+              (if ($h.command | type) == "string" and ($h.command | test("/\\.agents/hooks/"))
+               then $m + " " + $h.command else null end) as $k
+              | if $k != null and .seen[$k] then .
+                else .keep += [$h] | (if $k != null then .seen[$k] = true else . end) end)) as $r
+          | .seen = $r.seen
+          | if ($r.keep | length) > 0 then .out += [$g + {hooks: $r.keep}] else . end)
+        | .out));
+
+    dedupeFleet
     | ensureMatched("UserPromptSubmit"; ""; $router)
     | ensureMatched("PreToolUse"; "Bash"; $audit)
     | ensureMatched("PreToolUse"; "Bash"; $assignhost)
@@ -397,12 +428,19 @@ for event, groups in json.load(open(hooks_path)).get("hooks", {}).items():
             digest = "sha256:" + hashlib.sha256(
                 json.dumps(ident, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
             header = f'[hooks.state."{hooks_path}:{label[event]}:{i}:{j}"]'
-            pat = re.compile(re.escape(header) + r'\ntrusted_hash = "[^"]*"')
-            entry = f'{header}\ntrusted_hash = "{digest}"'
-            if pat.search(cfg):
-                cfg = pat.sub(lambda _: entry, cfg)
-            elif header not in cfg:
-                cfg = cfg.rstrip("\n") + "\n\n" + entry + "\n"
+            line = f'trusted_hash = "{digest}"'
+            # the whole section, header to the next [table]: keys may come in any order
+            sec = re.compile(r'(?m)^' + re.escape(header) + r'[ \t]*\n((?:(?!\[).*\n?)*)')
+            m = sec.search(cfg)
+            if not m:
+                cfg = cfg.rstrip("\n") + "\n\n" + header + "\n" + line + "\n"
+                continue
+            body = m.group(1)
+            if re.search(r'(?m)^trusted_hash[ \t]*=.*$', body):
+                body = re.sub(r'(?m)^trusted_hash[ \t]*=.*$', lambda _: line, body, count=1)
+            else:
+                body = line + "\n" + body
+            cfg = cfg[:m.start(1)] + body + cfg[m.end(1):]
 open(cfg_path, "w").write(cfg)
 PY
 fi
@@ -478,7 +516,7 @@ for rt in claude codex; do
       echo "FAIL [agents] $rt definition references hook not installed/executable: $hook_cmd" >&2
       exit 1
     fi
-  done < <(grep -h -E '^[[:space:]]*command:[[:space:]]*' "$src"/*.md 2>/dev/null | sed -E 's/^[[:space:]]*command:[[:space:]]*//; s/^"//; s/"$//')
+  done < <(grep -h -E '^[[:space:]]*command:[[:space:]]*' "$src"/*.md 2>/dev/null | sed -E 's/^[[:space:]]*command:[[:space:]]*//; s/^bash[[:space:]]+//; s/^"//; s/"$//')
   mkdir -p "$dst"
   rsync -a --delete "$src/" "$dst/"
   agents_diff="$(diff -rq "$dst/" "$src/" || true)"

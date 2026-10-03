@@ -62,7 +62,7 @@ fi
 [ -n "$claim" ] || exit 0
 printf '%s' "$speech" | grep -Eqi 'unverified|UNCONFIRMED|attempted|not observed|not (yet )?(done|fixed|verified)|未驗證|未觀測|尚未|還沒|未完成' && exit 0
 
-csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || shasum -a 256 2>/dev/null; } | cut -c1-16)"
+csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
 MARKER="$STATE_DIR/claim-checked-$csha"
 [ -f "$MARKER" ] && exit 0
 : > "$MARKER"

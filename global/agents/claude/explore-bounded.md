@@ -11,7 +11,7 @@ hooks:
     - matcher: Bash
       hooks:
         - type: command
-          command: "$HOME/.agents/hooks/bash-readonly-gate.sh"
+          command: bash "$HOME/.agents/hooks/bash-readonly-gate.sh"
 ---
 Read-only. Locate, do not audit or review. Report `file:line` plus a one-paragraph
 conclusion; no file dumps, no whole-file quotes.
