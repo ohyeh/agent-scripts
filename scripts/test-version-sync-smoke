@@ -11,4 +11,5 @@ check "marketplace $NAME entry" "$(jq -r --arg n "$NAME" '.plugins[] | select(.n
 check "marketplace metadata.version" "$(jq -r '.metadata.version' .claude-plugin/marketplace.json)"
 check "$MOD MOD_VERSION" "$(sed -n "s/^const MOD_VERSION = '\\(.*\\)'$/\\1/p" "$MOD/hooks/register.ts")"
 check "CHANGELOG latest $NAME" "$(grep -m1 -oE "^## $NAME [0-9]+\.[0-9]+\.[0-9]+" CHANGELOG.md | awk '{print $3}')"
+if scripts/sync-mod-core --check; then echo "  ok   $MOD core matches the skill (scripts/sync-mod-core)"; else echo "  FAIL $MOD core drifted: run scripts/sync-mod-core" >&2; FAIL=1; fi
 exit $FAIL

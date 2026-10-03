@@ -1,0 +1,31 @@
+#!/usr/bin/env zsh
+# Two packages, one core (the tmux-agent-tools workers layout):
+#   - skills/using-grok-bot-app/ = skill + global TUI. Installed by `npx skills`
+#     (global or project), a marketplace checkout or a copy: every host (Codex,
+#     Cursor, agy, a plain shell) reaches it, and people install it differently.
+#   - mods/grok-bot-watch/ = the Claude Code mod, its own plugin with its own
+#     version line. A plugin cache holds only that dir, so the mod cannot import
+#     from skills/, and it must not depend on how (or whether) the skill is installed.
+# So the core lives in the skill and the mod carries a byte-identical copy.
+# test-version-sync-smoke fails when the copy drifts. Edit the source, then run this.
+#
+# Usage: scripts/sync-mod-core [--check]   (--check: exit 1 on drift, write nothing)
+
+set -euo pipefail
+cd "$(dirname "${(%):-%x}")/.."
+
+SRC=skills/using-grok-bot-app/scripts
+DST=mods/grok-bot-watch
+# source path under SRC -> copy path under DST
+typeset -A FILES=(lib/core.ts hooks/lib/core.ts sidebar.mjs bin/sidebar.mjs)
+
+if [[ "${1:-}" == --check ]]; then
+  drift=0
+  for f t in ${(kv)FILES}; do
+    cmp -s "$SRC/$f" "$DST/$t" || { echo "$DST/$t differs from $SRC/$f" >&2; drift=1; }
+  done
+  exit $drift
+fi
+
+for f t in ${(kv)FILES}; do mkdir -p "$DST/${t:h}"; cp "$SRC/$f" "$DST/$t"; done
+echo "synced ${#FILES} core files into $DST"

@@ -1,0 +1,37 @@
+#!/usr/bin/env zsh
+# grok-bot-tui: the full-screen, read-only Grok Bot sidebar view (lib/tui.node.ts).
+# Its own dir comes from `${0:A:h}` (symlinks resolved), so it runs the same from
+# an `npx skills` folder, a marketplace checkout or a link you made yourself.
+# Nothing is added to PATH: run it from where the skill is installed.
+
+set -euo pipefail
+
+SCRIPT_DIR="${0:A:h}"
+NODE="${NODE:-$(command -v node 2>/dev/null || true)}"
+# Type stripping without a flag; checked here, since an older node fails on the
+# .ts file with a syntax error that names no version.
+FLOOR_MAJOR=22
+FLOOR_MINOR=18
+
+if [[ "${1:-}" == (-h|--help) ]]; then
+  cat <<'EOF'
+grok-bot-tui - full-screen, read-only view of the Grok Bot app's sidebar.
+
+Usage:
+  grok-bot-tui [--port <n>]
+
+  --port <n>   The app's CDP port. Default: 9231 (see the skill's Connect).
+
+Keys: j/k or 1-9 select, Enter detail, Esc back, r read now, q quit.
+EOF
+  exit 0
+fi
+
+[[ -n "$NODE" ]] || { echo "grok-bot-tui: node not found; needs Node ${FLOOR_MAJOR}.${FLOOR_MINOR}+" >&2; exit 2; }
+ver="$("$NODE" -p 'process.versions.node')"
+major="${ver%%.*}"; rest="${ver#*.}"; minor="${rest%%.*}"
+if (( major < FLOOR_MAJOR || (major == FLOOR_MAJOR && minor < FLOOR_MINOR) )); then
+  echo "grok-bot-tui: node $ver is too old; needs ${FLOOR_MAJOR}.${FLOOR_MINOR}+" >&2
+  exit 2
+fi
+exec "$NODE" "$SCRIPT_DIR/lib/tui.node.ts" "$@"

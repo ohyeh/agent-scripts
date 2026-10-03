@@ -127,6 +127,15 @@ agent-browser eval '(async () => {
 })()'
 ```
 
+## Watch the sidebar without a session
+
+`scripts/grok-bot-tui` (in this skill's folder, wherever it was installed) is a
+full-screen, read-only view of the sidebar for any terminal: every bot with its
+state and preview, Enter for the conversation of the bot open in the app. It
+needs the debug port up (Connect) and Node 22.18+. Run it by its path; it adds
+nothing to PATH. To be woken in a Claude Code session when a bot replies, use the
+`grok-bot-watch` mod instead; it shares this folder's `scripts/lib/core.ts`.
+
 ## Sending is gated
 
 Typing into the composer works: it is a single `div[contenteditable=true]` with

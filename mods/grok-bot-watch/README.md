@@ -99,7 +99,7 @@ watch fires once it settles. Observed on Grok Bot 0.59.1.
 
 ## How it reads the app
 
-`bin/sidebar.mjs` fetches `/json/list` on `127.0.0.1:9231`, opens the renderer
+`bin/sidebar.mjs` (a synced copy of the skill's `scripts/sidebar.mjs`; see Core below) fetches `/json/list` on `127.0.0.1:9231`, opens the renderer
 page's own WebSocket and sends one `Runtime.evaluate` with a constant
 expression. It prints one JSON line (`ok`, `port-down`, `renderer-missing`,
 `wrong-url`, `selector-not-observed`, `eval-error`, `timeout` or `node-too-old`) and exits
@@ -111,5 +111,15 @@ within 2.5 s. The panel adds `no-process` (no `node`) and `helper-failed`
 ```sh
 scripts/test-mod-permissions-smoke   # pinned permission surface + plugin test
 scripts/test-mod-typecheck-smoke     # tsc over mods/
-node --test mods/grok-bot-watch/bin/sidebar.test.mjs
+node --test skills/using-grok-bot-app/scripts/sidebar.test.mjs
+scripts/sync-mod-core --check       # the copies match the skill (also in test-version-sync-smoke)
 ```
+
+## Core
+
+`hooks/lib/core.ts` and `bin/sidebar.mjs` are copies of
+`skills/using-grok-bot-app/scripts/{lib/core.ts,sidebar.mjs}`, shared with the
+skill's `grok-bot-tui`. Edit the skill's files, then run `scripts/sync-mod-core`.
+Why two packages: this mod is a Claude Code-only plugin whose cache holds only
+this dir, and the skill is installed differently per person, so neither may
+depend on the other's install. See the header of `scripts/sync-mod-core`.
