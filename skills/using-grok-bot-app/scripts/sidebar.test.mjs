@@ -71,5 +71,9 @@ test('convo: sender before the first blank line, body whole, badges and date lin
     { who: 'US_STOCK', text: '我先核對', at: '9:11 AM' },
     { who: 'US_STOCK · New email', text: 'terrain 每日', at: '9:12 AM' },
   ])
+  assert.deepEqual(parse('x\n\n1:08 AM\nYou\n\n長訊息\n\nShow more\n1:09 AM\nsandbox\n\n好\n\n1:10 AM'), [
+    { who: 'You', text: '長訊息', at: '1:09 AM' },
+    { who: 'sandbox', text: '好', at: '1:10 AM' },
+  ])
   assert.deepEqual(parse(''), [])
 })

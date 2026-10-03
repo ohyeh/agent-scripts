@@ -25,7 +25,7 @@ const READ = `(() => ({ rows: [...document.querySelectorAll("button[data-agent-i
 }), convo: (() => {
   const log = document.querySelector('[role=log][aria-label="Conversation transcript"]');
   if (!log) return [];
-  const parts = log.innerText.split(/\\n\\n(\\d{1,2}:\\d{2} [AP]M)(?:\\n|$)/);
+  const parts = log.innerText.split(/\\n\\n(?:Show (?:more|less)\\n)?(\\d{1,2}:\\d{2} [AP]M)(?:\\n|$)/);
   const msgs = [];
   for (let i = 0; i + 1 < parts.length; i += 2) {
     // The sender is the line right before the first blank line; a "NEW" badge or a date

@@ -2,7 +2,7 @@
 // The fake's submit is atomic, as the real one is (one Runtime.evaluate). The real send is checked live.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { effects, key, send } from './send.mjs'
+import { MINE, effects, send } from './send.mjs'
 
 const A = 'aaaaaaaa-1111-4222-8333-444444444444'
 const B = 'bbbbbbbb-1111-4222-8333-444444444444'
@@ -386,9 +386,8 @@ test('real page script: no transcript before the submit gives no baseline: at be
   assert.deepEqual(q.submitted, [A])
 })
 
-test('a Markdown body matches its rendered transcript text; another body does not', () => {
-  const src = '[w:0fb6895a] ⟨Claude⟩ #t 問｜看表\n\n| 角色 | 名字 |\n|---|---|\n| 規則 | `RULES` |\n\n- 一\n1. 二\n```sh\nls\n```\n[連結](https://x.y/z)'
-  const shown = '[w:0fb6895a] ⟨Claude⟩ #t 問｜看表\n\n角色\t名字\n規則\tRULES\n\n一\n二\nls\n連結'
-  assert.equal(key(src), key(shown))
-  assert.notEqual(key(src), key(shown.replace('二', '三')))
+test('a long message folded behind "Show more" still counts as mine', () => {
+  const count = text => new Function('document', `return ${MINE('長 訊息')}`)({ querySelector: () => ({ innerText: text }) })
+  assert.equal(count('You\n\n長 訊息\n\nShow more\n1:09 AM\nsandbox\n\n好\n\n1:10 AM'), 1)
+  assert.equal(count('You\n\n長 訊息\n\n1:09 AM'), 1)
 })
