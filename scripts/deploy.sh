@@ -358,6 +358,44 @@ if [ -d ~/.codex ]; then
     | ensureMatched("PostToolUse"; "*"; $ledger)
     | ensureMatched("Stop"; ""; $claim)
   ' "$CODEX_HOOKS" > "$tmp_codex" && mv "$tmp_codex" "$CODEX_HOOKS"
+  # Codex skips a hooks.json entry until config.toml holds its trusted_hash (live:
+  # host-load-gate never ran, 2026-10-03). Trust only the fleet hooks this block
+  # wrote. Hash = codex-rs hooks/src/engine/discovery.rs hook_hash (rust-v0.160.0):
+  # sha256 of canonical JSON {event_name, matcher, hooks:[normalized handler]};
+  # it reproduced every hash the Codex TUI had stored for these entries.
+  CODEX_CFG=~/.codex/config.toml
+  [ -f "$CODEX_CFG" ] || : > "$CODEX_CFG"
+  python3 - "$CODEX_HOOKS" "$CODEX_CFG" <<'PY'
+import hashlib, json, re, sys
+hooks_path, cfg_path = sys.argv[1], sys.argv[2]
+label = {"PreToolUse": "pre_tool_use", "PostToolUse": "post_tool_use",
+         "UserPromptSubmit": "user_prompt_submit", "Stop": "stop"}
+cfg = open(cfg_path).read()
+for event, groups in json.load(open(hooks_path)).get("hooks", {}).items():
+    if event not in label:
+        continue
+    for i, group in enumerate(groups):
+        for j, h in enumerate(group.get("hooks", [])):
+            cmd = h.get("command", "")
+            if h.get("type") != "command" or "/.agents/hooks/" not in cmd:
+                continue
+            handler = {"type": "command", "command": cmd,
+                       "timeout": max(h.get("timeout") or 600, 1), "async": bool(h.get("async", False))}
+            ident = {"event_name": label[event], "hooks": [handler]}
+            # matcher_pattern_for_event: only tool events keep a matcher
+            if group.get("matcher") is not None and event in ("PreToolUse", "PostToolUse"):
+                ident["matcher"] = group["matcher"]
+            digest = "sha256:" + hashlib.sha256(
+                json.dumps(ident, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            header = f'[hooks.state."{hooks_path}:{label[event]}:{i}:{j}"]'
+            pat = re.compile(re.escape(header) + r'\ntrusted_hash = "[^"]*"')
+            entry = f'{header}\ntrusted_hash = "{digest}"'
+            if pat.search(cfg):
+                cfg = pat.sub(lambda _: entry, cfg)
+            elif header not in cfg:
+                cfg = cfg.rstrip("\n") + "\n\n" + entry + "\n"
+open(cfg_path, "w").write(cfg)
+PY
 fi
 
 # agy rejects ~/.gemini/config/hooks.json whole when any key is not agy-format, so the
