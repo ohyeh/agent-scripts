@@ -92,7 +92,7 @@ export const MINE = text => `(() => {
   const l = document.querySelector('[role=log][aria-label="Conversation transcript"]');
   if (!l) return -1;
   const want = ${JSON.stringify(norm(text))};
-  const parts = l.innerText.split(/\\n\\n(?:Show (?:more|less)\\n)?(\\d{1,2}:\\d{2} [AP]M)(?:\\n|$)/);
+  const parts = l.innerText.split(/\\n\\n?(?:Show (?:more|less)\\n)?(\\d{1,2}:\\d{2} [AP]M)(?:\\n|$)/);
   let n = 0;
   for (let i = 0; i + 1 < parts.length; i += 2) {
     const c = parts[i].replace(/^\\n+/, '');

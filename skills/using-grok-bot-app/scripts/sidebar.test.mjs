@@ -75,5 +75,9 @@ test('convo: sender before the first blank line, body whole, badges and date lin
     { who: 'You', text: '長訊息', at: '1:09 AM' },
     { who: 'sandbox', text: '好', at: '1:10 AM' },
   ])
+  assert.deepEqual(parse('x\n\n1:11 AM\nNOVA\n\n結論\n- 一\n1:12 AM\nYou\n\n好\n\n1:12 AM'), [
+    { who: 'NOVA', text: '結論 - 一', at: '1:12 AM' },
+    { who: 'You', text: '好', at: '1:12 AM' },
+  ])
   assert.deepEqual(parse(''), [])
 })

@@ -390,4 +390,6 @@ test('a long message folded behind "Show more" still counts as mine', () => {
   const count = text => new Function('document', `return ${MINE('長 訊息')}`)({ querySelector: () => ({ innerText: text }) })
   assert.equal(count('You\n\n長 訊息\n\nShow more\n1:09 AM\nsandbox\n\n好\n\n1:10 AM'), 1)
   assert.equal(count('You\n\n長 訊息\n\n1:09 AM'), 1)
+  // A bot message that ends in a list has its time after one newline, not a blank line.
+  assert.equal(count('NOVA\n\n結論\n- 一\n- 二\n1:12 AM\nYou\n\n長 訊息\n\n1:12 AM\nNOVA is working'), 1)
 })
