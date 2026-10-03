@@ -156,9 +156,19 @@ submits the form. It prints one JSON line; `sent` (exit 0) means the target
 bot's transcript gained one more `You <message>` than before the submit, `unconfirmed`/`timeout`/`failed` mean it may have gone (look
 before resending). It refuses `draft` when the composer already holds text and
 never clears anything but its own just-checked paste. A synthetic Enter keydown
-does not send (seen live); a form submit in the paste's own tick sends nothing. Start the message with
-your session tag (`[w:<sid8>]`) when the bot serves other sessions. The
-grok-bot-watch band does the same from its open row. A message to one of our own agents (a
+does not send (seen live); a form submit in the paste's own tick sends nothing.
+When it opened the bot, it clicks back to the bot that was open before, unless
+someone opened another one meanwhile.
+
+The app shows every message from this account as `You`, Paul's and ours
+alike. Start each message with your session tag and a sender mark,
+`[w:<sid8>] ⟨Claude⟩ …` (Codex: `⟨Codex⟩`), and ask for the reply to start with the
+same tag on the same line. The bot echoes a tag only to a tagged message; an
+untagged message is Paul's, and its answer carries no tag and wakes no watcher.
+`[w:*]` is a broadcast (for example a RULES announcement) and wakes every watcher.
+`不需回覆` / FYI means no reply at all, not even 收到. Send tests go to a sandbox
+bot only, never to a working conversation. The grok-bot-watch band adds the tag
+and mark from its open row. A message to one of our own agents (a
 Claude session, Codex, NOVA) inside an approved task — status, evidence, a
 question, a review request, tag coordination, delegation of reversible work —
 goes without approval of its text (owner ruling 2026-10-03). Confirm the

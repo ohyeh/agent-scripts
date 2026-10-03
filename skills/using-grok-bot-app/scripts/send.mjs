@@ -25,6 +25,7 @@
 //   not-sent     the form kept the text; it was removed again
 //   failed       a CDP call threw; timeout: the whole run took over 15 s (the
 //                message may or may not have gone: check the app)
+// When it opened the bot, it opens the bot that was open before again (unless another was opened meanwhile).
 // Usage: send.mjs <bot-uuid-or-prefix> [port] < message   (port: $GROK_BOT_CDP_PORT, else 39231)
 
 import { realpathSync } from 'node:fs'
@@ -46,6 +47,15 @@ const norm = s => s.replace(/\s+/g, ' ').trim()
  * transcript); unsend(id, text) → clears the composer only while the target is open and it holds this text.
  */
 export async function send(d, id, text) {
+  if (!norm(text) || !ID_RE.test(id)) return deliver(d, id, text)
+  const prev = await d.current()
+  const state = await deliver(d, id, text)
+  // Put the screen back: the bot that was open before, unless someone has since opened another one.
+  if (prev && !prev.startsWith(id) && (await d.current())?.startsWith(id) && (await d.count(prev)) === 1) await d.click(prev)
+  return state
+}
+
+async function deliver(d, id, text) {
   if (!norm(text)) return 'empty'
   if (!ID_RE.test(id)) return 'bad-id'
   const n = await d.count(id)

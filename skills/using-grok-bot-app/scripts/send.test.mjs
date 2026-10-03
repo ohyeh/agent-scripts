@@ -63,6 +63,21 @@ test('sends to the bot by prefix: open it, then one atomic paste-and-submit; the
   const a = app()
   assert.equal(await send(a.d, 'aaaaaaaa', '[w:29a98092] hi'), 'sent')
   assert.deepEqual(a.log[A], ['[w:29a98092] hi'])
+  assert.deepEqual(a.events, ['click', 'paste', 'submit', 'click'])
+  assert.equal(a.current, B, 'the bot open before the send is open again')
+})
+
+test('the screen is left alone when the user opened another bot during the send', async () => {
+  const C = 'cccccccc-1111-4222-8333-444444444444'
+  const a = app({ ids: [A, B, C], settle: () => {} })
+  const sent = a.d.sent
+  a.d.sent = async (id, text) => {
+    const n = await sent(id, text)
+    a.current = C
+    return n
+  }
+  assert.equal(await send(a.d, 'aaaaaaaa', 'hi'), 'sent')
+  assert.equal(a.current, C)
   assert.deepEqual(a.events, ['click', 'paste', 'submit'])
 })
 
@@ -118,7 +133,7 @@ test('the user opens another bot with its own draft before the send: not-open, t
   let reads = 0
   a.d.current = async () => {
     const at = await current()
-    if (++reads === 1) a.current = B
+    if (++reads === 2) a.current = B // read 1 is send's own note of the open bot
     return at
   }
   assert.equal(await send(a.d, 'aaaaaaaa', 'reply'), 'not-open')

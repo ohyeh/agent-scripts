@@ -64,10 +64,10 @@ type a UUID or an 8+ char prefix and Enter watches it; a refused id stays in
 the field with a toast saying why, and Enter on nothing closes it. The field
 is the same path as the `watch` tool. Mobile has no text field: use the command. `[ ▸ ]` (`o`, one watch only) opens the row.
 The open row starts with a reply line (the workers panel's tell line): type
-and Enter sends it to that bot, prefixed with this session's tag so its answer
-wakes this session only (Sharing a bot between sessions); text that already
-starts with a tag goes as typed. `bin/send.mjs` opens the bot in the app and
-sends it; a toast says `sent`, `… check the app before resending` when it may
+and Enter sends it to that bot, prefixed with this session's tag and the sender
+mark `⟨Claude⟩` so its answer wakes this session only (Sharing a bot between
+sessions); text that already starts with a tag goes as typed. `bin/send.mjs`
+opens the bot in the app, sends it and opens the bot that was open before again; a toast says `sent`, `… check the app before resending` when it may
 have gone but was not seen (`unconfirmed`, `timeout`, `failed`, or the helper run
 itself failing), or why not. A
 draft already in the app's composer is someone typing: nothing is sent and the
@@ -94,15 +94,26 @@ watch fires once it settles. Observed on Grok Bot 0.59.1.
 
 A primary bot serves many sessions, and every session watching it sees the same
 sidebar row. The watch receipt gives this session's tag, `[w:<sid8>]`. Start each
-message you send the bot with it, and have the bot start its reply with the same
-tag: a reply tagged for another session is recorded as seen and wakes nobody
-here. An untagged reply still wakes every watcher, so this needs the bot to echo.
-The tag is a UUID session id's first 8 characters, else an 8-character hash of the id.
+message you send the bot with it and the sender mark (`[w:<sid8>] ⟨Claude⟩ …`), and
+have the bot start its reply with the same tag on the same line. Only two replies
+wake a session (0.9.0, NOVA consensus 2026-10-04):
+
+| Reply starts with | Means | Wakes |
+|---|---|---|
+| `[w:<sid8>]` | an answer to that session | that session only |
+| `[w:*]` | a broadcast, e.g. a RULES announcement | every watcher |
+| no tag | an answer to Paul (his messages carry no tag) | nobody; recorded as seen |
+
+The app shows Paul's messages and ours as `You`, so the tag and the mark are the
+only way the bot and Paul tell them apart. The tag is a UUID session id's first
+8 characters, else an 8-character hash of the id.
 
 It cuts noise; it is not isolation or delivery (review: Sol r1, NOVA 2026-10-03):
 
-- The bot's echo is best effort. A reply without the tag, or with it cut off the
-  preview, wakes every watcher.
+- The bot's echo is best effort. A reply that drops the tag, or has it cut off
+  the preview, wakes nobody: the session sees it only in the panel or the transcript.
+- A reply in a thread may not reach the main transcript or the sidebar preview:
+  the line that should wake a session goes in the main conversation, tagged.
 - A reply that opens by quoting another tag is taken as that session's.
 - The sidebar shows one preview per bot. Two replies settling within one 10 s read
   keep only the last: the first session's reply is never seen.

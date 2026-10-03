@@ -8,8 +8,9 @@ const UNWATCH = 'mcp__grok-bot-watch__unwatch' as const
 const TICK = 10_000
 
 type Row = { id: string; name: string; unread: boolean; preview: string; busy: string | null; current: boolean }
+/** A reply that should wake: tagged [w:*] unless it carries a tag, is empty or a draft. `over.preview` sets the raw text (an untagged answer to Paul). */
 const row = (preview: string, busy = 'idle', over: Partial<Row> = {}): Row =>
-  ({ id: UUID, name: 'NOVA', unread: false, preview, busy, current: true, ...over })
+  ({ id: UUID, name: 'NOVA', unread: false, preview: !preview || /^(\[w:|Draft: )/.test(preview) ? preview : `[w:*] ${preview}`, busy, current: true, ...over })
 const ok = (...rows: Row[]) => JSON.stringify({ state: 'ok', rows })
 const down = JSON.stringify({ state: 'port-down', error: 'fetch failed' })
 
@@ -117,22 +118,22 @@ describe('eligibility (S2)', () => {
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     await clock.advance(TICK * 3)
     expect(w.woken).toHaveLength(1)
-    expect(w.woken[0]).toContain('preview: B')
+    expect(w.woken[0]).toContain('preview: [w:*] B')
   })
 
-  test('a reply tagged for another session does not wake; mine and untagged do (primary bot)', async ($, on) => {
+  test('only my tag and [w:*] wake; another session\'s tag and untagged (an answer to Paul) do not', async ($, on) => {
     const clock = mock.clock(on)
     const sid = 'abcdef12-3456-4789-8abc-def012345678'
-    const w = world(on, [ok(row('A')), ok(row('[w:zzzzzzzz] for B')), ok(row('[w:abcdef12] for me')), ok(row('untagged'))], [], { sid })
+    const w = world(on, [ok(row('A')), ok(row('[w:zzzzzzzz] for B')), ok(row('[w:abcdef12] for me')), ok(row('', 'idle', { preview: 'untagged, for Paul' })), ok(row('[w:*] to everyone'))], [], { sid })
     await $.session.start(start)
     const r = await $.tool.call({ tool: WATCH, botUuid: UUID })
     expect(JSON.stringify(r), 'a UUID session id: the tag is its sid8').toContain('[w:abcdef12]')
-    await clock.advance(TICK * 3)
+    await clock.advance(TICK * 4)
     expect(w.woken).toHaveLength(2)
     expect(w.woken[0]).toContain('preview: [w:abcdef12] for me')
     expect(w.woken[0]).toContain('answers a message from this session')
-    expect(w.woken[1]).toContain('preview: untagged')
-    expect(w.woken[1], 'an untagged wake says it may be someone else\'s').toContain("may answer another session's message")
+    expect(w.woken[1]).toContain('preview: [w:*] to everyone')
+    expect(w.woken[1], 'a broadcast wake says it is not an answer to this session').toContain('a broadcast to every session')
   })
 
   test('a local- fallback id gets a hash tag, not the 8-char prefix every fallback shares (Sol r1 P1)', async ($, on) => {
@@ -268,7 +269,7 @@ describe('delivery (Q-8 ack first, S5, S6, S7)', () => {
     await clock.advance(TICK)
     const rec = w.kv.get(key) as { lost?: number; seen: string | null }
     expect(rec.lost, 'the stale callback did not touch the new watch').toBeUndefined()
-    expect(rec.seen).toBe('B')
+    expect(rec.seen).toBe('[w:*] B')
     expect(w.woken, 'the re-watch baselines on B: no second wake').toHaveLength(1)
   })
 
@@ -470,7 +471,7 @@ describe('review 0.1.1 fixes', () => {
     await clock.advance(TICK)
     expect(w.woken).toHaveLength(2)
     const rec = w.kv.get(key) as { lost?: number; seen: string }
-    expect(rec.seen).toBe('C')
+    expect(rec.seen).toBe('[w:*] C')
     expect(rec.lost, 'the tick did not write the stale record over the count').toBe(1)
   })
 
@@ -547,7 +548,7 @@ describe('panel 0.2.0', () => {
     const t = await flat($)
     expect(t).toContain('◐ NOVA 201040cc · replying')
     expect(t).toContain('1 bot · 1 replying')
-    expect(t).toContain('「P」')
+    expect(t).toContain('「[w:*] P」')
   })
 
   test('a wake is counted in the record: new reply first, then woke N× with its age', async ($, on) => {
@@ -708,10 +709,10 @@ describe('recent replies 0.3.0', () => {
     const w = world(on, [ok(row('A')), ...['B', 'C', 'D', 'E', 'F', 'G'].map(p => ok(row(p)))])
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
-    expect((w.kv.get(key) as { recent: Array<{ t?: number; text: string }> }).recent).toEqual([{ text: 'A' }])
+    expect((w.kv.get(key) as { recent: Array<{ t?: number; text: string }> }).recent).toEqual([{ text: '[w:*] A' }])
     await clock.advance(TICK * 6)
     const recent = (w.kv.get(key) as { recent: Array<{ t?: number; text: string }> }).recent
-    expect(recent.map(r => r.text)).toEqual(['C', 'D', 'E', 'F', 'G'])
+    expect(recent.map(r => r.text)).toEqual(['[w:*] C', '[w:*] D', '[w:*] E', '[w:*] F', '[w:*] G'])
     expect(recent.every(r => typeof r.t === 'number')).toBe(true)
   })
 
@@ -721,7 +722,7 @@ describe('recent replies 0.3.0', () => {
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     await clock.advance(TICK * 3)
-    expect((w.kv.get(key) as { recent: Array<{ text: string }> }).recent.map(r => r.text)).toEqual(['收到', '收到'])
+    expect((w.kv.get(key) as { recent: Array<{ text: string }> }).recent.map(r => r.text)).toEqual(['[w:*] 收到', '[w:*] 收到'])
   })
 
   test('▸ opens the row with its replies newest first and o as hotkey; ▾ closes it', async ($, on) => {
@@ -736,9 +737,9 @@ describe('recent replies 0.3.0', () => {
     expect(textOf(tree)).not.toContain('before watch')
     await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
     const t = (await flat($))
-    expect(t).toContain('0s ago · 「B」')
-    expect(t).toContain('before watch · 「A」')
-    expect(t.indexOf('「B」」') === -1 && t.indexOf('0s ago · 「B」') < t.indexOf('before watch · 「A」')).toBe(true)
+    expect(t).toContain('0s ago · 「[w:*] B」')
+    expect(t).toContain('before watch · 「[w:*] A」')
+    expect(t.indexOf('「[w:*] B」」') === -1 && t.indexOf('0s ago · 「[w:*] B」') < t.indexOf('before watch · 「[w:*] A」')).toBe(true)
     await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
     tree = await $.ui.render(band())
     expect(textOf(tree)).not.toContain('before watch')
@@ -755,11 +756,11 @@ describe('recent replies 0.3.0', () => {
     // 8 rows, the floor drew 3: header, the row, its reply line, one history line, then +N more.
     const t = textOf(await $.ui.render(band({ maxRows: 8 }))).replace(/\n/g, '')
     expect(t).toContain('worker 2')
-    expect(t).toContain('「D」')
+    expect(t).toContain('「[w:*] D」')
     expect(t).toContain('+3 more')
-    expect(t).not.toContain('「C」')
+    expect(t).not.toContain('「[w:*] C」')
     // With room, the band grows past its 4 rows to hold every kept reply.
-    expect(textOf(await $.ui.render(band({ maxRows: 40 }))).replace(/\n/g, '')).toContain('before watch · 「A」')
+    expect(textOf(await $.ui.render(band({ maxRows: 40 }))).replace(/\n/g, '')).toContain('before watch · 「[w:*] A」')
   })
 
   test('unwatch while a tick rewrites the record: the watch stays gone', async ($, on) => {
@@ -864,7 +865,7 @@ describe('conversation of the open bot 0.4.0', () => {
     await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
     const t = await flat($)
     expect(t).not.toContain('請回收到')
-    expect(t).toContain('before watch · 「A」')
+    expect(t).toContain('before watch · 「[w:*] A」')
   })
 })
 
@@ -949,7 +950,7 @@ describe('reply from the panel 0.8.0', () => {
     await macrotask()
     expect(w.sends).toHaveLength(1)
     expect(w.sends[0]!.bot).toBe(UUID)
-    expect(w.sends[0]!.stdin).toMatch(/^\[w:[0-9a-z]{8}\] hi there$/)
+    expect(w.sends[0]!.stdin).toMatch(/^\[w:[0-9a-z]{8}\] ⟨Claude⟩ hi there$/)
     expect(w.toasts).toContain('grok-bot-watch: sent to NOVA')
   })
 
@@ -1001,7 +1002,7 @@ describe('after a reload 0.8.1', () => {
     let release!: () => void
     const hold = new Promise<void>(r => (release = r))
     const w = world(on, [ok(row('A'))], [], { hold })
-    w.kv.set(key, { botUuid: UUID, gen: 1, seen: 'A' })
+    w.kv.set(key, { botUuid: UUID, gen: 1, seen: '[w:*] A' })
     await $.session.start(start)
     // The first read is still running: neutral, not the ▲ of a failed read.
     let t = await flat($)
