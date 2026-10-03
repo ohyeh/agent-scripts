@@ -1,8 +1,11 @@
 # Simplified Technical English
 
-Use this rule for two cases: an ASD-STE100 register question, and an explicit
-ask to simplify or re-explain your last message ("說白話", "explain
-simpler", "in plain words"). You MUST follow it in both cases.
+You MUST follow this rule in three cases:
+
+- When you write procedural English (brief, rule, commit, skill text).
+- When a question is about the ASD-STE100 register.
+- When the user asks you to simplify or re-explain your last message
+  ("說白話", "explain simpler", "in plain words").
 
 ## Always: controlled English
 

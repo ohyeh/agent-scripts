@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.32.0-ironlaws
+Version: 4.33.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -53,7 +53,8 @@ ritual, no quoting; tooling enforces critical gates.
 - Non-trivial session lifecycle → session-titles.
 - Any code change → state assumptions, success criteria first, every plan
   step has a verify check.
-- Simplify or re-explain request → simplified-english.
+- Write procedural English (brief, rule, commit, skill text), or a
+  simplify/re-explain request → simplified-english.
 - Plan/investigate or output → operator-defaults.
 - Hard task, stalled progress, or final answer → judgment-rubrics §8 (persist within
   caps: same approach ≤3 rounds, each one tier up; every call counts).
