@@ -9,4 +9,6 @@ payload="$(cat)"
 if jq -e 'type == "object" and has("cursor_version")' >/dev/null 2>&1 <<<"$payload"; then
   exit 0
 fi
-printf '%s' "$payload" | "$@"
+# bash <hook>, not a shebang exec: on macOS a #! script that execs another #!
+# script leaks ~1 KB of kernel memory (data.kalloc.1024) per launch until reboot.
+printf '%s' "$payload" | bash "$@"

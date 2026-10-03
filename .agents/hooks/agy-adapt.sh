@@ -30,7 +30,7 @@ PreToolUse)
     agent_type:"ABSENT",
     tool_name:(.toolCall.name | if .=="run_command" then "Bash" else . end),
     tool_input:((.toolCall.args // {}) + {command:(.toolCall.args.CommandLine // ""), run_in_background:false})}')"
-  err="$(printf '%s' "$mapped" | "$HOOK" 2>&1 >/dev/null)"; ec=$?
+  err="$(printf '%s' "$mapped" | bash "$HOOK" 2>&1 >/dev/null)"; ec=$?
   if [ "$ec" -eq 2 ]; then jq -cn --arg r "$err" '{decision:"deny", reason:$r}'; else echo '{"decision":"ask"}'; fi
   ;;
 Stop)
@@ -64,7 +64,7 @@ Stop)
   again=false; [ "$(cat "$state/agy-blocked-since" 2>/dev/null)" = "$since" ] && again=true
   mapped="$(jq -cn --arg sid "$sid" --arg t "$state/agy-transcript.jsonl" --argjson last "${last:-\"\"}" --argjson again "$again" \
     '{hook_event_name:"Stop", session_id:$sid, transcript_path:$t, stop_hook_active:$again, last_assistant_message:$last}')"
-  out="$(printf '%s' "$mapped" | "$HOOK" 2>/dev/null)"
+  out="$(printf '%s' "$mapped" | bash "$HOOK" 2>/dev/null)"
   if [ "$(printf '%s' "$out" | jq -r '.decision // ""' 2>/dev/null)" = "block" ]; then
     printf '%s\n' "$since" > "$state/agy-blocked-since"
     printf '%s' "$out" | jq -c '{decision:"continue", reason:.reason}'

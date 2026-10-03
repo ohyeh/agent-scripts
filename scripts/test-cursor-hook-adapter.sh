@@ -169,10 +169,12 @@ fi
 ONLY=.agents/hooks/claude-only.sh
 raw='{"cursor_version":"2026.09.26","hook_event_name":"stop","status":"completed"}'
 claude='{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"rg cursor_version"}}'
-out="$(printf '%s' "$raw" | "$ONLY" sh -c 'echo ran; exit 2')"; ec=$?
+only_hook="$(mktemp)"; printf 'echo ran; exit 2\n' >"$only_hook"
+out="$(printf '%s' "$raw" | "$ONLY" "$only_hook")"; ec=$?
 if [ "$ec" = 0 ] && [ -z "$out" ]; then printf 'ok   %-36s silent\n' "claude-only skips Cursor import"
 else printf 'FAIL %-36s ec=%s out=%s\n' "claude-only skips Cursor import" "$ec" "$out"; fail=1; fi
-out="$(printf '%s' "$claude" | "$ONLY" sh -c 'cat; exit 2')"; ec=$?
+printf 'cat; exit 2\n' >"$only_hook"
+out="$(printf '%s' "$claude" | "$ONLY" "$only_hook")"; ec=$?; rm -f "$only_hook"
 if [ "$ec" = 2 ] && [ "$out" = "$claude" ]; then printf 'ok   %-36s passthrough\n' "claude-only runs Claude payload"
 else printf 'FAIL %-36s ec=%s out=%s\n' "claude-only runs Claude payload" "$ec" "$out"; fail=1; fi
 

@@ -61,7 +61,7 @@ if [ "$NAME" = claim-evidence-gate ]; then
       out="$(jq -cn --arg sid "$sid" --arg t "$state/cursor-prompt.jsonl" --arg m "$last" \
           --argjson again "$(printf '%s' "$IN" | jq '(.loop_count // 0) > 0')" \
           '{hook_event_name:"Stop", session_id:$sid, transcript_path:$t, stop_hook_active:$again, last_assistant_message:$m}' \
-        | "$HOOK" 2>/dev/null)"
+        | bash "$HOOK" 2>/dev/null)"
       if [ "$(printf '%s' "$out" | jq -r '.decision // ""' 2>/dev/null)" = block ]; then
         printf '%s' "$out" | jq -c '{followup_message: .reason}'
       else printf '%s\n' '{}'; fi
@@ -205,7 +205,7 @@ stderr_file="$(mktemp)"
 stdout_file="$(mktemp)"
 trap 'rm -f "$stderr_file" "$stdout_file"' EXIT
 set +e
-printf '%s' "$mapped" | "$HOOK" >"$stdout_file" 2>"$stderr_file"
+printf '%s' "$mapped" | bash "$HOOK" >"$stdout_file" 2>"$stderr_file"
 ec=$?
 set -e
 

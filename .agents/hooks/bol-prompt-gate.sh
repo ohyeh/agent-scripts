@@ -49,7 +49,7 @@ case "$SUBAGENT_TYPE" in
     log_stat "exempt" "[]" false "$live"
     ;;
   *)
-    output="$(printf '%s' "$PROMPT" | "$VALIDATOR" 2>&1)"
+    output="$(printf '%s' "$PROMPT" | bash "$VALIDATOR" 2>&1)"
     if [ $? -eq 0 ]; then
       log_stat "pass" "[]" false "$live"
     else
