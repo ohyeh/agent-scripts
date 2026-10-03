@@ -156,3 +156,8 @@ Status: proposed
 Rule: 那是 lead，不是事實；先在每台候選機器找 run dir（`.workflow/`）再下結論。
 Evidence: tui-retro retro-report §4 L4：run dir 在本機，不在使用者說的那台。
 Status: proposed
+
+## 2026-10-03 | scope: hooks | trigger: hook 或 wrapper 要執行另一支 script
+Rule: macOS 上不要讓 `#!` script 再直接執行另一支 `#!` script；每一層都寫 `bash <file>`（或 `exec bash <file>`），只留一層 shebang。
+Evidence: `data.kalloc.1024[raw]` 達 8,289,979K，每分鐘約 +2.9 MB，只有重開機能釋放；每次工具呼叫都會走 `claude-only.sh` → hook、`fleet-*.sh` → `cursor-adapt.sh` → hook、`agy-adapt.sh` → hook。機制見 Claude Code #66020、#44824 與 Photon 的重現。修正在 cd166b9；這台（macOS 15.6）的 leak 速度是否下降：UNCONFIRMED，待 sudo `zprint` 量測。
+Status: proposed
