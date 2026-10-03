@@ -73,6 +73,12 @@ t "bol allow full brief" 0 bol-prompt-gate "$BOL_OK"
 t "bol explore exempt" 0 bol-prompt-gate "$BOL_EXPLORE"
 BOL_BARE='{"hook_event_name":"subagentStart","subagent_id":"s3","subagent_type":"generalPurpose","task":"## GOAL\nx\n## ACCEPTANCE\ny\n## REPORT\nz","parent_conversation_id":"c1"}'
 t "bol allow bare headers (no colon)" 0 bol-prompt-gate "$BOL_BARE"
+# cursor-agent CLI never fires subagentStart for Task (live probe 2026-10-03); preToolUse Task carries the brief
+TASK_BAD='{"hook_event_name":"preToolUse","tool_name":"Task","tool_input":{"description":"d","prompt":"do the thing","subagent_type":"generalPurpose"},"conversation_id":"c1"}'
+TASK_OK='{"hook_event_name":"preToolUse","tool_name":"Task","tool_input":{"description":"d","prompt":"GOAL: x\nACCEPTANCE: y\nREPORT: z","subagent_type":"generalPurpose"},"conversation_id":"c1"}'
+t "bol deny Task missing GOAL" 2 bol-prompt-gate "$TASK_BAD"
+t "bol allow Task full brief" 0 bol-prompt-gate "$TASK_OK"
+t "bol ignores Shell" 0 bol-prompt-gate '{"hook_event_name":"preToolUse","tool_name":"Shell","tool_input":{"command":"ls"},"conversation_id":"c1"}'
 
 # --- ledger start/stop share derived id ---
 export XDG_STATE_HOME="$HOME/.local/state"

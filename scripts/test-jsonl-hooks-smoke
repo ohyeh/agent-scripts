@@ -204,4 +204,68 @@ printf '%s\n' \
   '{"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c2","output":[{"type":"input_text","text":"Script completed\nOutput:\nx.sh:3: Command blocked by PreToolUse hook: y"}]}}' >> "$TR6"
 run_codex_deny 'rg phrase' || { echo "FAIL: output that only mentions the deny phrase was treated as a deny" >&2; exit 1; }
 
-echo "JSONL hooks smoke: bol denies incomplete briefs + proxy briefs missing declared fields; concurrency gate denies the 6th subagent; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call"
+# host load gate: fake uname/sysctl on PATH give fixed readings (10 cores: warn load1 > 15, deny > 20)
+mkdir -p "$WORK/fakebin"
+printf '#!/bin/sh\necho "${FAKE_UNAME:-Darwin}"\n' > "$WORK/fakebin/uname"
+cat > "$WORK/fakebin/sysctl" <<'EOF'
+#!/bin/sh
+case "$2" in
+  hw.ncpu) echo 10 ;;
+  vm.loadavg) echo "$FAKE_LOADAVG" ;;
+  kern.memorystatus_vm_pressure_level) echo "$FAKE_MP" ;;
+esac
+EOF
+chmod +x "$WORK/fakebin/uname" "$WORK/fakebin/sysctl"
+HIGH='{ 1.00 21.00 1.00 }'
+host_payload() { # $1 tool_name, $2 command
+  jq -cn --arg t "$1" --arg c "${2:-}" '{tool_name:$t,session_id:"hlg",tool_input:{command:$c,prompt:"p"}}'
+}
+run_host() { # $1 loadavg, $2 pressure level, $3 payload; returns the hook's exit code
+  printf '%s' "$3" | PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="$1" FAKE_MP="$2" \
+    bash "$ROOT/.agents/hooks/host-load-gate.sh" >"$WORK/host-out" 2>"$WORK/host-err"
+}
+AGENT="$(host_payload Agent)"
+run_host '{ 1.00 1.00 1.00 }' 1 "$AGENT" && [[ ! -s "$WORK/host-out" ]] || { echo "FAIL: host gate not silent at low load" >&2; exit 1; }
+run_host '{ 15.00 20.00 1.00 }' 1 "$AGENT" && [[ ! -s "$WORK/host-out" ]] || { echo "FAIL: host gate fired at exactly the thresholds" >&2; exit 1; }
+run_host '{ 16.00 1.00 1.00 }' 1 "$AGENT" || { echo "FAIL: load1 warn was denied" >&2; exit 1; }
+jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and (.hookSpecificOutput.additionalContext | test("Top processes"))' "$WORK/host-out" >/dev/null || { echo "FAIL: warn did not reach the model as additionalContext" >&2; exit 1; }
+run_host '{ 1.00 1.00 1.00 }' 2 "$AGENT" && grep -q additionalContext "$WORK/host-out" || { echo "FAIL: memory pressure warn missing" >&2; exit 1; }
+if run_host "$HIGH" 1 "$AGENT"; then echo "FAIL: load5 over 2x cores did not deny Agent" >&2; exit 1; fi
+grep -q '^BLOCKED by host-load-gate' "$WORK/host-err" && grep -q 'start-ssh' "$WORK/host-err" || { echo "FAIL: deny message lacks reason or offload" >&2; exit 1; }
+if run_host '{ 1.00 1.00 1.00 }' 4 "$AGENT"; then echo "FAIL: critical memory pressure was not denied" >&2; exit 1; fi
+if run_host 'garbage' 1 "$AGENT"; then echo "FAIL: unreadable load was allowed" >&2; exit 1; fi
+grep -q 'cannot read host load' "$WORK/host-err" || { echo "FAIL: read failure not named" >&2; exit 1; }
+HOST_LOAD_GATE=off run_host "$HIGH" 4 "$AGENT" || { echo "FAIL: HOST_LOAD_GATE=off still denied" >&2; exit 1; }
+FAKE_UNAME=Linux run_host 'garbage' 1 "$AGENT" && grep -q 'macOS only' "$WORK/host-err" || { echo "FAIL: non-macOS host not skipped with a notice" >&2; exit 1; }
+# which launches it gates: Codex v2 spawn and local agent-tmux launches; not reads, start-ssh, dry-run, other tools
+if run_host "$HIGH" 1 "$(host_payload collaborationspawn_agent)"; then echo "FAIL: Codex v2 spawn not gated" >&2; exit 1; fi
+for c in 'agent-tmux codex start w /tmp' '/x/scripts/agent-tmux grok assign w /tmp' 'cd /tmp && agent-tmux claude resume w' 'tmux-agent-fanout --cli codex'; do
+  if run_host "$HIGH" 1 "$(host_payload Bash "$c")"; then echo "FAIL: local launch not gated: $c" >&2; exit 1; fi
+done
+for c in 'agent-tmux codex start-ssh w host /tmp' 'agent-tmux codex start --dry-run w /tmp' 'agent-tmux codex list' 'ls agent-tmux-start' 'git status'; do
+  run_host "$HIGH" 1 "$(host_payload Bash "$c")" || { echo "FAIL: non-launch command was gated: $c" >&2; exit 1; }
+done
+run_host "$HIGH" 1 "$(host_payload Read)" || { echo "FAIL: unrelated tool was gated" >&2; exit 1; }
+# the deny reaches Cursor (subagentStart, preToolUse Shell) and agy (run_command) through their adapters
+run_adapted() { # $1 adapter command..., stdin payload
+  PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="${ADAPT_LOADAVG:-$HIGH}" FAKE_MP=1 HOME="$TEST_HOME" \
+    CURSOR_ADAPT_HOOKS_DIR="$ROOT/.agents/hooks" AGY_ADAPT_HOOKS_DIR="$ROOT/.agents/hooks" "$@" 2>/dev/null
+}
+out="$(printf '%s' '{"hook_event_name":"subagentStart","subagent_type":"general","task":"t","conversation_id":"c"}' | run_adapted bash "$ROOT/.agents/hooks/cursor-adapt.sh" host-load-gate)" || true
+printf '%s' "$out" | jq -e '.permission == "deny" and (.agent_message | test("host-load-gate"))' >/dev/null || { echo "FAIL: Cursor subagentStart deny not mapped: $out" >&2; exit 1; }
+out="$(printf '%s' '{"hook_event_name":"preToolUse","tool_name":"Shell","tool_input":{"command":"agent-tmux codex start w /tmp"},"conversation_id":"c"}' | run_adapted bash "$ROOT/.agents/hooks/cursor-adapt.sh" host-load-gate)" || true
+printf '%s' "$out" | jq -e '.permission == "deny"' >/dev/null || { echo "FAIL: Cursor Shell launch deny not mapped: $out" >&2; exit 1; }
+# cursor-agent CLI never fires subagentStart for Task (live probe 2026-10-03); preToolUse Task does
+out="$(printf '%s' '{"hook_event_name":"preToolUse","tool_name":"Task","tool_input":{"subagent_type":"general","prompt":"t"},"conversation_id":"c"}' | run_adapted bash "$ROOT/.agents/hooks/cursor-adapt.sh" host-load-gate)" || true
+printf '%s' "$out" | jq -e '.permission == "deny"' >/dev/null || { echo "FAIL: Cursor preToolUse Task deny not mapped: $out" >&2; exit 1; }
+# a warn reaches Cursor's model as additional_context; the deny names the next steps and the offload host
+out="$(printf '%s' '{"hook_event_name":"preToolUse","tool_name":"Shell","tool_input":{"command":"agent-tmux codex start w /tmp"},"conversation_id":"c"}' | ADAPT_LOADAVG='{ 16.00 1.00 1.00 }' run_adapted bash "$ROOT/.agents/hooks/cursor-adapt.sh" host-load-gate)"
+printf '%s' "$out" | jq -e '.additional_context | test("host-load-gate")' >/dev/null || { echo "FAIL: Cursor warn not forwarded as additional_context: $out" >&2; exit 1; }
+HOST_LOAD_OFFLOAD_HOST=box9 run_host "$HIGH" 1 "$AGENT" || true
+grep -q 'start-ssh <name> box9 ' "$WORK/host-err" && grep -q '^1\. Feed a live worker' "$WORK/host-err" || { echo "FAIL: deny lacks ordered next steps or offload host" >&2; exit 1; }
+out="$(printf '%s' '{"conversationId":"c","toolCall":{"name":"run_command","args":{"CommandLine":"agent-tmux codex start w /tmp"}}}' | run_adapted bash "$ROOT/.agents/hooks/agy-adapt.sh" PreToolUse host-load-gate)"
+printf '%s' "$out" | jq -e '.decision == "deny"' >/dev/null || { echo "FAIL: agy run_command deny not mapped: $out" >&2; exit 1; }
+out="$(printf '%s' '{"conversationId":"c","toolCall":{"name":"invoke_subagent","args":{"Task":"t"}}}' | run_adapted bash "$ROOT/.agents/hooks/agy-adapt.sh" PreToolUse host-load-gate)"
+printf '%s' "$out" | jq -e '.decision == "deny"' >/dev/null || { echo "FAIL: agy invoke_subagent deny not mapped: $out" >&2; exit 1; }
+
+echo "JSONL hooks smoke: bol denies incomplete briefs + proxy briefs missing declared fields; concurrency gate denies the 6th subagent; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call; host load gate warns via additionalContext, denies Agent/v2 spawn/local agent-tmux launches on load/pressure/unreadable (also through the Cursor and agy adapters), passes start-ssh/dry-run/off/non-macOS"

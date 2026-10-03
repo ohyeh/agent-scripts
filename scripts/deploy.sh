@@ -262,6 +262,7 @@ hook_install "$SRC/.agents/hooks/postcompact-handoff.sh"
 hook_install "$SRC/.agents/hooks/evidence-tokens.sh"
 hook_install "$SRC/.agents/hooks/claim-evidence-gate.sh"
 hook_install "$SRC/.agents/hooks/subagent-concurrency-gate.sh"
+hook_install "$SRC/.agents/hooks/host-load-gate.sh"
 hook_install "$SRC/.agents/hooks/deny-replay-gate.sh"
 hook_install "$SRC/.agents/hooks/compaction-cap-gate.sh"
 hook_install "$SRC/.agents/hooks/wakeup-idle-gate.sh"
@@ -286,6 +287,7 @@ jq --arg only "\"\$HOME/.agents/hooks/claude-only.sh\"" \
    --arg postcompact "\"\$HOME/.agents/hooks/postcompact-handoff.sh\"" \
    --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
    --arg conc "\"\$HOME/.agents/hooks/subagent-concurrency-gate.sh\"" \
+   --arg hostload "\"\$HOME/.agents/hooks/host-load-gate.sh\"" \
    --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" \
    --arg arttitle "\"\$HOME/.agents/hooks/artifact-title-gate.sh\"" \
    --arg router "\"\$HOME/.agents/hooks/skill-router-nudge.sh\"" \
@@ -323,6 +325,7 @@ jq --arg only "\"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensure("PostCompact"; $postcompact)
   | ensure("Stop"; $claim)
   | ensureMatched("PreToolUse"; "Agent"; $conc)
+  | ensureMatched("PreToolUse"; "Agent|Bash"; $hostload)
   | ensureMatched("PreToolUse"; "*"; $deny)
   | ensureMatched("PreToolUse"; "Artifact"; $arttitle)
   | ensure("UserPromptSubmit"; $router)
@@ -340,7 +343,8 @@ if [ -d ~/.codex ]; then
      --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
      --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" \
      --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" \
-     --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" '
+     --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
+     --arg hostload "\"\$HOME/.agents/hooks/host-load-gate.sh\"" '
     def ensureMatched(ev; matcher; cmd):
       .hooks[ev] = ((.hooks[ev] // [])
         | if any(.[]; any(.hooks[]?; .command == cmd))
@@ -349,6 +353,8 @@ if [ -d ~/.codex ]; then
     | ensureMatched("PreToolUse"; "Bash"; $audit)
     | ensureMatched("PreToolUse"; "Bash"; $assignhost)
     | ensureMatched("PreToolUse"; "*"; $deny)
+    # "*": the gate filters Bash and collaborationspawn_agent (v2 spawn) itself
+    | ensureMatched("PreToolUse"; "*"; $hostload)
     | ensureMatched("PostToolUse"; "*"; $ledger)
     | ensureMatched("Stop"; ""; $claim)
   ' "$CODEX_HOOKS" > "$tmp_codex" && mv "$tmp_codex" "$CODEX_HOOKS"
@@ -363,11 +369,14 @@ if [ -d ~/.gemini/config ]; then
   jq -n --arg a "\$HOME/.agents/hooks/agy-adapt.sh" '{"agent-scripts":{
     PreToolUse:[{matcher:"run_command",hooks:[
       {type:"command",command:($a+" PreToolUse tmux-assign-host-gate")},
-      {type:"command",command:($a+" PreToolUse bash-read-audit")}]}],
+      {type:"command",command:($a+" PreToolUse bash-read-audit")},
+      {type:"command",command:($a+" PreToolUse host-load-gate")}]},
+      {matcher:"invoke_subagent",hooks:[
+      {type:"command",command:($a+" PreToolUse host-load-gate")}]}],
     Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$AGY_PLUGIN/hooks.json"
 fi
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1

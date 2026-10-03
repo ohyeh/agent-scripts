@@ -138,8 +138,36 @@ renewed authorization.
 Concurrency cap (2026-08-21 user ruling; dispatch itself is the top friction source on
 record — sessions that delegated drew 26× the corrections of sessions that did not): at most
 3 live subagents per session before a warning, hard stop at 5, enforced by the
-`bol-prompt-gate.sh` PreToolUse hook against the SubagentStart/Stop ledger; the same hook
-denies any Agent brief missing GOAL/ACCEPTANCE/REPORT. Ask "must this be delegated?" first.
+`subagent-concurrency-gate.sh` PreToolUse hook against the SubagentStart/Stop ledger; a
+separate hook, `bol-prompt-gate.sh`, denies any Agent brief missing GOAL/ACCEPTANCE/REPORT.
+Ask "must this be delegated?" first.
+
+Host load gate (2026-10-03 user ruling; basic overload control, not a count cap): session
+caps do not add up across CLIs and sessions; the machine does. `host-load-gate.sh` checks
+host load and memory pressure before a new local worker, wired by `deploy.sh` into every
+parent CLI's own hook system. On a deny or warning, in this order: feed a live worker; do it
+inline if small; offload with `agent-tmux <cli> start-ssh` (not gated: the CLI runs remote);
+show the listed top CPU and memory processes to the user and ask which to stop — some are
+needed (simulators, a live browser), never kill without approval; retry once later, never in
+a loop. Per-host tuning: `HOST_LOAD_WARN`, `HOST_LOAD_DENY` (× cores),
+`HOST_LOAD_OFFLOAD_HOST` (ssh target named in the offload hint); `HOST_LOAD_GATE=off`
+disables it.
+
+| Parent CLI | native subagent | `agent-tmux` start/resume/assign in a shell |
+|---|---|---|
+| Claude | `Agent` (PreToolUse) | `Bash` (PreToolUse) |
+| Codex | `collaborationspawn_agent` (PreToolUse `*`) | `Bash` (PreToolUse `*`) |
+| Cursor | `preToolUse` Task via cursor-adapt (the CLI never fires `subagentStart`) | `preToolUse` Shell via cursor-adapt |
+| agy | `invoke_subagent` via agy-adapt | `run_command` via agy-adapt |
+
+Not covered: the tmux-agent mod/MCP `assign` (mod tools never reach hooks), Grok Bot (work
+runs on its box or cloud; local execution is approved per call in the app), launches from a
+plain terminal, and load that running workers add later. A warning reaches the model on
+Claude, Codex and Cursor; agy PreToolUse has no context channel, so there only the deny
+shows. Thresholds come from the env the CLI started with (Cursor hooks also source
+`~/.zshenv`): export them before launching it. On the cursor-agent CLI `subagentStart` never
+fires, so `bol-prompt-gate` also runs on `preToolUse` Task there; the concurrency cap still
+cannot count Cursor subagents (its ledger needs `subagentStart`).
 
 Worker lifecycle (2026-08-18 user ruling): workers are SESSION TEAMMATES, not disposables — they live and die with the session. Team slot cap (user ruling 2026-08-18): at most 3 persistent named workers per session TOTAL across all CLIs — opening more requires the user's explicit request. Bring a worker up once (first task via `assign`), feed every later task to the SAME worker with `send-wait` (each dispatched the same way), `stop` only at session end. Per-task start/stop churn is a defect: it burns bring-up cost and amplifies the upstream Codex FD-leak (lessons 2026-08-18 EMFILE). One-shot throwaway workers are the EXCEPTION, only for isolation (different repo/trust scope) or genuine parallel fanout.
 

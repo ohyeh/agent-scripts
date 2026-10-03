@@ -223,5 +223,13 @@ if [ "$ec" -ne 0 ]; then
   python3 -c 'import json,sys; m=sys.stdin.read(); print(json.dumps({"agent_message":m or "cursor-adapt: hook failed"}))' <<<"$msg"
   exit "$ec"
 fi
-emit_ok
+# A Claude-shaped warning (hookSpecificOutput.additionalContext) maps to Cursor's
+# additional_context, which reaches the model on an allow (cursor-agent live probe
+# 2026-10-03, preToolUse Shell).
+ctx="$(jq -r '.hookSpecificOutput.additionalContext // empty' "$stdout_file" 2>/dev/null)"
+if [ -n "$ctx" ]; then
+  jq -cn --arg c "$ctx" '{agent_message:"", additional_context:$c}'
+else
+  emit_ok
+fi
 exit 0
