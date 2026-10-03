@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
 // to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.7.0'
+const MOD_VERSION = '0.7.1'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -47,11 +47,21 @@ function step(w: Watch, row: Row): { next: Watch; wake: boolean } {
  * sends with its tag and the bot echoes the tag at the start of its reply: a reply tagged for another
  * session wakes only that one. An untagged reply wakes every watcher, as before.
  */
-const TAG_RE = /^\s*\[w:([^\]\s]{1,40})\]/
-const tagOf = (sid: string) => `[w:${sid.slice(0, 8)}]`
+const TAG_RE = /^\s*\[w:([0-9a-z]{8})\]/
+/**
+ * 8 chars that tell sessions apart: a UUID's first 8 (the sid8 the session title shows), else a hash of
+ * the whole id. A prefix of another format is not unique: `local-ab…` fallbacks share 6 of their 8 (Sol r1).
+ */
+function tokenOf(sid: string): string {
+  if (FULL_UUID_RE.test(sid)) return sid.slice(0, 8)
+  let h = 0x811c9dc5
+  for (const ch of sid) h = Math.imul(h ^ ch.codePointAt(0)!, 0x01000193) >>> 0
+  return h.toString(36).padStart(8, '0').slice(-8)
+}
+const tagOf = (sid: string) => `[w:${tokenOf(sid)}]`
 const forOther = (preview: string, sid: string) => {
   const m = TAG_RE.exec(preview)
-  return !!m && m[1] !== sid.slice(0, 8)
+  return !!m && m[1] !== tokenOf(sid)
 }
 
 const wakeText = (row: Row) =>
@@ -177,7 +187,7 @@ async function ensureApp(s: State, $: $, now: number) {
   s.ensuring = true
   s.lastEnsure = now
   try {
-    const r = await $.process.run([s.node, `${$.plugin.root}/bin/ensure.mjs`], { timeoutMs: 45_000 })
+    const r = await $.process.run([s.node, `${$.plugin.root}/bin/ensure.mjs`], { timeoutMs: 90_000 })
     const out = JSON.parse(r.stdout) as { state: string; port?: number; step?: string }
     if (out.state !== 'ok') $.ui.toast(`grok-bot-watch: Grok Bot ${out.state} on port ${out.port}${out.step ? ` (${out.step})` : ''}`)
   } catch (err) {

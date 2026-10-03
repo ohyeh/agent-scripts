@@ -87,6 +87,18 @@ sidebar row. The watch receipt gives this session's tag, `[w:<sid8>]`. Start eac
 message you send the bot with it, and have the bot start its reply with the same
 tag: a reply tagged for another session is recorded as seen and wakes nobody
 here. An untagged reply still wakes every watcher, so this needs the bot to echo.
+The tag is a UUID session id's first 8 characters, else an 8-character hash of the id.
+
+It cuts noise; it is not isolation or delivery (review: Sol r1, NOVA 2026-10-03):
+
+- The bot's echo is best effort. A reply without the tag, or with it cut off the
+  preview, wakes every watcher.
+- A reply that opens by quoting another tag is taken as that session's.
+- The sidebar shows one preview per bot. Two replies settling within one 10 s read
+  keep only the last: the first session's reply is never seen.
+- A reply seen streaming arms every watcher of the bot, so a reply for B that
+  stops before settling can wake A on A's old text (pre-existing).
+- Anyone who watches the bot sees its preview and open transcript in the panel.
 
 ## Limits
 

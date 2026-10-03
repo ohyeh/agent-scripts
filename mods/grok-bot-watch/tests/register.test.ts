@@ -23,7 +23,7 @@ function world(
   reads: string[],
   answers: Array<'accept' | 'drop' | 'undef' | Promise<'accept' | 'drop'>> = [],
   /** node: what `command -v node` prints; hold: every helper run waits on it; beforeGet: runs inside a store.get, after the value is captured. */
-  opts: { node?: string; hold?: Promise<void>; spawnFails?: number; beforeGet?: (key: string) => Promise<void>; floorRows?: number } = {},
+  opts: { sid?: string; node?: string; hold?: Promise<void>; spawnFails?: number; beforeGet?: (key: string) => Promise<void>; floorRows?: number } = {},
 ) {
   const woken: string[] = []
   const toasts: string[] = []
@@ -31,7 +31,7 @@ function world(
   let lookups = 0
   let spawnErrors = 0
   const ensures: string[] = []
-  on('session.id', () => ({ value: 'sess-A' }))
+  on('session.id', () => ({ value: opts.sid ?? 'sess-A' }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('tool.register', ($, e) => ({ value: { tool: e.name } }))
   on('command.register', ($, e) => ({ value: { command: e.name } }))
@@ -115,14 +115,27 @@ describe('eligibility (S2)', () => {
 
   test('a reply tagged for another session does not wake; mine and untagged do (primary bot)', async ($, on) => {
     const clock = mock.clock(on)
-    const w = world(on, [ok(row('A')), ok(row('[w:sess-B12] for B')), ok(row('[w:sess-A] for me')), ok(row('untagged'))])
+    const sid = 'abcdef12-3456-4789-8abc-def012345678'
+    const w = world(on, [ok(row('A')), ok(row('[w:zzzzzzzz] for B')), ok(row('[w:abcdef12] for me')), ok(row('untagged'))], [], { sid })
     await $.session.start(start)
     const r = await $.tool.call({ tool: WATCH, botUuid: UUID })
-    expect(JSON.stringify(r)).toContain('[w:sess-A]')
+    expect(JSON.stringify(r), 'a UUID session id: the tag is its sid8').toContain('[w:abcdef12]')
     await clock.advance(TICK * 3)
     expect(w.woken).toHaveLength(2)
-    expect(w.woken[0]).toContain('preview: [w:sess-A] for me')
+    expect(w.woken[0]).toContain('preview: [w:abcdef12] for me')
     expect(w.woken[1]).toContain('preview: untagged')
+  })
+
+  test('two local- fallback ids get distinct tags, not their shared 8-char prefix (Sol r1 P1)', async ($, on) => {
+    const clock = mock.clock(on)
+    // The other fallback session's reply, under its own tag (any 8 [0-9a-z] that is not ours).
+    const w = world(on, [ok(row('A')), ok(row('[w:0000abcd] for the other session'))], [], { sid: 'local-ab111111' })
+    await $.session.start(start)
+    const r = JSON.stringify(await $.tool.call({ tool: WATCH, botUuid: UUID }))
+    expect(r).not.toContain('[w:local-ab]')
+    expect(r).toMatch(/\[w:[0-9a-z]{8}\]/)
+    await clock.advance(TICK * 2)
+    expect(w.woken).toHaveLength(0)
   })
 
   test('an empty preview, a draft and the old reply again never wake', async ($, on) => {

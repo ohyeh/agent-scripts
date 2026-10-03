@@ -8,6 +8,13 @@
 
 - The lock drops 16 skills (64 → 48), judged by what a skill carries, not how often it ran. Removed: `karpathy-guidelines`, `git-commit`, `refactor`, `simplify`, `resolving-merge-conflicts` (generic discipline the kernel already states); `brainstorming` (its approval wait conflicts with the kernel; its visual companion goes with it); `high-end-visual-design`, `design-taste-frontend` (prose-only taste, same job as `impeccable`, now the one direction authority); `image-to-code`, `imagegen-frontend-web`, `imagegen-frontend-mobile` (the image-first pipeline is gone from `using-design-skills`); `pierre-guard` (upstream 404), `release-plannotator`, `review-renovate`, `migrate-to-shoehorn`, `update-deps` (bound to projects and tools no local repo uses). Then `wait-what` (48 → 47): the kernel-routed `simplified-english` rule already re-explains a message that did not land. The kernel, routers, router hook table and design evals drop every reference; `deploy.sh` removes the directories on each machine at its next deploy.
 
+## grok-bot-watch 0.7.1
+
+- Review fixes (Sol r1 `VERDICT: BLOCK`, P1). A session tag is a UUID session id's first 8 characters, else an 8-character hash of the whole id: two `local-` fallback ids shared `[w:local-ab]` under 0.6.2. A tag is exactly `[w:` + 8 `[0-9a-z]` + `]` at the start of the reply, so other bracketed text no longer counts. The new fallback test fails with the 0.6.2 token (59 pass, 1 fail).
+- README states what the tag does not do: the echo is best effort, a quoted tag misroutes, one preview per bot drops a reply when two settle inside one read, streaming arms every watcher, and every watcher sees the panel's preview.
+- `ensure.mjs` gets 90 s from the mod and the TUI (its slow path is about 57 s).
+- `using-grok-bot-app` "Sending is gated": a message to one of our own agents inside an approved task goes without approval of its text (owner ruling 2026-10-03); hard-stop actions still need it.
+
 ## grok-bot-watch 0.7.0
 
 - The CDP port moves from 9231 to 39231 (Chrome and Node debuggers sit at 9222-9230; other tools collided). `GROK_BOT_CDP_PORT` overrides it for the sidebar helper, `grok-bot-tui` and the mod (the engine runs the helper over its own environment). Each read reports the port it used.
