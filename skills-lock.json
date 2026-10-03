@@ -96,9 +96,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/delegation-templates/SKILL.md",
-      "skillFolderHash": "85742c12323758e3f6463bcbc73c6d0aa5018302",
+      "skillFolderHash": "7fed00ea54e73dfeccb6aba5a782959fd64bc299",
       "installedAt": "2026-07-18T20:48:21.471Z",
-      "updatedAt": "2026-09-27T13:47:33.696Z"
+      "updatedAt": "2026-10-03T18:55:14.332Z"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -323,18 +323,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-grok-bot-app/SKILL.md",
-      "skillFolderHash": "7200752bac368d5ae095f4dccea5c844f0b5170b",
+      "skillFolderHash": "69bdfa1a193aced67647883e9096a6dab1d47c92",
       "installedAt": "2026-09-04T08:30:33.000Z",
-      "updatedAt": "2026-10-03T01:57:34.489Z"
+      "updatedAt": "2026-10-03T18:55:16.963Z"
     },
     "using-skills": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-skills/SKILL.md",
-      "skillFolderHash": "22cdfb15476fe1aad29393a0af0383887f0dc275",
+      "skillFolderHash": "67bac14e511dbefef7024e3203484135511f3b28",
       "installedAt": "2026-07-19T11:40:52.644Z",
-      "updatedAt": "2026-09-27T16:08:03.746Z"
+      "updatedAt": "2026-10-03T18:55:18.955Z"
     },
     "using-tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
@@ -350,9 +350,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-workflows/SKILL.md",
-      "skillFolderHash": "99f94bc7ffd02004f721c8e7c07eceb820bbd6a6",
+      "skillFolderHash": "1da3d85970e8074c8a6799675ac6a891076d3575",
       "installedAt": "2026-07-18T20:48:21.473Z",
-      "updatedAt": "2026-09-28T12:51:19.510Z"
+      "updatedAt": "2026-10-03T18:55:21.443Z"
     },
     "verification-before-completion": {
       "source": "obra/superpowers",
@@ -395,9 +395,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/writing-artifacts/SKILL.md",
-      "skillFolderHash": "afffcc78ec092f5e25c368ce8b9896abfdb37d90",
+      "skillFolderHash": "7664f08b9901987c6a70160d17e9b47bdcecfde0",
       "installedAt": "2026-08-01T11:44:27.233Z",
-      "updatedAt": "2026-08-24T01:56:08.974Z"
+      "updatedAt": "2026-10-03T18:55:23.622Z"
     },
     "writing-beats": {
       "source": "mattpocock/skills",
