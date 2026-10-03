@@ -84,20 +84,31 @@ async function deliver(d, id, text) {
 }
 
 /**
- * In-page: how many messages of the open transcript are from "You" with exactly this body, split as
+ * A body's letters and digits only. The transcript shows the message rendered as Markdown, so list
+ * markers, list numbers, table pipes, fences and link URLs are gone there; compare what survives.
+ */
+export const key = s => s
+  .replace(/^\s*```.*$/gm, '')
+  .replace(/^\s*\d+[.)]\s/gm, '')
+  .replace(/\]\([^)]*\)/g, '')
+  .replace(/[^\p{L}\p{N}]+/gu, '')
+
+/**
+ * In-page: how many messages of the open transcript are from "You" with this body (by key), split as
  * sidebar.mjs splits them (sender line, blank line, body, then a "9:58 PM" line). A bot's reply that
  * quotes the text is not one (Sol r3 P2). -1: no transcript.
  */
 const MINE = text => `(() => {
   const l = document.querySelector('[role=log][aria-label="Conversation transcript"]');
   if (!l) return -1;
-  const want = ${JSON.stringify(norm(text))};
+  const key = ${key};
+  const want = ${JSON.stringify(key(text))};
   const parts = l.innerText.split(/\\n\\n(\\d{1,2}:\\d{2} [AP]M)(?:\\n|$)/);
   let n = 0;
   for (let i = 0; i + 1 < parts.length; i += 2) {
     const c = parts[i].replace(/^\\n+/, '');
     const k = c.indexOf('\\n\\n');
-    if (k >= 0 && c.slice(0, k).split('\\n').pop() === 'You' && c.slice(k + 2).replace(/\\s+/g, ' ').trim() === want) n++;
+    if (k >= 0 && c.slice(0, k).split('\\n').pop() === 'You' && key(c.slice(k + 2)) === want) n++;
   }
   return n;
 })()`

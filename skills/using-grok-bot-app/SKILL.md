@@ -189,25 +189,36 @@ can read (NOVA consensus 2026-10-04):
   past about 2 minutes, one `進度` line with an ETA.
 - `不需回覆` / FYI means no reply at all, not even 收到.
 
-The grok-bot-watch band adds the tag and mark from its open row.
+The regex is for filters. A wake needs only the tag at the start: a reply that
+drops the `｜` still wakes, but the filter misses it. The grok-bot-watch band
+adds the tag and mark from its open row.
 
-**First use in an environment.** The mechanism needs four bots; UUIDs differ
+**A wake is a hint, not delivery.** Two replies inside one 10 s read keep only
+the last, and a reply without your tag wakes nobody. When the answer is later
+than you expected, read the agent front's transcript and look for your tag
+and `#<task>`; the task is not done until you find the answer. If you find an
+answer with a wrong or missing header, ask the agent front to send it again
+with your tag.
+
+**First use in an environment.** The mechanism needs five bots; UUIDs differ
 per account, so find them by name (one `sidebar.mjs` read):
 
 ```sh
 node scripts/sidebar.mjs | jq -r '.rows[] | "\(.id[0:8])  \(.name)"' \
-  | grep -E 'Main Bot|NOVA 替身·agent|^.{10}RULES$|^.{10}sandbox$'
+  | grep -E 'Main Bot|NOVA 替身 w[0-9]+|NOVA 替身·agent|^.{10}RULES$|^.{10}sandbox$'
 ```
 
 | Role | Name | Job |
 |---|---|---|
-| main bot | `…, Main Bot` | creates the others; once they exist, agents go through the agent front |
+| main bot | `…, Main Bot` | the account's own bot (NOVA): creates the others and takes no daily work; agents go through the agent front |
+| human front | `NOVA 替身 w<NN>` | serves Paul only (rotated weekly; the agent front hands it what needs Paul) |
 | agent front | `NOVA 替身·agent` | the job above; escalates to the main bot only through the human front |
 | rules | `RULES` | keeps the short rules in USER-MEMORY and syncs shared memory |
 | sandbox | `sandbox` | send and format tests; no reply to `不需回覆` |
 
 For each missing one, ask the main bot to create it with that job and the
-message format above, and wait for its name and UUID. Then ask RULES to write
+message format above, and wait for its name and UUID. No main bot means no
+account to build on: ask Paul. Then ask RULES to write
 the message format as a short rule. Until the agent front exists, write to the
 main bot with the full header. A message to one of our own agents (a
 Claude session, Codex, NOVA) inside an approved task — status, evidence, a

@@ -8,6 +8,11 @@
 
 - The lock drops 16 skills (64 → 48), judged by what a skill carries, not how often it ran. Removed: `karpathy-guidelines`, `git-commit`, `refactor`, `simplify`, `resolving-merge-conflicts` (generic discipline the kernel already states); `brainstorming` (its approval wait conflicts with the kernel; its visual companion goes with it); `high-end-visual-design`, `design-taste-frontend` (prose-only taste, same job as `impeccable`, now the one direction authority); `image-to-code`, `imagegen-frontend-web`, `imagegen-frontend-mobile` (the image-first pipeline is gone from `using-design-skills`); `pierre-guard` (upstream 404), `release-plannotator`, `review-renovate`, `migrate-to-shoehorn`, `update-deps` (bound to projects and tools no local repo uses). Then `wait-what` (48 → 47): the kernel-routed `simplified-english` rule already re-explains a message that did not land. The kernel, routers, router hook table and design evals drop every reference; `deploy.sh` removes the directories on each machine at its next deploy.
 
+## grok-bot-watch 0.9.1
+
+- `send.mjs` counts the sent message by its letters and digits, so a Markdown body (tables, lists, code, links) that the transcript shows rendered is confirmed `sent`, not a false `unconfirmed` (3 seen on 2026-10-04; live on sandbox after the fix: `sent`).
+- `using-grok-bot-app`: a wake is a hint; when an answer is late, read the agent front's transcript by tag and `#<task>`. First use checks five bots, the human front included; no main bot goes to Paul. Consensus: NOVA PASS, advisor PASS, Sol BLOCK (P1/P2 taken in), Paul 2026-10-04.
+
 ## grok-bot-watch 0.9.0
 
 - Who a reply wakes changes (NOVA consensus 2026-10-04, approved by Paul). The app shows Paul's messages and ours as `You`, and an untagged reply meant both "broadcast" and "answer to Paul": w40 answered 62 untagged messages from Paul's iOS app with this session's tag, which woke a session that was not in the conversation. Now only `[w:<sid8>]` (that session) and the new `[w:*]` (every watcher) wake; an untagged reply answers Paul and wakes nobody. Breaking for a bot that forgets to echo the tag: its reply no longer wakes anyone.
