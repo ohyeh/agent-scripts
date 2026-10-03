@@ -123,7 +123,9 @@ describe('eligibility (S2)', () => {
     await clock.advance(TICK * 3)
     expect(w.woken).toHaveLength(2)
     expect(w.woken[0]).toContain('preview: [w:abcdef12] for me')
+    expect(w.woken[0]).toContain('answers a message from this session')
     expect(w.woken[1]).toContain('preview: untagged')
+    expect(w.woken[1], 'an untagged wake says it may be someone else\'s').toContain("may answer another session's message")
   })
 
   test('a local- fallback id gets a hash tag, not the 8-char prefix every fallback shares (Sol r1 P1)', async ($, on) => {
