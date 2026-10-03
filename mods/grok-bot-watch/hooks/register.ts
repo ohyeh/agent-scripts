@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.8.1'
+const MOD_VERSION = '0.8.2'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -220,9 +220,16 @@ async function sendTo(s: State, $: $, w: Watch, name: string, text: string) {
   s.sending = w.botUuid
   $.ui.invalidate('ui.render')
   try {
-    const r = await $.process.run([s.node, `${$.plugin.root}/bin/send.mjs`, w.botUuid], { stdin: `${tagOf(s.sid)} ${text}`, timeoutMs: 20_000 })
+    // Tagged once: text that already starts with a tag (this session's, or one typed on purpose) goes as typed (Sol P2).
+    const stdin = TAG_RE.test(text) ? text : `${tagOf(s.sid)} ${text}`
+    const r = await $.process.run([s.node, `${$.plugin.root}/bin/send.mjs`, w.botUuid], { stdin, timeoutMs: 20_000 })
     const out = JSON.parse(r.stdout) as { state: string }
-    $.ui.toast(out.state === 'sent' ? `grok-bot-watch: sent to ${name}` : `grok-bot-watch: not sent to ${name}: ${out.state}`)
+    $.ui.toast(
+      out.state === 'sent' ? `grok-bot-watch: sent to ${name}`
+      // Submitted but not seen in the transcript, or cut off mid-run: it may have gone. Resending could double it.
+      : out.state === 'unconfirmed' || out.state === 'timeout' || out.state === 'failed' ? `grok-bot-watch: ${out.state} for ${name}: check the app before resending`
+      : `grok-bot-watch: not sent to ${name}: ${out.state}`,
+    )
   } catch (err) {
     $.ui.toast(`grok-bot-watch: not sent to ${name}: ${clean(String(err), 120)}`)
   } finally {

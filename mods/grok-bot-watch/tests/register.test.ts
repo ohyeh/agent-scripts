@@ -961,6 +961,23 @@ describe('reply from the panel 0.8.0', () => {
     expect(JSON.stringify(await $.ui.render(band()))).not.toContain(`"send-${key}"`)
   })
 
+  test('text that already starts with this session\'s tag is not tagged twice (Sol P2)', async ($, on) => {
+    const w = await openRow($, on)
+    await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: 'hi', requestId: 'above-prompt' })
+    await macrotask()
+    const tag = w.sends[0]!.stdin.slice(0, 12)
+    await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: `${tag} again`, requestId: 'above-prompt' })
+    await macrotask()
+    expect(w.sends[1]!.stdin).toBe(`${tag} again`)
+  })
+
+  test('a send that may have gone says check the app, not sent and not refused', async ($, on) => {
+    const w = await openRow($, on, { sendState: 'unconfirmed' })
+    await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: 'hi', requestId: 'above-prompt' })
+    await macrotask()
+    expect(w.toasts).toContain('grok-bot-watch: unconfirmed for NOVA: check the app before resending')
+  })
+
   test('a send the app refuses toasts why (a draft in the composer is left alone)', async ($, on) => {
     const w = await openRow($, on, { sendState: 'draft' })
     await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: 'hi', requestId: 'above-prompt' })

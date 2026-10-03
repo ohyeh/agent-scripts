@@ -65,11 +65,12 @@ the field with a toast saying why, and Enter on nothing closes it. The field
 is the same path as the `watch` tool. Mobile has no text field: use the command. `[ ▸ ]` (`o`, one watch only) opens the row.
 The open row starts with a reply line (the workers panel's tell line): type
 and Enter sends it to that bot, prefixed with this session's tag so its answer
-wakes this session only (Sharing a bot between sessions). `bin/send.mjs` opens
-the bot in the app, pastes the text and presses Enter; a toast says `sent` or
-why not. A draft already in the app's composer is someone typing: nothing is
-sent and nothing is touched (`draft`). One send at a time. Mobile has no text
-field. When the bot is the one open in the app, the row shows the last 5 messages of both
+wakes this session only (Sharing a bot between sessions); text that already
+starts with a tag goes as typed. `bin/send.mjs` opens the bot in the app and
+sends it; a toast says `sent`, `… check the app before resending` when it may
+have gone but was not seen (`unconfirmed`, `timeout`, `failed`), or why not. A
+draft already in the app's composer is someone typing: nothing is sent and the
+draft is never cleared (`draft`). One send at a time. Mobile has no text field. When the bot is the one open in the app, the row shows the last 5 messages of both
 sides, oldest first, read from the transcript on screen (only a send clicks a
 bot open). Otherwise it shows the last 5 new replies the mod saw (a lost wake is listed too), newest
 first: the sidebar previews (≤ 140 characters on 0.59.1, stored cut to 200),
@@ -134,12 +135,16 @@ expression. It prints one JSON line (`ok`, `port-down`, `renderer-missing`,
 within 2.5 s. The panel adds `no-process` (no `node`) and `helper-failed`
 (the run itself failed; the error is in the debug log). It sends no other CDP method.
 
-`bin/send.mjs` (the skill's `scripts/send.mjs`) is the only writer: it reads the
-message from stdin, clicks the bot's sidebar row, waits until the app has it
-open, pastes into the empty composer, checks the composer holds exactly that
-text and the same bot is still open, then sends a trusted Enter
-(`Input.dispatchKeyEvent`). It prints `sent` once the composer empties, or
-`draft`, `no-bot`, `not-open`, `not-pasted` (cleared again), `not-sent`, `down`.
+`bin/send.mjs` (the skill's `scripts/send.mjs`) is the only writer. It reads the
+message from stdin and clicks the bot's sidebar row unless it is already open.
+The send is one `Runtime.evaluate`, so no click or keystroke lands between its
+checks and its actions: the bot is open and the composer empty, paste, the
+composer holds the text (whitespace-normalized); then 50 ms for the app's form
+state, and again with no gap: same bot, same text, submit the composer's form.
+It clears only a paste it just checked. It prints `sent` once the open bot's
+transcript shows the message; otherwise `unconfirmed`, `draft`, `moved` (another
+bot opened in the 50 ms; the text stays in the first bot's composer), `edited`,
+`not-pasted`, `not-sent`, `no-bot`, `not-open`, `down`.
 
 ## Checks
 
