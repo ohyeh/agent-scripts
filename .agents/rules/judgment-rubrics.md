@@ -160,6 +160,11 @@ poisoned (wrong repo, corrupted state) or an independent reviewer is required
 roster and judge BEFORE the first result arrives, run one round, then decide; adding a lens after
 an answer you disliked is shopping. Dispatch spends the user's wall-clock — unbounded fan-out is
 their cost decision, not yours.
+Reviewer shopping is the same offence: the re-check of fixes for a reviewer's findings goes back
+to THAT reviewer (`tell` / resume the same worker), every round, until it returns its verdict. A
+fresh reviewer per fix round is shopping even when every finding was fixed — it drops the
+reviewer's context and reads as hunting for a PASS. (2026-10-03: batch B sent each re-check to a
+new Sol worker — sol-review-midturn, sol-review-b, sol-recheck-b — until the user flagged it.)
 
 ## §5 Quality floor — the minimum bar and how to check it
 Apply: before handing over any artifact (code, doc, config, report).
