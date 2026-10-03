@@ -114,9 +114,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "e2dbbff94504513faa9cf558fc4e4927a61b477e",
+      "skillFolderHash": "4757952e02e355232cca7f353356994e01e03c88",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-09-30T12:34:36.917Z"
+      "updatedAt": "2026-10-03T18:55:30.863Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -186,9 +186,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "98dc8642f86c9778ef343627045c50c9032f305c",
+      "skillFolderHash": "c2758660d925bed0160b18f34285ebe03f62fa3d",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-09-30T12:34:40.877Z"
+      "updatedAt": "2026-10-03T18:55:35.048Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -287,9 +287,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "cb77cfa8ea04a70d30ff1da25733b9c5246a7b0e",
+      "skillFolderHash": "747516d7107ea30bc8d2f7eb4e477be73d9bec4b",
       "installedAt": "2026-07-18T20:48:24.825Z",
-      "updatedAt": "2026-09-30T12:34:44.652Z"
+      "updatedAt": "2026-10-03T18:55:38.744Z"
     },
     "triage": {
       "source": "mattpocock/skills",
@@ -341,9 +341,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/using-tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "d1a743bb5c7da862bce79fde950980542214524a",
+      "skillFolderHash": "48a461c1421e5cc2a73b4b1e85a1bec51505f06b",
       "installedAt": "2026-07-18T20:48:24.826Z",
-      "updatedAt": "2026-09-30T12:34:47.182Z"
+      "updatedAt": "2026-10-03T18:55:41.056Z"
     },
     "using-workflows": {
       "source": "ohyeh/agent-scripts",
