@@ -160,8 +160,9 @@ does not send (seen live); a form submit in the paste's own tick sends nothing.
 When it opened the bot, it clicks back to the bot that was open before, unless
 someone opened another one meanwhile.
 
-**Who an agent talks to.** Only the agent front, `NOVA 替身·agent`. The human
-front (`NOVA 替身 w<NN>`, rotated weekly) serves Paul alone, so his conversation
+**Who an agent talks to.** Only the agent front, `<main> 替身·agent` (`<main>` is
+the main bot's name; on Paul's account `NOVA`). The human front (Paul's:
+`NOVA 替身 w<NN>`, his own weekly habit) serves the owner alone, so his conversation
 stays his. The agent front dispatches specialist bots over exchanges, quotes
 the original text when it forwards, and answers in its main conversation with
 your tag; what needs Paul goes to him through the human front. Send tests go to
@@ -204,15 +205,16 @@ with your tag.
 per account, so find them by name (one `sidebar.mjs` read):
 
 ```sh
-node scripts/sidebar.mjs | jq -r '.rows[] | "\(.id[0:8])  \(.name)"' \
-  | grep -E 'Main Bot|NOVA 替身 w[0-9]+|NOVA 替身·agent|^.{10}RULES$|^.{10}sandbox$'
+ROWS=$(node scripts/sidebar.mjs | jq -r '.rows[] | "\(.id[0:8])  \(.name)"')
+MAIN=$(printf '%s\n' "$ROWS" | sed -n 's/^.\{10\}\(.*\), Main Bot$/\1/p')   # the main bot's name
+printf '%s\n' "$ROWS" | grep -E ", Main Bot$|^.{10}$MAIN 替身|^.{10}(RULES|sandbox)$" | grep -v '（封存）'
 ```
 
 | Role | Name | Job |
 |---|---|---|
-| main bot | `…, Main Bot` | the account's own bot (NOVA): creates the others and takes no daily work; agents go through the agent front |
-| human front | `NOVA 替身 w<NN>` | serves Paul only (rotated weekly; the agent front hands it what needs Paul) |
-| agent front | `NOVA 替身·agent` | the job above; escalates to the main bot only through the human front |
+| main bot | `<main>, Main Bot` | the account's own bot: creates the others and takes no daily work; agents go through the agent front |
+| human front | owner's choice (Paul: `NOVA 替身 w<NN>`) | serves the owner only (the agent front hands it what needs the owner) |
+| agent front | `<main> 替身·agent` | the job above; escalates to the main bot only through the human front |
 | rules | `RULES` | keeps the short rules in USER-MEMORY and syncs shared memory |
 | sandbox | `sandbox` | send and format tests; no reply to `不需回覆` |
 
