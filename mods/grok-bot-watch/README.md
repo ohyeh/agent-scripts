@@ -112,9 +112,12 @@ It cuts noise; it is not isolation or delivery (review: Sol r1, NOVA 2026-10-03)
 
 - The bot's echo is best effort. A reply that drops the tag, or has it cut off
   the preview, wakes nobody: the session sees it only in the panel or the transcript.
-- There is no separate thread (seen live on 0.66.0, sandbox bot): a `reply_to`
-  reply shows in the main transcript under a quote of the message it answers,
-  and the sidebar preview still starts with the reply's own tag, so it wakes as usual.
+- A `reply_to` reply (Reply) shows in the main transcript under a quote, and the
+  sidebar preview keeps its tag, so it wakes as usual (seen live on 0.66.0). A
+  thread (iOS: Start a thread; desktop: a "Task thread" panel behind the
+  `sand_tasks` flag, not shown on this Mac) is a separate place: whether its
+  replies reach the sidebar preview is UNCONFIRMED. Put the line that should wake
+  a session in the main conversation, tagged.
 - A reply that opens by quoting another tag is taken as that session's.
 - The sidebar shows one preview per bot. Two replies settling within one 10 s read
   keep only the last: the first session's reply is never seen.
