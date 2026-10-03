@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { describe, expect, mock, test } from 'claude-code/testing'
+import { type TestBody, describe, expect, mock, test } from 'claude-code/testing'
 
 const UUID = '201040cc-5be6-4d04-9f18-62f181a84677'
 const OTHER = '0e9cd37b-0000-4000-8000-000000000000'
@@ -23,7 +23,7 @@ function world(
   reads: string[],
   answers: Array<'accept' | 'drop' | 'undef' | Promise<'accept' | 'drop'>> = [],
   /** node: what `command -v node` prints; hold: every helper run waits on it; beforeGet: runs inside a store.get, after the value is captured. */
-  opts: { sid?: string; node?: string; hold?: Promise<void>; spawnFails?: number; beforeGet?: (key: string) => Promise<void>; floorRows?: number } = {},
+  opts: { sid?: string; node?: string; hold?: Promise<void>; spawnFails?: number; beforeGet?: (key: string) => Promise<void>; floorRows?: number; sendState?: string } = {},
 ) {
   const woken: string[] = []
   const toasts: string[] = []
@@ -31,6 +31,8 @@ function world(
   let lookups = 0
   let spawnErrors = 0
   const ensures: string[] = []
+  /** Every bin/send.mjs run: its bot argument and the message on its stdin. */
+  const sends: Array<{ bot: string; stdin: string }> = []
   on('session.id', () => ({ value: opts.sid ?? 'sess-A' }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('tool.register', ($, e) => ({ value: { tool: e.name } }))
@@ -66,6 +68,10 @@ function world(
       return { value: { exitCode: 0, stdout: opts.node ?? 'profile says hi\n/n/node\n', stderr: '' } }
     }
     if (e.argv[0] !== '/n/node') throw new Error(`spawn ENOENT ${e.argv[0]}`)
+    if (e.argv[1]?.endsWith('/bin/send.mjs')) {
+      sends.push({ bot: e.argv[2]!, stdin: String(e.init?.stdin) })
+      return { value: { exitCode: 0, stdout: JSON.stringify({ state: opts.sendState ?? 'sent', port: 39231 }), stderr: '' } }
+    }
     if (e.argv[1]?.endsWith('/bin/ensure.mjs')) {
       ensures.push(e.argv[1])
       return { value: { exitCode: 0, stdout: '{"state":"restarted","port":39231}', stderr: '' } }
@@ -87,7 +93,7 @@ function world(
     if (answer === 'undef') return { text: e.text, drop: undefined }
     return answer === 'drop' ? { drop: 'refused in test' } : { text: e.text }
   })
-  return { woken, toasts, kv, ensures, runs: () => helperRuns, lookups: () => lookups }
+  return { woken, toasts, kv, ensures, sends, runs: () => helperRuns, lookups: () => lookups }
 }
 
 // The test lib declares no timers; the runtime has them. One macrotask lets engine dispatches settle.
@@ -745,8 +751,8 @@ describe('recent replies 0.3.0', () => {
     await clock.advance(TICK * 3)
     await $.ui.render(band())
     await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
-    // 7 rows, the floor drew 3: header, the row, one history line, then +N more.
-    const t = textOf(await $.ui.render(band({ maxRows: 7 }))).replace(/\n/g, '')
+    // 8 rows, the floor drew 3: header, the row, its reply line, one history line, then +N more.
+    const t = textOf(await $.ui.render(band({ maxRows: 8 }))).replace(/\n/g, '')
     expect(t).toContain('worker 2')
     expect(t).toContain('「D」')
     expect(t).toContain('+3 more')
@@ -920,5 +926,45 @@ describe('watch from the panel 0.5.0', () => {
     expect(await hasField($)).toBe(true)
     await $.ui.press({ plugin: PLUGIN, key: 'add', requestId: 'above-prompt' })
     expect(await hasField($)).toBe(false)
+  })
+})
+
+describe('reply from the panel 0.8.0', () => {
+  const openRow = async ($: Parameters<TestBody>[0], on: On, opts: { sendState?: string } = {}) => {
+    mock.clock(on)
+    const w = world(on, [ok(row('A'))], [], opts)
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await $.ui.render(band())
+    await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
+    await $.ui.render(band())
+    return w
+  }
+
+  test('the open row takes a reply: Enter sends it to that bot through send.mjs, tagged with this session', async ($, on) => {
+    const w = await openRow($, on)
+    expect(JSON.stringify(await $.ui.render(band()))).toContain(`"send-${key}"`)
+    await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: '  hi there ', requestId: 'above-prompt' })
+    await macrotask()
+    expect(w.sends).toHaveLength(1)
+    expect(w.sends[0]!.bot).toBe(UUID)
+    expect(w.sends[0]!.stdin).toMatch(/^\[w:[0-9a-z]{8}\] hi there$/)
+    expect(w.toasts).toContain('grok-bot-watch: sent to NOVA')
+  })
+
+  test('a closed row has no reply line; Enter on nothing sends nothing', async ($, on) => {
+    const w = await openRow($, on)
+    await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: '   ', requestId: 'above-prompt' })
+    await macrotask()
+    expect(w.sends).toHaveLength(0)
+    await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
+    expect(JSON.stringify(await $.ui.render(band()))).not.toContain(`"send-${key}"`)
+  })
+
+  test('a send the app refuses toasts why (a draft in the composer is left alone)', async ($, on) => {
+    const w = await openRow($, on, { sendState: 'draft' })
+    await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: 'hi', requestId: 'above-prompt' })
+    await macrotask()
+    expect(w.toasts).toContain('grok-bot-watch: not sent to NOVA: draft')
   })
 })

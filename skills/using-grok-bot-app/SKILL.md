@@ -148,8 +148,14 @@ nothing to PATH. To be woken in a Claude Code session when a bot replies, use th
 
 ## Sending is gated
 
-Typing into the composer works: it is a single `div[contenteditable=true]` with
-placeholder `Prompt`, and Enter submits. A message to one of our own agents (a
+Send with `scripts/send.mjs <bot-uuid-or-prefix> < message` (stdin is the
+message): it opens the bot, pastes into the composer (a single
+`div[contenteditable=true]`, placeholder `Prompt`), checks the text landed and
+the bot is still open, and presses a trusted Enter. It prints one JSON line;
+`sent` (exit 0) means the composer emptied. It refuses `draft` when the composer
+already holds text, so it never clobbers someone typing. Start the message with
+your session tag (`[w:<sid8>]`) when the bot serves other sessions. The
+grok-bot-watch band does the same from its open row. A message to one of our own agents (a
 Claude session, Codex, NOVA) inside an approved task — status, evidence, a
 question, a review request, tag coordination, delegation of reversible work —
 goes without approval of its text (owner ruling 2026-10-03). Confirm the

@@ -17,7 +17,7 @@ cd "$(dirname "${(%):-%x}")/.."
 SRC=skills/using-grok-bot-app/scripts
 DST=mods/grok-bot-watch
 # source path under SRC -> copy path under DST
-typeset -A FILES=(lib/core.ts hooks/lib/core.ts sidebar.mjs bin/sidebar.mjs ensure.mjs bin/ensure.mjs)
+typeset -A FILES=(lib/core.ts hooks/lib/core.ts sidebar.mjs bin/sidebar.mjs ensure.mjs bin/ensure.mjs send.mjs bin/send.mjs)
 
 if [[ "${1:-}" == --check ]]; then
   drift=0

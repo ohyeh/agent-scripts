@@ -41,6 +41,7 @@ watch is never shown: a wake belongs to the conversation that armed it.
 ```
 ▌grok bot watch v0.5.2 · 1 bot · read 4s ago [ + ] [ hide ]
   ● NOVA 替身 w39 201040cc · waiting · woke 2× 5m ago [ ▾ ] [ unwatch ] 「第二次收到」
+    reply to NOVA 替身 w39, tagged [w:29a98092] — Enter sends          [ send ]
       2:03 AM You · 「請再回一次「第二次收到」」
       2:03 AM NOVA 替身 w39 · 「第二次收到」
 ```
@@ -61,8 +62,14 @@ one watch only) stops that watch. `[ + ]` (`w`) opens a field above the rows:
 type a UUID or an 8+ char prefix and Enter watches it; a refused id stays in
 the field with a toast saying why, and Enter on nothing closes it. The field
 is the same path as the `watch` tool. Mobile has no text field: use the command. `[ ▸ ]` (`o`, one watch only) opens the row.
-When the bot is the one open in the app, it shows the last 5 messages of both
-sides, oldest first, read from the transcript on screen (the mod never clicks a
+The open row starts with a reply line (the workers panel's tell line): type
+and Enter sends it to that bot, prefixed with this session's tag so its answer
+wakes this session only (Sharing a bot between sessions). `bin/send.mjs` opens
+the bot in the app, pastes the text and presses Enter; a toast says `sent` or
+why not. A draft already in the app's composer is someone typing: nothing is
+sent and nothing is touched (`draft`). One send at a time. Mobile has no text
+field. When the bot is the one open in the app, the row shows the last 5 messages of both
+sides, oldest first, read from the transcript on screen (only a send clicks a
 bot open). Otherwise it shows the last 5 new replies the mod saw (a lost wake is listed too), newest
 first: the sidebar previews (≤ 140 characters on 0.59.1, stored cut to 200),
 kept in the watch record. Read the
@@ -126,19 +133,26 @@ expression. It prints one JSON line (`ok`, `port-down`, `renderer-missing`,
 within 2.5 s. The panel adds `no-process` (no `node`) and `helper-failed`
 (the run itself failed; the error is in the debug log). It sends no other CDP method.
 
+`bin/send.mjs` (the skill's `scripts/send.mjs`) is the only writer: it reads the
+message from stdin, clicks the bot's sidebar row, waits until the app has it
+open, pastes into the empty composer, checks the composer holds exactly that
+text and the same bot is still open, then sends a trusted Enter
+(`Input.dispatchKeyEvent`). It prints `sent` once the composer empties, or
+`draft`, `no-bot`, `not-open`, `not-pasted` (cleared again), `not-sent`, `down`.
+
 ## Checks
 
 ```sh
 scripts/test-mod-permissions-smoke   # pinned permission surface + plugin test
 scripts/test-mod-typecheck-smoke     # tsc over mods/
-node --test skills/using-grok-bot-app/scripts/sidebar.test.mjs
+node --test skills/using-grok-bot-app/scripts/{sidebar,ensure,send}.test.mjs
 scripts/sync-mod-core --check       # the copies match the skill (also in test-version-sync-smoke)
 ```
 
 ## Core
 
-`hooks/lib/core.ts` and `bin/sidebar.mjs` are copies of
-`skills/using-grok-bot-app/scripts/{lib/core.ts,sidebar.mjs}`, shared with the
+`hooks/lib/core.ts` and `bin/{sidebar,ensure,send}.mjs` are copies of
+`skills/using-grok-bot-app/scripts/{lib/core.ts,sidebar.mjs,ensure.mjs,send.mjs}`, shared with the
 skill's `grok-bot-tui`. Edit the skill's files, then run `scripts/sync-mod-core`.
 Why two packages: this mod is a Claude Code-only plugin whose cache holds only
 this dir, and the skill is installed differently per person, so neither may

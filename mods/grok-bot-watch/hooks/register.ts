@@ -2,10 +2,10 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean, fit, inProgress, liveState, settled } from './lib/core.ts'
 
 // Watch a Grok Bot bot by UUID; wake this session once when a new reply settles.
-// The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
-// to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
+// The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
+// band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.7.6'
+const MOD_VERSION = '0.8.0'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -85,6 +85,8 @@ type State = {
   sid: string; node?: string; inflight?: Promise<Read>; lastState?: string; lastBeat?: number; pruneAfter?: number; seq: number
   /** bin/ensure.mjs is running, and when it last started. */
   ensuring?: boolean; lastEnsure?: number
+  /** The bot a reply typed in the band is going to: one send at a time. */
+  sending?: string
   status: Map<string, string>; names: Map<string, string>
   /** The watched row as last read: live state for the panel only, never persisted. */
   live: Map<string, Row>
@@ -203,6 +205,29 @@ async function ensureApp(s: State, $: $, now: number) {
     $.ui.log(`grok-bot-watch: ensure failed: ${String(err)}`, { to: 'debug' })
   } finally {
     s.ensuring = false
+  }
+}
+
+/**
+ * A reply typed under the open row (the workers panel's tell line): tagged with this session's tag so the
+ * bot's answer wakes this session only, then sent by bin/send.mjs. The toast says what happened.
+ */
+async function sendTo(s: State, $: $, w: Watch, name: string, text: string) {
+  if (s.sending || !s.node) {
+    $.ui.toast(s.sending ? 'grok-bot-watch: a reply is still going out' : 'grok-bot-watch: node not found yet; try again after the next read')
+    return
+  }
+  s.sending = w.botUuid
+  $.ui.invalidate('ui.render')
+  try {
+    const r = await $.process.run([s.node, `${$.plugin.root}/bin/send.mjs`, w.botUuid], { stdin: `${tagOf(s.sid)} ${text}`, timeoutMs: 20_000 })
+    const out = JSON.parse(r.stdout) as { state: string }
+    $.ui.toast(out.state === 'sent' ? `grok-bot-watch: sent to ${name}` : `grok-bot-watch: not sent to ${name}: ${out.state}`)
+  } catch (err) {
+    $.ui.toast(`grok-bot-watch: not sent to ${name}: ${clean(String(err), 120)}`)
+  } finally {
+    s.sending = undefined
+    $.ui.invalidate('ui.render')
   }
 }
 
@@ -498,6 +523,18 @@ export const register: Register = on => {
       })
     }
     // The open row's replies sit under it, newest first; they come out of the same budget.
+    // The open row takes a reply: Enter sends it, tagged, to that bot (workers' tell line). mobile has no Input.
+    const reply = (r: Bot) =>
+      s.open === r.key && 'Input' in els
+        ? [els.Input({
+          key: `send-${r.key}`, label: '    ', submitLabel: 'send',
+          placeholder: s.sending === r.w.botUuid ? 'sending…' : `reply to ${clean(r.name, 24)}, tagged ${tagOf(s.sid)} — Enter sends`,
+          onSubmit: (v: string) => {
+            const text = v.trim()
+            if (text) void sendTo(s, $, r.w, clean(r.name, 40), text)
+          },
+        })]
+        : []
     const history = (r: Bot) => {
       if (s.open !== r.key) return []
       // The bot open in the app: both sides of its conversation, oldest first, as a chat reads.
@@ -525,7 +562,7 @@ export const register: Register = on => {
         $.ui.invalidate('ui.render')
       })().catch(err => $.ui.log(`grok-bot-watch: watch failed: ${String(err)}`, { to: 'debug' })),
     })
-    const lines = [...(s.adding && field ? [field] : []), ...rows.flatMap(r => [rowOf(r), ...history(r)])]
+    const lines = [...(s.adding && field ? [field] : []), ...rows.flatMap(r => [rowOf(r), ...reply(r), ...history(r)])]
     const room = budget - 1
     // One row left: the first bot, not a bare "+N more"; the header still counts them all.
     const shown = lines.length <= room ? lines : room === 1 ? lines.slice(0, 1) : [...lines.slice(0, room - 1), Text({ dimColor: true, children: `  +${lines.length - room + 1} more` })]
