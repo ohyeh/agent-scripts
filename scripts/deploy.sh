@@ -306,15 +306,15 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   # descends from a #! script (cursor-agent; any agent-tmux worker) leaks ~1 KB of
   # kernel memory (data.kalloc.1024) on every #! exec until reboot (live 2026-10-03).
   def wrapBare:
-    .hooks |= with_entries(.value |= map(.hooks |= map(
+    .hooks |= ((. // {}) | with_entries(.value |= map(.hooks |= map(
       if (.command | type) == "string" and (.command | test("^\"\\$HOME/\\.agents/hooks/[^\" ]+\\.sh\"$"))
       then .command = $only + " " + .command
       elif (.command | type) == "string" and (.command | startswith("\"$HOME/.agents/hooks/claude-only.sh\" "))
-      then .command = "bash " + .command else . end)));
+      then .command = "bash " + .command else . end))));
   # repo-owned hooks once per event+matcher: a host that held both the old and the
   # new form of one hook would otherwise run it twice after the rewrite
   def dedupeFleet:
-    .hooks |= with_entries(.value |= (
+    .hooks |= ((. // {}) | with_entries(.value |= (
       reduce .[] as $g ({seen: {}, out: []};
         ($g.matcher // "") as $m
         | (reduce ($g.hooks // [])[] as $h ({seen: .seen, keep: []};
@@ -324,7 +324,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
               else .keep += [$h] | (if $k != null then .seen[$k] = true else . end) end)) as $r
         | .seen = $r.seen
         | if ($r.keep | length) > 0 then .out += [$g + {hooks: $r.keep}] else . end)
-      | .out));
+      | .out)));
   def retire(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | map(.hooks |= map(select(.command != cmd))) | map(select(.hooks | length > 0)));
@@ -351,7 +351,8 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensure("UserPromptSubmit"; $router)
   | ensureMatched("PreToolUse"; "Write|Edit|NotebookEdit|Bash|ScheduleWakeup"; $compcap)
   | ensureMatched("PreToolUse"; "ScheduleWakeup"; $idle)
-' "$SETTINGS" > "$tmp_settings" && mv "$tmp_settings" "$SETTINGS"
+' "$SETTINGS" > "$tmp_settings" || { echo "FAIL [hooks] settings.json rewrite (jq) failed" >&2; exit 1; }
+mv "$tmp_settings" "$SETTINGS"
 
 # Codex sends Claude-shaped hook payloads (live dump 2026-09-26), so the tool/stop gates run as-is.
 if [ -d ~/.codex ]; then
@@ -370,13 +371,14 @@ if [ -d ~/.codex ]; then
         | if any(.[]; any(.hooks[]?; .command == $cmd))
           then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":$cmd}]}] end);
     # pre-bash deploys registered the bare #! path; prefix bash in place (see wrapBare)
-    .hooks |= with_entries(.value |= map(.hooks |= map(
-      if (.command | type) == "string" and (.command | test("^\"\\$HOME/\\.agents/hooks/[^\" ]+\\.sh\"$"))
-      then .command = "bash " + .command else . end)))
+    def prefixBash:
+      .hooks |= ((. // {}) | with_entries(.value |= map(.hooks |= map(
+        if (.command | type) == "string" and (.command | test("^\"\\$HOME/\\.agents/hooks/[^\" ]+\\.sh\"$"))
+        then .command = "bash " + .command else . end))));
     # repo-owned hooks once per event+matcher: a host that held both the old and the
     # new form of one hook would otherwise run it twice after the rewrite
     def dedupeFleet:
-      .hooks |= with_entries(.value |= (
+      .hooks |= ((. // {}) | with_entries(.value |= (
         reduce .[] as $g ({seen: {}, out: []};
           ($g.matcher // "") as $m
           | (reduce ($g.hooks // [])[] as $h ({seen: .seen, keep: []};
@@ -386,9 +388,9 @@ if [ -d ~/.codex ]; then
                 else .keep += [$h] | (if $k != null then .seen[$k] = true else . end) end)) as $r
           | .seen = $r.seen
           | if ($r.keep | length) > 0 then .out += [$g + {hooks: $r.keep}] else . end)
-        | .out));
-
-    dedupeFleet
+        | .out)));
+    prefixBash
+    | dedupeFleet
     | ensureMatched("UserPromptSubmit"; ""; $router)
     | ensureMatched("PreToolUse"; "Bash"; $audit)
     | ensureMatched("PreToolUse"; "Bash"; $assignhost)
@@ -397,7 +399,8 @@ if [ -d ~/.codex ]; then
     | ensureMatched("PreToolUse"; "*"; $hostload)
     | ensureMatched("PostToolUse"; "*"; $ledger)
     | ensureMatched("Stop"; ""; $claim)
-  ' "$CODEX_HOOKS" > "$tmp_codex" && mv "$tmp_codex" "$CODEX_HOOKS"
+  ' "$CODEX_HOOKS" > "$tmp_codex" || { echo "FAIL [hooks] codex hooks.json rewrite (jq) failed" >&2; exit 1; }
+  mv "$tmp_codex" "$CODEX_HOOKS"
   # Codex skips a hooks.json entry until config.toml holds its trusted_hash (live:
   # host-load-gate never ran, 2026-10-03). Trust only the fleet hooks this block
   # wrote. Hash = codex-rs hooks/src/engine/discovery.rs hook_hash (rust-v0.160.0):
