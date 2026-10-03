@@ -7,7 +7,7 @@
 export type Row = { id: string; name: string; unread: boolean; preview: string; busy: string | null; current: boolean }
 export type Msg = { who: string; text: string; at: string }
 /** convo: the last messages of the bot open in the app (the row with current), from its transcript. */
-export type Read = { state: string; rows?: Row[]; convo?: Msg[]; error?: string }
+export type Read = { state: string; port?: number; rows?: Row[]; convo?: Msg[]; error?: string }
 
 export const UUID_RE = /^[0-9a-f-]{8,36}$/
 export const FULL_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/

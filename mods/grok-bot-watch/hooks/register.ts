@@ -5,13 +5,15 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP); the mod never talks
 // to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.6.2'
+const MOD_VERSION = '0.7.0'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
 const PREFIX = 'grok-bot-watch.watch.'
 const HB_PREFIX = 'grok-bot-watch.hb.'
 const ORPHAN_MS = 90_000
+/** A port that stays down is fixed again after this long (bin/ensure.mjs restarts the app), not on every tick. */
+const ENSURE_EVERY_MS = 120_000
 const PRUNE_MS = 24 * 3600_000
 const PANEL_ROWS = 4
 /** Replies kept per watch for the expanded row, each cut to 200 chars (the sidebar gave ≤ 140 on 0.59.1). */
@@ -62,6 +64,8 @@ const wakeText = (row: Row) =>
 /** Per-registration state; top-level functions take it because the validator only follows $ into them. */
 type State = {
   sid: string; node?: string; inflight?: Promise<Read>; lastState?: string; lastBeat?: number; pruneAfter?: number; seq: number
+  /** bin/ensure.mjs is running, and when it last started. */
+  ensuring?: boolean; lastEnsure?: number
   status: Map<string, string>; names: Map<string, string>
   /** The watched row as last read: live state for the panel only, never persisted. */
   live: Map<string, Row>
@@ -164,6 +168,25 @@ async function deliver(s: State, $: $, key: string, gen: number, row: Row, at: n
   }
 }
 
+/**
+ * The owner's standing rule (2026-10-02): a tool that needs the port restarts the app without asking,
+ * and an app update relaunches it without the flag. Runs beside the tick, never inside it.
+ */
+async function ensureApp(s: State, $: $, now: number) {
+  if (s.ensuring || !s.node || (s.lastEnsure !== undefined && now - s.lastEnsure < ENSURE_EVERY_MS)) return
+  s.ensuring = true
+  s.lastEnsure = now
+  try {
+    const r = await $.process.run([s.node, `${$.plugin.root}/bin/ensure.mjs`], { timeoutMs: 45_000 })
+    const out = JSON.parse(r.stdout) as { state: string; port?: number; step?: string }
+    if (out.state !== 'ok') $.ui.toast(`grok-bot-watch: Grok Bot ${out.state} on port ${out.port}${out.step ? ` (${out.step})` : ''}`)
+  } catch (err) {
+    $.ui.log(`grok-bot-watch: ensure failed: ${String(err)}`, { to: 'debug' })
+  } finally {
+    s.ensuring = false
+  }
+}
+
 async function tick(s: State, $: $) {
   if (s.inflight) return
   const keys = await mine(s, $)
@@ -171,6 +194,7 @@ async function tick(s: State, $: $) {
   const res = await readOnce(s, $)
   const t = await $.clock.now()
   if (res.state !== 'ok' || !res.rows) {
+    if (res.state === 'port-down' || res.state === 'renderer-missing') void ensureApp(s, $, t)
     // What the app shows now is unknown: no stale conversation under an open row.
     s.convo = undefined
     for (const k of keys) s.status.set(k, res.state)

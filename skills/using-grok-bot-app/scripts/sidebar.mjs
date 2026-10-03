@@ -3,9 +3,10 @@
 // Sends exactly one CDP method, Runtime.evaluate with the constant READ below;
 // it never attaches, navigates, clicks or closes anything but its own socket.
 // Exit 0 = state "ok"; exit 2 = a known degraded state; the JSON says which.
-// Usage: sidebar.mjs [port=9231]
+// Usage: sidebar.mjs [port]   (default: $GROK_BOT_CDP_PORT, else 39231)
+// Not 9231: Chrome and Node debuggers sit at 9222-9230, and other tools collided there.
 
-const PORT = Number(process.argv[2] ?? 9231)
+const PORT = Number(process.argv[2] || process.env.GROK_BOT_CDP_PORT || 39231)
 const DEADLINE_MS = 2500
 const RENDERER = /app\.asar\/dist\/renderer\/index\.html$/
 
@@ -47,7 +48,7 @@ let finished = false
 const done = (state, extra = {}) => {
   if (finished) return
   finished = true
-  process.stdout.write(JSON.stringify({ state, ...extra }) + '\n', () => process.exit(state === 'ok' ? 0 : 2))
+  process.stdout.write(JSON.stringify({ state, port: PORT, ...extra }) + '\n', () => process.exit(state === 'ok' ? 0 : 2))
 }
 
 setTimeout(() => done('timeout', { ms: DEADLINE_MS }), DEADLINE_MS).unref()

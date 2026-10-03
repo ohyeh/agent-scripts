@@ -11,7 +11,7 @@ the bot finishes a new reply. The session no longer has to poll.
 - Node 22+ (global `WebSocket`) as the `node` on the login `PATH`: the mod runs
   `command -v node` through `/bin/sh -lc`, which on macOS can differ from your
   shell's node. An older one shows `node-too-old` in the panel.
-- Grok Bot started with `--remote-debugging-port=9231` and its window open (see
+- Grok Bot started with `--remote-debugging-port=39231` and its window open (see
   the `using-grok-bot-app` skill). The mod never starts, restarts or clicks the app.
 
 ## Install
@@ -107,7 +107,7 @@ here. An untagged reply still wakes every watcher, so this needs the bot to echo
 
 ## How it reads the app
 
-`bin/sidebar.mjs` (a synced copy of the skill's `scripts/sidebar.mjs`; see Core below) fetches `/json/list` on `127.0.0.1:9231`, opens the renderer
+`bin/sidebar.mjs` (a synced copy of the skill's `scripts/sidebar.mjs`; see Core below) fetches `/json/list` on `127.0.0.1:39231`, opens the renderer
 page's own WebSocket and sends one `Runtime.evaluate` with a constant
 expression. It prints one JSON line (`ok`, `port-down`, `renderer-missing`,
 `wrong-url`, `selector-not-observed`, `eval-error`, `timeout` or `node-too-old`) and exits

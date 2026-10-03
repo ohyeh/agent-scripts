@@ -23,17 +23,27 @@ skill is the wrong one.
 
 The `--remote-debugging-port` flag only takes effect at launch, so an
 already-running instance has no port to attach to and must be restarted. That
-restart drops whatever is typed in the composer, which is why it needs the
-user's OK before you pull the trigger.
+restart drops whatever is typed in the composer; the owner accepts that (below).
 
 ```sh
 pgrep -xl "Grok Bot"                                   # running?
-lsof -nP -iTCP:9231 -sTCP:LISTEN                       # already debuggable?
-pkill -x "Grok Bot"                                    # only with user approval
-open -a "Grok Bot" --args --remote-debugging-port=9231
-agent-browser connect 9231
+lsof -nP -iTCP:39231 -sTCP:LISTEN                       # already debuggable?
+scripts/ensure.mjs                                     # all of the below, in one call
+pkill -x "Grok Bot"                                    # no approval needed (owner rule)
+open -a "Grok Bot" --args --remote-debugging-port=39231
+agent-browser connect 39231
 agent-browser tab      # expect one target: file://…/app.asar/dist/renderer/index.html
 ```
+
+The port is 39231, not 9231: Chrome and Node debuggers sit at 9222–9230 and other
+tools collided there. Set `GROK_BOT_CDP_PORT` to use another one; the sidebar
+helper, `grok-bot-tui` and the grok-bot-watch mod all read it, with 39231 as the default.
+
+**Restart without asking** (owner's standing rule, 2026-10-02): when the port is
+needed and down, restart the app; the dropped composer draft is an accepted cost.
+An app update relaunches it without the flag, so this recurs. `scripts/ensure.mjs`
+does it in one call (reopen the window, or quit and relaunch with the port, or
+launch; another app on the port is left alone) and the TUI and the mod run it themselves.
 
 If the port is already listening, skip straight to `connect` — no restart, no
 approval needed, nothing lost.
@@ -84,7 +94,7 @@ bad state in its panel is fixed from this skill:
 
 | Panel state | Fix |
 |---|---|
-| `port-down` | [Connect](#connect): app runs without the debug port; restart needs the user's OK |
+| `port-down` | [Connect](#connect): app runs without the debug port; `scripts/ensure.mjs` restarts it (no approval needed) |
 | `renderer-missing` | Window closed: `open -a "Grok Bot"`, no restart |
 | `bot-not-found` | Re-read the roster; check the UUID |
 | `selector-not-observed`, `eval-error` | App changed its DOM: update the roster read here and this skill's `scripts/sidebar.mjs` together, then `scripts/sync-mod-core` (the mod's copy) |

@@ -7,7 +7,7 @@ import { cells } from './core.ts'
 const UUID = '201040cc-5be6-4d04-9f18-62f181a84677'
 const row = { id: UUID, name: 'NOVA 替身', unread: false, preview: '收到，處理中', busy: 'idle', current: true }
 const plain = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '')
-const view = (over: Partial<View> = {}): View => ({ now: 10_000, at: 8_000, detail: false, port: 9231, read: { state: 'ok', rows: [row] }, ...over })
+const view = (over: Partial<View> = {}): View => ({ now: 10_000, at: 8_000, detail: false, read: { state: 'ok', port: 39231, rows: [row] }, ...over })
 
 test('a row shows key, name, uuid8, state and preview', () => {
   const lines = renderLines(view(), 120, 40).map(plain)
@@ -24,9 +24,9 @@ test('draft, replying and unread come from the shared row model', () => {
 })
 
 test('a degraded read says which state, with no rows', () => {
-  const lines = renderLines(view({ read: { state: 'port-down', error: 'ECONNREFUSED' } }), 80, 40).map(plain)
+  const lines = renderLines(view({ read: { state: 'port-down', port: 39231, error: 'ECONNREFUSED' } }), 80, 40).map(plain)
   assert.match(lines[0]!, /▲ port-down/)
-  assert.ok(lines.join('\n').includes('--remote-debugging-port=9231'), 'says how to fix it')
+  assert.ok(lines.join('\n').includes('--remote-debugging-port=39231'), 'says how to fix it')
   assert.ok(lines.some(l => l.includes('ECONNREFUSED')))
 })
 

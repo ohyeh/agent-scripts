@@ -30,6 +30,7 @@ function world(
   let helperRuns = 0
   let lookups = 0
   let spawnErrors = 0
+  const ensures: string[] = []
   on('session.id', () => ({ value: 'sess-A' }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('tool.register', ($, e) => ({ value: { tool: e.name } }))
@@ -65,6 +66,10 @@ function world(
       return { value: { exitCode: 0, stdout: opts.node ?? 'profile says hi\n/n/node\n', stderr: '' } }
     }
     if (e.argv[0] !== '/n/node') throw new Error(`spawn ENOENT ${e.argv[0]}`)
+    if (e.argv[1]?.endsWith('/bin/ensure.mjs')) {
+      ensures.push(e.argv[1])
+      return { value: { exitCode: 0, stdout: '{"state":"restarted","port":39231}', stderr: '' } }
+    }
     if ((opts.spawnFails ?? 0) > helperRuns + spawnErrors) {
       spawnErrors += 1
       throw new Error('spawn EACCES /n/node')
@@ -82,7 +87,7 @@ function world(
     if (answer === 'undef') return { text: e.text, drop: undefined }
     return answer === 'drop' ? { drop: 'refused in test' } : { text: e.text }
   })
-  return { woken, toasts, kv, runs: () => helperRuns, lookups: () => lookups }
+  return { woken, toasts, kv, ensures, runs: () => helperRuns, lookups: () => lookups }
 }
 
 // The test lib declares no timers; the runtime has them. One macrotask lets engine dispatches settle.
@@ -157,6 +162,20 @@ describe('eligibility (S2)', () => {
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     await clock.advance(TICK * 3)
     expect(w.woken).toHaveLength(1)
+  })
+
+  test('a down port restarts the app through ensure.mjs, at most once per two minutes (owner rule)', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A')), down])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    await macrotask()
+    expect(w.ensures).toHaveLength(1)
+    expect(w.toasts.join('\n')).toContain('Grok Bot restarted on port 39231')
+    await clock.advance(120_000)
+    await macrotask()
+    expect(w.ensures).toHaveLength(2)
   })
 
   test('a reply during an outage wakes once on reconnect', async ($, on) => {

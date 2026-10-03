@@ -20,7 +20,8 @@ grok-bot-tui - full-screen, read-only view of the Grok Bot app's sidebar.
 Usage:
   grok-bot-tui [--port <n>]
 
-  --port <n>   The app's CDP port. Default: 9231 (see the skill's Connect).
+  --port <n>   The app's CDP port. Default: $GROK_BOT_CDP_PORT, else 39231
+               (see the skill's Connect).
 
 Keys: j/k or 1-9 select, Enter detail, Esc back, r read now, q quit.
 EOF
