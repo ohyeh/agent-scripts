@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.9.3'
+const MOD_VERSION = '0.9.4'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -39,6 +39,9 @@ function step(w: Watch, row: Row): { next: Watch; wake: boolean } {
     return { next: arm ? { ...w, armed: true } : w, wake: false }
   }
   if (row.preview === w.seen && !w.armed) return { next: w, wake: false }
+  // Worked and stopped with nothing new: same preview, no unread mark (sandbox on 不需回覆, 2026-10-04 live).
+  // The open bot gets no unread mark, so there the same text still wakes.
+  if (row.preview === w.seen && !row.unread && !row.current) return { next: { ...w, armed: false }, wake: false }
   return { next: { ...w, seen: row.preview, armed: false }, wake: w.seen !== null || !!w.armed }
 }
 

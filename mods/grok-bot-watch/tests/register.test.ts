@@ -177,6 +177,26 @@ describe('eligibility (S2)', () => {
     expect(w.woken).toHaveLength(1)
   })
 
+  test('a bot not on screen that worked and kept its preview with no unread mark wakes nobody (sandbox, 不需回覆)', async ($, on) => {
+    const clock = mock.clock(on)
+    const off = { current: false }
+    const w = world(on, [ok(row('收到', 'idle', off)), ok(row('收到', 'working', off)), ok(row('收到', 'idle', off)), ok(row('收到', 'idle', off))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 4)
+    expect(w.woken).toHaveLength(0)
+  })
+
+  test('the same text again on a bot not on screen wakes when the row is marked unread', async ($, on) => {
+    const clock = mock.clock(on)
+    const off = { current: false }
+    const w = world(on, [ok(row('收到', 'idle', off)), ok(row('收到', 'working', off)), ok(row('收到', 'idle', { ...off, unread: true })), ok(row('收到', 'idle', { ...off, unread: true }))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 4)
+    expect(w.woken).toHaveLength(1)
+  })
+
   test('a watch made while the bot is already working fires on completion (sampler log 23:33)', async ($, on) => {
     const clock = mock.clock(on)
     const P = '第 4 條只當輔助，不要當必要條件。'

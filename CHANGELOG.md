@@ -8,6 +8,10 @@
 
 - The lock drops 16 skills (64 → 48), judged by what a skill carries, not how often it ran. Removed: `karpathy-guidelines`, `git-commit`, `refactor`, `simplify`, `resolving-merge-conflicts` (generic discipline the kernel already states); `brainstorming` (its approval wait conflicts with the kernel; its visual companion goes with it); `high-end-visual-design`, `design-taste-frontend` (prose-only taste, same job as `impeccable`, now the one direction authority); `image-to-code`, `imagegen-frontend-web`, `imagegen-frontend-mobile` (the image-first pipeline is gone from `using-design-skills`); `pierre-guard` (upstream 404), `release-plannotator`, `review-renovate`, `migrate-to-shoehorn`, `update-deps` (bound to projects and tools no local repo uses). Then `wait-what` (48 → 47): the kernel-routed `simplified-english` rule already re-explains a message that did not land. The kernel, routers, router hook table and design evals drop every reference; `deploy.sh` removes the directories on each machine at its next deploy.
 
+## grok-bot-watch 0.9.4
+
+- A bot that works and settles on its old preview with no unread mark (it chose not to reply, e.g. `不需回覆`) no longer wakes; 3 false wakes from sandbox on 2026-10-04. Live trace on sandbox: no reply settled `unread=false`, a reply with the same text settled `unread=true`. The open bot gets no unread mark, so there the old behaviour stays.
+
 ## grok-bot-watch 0.9.3
 
 - A bot message that ends in a list has its time after one newline, not a blank line, so the transcript split merged the next message into it and `send.mjs` said `unconfirmed` for a short message too. The split in `send.mjs` and `sidebar.mjs` takes one or two newlines. Live on the agent front: the same message counted 0 before, 1 after.
