@@ -323,9 +323,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-grok-bot-app/SKILL.md",
-      "skillFolderHash": "38a8f38db40ccd2c1d03921ace4afed5d9eb4851",
+      "skillFolderHash": "ba5aa621a9b27aa34c0e8b09611067c66a4f1b51",
       "installedAt": "2026-09-04T08:30:33.000Z",
-      "updatedAt": "2026-10-03T01:52:57.292Z"
+      "updatedAt": "2026-10-03T01:57:34.489Z"
     },
     "using-skills": {
       "source": "ohyeh/agent-scripts",
