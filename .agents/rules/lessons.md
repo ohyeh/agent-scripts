@@ -161,3 +161,8 @@ Status: proposed
 Rule: macOS 上不要讓 `#!` script 再直接執行另一支 `#!` script；每一層都寫 `bash <file>`（或 `exec bash <file>`），只留一層 shebang。
 Evidence: `data.kalloc.1024[raw]` 達 8,289,979K，每分鐘約 +2.9 MB，只有重開機能釋放；每次工具呼叫都會走 `claude-only.sh` → hook、`fleet-*.sh` → `cursor-adapt.sh` → hook、`agy-adapt.sh` → hook。機制見 Claude Code #66020、#44824 與 Photon 的重現。修正在 cd166b9；這台（macOS 15.6）的 leak 速度是否下降：UNCONFIRMED，待 sudo `zprint` 量測。
 Status: proposed
+
+## 2026-10-03 | scope: hooks | trigger: 註冊 hook 指令，或 hook 內呼叫外部工具
+Rule: 補充上一條：污染沿程序樹往下傳。只要祖先曾由 `#!` 啟動（cursor-agent 本身就是 bash script；由 agent-tmux 啟動的 tmux server 也算），後代每次 `#!` exec 都會漏。所以 hook 的註冊指令本身就要寫 `bash <file>`；hook 內也不要呼叫屬於 `#!` script 的工具（pyenv shim 的 `python3`、macOS 的 `shasum` 是 perl），改用 binary（`/usr/bin/python3`、`sha256sum`）。
+Evidence: zprint 實測，每組 1500 次：zsh script → node → leaf.sh +1505K；未污染 shell → node → leaf.sh +144K；script 啟動的 tmux 底下 +1568K，對照 +89K。Cursor hook 在污染環境下每 300 次 +4758K，改用 /usr/bin/python3 後 +229K（對照 +91K）。修正在 b58e4f5、3b83d96。
+Status: proposed

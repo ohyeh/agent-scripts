@@ -183,7 +183,8 @@
     "security-guidance@claude-plugins-official": true,
     "session-report@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": false,
-    "tmux-agent-tools@tmux-agent-tools": true
+    "tmux-agent-tools@tmux-agent-tools": true,
+    "tmux-agent@tmux-agent-tools": true
   },
   "extraKnownMarketplaces": {
     "claude-plugins-official": {
