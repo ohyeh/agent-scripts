@@ -22,7 +22,7 @@ RUN_DIR="${HOME}/.local/state/agent-hooks/${SESSION_ID:-pid-$PPID}"
 mkdir -p "$RUN_DIR"
 ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 read_tool="$(printf '%s' "$CMD" | grep -oE '(^|\||;|&&)[[:space:]]*(cat|head|tail|less|more|awk|sed -n)' | head -1 | grep -oE '(cat|head|tail|less|more|awk|sed -n)$')"
-command_sha256="$(printf '%s' "$CMD" | shasum -a 256 | cut -d' ' -f1)"
+command_sha256="$(printf '%s' "$CMD" | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)"
 
 jq -cn --arg ts "$ts" --arg read_tool "$read_tool" --arg command_sha256 "$command_sha256" \
   '{timestamp: $ts, kind: "bash-read", read_tool: $read_tool, command_sha256: $command_sha256}' \

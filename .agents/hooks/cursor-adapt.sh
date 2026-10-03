@@ -30,8 +30,12 @@ emit_ok() {
   printf '%s\n' '{"agent_message":""}'
 }
 
-if ! command -v python3 >/dev/null 2>&1; then
-  printf '%s\n' '{"agent_message":"cursor-adapt: python3 missing"}'
+# /usr/bin/python3, not PATH: a pyenv shim is a chain of #! scripts, and cursor-agent
+# is a #! script itself, so each shim run leaked ~15 KB of kernel memory
+# (data.kalloc.1024) until reboot (live zprint 2026-10-03).
+PY=/usr/bin/python3
+if [ ! -x "$PY" ]; then
+  printf '%s\n' '{"agent_message":"cursor-adapt: /usr/bin/python3 missing"}'
   exit 1
 fi
 if [ ! -x "$HOOK" ]; then
@@ -78,7 +82,7 @@ cp "$in_file" "$HOME/.local/state/agent-scripts/last-cursor-pretool.json" 2>/dev
 printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$HOME/.local/state/agent-scripts/last-cursor-pretool-append.jsonl" 2>/dev/null || true
 cat "$in_file" >> "$HOME/.local/state/agent-scripts/last-cursor-pretool-append.jsonl" 2>/dev/null || true
 printf '\n' >> "$HOME/.local/state/agent-scripts/last-cursor-pretool-append.jsonl" 2>/dev/null || true
-mapped="$(python3 - "$in_file" <<'PY'
+mapped="$("$PY" - "$in_file" <<'PY'
 import hashlib, json, sys
 
 raw = open(sys.argv[1]).read()
@@ -215,12 +219,12 @@ if [ "$ec" -eq 2 ]; then
   id="cursor-deny-$(date +%s)-$$"
   printf '%s' "$mapped" | jq -c --arg id "$id" '{type:"assistant",message:{content:[{type:"tool_use",id:$id,name:.tool_name,input:.tool_input}]}}' >> "$DENY_LOG"
   jq -cn --arg id "$id" --arg m "$msg" '{type:"user",message:{content:[{type:"tool_result",tool_use_id:$id,content:$m}]}}' >> "$DENY_LOG"
-  python3 -c 'import json,sys; m=sys.stdin.read(); print(json.dumps({"permission":"deny","agent_message":m,"user_message":m}))' <<<"$msg"
+  "$PY" -c 'import json,sys; m=sys.stdin.read(); print(json.dumps({"permission":"deny","agent_message":m,"user_message":m}))' <<<"$msg"
   exit 2
 fi
 if [ "$ec" -ne 0 ]; then
   msg="$(cat "$stderr_file")"
-  python3 -c 'import json,sys; m=sys.stdin.read(); print(json.dumps({"agent_message":m or "cursor-adapt: hook failed"}))' <<<"$msg"
+  "$PY" -c 'import json,sys; m=sys.stdin.read(); print(json.dumps({"agent_message":m or "cursor-adapt: hook failed"}))' <<<"$msg"
   exit "$ec"
 fi
 # A Claude-shaped warning (hookSpecificOutput.additionalContext) maps to Cursor's

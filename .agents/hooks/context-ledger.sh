@@ -7,7 +7,8 @@ set -u
 
 IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
-command -v shasum >/dev/null 2>&1 && SHASUM="shasum -a 256" || SHASUM="sha256sum"
+# sha256sum first: macOS shasum is a perl #! script, which leaks kernel memory under a #!-launched CLI
+command -v sha256sum >/dev/null 2>&1 && SHASUM="sha256sum" || SHASUM="shasum -a 256"
 
 TOOL_NAME="$(printf '%s' "$IN" | jq -r '.tool_name // "unknown"')"
 TOOL_INPUT="$(printf '%s' "$IN" | jq -c '.tool_input // {}')"
