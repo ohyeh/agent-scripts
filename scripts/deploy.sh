@@ -272,7 +272,7 @@ SETTINGS=~/.claude/settings.json
 tmp_settings="$(mktemp)"
 # Every settings.json hook runs behind claude-only.sh: Cursor's Third-Party Imports would
 # otherwise run it a second time next to its ~/.cursor/hooks.json copy.
-jq --arg only "\"\$HOME/.agents/hooks/claude-only.sh\"" \
+jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
    --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
    --arg ts "\"\$HOME/.agents/hooks/session-title-sentinel.sh\"" \
    --arg bolold "\"\$HOME/.agents/hooks/bol-prompt-warn.sh\"" \
@@ -301,11 +301,16 @@ jq --arg only "\"\$HOME/.agents/hooks/claude-only.sh\"" \
     .hooks[ev] = ((.hooks[ev] // [])
       | if any(.[]; any(.hooks[]?; .command == $cmd))
         then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":$cmd}]}] end);
-  # pre-wrapper deploys registered the bare path; wrap it in place so nothing runs twice
+  # pre-wrapper deploys registered the bare path, pre-bash ones the shebang wrapper;
+  # rewrite both in place so nothing runs twice. bash, never a #! exec: a CLI that
+  # descends from a #! script (cursor-agent; any agent-tmux worker) leaks ~1 KB of
+  # kernel memory (data.kalloc.1024) on every #! exec until reboot (live 2026-10-03).
   def wrapBare:
     .hooks |= with_entries(.value |= map(.hooks |= map(
       if (.command | type) == "string" and (.command | test("^\"\\$HOME/\\.agents/hooks/[^\" ]+\\.sh\"$"))
-      then .command = $only + " " + .command else . end)));
+      then .command = $only + " " + .command
+      elif (.command | type) == "string" and (.command | startswith("\"$HOME/.agents/hooks/claude-only.sh\" "))
+      then .command = "bash " + .command else . end)));
   def retire(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | map(.hooks |= map(select(.command != cmd))) | map(select(.hooks | length > 0)));
@@ -345,11 +350,15 @@ if [ -d ~/.codex ]; then
      --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" \
      --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
      --arg hostload "\"\$HOME/.agents/hooks/host-load-gate.sh\"" '
-    def ensureMatched(ev; matcher; cmd):
+    def ensureMatched(ev; matcher; bare): ("bash " + bare) as $cmd |
       .hooks[ev] = ((.hooks[ev] // [])
-        | if any(.[]; any(.hooks[]?; .command == cmd))
-          then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":cmd}]}] end);
-    ensureMatched("UserPromptSubmit"; ""; $router)
+        | if any(.[]; any(.hooks[]?; .command == $cmd))
+          then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":$cmd}]}] end);
+    # pre-bash deploys registered the bare #! path; prefix bash in place (see wrapBare)
+    .hooks |= with_entries(.value |= map(.hooks |= map(
+      if (.command | type) == "string" and (.command | test("^\"\\$HOME/\\.agents/hooks/[^\" ]+\\.sh\"$"))
+      then .command = "bash " + .command else . end)))
+    | ensureMatched("UserPromptSubmit"; ""; $router)
     | ensureMatched("PreToolUse"; "Bash"; $audit)
     | ensureMatched("PreToolUse"; "Bash"; $assignhost)
     | ensureMatched("PreToolUse"; "*"; $deny)
@@ -404,7 +413,7 @@ if [ -d ~/.gemini/config ]; then
   AGY_PLUGIN=~/.gemini/config/plugins/agent-scripts
   mkdir -p "$AGY_PLUGIN"
   printf '{"name":"agent-scripts"}\n' > "$AGY_PLUGIN/plugin.json"
-  jq -n --arg a "\$HOME/.agents/hooks/agy-adapt.sh" '{"agent-scripts":{
+  jq -n --arg a "bash \$HOME/.agents/hooks/agy-adapt.sh" '{"agent-scripts":{
     PreToolUse:[{matcher:"run_command",hooks:[
       {type:"command",command:($a+" PreToolUse tmux-assign-host-gate")},
       {type:"command",command:($a+" PreToolUse bash-read-audit")},

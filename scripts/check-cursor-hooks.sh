@@ -27,12 +27,12 @@ path = sys.argv[1]
 data = json.loads(open(path).read())
 hooks = data.get("hooks") or {}
 want = {
-    "subagentStart": ["./hooks/fleet-bol-prompt-gate.sh", "./hooks/fleet-subagent-concurrency-gate.sh", "./hooks/fleet-host-load-gate.sh", "./hooks/fleet-subagent-ledger.sh"],
-    "subagentStop": ["./hooks/fleet-subagent-ledger.sh"],
-    "preToolUse": ["./hooks/fleet-bash-read-audit.sh", "./hooks/fleet-agent-device-target-gate.sh", "./hooks/fleet-tmux-assign-host-gate.sh", "./hooks/fleet-host-load-gate.sh", "./hooks/fleet-bol-prompt-gate.sh", "./hooks/fleet-deny-replay-gate.sh"],
-    "postToolUse": ["./hooks/fleet-context-ledger.sh"],
-    "beforeSubmitPrompt": ["./hooks/fleet-claim-evidence-gate.sh"],
-    "stop": ["./hooks/fleet-claim-evidence-gate.sh"],
+    "subagentStart": ["bash ./hooks/fleet-bol-prompt-gate.sh", "bash ./hooks/fleet-subagent-concurrency-gate.sh", "bash ./hooks/fleet-host-load-gate.sh", "bash ./hooks/fleet-subagent-ledger.sh"],
+    "subagentStop": ["bash ./hooks/fleet-subagent-ledger.sh"],
+    "preToolUse": ["bash ./hooks/fleet-bash-read-audit.sh", "bash ./hooks/fleet-agent-device-target-gate.sh", "bash ./hooks/fleet-tmux-assign-host-gate.sh", "bash ./hooks/fleet-host-load-gate.sh", "bash ./hooks/fleet-bol-prompt-gate.sh", "bash ./hooks/fleet-deny-replay-gate.sh"],
+    "postToolUse": ["bash ./hooks/fleet-context-ledger.sh"],
+    "beforeSubmitPrompt": ["bash ./hooks/fleet-claim-evidence-gate.sh"],
+    "stop": ["bash ./hooks/fleet-claim-evidence-gate.sh"],
 }
 errors = []
 for event, cmds in want.items():

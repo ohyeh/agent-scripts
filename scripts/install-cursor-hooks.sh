@@ -72,7 +72,9 @@ for line in registry.splitlines():
     if not line:
         continue
     name, event, matcher, fail_closed = line.split("|")
-    cmd = f"./hooks/fleet-{name}.sh"
+    # bash, never a #! exec: cursor-agent is itself a #! script, so each #! exec under
+    # it leaks ~1 KB of kernel memory until reboot (live 2026-10-03)
+    cmd = f"bash ./hooks/fleet-{name}.sh"
     entry = {
         "command": cmd,
         "timeout": 10,
@@ -89,7 +91,7 @@ for event, cmd, entry in wanted:
     replaced = False
     new_arr = []
     for item in arr:
-        if isinstance(item, dict) and item.get("command") == cmd:
+        if isinstance(item, dict) and item.get("command") in (cmd, cmd[len("bash "):]):
             new_arr.append(entry)
             replaced = True
         else:
