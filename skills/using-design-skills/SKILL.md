@@ -109,9 +109,26 @@ evidence → UNCONFIRMED → overall BLOCK; never PASS on code-only review.
 (Document-only exception: DESIGN.md-only deliverables record file
 hash/commit instead — the instant any render exists, full contract resumes.)
 
-**Rubric, in order:** 1. THE SLOP TEST — the authority's audit rubric;
-generic gradient-hero / emoji-bullet / card-grid sameness = BLOCK regardless
-of correctness. 2. Prose discipline — no filler, scannable hierarchy.
+**Quality bar:** award level — work that could win at Awwwards, the Webby
+Awards, or FWA. "Correct and clean" is not the bar.
+
+**Review order (human is always last):**
+1. Internal: the builder self-checks the render against the bar, then runs
+   up to 3 critique rounds with `advisor` or an opus/sonnet one-shot.
+   Fix between rounds. Stop when a round finds nothing that moves the work
+   toward the bar.
+2. External (optional, your call): add one fresh CLI reviewer
+   (`consensus-gate`, `args.cli`) when the internal rounds split or the
+   deliverable is high risk. State in the report why you added or skipped it.
+3. User: last, with the Gate 0 evidence bundle.
+Each round must find a gap to the bar or stop. Never add a round only to
+show a review happened.
+
+**Rubric, in order:** 1. THE SLOP TEST — the authority's audit rubric,
+judged at the quality bar above; generic gradient-hero / emoji-bullet /
+card-grid sameness = BLOCK regardless of correctness, and so does a render
+that is clean but not award-level. 2. Prose discipline — no filler,
+scannable hierarchy.
 3. DESIGN.md conformance. 4. The stage's frozen ACCEPTANCE criteria.
 
 **What counts as BLOCK:** only a rubric item above or a frozen ACCEPTANCE

@@ -12,6 +12,22 @@ simpler", "in plain words"). You MUST follow it in both cases.
   colloquial and casual.
 - Procedural English (briefs, rules, commits) uses simple verbs and short
   sentences.
+- Procedural English follows "80% of ASD-STE100" (source: asd-ste100.org):
+  - Verbs: use imperative, simple present, simple past, simple future,
+    infinitive, and past participle as adjective. Do not use -ing forms,
+    perfect tenses, or the passive voice in procedures. An -ing word is
+    allowed only inside a technical name ("landing gear").
+  - Limits: procedural sentence max 20 words; descriptive sentence max 25
+    words; paragraph max 6 sentences, one topic; noun cluster max 3 words;
+    one instruction per sentence.
+  - Keep articles ("the", "a", "this"). Use vertical lists for complex text.
+  - Safety words: WARNING = risk of injury or data loss; CAUTION = risk of
+    damage that can be repaired.
+  - Prefer the simple word: start (not commence), make sure (not ensure),
+    before (not prior to), use (not utilize), about (not approximately),
+    to (not in order to), fill (not replenish).
+  - Out of scope: the closed ~900-word dictionary. Identifiers, API names,
+    and commands keep their form.
 - Use the smallest common words that preserve technical precision. When a
   decision needs choices, give at most two and name the recommended one.
 - Keep technical terms in their original form. Translate no identifier, API
