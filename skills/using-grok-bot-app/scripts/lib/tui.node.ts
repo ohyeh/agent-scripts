@@ -25,33 +25,97 @@ const COLOR: Record<string, string> = { green: '32', cyan: '36', magenta: '35', 
 export type View = { read?: Read; at?: number; now: number; sel?: number; detail: boolean; port: number }
 
 const paint = (code: string | undefined, t: string) => (code ? `\x1b[${code}m${t}\x1b[0m` : t)
+const pad = (t: string, w: number) => t + ' '.repeat(Math.max(0, w - cells(t)))
+
+/** What to do about a degraded read, from the skill's Connect section. */
+function hint(state: string, port: number): string {
+  if (state === 'port-down') return `Grok Bot is not debuggable on ${port}: open -a "Grok Bot" --args --remote-debugging-port=${port} (a running app must restart first; that drops a composer draft)`
+  if (state === 'renderer-missing') return 'the app runs with its window closed: open -a "Grok Bot"'
+  if (state === 'wrong-url') return `port ${port} is not the Grok Bot renderer`
+  if (state === 'selector-not-observed' || state === 'eval-error') return 'the app changed its DOM: update scripts/sidebar.mjs, then scripts/sync-mod-core'
+  if (state === 'node-too-old') return 'the sidebar read needs Node 22+'
+  if (state === 'timeout') return 'the app did not answer in 2.5 s; r reads again'
+  return 'r reads again'
+}
+
+/** t cut into lines of at most w cells: at a space when the line has one, else mid-run (CJK has no spaces). */
+function wrap(t: string, w: number): string[] {
+  const out: string[] = []
+  let line = ''
+  for (const ch of t) {
+    if (cells(line + ch) > w) {
+      const sp = line.lastIndexOf(' ')
+      if (sp > 0 && ch !== ' ') {
+        out.push(line.slice(0, sp))
+        line = line.slice(sp + 1)
+      } else {
+        out.push(line)
+        line = ''
+      }
+      if (ch === ' ') continue
+    }
+    line += ch
+  }
+  return line ? [...out, line] : out
+}
 
 /** The screen as lines, each at most cols cells. Pure: the test draws with it. */
 export function renderLines(v: View, cols: number, rows: number): string[] {
   const r = v.read
   const bots = r?.rows ?? []
+  const states = bots.map(b => {
+    const live = liveState(b)
+    return live ?? (b.unread ? { glyph: '✦', color: 'magenta', state: 'unread' } : { glyph: '●', color: 'green', state: 'idle' })
+  })
+  const count = (s: string) => states.filter(x => x.state === s).length
   const head =
-    `grok bot tui · port ${v.port} · ` +
-    (!r ? 'reading…' : r.state === 'ok' ? `${bots.length} bot${bots.length === 1 ? '' : 's'}` : `▲ ${r.state}`) +
+    `▌grok bot tui · port ${v.port} · ` +
+    (!r ? 'reading…'
+      : r.state === 'ok'
+        ? [`${bots.length} bot${bots.length === 1 ? '' : 's'}`, count('replying') && `${count('replying')} replying`, count('unread') && `${count('unread')} unread`].filter(Boolean).join(' · ')
+        : `▲ ${r.state}`) +
     (v.at !== undefined ? ` · read ${ago(v.now - v.at)} ago` : '')
-  const out = [paint('1;35', fit(head, cols)), paint('2', fit('j/k select · Enter detail · r read · q quit · read-only', cols)), '']
-  if (r && r.state !== 'ok') out.push(fit(`  ${clean(r.error ?? 'see the using-grok-bot-app skill: Connect', cols)}`, cols))
+  const keys = v.detail ? 'Esc back · r read · q quit · read-only' : 'j/k 1-9 select · Enter detail · Esc clear · r read · q quit · read-only'
+  const out = [paint('1;35', fit(head, cols)), paint('2', fit(keys, cols)), '']
+  if (r && r.state !== 'ok') {
+    for (const l of wrap(`▲ ${hint(r.state, v.port)}`, cols - 2)) out.push(paint('33', `  ${l}`))
+    if (r.error) out.push(paint('2', fit(`  ${clean(r.error, 300)}`, cols)))
+  }
   const pick = v.sel !== undefined ? bots[v.sel] : undefined
   if (v.detail && pick) {
-    out.push(paint('1', fit(`${clean(pick.name, 40)} · ${pick.id}`, cols)), '')
+    out.push(paint('1', fit(`${clean(pick.name, 40)} · ${pick.id}`, cols)))
+    const kept = out.length
     const convo = pick.current ? (r?.convo ?? []) : []
-    if (convo.length) for (const m of convo) out.push(fit(`  ${clean(m.at, 12)} ${clean(m.who, 24)} · 「${clean(m.text, 200)}」`, cols))
-    else out.push(fit(`  「${clean(pick.preview, 200)}」`, cols), paint('2', fit('  open this bot in the app to read its conversation here', cols)))
-    return out.slice(0, rows)
+    const body = (lead: string, text: string) => {
+      out.push(paint('2', fit(`  ${lead}`, cols)))
+      for (const l of wrap(clean(text, 600), cols - 4)) out.push(`    ${l}`)
+    }
+    if (convo.length) for (const m of convo) body(`${clean(m.at, 12)} · ${clean(m.who, 24)}`, m.text)
+    else {
+      body('last reply (sidebar preview)', pick.preview || '—')
+      out.push('', paint('2', fit('  open this bot in the app to read its conversation here', cols)))
+    }
+    // The newest lines matter most: a short terminal keeps the tail of the conversation.
+    if (out.length <= rows) return out
+    const tail = out.slice(out.length - (rows - kept - 1))
+    return [...out.slice(0, kept), paint('2', fit(`  ↑ ${out.length - kept - tail.length} earlier lines`, cols)), ...tail]
   }
-  bots.forEach((b, i) => {
-    const live = liveState(b)
-    const [glyph, color, state] = live ? [live.glyph, live.color, live.state] : b.unread ? ['✦', 'magenta', 'unread'] : ['●', 'green', 'idle']
+  // The list scrolls to keep the selection in view.
+  const free = Math.max(1, rows - out.length)
+  // One line is kept for "↓ N more" when the list does not fit, so it never covers the selection.
+  const room = bots.length > free ? Math.max(1, free - 1) : free
+  const top = v.sel === undefined || v.sel < room ? 0 : v.sel - room + 1
+  const nameW = Math.min(24, Math.max(4, ...bots.map(b => cells(clean(b.name, 40)))))
+  bots.slice(top, top + room).forEach((b, j) => {
+    const i = top + j
+    const s = states[i]!
     const key = i < 9 ? `${i + 1}` : ' '
-    const lead = `${key} ${glyph} ${fit(clean(b.name, 40), 24)} ${b.id.slice(0, 8)} ${state}${b.current ? ' · open' : ''} `
-    const line = fit(lead, cols) + fit(b.preview ? `「${clean(b.preview, 200)}」` : '', Math.max(0, cols - cells(fit(lead, cols))))
-    out.push(i === v.sel ? paint('7', line) : paint(COLOR[color], line))
+    const lead = `${key} ${s.glyph} ${pad(fit(clean(b.name, 40), nameW), nameW)} ${b.id.slice(0, 8)} ${pad(s.state + (b.current ? ' · open' : ''), 24)}`
+    const head = fit(lead, cols)
+    const line = head + fit(b.preview ? `「${clean(b.preview, 200)}」` : '', Math.max(0, cols - cells(head)))
+    out.push(i === v.sel ? paint('7', pad(line, cols)) : paint(COLOR[s.color], line))
   })
+  if (top + room < bots.length) out.push(paint('2', fit(`  ↓ ${bots.length - top - room} more`, cols)))
   return out.slice(0, rows)
 }
 
