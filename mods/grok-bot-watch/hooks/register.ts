@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.8.0'
+const MOD_VERSION = '0.8.1'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -322,13 +322,15 @@ async function panelData(s: State, $: $): Promise<Bot[]> {
   for (const key of keys.filter(k => k.startsWith(`${PREFIX}${s.sid}.`))) {
     const w = (await $.store.get(key)) as Watch | undefined
     if (!w) continue
-    const status = s.status.get(key) ?? 'pending'
+    // No read yet since this session (re)started: not a failure, the first read is on its way.
+    const status = s.status.get(key) ?? 'reading'
     const row = s.live.get(key)
     const fresh = w.lastWake !== undefined && now - w.lastWake < FRESH_MS
     const live = row && liveState(row)
     // Live state first: a failed read says why, a draft or a streaming bot says so, a reply that just woke us says so.
     const [glyph, color, state] =
-      status !== 'ok' ? ['▲', 'yellow', status]
+      status === 'reading' ? ['○', 'gray', 'reading the app…']
+      : status !== 'ok' ? ['▲', 'yellow', status]
       : live ? [live.glyph, live.color, live.state]
       : fresh ? ['✦', 'magenta', `new reply ${ago(now - w.lastWake!)} ago`]
       : ['●', 'green', 'waiting']
@@ -414,6 +416,8 @@ export const register: Register = on => {
     await $.command.register({ name: 'grok-bot-watch', description: 'Watch a Grok Bot bot: /grok-bot-watch <uuid or 8+ char prefix>, or bare to type it in the panel' })
     $.clock.every(POLL_MS, () => tick(s, $))
     $.clock.every(POLL_MS, () => heartbeat(s, $))
+    // A reload keeps the watches but not the names and states: read now, not one poll later (0.8.0 live).
+    void tick(s, $).catch(err => $.ui.log(`grok-bot-watch: first read failed: ${String(err)}`, { to: 'debug' }))
     return next(e)
   })
 

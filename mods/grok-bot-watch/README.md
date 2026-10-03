@@ -48,6 +48,7 @@ watch is never shown: a wake belongs to the conversation that armed it.
 
 | Glyph | Means |
 |---|---|
+| `○` reading the app… | no read yet since this session started or reloaded; the first read runs at once |
 | `●` waiting | idle; the next new reply wakes this session |
 | `◐` replying | the bot is streaming; the wake comes when it settles |
 | `✦` new reply | woke this session in the last 2 minutes |

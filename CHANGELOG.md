@@ -8,6 +8,11 @@
 
 - The lock drops 16 skills (64 → 48), judged by what a skill carries, not how often it ran. Removed: `karpathy-guidelines`, `git-commit`, `refactor`, `simplify`, `resolving-merge-conflicts` (generic discipline the kernel already states); `brainstorming` (its approval wait conflicts with the kernel; its visual companion goes with it); `high-end-visual-design`, `design-taste-frontend` (prose-only taste, same job as `impeccable`, now the one direction authority); `image-to-code`, `imagegen-frontend-web`, `imagegen-frontend-mobile` (the image-first pipeline is gone from `using-design-skills`); `pierre-guard` (upstream 404), `release-plannotator`, `review-renovate`, `migrate-to-shoehorn`, `update-deps` (bound to projects and tools no local repo uses). Then `wait-what` (48 → 47): the kernel-routed `simplified-english` rule already re-explains a message that did not land. The kernel, routers, router hook table and design evals drop every reference; `deploy.sh` removes the directories on each machine at its next deploy.
 
+## grok-bot-watch 0.8.1
+
+- After a reload the band showed `▲ 03972e9a pending` (seen live in a control session): a kept watch had no name and no state until the first 10 s poll, drawn with the warning glyph of a failed read. The mod now reads once at session start, and a watch not read yet shows `○ reading the app…`. Test: the name and `waiting` appear with one read and no poll; dropping the start read fails it.
+- Checked live that a tagged reply wakes only its sender: the store holds 4 sessions' watches; only this session watches NOVA 替身 w40 and its one wake is the reply tagged `[w:29a98092]`; the control session (US_STOCK only) has 0 wakes.
+
 ## grok-bot-watch 0.8.0
 
 - Reply from the band, as in the workers panel: the open row (`[ ▸ ]`) starts with a reply line; Enter sends the text to that bot, prefixed with this session's tag so the answer wakes this session only, and a toast says `sent` or why not. One send at a time.

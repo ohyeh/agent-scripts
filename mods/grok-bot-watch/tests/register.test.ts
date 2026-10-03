@@ -968,3 +968,24 @@ describe('reply from the panel 0.8.0', () => {
     expect(w.toasts).toContain('grok-bot-watch: not sent to NOVA: draft')
   })
 })
+
+describe('after a reload 0.8.1', () => {
+  test('a kept watch reads at once: the name and state show before the first poll, never a warning', async ($, on) => {
+    mock.clock(on)
+    let release!: () => void
+    const hold = new Promise<void>(r => (release = r))
+    const w = world(on, [ok(row('A'))], [], { hold })
+    w.kv.set(key, { botUuid: UUID, gen: 1, seen: 'A' })
+    await $.session.start(start)
+    // The first read is still running: neutral, not the ▲ of a failed read.
+    let t = await flat($)
+    expect(t).toContain('○ 201040cc reading the app…')
+    expect(t).not.toContain('▲')
+    release()
+    await macrotask()
+    await macrotask()
+    t = await flat($)
+    expect(w.runs(), 'read at start, no poll waited for').toBe(1)
+    expect(t).toContain('● NOVA 201040cc · waiting')
+  })
+})
