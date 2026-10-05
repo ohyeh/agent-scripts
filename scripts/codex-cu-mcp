@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Launch the newest openai-bundled unified-computer-use cua_repl."""
+"""Launch the newest openai-bundled unified-computer-use cua_repl.
+
+`--resolve` prints the chosen version dir and exits 0 without launching, so the
+installer and the checker share THIS readiness logic instead of each guessing
+from the base dir's mere existence.
+"""
 import json
 import os
 import sys
@@ -22,12 +27,24 @@ def main() -> None:
     if not BASE.is_dir():
         sys.stderr.write(f"codex-cu-mcp: missing {BASE}\n")
         sys.exit(1)
-    versions = [p for p in BASE.iterdir() if p.is_dir()]
+    subdirs = [p for p in BASE.iterdir() if p.is_dir()]
+    # A dir without .mcp.json is not a release: a half-finished download or a
+    # staging dir would otherwise outrank a good numeric version (version_key
+    # sorts non-numeric pieces ABOVE numeric ones) and launch would then fail.
+    versions = [p for p in subdirs if (p / ".mcp.json").is_file()]
     if not versions:
-        sys.stderr.write(f"codex-cu-mcp: no version directories under {BASE}\n")
+        skipped = ", ".join(sorted(p.name for p in subdirs)) or "none"
+        sys.stderr.write(
+            f"codex-cu-mcp: no usable version under {BASE} "
+            f"(dirs without .mcp.json: {skipped})\n"
+        )
         sys.exit(1)
+    if len(versions) < len(subdirs):
+        ignored = ", ".join(sorted(p.name for p in subdirs if p not in versions))
+        sys.stderr.write(f"codex-cu-mcp: ignoring dirs without .mcp.json: {ignored}\n")
     latest = max(versions, key=version_key)
     mcp_path = latest / ".mcp.json"
+    resolve_only = "--resolve" in sys.argv
     try:
         spec_root = json.loads(mcp_path.read_text())
     except (OSError, json.JSONDecodeError) as exc:
@@ -50,6 +67,9 @@ def main() -> None:
     if not isinstance(env_extra, dict):
         sys.stderr.write(f"codex-cu-mcp: cua_repl env must be an object in {mcp_path}\n")
         sys.exit(1)
+    if resolve_only:
+        print(latest)
+        return
     env = os.environ.copy()
     for key, value in env_extra.items():
         env[str(key)] = value if isinstance(value, str) else json.dumps(value)

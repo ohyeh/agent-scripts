@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Stdio MCP proxy: inject Codex turn metadata into every tools/call, pass all else through verbatim."""
-import json, os, subprocess, sys, uuid
+import json, os, subprocess, sys, threading, uuid
 from pathlib import Path
 
 CHILD = os.environ.get("CU_CHILD") or str(Path(__file__).resolve().parent / "codex-cu-mcp")  # sibling by default
@@ -15,7 +15,12 @@ def inject(line: str) -> str:
         return line
     if isinstance(msg, dict) and msg.get("method") == "tools/call":
         params = msg.setdefault("params", {})
-        params.setdefault("_meta", {})["x-codex-turn-metadata"] = json.dumps({"session_id": SID, "turn_id": TID})
+        if not isinstance(params, dict):
+            return line  # malformed request: let the child reject it, don't crash the connection
+        meta = params.setdefault("_meta", {})
+        if not isinstance(meta, dict):
+            return line
+        meta["x-codex-turn-metadata"] = json.dumps({"session_id": SID, "turn_id": TID})
         if LOG:
             with open(LOG, "a") as f:  # per-call evidence: same pair reused across calls
                 f.write(json.dumps({"n": "tools/call", "sid": SID, "tid": TID}) + "\n")
@@ -30,16 +35,37 @@ def self_test():
     other = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
     assert inject(other) == other  # non-tools/call passes verbatim
     assert inject("not json") == "not json"
+    for bad in ('{"jsonrpc":"2.0","id":3,"method":"tools/call","params":null}',
+                '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":[]}'):
+        assert inject(bad) == bad  # malformed params must not crash the connection
     print("self-test ok", file=sys.stderr)
+
+
+def reap(child):
+    """A quiet child death must end the proxy: otherwise it blocks on stdin forever
+    and the MCP client waits for a reply that can never arrive."""
+    rc = child.wait()
+    sys.stderr.write(f"codex-cu-proxy: child {CHILD} exited {rc}\n")
+    sys.stderr.flush()
+    os._exit(rc if rc >= 0 else 128 - rc)
 
 
 def main():
     child = subprocess.Popen([CHILD], stdin=subprocess.PIPE, stdout=sys.stdout, stderr=sys.stderr, text=True, bufsize=1)
-    for line in sys.stdin:
-        child.stdin.write(inject(line.rstrip("\n")) + "\n")
-        child.stdin.flush()
-    child.stdin.close()
-    sys.exit(child.wait())
+    threading.Thread(target=reap, args=(child,), daemon=True).start()
+    try:
+        for line in sys.stdin:
+            child.stdin.write(inject(line.rstrip("\n")) + "\n")
+            child.stdin.flush()
+    except BrokenPipeError:
+        sys.stderr.write("codex-cu-proxy: child stdin closed\n")
+    finally:
+        try:
+            child.stdin.close()
+        except (BrokenPipeError, OSError):
+            pass
+    rc = child.wait()
+    sys.exit(rc if rc >= 0 else 128 - rc)
 
 
 if __name__ == "__main__":

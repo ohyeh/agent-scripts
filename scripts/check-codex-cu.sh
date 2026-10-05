@@ -36,11 +36,13 @@ done
 # The proxy must resolve a child that exists — a stale CU_CHILD or a half
 # install would otherwise only show up as a dead MCP server at runtime.
 if [ -x "$PROXY" ]; then
+  # Load the proxy as a module and read the CHILD it actually computed. The old
+  # regex-then-recompute version was tautological: a proxy pointing at a
+  # nonexistent child still passed (reviewers reproduced it, 2026-10-05).
   resolved="$(python3 - "$PROXY" <<'PY'
-import os, pathlib, re, sys
-src = pathlib.Path(sys.argv[1]).read_text()
-m = re.search(r'CHILD = os\.environ\.get\("CU_CHILD"\) or str\((.+?)\)', src)
-print(os.environ.get("CU_CHILD") or str(pathlib.Path(sys.argv[1]).resolve().parent / "codex-cu-mcp") if m else "")
+import runpy, sys
+mod = runpy.run_path(sys.argv[1], run_name="codex_cu_proxy_check")
+print(mod.get("CHILD", ""))
 PY
 )"
   if [ -n "$resolved" ] && [ -x "$resolved" ]; then
@@ -70,6 +72,13 @@ check_json() {
     say_fail "$label -> $got (want $PROXY)"
   fi
 }
+
+# Registered binaries are useless if no version can be resolved; ask the launcher.
+if resolved_version="$(python3 "$CHILD" --resolve 2>&1)"; then
+  say_pass "launcher resolves version -> $resolved_version"
+else
+  say_fail "launcher cannot resolve a usable version: $resolved_version"
+fi
 
 check_json "${HOME}/.claude.json" "Claude Code (user scope)"
 check_json "${HOME}/.cursor/mcp.json" "Cursor"

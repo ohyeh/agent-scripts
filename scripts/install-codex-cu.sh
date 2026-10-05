@@ -34,6 +34,17 @@ if [ ! -d "$PLUGIN_DIR" ]; then
   exit 0
 fi
 
+# The base dir existing is NOT readiness: a half-finished download leaves it
+# empty, and the old gate then installed and registered a server that could
+# never launch. Ask the launcher itself.
+# SKIP, not FAIL: a mid-download cache is transient, and nothing is registered
+# yet, so skipping leaves no broken server behind. Same policy as an absent dir.
+if ! resolved_version="$(python3 "$ROOT/scripts/codex-cu-mcp" --resolve 2>&1)"; then
+  echo "SKIP [codex-cu] no usable Computer Use version yet: $resolved_version"
+  exit 0
+fi
+echo "==> [codex-cu] using $resolved_version"
+
 mkdir -p "$BIN"
 # Child first: the proxy resolves it as a sibling at startup.
 install -m 755 "$ROOT/scripts/codex-cu-mcp" "$CHILD"
@@ -49,15 +60,44 @@ fi
 # --- register at user scope on every present runtime ------------------------
 # jq merge, not `claude mcp add`: ~/.claude.json is large and live, and the
 # merge keeps every other key untouched and is safe to re-run.
+# ponytail: last-writer-wins against a RUNNING Claude Code. jq reads a snapshot
+# and the replace lands whole, so a config write made between the two is lost
+# (reproduced by two independent reviewers, 2026-10-05). Only the writer itself
+# can close that window; the backup below is the recovery path, not a cure.
+# Upgrade path: a write mode Claude Code co-operates with, or deploy while it is
+# not running.
 register_json() {
-  local file="$1" label="$2" tmp
+  local file="$1" label="$2" tmp backup
   [ -f "$file" ] || { echo "==> [codex-cu] $label absent, skipped"; return 0; }
-  tmp="$(mktemp)"
-  jq --arg cmd "$PROXY" '
+
+  # Temp in the TARGET dir so the replace is a same-filesystem rename, and seed
+  # it from the original so mode/owner survive the move.
+  tmp="$(mktemp "${file}.codex-cu.XXXXXX")" || { echo "FAIL [codex-cu] cannot create temp beside $file" >&2; return 1; }
+  backup="${file}.codex-cu.bak"
+  cp -p "$file" "$backup" || { rm -f "$tmp"; echo "FAIL [codex-cu] cannot back up $file" >&2; return 1; }
+  chmod 600 "$backup"
+
+  if ! jq --arg cmd "$PROXY" '
     .mcpServers = (.mcpServers // {})
     | .mcpServers["codex-cu"] = ((.mcpServers["codex-cu"] // {}) | .command = $cmd | .args = (.args // []))
-  ' "$file" > "$tmp" && mv "$tmp" "$file"
-  echo "==> [codex-cu] registered in $label"
+  ' "$file" > "$tmp"; then
+    rm -f "$tmp"
+    echo "FAIL [codex-cu] jq could not rewrite $label ($file); original untouched, backup at $backup" >&2
+    return 1
+  fi
+  # jq exiting 0 on an empty read would truncate the file; refuse that.
+  if [ ! -s "$tmp" ]; then
+    rm -f "$tmp"
+    echo "FAIL [codex-cu] jq produced empty output for $label; original untouched" >&2
+    return 1
+  fi
+  chmod --reference="$file" "$tmp" 2>/dev/null || chmod "$(stat -f '%Lp' "$file")" "$tmp"
+  if ! mv "$tmp" "$file"; then
+    rm -f "$tmp"
+    echo "FAIL [codex-cu] could not replace $file; backup at $backup" >&2
+    return 1
+  fi
+  echo "==> [codex-cu] registered in $label (backup: $backup)"
 }
 
 register_json "${HOME}/.claude.json" "Claude Code (user scope)"
@@ -65,9 +105,11 @@ register_json "${HOME}/.cursor/mcp.json" "Cursor"
 
 # agy owns its own store; `mcp add` is an upsert (re-run returns 0).
 if command -v agy >/dev/null 2>&1; then
-  agy mcp add codex-cu "$PROXY" >/dev/null 2>&1 \
-    && echo "==> [codex-cu] registered in agy" \
-    || echo "==> [codex-cu] agy registration failed (non-fatal)" >&2
+  if agy_err="$(agy mcp add codex-cu "$PROXY" 2>&1 >/dev/null)"; then
+    echo "==> [codex-cu] registered in agy"
+  else
+    echo "==> [codex-cu] agy registration failed (exit $?, non-fatal): ${agy_err:-<no output>}" >&2
+  fi
 fi
 
 # Codex needs no registration: cua_repl is native there.
