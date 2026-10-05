@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+"""Stdio MCP proxy: inject Codex turn metadata into every tools/call, pass all else through verbatim."""
+import json, os, subprocess, sys, uuid
+from pathlib import Path
+
+CHILD = os.environ.get("CU_CHILD") or str(Path(__file__).resolve().parent / "codex-cu-mcp")  # sibling by default
+SID, TID = os.environ.get("CU_SID") or str(uuid.uuid4()), str(uuid.uuid4())  # CU_SID: reuse a session to clean up its leaked tab
+LOG = os.environ.get("CU_LOG")  # set CU_LOG=<path> to record one line per tools/call
+
+
+def inject(line: str) -> str:
+    try:
+        msg = json.loads(line)
+    except ValueError:
+        return line
+    if isinstance(msg, dict) and msg.get("method") == "tools/call":
+        params = msg.setdefault("params", {})
+        params.setdefault("_meta", {})["x-codex-turn-metadata"] = json.dumps({"session_id": SID, "turn_id": TID})
+        if LOG:
+            with open(LOG, "a") as f:  # per-call evidence: same pair reused across calls
+                f.write(json.dumps({"n": "tools/call", "sid": SID, "tid": TID}) + "\n")
+        return json.dumps(msg)
+    return line
+
+
+def self_test():
+    out = json.loads(inject(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "js"}})))
+    meta = json.loads(out["params"]["_meta"]["x-codex-turn-metadata"])
+    assert meta == {"session_id": SID, "turn_id": TID}
+    other = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    assert inject(other) == other  # non-tools/call passes verbatim
+    assert inject("not json") == "not json"
+    print("self-test ok", file=sys.stderr)
+
+
+def main():
+    child = subprocess.Popen([CHILD], stdin=subprocess.PIPE, stdout=sys.stdout, stderr=sys.stderr, text=True, bufsize=1)
+    for line in sys.stdin:
+        child.stdin.write(inject(line.rstrip("\n")) + "\n")
+        child.stdin.flush()
+    child.stdin.close()
+    sys.exit(child.wait())
+
+
+if __name__ == "__main__":
+    self_test() if "--self-test" in sys.argv else main()

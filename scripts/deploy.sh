@@ -45,6 +45,10 @@
 #   8. agents   - global/agents/<runtime>/ -> that runtime's agent dir
 #                 (claude -> ~/.claude/agents, codex -> ~/.codex/agents),
 #                 rsync --delete + diff, only for sub-dirs present in the repo.
+#   9. codex-cu - installs codex-cu-mcp + codex-cu-proxy into ~/.local/bin and
+#                 registers "codex-cu" at USER scope (Claude/Cursor/agy), so
+#                 Codex computer use works in every project with no per-repo
+#                 .mcp.json. SKIPs where the Computer Use plugin is absent.
 set -euo pipefail
 
 # macOS ships `md5 -q`; Linux (grok-bot VM) has md5sum only and a non-login ssh
@@ -536,6 +540,11 @@ echo "PASS [agents] 0 diff (${agents_report# })"
 # hosts ran version X" instead of comparing hosts on different gate versions.
 mkdir -p ~/.local/state/agent-scripts
 deploy_method=tarball; [ "$CLONE_TRACKED" = 1 ] && deploy_method=clone-tracked
+# --- Layer 9: codex-cu (Codex computer use as a user-scope MCP server) -------
+# SKIPs on a host with no Computer Use plugin; that is not a failure.
+echo "==> [codex-cu] install proxy + register at user scope"
+bash "$SRC/scripts/install-codex-cu.sh"
+
 # Stable name: macOS `hostname` follows DHCP/network; LocalHostName does not.
 host_id="$(scutil --get LocalHostName 2>/dev/null || hostname -s)"
 printf '{"timestamp":"%s","host":"%s","sha":"%s","method":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$host_id" "$DEPLOYED_SHA" "$deploy_method" >> ~/.local/state/agent-scripts/deploy-log.jsonl

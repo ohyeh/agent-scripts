@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""Launch the newest openai-bundled unified-computer-use cua_repl."""
+import json
+import os
+import sys
+from pathlib import Path
+
+BASE = Path.home() / ".codex/plugins/cache/openai-bundled/unified-computer-use"
+
+
+def version_key(path: Path):
+    parts = []
+    for piece in path.name.split("."):
+        if piece.isdigit():
+            parts.append((0, int(piece)))
+        else:
+            parts.append((1, piece))
+    return (parts, path.stat().st_mtime_ns)
+
+
+def main() -> None:
+    if not BASE.is_dir():
+        sys.stderr.write(f"codex-cu-mcp: missing {BASE}\n")
+        sys.exit(1)
+    versions = [p for p in BASE.iterdir() if p.is_dir()]
+    if not versions:
+        sys.stderr.write(f"codex-cu-mcp: no version directories under {BASE}\n")
+        sys.exit(1)
+    latest = max(versions, key=version_key)
+    mcp_path = latest / ".mcp.json"
+    try:
+        spec_root = json.loads(mcp_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"codex-cu-mcp: cannot read {mcp_path}: {exc}\n")
+        sys.exit(1)
+    servers = spec_root.get("mcpServers")
+    spec = servers.get("cua_repl") if isinstance(servers, dict) else None
+    if not isinstance(spec, dict):
+        sys.stderr.write(f"codex-cu-mcp: cua_repl missing in {mcp_path}\n")
+        sys.exit(1)
+    command = spec.get("command")
+    args = spec.get("args") or []
+    env_extra = spec.get("env") or {}
+    if not isinstance(command, str) or not command:
+        sys.stderr.write(f"codex-cu-mcp: cua_repl command missing in {mcp_path}\n")
+        sys.exit(1)
+    if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
+        sys.stderr.write(f"codex-cu-mcp: cua_repl args must be a string array in {mcp_path}\n")
+        sys.exit(1)
+    if not isinstance(env_extra, dict):
+        sys.stderr.write(f"codex-cu-mcp: cua_repl env must be an object in {mcp_path}\n")
+        sys.exit(1)
+    env = os.environ.copy()
+    for key, value in env_extra.items():
+        env[str(key)] = value if isinstance(value, str) else json.dumps(value)
+    os.execvpe(command, [command, *args], env)
+
+
+if __name__ == "__main__":
+    main()
