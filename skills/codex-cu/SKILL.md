@@ -1,0 +1,107 @@
+---
+name: codex-cu
+description: Drive macOS apps and Chrome through the local Codex cua_repl MCP (server name codex-cu). Use this whenever the user says computer use, browser use, cua, codex-cu, or asks to click a native app or a Chrome page through the ChatGPT extension. Not for a normal web page that agent-browser can read, not for the Cursor built-in browser harness, and not for hover or document.cookie (those go to Claude in Chrome or agent-browser).
+allowed-tools: Bash(ps:*), Bash(pgrep:*), Bash(open:*)
+---
+
+# Codex computer use
+
+`cua_repl` is the MCP server inside the ChatGPT Mac app's Computer Use plugin.
+Claude Code, Cursor, and agy call it under the name `codex-cu`. Clicks go into
+the target app. They do not move the user's pointer.
+
+The long write-up is the Claude artifact `codex-cu 接線手冊`. Open it in Arc
+when this file does not answer a case.
+
+https://claude.ai/artifact/VQQdp75aeC1PzqRwK581PU?sk=Usf3jftJdhrPrHUCB76Nuw
+
+## Two surfaces
+
+Computer surface treats the target as an app. Read the AX tree, then click or
+type. This surface does not need turn metadata. `scripts/codex-cu-mcp` is the
+launcher.
+
+Browser surface enters the page. Read the DOM, run JS, use Playwright locators.
+Each `tools/call` needs Codex turn metadata. `scripts/codex-cu-proxy` injects
+`_meta["x-codex-turn-metadata"]`. Computer surface does not use that proxy.
+
+`cua.getState()` can return a full `apps` list and a `browsers` error together.
+A metadata error on `browsers` does not mean the computer surface failed.
+
+## Pick Chrome, not Arc
+
+Arc and Chrome both report `name: "Chrome"`. The numeric `id` is not stable.
+`profileName` can be absent. Do not use either as the only test.
+
+1. Call `cua.listBrowsers()`.
+2. Read `metadata.extensionInstanceId`.
+3. Confirm the host parent before a long call.
+
+```sh
+ps -o ppid= -p $(pgrep -f "ChatGPT for Chrome")
+```
+
+The parent path is Arc or Google Chrome. Sample from 2026-10-05. Re-check
+after a reload. Do not reuse these values once the parent check disagrees.
+
+- Arc: `33f909be-429f-479e-b1c2-20bba462cbf3`
+- Chrome: `75ef88d3-a921-455b-b39e-b40ed5ec2771`
+
+`createBrowserTab` and `nameSession` on the Arc instance do not return. A 120s
+wait still fails, and the call can leave `about:blank`.
+
+## Browser surface
+
+Use the Chrome instance from the parent check. One `js` call per step.
+
+1. `cua.getBrowser({ extensionInstanceId })`.
+2. `browser.nameSession` with a short name, before any new tab.
+3. Record ids from `browser.user.openTabs()`.
+4. Open one new tab and go to the URL.
+5. Check the page. On example.com, `getByRole("link", { name: "Learn more", exact: true })` is visible.
+6. Close only that tab.
+7. Read `openTabs()` again. Prior ids match. The new id is gone.
+
+A tab stays on the `session_id` that created it. A refused `createBrowserTab`
+can still leave `about:blank`. Close it in that same session. Set `CU_SID` on
+the proxy when you must reuse the session.
+
+`document.cookie` is not available. `chrome://` URLs are not allowed. There is
+no hover method. Browser surface does not ask for per-app approval.
+
+Rehearsal that passed 2026-10-05: select `75ef88d3-…`, `nameSession` returns
+at once, `URL=https://example.com/`, `learnMoreVisible=true`, the new tab is
+closed, the prior tab ids are unchanged.
+
+## Computer surface
+
+Arc on this surface is an app, not a browser target.
+
+1. Open a URL with `open -a Arc "<url>"`. Command-T is less stable.
+2. `cua.getApp("Arc")`. Use the display name. Do not use a bundle id.
+3. After a page change, `getAXState({ disableDiffing: true })`. The first read can show the old page.
+4. Click by element index. Use `setValue` when `typeText` changes case.
+
+`cua.computer.launch_app` and `cua.listWindows` are not in this runtime.
+
+`getApp` needs the second approval, `Allow Computer Use to use X?`. A client
+that does not answer counts as a refusal. The message is `Computer Use was not
+approved to use X`. Add that display name to the allow hook, or accept the
+prompt. The Chrome display name is `Google Chrome`.
+
+## Do not
+
+WARNING: `getApp` returns the window text. Do not bind Notes, Mail, Messages,
+Keychain Access, a password manager, or a terminal unless the user names that
+app in the current message.
+
+- Do not treat a metadata error as a dead computer surface.
+- Do not pick a browser by numeric id.
+- Do not call `nameSession` or `createBrowserTab` on the Arc instance.
+- Do not close tabs that were already open.
+
+## Not tested
+
+Logged-in Chrome pages, a Stop hook that sends `turn_ended`, many Chrome
+profiles, Arc and Chrome at the same time, Freeform drag, AppleScript JS
+inside Arc, and `claude setup-token` over SSH.
