@@ -28,7 +28,7 @@ def inject(line: str) -> str:
     return line
 
 
-def handle_pre_init(line: str) -> tuple[bool, str | None]:
+def handle_pre_init(line: str):  # no `str | None`: /usr/bin/python3 is 3.9 on macOS
     """Process messages before initialize.
     Returns (is_init, reply).
     If is_init is True, initialize has arrived.
