@@ -28,6 +28,28 @@ def inject(line: str) -> str:
     return line
 
 
+def handle_pre_init(line: str) -> tuple[bool, str | None]:
+    """Process messages before initialize.
+    Returns (is_init, reply).
+    If is_init is True, initialize has arrived.
+    If is_init is False:
+      - reply is a JSON-RPC error string for requests with an id
+      - reply is None for notifications (no id), which are dropped
+    """
+    try:
+        msg = json.loads(line)
+    except (ValueError, TypeError):
+        return False, None
+    if not isinstance(msg, dict):
+        return False, None
+    if msg.get("method") == "initialize":
+        return True, None
+    req_id = msg.get("id")
+    if req_id is not None:
+        return False, json.dumps({"jsonrpc": "2.0", "id": req_id, "error": {"code": -32601, "message": "Method not found"}})
+    return False, None
+
+
 def self_test():
     out = json.loads(inject(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "js"}})))
     meta = json.loads(out["params"]["_meta"]["x-codex-turn-metadata"])
@@ -38,6 +60,26 @@ def self_test():
     for bad in ('{"jsonrpc":"2.0","id":3,"method":"tools/call","params":null}',
                 '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":[]}'):
         assert inject(bad) == bad  # malformed params must not crash the connection
+
+    # Pre-initialize: requests with id return -32601 and do not reach child
+    is_init, reply = handle_pre_init('{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}')
+    assert not is_init
+    assert reply is not None
+    rep = json.loads(reply)
+    assert rep["id"] == 1
+    assert rep["error"]["code"] == -32601
+    assert rep["error"]["message"] == "Method not found"
+
+    # Pre-initialize: notifications without id are dropped
+    is_init, reply = handle_pre_init('{"jsonrpc":"2.0","method":"notifications/initialized"}')
+    assert not is_init
+    assert reply is None
+
+    # Pre-initialize: initialize triggers transition
+    is_init, reply = handle_pre_init('{"jsonrpc":"2.0","id":2,"method":"initialize","params":{}}')
+    assert is_init
+    assert reply is None
+
     print("self-test ok", file=sys.stderr)
 
 
@@ -53,9 +95,19 @@ def reap(child):
 def main():
     child = subprocess.Popen([CHILD], stdin=subprocess.PIPE, stdout=sys.stdout, stderr=sys.stderr, text=True, bufsize=1)
     threading.Thread(target=reap, args=(child,), daemon=True).start()
+    initialized = False
     try:
         for line in sys.stdin:
-            child.stdin.write(inject(line.rstrip("\n")) + "\n")
+            stripped = line.rstrip("\n")
+            if not initialized:
+                is_init, reply = handle_pre_init(stripped)
+                if not is_init:
+                    if reply is not None:
+                        sys.stdout.write(reply + "\n")
+                        sys.stdout.flush()
+                    continue
+                initialized = True
+            child.stdin.write(inject(stripped) + "\n")
             child.stdin.flush()
     except BrokenPipeError:
         sys.stderr.write("codex-cu-proxy: child stdin closed\n")
