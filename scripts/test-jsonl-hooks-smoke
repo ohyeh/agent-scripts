@@ -221,7 +221,7 @@ host_payload() { # $1 tool_name, $2 command
   jq -cn --arg t "$1" --arg c "${2:-}" '{tool_name:$t,session_id:"hlg",tool_input:{command:$c,prompt:"p"}}'
 }
 run_host() { # $1 loadavg, $2 pressure level, $3 payload; returns the hook's exit code
-  printf '%s' "$3" | PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="$1" FAKE_MP="$2" \
+  printf '%s' "$3" | PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="$1" FAKE_MP="$2" XDG_DATA_HOME="$WORK/hlg-data" \
     bash "$ROOT/.agents/hooks/host-load-gate.sh" >"$WORK/host-out" 2>"$WORK/host-err"
 }
 AGENT="$(host_payload Agent)"
@@ -237,6 +237,9 @@ if run_host 'garbage' 1 "$AGENT"; then echo "FAIL: unreadable load was allowed" 
 grep -q 'cannot read host load' "$WORK/host-err" || { echo "FAIL: read failure not named" >&2; exit 1; }
 HOST_LOAD_GATE=off run_host "$HIGH" 4 "$AGENT" || { echo "FAIL: HOST_LOAD_GATE=off still denied" >&2; exit 1; }
 FAKE_UNAME=Linux run_host 'garbage' 1 "$AGENT" && grep -q 'macOS only' "$WORK/host-err" || { echo "FAIL: non-macOS host not skipped with a notice" >&2; exit 1; }
+# one stats row per gated launch, in call order (W42-7); off writes none
+got="$(jq -r .decision "$WORK/hlg-data/agent-hooks/host-load-stats.jsonl" | paste -sd' ' -)"
+[ "$got" = "allow allow warn warn deny deny deny-unreadable skip-os" ] || { echo "FAIL: host load stats rows: $got" >&2; exit 1; }
 # which launches it gates: Codex v2 spawn and local agent-tmux launches; not reads, start-ssh, dry-run, other tools
 if run_host "$HIGH" 1 "$(host_payload collaborationspawn_agent)"; then echo "FAIL: Codex v2 spawn not gated" >&2; exit 1; fi
 for c in 'agent-tmux codex start w /tmp' '/x/scripts/agent-tmux grok assign w /tmp' 'cd /tmp && agent-tmux claude resume w' 'tmux-agent-fanout --cli codex'; do

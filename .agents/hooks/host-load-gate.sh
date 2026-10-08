@@ -36,7 +36,14 @@ case "$tool" in
   *) exit 0 ;;
 esac
 
+# One JSONL row per gated launch (W42-7): the retro counts allow/warn/deny from it.
+STATS="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/host-load-stats.jsonl"
+log_stat() { mkdir -p "${STATS%/*}" && jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg tool "$tool" \
+  --arg d "$1" --arg l1 "${l1:-}" --arg l5 "${l5:-}" --arg n "${ncpu:-}" --arg mp "${mp:-}" \
+  '{timestamp:$ts, tool:$tool, decision:$d, load1:$l1, load5:$l5, ncpu:$n, pressure:$mp}' >> "$STATS" 2>/dev/null; }
+
 if [ "$(uname)" != Darwin ]; then
+  log_stat skip-os
   echo "host-load-gate: no load check on $(uname), macOS only; allowed" >&2; exit 0
 fi
 WARN=${HOST_LOAD_WARN:-1.5}; DENY=${HOST_LOAD_DENY:-2}
@@ -45,6 +52,7 @@ ncpu=$(sysctl -n hw.ncpu) && avg=$(sysctl -n vm.loadavg) \
   && mp=$(sysctl -n kern.memorystatus_vm_pressure_level) || mp=
 read -r _ l1 l5 _ <<<"${avg:-}"
 if ! [[ ${ncpu:-} =~ $num && ${l1:-} =~ $num && ${l5:-} =~ $num && ${mp:-} =~ $num ]]; then
+  log_stat deny-unreadable
   echo "BLOCKED by host-load-gate: cannot read host load (ncpu='${ncpu:-}' loadavg='${avg:-}' pressure='${mp:-}'). Fix the gate, or set HOST_LOAD_GATE=off." >&2
   exit 2
 fi
@@ -70,11 +78,15 @@ Next, in this order:
 4. Show the list above to the user and ask which to stop; some are needed (simulators, a live browser). Never kill without approval; re-check the PID (ps -p <pid> -o command=) first.
 5. Retry once later, never in a loop."
 if over "$l1" "$DENY" || over "$l5" "$DENY" || [ "$mp" -ge 4 ]; then
+  log_stat deny
   printf 'BLOCKED by host-load-gate: %s (deny over %sx cores or pressure critical).\n%s\n' "$state" "$DENY" "$advice" >&2
   exit 2
 fi
 if over "$l1" "$WARN" || [ "$mp" -ge 2 ]; then
+  log_stat warn
   jq -cn --arg m "host-load-gate: $state, over ${WARN}x cores or pressure warn. Prefer feeding a live worker.
 $advice" '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$m}}'
+  exit 0
 fi
+log_stat allow
 exit 0

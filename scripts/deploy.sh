@@ -102,6 +102,15 @@ detect_clone_tracked() {
   echo "==> [resolve] clone-tracked layout: ~/.agents/rules -> $target; pulling $RELEASE_REF"
   git -C "$SRC" pull -q --ff-only origin "${RELEASE_REF#refs/heads/}"
   DEPLOYED_SHA="$(git -C "$SRC" rev-parse HEAD)"
+  # Layers install from the working tree, so a file git does not track there
+  # ships too (W42-7: a retired recipe kept coming back on grok-bot-vm). Ignored
+  # files stay allowed: deploy itself installs check-bol-prompt.sh into .agents/hooks.
+  local stray; stray="$(git -C "$SRC" status --porcelain --untracked-files=all -- skills global .agents)"
+  if [ -n "$stray" ]; then
+    echo "FAIL [resolve] clone $SRC has untracked files in deployed paths; remove them first:" >&2
+    printf '%s\n' "$stray" >&2
+    return 1
+  fi
   echo "PASS [resolve] clone @ $DEPLOYED_SHA (git pull --ff-only; tarball skipped)"
 }
 
@@ -203,6 +212,7 @@ while IFS= read -r installed_skill; do
   [ "$installed_skill" = synced ] && continue  # owned by Claude Code account-skill sync, not the lock
   if ! grep -Fqx "$installed_skill" <<<"$allowed_skills"; then
     rm -rf "$HOME/.agents/skills/$installed_skill"
+    echo "INFO [skills] removed stale skill: $installed_skill"
     removed_skills=$((removed_skills + 1))
   fi
 done < <(find "$HOME/.agents/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
