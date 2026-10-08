@@ -69,9 +69,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/dannymac180/skills.git",
       "skillPath": "codex-dynamic-workflows/SKILL.md",
-      "skillFolderHash": "a69ab9f4cfc853d0dbe17695b5552a4f79345f38",
+      "skillFolderHash": "84a6b9d5b021a8ccc077b0adf50939cc239e2019",
       "installedAt": "2026-07-18T20:47:39.088Z",
-      "updatedAt": "2026-07-18T20:47:39.088Z"
+      "updatedAt": "2026-10-08T19:25:24.025Z"
     },
     "data-report": {
       "source": "nexu-io/open-design",
@@ -114,18 +114,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/diagnosing-bugs/SKILL.md",
-      "skillFolderHash": "de4236cf34757c4e9ea7afe78d46c023213ff254",
+      "skillFolderHash": "5fdd6cc53385395441910b026c72d71768e993d4",
       "installedAt": "2026-07-18T20:49:31.166Z",
-      "updatedAt": "2026-09-30T12:34:21.378Z"
+      "updatedAt": "2026-10-08T19:25:09.750Z"
     },
     "diagram-design": {
       "source": "cathrynlavery/diagram-design",
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "4757952e02e355232cca7f353356994e01e03c88",
+      "skillFolderHash": "60ee9111199b446db81b85e0ba6c2d590f3207d0",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-10-03T18:55:30.863Z"
+      "updatedAt": "2026-10-08T19:25:32.099Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -150,9 +150,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/productivity/grilling/SKILL.md",
-      "skillFolderHash": "f0732035b8b1b60ae39454e4191caef32fa91903",
+      "skillFolderHash": "28aceb4c9567b985cb47f7db88cf23c9f33af8b8",
       "installedAt": "2026-08-10T07:08:45.281Z",
-      "updatedAt": "2026-08-21T01:56:30.610Z"
+      "updatedAt": "2026-10-08T19:25:12.142Z"
     },
     "hallmark": {
       "source": "nutlope/hallmark",
@@ -195,9 +195,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "c2758660d925bed0160b18f34285ebe03f62fa3d",
+      "skillFolderHash": "da1e67257f54376a0a582543e307eb0b33468fc2",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-10-03T18:55:35.048Z"
+      "updatedAt": "2026-10-08T19:25:36.458Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -287,9 +287,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/tdd/SKILL.md",
-      "skillFolderHash": "bf1bf5ffcd63aa8abce830f2955a853c121fb463",
+      "skillFolderHash": "667dbdd00c09d0e2189e082986e6a4d61a67c2a6",
       "installedAt": "2026-07-18T20:49:31.169Z",
-      "updatedAt": "2026-09-30T12:34:28.033Z"
+      "updatedAt": "2026-10-08T19:25:14.518Z"
     },
     "tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
@@ -377,9 +377,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/wayfinder/SKILL.md",
-      "skillFolderHash": "8ec0462658381bd1606d3f9db14ffc67df6a2a43",
+      "skillFolderHash": "32b0ce970b1394ede47116e1d3e07f9ccc87591f",
       "installedAt": "2026-07-18T20:49:31.170Z",
-      "updatedAt": "2026-08-20T01:52:47.135Z"
+      "updatedAt": "2026-10-08T19:25:17.889Z"
     },
     "web-design-guidelines": {
       "source": "vercel-labs/agent-skills",
@@ -395,9 +395,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/wizard/SKILL.md",
-      "skillFolderHash": "0a163daf092c6f361158ca9627e81f2cb5230574",
+      "skillFolderHash": "47010ebd1f26c8263016f14cdba835355d278b9a",
       "installedAt": "2026-08-08T03:30:00.000Z",
-      "updatedAt": "2026-08-20T01:52:48.947Z"
+      "updatedAt": "2026-10-08T19:25:21.806Z"
     },
     "writing-artifacts": {
       "source": "ohyeh/agent-scripts",
