@@ -141,10 +141,12 @@ Cursor):
 `scripts/test-codex-cu-proxy` runs the proxy against a fake child (accept,
 forward, child death, slow client, two-way backpressure, bad policy, shutdown).
 
-Shutdown: after the client closes stdin, the proxy drops (and logs) any later
-approval prompt; it does not answer or forward it. After the child exits, the
-proxy waits while output still reaches the client; with no progress for 30 s it
-exits non-zero, and the output may be incomplete.
+Shutdown: once the proxy has seen the client close stdin, it drops (and logs)
+an approval prompt instead of answering or forwarding it. A prompt already
+forwarded can still meet the close. `elicitation accept` in the log means the
+reply was queued to the child. After the child exits, the proxy waits while
+output still reaches the client; after 30 s with no progress it ends non-zero
+(output may be incomplete), at most 5 s later if stderr is blocked.
 
 A refusal reads `Computer Use was not approved to use X`. Add the display name
 to the file; the next prompt reads it, no restart. The Chrome display name is
