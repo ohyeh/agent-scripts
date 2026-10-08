@@ -3,7 +3,10 @@
 # First match wins. Validated by scripts/check-skill-router-table.sh (invariants: skill-router-table).
 (讀|填|read|fill|parse)[^。]{0,10}\.?pdf\b	skill	pdf
 test ?plan|測試計畫|測試案例|qa plan	skill	qa-test-planner
-(架構|architecture)[^。]{0,6}(設計|審|評|review|design)|domain model|領域模型	skill	codebase-design
+domain model|領域模型|glossary|術語表|名詞定義|\badr\b|決策紀錄|context\.md	skill	domain-modeling
+(架構|architecture)[^。]{0,6}(設計|審|評|review|design)	skill	codebase-design
+(csv|excel|xlsx|json)[^。]{0,16}(報告|報表|report|圖表|chart|視覺化|儀表板|dashboard)|(報告|報表|圖表|視覺化)[^。]{0,10}(csv|excel|xlsx)	skill	data-report
+(做|畫|建|設計|design|build)[^。]{0,8}(頁面|網頁|landing|流程圖|架構圖|示意圖|diagram|儀表板|dashboard)|(計畫|plan)[^。]{0,4}(頁|page|html)|(報告|plan|計畫)[^。]{0,4}做成[^。]{0,4}(網頁|頁面|html)	skill	using-design-skills
 (issue|問題單|工單)[^。]{0,10}(分流|triage|分類)|\btriage\b	skill	triage
 (hand ?off|交接|接手)[^。]{0,10}(session|下一場|新 session)	skill	session-handoff
 (建|建立|新增|create|new|scaffold)[^。]{0,8}skill\b|skill-creator	skill	skill-creator
