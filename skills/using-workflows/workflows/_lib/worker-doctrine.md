@@ -89,6 +89,53 @@ fails, FIX it (respecting the traps above) and re-run until green, committing
 fixes. Report final per-suite counts + git log --oneline <base>..HEAD.
 ```
 
+## 7. Reviewer contract (every review layer of the ladder, `model-dispatch.md` §Review ladder)
+
+```
+ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise.
+Round 1: list EVERY finding now, in one pass; a finding held back for a later
+round counts as a miss. Each finding: stable id, file:line or command output,
+severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that
+proves the fix. A finding without evidence is dropped.
+Round 2+: you get the finding ledger and the before/after diff of the fix. Report
+(a) each ledger finding: resolved (with evidence) or still open (not_fixed |
+partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect
+fix_caused=true only when the diff shows the fix caused it; a new defect the fix
+did not cause is a round-1 miss.
+PASS only with 0 Critical and 0 Major open.
+```
+
+Key point: rounds are spent when findings arrive one batch at a time. Saying all of
+it in round 1 and only verifying fixes after that is what keeps the loop short. Judge
+"fix caused it" from the diff, not from where the defect sits: a change to a shared
+helper can break an untouched caller.
+
+## 8. Fixer contract (the author answering a review round)
+
+```
+Address EVERY finding in this pass, Minor included: fix it at the root cause, or
+reject it with evidence (file:line / command output). Never skip one silently.
+No surface bypass: no special case, disabled check, weakened test, or suppressed
+error to make a finding go away.
+Finish the whole task in scope, not the smallest patch: "surgical" limits WHERE
+you edit, never WHAT you finish.
+Before you hand back, run the L0 checks and quote their output.
+Report per finding: id, fixed | rejected, evidence.
+```
+
+A rejection is not the last word: it stays in the ledger until a reviewer accepts it.
+
+## 9. L0 freeze (the orchestrator, around every review round)
+
+```
+Before the round: run <deterministic checks>; hash everything under review
+(artifact files, HEAD, `git diff HEAD`). A failing check goes to the fixer first;
+the round has not started. Nobody edits those files while the round runs.
+After the round: hash again; any change voids the round. Rerun it once; a second
+void in a row, or L0 failing twice in a row, stops the gate with the cause.
+Void rounds and L0 fixes still count toward the task's cost.
+```
+
 ## Assembly example
 
 ```js

@@ -105,12 +105,46 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
 2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
 3.5 h): every recipe agent runs at least `opus` effort `low`; planning, synthesis, revision,
-critique, review, and verdicts NEVER run on `sonnet`. `sonnet` is allowed in a recipe only for
+and verdicts NEVER run on `sonnet`. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
+below (user ruling 2026-10-09); otherwise `sonnet` is allowed in a recipe only for
 implementation or read-only data gathering, and only by explicit arg. The second-model CLI
 (`cli`) is optional and NOT codex-specific: any agent-tmux profile (codex, claude fable/opus,
 cursor grok, agy) qualifies as the review gate, provided it differs from the author; absent, a
 fresh Claude `opus` agent is the second brain. The commander calls `advisor` before launch, at every gate, and before any
 resume (skill `using-workflows` §ADVISOR GATE).
+
+### Review ladder (user ruling 2026-10-09)
+
+Review/verdict loops run this ladder. Wired now: `plan-pipeline` (in-script), `consensus-gate`
+(`layer`, `round`, `freeze`, `l0` args) and `spec-implement-dual-review-verify` (the build review).
+Every other recipe keeps its own loop until the W43 retro decides, and does not claim the ladder.
+
+| Layer | Who | Job | Cap |
+|---|---|---|---|
+| L0 | deterministic | test/build/lint/scrub/grep/checksum before every round; hash what is under review, a hash change during the round voids it | must PASS before the round |
+| L1 | `sonnet` 5.5+ high and `gpt-6-luna` xhigh/max, in parallel; code reviews run `sonnet` as `pr-review-toolkit` lenses (`silent-failure-hunter`, `pr-test-analyzer`, optional `type-design-analyzer`/`comment-analyzer`) | pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
+| L2 | `opus` 5.5 medium+ (code: `pr-review-toolkit:code-reviewer`) | the verdict; always runs | 3 rounds |
+| L3 | `fable` 5.1 (`gpt-6-astra` xhigh fallback) | final verdict, only when L2 round 3 still blocks | 1 round |
+
+- Reviewer and fixer contracts: `skills/using-workflows/workflows/_lib/worker-doctrine.md` §7–§9.
+  One finding ledger runs through every round and layer: a reviewer resolves or keeps each known
+  finding and adjudicates each fixer rejection; when two L1 reviewers disagree, the finding stays
+  open. Inside one layer the same reviewer re-checks the fix (agent-tmux: the same session;
+  in-script `agent()`: the ledger plus the before/after diff stand in for kept context); a fresh
+  reviewer for a re-check is shopping (§5). Moving up a layer is escalation, not shopping. Review
+  rounds on a revised artifact are not retries of one approach (§5 three-round rule).
+- A void round reruns once; a second void in a row, or L0 failing twice in a row, stops the gate
+  with the cause. Void rounds and L0 fixes count toward the task's calls and tokens.
+- Sol is not on the ladder. Claude currently leads Codex by about half a tier (user 2026-10-09),
+  so the Codex seats run higher effort: Luna xhigh/max at L1, Astra xhigh as the L3 fallback.
+  The cross-family table above stays unchanged.
+- The user approved this roster once (2026-10-09). It answers the tmux-agent-tools §Safety
+  "tool+model+effort per worker" question for ladder workers; a model or effort outside the
+  roster still asks.
+- Measure per gate type: cost of the whole accepted task (every layer, fixer, L0, void round,
+  advisor), latency, L2 rounds, and findings that escape the gate. Compare L1 on vs off under the
+  same contracts and L0; W39–W41 (other models, no contracts) give direction only. When L1 does
+  not lower the whole-task cost for a gate type, drop L1 for that type.
 
 `tmux-agent` mod loaded (the tool `mcp__tmux-agent__assign` exists; 2026-10-01 user ruling): dispatch
 and wait exactly as `using-tmux-agent-tools` §COLLECTOR says (owner). No proxy, no parent listener.

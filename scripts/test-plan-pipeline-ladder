@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+# Review-ladder smoke for plan-pipeline (model-dispatch.md §Review ladder): runs the recipe body with
+# stubbed agent()/parallel()/log() and checks layer order, caps, L0, void rounds, the finding ledger
+# and the direction gate. No model is called.
+set -u
+W="$(CDPATH= cd -- "$(dirname -- "$0")/../skills/using-workflows/workflows" && pwd)"
+node --input-type=module - "$W/plan-pipeline.workflow.js" <<'EOF'
+import fs from 'node:fs'
+const body = fs.readFileSync(process.argv[2], 'utf8').replace(/^export const meta/m, 'const meta')
+const AsyncFn = Object.getPrototypeOf(async () => {}).constructor
+const SHA = 'h1'
+const MAJOR = (id = 'x') => ({ id, severity: 'Major', status: 'new', issue: `major ${id}`, evidence: 'f:1', fix: 'f', check: 'c' })
+const MINOR = (id = 'm') => ({ id, severity: 'Minor', status: 'new', issue: `minor ${id}`, evidence: 'f:2', fix: 'f', check: 'c' })
+const V = (open = [], extra = {}) => ({ sha256_start: SHA, sha256_end: SHA, open, resolved: [], summary: 's', ...extra })
+
+// policy(seat, round, prompt, state) → verdict for a reviewer seat ('L1sonnet', 'L1luna', 'L2', 'L3')
+const run = async (policy, args = { brief: 'b', skipDirection: true }, opts = {}) => {
+  const st = { seq: [], prompts: {}, l0: 0, fixes: [] }
+  const agent = async (prompt, o) => {
+    const m = o.label.match(/:(draft|fix#\d+|L0#\d+|L[123](?:sonnet|luna)?#\d+)$/)
+    const k = m ? m[1] : o.label
+    if (k === 'draft') return { ok: true, path: 'x', summary: 's', actions: [] }
+    if (k.startsWith('fix')) { st.seq.push('fix'); st.fixes.push(prompt); return { ok: true, path: 'x', summary: 's', actions: opts.actions || [] } }
+    if (k.startsWith('L0')) { st.l0++; return { sha256: SHA, rc: opts.l0rc ? opts.l0rc(st.l0) : 0, output: 'out' } }
+    const [, seat, r] = k.match(/^(L[123](?:sonnet|luna)?)#(\d+)$/)
+    st.seq.push(seat); st.prompts[`${seat}#${r}`] = prompt
+    const v = policy(seat, +r, prompt, st)
+    if (v === 'THROW') throw new Error('agent failed')
+    return seat === 'L1luna' ? (v && v.lunaError ? { ran: false, error: v.lunaError } : v && v.ranNoVerdict ? { ran: true, error: '' } : { ran: true, error: '', verdict: v }) : v
+  }
+  const parallel = async thunks => Promise.all(thunks.map(t => t().catch(() => null)))   // harness: a throwing thunk → null
+  const out = await new AsyncFn('args', 'agent', 'parallel', 'phase', 'log', body)(JSON.stringify(args), agent, parallel, () => {}, () => {})
+  return { out, st, seq: st.seq.join(' ') }
+}
+let fail = 0
+const check = (name, ok, got) => { if (!ok) fail = 1; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : ` — got: ${got}`}`) }
+// a clean verdict resolves every known ledger id it was shown
+const known = p => [...new Set([...p.matchAll(/"id": "(L\d-\d+)"/g)].map(m => m[1]))].map(id => ({ id, evidence: 'verified' }))
+const clean = (s, r, p) => V([], { resolved: known(p) })
+const block = (id) => () => V([MAJOR(id)])
+const byTier = (map) => (seat, r, p, st) => (map[seat] || map[seat.slice(0, 2)])(seat, r, p, st)
+
+for (const [bad, val] of [['maxReviewRounds', -1], ['maxReviewRounds', 5], ['reviewEffort', 'low']]) {
+  const { out } = await run(clean, { brief: 'b', skipDirection: true, [bad]: val })
+  check(`rejects ${bad}=${val}`, out.aborted === true, JSON.stringify(out))
+}
+{ const { out, seq } = await run(byTier({ L1: clean, L2: clean }))
+  check('L1 clean still runs L2 (sonnet+luna in L1); L2 clean freezes', seq === 'L1sonnet L1luna L2' && out.plan.frozen === true, seq) }
+{ const { out, seq } = await run(byTier({ L1: clean, L2: block('a'), L3: clean }))
+  check('L2 blocks 3 rounds, then L3 decides', seq === 'L1sonnet L1luna L2 fix L2 fix L2 fix L3' && out.plan.frozen === true, seq) }
+{ const { out, seq } = await run(byTier({ L1: block('a'), L2: block('a'), L3: block('a') }))
+  check('all layers block: not frozen, blockers listed', seq.endsWith('L2 fix L3') && out.plan.frozen === false && out.plan.blockers.length > 0, seq) }
+{ const { out } = await run(byTier({ L1: clean, L2: clean }), { brief: 'b', skipDirection: false })
+  check('direction + plan clean: passed', out.passed === true, JSON.stringify(out.stage)) }
+{ let calls = 0
+  const { out } = await run((seat, r, p) => /direction/i.test(p) && !/PLAN at/.test(p) ? V([MAJOR('d')]) : V(), { brief: 'b', skipDirection: false })
+  check('direction never freezes: pipeline stops at direction', out.passed === false && out.stage === 'direction', JSON.stringify({ passed: out.passed, stage: out.stage })) }
+{ const { out, st } = await run(byTier({ L1sonnet: () => V([MAJOR('a'), MINOR('b')]), L1luna: clean, L2: (s, r, p) => V([MINOR('b')], { resolved: known(p) }) }))
+  check('fixer gets Minor findings too', /minor b/.test(st.fixes[0] || ''), st.fixes[0])
+  check('L2 with only Minor open freezes and lists the Minor', out.plan.frozen === true && out.plan.minors.length === 1, JSON.stringify(out.plan)) }
+{ const { st } = await run(byTier({ L1sonnet: (s, r, p) => V([MAJOR(r === 1 ? 'a' : known(p)[0].id)]), L1luna: clean, L2: clean }),
+    undefined, { actions: [{ id: 'L1-1', action: 'rejected', evidence: 'not a defect: f:9' }] })
+  check('rejected L1 finding, kept open by one L1 reviewer, reaches L2 in the ledger', /L1-1/.test(st.prompts['L2#1']) && /rejected/.test(st.prompts['L2#1']), st.prompts['L2#1']) }
+{ const { st } = await run(byTier({ L1sonnet: (s, r) => r === 1 ? V([MAJOR('a')]) : V(), L1luna: clean, L2: clean }))
+  check('round 2 reviewer gets the before/after diff', /diff -u \S+\.prev/.test(st.prompts['L1sonnet#2']), st.prompts['L1sonnet#2']) }
+{ let n = 0
+  const { out, seq } = await run(byTier({ L1sonnet: () => (++n === 1 ? V([], { sha256_end: 'moved' }) : V()), L1luna: clean, L2: clean }))
+  check('one void round is rerun and not counted', out.plan.frozen === true && out.plan.rounds === 2 && seq === 'L1sonnet L1luna L1sonnet L1luna L2', `${seq} rounds=${out.plan.rounds}`) }
+{ const { out } = await run(byTier({ L1sonnet: () => V([], { sha256_end: 'moved' }), L1luna: clean, L2: clean }))
+  check('second void in a row stops the gate', out.plan.frozen === false && /changed during review twice/.test(out.plan.summary), out.plan.summary) }
+{ const { out, seq } = await run(byTier({ L1: clean, L2: clean }), undefined, { l0rc: n => (n === 1 ? 1 : 0) })
+  check('L0 failure goes to the fixer before any review', seq === 'fix L1sonnet L1luna L2' && out.plan.frozen === true, seq) }
+{ const { out } = await run(byTier({ L1: clean, L2: clean }), undefined, { l0rc: () => 2 })
+  check('L0 failing twice stops the gate', out.plan.frozen === false && /L0 failed twice/.test(out.plan.summary), out.plan.summary) }
+{ const { out, seq } = await run(byTier({ L1sonnet: clean, L1luna: () => ({ lunaError: 'exit 1' }), L2: clean }))
+  check('luna not running is a warning, sonnet still pre-filters', out.plan.frozen === true && out.plan.warnings.some(w => /luna/.test(w)), JSON.stringify(out.plan.warnings)) }
+{ const { out } = await run(byTier({ L1sonnet: clean, L1luna: () => ({ ranNoVerdict: true }), L2: clean }))
+  check('luna ran=true without a verdict is a warning, not silent', out.plan.frozen === true && out.plan.warnings.some(w => /no verdict/.test(w)), JSON.stringify(out.plan.warnings)) }
+{ const { out } = await run(byTier({ L1sonnet: () => null, L1luna: clean, L2: clean }))
+  check('L1 sonnet returning null is a warning, not silent', out.plan.frozen === true && out.plan.warnings.some(w => /sonnet/.test(w)), JSON.stringify(out.plan.warnings)) }
+{ const { out } = await run(byTier({ L1sonnet: clean, L1luna: () => 'THROW', L2: clean }))
+  check('L1 luna that throws is a warning, not silent', out.plan.frozen === true && out.plan.warnings.some(w => /luna.*threw/.test(w)), JSON.stringify(out.plan.warnings)) }
+{ const { out } = await run(clean, { brief: 'b', skipDirection: true, isolation: 'worktree' })
+  check('rejects isolation (the ladder needs one live tree)', out.aborted === true, JSON.stringify(out)) }
+console.log(fail ? 'FAIL plan-pipeline-ladder' : 'PASS plan-pipeline-ladder')
+process.exit(fail)
+EOF

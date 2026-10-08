@@ -83,14 +83,15 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
 
 - **`plan-pipeline.workflow.js`** — a planning-only pipeline (deliberately
   **excludes build**): ① direction (`goal_doc`) → ② frozen plan
-  (`plan-<slug>.md`) → ③ ADRs — each artifact is drafted by the second brain
-  (`args.cli`) and only frozen once its own adversarial review reaches CLEAN
-  (0 Critical/0 Major) → then the docs are committed/pushed. Fully
-  parameterized (slug/brief/output paths/review rounds), completion is always
-  signaled by polling output files. Complements `project-direction-review`
-  (that one answers "which direction"; this one freezes "how"); the
-  subsequent build is handed off to `spec-implement-dual-review-verify`.
-  **See the file header for args examples.**
+  (`plan-<slug>.md`) → ③ ADRs. Each artifact is drafted (by `args.cli` via
+  agent-tmux, else opus) and frozen only by the review ladder
+  (`model-dispatch.md` §Review ladder): L0 hash + `args.l0` → L1 sonnet + Luna
+  (≤2 rounds, cannot freeze) → L2 opus (always, ≤3) → L3 fable (1 round, only
+  if L2 never cleared). One finding ledger runs through every round; then the
+  docs are committed/pushed. Complements `project-direction-review` (that one
+  answers "which direction"; this one freezes "how"); the subsequent build is
+  handed off to `spec-implement-dual-review-verify`. Smoke:
+  `scripts/test-plan-pipeline-ladder`. **See the file header for args examples.**
 
 - **`feature-lifecycle-auto.workflow.js`** — a thin top-level shell (zero
   business logic): PLAN (explore = feature-plan-consensus | frozen =
@@ -102,31 +103,27 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   top-level args get dropped, and the JOB FILE fallback channel.
   **See the file header for args examples.**
 
-- **`consensus-gate.workflow.js`** — the minimal reusable primitive: collapses
-  "hand over a proposal → drive a second model to a high-effort consensus →
-  return a structured verdict" into a single call. The reviewer is specified
-  by `args.cli` (codex/claude/agy/any entry under
-  `~/.config/agent-tmux/profiles` — heterogeneous reviewers are a config
-  concern, not a recipe concern), driven via agent-tmux, and returns
-  `{ ok, verdict, consensus(agree/agree_with_changes/disagree/unclear), notes }`
-  plus a `passed` flag. **Completion is signaled by polling an output file
-  (with a marker), never by pattern-matching the pane** — this avoids the
-  marker being echoed back in the submitted prompt and misread as done (a
-  pitfall this project hit twice in practice). **See the file header for args
-  examples.**
+- **`consensus-gate.workflow.js`** — the minimal reusable primitive: one call
+  is one round of one ladder layer (`args.layer` L1|L2|L3, `args.round`). The
+  reviewer is `args.cli` (any agent-tmux profile), driven via agent-tmux; the
+  call hashes a manifest (HEAD, `git diff HEAD`, `args.freeze` files) before and
+  after the review and runs `args.l0` first. It returns `{ ok, verdict,
+  consensus, notes, manifest_*, l0_* }` plus `passed`, which is true only for an
+  L2/L3 `agree` with L0 green and the manifest unchanged — an L1 agree is a
+  pre-filter result. **Completion is signaled by polling an output file (one
+  per round), never by pattern-matching the pane.** Smoke:
+  `scripts/test-consensus-gate-ladder`. **See the file header for args examples.**
 
 - **`spec-implement-dual-review-verify.workflow.js`** — the main feature-build
-  pipeline: implement the spec → **parallel dual review** by a second model
-  (`args.cli`, REQUIRED) and claude → only accept fixes that are real and
-  in-spec → run `verifyCommands` and paste the output. Three phases
-  (Implement/Review/Finalize); the implementation agent returning null exits
-  early. The second model is driven via agent-tmux (completion detected by
-  polling an output file). Both reviewers degrade symmetrically: either
-  returning null logs a downgrade and the return carries
-  `external_available`/`claude_available`; if both are down it aborts before
-  Finalize; the finalize agent returning null also aborts (never reports an
-  unverified implementation as done). The second model gets up to 2 more
-  review rounds to reach AGREE. **See the file header for args examples.**
+  pipeline: implement the spec → review the change through the ladder: L0
+  `verifyCommands` + manifest → L1 `pr-review-toolkit` lenses on sonnet
+  (default `silent-failure-hunter` + `pr-test-analyzer`) + Luna → L2
+  `pr-review-toolkit:code-reviewer` on opus (always, ≤3) → L3 the same agent on
+  fable. The implementer model fixes every finding between rounds; the
+  finalizer only runs the verify commands and the deviation gate, it never
+  edits. A layer with no reviewer left aborts at review (P2-A5); a failed L1
+  seat is a logged warning. Smoke: `scripts/test-review-gate-smoke.mjs`.
+  **See the file header for args examples.**
 
 - **`docs-vs-code-audit.workflow.js`** — docs maintenance: checks every
   document in `docs/` against **code ground truth** line by line (a read-only

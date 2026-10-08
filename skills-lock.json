@@ -55,6 +55,15 @@
       "installedAt": "2026-07-18T20:49:31.166Z",
       "updatedAt": "2026-09-30T12:34:19.448Z"
     },
+    "codex-cu": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/codex-cu/SKILL.md",
+      "skillFolderHash": "346f5a8a3851ed177f0d1836a5b2003c997ee7d4",
+      "installedAt": "2026-10-08T17:59:00.705Z",
+      "updatedAt": "2026-10-08T17:59:00.705Z"
+    },
     "codex-dynamic-workflows": {
       "source": "dannymac180/skills",
       "sourceType": "github",
@@ -350,9 +359,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-workflows/SKILL.md",
-      "skillFolderHash": "1da3d85970e8074c8a6799675ac6a891076d3575",
+      "skillFolderHash": "e3288722405634bc77b93caa245186d8cece84d1",
       "installedAt": "2026-07-18T20:48:21.473Z",
-      "updatedAt": "2026-10-03T18:55:21.443Z"
+      "updatedAt": "2026-10-08T19:11:14.000Z"
     },
     "verification-before-completion": {
       "source": "obra/superpowers",

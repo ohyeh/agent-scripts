@@ -95,11 +95,15 @@ inside the script (`consensus-gate`, `cli` review gates) keep the conduit agent.
 
 Every recipe agent runs at least `opus` effort `low`; the default worker is
 `opus` effort `medium`, reviewers `high`. Planning, synthesis,
-revision, critique, review, and verdicts NEVER run on `sonnet` — a sonnet-
-written plan is not a plan. `sonnet` is permitted in exactly two roles, and
-only by explicit arg: implementation (`spec-implement…` `model`,
-`pr-review-triage-resolve` `fixModel`) and read-only data gathering
-(`feature-plan-consensus` `discoverModel`). Reviewers stay `opus` regardless.
+revision, and verdicts NEVER run on `sonnet` — a sonnet-written plan is not a
+plan. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
+(`model-dispatch.md` §Review ladder, user ruling 2026-10-09; `plan-pipeline`
+and `spec-implement-dual-review-verify` do this in-script, the latter as
+`pr-review-toolkit` lenses); the verdict stays with `opus` (L2) or `fable` (L3).
+Otherwise `sonnet` is permitted in exactly two roles, and only by explicit
+arg: implementation (`spec-implement…` `model`, `pr-review-triage-resolve`
+`fixModel`) and read-only data gathering (`feature-plan-consensus`
+`discoverModel`).
 
 ## ADVISOR GATE (user ruling 2026-09-02)
 

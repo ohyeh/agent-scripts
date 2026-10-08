@@ -10,9 +10,10 @@ The recipe executes NATIVELY on Claude runtime; Codex commands and supervises.
 the executable runner path is `agent-tmux claude`.
 Day-one eligible (no tmux inside): `design-vs-code-audit`,
 `docs-vs-code-audit`, `findings-triage`, `project-direction-review`,
-`root-cause-deep-dive-audit`, `workflow-manifest`. The five tmux-launching
-recipes (`consensus-gate` as recipe, `feature-plan-consensus`, `plan-pipeline`,
-`spec-implement-dual-review-verify`, `feature-lifecycle-auto`) stay
+`root-cause-deep-dive-audit`, `workflow-manifest`. The five recipes that
+launch tmux or need Claude-only agent types (`consensus-gate` as recipe,
+`feature-plan-consensus`, `plan-pipeline`, `spec-implement-dual-review-verify`
+— `pr-review-toolkit` lenses —, `feature-lifecycle-auto`) stay
 UNAVAILABLE until nested-runner depth-2 tests pass.
 
 Sequence:

@@ -7,7 +7,8 @@
 //                                               BUILD = spec-implement-dual-review-verify
 //
 // Layering: this shell calls the MID-level stage workflows (one nesting level — the max
-// allowed). Those stages drive the OPTIONAL external CLI (args.cli) themselves; the shell never touches the CLI/atoms directly.
+// allowed). The plan stages drive the OPTIONAL external CLI (args.cli) themselves; the build stage takes no cli (its review
+// ladder picks the reviewers). The shell never touches the CLI/atoms directly.
 // COMMANDER DUTY (user ruling 2026-09-02): before invoking this shell, and again at the Gate before
 // autoBuild, the commander calls `advisor` (skill using-workflows §ADVISOR GATE). The shell cannot
 // call tools; the gate lives in the commander.
@@ -161,7 +162,7 @@ const build = await workflow('spec-implement-dual-review-verify', {
   repoPath: a.repoPath,
   spec: `Implement the frozen plan at ${planPath}. Read it fully first; it is the authoritative spec (consensus-frozen / consensus-passed). Follow its file targets, behavior, and verification steps. Truth = source code and real command output, not memory.`,
   targetFile: a.targetFile,
-  cli, model, effort, reviewEffort: a.reviewEffort, isolation, agentType, timeoutSec: a.timeoutSec, slug,   // forward model/effort/isolation/agentType + slug
+  model, effort, reviewEffort: a.reviewEffort, isolation, agentType, timeoutSec: a.timeoutSec, slug,   // forward model/effort/isolation/agentType + slug; no cli: the build's review ladder picks its reviewers
 })
 const built = !!build && !build.aborted
 return { stage: 'build', mode, passed: built, needsUser: !built, planPath, plan, build }

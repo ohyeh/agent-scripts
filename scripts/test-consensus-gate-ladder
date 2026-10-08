@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Review-ladder smoke for consensus-gate: runs the recipe with a stubbed agent() and checks the
+# pass rule (L1 never passes; a void or L0-failed round never passes), args, and the round's OUT path.
+set -u
+W="$(CDPATH= cd -- "$(dirname -- "$0")/../skills/using-workflows/workflows" && pwd)"
+node --input-type=module - "$W/consensus-gate.workflow.js" <<'EOF'
+import fs from 'node:fs'
+const body = fs.readFileSync(process.argv[2], 'utf8').replace(/^export const meta/m, 'const meta')
+const AsyncFn = Object.getPrototypeOf(async () => {}).constructor
+const run = async (args, reply) => {
+  let prompt = ''
+  const agent = async (p) => { prompt = p; return { ok: true, verdict: 'v', consensus: 'agree', notes: '', manifest_before: 'm1', manifest_after: 'm1', l0_rc: 0, l0_output: '', ...reply } }
+  const out = await new AsyncFn('args', 'agent', 'phase', 'log', body)(JSON.stringify(args), agent, () => {}, () => {})
+  return { out, prompt }
+}
+const base = { proposalFile: '/abs/p.md', cli: 'codex', sessionName: 'g1' }
+let fail = 0
+const check = (name, ok, got) => { if (!ok) fail = 1; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : ` — got: ${got}`}`) }
+{ const { out } = await run(base, {}); check('L2 agree with stable manifest passes', out.passed === true, JSON.stringify(out)) }
+{ const { out } = await run({ ...base, layer: 'L1' }, {}); check('L1 agree never passes (pre-filter)', out.passed === false && out.prefilter === true, JSON.stringify(out)) }
+{ const { out } = await run(base, { manifest_after: 'm2' }); check('manifest change voids the round', out.passed === false && out.voided === true, JSON.stringify(out)) }
+{ const { out } = await run({ ...base, l0: 'scripts/x' }, { l0_rc: 1 }); check('L0 failure fails the gate', out.passed === false && out.l0Failed === true, JSON.stringify(out)) }
+{ const { out } = await run(base, { consensus: 'agree_with_changes' }); check('agree_with_changes does not pass', out.passed === false, JSON.stringify(out)) }
+{ const { prompt } = await run({ ...base, round: 2 }, {}); check('round 2 writes its own OUT and never deletes', /-g1-r2\.md/.test(prompt) && !/[Dd]elete OUT/.test(prompt), prompt.slice(0, 300)) }
+{ const { prompt } = await run(base, {}); check('manifest hashes HEAD, diff and the proposal file', /rev-parse HEAD/.test(prompt) && /diff HEAD/.test(prompt) && /shasum -a 256 \/abs\/p\.md/.test(prompt), prompt) }
+for (const [k, v] of [['layer', 'L4'], ['round', 0], ['freeze', ['a b; rm']]]) {
+  const { out } = await run({ ...base, [k]: v }, {}); check(`rejects ${k}=${JSON.stringify(v)}`, out.aborted === true, JSON.stringify(out))
+}
+console.log(fail ? 'FAIL consensus-gate-ladder' : 'PASS consensus-gate-ladder')
+process.exit(fail)
+EOF
