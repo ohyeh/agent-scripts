@@ -22,23 +22,28 @@ and agy, run the check first:
 
     bash ~/.agents/skills/codex-cu/scripts/check-codex-cu.sh
 
-PASS: setup is done. Skip this section. SKIP with `no Computer Use plugin`:
+PASS: setup is done. Skip this section. The check never opens an app, so a
+PASS is not proof that an app call works. SKIP with `no Computer Use plugin`:
 the user must install the ChatGPT Mac app and its Computer Use plugin, then use
-computer use there once (that grants Screen Recording and Accessibility). Stop
-and tell them. FAIL or no `codex-cu` tool: ASK the user which mode. Never pick
+computer use there once (that grants Screen Recording and Accessibility). SKIP
+with `no usable Computer Use version yet`: the plugin is still downloading; try
+again later. In both cases stop and tell them. FAIL or no `codex-cu` tool: ASK the user which mode. Never pick
 for them:
 
-- `all`: accept every app prompt, with no question. agy and Cursor can only use
-  computer use in this mode or for listed apps.
-- `safe`: accept Calculator, TextEdit, Preview, Freeform only. Claude asks the
-  user for other apps. agy and Cursor are refused for other apps.
+- `all`: accept every prompt from codex-cu with no question, including any
+  that is not an app prompt. Logged-in pages in a browser app become readable.
+- `safe`: auto-accept Calculator, TextEdit, Preview, Freeform. It is an
+  auto-accept list, not a sandbox: Claude still asks the user for other apps and
+  the user may accept them; agy and Cursor are refused for other apps. The
+  browser surface has no per-app approval in either mode.
 
 Then run:
 
     bash ~/.agents/skills/codex-cu/scripts/install-codex-cu.sh all   # or: safe
 
-It installs into `~/.local/bin`, registers `codex-cu` at user scope for Claude
-Code, Cursor and agy, writes `~/.config/codex-cu/approve`, and ends with the
+It installs into `~/.local/bin`, registers `codex-cu` at user scope for each of
+Claude Code, Cursor and agy that has a config on this machine (the check lists
+which), writes `~/.config/codex-cu/approve`, and ends with the
 check. If you cannot ask (print mode, worker), stop and show the user both
 commands. After setup, tell the user to start a new session: MCP servers load
 at session start. To switch mode later, run the installer with the other word,
@@ -124,8 +129,15 @@ Cursor):
 
 - `all` on its own line: accept every prompt (full mode, the deploy default).
 - One display name per line: accept only those apps (safe mode).
-- Any other app: the prompt goes to the client. agy and cursor-agent cannot
-  answer, so the proxy declines it for them.
+- `all` mixed with names means only those names.
+- Any other app, or no policy file: the prompt goes to the client. agy and
+  cursor-agent cannot answer, so the proxy declines it for them. With no file,
+  every app is refused in agy and Cursor.
+- A Claude `Elicitation` hook that accepts codex-cu prompts overrides `safe` for
+  forwarded apps. Remove such a hook; the policy file is the single source.
+
+`scripts/test-codex-cu-proxy` runs the proxy against a fake child (accept,
+forward, child death, slow client, two-way backpressure, bad policy).
 
 A refusal reads `Computer Use was not approved to use X`. Add the display name
 to the file; the next prompt reads it, no restart. The Chrome display name is

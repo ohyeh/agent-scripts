@@ -4,13 +4,13 @@ per-app approval prompts (elicitation/create) by policy, pass all else through v
 
 Approval policy file (CU_APPROVE_FILE, default ~/.config/codex-cu/approve), read on
 every prompt so an edit takes effect at once:
-  absent       forward every prompt to the client (old behaviour)
-  `all`        accept every prompt                                  (full mode)
+  absent       accept nothing (forward or decline, as below)
+  `all`        accept every prompt, app or not (full mode); `all` among names = names only
   app names    one per line; accept `Allow Computer Use to use "<name>"?` only (safe mode)
 A prompt the policy does not accept goes to the client if the client declared
 elicitation, else the proxy declines it (agy and cursor-agent cannot answer one).
 """
-import json, os, subprocess, sys, threading, uuid
+import json, os, queue, subprocess, sys, threading, uuid
 from pathlib import Path
 
 CHILD = os.environ.get("CU_CHILD") or str(Path(__file__).resolve().parent / "codex-cu-mcp")  # sibling by default
@@ -34,7 +34,7 @@ def read_policy():
         return Path(APPROVE_FILE).read_text()
     except FileNotFoundError:
         return None
-    except OSError as exc:  # unreadable policy must not open the gate; log and treat as absent
+    except (OSError, UnicodeDecodeError) as exc:  # unreadable policy must not open the gate; log and treat as absent
         sys.stderr.write(f"codex-cu-proxy: cannot read {APPROVE_FILE}: {exc}\n")
         return None
 
@@ -169,75 +169,114 @@ def self_test():
     print("self-test ok", file=sys.stderr)
 
 
-def reap(child, pump):
+DRAIN_IDLE_S = 5.0  # after child exit: how long the pump may wait on a read that brings nothing
+
+
+def drain(pump, state):
+    """After the child exits, keep waiting while the pump still delivers to the client
+    (a slow client is fine). Give up only when the pump sits on a read that brings no
+    data, e.g. a grandchild still holds the child's stdout. Returns True when drained."""
+    idle, seen = 0.0, state["delivered"]
+    while pump.is_alive():
+        pump.join(0.5)
+        if state["writing"] or state["delivered"] != seen:
+            idle, seen = 0.0, state["delivered"]
+        else:
+            idle += 0.5
+            if idle >= DRAIN_IDLE_S:
+                return False
+    return True
+
+
+def reap(child, pump, state):
     """A quiet child death must end the proxy: otherwise it blocks on stdin forever
-    and the MCP client waits for a reply that can never arrive."""
+    and the MCP client waits for a reply that can never arrive. Deliver the child's
+    last lines first; if that cannot finish, exit non-zero instead of truncating silently."""
     rc = child.wait()
-    pump.join(5)  # deliver the child's last lines before exiting
+    drained = drain(pump, state)
+    code = rc if rc >= 0 else 128 - rc
     sys.stderr.write(f"codex-cu-proxy: child {CHILD} exited {rc}\n")
+    if not drained:
+        sys.stderr.write("codex-cu-proxy: child stdout never closed after exit; output may be incomplete\n")
+        code = code or 1
     sys.stderr.flush()
-    os._exit(rc if rc >= 0 else 128 - rc)
+    os._exit(code)
 
 
 def main():
     child = subprocess.Popen([CHILD], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=sys.stderr, text=True, bufsize=1)
-    out_lock, in_lock = threading.Lock(), threading.Lock()
-    state = {"client_elicits": False}
+    out_lock = threading.Lock()
+    state = {"client_elicits": False, "writing": False, "delivered": 0}
+    to_child = queue.Queue()  # one writer thread owns child stdin, so no reader ever blocks on it
 
     def to_client(line):
         with out_lock:
-            sys.stdout.write(line + "\n")
-            sys.stdout.flush()
+            state["writing"] = True
+            try:
+                sys.stdout.write(line + "\n")
+                sys.stdout.flush()
+            finally:
+                state["writing"] = False
+        state["delivered"] += 1
 
-    def to_child(line):
-        with in_lock:
-            child.stdin.write(line + "\n")
-            child.stdin.flush()
+    def writer():
+        while True:
+            line = to_child.get()
+            if line is None:
+                break
+            try:
+                child.stdin.write(line + "\n")
+                child.stdin.flush()
+            except (BrokenPipeError, OSError, ValueError):  # child gone; reap() reports it
+                sys.stderr.write("codex-cu-proxy: child stdin closed\n")
+                break
+        try:
+            child.stdin.close()
+        except (BrokenPipeError, OSError, ValueError):
+            pass
 
     def pump():
         """Child -> client. Approval prompts stop here when the policy answers them."""
-        for line in child.stdout:
-            stripped = line.rstrip("\n")
-            try:
-                msg = json.loads(stripped)
-            except ValueError:
-                msg = None
-            if isinstance(msg, dict) and msg.get("method") == "elicitation/create" and "id" in msg:
-                reply = answer_elicitation(msg, state["client_elicits"], read_policy())
-                if reply is not None:
-                    try:
-                        to_child(reply)
-                    except (BrokenPipeError, OSError, ValueError):  # ValueError: stdin already closed at shutdown
-                        pass  # child gone; reap() reports it
-                    continue
-            to_client(stripped)
+        try:
+            for line in child.stdout:
+                stripped = line.rstrip("\n")
+                try:
+                    msg = json.loads(stripped)
+                except ValueError:
+                    msg = None
+                if isinstance(msg, dict) and msg.get("method") == "elicitation/create" and "id" in msg:
+                    reply = answer_elicitation(msg, state["client_elicits"], read_policy())
+                    if reply is not None:
+                        to_child.put(reply)
+                        continue
+                to_client(stripped)
+        except BrokenPipeError:
+            sys.stderr.write("codex-cu-proxy: client stdout closed\n")
+            os._exit(1)
+        except Exception as exc:  # a dead pump hangs the connection: fail loudly instead
+            sys.stderr.write(f"codex-cu-proxy: pump failed: {exc!r}\n")
+            sys.stderr.flush()
+            os._exit(1)
 
+    threading.Thread(target=writer, daemon=True).start()
     pump_thread = threading.Thread(target=pump, daemon=True)
     pump_thread.start()
-    threading.Thread(target=reap, args=(child, pump_thread), daemon=True).start()
+    reaper = threading.Thread(target=reap, args=(child, pump_thread, state), daemon=True)
+    reaper.start()
     initialized = False
-    try:
-        for line in sys.stdin:
-            stripped = line.rstrip("\n")
-            if not initialized:
-                is_init, reply = handle_pre_init(stripped)
-                if not is_init:
-                    if reply is not None:
-                        to_client(reply)
-                    continue
-                initialized = True
-                stripped, state["client_elicits"] = declare_elicitation(stripped)
-            to_child(inject(stripped))
-    except BrokenPipeError:
-        sys.stderr.write("codex-cu-proxy: child stdin closed\n")
-    finally:
-        try:
-            child.stdin.close()
-        except (BrokenPipeError, OSError):
-            pass
-    rc = child.wait()
-    pump_thread.join(5)
-    sys.exit(rc if rc >= 0 else 128 - rc)
+    for line in sys.stdin:
+        stripped = line.rstrip("\n")
+        if not initialized:
+            is_init, reply = handle_pre_init(stripped)
+            if not is_init:
+                if reply is not None:
+                    to_client(reply)
+                continue
+            initialized = True
+            stripped, state["client_elicits"] = declare_elicitation(stripped)
+        to_child.put(inject(stripped))
+    to_child.put(None)  # client closed stdin: close the child's after queued lines
+    reaper.join()  # reap() ends the process once the child exits and its output is delivered
 
 
 if __name__ == "__main__":

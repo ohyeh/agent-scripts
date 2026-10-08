@@ -77,11 +77,14 @@ if [ -n "$MODE" ] || [ ! -e "$POLICY" ]; then
   else
     set -- all
   fi
+  # Create 600 from the start and swap in whole: the proxy may read mid-write.
+  tmp="$(umask 077; mktemp "${POLICY}.XXXXXX")"
   printf '%s\n' '# codex-cu approval policy: `all` alone = accept every prompt; else one app name per line.' \
-    "$@" > "$POLICY"
-  chmod 600 "$POLICY"
+    "$@" > "$tmp"
+  mv -f "$tmp" "$POLICY"
   echo "==> [codex-cu] wrote ${MODE:-all} approval policy to $POLICY"
 fi
+chmod 600 "$POLICY"  # also tighten a kept policy
 echo "==> [codex-cu] approval policy: $(grep -v '^#' "$POLICY" | paste -sd, -)"
 
 # --- register at user scope on every present runtime ------------------------

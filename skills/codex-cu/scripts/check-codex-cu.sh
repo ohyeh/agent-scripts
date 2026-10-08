@@ -8,10 +8,14 @@
 #   2. the proxy resolves a child that exists
 #   3. the injection self-test passes
 #   4. every present runtime points at the proxy, not the bare child
+#   5. the approval policy exists, is readable, mode 600; prints the mode in use
+#      (a missing policy makes agy/Cursor decline every app)
+#
+# Not an end-to-end test: it never opens an app.
 #
 # SKIP + exit 0 when the Computer Use plugin is absent — same gate as the
 # installer, so a host without the ChatGPT app is not a fleet failure.
-# Usage: scripts/check-codex-cu.sh   (exit 0 = PASS)
+# Usage: check-codex-cu.sh   (exit 0 = PASS)
 set -euo pipefail
 
 PLUGIN_DIR="${HOME}/.codex/plugins/cache/openai-bundled/unified-computer-use"
@@ -89,6 +93,15 @@ if command -v agy >/dev/null 2>&1; then
   else
     say_fail "agy has no codex-cu entry pointing at $PROXY"
   fi
+fi
+
+POLICY="${CU_APPROVE_FILE:-${HOME}/.config/codex-cu/approve}"
+if [ ! -r "$POLICY" ]; then
+  say_fail "approval policy missing or unreadable: $POLICY (run the installer with all|safe)"
+elif [ "$(stat -f '%Lp' "$POLICY" 2>/dev/null || stat -c '%a' "$POLICY")" != 600 ]; then
+  say_fail "approval policy $POLICY is not mode 600"
+else
+  say_pass "approval policy: $(grep -v '^#' "$POLICY" | grep -v '^[[:space:]]*$' | paste -sd, -)"
 fi
 
 exit "$fail"

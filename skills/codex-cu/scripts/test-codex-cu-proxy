@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+"""Pipe-level regression test for codex-cu-proxy against a fake child (no real MCP).
+
+Cases come from the 2026-10-08 Sol review: accept, forward round trip, quiet child
+death, slow-client tail drain, two-way backpressure, non-UTF-8 policy.
+Usage: python3 test-codex-cu-proxy   (exit 0 = all PASS; ~15 s)
+"""
+import json, os, subprocess, sys, tempfile, threading, time
+from pathlib import Path
+
+PROXY = str(Path(__file__).resolve().parent / "codex-cu-proxy")
+BIG = 2_000_000
+CALC = 'Allow Computer Use to use "Calculator"?'
+FAKE = r'''
+import json, os, sys, time
+def emit(v): print(json.dumps(v), flush=True)
+mode = os.environ["FAKE_MODE"]
+if mode == "death":
+    emit({"last": True}); sys.exit(17)
+sys.stdin.readline()                                   # initialize
+emit({"ready": True})
+if mode == "tail":
+    emit({"tail": "x" * %d}); sys.exit(0)
+if mode == "deadlock":
+    sys.stdin.readline(); time.sleep(0.2)
+    emit({"jsonrpc": "2.0", "id": "app", "method": "elicitation/create", "params": {"message": %r}})
+    emit({"bulk": "x" * %d})
+    sys.stdin.readline(); sys.stdin.readline()          # approval reply + big tools/call
+    emit({"completed": True}); sys.exit(0)
+emit({"jsonrpc": "2.0", "id": "app", "method": "elicitation/create", "params": {"message": %r}})
+emit({"got": json.loads(sys.stdin.readline())}); sys.exit(0)
+''' % (BIG, CALC, BIG, CALC)
+
+tmp = Path(tempfile.mkdtemp())
+child = tmp / "fake-child"
+child.write_text("#!" + sys.executable + "\n" + FAKE)
+child.chmod(0o755)
+
+
+def init(caps):
+    return json.dumps({"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {"capabilities": caps}}) + "\n"
+
+
+def start(mode, policy):
+    pol = tmp / "approve"
+    pol.write_bytes(policy)
+    env = dict(os.environ, CU_CHILD=str(child), CU_APPROVE_FILE=str(pol), FAKE_MODE=mode)
+    return subprocess.Popen([sys.executable, PROXY], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, env=env)
+
+
+def lines(p, n, timeout):
+    out, box = [], {}
+    def rd():
+        for _ in range(n):
+            l = p.stdout.readline()
+            if not l:
+                break
+            out.append(l)
+    t = threading.Thread(target=rd, daemon=True); t.start(); t.join(timeout)
+    return out
+
+
+results = []
+def check(name, ok, detail=""):
+    results.append(ok)
+    print(("PASS " if ok else "FAIL ") + name + ("" if ok else f" -- {detail}"))
+
+
+# 1. accept: policy `all` answers the prompt; the child receives accept
+p = start("normal", b"# c\nall\n"); p.stdin.write(init({}).encode()); p.stdin.flush()
+got = [json.loads(l) for l in lines(p, 2, 10)]
+p.kill()
+check("accept under `all`", len(got) == 2 and got[1].get("got", {}).get("result") == {"action": "accept", "content": {}}, got)
+
+# 2. forward: unlisted app + client that elicits -> client sees prompt, its reply reaches the child
+p = start("normal", b"TextEdit\n"); p.stdin.write(init({"elicitation": {}}).encode()); p.stdin.flush()
+got = [json.loads(l) for l in lines(p, 2, 10)]
+fwd = len(got) == 2 and got[1].get("method") == "elicitation/create"
+p.stdin.write(json.dumps({"jsonrpc": "2.0", "id": "app", "result": {"action": "decline"}}).encode() + b"\n"); p.stdin.flush()
+back = [json.loads(l) for l in lines(p, 1, 10)]
+p.kill()
+check("forward round trip", fwd and back and back[0]["got"]["result"] == {"action": "decline"}, (got, back))
+
+# 3. quiet child death: last line delivered, child's code returned
+p = start("death", b"all\n")
+out = lines(p, 1, 10); rc = p.wait(10)
+check("child death ends proxy", rc == 17 and out and json.loads(out[0]) == {"last": True}, (rc, out))
+
+# 4. slow client: child exits right after a 2 MB line; client waits past the drain idle limit
+p = start("tail", b"all\n"); p.stdin.write(init({}).encode()); p.stdin.flush()
+lines(p, 1, 10); time.sleep(6.5)
+tail = p.stdout.readline(); rc = p.wait(15)
+check("tail delivered whole to a slow client", rc == 0 and len(tail) == BIG + len('{"tail": ""}') + 1 and tail.endswith(b"\n"), (rc, len(tail)))
+
+# 5. two-way backpressure: big client->child and child->client at once, plus an approval
+p = start("deadlock", b"all\n")
+p.stdin.write(init({}).encode() + b'{"jsonrpc":"2.0","method":"notifications/start"}\n'); p.stdin.flush()
+big = json.dumps({"jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": {"name": "js", "x": "y" * BIG}}) + "\n"
+threading.Thread(target=lambda: (p.stdin.write(big.encode()), p.stdin.flush()), daemon=True).start()
+out = lines(p, 3, 20)
+p.kill()
+check("no deadlock under two-way backpressure", len(out) == 3 and json.loads(out[2]) == {"completed": True}, [l[:40] for l in out])
+
+# 6. non-UTF-8 policy: logged, treated as absent (decline for a non-eliciting client), connection lives
+p = start("normal", b"\xca\xfe\xba\xbe\n"); p.stdin.write(init({}).encode()); p.stdin.flush()
+got = [json.loads(l) for l in lines(p, 2, 10)]
+p.kill(); err = p.stderr.read().decode()
+check("bad policy fails closed and keeps going", len(got) == 2 and got[1]["got"]["result"] == {"action": "decline"} and "cannot read" in err, (got, err[-200:]))
+
+print(f"{sum(results)}/{len(results)} PASS")
+sys.exit(0 if all(results) else 1)
