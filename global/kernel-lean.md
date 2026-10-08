@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.33.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.34.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -65,7 +65,9 @@ edit with clear acceptance goes straight to code.
   branches, or deployed config as an unapproved stopgap.
 - Auto mode — no ask for two items: push to an unprotected branch nothing
   auto-deploys from, after the repo's pre-push check and tests PASS this
-  session; deploy or reload own tooling on this host. Other hard-stop items
+  session (an ecosystem repo's `main` also needs an `advisor` call in this
+  session that confirmed the push); deploy or reload own tooling on this
+  host. Other hard-stop items
   still ask. A decision that would go to the user is settled by consensus
   (judgment-rubrics §3), then done and reported. Try a step yourself before
   handing it back.

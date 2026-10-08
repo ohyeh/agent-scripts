@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.33.0-ironlaws
+Version: 4.34.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -82,7 +82,10 @@ replaces reading the touched code.
 - Auto mode (user ruling 2026-10-02) — standing approval, no ask, for two
   items only: (1) push to an unprotected branch of a repo this session works
   in, when nothing deploys from that branch without a human step, after the
-  repo's pre-push check and tests PASS this session (quoted); (2) deploy or
+  repo's pre-push check and tests PASS this session (quoted) — this includes
+  `main` of an ecosystem repo whose consumers pin a release tag, once an
+  `advisor` call in this session confirmed that push (quote its reply; user
+  ruling 2026-10-08); (2) deploy or
   reload own tooling on this host. Every other hard-stop item still asks. A
   decision that would otherwise go to the user is settled by the consensus
   ladder (judgment-rubrics §3), then acted on and reported with who agreed
