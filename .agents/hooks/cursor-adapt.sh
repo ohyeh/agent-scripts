@@ -79,9 +79,14 @@ in_file="$(mktemp)"
 printf '%s' "$IN" > "$in_file"
 mkdir -p "$HOME/.local/state/agent-scripts"
 cp "$in_file" "$HOME/.local/state/agent-scripts/last-cursor-pretool.json" 2>/dev/null || true
-printf '%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$HOME/.local/state/agent-scripts/last-cursor-pretool-append.jsonl" 2>/dev/null || true
-cat "$in_file" >> "$HOME/.local/state/agent-scripts/last-cursor-pretool-append.jsonl" 2>/dev/null || true
-printf '\n' >> "$HOME/.local/state/agent-scripts/last-cursor-pretool-append.jsonl" 2>/dev/null || true
+# One JSONL record per tool call. `agent` is CURSOR_CONVERSATION_ID: the Grok Bot agent UUID
+# for a bot's own tools, `sand-subagent-<id>` for its subagents ("" outside Grok Bot). The
+# payload's session/conversation ids are empty there, so this env var is the only attribution.
+# user_email is not logged; tool_input is cut to 4000 chars.
+jq -cRs --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg agent "${CURSOR_CONVERSATION_ID:-}" \
+  '. as $r | (try fromjson catch null) as $j
+   | {ts:$ts, agent:$agent, tool_name:($j.tool_name? // null), tool_input:(($j.tool_input? // $r) | tostring | .[0:4000])}' \
+  < "$in_file" >> "$HOME/.local/state/agent-scripts/last-cursor-pretool-append.jsonl" 2>/dev/null || true
 mapped="$("$PY" - "$in_file" <<'PY'
 import hashlib, json, sys
 
