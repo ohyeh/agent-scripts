@@ -248,6 +248,7 @@ hook_install "$SRC/.agents/hooks/claude-version-sentinel.sh"
 hook_install "$SRC/.agents/hooks/session-title-sentinel.sh"
 hook_install "$SRC/.agents/hooks/bol-prompt-gate.sh"
 hook_install "$SRC/.agents/hooks/subagent-ledger.sh"
+hook_install "$SRC/.agents/hooks/subagent-lock.sh"     # sourced by the ledger and the concurrency gate
 install -m 0755 "$SRC/scripts/check-bol-prompt.sh" ~/.agents/hooks/
 hook_install "$SRC/.agents/hooks/context-ledger.sh"
 hook_install "$SRC/.agents/hooks/skill-router-nudge.sh"

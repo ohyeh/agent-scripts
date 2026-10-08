@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# W42-1 smoke: subagent-concurrency-gate.sh reserves under a lock, so N Agent
+# calls in one message cannot all pass a cap of 5.
+set -u
+H="$(CDPATH= cd -- "$(dirname -- "$0")/../.agents/hooks" && pwd)"
+T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+export XDG_STATE_HOME="$T/state" XDG_DATA_HOME="$T/data"
+fail=0; ok() { echo "ok   $1"; }; bad() { echo "FAIL $1"; fail=1; }
+gate() { printf '{"tool_name":"Agent","session_id":"%s","tool_input":{"subagent_type":"x"}}' "$1" | bash "$H/subagent-concurrency-gate.sh" 2>/dev/null; }
+ledger() { printf '{"hook_event_name":"%s","session_id":"%s","agent_id":"%s","agent_type":"x"}' "$1" "$2" "$3" | bash "$H/subagent-ledger.sh"; }
+count() { find "$XDG_STATE_HOME/agent-hooks/$1/$2" -type f 2>/dev/null | wc -l | tr -d ' '; }
+
+# 1. six calls in one message (concurrent) -> exactly 5 pass, 1 blocked
+for i in 1 2 3 4 5 6; do ( gate s1; echo $? > "$T/rc$i" ) & done; wait
+pass=$(cat "$T"/rc* | grep -c '^0$'); blk=$(cat "$T"/rc* | grep -c '^2$')
+[ "$pass" = 5 ] && [ "$blk" = 1 ] && ok "6 concurrent calls: 5 pass, 1 blocked" || bad "6 concurrent calls: pass=$pass blocked=$blk"
+
+# 2. SubagentStart turns pending into live; total stays at the cap
+for i in 1 2 3 4 5; do ledger SubagentStart s1 a$i; done
+[ "$(count s1 pending)" = 0 ] && [ "$(count s1 subagents)" = 5 ] && ok "start: pending 0, live 5" || bad "start: pending=$(count s1 pending) live=$(count s1 subagents)"
+gate s1; [ $? = 2 ] && ok "6th call while 5 live is blocked" || bad "6th call while 5 live not blocked"
+
+# 3. SubagentStop frees a slot
+ledger SubagentStop s1 a1; gate s1; [ $? = 0 ] && ok "stop frees one slot" || bad "stop did not free a slot"
+
+# 4. a pending that never starts (denied by a later hook) expires
+export BOL_CONCURRENCY_PENDING_TTL=3
+for i in 1 2 3 4 5; do gate s2; done; gate s2; r=$?
+[ $r = 2 ] && ok "5 pending fill the cap" || bad "5 pending did not fill the cap (rc=$r)"
+sleep 4; gate s2; [ $? = 0 ] && ok "expired pending no longer counted" || bad "expired pending still counted"
+
+# 5. no session_id -> no count, allowed
+printf '{"tool_name":"Agent"}' | bash "$H/subagent-concurrency-gate.sh"; [ $? = 0 ] && ok "no session_id allowed" || bad "no session_id blocked"
+
+[ "$fail" = 0 ] && echo "PASS subagent-gate-smoke" || { echo "FAIL subagent-gate-smoke"; exit 1; }
