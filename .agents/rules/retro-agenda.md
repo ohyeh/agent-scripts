@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+Version: 1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
 ＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
 1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
@@ -173,6 +173,10 @@ retro 時倒空 inbox：議題逐條討論、隨手記餵給 §2–4 當 Layer 2
 | ohyeh/tmux-agent-tools | agent-tmux script 指紋、dispatch-gate plugin ×4 位置、smoke 狀態 |
 | ohyeh/context-mode-local-insight | agent-sessions --fleet（雙機 session 量測，schema 版本） |
 | 機器層（非 repo） | shared-memory-inbox pending、codex --version、部署層 .skill-lock.json hash |
+
+儀表板「相關報告」表每一頁，本輪 findings 若讓它的某句話變假、過時或已完成，就同 URL 原地更新：
+改掉那句、標完成，再加一個短的「W(n) 後續」段；不另開新頁寫心得。沒受影響的頁在表上寫「無變化」。
+表的最右欄固定是本輪的後續欄，每頁一格不得空白——空格就是漏更新。
 
 舊有五頁（skill/workflow manifest、健檢報告、分群圖、spinout）已於
 2026-08-08 併入並立指路碑，不再更新。
