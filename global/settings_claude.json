@@ -235,7 +235,7 @@
       "effortLevel": "xhigh"
     }
   },
-  "autoCompactWindow": 500000,
+  "autoCompactWindow": 450000,
   "advisorModel": "fable",
   "askUserQuestionTimeout": "5m",
   "autoUpdatesChannel": "latest",
