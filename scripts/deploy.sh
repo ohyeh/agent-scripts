@@ -98,19 +98,20 @@ detect_clone_tracked() {
     echo "FAIL [resolve] clone $target has tracked changes; refusing to pull over them" >&2
     return 1
   fi
+  # Layers install from the working tree, so a file git does not track there ships
+  # too (W42-7: a retired recipe kept coming back on grok-bot-vm). Checked before the
+  # pull, so a FAIL leaves HEAD as it was. Ignored files stay allowed: deploy itself
+  # installs check-bol-prompt.sh into .agents/hooks.
+  local stray; stray="$(git -C "$target" status --porcelain --untracked-files=all -- skills global .agents)"
+  if [ -n "$stray" ]; then
+    echo "FAIL [resolve] clone $target has untracked files in deployed paths; remove them first:" >&2
+    printf '%s\n' "$stray" >&2
+    return 1
+  fi
   CLONE_TRACKED=1; SRC="$target"
   echo "==> [resolve] clone-tracked layout: ~/.agents/rules -> $target; pulling $RELEASE_REF"
   git -C "$SRC" pull -q --ff-only origin "${RELEASE_REF#refs/heads/}"
   DEPLOYED_SHA="$(git -C "$SRC" rev-parse HEAD)"
-  # Layers install from the working tree, so a file git does not track there
-  # ships too (W42-7: a retired recipe kept coming back on grok-bot-vm). Ignored
-  # files stay allowed: deploy itself installs check-bol-prompt.sh into .agents/hooks.
-  local stray; stray="$(git -C "$SRC" status --porcelain --untracked-files=all -- skills global .agents)"
-  if [ -n "$stray" ]; then
-    echo "FAIL [resolve] clone $SRC has untracked files in deployed paths; remove them first:" >&2
-    printf '%s\n' "$stray" >&2
-    return 1
-  fi
   echo "PASS [resolve] clone @ $DEPLOYED_SHA (git pull --ff-only; tarball skipped)"
 }
 
