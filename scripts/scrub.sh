@@ -9,7 +9,7 @@
 # Scans the index (`git grep --cached`) and every commit this push would
 # publish (`origin/main..HEAD`); secrets are scanned across ALL history.
 # Other patterns over already-published history are REPORTED as debt
-# (history-*.txt), not blocked -- scope ruling 2026-09-15, see lessons.md. Exits 0 only on a
+# (history-*.txt), not blocked -- scope ruling 2026-09-15, see `git show 97e4b0d^:.agents/rules/lessons.md`. Exits 0 only on a
 # clean scan; any match, any unexpected `git grep` exit code, a dirty
 # worktree, or a broken object graph is a hard BLOCK (exit 1). Never weaken
 # these patterns to make a scan pass -- fix the staged content instead.

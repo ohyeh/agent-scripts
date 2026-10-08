@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.34.0-ironlaws
+Version: 4.35.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -58,8 +58,10 @@ ritual, no quoting; tooling enforces critical gates.
 - Plan/investigate or output → operator-defaults.
 - Hard task, stalled progress, or final answer → judgment-rubrics §8 (persist within
   caps: same approach ≤3 rounds, each one tier up; every call counts).
-- Edit guidance, rules, skills, or lessons.md → maintenance §1: exact diff,
-  then approval.
+- Edit guidance, rules, or skills → maintenance §1: exact diff, then
+  approval.
+- Friction found (user correction, same friction twice) → maintenance §2:
+  a gate, or a backlog row that names the file; no free-text lesson list.
 - Task type not named above (PDFs, test plans, architecture) → skill
   using-skills before doing it by hand.
 
@@ -187,6 +189,5 @@ replaces reading the touched code.
   (plan, state, orchestration, notes).
 - Shared memory: `~/.codex/memories/` (MEMORY.md first); contract = skill
   shared-memory-intake — externals submit to inbox only; Codex promotes.
-- Rules change only via proposals; lessons.md: append-only, `Status:
-  proposed`, non-normative — never a silent edit; automated
+- Rules change only via proposals — never a silent edit; automated
   self-modification stays OFF.

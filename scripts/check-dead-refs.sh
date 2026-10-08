@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Fail when live guidance names a retired skill, agent, or command.
-# Scope: kernel (global/*.md), routed rules (minus append-only lessons.md),
+# Scope: kernel (global/*.md), routed rules,
 # skills/*/SKILL.md and skills/*/references/*.md. Blockquote lines (`>`) are
 # evidence quotes and are skipped.
 # ponytail: static name list; when a skill/agent/command is retired, add its
@@ -16,7 +16,7 @@ refactor release-plannotator resolving-merge-conflicts review-renovate simplify
 update-deps wait-what edit-article tmux-delegate diagnose bro
 design-consensus'
 files=$(ls "$ROOT"/global/*.md "$ROOT"/.agents/rules/*.md "$ROOT"/skills/*/SKILL.md \
-  "$ROOT"/skills/*/references/*.md 2>/dev/null | grep -v '/lessons\.md$')
+  "$ROOT"/skills/*/references/*.md 2>/dev/null)
 fail=0
 for n in $RETIRED; do
   case "$n" in

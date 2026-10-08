@@ -34,6 +34,8 @@ Chain these for planning and investigation work:
   `stop-slop`: active voice, human subject, no adverbs, no em dashes, concrete
   over vague.
 - Re-explain on request through the `simplified-english` rule.
+- A command handed to the user is one copy-paste line: absolute paths expanded,
+  no placeholders left, and it says where to run it (which host, which directory).
 - Prefer structure over a wall of prose (the `adhd` output discipline): diverge,
   then converge; number the options.
 - Run the full `adhd` parallel divergence at key, high-stakes, open-ended

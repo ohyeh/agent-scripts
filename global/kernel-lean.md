@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.34.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.35.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -44,7 +44,9 @@ ritual or quoting.
   plan step.
 - Write procedural English, or simplify/re-explain → simplified-english.
   Plan/investigate or output → operator-defaults. Hard task, stalled, or final answer → judgment-rubrics §8.
-- Edit rules, skills, or lessons.md → maintenance §1: exact diff, then approval.
+- Edit rules or skills → maintenance §1: exact diff, then approval.
+- Friction found → maintenance §2: a gate, or a backlog row naming the file;
+  no free-text lesson list.
 - Task not named above → skill using-skills first.
 
 Binds for multi-phase, irreversible, or delegated work; a single reversible
@@ -115,5 +117,5 @@ edit with clear acceptance goes straight to code.
 - Non-trivial work: one `.workflow/<YYYYMMDDHHMM>-<slug>/` run dir per task.
 - Shared memory: `~/.codex/memories/` (MEMORY.md first); contract = skill
   shared-memory-intake.
-- Rules change only via proposals; lessons.md append-only, `Status: proposed`,
-  non-normative — never a silent edit; automated self-modification stays OFF.
+- Rules change only via proposals — never a silent edit; automated
+  self-modification stays OFF.

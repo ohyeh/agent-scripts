@@ -17,10 +17,10 @@ file set plus installed skills. If you are unsure which row applies, use the str
 
 | File | Agent may (no approval)… | Requires user approval |
 |---|---|---|
-| `rules/lessons.md` | Append entries freely (format §3; new entries always `Status: proposed`) | Deleting/rewriting old entries; any `proposed → adopted` transition (happens only with the approved diff that folds the lesson into a rules file) |
-| `rules/model-dispatch.md` §1 table | Update model values after LIVE verification (schema/`/model`), log it in lessons.md | Changing the ladder or contracts (§2–§7) |
-| Other `rules/*.md` | Fix objectively broken paths/commands (verify first, log it in lessons.md) | Any semantic change — show the exact diff, wait for approval |
-| Companion docs in `rules/` (letter, provisioning runbook) | Fix verified-broken facts/paths (log it in lessons.md) | Semantic/content changes — diff + approval |
+| `rules/model-dispatch.md` §1 table | Update model values after LIVE verification (schema/`/model`), quote the check in the commit message | Changing the ladder or contracts (§2–§7) |
+| Other `rules/*.md` | Fix objectively broken paths/commands (verify first, quote the check in the commit message) | Any semantic change — show the exact diff, wait for approval |
+| Companion docs in `rules/` (letter, provisioning runbook) | Fix verified-broken facts/paths (quote the check in the commit message) | Semantic/content changes — diff + approval |
+| Backlog rows (§3) | Add rows freely | Closing a row as dropped |
 | Global files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`) | Nothing | Everything (edit BOTH in the same change; `Version:` lines must stay identical). Content contract (user rulings 2026-08-08 + 2026-08-16 two-edition scheme): iron laws only; the solid edition (`global/CLAUDE.md`/`global/AGENTS.md`, deployed) has NO size cap — the budget baseline gate governs growth; `global/kernel-lean.md` (fetched by `WEB-AGENTS.md` for network-only agents) carries no hard character cap — keep it terse by review, not by a number; detail lives in routed files; imperative modality (MUST/never/ask-first) is part of the norm and must never be softened by compression |
 | Installed skills (`~/.agents/skills/*`, `~/.claude/skills/*`, plugin skills) | Nothing | Everything — never edit a skill without an approved diff |
 | `~/.claude/settings.json`, plugins, hooks | Nothing | Everything (user decided 2026-07-10 to keep current plugin set) |
@@ -42,28 +42,25 @@ data loss, or (c) the user explicitly requests enforcement. Cite the incidents
 and state the mechanism's false-positive and false-negative boundary. Enforcement
 supplements compliance; it does not excuse the incident.
 
-## §2 When to record a lesson
-Append to `rules/lessons.md` when:
-- The user corrects a behavior (a single correction suffices), or the same friction appears twice without a correction.
-- A verified fact contradicts something written in rules/ (also fix or flag the rule).
-- A delegation failed for a reason a one-line rule would have prevented.
-- A model/parameter/tool availability change is discovered.
-Do NOT record: one-off task trivia, project-specific details (those go to the
-project's own CLAUDE.md/notes), anything already covered by an existing rule.
+## §2 Friction → a gate, a backlog row, or nothing
+There is no free-text lesson list (`lessons.md` retired 2026-10, option B; old entries:
+`git show a3992bd:.agents/rules/lessons.md`). Triggers: the user corrects a behavior
+(one correction suffices); the same friction appears twice; a verified fact contradicts
+rules/; a delegation failed for a reason a check would have caught; a model/tool
+availability change. In the same turn, pick exactly one outcome:
+- Gate: a hook or check under `.agents/hooks/` or `scripts/` that fails on the bad
+  case. It follows the eligibility test above and the §1 row of each file it touches.
+- Rule fix: the rule text is wrong or missing → exact diff to that file (§1).
+- Backlog row (§3): worth enforcing, but no gate yet.
+- Nothing: one-off trivia, project-specific detail (goes to that project's notes), or
+  already covered — cite the covering `file:line` and stop.
 
-## §3 Lesson format (append-only, newest last)
-```
-## 2026-07-10 | scope: dispatch | trigger: haiku hallucinated a model ID
-Rule: never let subagents state model IDs; the dispatcher fills them from model-dispatch §1.
-Status: proposed   # proposed → adopted (user approved, folded into a rules file) → retired
-```
-Three lines max per entry. An entry older than 90 days still "proposed" gets retired
-or re-raised with the user — no zombie rules.
-Hard constraints (close the approval bypass):
-- A newly appended entry MUST have `Status: proposed`. Appending `adopted` is forbidden.
-- `lessons.md` is NON-NORMATIVE: no entry, whatever its Status, overrides CLAUDE.md or
-  any rules file. A lesson gains force only by being folded into a rules file via an
-  approved diff; the `proposed → adopted` flip happens in that same approved commit.
+## §3 Backlog row format
+One line in `evals/retro-metrics/inbox.md` under 待討論議題:
+`YYYY-MM-DD | friction (evidence) | file to change | acceptance + one negative case`.
+A row with no file name, or with no case that must FAIL before the fix, is not a row.
+Retro §6.5 drains the inbox into `next-week-backlog.md`; a row closes as a gate or a
+rule fix (commit sha), or as dropped (user approval, §1).
 
 ## §4 Size limits and pruning
 - No size cap and no byte budget. The line cap went 2026-08-25 (line counts measure
@@ -74,16 +71,14 @@ Hard constraints (close the approval bypass):
   by review. Never trim unrelated rules to make room for an addition — that is the
   reflow trick again. `~/.claude/CLAUDE.md` stays index +
   hard rules only — detail moves to a rules/ file behind one routing line.
-- `rules/lessons.md`: at 40 entries, propose a consolidation pass to the user (fold
-  adopted lessons into their target rules file, delete retired ones).
 - `Version:` is a policy EDITION label bumped by the periodic review below,
   NOT a drift signal: it held at `4.24.0-ironlaws` across 8 commits while a
   host ran 3-day-old kernels (session 76409ec8). Provenance drift →
   `scripts/check-deploy-drift.sh` vs `deploy-log.jsonl`; content drift stays
   with the full-file comparison. Neither replaces the other.
 - Periodic review — ~monthly or every ~50 sessions: run `/insights` and `/doctor`
-  (where the runtime provides them), process every `proposed` lesson with the user,
-  fold confirmed frictions into rules, prune rules that stopped earning their place,
+  (where the runtime provides them), close every open backlog row with the user,
+  turn confirmed frictions into gates or rule fixes, prune rules that stopped earning their place,
   and bump the `Version:` line in CLAUDE.md — all as a PROPOSED diff, per §1.
 - Quarterly (first session of each quarter) at minimum: re-verify model-dispatch §1
   and run the periodic review above if it hasn't happened this quarter.
@@ -92,10 +87,9 @@ Hard constraints (close the approval bypass):
 - Canonical source (ADR-0001, ACTIVE) = the public `agent-scripts` repo's
   `.agents/rules/`. `~/.agents/rules/` on each machine is a deployed copy, read
   on demand by both runtimes per the routing table in the global files.
-- Deploy = `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/`.
-  `lessons.md` is repo-synced since 2026-08-08 (W32 ruling A-3); before deploying,
-  check each machine for local lessons entries not yet merged into the repo copy —
-  merge them first, or `--delete` destroys them.
+- Deploy = `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/`. Nothing
+  under `~/.agents/rules/` is machine-local: `--delete` removes any file the repo
+  does not carry.
 - Deploy hygiene (each learned from a real drift incident): after any institution
   pivot, grep every rules/global file for the old mechanism's tokens and fix them
   in one pass; periodically diff native `~/.claude/CLAUDE.md`/`~/.codex/AGENTS.md`

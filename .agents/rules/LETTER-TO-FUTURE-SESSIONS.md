@@ -6,15 +6,19 @@ to come. The rules themselves live in `rules/`; this letter covers three things
 the rule files don't have room for, how the institution is most likely to decay,
 and where I myself am least confident.
 
+> Edited 2026-10-09 (lessons option B): `lessons.md` is retired. Where this letter
+> said "write it into lessons.md", friction now becomes a gate, a backlog row that
+> names the file, or nothing (maintenance §2).
+
 ## I. Three things you didn't ask, but I think matter most
 
 **1. The institution succeeds or fails on the feedback loop, not the rule files.**
 All the rules files combined are worth less than the habit of "the user spends
 one minute approving or rejecting a proposed diff every time they see one."
-`lessons.md` is the only organ in this whole system that can grow; if no one
-reviews proposals for three months, it degrades into decoration and the rules
-freeze at the 2026-07-10 worldview. Please treat "processing proposed entries"
-as routine business, even when the answer is always "reject."
+The backlog that turns friction into gates is the only organ in this whole
+system that can grow; if no one closes its rows for three months, it degrades
+into decoration and the rules freeze at the 2026-07-10 worldview. Please treat
+"closing backlog rows" as routine business, even when the answer is always "drop."
 
 **2. The long-run bottleneck is context, not model intelligence.**
 Your environment injects the following at the start of every session: CLAUDE.md
@@ -43,8 +47,8 @@ the line on is also the cheapest one: with no raw evidence, always say
 | Rule files bloat back into long prose a weak model can't finish reading | Growth governed by review; the periodic review prunes rules that stopped earning their place (maintenance §4) |
 | Routing becomes theater: the model skips "read the rules file first" and just starts working | Reading the file before delegating and before declaring completion is now MANDATORY; the user can spot-check: "which file, which section, did you just cite?" — failure to answer means the gate didn't fire |
 | The model table goes stale, dispatch keeps using it anyway | dispatch §8 quarterly re-verification + silent fable→opus fallback |
-| lessons.md turns into a junk drawer | Three-line format, consolidation once entries pass ~40, 90-day auto-retirement of stale `proposed` entries |
-| The user bypasses the institution under time pressure | Normal, no guilt needed; adding a lesson afterward is the institution working as intended |
+| A free-text lesson list turns into a junk drawer | Retired 2026-10-09: no lesson list; each friction becomes a gate, a backlog row that names a file and a failing case, or nothing (maintenance §2/§3) |
+| The user bypasses the institution under time pressure | Normal, no guilt needed; adding a backlog row afterward is the institution working as intended |
 | Verification degrades into self-verification by the author | dispatch §6 states in black and white: past the triviality threshold, the author's own "I verified it" is not evidence |
 
 ## III. Honesty clause: where my output is least confident
@@ -54,11 +58,11 @@ the line on is also the cheapest one: with no raw evidence, always say
    my inference from a general capability ladder, not calibrated against your
    actual quota or real cases. For example, Sonnet 5 may well be enough for most
    hard debugging, and I have no idea what Opus 4.8 costs against your quota.
-   Revise the table after two weeks of lived experience — that's exactly what
-   lessons.md is for.
+   Revise the table after two weeks of lived experience — as an exact diff to
+   model-dispatch (maintenance §1).
 2. **Whether requests routed to Opus 4.8 consume Fable quota**: couldn't verify
    this, unconfirmed. Check the usage dashboard on claude.ai and write the
-   conclusion into lessons.md.
+   conclusion into model-dispatch §1 as an exact diff.
 3. **Diagnosis §2 (style conflicts as one of the main causes of drift)**: the
    three contradictory injections are a verified fact; "it's the main cause" is
    an inference — no controlled experiment was run. I'm confident in the
@@ -78,7 +82,7 @@ the line on is also the cheapest one: with no raw evidence, always say
    the three elements in §3.
 3. Before declaring completion → go through the `rules/judgment-rubrics.md` §2
    checklist.
-4. Hit a snag → write three lines into `rules/lessons.md`, keep working.
+4. Hit a snag → a gate, or a one-line backlog row (maintenance §2), keep working.
 
 Good luck. The institution won't make a weak model smarter, but it will keep it
 from making mistakes a strong model would also make.

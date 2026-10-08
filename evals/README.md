@@ -2,8 +2,7 @@
 
 ## Static invariants（現行）
 `node scripts/check-rules-invariants.mjs` — 全 PASS 才 exit 0。涵蓋：
-global 兩檔 byte-identical、Gates 表引用的 rule 檔存在（lessons.md 為
-local-only 豁免）、✈ canary 條款存在、deploy 的 pinned-SHA 流程、fixture
+global 兩檔 byte-identical、Gates 表引用的 rule 檔存在、✈ canary 條款存在、deploy 的 pinned-SHA 流程、fixture
 schema、public 檔不含私有 fleet 字面值。
 
 大小不設限：行數上限 2026-08-25 退役，byte budget 2026-09-01 退役

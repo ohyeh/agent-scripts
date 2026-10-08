@@ -29,6 +29,9 @@ Common footer — include in EVERY delegation:
 > contents or logs.
 > If you cannot meet an acceptance criterion, say which one and why — do not
 > fake it.
+> On work over 15 minutes, send one progress line (done, next, blocker) at each
+> finished item or every 15 minutes, through SendMessage or the worker channel;
+> silence is not progress.
 
 `{artifact_path}` is a filesystem path YOU choose and fill in before sending —
 never a field name to harvest on. For a tmux worker the result contract is

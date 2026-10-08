@@ -59,7 +59,5 @@ out = {"host": socket.gethostname(), "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", t
  "claim_evidence_blocked_7d": (lambda p: (sum(1 for l in open(H(p)) if '"blocked":true' in l and l[14:24] >= time.strftime("%Y-%m-%d", time.gmtime(cut))) if os.path.exists(H(p)) else None))("~/.local/share/agent-hooks/claim-evidence-stats.jsonl"),
  "context_mode_sessions_7d": {"db_files": len([f for f in glob.glob(H("~/.claude/context-mode/sessions/**/*.db"), recursive=True) if os.path.getmtime(f) >= cut]),
                               "kept_out_pct": "本週未量測（需 cmli analytics-core，遠端無 MCP sdk）", "method": "count *.db mtime in window"},
- "lessons": {"path": "~/.agents/rules/lessons.md", "sha256": (hashlib.sha256(open(H("~/.agents/rules/lessons.md"), "rb").read()).hexdigest()[:8] if os.path.exists(H("~/.agents/rules/lessons.md")) else None),
-             "entries": len(re.findall(r"^## \d{4}-\d{2}-\d{2}", open(H("~/.agents/rules/lessons.md")).read(), re.M)) if os.path.exists(H("~/.agents/rules/lessons.md")) else None},
 }
 print(json.dumps(out, ensure_ascii=False, indent=1))

@@ -53,8 +53,7 @@ DEPLOY_URL="$RAW_BASE/$SHA/scripts/deploy.sh"
 EXPECTED_MD5="$(curl -fsSL "$RAW_BASE/$SHA/global/CLAUDE.md" | { if command -v md5 >/dev/null; then md5 -q; else md5sum | cut -d' ' -f1; fi; })"
 EXPECTED_VERSION="$(curl -fsSL "$RAW_BASE/$SHA/global/CLAUDE.md" | grep -m1 '^Version:')"
 
-# Rules-layer expectation: aggregate sha256 of every pinned rule file,
-# including repo-canonical lessons.md.
+# Rules-layer expectation: aggregate sha256 of every pinned rule file.
 RULES_SNIPPET='r(){ cd "$1" 2>/dev/null || { echo missing; return; }; LC_ALL=C ls *.md 2>/dev/null | xargs shasum -a 256 2>/dev/null | shasum -a 256 | cut -d" " -f1; }'
 TMPD="$(mktemp -d)"
 trap 'rm -rf "$TMPD"' EXIT

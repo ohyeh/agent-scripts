@@ -17,8 +17,7 @@ Deliberately **not duplicated** here (single canonical copy elsewhere in this
 repo — duplicate trees drift):
 
 - **rules** → [`../.agents/rules/`](../.agents/rules/) (canonical per ADR-0001;
-  deployed to `~/.agents/rules/` on each machine; `lessons.md` is
-  machine-local only and never enters this repo).
+  deployed to `~/.agents/rules/` on each machine).
 - **workflows** → [`../skills/using-workflows/workflows/`](../skills/using-workflows/workflows/)
   (canonical recipe bundle; deployed to `~/.claude/workflows/` via the
   skill's `scripts/install.sh`).

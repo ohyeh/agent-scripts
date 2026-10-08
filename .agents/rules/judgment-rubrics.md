@@ -32,6 +32,9 @@ Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
       A peer, reviewer, or handoff conclusion is a lead, not raw evidence: it corroborates
       only if the reviewer was commissioned against stated acceptance AND you inspect the
       cited live source; otherwise attribute it, relay the verified part, mark the rest `UNCONFIRMED`.
+      An exit code quoted as evidence must not pass through a pipe (`cmd | head` reports
+      `head`): use `grep -c`, `${PIPESTATUS[0]}`, or run the command alone. A syntax check
+      must match the shebang (`bash -n` does not check a zsh script).
 - [ ] Evidence came from execution THIS session, not from memory or expectation.
 - [ ] Independently verified. Classify by what the change affects, not by file count or diff size. Reversible change: author-run real command/test with quoted exit code suffices (§2b). Irreversible or outward-facing change: a fresh-context agent (not the author) verified it — files: read-back; code: tests or a real run; claims: spot-check.
 - [ ] A review or verification verdict names the exact input it judged: a commit sha, or for
@@ -216,6 +219,10 @@ Apply: hard tasks, stalled progress, and final answers.
 - Waits keep `rules/model-dispatch.md` §4 deadlines; report at the brief's stall time, else
   10 minutes; a worker stall at 15 minutes escalates. At any cap: report rule, usage, evidence,
   open ACCEPTANCE items as `UNCONFIRMED`, and the proposed next step; never extend the cap yourself.
+- Codex `exec_command`: the start `yield_time_ms` books the first poll, and each poll resends
+  the context. Give it the expected run time (600000 works), not 1000; a later `wait` starts at
+  30 s and doubles to 300 s. No hook can enforce this: the PreToolUse payload carries only
+  `tool_input.command` (live codex-cli probe 2026-10-09; 1206 of 1254 `1000` values were at start).
 - Concise/Ponytail limit output and implementation size, not reasoning within these caps.
 
 ## §9 Judge outputs used for decisions

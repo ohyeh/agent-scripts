@@ -105,7 +105,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/delegation-templates/SKILL.md",
-      "skillFolderHash": "7fed00ea54e73dfeccb6aba5a782959fd64bc299",
+      "skillFolderHash": "bc2bface9d596408e94d8eb63be0750005d83f3f",
       "installedAt": "2026-07-18T20:48:21.471Z",
       "updatedAt": "2026-10-03T18:55:14.332Z"
     },
@@ -341,7 +341,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-skills/SKILL.md",
-      "skillFolderHash": "67bac14e511dbefef7024e3203484135511f3b28",
+      "skillFolderHash": "c9019d6891dbfb178b4b37885f72fc470753a92e",
       "installedAt": "2026-07-19T11:40:52.644Z",
       "updatedAt": "2026-10-03T18:55:18.955Z"
     },

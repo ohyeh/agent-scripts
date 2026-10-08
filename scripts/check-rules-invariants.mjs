@@ -53,6 +53,23 @@ for (const ref of refs) {
 // 4. canary rule present in global
 check('canary-rule', /MUST end with `✈` alone/.test(claudeMd), 'mandatory final-line ✈ clause');
 
+// 4b. iron-law clauses a kernel compression once dropped (lesson 2026-09-05):
+// both kernels keep each one, matched with line breaks folded to spaces.
+const flat = (s) => s.replace(/\s+/g, ' ');
+for (const [file, text] of [['global/CLAUDE.md', claudeMd], ['global/kernel-lean.md', read('global/kernel-lean.md')]]) {
+  const missing = ['never a silent edit', 'runtime-native model', 'do not defend', 'not authorization']
+    .filter((c) => !flat(text).includes(c));
+  check(`iron-clauses ${file}`, missing.length === 0, missing.length ? `missing: ${missing.join(', ')}` : '4/4');
+}
+
+// 4c. hooks never exec a PATH shim (lesson 2026-10-03): a bare `python3` may be a
+// pyenv shim and `shasum` is a Perl `#!` launcher; use /usr/bin/python3 or a binary.
+const shimHits = readdirSync(join(ROOT, '.agents/hooks')).filter((f) => f.endsWith('.sh'))
+  .flatMap((f) => read(`.agents/hooks/${f}`).split('\n').map((l, i) => [f, i + 1, l]))
+  .filter(([, , l]) => !/^\s*#/.test(l) && /(^|[^\/\w.-])(python3|shasum)\b/.test(l))
+  .map(([f, n]) => `${f}:${n}`);
+check('hooks-no-shim-exec', shimHits.length === 0, shimHits.join(', ') || 'clean');
+
 // 5. deploy content is pinned to the SHA resolved before download
 const deploy = read('scripts/deploy.sh');
 const resolveAt = deploy.indexOf('DEPLOYED_SHA="$(git ls-remote');

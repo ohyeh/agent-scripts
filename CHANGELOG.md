@@ -1,5 +1,12 @@
 # Changelog
 
+## lessons B + W42 2026-10-09
+
+- Kernel 4.35.0-ironlaws: `lessons.md` is gone (option B). Friction becomes a gate, a rule fix, or a backlog row in `evals/retro-metrics/inbox.md` (maintenance §2–§3); old entries: `git show a3992bd:.agents/rules/lessons.md`. The 7 open entries landed: `check-rules-invariants` checks the four iron-law clauses in both kernels and bans a bare `python3`/`shasum` in hooks; new `pr-create-gate.sh` (Claude and Codex) denies a second `gh pr create` per session until `PR_CREATE_GATE=allow`; judgment-rubrics adds the pipe exit-code rule and the Codex `yield_time_ms` rule (no hook can see that field: live payload has `command` only); operator-defaults wants copy-paste commands; delegation-templates asks for a progress line on long work.
+- `model-dispatch.md` §2: a user-named tool or path stays in this session (W42-13).
+- `deploy.sh`: on the clone-tracked layout it FAILs while `skills/`, `global/` or `.agents/` hold untracked files (a retired recipe kept coming back on one host); clean them, then rerun. It names each stale skill it removes. `host-load-gate.sh` writes one stats row per gated launch.
+- `skills-lock.json` follows the upstream skill upgrades; `settings_claude.json` keys the luna effort to `gpt-6-luna`.
+
 ## review ladder 2026-10-09
 
 - Review loops run one ladder (`model-dispatch.md` §Review ladder): L0 deterministic checks plus a hash freeze → L1 pre-filter (`sonnet` 5.5 high, as `pr-review-toolkit` lenses for code, plus `gpt-6-luna` xhigh; ≤2 rounds, cannot pass) → L2 `opus` (code: `pr-review-toolkit:code-reviewer`; always runs, ≤3) → L3 `fable` (1 round, only when L2 still blocks). One finding ledger runs through every round; reviewer and fixer contracts live in `_lib/worker-doctrine.md` §7–§9. Wired: `plan-pipeline`, `consensus-gate`, `spec-implement-dual-review-verify`. Reviewed by advisor and Sol (19 findings; 18 adopted or partly adopted).

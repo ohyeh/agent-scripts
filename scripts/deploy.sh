@@ -23,7 +23,7 @@
 #                 global/CLAUDE.md -> ~/.gemini/GEMINI.md (if ~/.gemini exists),
 #                 each verified by md5.
 #   2. rules    - rsync -a --delete .agents/rules/ -> ~/.agents/rules/,
-#                 verified by a full diff. The repo is canonical, including lessons.md.
+#                 verified by a full diff. The repo is canonical.
 #   3. workflows- skills/using-workflows/scripts/install.sh --force into
 #                 ~/.claude/workflows/, verified by matching aggregate
 #                 sha256 (computed with a relative cd so paths don't leak
@@ -170,7 +170,7 @@ if [ -n "$rules_diff" ]; then
   echo "$rules_diff" >&2
   exit 1
 fi
-echo "PASS [rules] 0 diff, including repo-canonical lessons.md"
+echo "PASS [rules] 0 diff"
 
 # --- Layer 3: workflows -------------------------------------------------------
 echo "==> [workflows] install.sh --force -> ~/.claude/workflows/"
@@ -268,6 +268,7 @@ hook_install "$SRC/.agents/hooks/artifact-title-gate.sh"
 hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/agents/claude/*.md frontmatter, not settings.json
 hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
 hook_install "$SRC/.agents/hooks/tmux-assign-host-gate.sh"
+hook_install "$SRC/.agents/hooks/pr-create-gate.sh"
 hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
 hook_install "$SRC/.agents/hooks/claude-only.sh"
 hook_install "$SRC/.agents/hooks/agy-adapt.sh"
@@ -297,6 +298,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
    --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
    --arg device "\"\$HOME/.agents/hooks/agent-device-target-gate.sh\"" \
    --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
+   --arg prcreate "\"\$HOME/.agents/hooks/pr-create-gate.sh\"" \
    --arg recall "\"\$HOME/.agents/hooks/compaction-recall.sh\"" \
    --arg precompact "\"\$HOME/.agents/hooks/precompact-instructions.sh\"" \
    --arg postcompact "\"\$HOME/.agents/hooks/postcompact-handoff.sh\"" \
@@ -354,6 +356,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "Bash"; $audit)
   | ensureMatched("PreToolUse"; "Bash"; $device)
   | ensureMatched("PreToolUse"; "Bash"; $assignhost)
+  | ensureMatched("PreToolUse"; "Bash"; $prcreate)
   | ensureMatched("PostToolUse"; "*"; $ledger)
   | ensureMatched("SessionStart"; "compact"; $recall)
   | ensure("PreCompact"; $precompact)
@@ -377,6 +380,7 @@ if [ -d ~/.codex ]; then
   jq --arg router "\"\$HOME/.agents/hooks/skill-router-nudge.sh\"" \
      --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
      --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
+     --arg prcreate "\"\$HOME/.agents/hooks/pr-create-gate.sh\"" \
      --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" \
      --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" \
      --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
@@ -409,6 +413,7 @@ if [ -d ~/.codex ]; then
     | ensureMatched("UserPromptSubmit"; ""; $router)
     | ensureMatched("PreToolUse"; "Bash"; $audit)
     | ensureMatched("PreToolUse"; "Bash"; $assignhost)
+    | ensureMatched("PreToolUse"; "Bash"; $prcreate)
     | ensureMatched("PreToolUse"; "*"; $deny)
     # "*": the gate filters Bash and collaborationspawn_agent (v2 spawn) itself
     | ensureMatched("PreToolUse"; "*"; $hostload)
@@ -479,7 +484,7 @@ if [ -d ~/.gemini/config ]; then
     Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$AGY_PLUGIN/hooks.json"
 fi
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1

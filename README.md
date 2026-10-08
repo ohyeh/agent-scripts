@@ -21,7 +21,6 @@ incrementally per a frozen, second-model-reviewed implementation plan. Key conte
   `agent-environment-provisioning.md`, `LETTER-TO-FUTURE-SESSIONS.md`).
   `delegation-templates.md` and `unknowns-discovery.md` are
   deliberately not carried over as rule files — their skills above are canonical instead.
-  `lessons.md` stays machine-local and is git-ignored; it is never committed here.
 - `scripts/scrub.sh` — the pre-push secret/path/hostname/Tailscale-IP/commit-metadata scrub that
   must PASS before any push to this repo's remote.
 
