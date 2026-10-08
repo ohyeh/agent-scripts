@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.8.0（2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey）；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+Version: 1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
 ＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
 1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
@@ -19,8 +19,13 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 - 腳本跑完不等於數字正確（使用者裁定 2026-09-24，W39 F1）：Layer 1 每個值以行內時間戳切窗口，
   不用檔案 mtime；每個 0 值附正例對照，即同一查法在更寬窗口得到 >0；重跑差 0 只證明可重現。
   缺任一項標 UNCONFIRMED，不得進成本表。
-- 產物落在 `agent-scripts/.workflow/<YYYYMMDDHHMM>-weekly-retro/`，至少三檔：
-  `plan.md`、`retro-report.md`、`next-week-backlog.md`。
+- 產物落在 `agent-scripts/evals/retro-metrics/<ISO-week>/`（gitignored，`.gitignore:14`，只存在執行機），
+  至少三檔：`plan.md`、`retro-report.md`、`next-week-backlog.md`。窗口在 `plan.md` 開跑前寫定，
+  終點必須是過去的時間；下一輪從這個終點接續。
+- 公開 repo 衛生：產物只寫機器鍵。`scripts/scrub.sh` 只掃 git index，掃不到 gitignored 的 run dir——
+  發布或送審前，把同一組 pattern 直接套在同批送審的全部實體檔上（run dir 加相鄰的
+  `evals/retro-metrics/<ISO-week>.json`），另加編碼 home 路徑
+  （`-Users-<name>-`、`-home-<name>-`，project key 形式），附正例對照與命中數。
 
 ## 議程（固定收集清單，依序）
 
@@ -47,6 +52,11 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
   的 token 對齊；方案用量另讀 `~/.cursor/statusline-usage-cache.json`。
 - 時間區段內**有無封存都算**（codex archived_sessions、claude 舊 project dir、
   agy 全部 *.db）；collector 覆蓋不到的 store = 量測缺口，明寫並回填 collector。
+  每台 coverage 檔必附**逐 store 表**：store 路徑樣式｜窗口內 session 數｜其中封存｜token 或訊息數；
+  讀不到的 store 寫成缺口。claude 封存含 `projects_archived/**`（`.jsonl` 與 `.jsonl.gz`）與
+  `transcripts/ses_*.jsonl`。grok-bot-vm 另有 **Grok Bot agents**（sand-data）：帶時間的資料在
+  `search-index.db` 的 `messages`（`?mode=ro`）；per-agent `store.db` 與 `agent-transcripts/*.jsonl`
+  不能切整週窗口（後者無逐筆時間戳）。無 sender 欄，真人／bot 之分要寫明判準。
 - 產出不只總量，還要**可疑名單**：done-claim 無證據、canary 缺失、
   GOAL/ACCEPT/REPORT 缺失、異常長/異常短、重試密集的 session 清單（附路徑）。
   collector 目前只出 rate 不出名單者，列為 collector backlog。
@@ -70,7 +80,7 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
   使用者訊息）與 **turns=0 但 total>1M 的 session**（無人止損的高消耗，
   2026-08-14 與 08-21 兩輪各出現）。任一面缺料就明寫「本週未量測」，
   同 `{value, method, tier}` 契約。逐週數字落成 `evals/retro-metrics/<ISO-week>.json`
-  （**版控路徑，不放 `.workflow/`——該目錄被 gitignore，只存在單機**），
+  （2026-10-01 起不版控，`24e4e70`；只存在執行機，腳本才版控），
   USD 以 `evals/retro-metrics/cost.py` 換算，並註明那是 API 費率當量而非實付帳單。
 - **使用者糾正事件粗篩**：collector 加輕量關鍵詞欄（「不對」「不是」「我說的是」
   「你改壞」等改口/糾正訊號），只出候選名單餵 Layer 2，不建大系統、不判定語意。
@@ -99,7 +109,11 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 - `~/.codex/memories/`（MEMORY.md、rollout_summaries/）：本週新增的官方摘要，
   對照 retro findings 有無矛盾。
 - hook stats（bol-prompt-stats.jsonl、context ledger）已由漏斗 Layer 1 收，勿重算。
-- 機隊：每台在編機器的上述四項都要收；節點身分與可達性待 E1 釐清。
+- 機隊：每台在編機器的上述四項都要收。可達性一律以實際 SSH 一次為準並附輸出；
+  tailscale 狀態列寫 offline 不是證據（2026-10-08 remote-44 列 offline 但 SSH 可連）。
+- hook 可執行性：每台實際執行一次 context-mode hook 指令並看 exit code；
+  只看「hook 有掛載」不夠（W41：grok-bot-vm 10-01T07:34Z→10-08T06:39Z hook 事件為 0，
+  最晚 10-02T09:41Z 已確認 bun 是 shim、hook exit 127；retro 與儀表板都沒抓到）。
   新機器入列時此節是 provisioning 檢查項；拓撲只記在私有 machine config。
 
 ### 6. 死碼盤點 — 用量為零的資產
@@ -113,8 +127,9 @@ skill 提及次數；`--agent codex|claude` 可分側）。**零用量 skill ＝
 （W32 教訓：單週快照會誤殺；該案 recipe 已於 2026-10-01 退役，見 git log）。
 
 ### 6.5 臨時動議與使用者訴求
-常設收件匣：`agent-scripts/.workflow/retro/inbox.md`（兩節：待討論議題＋本週隨手記；
-`.workflow/` 下 run dir 之外的具名子目錄，比照 recipes/ 慣例，跨週存活不倒空目錄）。
+常設收件匣：`agent-scripts/evals/retro-metrics/inbox.md`（兩節：待討論議題＋本週隨手記；
+與 run dir 同層、gitignored、跨週存活不倒空檔案；不存在就在 retro 開跑時建立）。
+本輪 session 中使用者的動議、提醒、糾正，同步記在 run dir `motions.md`。
 平常隨時追加一行；隨手記收 collector 撈不到的人為觀察（糾正時刻、體驗峰谷、環境異動），
 retro 時倒空 inbox：議題逐條討論、隨手記餵給 §2–4 當 Layer 2 線索。
 再問一次「還有沒有臨時動議或訴求？」使用者隨時可插入，
@@ -125,6 +140,17 @@ retro 時倒空 inbox：議題逐條討論、隨手記餵給 §2–4 當 Layer 2
   直接對應 §2–4 的「使用者體驗」面，不需要 collector 佐證即成案。
 - 兩者都落入 backlog 或 lessons 提案，與其他 findings 同格式（證據/落點/驗收），
   不得只記「已討論」。
+
+### 6.7 更深的問題（2026-10-08 起每週固定）
+問題原文：「在我最近反复讨论的问题背后，有没有一个更深的问题，是我一直在绕着它走，却没有真正问出来的？」
+- 執行：派 opus effort xhigh 的 worker（agent-tmux profile `claude-opus55-xhigh`，per-machine 設定在
+  `~/.config/agent-tmux/profiles/`，不在 repo；機器上沒有就先建），不由主 session 作答。
+- 輸入：使用者近 4 週三台機器的原話（含 Grok Bot agents）、本週 human-signal、近幾輪 report／backlog／對帳、lessons、kernel 與 git log。
+- 產出 `<run dir>/deeper-question.md`：一句主問題（用使用者會問的方式）＋至多 2 個次選；
+  主問題 ≥5 句原話引用（跨 ≥2 台、≥2 週）；最強反駁與為何沒勝出；下週可量的驗證訊號與門檻。
+  只描述行為模式，不揣測心理、不下診斷。
+- 閉環：先判定上週的驗證訊號（成立／不成立／UNCONFIRMED），再問本週的問題；判定寫進報告同一節。
+- 報告固定一節；結論影響本輪 TL;DR 的收斂方向時要寫明。
 
 ### 7. 裁決與產出
 - 報告開頭是 TL;DR「共識後預計這樣做」：一行一件事，用白話寫要改什麼、調整什麼，
