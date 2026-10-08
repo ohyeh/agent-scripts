@@ -2,8 +2,9 @@
 """Pipe-level regression test for codex-cu-proxy against a fake child (no real MCP).
 
 Cases come from the 2026-10-08 Sol review: accept, forward round trip, quiet child
-death, slow-client tail drain, two-way backpressure, non-UTF-8 policy.
-Usage: python3 test-codex-cu-proxy   (exit 0 = all PASS; ~15 s)
+death, slow-client tail drain, two-way backpressure, non-UTF-8 policy, and the
+second-round lifecycle cases: stalled client, child stdin death, approval after client EOF.
+Usage: python3 test-codex-cu-proxy   (exit 0 = all PASS; ~25 s)
 """
 import json, os, subprocess, sys, tempfile, threading, time
 from pathlib import Path
@@ -19,6 +20,12 @@ if mode == "death":
     emit({"last": True}); sys.exit(17)
 sys.stdin.readline()                                   # initialize
 emit({"ready": True})
+if mode == "writerdeath":
+    os.close(0); emit({"closed_stdin": True}); time.sleep(15); sys.exit(0)
+if mode == "eofapproval":
+    time.sleep(0.3)
+    emit({"jsonrpc": "2.0", "id": "app", "method": "elicitation/create", "params": {"message": %r}})
+    emit({"approval_line": sys.stdin.readline()}); sys.exit(0)
 if mode == "tail":
     emit({"tail": "x" * %d}); sys.exit(0)
 if mode == "deadlock":
@@ -29,7 +36,7 @@ if mode == "deadlock":
     emit({"completed": True}); sys.exit(0)
 emit({"jsonrpc": "2.0", "id": "app", "method": "elicitation/create", "params": {"message": %r}})
 emit({"got": json.loads(sys.stdin.readline())}); sys.exit(0)
-''' % (BIG, CALC, BIG, CALC)
+''' % (CALC, BIG, CALC, BIG, CALC)
 
 tmp = Path(tempfile.mkdtemp())
 child = tmp / "fake-child"
@@ -41,10 +48,10 @@ def init(caps):
     return json.dumps({"jsonrpc": "2.0", "id": 0, "method": "initialize", "params": {"capabilities": caps}}) + "\n"
 
 
-def start(mode, policy):
+def start(mode, policy, **extra):
     pol = tmp / "approve"
     pol.write_bytes(policy)
-    env = dict(os.environ, CU_CHILD=str(child), CU_APPROVE_FILE=str(pol), FAKE_MODE=mode)
+    env = dict(os.environ, CU_CHILD=str(child), CU_APPROVE_FILE=str(pol), FAKE_MODE=mode, **extra)
     return subprocess.Popen([sys.executable, PROXY], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, env=env)
 
@@ -107,6 +114,33 @@ p = start("normal", b"\xca\xfe\xba\xbe\n"); p.stdin.write(init({}).encode()); p.
 got = [json.loads(l) for l in lines(p, 2, 10)]
 p.kill(); err = p.stderr.read().decode()
 check("bad policy fails closed and keeps going", len(got) == 2 and got[1]["got"]["result"] == {"action": "decline"} and "cannot read" in err, (got, err[-200:]))
+
+# 7. client stops reading for good after child exit: proxy gives up non-zero, never hangs
+p = start("tail", b"all\n", CU_DRAIN_IDLE_S="2"); p.stdin.write(init({}).encode()); p.stdin.flush()
+lines(p, 1, 10)
+try:
+    rc = p.wait(15)
+except subprocess.TimeoutExpired:
+    rc = "hung"; p.kill()
+err = p.stderr.read().decode()
+check("stalled client ends proxy non-zero", rc not in (0, "hung") and "may be incomplete" in err, (rc, err[-160:]))
+
+# 8. child closes its stdin but stays alive: the next client line ends the proxy non-zero
+p = start("writerdeath", b"all\n"); p.stdin.write(init({}).encode()); p.stdin.flush()
+lines(p, 2, 10)
+p.stdin.write(b'{"jsonrpc":"2.0","id":5,"method":"ping"}\n'); p.stdin.flush()
+try:
+    rc = p.wait(10)
+except subprocess.TimeoutExpired:
+    rc = "hung"; p.kill()
+check("child stdin death ends proxy non-zero", rc not in (0, "hung"), rc)
+
+# 9. client closes stdin, then an approval arrives: logged as dropped, never claimed as accepted
+p = start("eofapproval", b"all\n"); p.stdin.write(init({}).encode()); p.stdin.flush(); p.stdin.close()
+out = [json.loads(l) for l in lines(p, 2, 10)]
+p.wait(10); err = p.stderr.read().decode()
+check("approval after client EOF is dropped, not claimed", "dropped" in err and "elicitation accept" not in err
+      and out[-1:] == [{"approval_line": ""}], (out, err[-200:]))
 
 print(f"{sum(results)}/{len(results)} PASS")
 sys.exit(0 if all(results) else 1)

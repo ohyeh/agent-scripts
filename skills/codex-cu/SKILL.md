@@ -25,10 +25,11 @@ and agy, run the check first:
 PASS: setup is done. Skip this section. The check never opens an app, so a
 PASS is not proof that an app call works. SKIP with `no Computer Use plugin`:
 the user must install the ChatGPT Mac app and its Computer Use plugin, then use
-computer use there once (that grants Screen Recording and Accessibility). SKIP
-with `no usable Computer Use version yet`: the plugin is still downloading; try
-again later. In both cases stop and tell them. FAIL or no `codex-cu` tool: ASK the user which mode. Never pick
-for them:
+computer use there once (that grants Screen Recording and Accessibility). A
+FAIL on `launcher resolves version` (the installer says SKIP `no usable Computer
+Use version yet`): the plugin is still downloading; try again later. In both
+cases stop and tell them. Any other FAIL, or no `codex-cu` tool: ASK the user
+which mode. Never pick for them:
 
 - `all`: accept every prompt from codex-cu with no question, including any
   that is not an app prompt. Logged-in pages in a browser app become readable.
@@ -41,9 +42,9 @@ Then run:
 
     bash ~/.agents/skills/codex-cu/scripts/install-codex-cu.sh all   # or: safe
 
-It installs into `~/.local/bin`, registers `codex-cu` at user scope for each of
-Claude Code, Cursor and agy that has a config on this machine (the check lists
-which), writes `~/.config/codex-cu/approve`, and ends with the
+It installs into `~/.local/bin`, registers `codex-cu` at user scope for Claude
+Code and Cursor when their config file exists and for agy when the `agy` command
+exists (the check prints a line per registered runtime), writes `~/.config/codex-cu/approve`, and ends with the
 check. If you cannot ask (print mode, worker), stop and show the user both
 commands. After setup, tell the user to start a new session: MCP servers load
 at session start. To switch mode later, run the installer with the other word,

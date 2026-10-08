@@ -169,18 +169,19 @@ def self_test():
     print("self-test ok", file=sys.stderr)
 
 
-DRAIN_IDLE_S = 5.0  # after child exit: how long the pump may wait on a read that brings nothing
+DRAIN_IDLE_S = float(os.environ.get("CU_DRAIN_IDLE_S", "30"))  # env override is for the test only
+CHUNK = 65536
 
 
 def drain(pump, state):
-    """After the child exits, keep waiting while the pump still delivers to the client
-    (a slow client is fine). Give up only when the pump sits on a read that brings no
-    data, e.g. a grandchild still holds the child's stdout. Returns True when drained."""
-    idle, seen = 0.0, state["delivered"]
+    """After the child exits, keep waiting while bytes still reach the client (a slow
+    client is fine). Give up after DRAIN_IDLE_S with no byte progress: a client that
+    stopped reading, or a grandchild still holding the child's stdout. True = drained."""
+    idle, seen = 0.0, state["bytes"]
     while pump.is_alive():
         pump.join(0.5)
-        if state["writing"] or state["delivered"] != seen:
-            idle, seen = 0.0, state["delivered"]
+        if state["bytes"] != seen:
+            idle, seen = 0.0, state["bytes"]
         else:
             idle += 0.5
             if idle >= DRAIN_IDLE_S:
@@ -197,27 +198,41 @@ def reap(child, pump, state):
     code = rc if rc >= 0 else 128 - rc
     sys.stderr.write(f"codex-cu-proxy: child {CHILD} exited {rc}\n")
     if not drained:
-        sys.stderr.write("codex-cu-proxy: child stdout never closed after exit; output may be incomplete\n")
+        sys.stderr.write(f"codex-cu-proxy: no output progress for {DRAIN_IDLE_S:g}s after child exit; output may be incomplete\n")
         code = code or 1
     sys.stderr.flush()
     os._exit(code)
 
 
+def fail(msg):
+    """The connection cannot continue: say why and end it non-zero."""
+    sys.stderr.write(f"codex-cu-proxy: {msg}\n")
+    sys.stderr.flush()
+    os._exit(1)
+
+
 def main():
     child = subprocess.Popen([CHILD], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=sys.stderr, text=True, bufsize=1)
-    out_lock = threading.Lock()
-    state = {"client_elicits": False, "writing": False, "delivered": 0}
+    out_lock, close_lock = threading.Lock(), threading.Lock()
+    state = {"client_elicits": False, "bytes": 0, "closing": False}
     to_child = queue.Queue()  # one writer thread owns child stdin, so no reader ever blocks on it
+    out = sys.stdout.buffer
 
     def to_client(line):
+        data = (line + "\n").encode()
         with out_lock:
-            state["writing"] = True
-            try:
-                sys.stdout.write(line + "\n")
-                sys.stdout.flush()
-            finally:
-                state["writing"] = False
-        state["delivered"] += 1
+            for i in range(0, len(data), CHUNK):  # chunked so drain() can see byte progress
+                out.write(data[i:i + CHUNK])
+                out.flush()
+                state["bytes"] += min(CHUNK, len(data) - i)
+
+    def send_to_child(line):
+        """Queue a line unless the client already closed; False = dropped."""
+        with close_lock:
+            if state["closing"]:
+                return False
+            to_child.put(line)
+            return True
 
     def writer():
         while True:
@@ -227,9 +242,8 @@ def main():
             try:
                 child.stdin.write(line + "\n")
                 child.stdin.flush()
-            except (BrokenPipeError, OSError, ValueError):  # child gone; reap() reports it
-                sys.stderr.write("codex-cu-proxy: child stdin closed\n")
-                break
+            except (BrokenPipeError, OSError, ValueError) as exc:
+                fail(f"child stdin closed, cannot send: {exc!r}")
         try:
             child.stdin.close()
         except (BrokenPipeError, OSError, ValueError):
@@ -245,18 +259,19 @@ def main():
                 except ValueError:
                     msg = None
                 if isinstance(msg, dict) and msg.get("method") == "elicitation/create" and "id" in msg:
+                    if state["closing"]:
+                        sys.stderr.write("codex-cu-proxy: elicitation dropped, client already closed stdin\n")
+                        continue
                     reply = answer_elicitation(msg, state["client_elicits"], read_policy())
                     if reply is not None:
-                        to_child.put(reply)
+                        if not send_to_child(reply):
+                            sys.stderr.write("codex-cu-proxy: elicitation reply dropped, client closed stdin meanwhile\n")
                         continue
                 to_client(stripped)
         except BrokenPipeError:
-            sys.stderr.write("codex-cu-proxy: client stdout closed\n")
-            os._exit(1)
+            fail("client stdout closed")
         except Exception as exc:  # a dead pump hangs the connection: fail loudly instead
-            sys.stderr.write(f"codex-cu-proxy: pump failed: {exc!r}\n")
-            sys.stderr.flush()
-            os._exit(1)
+            fail(f"pump failed: {exc!r}")
 
     threading.Thread(target=writer, daemon=True).start()
     pump_thread = threading.Thread(target=pump, daemon=True)
@@ -274,8 +289,10 @@ def main():
                 continue
             initialized = True
             stripped, state["client_elicits"] = declare_elicitation(stripped)
-        to_child.put(inject(stripped))
-    to_child.put(None)  # client closed stdin: close the child's after queued lines
+        send_to_child(inject(stripped))
+    with close_lock:  # client EOF = shutdown: queued lines go out, later approvals are dropped (logged)
+        state["closing"] = True
+        to_child.put(None)
     reaper.join()  # reap() ends the process once the child exits and its output is delivered
 
 
