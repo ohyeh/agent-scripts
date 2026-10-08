@@ -27,10 +27,13 @@
 # (teaching paths, AWS docs example keys) before escalating — placeholders get a
 # policy decision, never a pattern weakening.
 #
-# Usage: scripts/scrub.sh [REPO] [EVIDENCE_DIR]
+# Usage: scripts/scrub.sh <REPO> <EVIDENCE_DIR> [EXTRA_PATH...]
 #   REPO         defaults to the repo containing this script.
-#   EVIDENCE_DIR defaults to $REPO/.scrub-evidence (caller may point this at
-#                a durable .workflow results directory instead).
+#   EVIDENCE_DIR must be outside the repo.
+#   EXTRA_PATH   files or directories scanned on disk with every pattern
+#                (W42-3): gitignored artifacts that get published or sent for
+#                review, e.g. evals/retro-metrics/<ISO-week>/ and its week JSON.
+#                git grep never sees them; W41 sent ~300 home-path hits out.
 set -euo pipefail
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -44,6 +47,8 @@ if [ -z "${2:-}" ]; then
   exit 1
 fi
 EVIDENCE="$2"
+shift 2
+EXTRA=("$@")
 case "$(CDPATH= cd -- "$(dirname -- "$EVIDENCE")" 2>/dev/null && pwd)/$(basename -- "$EVIDENCE")" in
   "$REPO"/*) echo "ERROR: EVIDENCE_DIR resolves inside the repo ($REPO) — pick an external path." >&2; exit 1;;
 esac
@@ -64,6 +69,12 @@ TAILSCALE_RE='100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.'
 # --- W4 extension: the private company email this fleet must never publish ---
 PRIVATE_EMAIL_RE='paulyeh@econcord\.com\.tw'
 
+# --- W42-3 addition: home paths in Claude's encoded project-key form
+#     (`/x/y` becomes `-x-y`), which PATH_RE cannot see ---
+# Anchored: a project key starts a path segment or a token, so `encoded-home-scan`
+# (a plain kebab word) must not match.
+ENCODED_HOME_RE='(^|[/"'"'"'`[:space:]])-(User''s|hom''e)-[A-Za-z0-9._]+-'
+
 # --- scope (user ruling 2026-09-15): the BLOCKING content scan covers the
 #     commits this push would publish (origin/main..HEAD; every commit when
 #     origin/main is absent) plus the index. Secrets stay blocking across ALL
@@ -79,15 +90,16 @@ git -C "$REPO" rev-list --all > "$EVIDENCE/history-commits.txt"
 
 set +e
 git -C "$REPO" grep -nEI "$SECRET_RE"        $(cat "$EVIDENCE/history-commits.txt") -- . > "$EVIDENCE/secret-scan.txt";        secret_rc=$?
-for kind in path host tailscale private-email; do
-  case "$kind" in path) re="$PATH_RE";; host) re="$HOST_RE";; tailscale) re="$TAILSCALE_RE";; private-email) re="$PRIVATE_EMAIL_RE";; esac
-  git -C "$REPO" grep -nEI "$re" $(cat "$EVIDENCE/history-commits.txt") -- . > "$EVIDENCE/history-$kind-scan.txt"
+for kind in path host tailscale private-email encoded-home; do
+  case "$kind" in path) re="$PATH_RE";; host) re="$HOST_RE";; tailscale) re="$TAILSCALE_RE";; private-email) re="$PRIVATE_EMAIL_RE";; encoded-home) re="$ENCODED_HOME_RE";; esac
+  git -C "$REPO" grep -nEI -e "$re" $(cat "$EVIDENCE/history-commits.txt") -- . > "$EVIDENCE/history-$kind-scan.txt"
   printf '%s history hits: %s (non-blocking debt)\n' "$kind" "$(wc -l < "$EVIDENCE/history-$kind-scan.txt" | tr -d ' ')"
 done
 git -C "$REPO" grep -nEI "$PATH_RE"          $(cat "$EVIDENCE/scrub-commits.txt") -- . > "$EVIDENCE/path-scan.txt";          path_rc=$?
 git -C "$REPO" grep -nEI "$HOST_RE"          $(cat "$EVIDENCE/scrub-commits.txt") -- . > "$EVIDENCE/host-scan.txt";          host_rc=$?
 git -C "$REPO" grep -nEI "$TAILSCALE_RE"     $(cat "$EVIDENCE/scrub-commits.txt") -- . > "$EVIDENCE/tailscale-scan.txt";     ts_rc=$?
 git -C "$REPO" grep -nEI "$PRIVATE_EMAIL_RE" $(cat "$EVIDENCE/scrub-commits.txt") -- . > "$EVIDENCE/private-email-scan.txt"; email_rc=$?
+git -C "$REPO" grep -nEI -e "$ENCODED_HOME_RE" $(cat "$EVIDENCE/scrub-commits.txt") -- . > "$EVIDENCE/encoded-home-scan.txt"; enc_rc=$?
 
 # --- index/staged-file scan (git grep --cached): required in addition to the
 #     history scan above -- rev-list --all only reaches committed objects,
@@ -98,10 +110,19 @@ git -C "$REPO" grep --cached -nEI "$PATH_RE"          -- . > "$EVIDENCE/path-sca
 git -C "$REPO" grep --cached -nEI "$HOST_RE"          -- . > "$EVIDENCE/host-scan-staged.txt";          host_staged_rc=$?
 git -C "$REPO" grep --cached -nEI "$TAILSCALE_RE"     -- . > "$EVIDENCE/tailscale-scan-staged.txt";     ts_staged_rc=$?
 git -C "$REPO" grep --cached -nEI "$PRIVATE_EMAIL_RE" -- . > "$EVIDENCE/private-email-scan-staged.txt"; email_staged_rc=$?
+git -C "$REPO" grep --cached -nEI -e "$ENCODED_HOME_RE" -- . > "$EVIDENCE/encoded-home-scan-staged.txt"; enc_staged_rc=$?
+
+# --- W42-3: on-disk scan of EXTRA paths (gitignored artifacts) ---
+extra_rc=1
+: > "$EVIDENCE/extra-scan.txt"
+if [ "${#EXTRA[@]}" -gt 0 ]; then
+  grep -rnEI -e "$SECRET_RE|$PATH_RE|$HOST_RE|$TAILSCALE_RE|$PRIVATE_EMAIL_RE|$ENCODED_HOME_RE" -- "${EXTRA[@]}" > "$EVIDENCE/extra-scan.txt"; extra_rc=$?
+  printf 'extra paths: %s · hits: %s\n' "${#EXTRA[@]}" "$(wc -l < "$EVIDENCE/extra-scan.txt" | tr -d ' ')"
+fi
 set -e
 
-for rc in "$secret_rc" "$path_rc" "$host_rc" "$ts_rc" "$email_rc" \
-          "$secret_staged_rc" "$path_staged_rc" "$host_staged_rc" "$ts_staged_rc" "$email_staged_rc"; do
+for rc in "$secret_rc" "$path_rc" "$host_rc" "$ts_rc" "$email_rc" "$enc_rc" \
+          "$secret_staged_rc" "$path_staged_rc" "$host_staged_rc" "$ts_staged_rc" "$email_staged_rc" "$enc_staged_rc" "$extra_rc"; do
   test "$rc" -eq 0 || test "$rc" -eq 1
 done
 
@@ -115,6 +136,9 @@ test ! -s "$EVIDENCE/path-scan-staged.txt"
 test ! -s "$EVIDENCE/host-scan-staged.txt"
 test ! -s "$EVIDENCE/tailscale-scan-staged.txt"
 test ! -s "$EVIDENCE/private-email-scan-staged.txt"
+test ! -s "$EVIDENCE/encoded-home-scan.txt"
+test ! -s "$EVIDENCE/encoded-home-scan-staged.txt"
+test ! -s "$EVIDENCE/extra-scan.txt"
 
 # --- W4 extension: commit-metadata scan ---
 # Author/committer name+email over every commit, checked against every
