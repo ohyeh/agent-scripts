@@ -84,10 +84,18 @@ Arc on this surface is an app, not a browser target.
 
 `cua.computer.launch_app` and `cua.listWindows` are not in this runtime.
 
-`getApp` needs the second approval, `Allow Computer Use to use X?`. A client
-that does not answer counts as a refusal. The message is `Computer Use was not
-approved to use X`. Add that display name to the allow hook, or accept the
-prompt. The Chrome display name is `Google Chrome`.
+`getApp` needs the second approval, `Allow Computer Use to use X?`. The proxy
+answers it from `~/.config/codex-cu/approve`, for every client (Claude, agy,
+Cursor):
+
+- `all` on its own line: accept every prompt (full mode, the deploy default).
+- One display name per line: accept only those apps (safe mode).
+- Any other app: the prompt goes to the client. agy and cursor-agent cannot
+  answer, so the proxy declines it for them.
+
+A refusal reads `Computer Use was not approved to use X`. Add the display name
+to the file; the next prompt reads it, no restart. The Chrome display name is
+`Google Chrome`.
 
 ## Do not
 

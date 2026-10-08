@@ -57,6 +57,22 @@ if ! python3 "$PROXY" --self-test 2>&1 | grep -q 'self-test ok'; then
   exit 1
 fi
 
+# Approval policy: the proxy answers per-app prompts from this file (format in
+# the proxy docstring). Owner ruling 2026-10-08: FULL mode fleet-wide, so agy and
+# cursor-agent can use computer use at all. Seed once; never overwrite the
+# owner's choice. Safe mode: replace `all` with display names, one per line
+# (live, no restart). Full + the forbidden-targets switch = any app, incl.
+# Terminal and Keychain Access, with no prompt.
+POLICY="${HOME}/.config/codex-cu/approve"
+if [ ! -e "$POLICY" ]; then
+  mkdir -p "$(dirname "$POLICY")"
+  printf '%s\n' '# codex-cu approval policy: `all` alone = accept every prompt; else one app name per line.' \
+    all > "$POLICY"
+  chmod 600 "$POLICY"
+  echo "==> [codex-cu] seeded full approval policy at $POLICY"
+fi
+echo "==> [codex-cu] approval policy: $(grep -v '^#' "$POLICY" | paste -sd, -)"
+
 # --- register at user scope on every present runtime ------------------------
 # jq merge, not `claude mcp add`: ~/.claude.json is large and live, and the
 # merge keeps every other key untouched and is safe to re-run.

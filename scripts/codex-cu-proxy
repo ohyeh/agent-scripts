@@ -1,11 +1,75 @@
 #!/usr/bin/env python3
-"""Stdio MCP proxy: inject Codex turn metadata into every tools/call, pass all else through verbatim."""
+"""Stdio MCP proxy: inject Codex turn metadata into every tools/call, answer the
+per-app approval prompts (elicitation/create) by policy, pass all else through verbatim.
+
+Approval policy file (CU_APPROVE_FILE, default ~/.config/codex-cu/approve), read on
+every prompt so an edit takes effect at once:
+  absent       forward every prompt to the client (old behaviour)
+  `all`        accept every prompt                                  (full mode)
+  app names    one per line; accept `Allow Computer Use to use "<name>"?` only (safe mode)
+A prompt the policy does not accept goes to the client if the client declared
+elicitation, else the proxy declines it (agy and cursor-agent cannot answer one).
+"""
 import json, os, subprocess, sys, threading, uuid
 from pathlib import Path
 
 CHILD = os.environ.get("CU_CHILD") or str(Path(__file__).resolve().parent / "codex-cu-mcp")  # sibling by default
 SID, TID = os.environ.get("CU_SID") or str(uuid.uuid4()), str(uuid.uuid4())  # CU_SID: reuse a session to clean up its leaked tab
 LOG = os.environ.get("CU_LOG")  # set CU_LOG=<path> to record one line per tools/call
+APPROVE_FILE = os.environ.get("CU_APPROVE_FILE") or str(Path.home() / ".config/codex-cu/approve")
+
+
+def policy_accepts(message, policy_text):
+    """policy_text None = no file. Returns True only for an explicit accept."""
+    if policy_text is None:
+        return False
+    names = [l.strip() for l in policy_text.splitlines() if l.strip() and not l.strip().startswith("#")]
+    if names == ["all"]:
+        return True
+    return isinstance(message, str) and any(message == f'Allow Computer Use to use "{n}"?' for n in names)
+
+
+def read_policy():
+    try:
+        return Path(APPROVE_FILE).read_text()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:  # unreadable policy must not open the gate; log and treat as absent
+        sys.stderr.write(f"codex-cu-proxy: cannot read {APPROVE_FILE}: {exc}\n")
+        return None
+
+
+def answer_elicitation(msg, client_elicits, policy_text):
+    """For a server->client elicitation/create, return the reply line the proxy sends
+    to the child, or None to forward it to the client."""
+    params = msg.get("params") if isinstance(msg.get("params"), dict) else {}
+    message = params.get("message")
+    if policy_accepts(message, policy_text):
+        action = "accept"
+    elif client_elicits:
+        return None
+    else:
+        action = "decline"
+    sys.stderr.write(f"codex-cu-proxy: elicitation {action} {json.dumps(message)}\n")
+    sys.stderr.flush()
+    result = {"action": action, "content": {}} if action == "accept" else {"action": action}
+    return json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": result})
+
+
+def declare_elicitation(line):
+    """Rewrite the client's initialize so the server may send prompts. Returns
+    (line, client_declared_elicitation)."""
+    try:
+        msg = json.loads(line)
+        caps = msg["params"].setdefault("capabilities", {})
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return line, False
+    if not isinstance(caps, dict):
+        return line, False
+    if "elicitation" in caps:
+        return line, True
+    caps["elicitation"] = {}
+    return json.dumps(msg), False
 
 
 def inject(line: str) -> str:
@@ -80,21 +144,77 @@ def self_test():
     assert is_init
     assert reply is None
 
+    # Approval policy
+    calc = 'Allow Computer Use to use "Calculator"?'
+    notes = 'Allow Computer Use to use "Notes"?'
+    assert not policy_accepts(calc, None)
+    assert policy_accepts(calc, "all\n") and policy_accepts("Allow microphone?", "all")
+    assert policy_accepts(calc, "# safe\nCalculator\nTextEdit\n")
+    assert not policy_accepts(notes, "Calculator\n")
+    assert not policy_accepts(calc, "Calc\n")  # exact name, not prefix
+    assert not policy_accepts(notes, "all\nCalculator")  # `all` must stand alone to mean everything
+    el = {"jsonrpc": "2.0", "id": 7, "method": "elicitation/create", "params": {"message": notes}}
+    assert json.loads(answer_elicitation(el, False, "all"))["result"] == {"action": "accept", "content": {}}
+    assert answer_elicitation(el, True, "Calculator") is None  # client can ask the user
+    assert json.loads(answer_elicitation(el, False, "Calculator"))["result"] == {"action": "decline"}
+    assert json.loads(answer_elicitation(el, False, None))["result"]["action"] == "decline"
+
+    # initialize: declare elicitation, remember whether the client did
+    line, had = declare_elicitation('{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"capabilities":{}}}')
+    assert not had and json.loads(line)["params"]["capabilities"]["elicitation"] == {}
+    src = '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"capabilities":{"elicitation":{"form":{}}}}}'
+    assert declare_elicitation(src) == (src, True)
+    assert declare_elicitation('{"id":0,"method":"initialize"}')[1] is False
+
     print("self-test ok", file=sys.stderr)
 
 
-def reap(child):
+def reap(child, pump):
     """A quiet child death must end the proxy: otherwise it blocks on stdin forever
     and the MCP client waits for a reply that can never arrive."""
     rc = child.wait()
+    pump.join(5)  # deliver the child's last lines before exiting
     sys.stderr.write(f"codex-cu-proxy: child {CHILD} exited {rc}\n")
     sys.stderr.flush()
     os._exit(rc if rc >= 0 else 128 - rc)
 
 
 def main():
-    child = subprocess.Popen([CHILD], stdin=subprocess.PIPE, stdout=sys.stdout, stderr=sys.stderr, text=True, bufsize=1)
-    threading.Thread(target=reap, args=(child,), daemon=True).start()
+    child = subprocess.Popen([CHILD], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=sys.stderr, text=True, bufsize=1)
+    out_lock, in_lock = threading.Lock(), threading.Lock()
+    state = {"client_elicits": False}
+
+    def to_client(line):
+        with out_lock:
+            sys.stdout.write(line + "\n")
+            sys.stdout.flush()
+
+    def to_child(line):
+        with in_lock:
+            child.stdin.write(line + "\n")
+            child.stdin.flush()
+
+    def pump():
+        """Child -> client. Approval prompts stop here when the policy answers them."""
+        for line in child.stdout:
+            stripped = line.rstrip("\n")
+            try:
+                msg = json.loads(stripped)
+            except ValueError:
+                msg = None
+            if isinstance(msg, dict) and msg.get("method") == "elicitation/create" and "id" in msg:
+                reply = answer_elicitation(msg, state["client_elicits"], read_policy())
+                if reply is not None:
+                    try:
+                        to_child(reply)
+                    except (BrokenPipeError, OSError, ValueError):  # ValueError: stdin already closed at shutdown
+                        pass  # child gone; reap() reports it
+                    continue
+            to_client(stripped)
+
+    pump_thread = threading.Thread(target=pump, daemon=True)
+    pump_thread.start()
+    threading.Thread(target=reap, args=(child, pump_thread), daemon=True).start()
     initialized = False
     try:
         for line in sys.stdin:
@@ -103,12 +223,11 @@ def main():
                 is_init, reply = handle_pre_init(stripped)
                 if not is_init:
                     if reply is not None:
-                        sys.stdout.write(reply + "\n")
-                        sys.stdout.flush()
+                        to_client(reply)
                     continue
                 initialized = True
-            child.stdin.write(inject(stripped) + "\n")
-            child.stdin.flush()
+                stripped, state["client_elicits"] = declare_elicitation(stripped)
+            to_child(inject(stripped))
     except BrokenPipeError:
         sys.stderr.write("codex-cu-proxy: child stdin closed\n")
     finally:
@@ -117,6 +236,7 @@ def main():
         except (BrokenPipeError, OSError):
             pass
     rc = child.wait()
+    pump_thread.join(5)
     sys.exit(rc if rc >= 0 else 128 - rc)
 
 
