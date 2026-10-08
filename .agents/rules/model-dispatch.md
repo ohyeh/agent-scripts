@@ -71,6 +71,12 @@ three files; verification exceeds the trivial single-file threshold.
 Do not delegate one-tool-call facts or work whose coordination costs exceed execution. Project
 files read in full are files about to be edited; gate files and user-mandated reads are exempt.
 
+User-named tool or path (W40-2, user ruling 2026-10-09): when the user names the tool, app,
+host, or access path (Grok Bot, Chrome, SSH, a CLI), this session runs it itself. Do not hand
+it to a subagent or worker in the same turn; a subagent repeats the same calls, cannot ask the
+user, and adds a context. In session 9a3b40c3 a delegated Grok Bot read cost $90.32 and hit the
+subagent cap 71 times.
+
 ## §3 Assignment and report contract
 
 Every task uses the matching `delegation-templates` shape and contains: (1) GOAL + WHY;
