@@ -6,6 +6,7 @@
 - `model-dispatch.md` §2: a user-named tool or path stays in this session (W42-13).
 - `deploy.sh`: on the clone-tracked layout it FAILs while `skills/`, `global/` or `.agents/` hold untracked files (a retired recipe kept coming back on one host); clean them, then rerun. It names each stale skill it removes. `host-load-gate.sh` writes one stats row per gated launch.
 - `skills-lock.json` follows the upstream skill upgrades; `settings_claude.json` keys the luna effort to `gpt-6-luna`.
+- `operator-defaults.md`: "prefer structure" is now conditional (lists when the content has many parts or the user must choose, prose for a chat reply). The other three kernel sweet-spot proposals (stop types, delegation trigger, effective-stack audit) are dropped.
 
 ## review ladder 2026-10-09
 

@@ -36,8 +36,10 @@ Chain these for planning and investigation work:
 - Re-explain on request through the `simplified-english` rule.
 - A command handed to the user is one copy-paste line: absolute paths expanded,
   no placeholders left, and it says where to run it (which host, which directory).
-- Prefer structure over a wall of prose (the `adhd` output discipline): diverge,
-  then converge; number the options.
+- Use lists or numbered options when the content has many parts or the user must
+  choose (the `adhd` output discipline: diverge, then converge). Keep a chat reply
+  or a single idea in prose. Lead with the outcome; make it shorter by choosing
+  content, not by packing sentences.
 - Run the full `adhd` parallel divergence at key, high-stakes, open-ended
   moments. A routine turn keeps the discipline without the parallel fan-out.
 - Diagram-first (user standing preference 2026-08-17): when the deliverable
