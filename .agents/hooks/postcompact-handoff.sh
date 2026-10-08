@@ -4,7 +4,7 @@
 # Input (stdin JSON, docs https://code.claude.com/docs/en/hooks): session_id,
 # cwd, trigger ("manual"|"auto"), compact_summary. PostCompact has no decision
 # control and cannot inject context (prior art: anthropics/claude-code#14258),
-# so this hook only writes <cwd>/.claude/handoffs/compact-<sid8>.md and runs the
+# so this hook only writes <project>/.claude/handoffs/compact-<sid8>.md and runs the
 # vendored validator; its one-line stdout shows in the transcript as status.
 # Pair: precompact-instructions.sh asks the summarizer for the four REQUIRED
 # handoff headings; this hook checks they arrived. Never exits non-zero.
@@ -27,7 +27,12 @@ cwd="$(printf '%s' "$IN" | jq -r '.cwd // empty')"
 trigger="$(printf '%s' "$IN" | jq -r '.trigger // "unknown"')"
 session_id="$(printf '%s' "$IN" | jq -r '.session_id // "unknown"')"
 
-dir="$cwd/.claude/handoffs"
+# The project root, not the cwd: a session working inside a run dir (e.g. a retro's
+# evals/retro-metrics/<week>/) must not drop a handoff with home paths into the
+# artifacts under review (W42-15). Outside git, the cwd is the project.
+project="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)"
+[ -n "$project" ] || project="$cwd"
+dir="$project/.claude/handoffs"
 mkdir -p "$dir" || exit 0
 file="$dir/compact-${session_id:0:8}.md"
 transcript="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
@@ -50,7 +55,7 @@ sha="$(git -C "$cwd" rev-parse HEAD 2>/dev/null)"
   printf '## Session Metadata\n\n'
   printf -- '- Created: %s\n' "$(date +%Y-%m-%dT%H:%M:%S%z)"
   printf -- '- Compactions so far: %s (file is overwritten each time; latest only)\n' "${compactions:-0}"
-  printf -- '- Project: %s\n' "${cwd/#$HOME/\~}"
+  printf -- '- Project: %s (cwd %s)\n' "${project/#$HOME/\~}" "${cwd/#$HOME/\~}"
   printf -- '- Session: %s\n' "$session_id"
   printf -- '- Cloud session: %s\n' "${cloud:-none}"
   printf -- '- CLI: claude-code %s (entrypoint %s)\n' "${version:-unknown}" "${entry:-unknown}"
@@ -63,11 +68,12 @@ sha="$(git -C "$cwd" rev-parse HEAD 2>/dev/null)"
 grep -q '^## Standing Authorizations' "$file" || auth_note=" — no Standing Authorizations section"
 
 validator="$HOME/.agents/skills/session-handoff/scripts/validate_handoff.py"
-if [ -f "$validator" ] && command -v python3 >/dev/null 2>&1; then
-  if python3 "$validator" "$file" >/dev/null 2>&1; then
+# /usr/bin/python3, not PATH: a hook must not exec a shim (pyenv) whose shell may differ (lesson 2026-10-03).
+if [ -f "$validator" ] && [ -x /usr/bin/python3 ]; then
+  if /usr/bin/python3 "$validator" "$file" >/dev/null 2>&1; then
     echo "[postcompact-handoff] READY ${file/#$HOME/\~}${auth_note:-}"
   else
-    echo "[postcompact-handoff] BLOCKED (missing required sections) ${file/#$HOME/\~} — run: python3 $validator $file"
+    echo "[postcompact-handoff] BLOCKED (missing required sections) ${file/#$HOME/\~} — run: /usr/bin/python3 $validator $file"
   fi
 else
   echo "[postcompact-handoff] WRITTEN (validator unavailable) ${file/#$HOME/\~}${auth_note:-}"

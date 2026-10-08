@@ -23,7 +23,7 @@ and Workflow `agent(prompt, {effort})`.
 |---|---|---|---|
 | commander | `gpt-6.1-sol` | `medium` | `xhigh` only for materially large/hard work |
 | plan | `gpt-6-astra` | `medium` | `high`; `xhigh` only for major architecture/security/ambiguity |
-| review/judgment | fresh `gpt-6-astra` | `medium` | reviewer is not the author |
+| review/judgment | review ladder (§4 Review ladder): `gpt-6-luna` at L1, `gpt-6-astra` as the L3 fallback | `xhigh` | reviewer is not the author; a Codex seat runs one effort step above its Claude peer |
 | execution | `gpt-6-luna`; explicit Sol; or external | Luna `xhigh`/`max`; Sol low/medium | Sol workers stop at `medium` |
 
 Codex models: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna` — no others. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
@@ -97,7 +97,7 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 | locate/inventory | `sonnet` medium; `sonnet` high for synthesis | Luna xhigh |
 | read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
 | implement/refactor/research | `opus` medium (`sonnet` only by explicit arg, §1) | Luna xhigh |
-| review/verification | fresh `opus` medium; risky=`opus` high | fresh Astra medium |
+| review/verification | review ladder (§Review ladder below): L1 `sonnet` high → L2 `opus` medium+ → L3 `fable` | review ladder: Luna xhigh at L1, Astra xhigh as the L3 fallback |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` medium | Luna xhigh |
 | dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: proxy runs `assign --detach`, the parent owns the wait (`using-tmux-agent-tools` §ONE OWNER) | same |
