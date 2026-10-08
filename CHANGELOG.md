@@ -1,5 +1,11 @@
 # Changelog
 
+## review ladder 2026-10-09
+
+- Review loops run one ladder (`model-dispatch.md` §Review ladder): L0 deterministic checks plus a hash freeze → L1 pre-filter (`sonnet` 5.5 high, as `pr-review-toolkit` lenses for code, plus `gpt-6-luna` xhigh; ≤2 rounds, cannot pass) → L2 `opus` (code: `pr-review-toolkit:code-reviewer`; always runs, ≤3) → L3 `fable` (1 round, only when L2 still blocks). One finding ledger runs through every round; reviewer and fixer contracts live in `_lib/worker-doctrine.md` §7–§9. Wired: `plan-pipeline`, `consensus-gate`, `spec-implement-dual-review-verify`. Reviewed by advisor and Sol (19 findings; 18 adopted or partly adopted).
+- Breaking args: `spec-implement-dual-review-verify` rejects `cli` and `isolation` (the build review ran one round and never re-reviewed its fixes; it now runs the ladder); `plan-pipeline` takes `maxReviewRounds` 1–3 only and rejects `isolation`, and `cli` drafts only; `consensus-gate` takes `layer`, `round`, `freeze`, `l0`, returns manifest and L0 fields, and an L1 `agree` never sets `passed`.
+- `skills-lock.json` adds `codex-cu` (deploy removes skills missing from the lock). `lessons.md` keeps 7 open entries (24 retired as covered by a gate or rule). The compaction handoff goes to the project root, so a retro run dir no longer carries it.
+
 ## using-skills flows 2026-09-28
 
 - `using-skills` now chains the lock skills: a Flows section (situation → handoff → artifact → loop) for feature, bug, test plan and handoff, with conditional stages only, plus owner pointers for architecture, design, writing, tmux, loops and skill edits. Agreed by advisor and a Codex reviewer over two rounds; the loop closes on a proposal (`lessons.md`, `Status: proposed`), never a self-edit.
