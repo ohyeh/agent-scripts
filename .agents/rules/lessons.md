@@ -166,3 +166,8 @@ Status: proposed
 Rule: 補充上一條：污染沿程序樹往下傳。只要祖先曾由 `#!` 啟動（cursor-agent 本身就是 bash script；由 agent-tmux 啟動的 tmux server 也算），後代每次 `#!` exec 都會漏。所以 hook 的註冊指令本身就要寫 `bash <file>`；hook 內也不要呼叫屬於 `#!` script 的工具（pyenv shim 的 `python3`、macOS 的 `shasum` 是 perl），改用 binary（`/usr/bin/python3`、`sha256sum`）。
 Evidence: zprint 實測，每組 1500 次：zsh script → node → leaf.sh +1505K；未污染 shell → node → leaf.sh +144K；script 啟動的 tmux 底下 +1568K，對照 +89K。Cursor hook 在污染環境下每 300 次 +4758K，改用 /usr/bin/python3 後 +229K（對照 +91K）。修正在 b58e4f5、3b83d96。
 Status: proposed
+
+## 2026-10-07 | scope: tooling | trigger: 一個工具做不到，我就說「沒有任何指令做得到」，被使用者糾正多次
+Rule: 說「沒有指令」之前，先列出已安裝與可裝的同類工具（devicectl、agent-device、libimobiledevice、pymobiledevice3…），逐一在實機上跑 `--help` 或唯讀指令；使用者說「直接送出」是要我找工具，不是重跑同一個失敗的指令。
+Evidence: iPhone 8 設 AX5：devicectl、agent-device 都做不到，但 `pymobiledevice3 developer accessibility settings show` 實測讀得到 DYNAMIC_TYPE；我先說「只剩 Inspector」，還讓 worker 反覆開 Inspector 打斷使用者的 Mac。
+Status: proposed
