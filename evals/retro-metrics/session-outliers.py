@@ -2,11 +2,12 @@
 """每週 retro 定額訊號（retro-agenda §2–4）：Claude top-level session 逐場 turns 與 midkey 去重 token，
 輸出 (a) turns==0 且 total>1M 的場、(b) total 前 10 名。turns = type=user 且非 tool_result、非續接摘要。
 用法：python3 session-outliers.py [days]"""
-import json, os, sys, glob, time, socket
+import json, os, re, sys, glob, time, socket
 days = int(sys.argv[1]) if len(sys.argv) > 1 else 7
 cut = time.time() - days * 86400
 F = ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")
 rows = []
+HOMEKEY = re.sub(r"[^A-Za-z0-9]", "-", os.path.expanduser("~"))  # project-key form of ~
 for f in glob.glob(os.path.expanduser("~/.claude/projects/*/*.jsonl")):
     if os.path.getmtime(f) < cut: continue
     turns = 0; mid = {}; first_user = ""
@@ -27,7 +28,7 @@ for f in glob.glob(os.path.expanduser("~/.claude/projects/*/*.jsonl")):
                 p = mid.get(k)
                 if not p or (u.get("output_tokens", 0) or 0) >= (p.get("output_tokens", 0) or 0): mid[k] = u
     tot = sum((u.get(k, 0) or 0) for u in mid.values() for k in F)
-    rows.append({"proj": f.split("/")[-2].replace("-Users-paul-yeh-git-", "").replace("-Users-paul-yeh-github-", ""), "sid": os.path.basename(f)[:8], "turns": turns, "total": tot, "first_user": first_user})
+    rows.append({"proj": f.split("/")[-2].replace(HOMEKEY + "-git-", "").replace(HOMEKEY + "-github-", ""), "sid": os.path.basename(f)[:8], "turns": turns, "total": tot, "first_user": first_user})
 rows.sort(key=lambda r: -r["total"])
 print(json.dumps({"host": socket.gethostname(), "sessions": len(rows),
  "turns0_over_1M": [r for r in rows if r["turns"] == 0 and r["total"] > 1_000_000],
