@@ -41,7 +41,8 @@ def read_policy():
 
 def answer_elicitation(msg, client_elicits, policy_text):
     """For a server->client elicitation/create, return the reply line the proxy sends
-    to the child, or None to forward it to the client."""
+    to the child, or None to forward it to the client. The caller logs the action
+    once the reply is really queued."""
     params = msg.get("params") if isinstance(msg.get("params"), dict) else {}
     message = params.get("message")
     if policy_accepts(message, policy_text):
@@ -50,8 +51,6 @@ def answer_elicitation(msg, client_elicits, policy_text):
         return None
     else:
         action = "decline"
-    sys.stderr.write(f"codex-cu-proxy: elicitation {action} {json.dumps(message)}\n")
-    sys.stderr.flush()
     result = {"action": action, "content": {}} if action == "accept" else {"action": action}
     return json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": result})
 
@@ -196,19 +195,31 @@ def reap(child, pump, state):
     rc = child.wait()
     drained = drain(pump, state)
     code = rc if rc >= 0 else 128 - rc
-    sys.stderr.write(f"codex-cu-proxy: child {CHILD} exited {rc}\n")
+    msg = f"child {CHILD} exited {rc}"
     if not drained:
-        sys.stderr.write(f"codex-cu-proxy: no output progress for {DRAIN_IDLE_S:g}s after child exit; output may be incomplete\n")
+        msg += f"\ncodex-cu-proxy: no output progress for {DRAIN_IDLE_S:g}s after child exit; output may be incomplete"
         code = code or 1
-    sys.stderr.flush()
+    die(code, msg)
+
+
+def die(code, msg):
+    """End the process with `code` after a best-effort diagnostic. The exit must not
+    depend on stderr: a closed stderr raises (nowhere left to report it), a stderr
+    nobody reads blocks, so a timer forces the exit."""
+    timer = threading.Timer(5, os._exit, (code,))
+    timer.daemon = True
+    timer.start()
+    try:
+        sys.stderr.write(f"codex-cu-proxy: {msg}\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
     os._exit(code)
 
 
 def fail(msg):
     """The connection cannot continue: say why and end it non-zero."""
-    sys.stderr.write(f"codex-cu-proxy: {msg}\n")
-    sys.stderr.flush()
-    os._exit(1)
+    die(1, msg)
 
 
 def main():
@@ -259,13 +270,21 @@ def main():
                 except ValueError:
                     msg = None
                 if isinstance(msg, dict) and msg.get("method") == "elicitation/create" and "id" in msg:
-                    if state["closing"]:
-                        sys.stderr.write("codex-cu-proxy: elicitation dropped, client already closed stdin\n")
-                        continue
                     reply = answer_elicitation(msg, state["client_elicits"], read_policy())
+                    # One gate after the (possibly slow) policy read decides drop vs act.
+                    # A forward can still meet an EOF right after this check; that equals
+                    # a client that closes just after it receives the prompt.
+                    with close_lock:
+                        closing = state["closing"]
+                        if not closing and reply is not None:
+                            to_child.put(reply)
+                    if closing:
+                        sys.stderr.write("codex-cu-proxy: elicitation dropped, client closed stdin\n")
+                        continue
                     if reply is not None:
-                        if not send_to_child(reply):
-                            sys.stderr.write("codex-cu-proxy: elicitation reply dropped, client closed stdin meanwhile\n")
+                        params = msg.get("params") if isinstance(msg.get("params"), dict) else {}
+                        action = json.loads(reply)["result"]["action"]
+                        sys.stderr.write(f"codex-cu-proxy: elicitation {action} {json.dumps(params.get('message'))}\n")
                         continue
                 to_client(stripped)
         except BrokenPipeError:

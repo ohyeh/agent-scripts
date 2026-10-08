@@ -3,8 +3,9 @@
 
 Cases come from the 2026-10-08 Sol review: accept, forward round trip, quiet child
 death, slow-client tail drain, two-way backpressure, non-UTF-8 policy, and the
-second-round lifecycle cases: stalled client, child stdin death, approval after client EOF.
-Usage: python3 test-codex-cu-proxy   (exit 0 = all PASS; ~25 s)
+second-round lifecycle cases: stalled client, child stdin death, approval after client EOF,
+and the third-round cases: closed stderr on a fatal error, client EOF during the policy read.
+Usage: python3 test-codex-cu-proxy   (exit 0 = all PASS; ~30 s)
 """
 import json, os, subprocess, sys, tempfile, threading, time
 from pathlib import Path
@@ -141,6 +142,49 @@ out = [json.loads(l) for l in lines(p, 2, 10)]
 p.wait(10); err = p.stderr.read().decode()
 check("approval after client EOF is dropped, not claimed", "dropped" in err and "elicitation accept" not in err
       and out[-1:] == [{"approval_line": ""}], (out, err[-200:]))
+
+# 10. child stdin death while proxy stderr is closed: diagnostics fail, the exit still happens
+p = start("writerdeath", b"all\n"); p.stdin.write(init({}).encode()); p.stdin.flush()
+lines(p, 2, 10); p.stderr.close()
+p.stdin.write(b'{"jsonrpc":"2.0","id":5,"method":"ping"}\n'); p.stdin.flush()
+try:
+    rc = p.wait(10)
+except subprocess.TimeoutExpired:
+    rc = "hung"; p.kill()
+check("closed stderr does not block the exit", rc not in (0, "hung"), rc)
+
+
+# 11. client EOF lands during the policy read (a FIFO holds the read open)
+def eof_during_policy_read(policy, caps):
+    fifo = tmp / "approve-fifo"
+    if fifo.exists():
+        fifo.unlink()
+    os.mkfifo(fifo)
+    env = dict(os.environ, CU_CHILD=str(child), CU_APPROVE_FILE=str(fifo), FAKE_MODE="normal")
+    p = subprocess.Popen([sys.executable, PROXY], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+    p.stdin.write(init(caps).encode()); p.stdin.flush()
+    lines(p, 1, 10)                                     # ready
+    deadline = time.time() + 10
+    while True:                                         # opens only once the proxy is reading the policy
+        try:
+            fd = os.open(fifo, os.O_WRONLY | os.O_NONBLOCK); break
+        except OSError:
+            if time.time() > deadline:
+                p.kill(); return "no policy read", "", []
+            time.sleep(0.02)
+    p.stdin.close(); time.sleep(0.3)
+    os.write(fd, policy); os.close(fd)
+    out = lines(p, 2, 10)
+    try:
+        rc = p.wait(10)
+    except subprocess.TimeoutExpired:
+        rc = "hung"; p.kill()
+    return rc, p.stderr.read().decode(), out
+
+rc, err, out = eof_during_policy_read(b"all\n", {})
+check("EOF during policy read: accept dropped, not claimed", rc != "hung" and "dropped" in err and "elicitation accept" not in err, (rc, err[-200:]))
+rc, err, out = eof_during_policy_read(b"TextEdit\n", {"elicitation": {}})
+check("EOF during policy read: prompt not forwarded", rc != "hung" and "dropped" in err and not any(b"elicitation/create" in l for l in out), (rc, err[-200:], out))
 
 print(f"{sum(results)}/{len(results)} PASS")
 sys.exit(0 if all(results) else 1)

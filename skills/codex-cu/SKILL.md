@@ -26,8 +26,9 @@ PASS: setup is done. Skip this section. The check never opens an app, so a
 PASS is not proof that an app call works. SKIP with `no Computer Use plugin`:
 the user must install the ChatGPT Mac app and its Computer Use plugin, then use
 computer use there once (that grants Screen Recording and Accessibility). A
-FAIL on `launcher resolves version` (the installer says SKIP `no usable Computer
-Use version yet`): the plugin is still downloading; try again later. In both
+FAIL `launcher cannot resolve a usable version` (the installer says SKIP `no
+usable Computer Use version yet`): show the user the reason text after the colon.
+Only a missing or empty plugin cache means "still downloading, try later". In both
 cases stop and tell them. Any other FAIL, or no `codex-cu` tool: ASK the user
 which mode. Never pick for them:
 
@@ -138,7 +139,12 @@ Cursor):
   forwarded apps. Remove such a hook; the policy file is the single source.
 
 `scripts/test-codex-cu-proxy` runs the proxy against a fake child (accept,
-forward, child death, slow client, two-way backpressure, bad policy).
+forward, child death, slow client, two-way backpressure, bad policy, shutdown).
+
+Shutdown: after the client closes stdin, the proxy drops (and logs) any later
+approval prompt; it does not answer or forward it. After the child exits, the
+proxy waits while output still reaches the client; with no progress for 30 s it
+exits non-zero, and the output may be incomplete.
 
 A refusal reads `Computer Use was not approved to use X`. Add the display name
 to the file; the next prompt reads it, no restart. The Chrome display name is
