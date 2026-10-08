@@ -543,7 +543,7 @@ deploy_method=tarball; [ "$CLONE_TRACKED" = 1 ] && deploy_method=clone-tracked
 # --- Layer 9: codex-cu (Codex computer use as a user-scope MCP server) -------
 # SKIPs on a host with no Computer Use plugin; that is not a failure.
 echo "==> [codex-cu] install proxy + register at user scope"
-bash "$SRC/scripts/install-codex-cu.sh"
+bash "$SRC/skills/codex-cu/scripts/install-codex-cu.sh"
 
 # Stable name: macOS `hostname` follows DHCP/network; LocalHostName does not.
 host_id="$(scutil --get LocalHostName 2>/dev/null || hostname -s)"

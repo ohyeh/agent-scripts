@@ -15,6 +15,39 @@ when this file does not answer a case.
 
 https://claude.ai/artifact/VQQdp75aeC1PzqRwK581PU?sk=Usf3jftJdhrPrHUCB76Nuw
 
+## Setup (once per machine)
+
+Codex does not need this: `cua_repl` is native there. For Claude Code, Cursor
+and agy, run the check first:
+
+    bash ~/.agents/skills/codex-cu/scripts/check-codex-cu.sh
+
+PASS: setup is done. Skip this section. SKIP with `no Computer Use plugin`:
+the user must install the ChatGPT Mac app and its Computer Use plugin, then use
+computer use there once (that grants Screen Recording and Accessibility). Stop
+and tell them. FAIL or no `codex-cu` tool: ASK the user which mode. Never pick
+for them:
+
+- `all`: accept every app prompt, with no question. agy and Cursor can only use
+  computer use in this mode or for listed apps.
+- `safe`: accept Calculator, TextEdit, Preview, Freeform only. Claude asks the
+  user for other apps. agy and Cursor are refused for other apps.
+
+Then run:
+
+    bash ~/.agents/skills/codex-cu/scripts/install-codex-cu.sh all   # or: safe
+
+It installs into `~/.local/bin`, registers `codex-cu` at user scope for Claude
+Code, Cursor and agy, writes `~/.config/codex-cu/approve`, and ends with the
+check. If you cannot ask (print mode, worker), stop and show the user both
+commands. After setup, tell the user to start a new session: MCP servers load
+at session start. To switch mode later, run the installer with the other word,
+or edit the policy file (it takes effect at the next prompt, no restart).
+
+The installer skips the first gate on purpose. Terminal, system settings and
+Codex itself stay `forbidden` until the user runs
+`defaults write -g ComputerUseAllowForbiddenTargets -bool YES` themselves.
+
 ## Two surfaces
 
 Computer surface treats the target as an app. Read the AX tree, then click or
@@ -23,7 +56,8 @@ launcher.
 
 Browser surface enters the page. Read the DOM, run JS, use Playwright locators.
 Each `tools/call` needs Codex turn metadata. `scripts/codex-cu-proxy` injects
-`_meta["x-codex-turn-metadata"]`. Computer surface does not use that proxy.
+`_meta["x-codex-turn-metadata"]`. Computer surface does not need the metadata,
+but its app approvals also go through the proxy (see below).
 
 `cua.getState()` can return a full `apps` list and a `browsers` error together.
 A metadata error on `browsers` does not mean the computer surface failed.

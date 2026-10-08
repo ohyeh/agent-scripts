@@ -19,11 +19,17 @@
 # hosts that have no ChatGPT app. The gate is the plugin dir, NOT `uname`:
 # the runtime supports Linux, so a Linux host that HAS the plugin gets it.
 #
-# Usage: scripts/install-codex-cu.sh
-# Then:  scripts/check-codex-cu.sh
+# Usage: install-codex-cu.sh [all|safe]
+#   all   write the full approval policy (accept every app prompt)
+#   safe  write the safe list (Calculator, TextEdit, Preview, Freeform)
+#   none  keep an existing policy; seed `all` if there is none (deploy layer 9)
+# Then:  check-codex-cu.sh
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+MODE="${1:-}"
+case "$MODE" in ""|all|safe) ;; *) echo "usage: $0 [all|safe]" >&2; exit 2 ;; esac
+
+HERE="$(cd "$(dirname "$0")" && pwd)"  # the skill's scripts/ dir; deploy calls it in place
 PLUGIN_DIR="${HOME}/.codex/plugins/cache/openai-bundled/unified-computer-use"
 BIN="${HOME}/.local/bin"
 CHILD="${BIN}/codex-cu-mcp"
@@ -39,7 +45,7 @@ fi
 # never launch. Ask the launcher itself.
 # SKIP, not FAIL: a mid-download cache is transient, and nothing is registered
 # yet, so skipping leaves no broken server behind. Same policy as an absent dir.
-if ! resolved_version="$(python3 "$ROOT/scripts/codex-cu-mcp" --resolve 2>&1)"; then
+if ! resolved_version="$(python3 "$HERE/codex-cu-mcp" --resolve 2>&1)"; then
   echo "SKIP [codex-cu] no usable Computer Use version yet: $resolved_version"
   exit 0
 fi
@@ -47,8 +53,8 @@ echo "==> [codex-cu] using $resolved_version"
 
 mkdir -p "$BIN"
 # Child first: the proxy resolves it as a sibling at startup.
-install -m 755 "$ROOT/scripts/codex-cu-mcp" "$CHILD"
-install -m 755 "$ROOT/scripts/codex-cu-proxy" "$PROXY"
+install -m 755 "$HERE/codex-cu-mcp" "$CHILD"
+install -m 755 "$HERE/codex-cu-proxy" "$PROXY"
 echo "==> [codex-cu] installed $CHILD and $PROXY"
 
 # Self-test the injection before registering anything that would call it.
@@ -64,12 +70,17 @@ fi
 # (live, no restart). Full + the forbidden-targets switch = any app, incl.
 # Terminal and Keychain Access, with no prompt.
 POLICY="${HOME}/.config/codex-cu/approve"
-if [ ! -e "$POLICY" ]; then
+if [ -n "$MODE" ] || [ ! -e "$POLICY" ]; then
   mkdir -p "$(dirname "$POLICY")"
+  if [ "$MODE" = safe ]; then
+    set -- Calculator TextEdit Preview Freeform  # no browser: logged-in pages are readable
+  else
+    set -- all
+  fi
   printf '%s\n' '# codex-cu approval policy: `all` alone = accept every prompt; else one app name per line.' \
-    all > "$POLICY"
+    "$@" > "$POLICY"
   chmod 600 "$POLICY"
-  echo "==> [codex-cu] seeded full approval policy at $POLICY"
+  echo "==> [codex-cu] wrote ${MODE:-all} approval policy to $POLICY"
 fi
 echo "==> [codex-cu] approval policy: $(grep -v '^#' "$POLICY" | paste -sd, -)"
 
@@ -129,4 +140,4 @@ if command -v agy >/dev/null 2>&1; then
 fi
 
 # Codex needs no registration: cua_repl is native there.
-bash "$ROOT/scripts/check-codex-cu.sh"
+bash "$HERE/check-codex-cu.sh"
