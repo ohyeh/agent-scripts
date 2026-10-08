@@ -21,6 +21,28 @@ REPO_GIT_URL="${REPO_GIT_URL:-https://github.com/ohyeh/agent-scripts.git}"
 RELEASE_REF="${RELEASE_REF:-refs/heads/main}"
 LOG="${DEPLOY_LOG:-$HOME/.local/state/agent-scripts/deploy-log.jsonl}"
 
+# Hook execution: run the active context-mode PreToolUse hook once. A mounted
+# hook is not a working hook — grok-bot-vm ran 7 days with its bun replaced by
+# an exit-127 shim and every check passed (W41 F2). Uses the command string from
+# the ACTIVE install's hooks.json, so an absolute interpreter path is tested as is.
+PLUGINS="$HOME/.claude/plugins/installed_plugins.json"
+root="$(jq -r '.plugins["context-mode@context-mode"][0].installPath // empty' "$PLUGINS" 2>/dev/null || true)"
+if [ -z "$root" ]; then
+  echo "SKIP [hook] context-mode not installed for Claude on $(hostname)"
+else
+  cmd="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$root/hooks/hooks.json")"
+  probe='{"hook_event_name":"PreToolUse","session_id":"deploy-drift-probe","tool_name":"Read","tool_input":{"file_path":"/dev/null"}}'
+  set +e
+  printf '%s' "$probe" | CLAUDE_PLUGIN_ROOT="$root" perl -e 'alarm 30; exec @ARGV' bash -c "$cmd" >/dev/null 2>&1
+  rc=$?
+  set -e
+  if [ "$rc" -ne 0 ]; then
+    echo "FAIL [hook] context-mode PreToolUse exit=$rc on $(hostname): $cmd" >&2
+    exit 1
+  fi
+  echo "PASS [hook] context-mode PreToolUse exit=0"
+fi
+
 [ -r "$LOG" ] || { echo "FAIL [drift] no deploy log at $LOG — host never deployed, or state was wiped" >&2; exit 1; }
 
 # The log is per-machine (deploy.sh appends to its own ~), so the last valid
