@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.9.5'
+const MOD_VERSION = '0.10.0'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -56,11 +56,13 @@ const TAG_RE = /^\s*\[w:([0-9a-z]{8}|\*)\]/
  * 8 chars that tell sessions apart: a UUID's first 8 (the sid8 the session title shows), else a hash of
  * the whole id. A prefix of another format is not unique: `local-ab…` fallbacks share 6 of their 8 (Sol r1).
  */
-function tokenOf(sid: string): string {
-  if (FULL_UUID_RE.test(sid)) return sid.slice(0, 8)
+function fnv(text: string): string {
   let h = 0x811c9dc5
-  for (const ch of sid) h = Math.imul(h ^ ch.codePointAt(0)!, 0x01000193) >>> 0
+  for (const ch of text) h = Math.imul(h ^ ch.codePointAt(0)!, 0x01000193) >>> 0
   return h.toString(36).padStart(8, '0').slice(-8)
+}
+function tokenOf(sid: string): string {
+  return FULL_UUID_RE.test(sid) ? sid.slice(0, 8) : fnv(sid)
 }
 const tagOf = (sid: string) => `[w:${tokenOf(sid)}]`
 /** The app shows every message from this account as "You": the marker tells the bot and Paul it came from a session. */
@@ -106,6 +108,28 @@ type State = {
   convo?: { id: string; msgs: Msg[] }
   /** Every read-modify-write of this session's records, in call order: a tick and a wake count never write over each other. */
   writes: Promise<unknown>
+  /** Event-log appends, in call order (their own chain: a slow log never holds a record write). */
+  logs: Promise<unknown>
+}
+
+/**
+ * One line per watch, armed, wake, lost and unwatch, to ~/.claude/grok-bot-watch/events/<session>.jsonl:
+ * what bin/replay.mjs reads to tell a re-sent reply from a new reply with the same text (W42-8).
+ * `h` is a hash of the preview, never the text. Best effort: a failed write is a debug line, never a stop.
+ * shortcut: one file per session read and rewritten per line (the engine has no append); fine at
+ * a few lines a minute, switch to rotation if a session's file nears the 4 MiB read cap.
+ */
+type Ev = { ev: 'watch' | 'armed' | 'wake' | 'lost' | 'unwatch'; bot: string; gen: number; h?: string; via?: string; prior?: boolean }
+function logEvent(s: State, $: $, rec: Ev): Promise<void> {
+  const p = s.logs.then(async () => {
+    const home = await $.env.get('HOME')
+    if (!home) return
+    const path = `${home}/.claude/grok-bot-watch/events/${s.sid}.jsonl`
+    const before = (await $.fs.exists(path)) ? await $.fs.read(path) : ''
+    await $.fs.write(path, `${before}${JSON.stringify({ ts: new Date(await $.clock.now()).toISOString(), ...rec })}\n`)
+  }).catch(err => $.ui.log(`grok-bot-watch: event log: ${String(err)}`, { to: 'debug' }))
+  s.logs = p
+  return p
 }
 
 /** Runs a write to this session's records after every earlier one; a failure reaches the caller, not the queue. */
@@ -170,6 +194,7 @@ async function deliver(s: State, $: $, key: string, gen: number, row: Row, at: n
   let why: string
   try {
     const r = await $.prompt.submit({ text: wakeText(row, s.sid) })
+    void logEvent(s, $, { ev: r.drop === undefined ? 'wake' : 'lost', bot: row.id, gen, h: fnv(row.preview) })
     if (r.drop === undefined) {
       // Counted only once the engine took it: a lost wake is not a wake.
       try {
@@ -183,6 +208,7 @@ async function deliver(s: State, $: $, key: string, gen: number, row: Row, at: n
     why = `dropped: ${r.drop}`
   } catch (err) {
     why = `threw: ${String(err)}`
+    void logEvent(s, $, { ev: 'lost', bot: row.id, gen, h: fnv(row.preview) })
   }
   $.ui.toast(`grok-bot-watch: a wake for ${clean(row.name, 40)} is lost (ack-first; ${clean(why, 120)})`)
   try {
@@ -272,15 +298,21 @@ async function tick(s: State, $: $) {
     const wake = settledNew && forMe(row.preview, s.sid)
     const recent = (now: Watch) => (wake ? { recent: [...(now.recent ?? []), { t, text: row.preview.slice(0, 200) }].slice(-RECENT) } : {})
     const wrote = await rewrite(s, $, k, now => (now.gen === w.gen ? { ...now, seen: next.seen, armed: next.armed, ...recent(now) } : undefined))
+    if (wrote && next.armed && !w.armed) void logEvent(s, $, { ev: 'armed', bot: w.botUuid, gen: w.gen })
     if (wrote && wake) void deliver(s, $, k, w.gen, row, t)
   }
   $.ui.invalidate('ui.render')
 }
 
 /** Drop one of this session's watches: the unwatch tool and the panel's button. */
-async function unwatchKey(s: State, $: $, key: string) {
+async function unwatchKey(s: State, $: $, key: string, via: string) {
   // Queued: a tick mid-rewrite would otherwise write the deleted record back.
-  await enqueue(s, () => $.store.delete(key))
+  const gone = await enqueue(s, async () => {
+    const w = (await $.store.get(key)) as Watch | undefined
+    await $.store.delete(key)
+    return w
+  })
+  if (gone) void logEvent(s, $, { ev: 'unwatch', bot: gone.botUuid, gen: gone.gen, via })
   for (const m of [s.status, s.names, s.live]) m.delete(key)
   if (s.open === key) s.open = undefined
   $.ui.invalidate('ui.render')
@@ -358,7 +390,7 @@ async function panelData(s: State, $: $): Promise<Bot[]> {
 }
 
 /** Arms a watch for this session: the watch tool, the panel's field and `/grok-bot-watch <id>` all come here. */
-async function watchBot(s: State, $: $, raw: string): Promise<{ deny: string } | { result: string; label: string }> {
+async function watchBot(s: State, $: $, raw: string, via: string): Promise<{ deny: string } | { result: string; label: string }> {
   const want = raw.trim().toLowerCase()
   if (!UUID_RE.test(want)) return { deny: 'grok-bot-watch: botUuid must be a UUID or an 8+ char hex prefix' }
   const res = await readOnce(s, $)
@@ -380,7 +412,13 @@ async function watchBot(s: State, $: $, raw: string): Promise<{ deny: string } |
   if (w.seen !== null) w = { ...w, recent: [{ text: w.seen.slice(0, 200) }] }
   // Beat before the record: another session's prune reads a watch with no beat as a day old.
   await $.store.set(`${HB_PREFIX}${s.sid}`, await $.clock.now())
-  await enqueue(s, () => $.store.set(key, w))
+  // prior: this session already watched the bot, so this call is a re-watch (W42-8 counts them by `via`).
+  const prior = await enqueue(s, async () => {
+    const had = (await $.store.get(key)) !== undefined
+    await $.store.set(key, w)
+    return had
+  })
+  void logEvent(s, $, { ev: 'watch', bot: uuid, gen: w.gen, via, prior })
   if (row) {
     s.names.set(key, row.name)
     s.live.set(key, row)
@@ -399,7 +437,7 @@ async function watchBot(s: State, $: $, raw: string): Promise<{ deny: string } |
 }
 
 export const register: Register = on => {
-  const s: State = { sid: '', seq: 0, status: new Map(), names: new Map(), live: new Map(), folded: false, writes: Promise.resolve() }
+  const s: State = { sid: '', seq: 0, status: new Map(), names: new Map(), live: new Map(), folded: false, writes: Promise.resolve(), logs: Promise.resolve() }
 
   on('session.start', async ($, e, next) => {
     s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
@@ -434,7 +472,7 @@ export const register: Register = on => {
 
   // A gating hook that throws would leave the call unanswered: an error becomes a deny.
   on('tool.call', { tool: WATCH_TOOL }, async ($, e) => {
-    const r = await watchBot(s, $, String((e as unknown as { botUuid?: unknown }).botUuid ?? ''))
+    const r = await watchBot(s, $, String((e as unknown as { botUuid?: unknown }).botUuid ?? ''), 'tool')
     return 'deny' in r ? r : { result: r.result }
   }).catch(($, e, next) => ({ deny: `grok-bot-watch: watch failed: ${String(next.error)}` }))
 
@@ -446,7 +484,7 @@ export const register: Register = on => {
       // The engine prefixes a command's text with the plugin's name: no second one here.
       return { text: 'the field is open above the prompt: ctrl+x tab (or a click) to focus the band, type the bot UUID or an 8+ char prefix, Enter.' }
     }
-    const r = await watchBot(s, $, e.args)
+    const r = await watchBot(s, $, e.args, 'command')
     $.ui.invalidate('ui.render')
     return { text: 'deny' in r ? r.deny.replace(/^grok-bot-watch: /, '') : `watching ${r.label}.` }
   })
@@ -456,7 +494,7 @@ export const register: Register = on => {
     if (!UUID_RE.test(want)) return { deny: 'grok-bot-watch: botUuid must be a UUID or an 8+ char hex prefix' }
     const hits = (await mine(s, $)).filter(k => k.slice(`${PREFIX}${s.sid}.`.length).startsWith(want))
     if (hits.length !== 1) return { deny: `grok-bot-watch: "${want}" matches ${hits.length} watches of this session` }
-    await unwatchKey(s, $, hits[0]!)
+    await unwatchKey(s, $, hits[0]!, 'tool')
     return { result: 'grok-bot-watch: unwatched. No new wake is submitted; one already submitted may still arrive.' }
   }).catch(($, e, next) => ({ deny: `grok-bot-watch: unwatch failed: ${String(next.error)}` }))
 
@@ -533,7 +571,7 @@ export const register: Register = on => {
               $.ui.invalidate('ui.render')
             } }),
           Button({ key: `unwatch-${r.key}`, label: 'unwatch', dimColor: true, ...(rows.length === 1 ? { hotkey: 'u' } : {}),
-            onPress: () => void unwatchKey(s, $, r.key).catch(err => $.ui.log(`grok-bot-watch: unwatch failed: ${String(err)}`, { to: 'debug' })) }),
+            onPress: () => void unwatchKey(s, $, r.key, 'panel').catch(err => $.ui.log(`grok-bot-watch: unwatch failed: ${String(err)}`, { to: 'debug' })) }),
           Text({ dimColor: true, wrap: 'truncate-end', children: r.preview ? ` 「${r.preview}」` : '' }),
         ],
       })
@@ -568,7 +606,7 @@ export const register: Register = on => {
       onSubmit: (v: string) => void (async () => {
         if (!v.trim()) s.adding = false
         else {
-          const r = await watchBot(s, $, v)
+          const r = await watchBot(s, $, v, 'panel')
           if ('deny' in r) $.ui.toast(r.deny)
           else {
             s.adding = false

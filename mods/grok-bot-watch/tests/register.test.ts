@@ -1,5 +1,6 @@
 import type { On } from 'claude-code'
 import { type TestBody, describe, expect, mock, test } from 'claude-code/testing'
+import { classify } from '../hooks/lib/replay.ts'
 
 const UUID = '201040cc-5be6-4d04-9f18-62f181a84677'
 const OTHER = '0e9cd37b-0000-4000-8000-000000000000'
@@ -1034,5 +1035,57 @@ describe('after a reload 0.8.1', () => {
     t = await flat($)
     expect(w.runs(), 'read at start, no poll waited for').toBe(1)
     expect(t).toContain('● NOVA 201040cc · waiting')
+  })
+})
+
+describe('event log (W42-8)', () => {
+  /** HOME and a file system in memory: the log's one file per session. */
+  const disk = (on: On) => {
+    const files = new Map<string, string>()
+    on('env.get', ($, e) => ({ value: e.name === 'HOME' ? '/h' : undefined }))
+    on('fs.exists', ($, e) => ({ value: files.has(e.path) }))
+    on('fs.read', ($, e) => ({ value: files.get(e.path)! }))
+    on('fs.write', ($, e) => {
+      files.set(e.path, e.text)
+      return { value: undefined }
+    })
+    return () => (files.get('/h/.claude/grok-bot-watch/events/sess-A.jsonl') ?? '').split('\n').filter(Boolean).map(l => JSON.parse(l))
+  }
+
+  test('a replay tells a new reply with the same text from a re-sent one, and counts re-watches and unwatches', async ($, on) => {
+    const clock = mock.clock(on)
+    const events = disk(on)
+    const w = world(on, [ok(row('A')), ok(row('B', 'working')), ok(row('B')), ok(row('B', 'working')), ok(row('B'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 4)
+    await macrotask()
+    expect(w.woken, 'B, then B again after the bot worked').toHaveLength(2)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await $.tool.call({ tool: UNWATCH, botUuid: UUID })
+    await macrotask()
+    const log = events()
+    expect(log.map(e => e.ev)).toEqual(['watch', 'armed', 'wake', 'armed', 'wake', 'watch', 'unwatch'])
+    expect(log[0]).toMatchObject({ bot: UUID, via: 'tool', prior: false })
+    expect(log[5]).toMatchObject({ via: 'tool', prior: true })
+    expect(JSON.stringify(log), 'a hash, never the reply text').not.toContain('[w:*] B')
+    expect(classify(log)).toEqual({ wakes: 2, resent: 0, sameText: 1, rewatch: { tool: 1, command: 0, panel: 0 }, unwatch: 1, afterUnwatch: 0 })
+    // The defect the replay exists to catch: the same hash twice with no work between.
+    const resent = [...log.slice(0, 3), log[2]]
+    expect(classify(resent).resent).toBe(1)
+  })
+
+  test('a log that cannot be written never stops a wake', async ($, on) => {
+    const clock = mock.clock(on)
+    on('env.get', () => ({ value: '/h' }))
+    on('fs.exists', () => ({ value: false }))
+    on('fs.write', () => {
+      throw new Error('EACCES')
+    })
+    const w = world(on, [ok(row('A')), ok(row('B'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 2)
+    expect(w.woken).toHaveLength(1)
   })
 })

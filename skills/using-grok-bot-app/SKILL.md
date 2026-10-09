@@ -89,7 +89,9 @@ Reach for the full transcript only when the preview is not enough.
 **Waiting for a reply?** Do not poll. The `grok-bot-watch` mod (plugin
 `grok-bot-watch@agent-scripts`, from `ohyeh/agent-scripts`) watches a bot by UUID and wakes the session once
 when its reply settles. The wake carries the preview only; read the transcript
-below when that is not enough. The mod never starts or clicks the app, so a
+below when that is not enough. One watch lasts the session and survives
+`/reload-plugins`: call `watch` again only when the user asks, or after an `unwatch`.
+The mod logs every watch with `prior: true` for a re-watch (`bin/replay.mjs` counts them). The mod never starts or clicks the app, so a
 bad state in its panel is fixed from this skill:
 
 | Panel state | Fix |
