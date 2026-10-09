@@ -173,6 +173,9 @@ describe('pointing and checking', () => {
     expect(call('Bash', { command: 'npm run dev 2>&1 | grep -A2 "Local: x" | head -5', description: 'Start' }, 'Local: http://localhost:5173/').map(a => a.ref), 'filters on a pipe read no file').toEqual(['http://localhost:5173/'])
     expect(call('Bash', { command: 'npm run dev | tail -n 30 | grep -A 4 Local', description: 'Start' }, 'Local: http://localhost:5173/').map(a => a.ref)).toEqual(['http://localhost:5173/'])
     expect(call('Bash', { command: 'make build && cat dist/urls.txt' }, 'https://cdn.x.dev/a')).toEqual([])
+    expect(call('Bash', { command: `agent-browser eval '(() => document.body.innerText)()'`, description: 'Search NOVA transcript for example URL report' }, 'https://pub.x.dev/a/show-me.html'), 'a page read in a browser is read, not made').toEqual([])
+    expect(call('Bash', { command: 'agent-browser open https://x.dev && agent-browser snapshot -i', description: 'Look' }, 'link https://y.dev/b')).toEqual([])
+    expect(call('Bash', { command: 'agent-browser screenshot /w/s/p.png', description: 'Shot' }, 'saved /w/s/q.png').map(a => a.kind), 'a screenshot it saves is kept').toEqual(['image'])
     const screen = 'FAIL: quote\n 2 url localhost:5173 Start dev server\nhttp://localhost:5173/'
     for (const command of ['tests/tui-smoke.sh 2>&1 | tail -25', 'MOD=m scripts/test-mod-permissions-smoke', 'npm test', 'claude plugin test mods/x', 'cd web && npx vitest run', 'bin/test', 'bash tests/tui-smoke.sh', '/bin/bash tests/tui-smoke.sh', 'bash tests/tui-smoke.sh 2>&1 >/dev/null', '/usr/bin/env node tests/a.mjs', '/usr/bin/env CI=1 node tests/a.mjs', '/usr/bin/env -i node tests/a.mjs', 'node --test test/a.mjs | tail -3'])
       expect(call('Bash', { command, description: 'Run' }, screen), `${command}: a test run prints fixtures`).toEqual([])

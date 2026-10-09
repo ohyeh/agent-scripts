@@ -357,8 +357,8 @@ export const sessionIdsIn = (text: string) => [...new Set(text.match(/[0-9a-f]{8
 
 // Programs that only print what they read; `tmux` and `git` count only with a reading subcommand.
 const READERS = /^(?:cat|head|tail|sed|less|grep|rg|jq|yq|wc|sort|uniq|cut|awk|bat|ls|cd|echo|sleep|true|tmux (?:capture-pane|ls|list-\w+)|git (?:log|show|diff|blame|status|grep))$/
-// Readers that print a file or a screen: by name and positional arguments (a filter's first one is its pattern or script).
-const SHOWS = /^(?:tmux capture-pane|git (?:log|show|diff|blame|grep))$/
+// Readers that print a file or a screen (`agent-browser eval` returns a page's text): by name and positional arguments (a filter's first one is its pattern or script).
+const SHOWS = /^(?:tmux capture-pane|agent-browser (?:eval|snapshot|get)|git (?:log|show|diff|blame|grep))$/
 // A test runner by name (`npm test`, `pytest`), or a script that says it is one: named `*-smoke`, `test-*`, or in `tests/`.
 const TEST_RUNNERS = /^(?:npx )?(?:(?:npm|pnpm|yarn|bun) (?:run )?test|pytest|vitest|jest|go test|cargo test|node --test|claude plugin test)(?: |$)/
 const TEST_SCRIPT = /(?:^|\/)(?:tests?\/[^/]+|(?:[^/]*[._-])?(?:tests?|smoke|spec)(?:[._-][^/]*)?)$/

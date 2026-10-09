@@ -1,5 +1,9 @@
 # Changelog
 
+## session-assets 0.8.4
+
+- `agent-browser eval`, `snapshot` and `get` print a page they read, like `tmux capture-pane`: their URLs are not kept. A session that searched a bot app's transcript with `agent-browser eval` had two of the bot's pages as its top band rows. A screenshot `agent-browser` saves is still kept.
+
 ## session-assets 0.8.3
 
 - In Warp, `/assets tui` and `[ ⧉ ]` open the TUI in a new Warp window: the mod writes `~/.warp/launch_configurations/session-assets.yaml` and opens `warp://launch/session-assets%20TUI` (a launch configuration opens by its name; by its path it runs nothing). Before, Warp got only the command on the clipboard. `permissions.txt` adds the env read `TERM_PROGRAM` and `$.fs.write` via `launch`.
