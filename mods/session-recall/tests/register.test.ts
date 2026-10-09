@@ -46,7 +46,13 @@ describe('assetsOf', () => {
     expect(call('Bash', { command: 'npm run dev', description: 'Start dev server' }, 'Local: http://localhost:5173/')).toEqual([
       { kind: 'url', ref: 'http://localhost:5173/', label: 'Start dev server', where: 'localhost:5173', isLocal: true },
     ])
-    expect(call('Bash', { command: 'x' }, Array.from({ length: 9 }, (_, i) => `https://h${i}.dev`).join(' '))).toHaveLength(5)
+    expect(call('Bash', { command: 'x' }, Array.from({ length: 9 }, (_, i) => `http://localhost:${5170 + i}/`).join(' '))).toHaveLength(5)
+  })
+
+  test('a call that prints more than four remote URLs printed a list: none kept, its local URLs stay', async () => {
+    expect(call('Bash', { command: 'x' }, Array.from({ length: 4 }, (_, i) => `https://h${i}.dev`).join(' '))).toHaveLength(4)
+    expect(call('Bash', { command: 'x' }, Array.from({ length: 5 }, (_, i) => `https://h${i}.dev`).join(' '))).toEqual([])
+    expect(call('Bash', { command: 'vite --host' }, `Local: http://localhost:5173/\n${Array.from({ length: 5 }, (_, i) => `https://h${i}.dev`).join(' ')}`).map(a => a.ref)).toEqual(['http://localhost:5173/'])
   })
 
   test('a written file and a written picture; ~ shortens the folder', async () => {

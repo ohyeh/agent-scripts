@@ -38,6 +38,9 @@ export type Call = {
 export const MAX_ENTRIES = 80
 // shortcut: keeps at most 5 assets per tool result so a dumped page cannot flood the list; raise if real ones get dropped.
 const PER_CALL = 5
+/** A call that prints more remote URLs than this printed a list. */
+// shortcut: real deploys printed at most 2 (wrangler deploy, gh release create: 18 runs); raise it if a deploy prints more.
+const LISTING = 4
 // Tools whose output is file or page content: what they print is not something this session made.
 const SKIP = new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch'])
 // context-mode (it searches, fetches and analyses what is already there), an MCP tool named for a read (`get_…`,
@@ -127,7 +130,12 @@ export function assetsOf(c: Call): Asset[] {
   // A `.git` URL is a remote to clone or push to (`git push` prints `To <remote>`), not a page.
   // A test run prints its fixtures (`tui-smoke.sh` showed a screen of made-up rows): its URLs are not pages it made.
   if (c.tool === 'Bash' && isTestRun(String(c.input.command ?? ''))) return out
-  for (const url of extractUrls(text)) if (!given.includes(url) && !isLocalNoise(url) && !/\.git\/?$/.test(url)) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
+  const urls = extractUrls(text).filter(url => !given.includes(url) && !isLocalNoise(url) && !/\.git\/?$/.test(url))
+  // More remote URLs than a deploy prints (a page and its preview) is a list it printed: an index, a catalog, a scan of a
+  // transcript; its links are data, not what the call made. A dev server's local URLs stay (`--host` prints one per
+  // network interface).
+  const listing = urls.filter(url => !isLocalHost(hostOf(url))).length > LISTING
+  for (const url of urls) if (!listing || isLocalHost(hostOf(url))) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   return out
 }
 

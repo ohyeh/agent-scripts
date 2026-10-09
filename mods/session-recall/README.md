@@ -96,6 +96,8 @@ folded into one line.
   compaction. With no file it replays what the engine holds.
 - The band's title shows the mod's version, so a reload can be seen to have taken. An open
   commit row shows its hash, not the branch: the status line has the branch.
+- A call that prints more than 4 remote URLs printed a list (an index, a catalog, a scan):
+  none of its remote URLs are kept; its local ones are (a dev server with `--host`).
 - At most 5 assets per tool call. One seen again moves to the top with its newest
   label. Each session keeps 80.
 - The band draws in what `maxRows` leaves after the plugins below it (the workers

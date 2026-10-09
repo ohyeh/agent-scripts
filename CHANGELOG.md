@@ -1,5 +1,10 @@
 # Changelog
 
+## session-recall 0.9.4
+
+- A call that prints more than 4 remote URLs printed a list (a site's index, a design tool's catalog, a script that scans a transcript): its remote URLs add no row, its local ones do. Live-path tally on the two long transcripts: 24 → 14 tool-output URL rows. The rows dropped were index entries and catalog cards; the deploys, published pages and a login link stay.
+- Measured after 0.9.3 reached the real sessions: terrain 5 → 48 rows (all 30 of its pictures; 50 is the most its transcript holds), automation 5 → 35, this session 12 → 30.
+
 ## session-recall 0.9.3
 
 - The replay reads the whole transcript file, not only what the engine holds. `$.session.messages()` starts at the last compaction: after the rename, a long session that had compacted 6 times rebuilt 5 of its 68 assets (terrain: 5 pictures of 43), another 1 of 38. A reload now adds the rest to a list that is already there. `bin/transcript.mjs` reads the file (24-79 MB, too big for the mod's 4 MiB read) and prints only the lines the replay reads: about 1 MB and 0.3 s for the largest local transcript (79 MB). Subagent messages are left out. A session with no file, or a failed read, replays what the engine holds, and says why in the debug log.
