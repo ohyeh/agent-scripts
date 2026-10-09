@@ -93,6 +93,16 @@ if [ "$claim" = "positive" ]; then
     reason="the reply quotes no evidence token; tools printed: $(printf '%s' "$observed" | paste -sd, -)"
   elif [ -z "$(comm -12 <(printf '%s\n' "$observed") <(printf '%s\n' "$quoted"))" ]; then
     reason="quoted evidence ($(printf '%s' "$quoted" | paste -sd, -)) matches nothing a tool printed this turn ($(printf '%s' "$observed" | paste -sd, -)) — evidence must be copied from tool output, not typed"
+  else
+    # W42-21: evidence goes stale when a file the reply cites is edited after the last run that
+    # printed a quoted token. Ledger line order is exact; timestamps are whole seconds.
+    stale="$(printf '%s\n' "$window" | jq -rs --argjson q "$(printf '%s\n' "$quoted" | jq -R . | jq -sc 'map(select(. != ""))')" '
+      ([to_entries[] | select(any((.value.evidence // [])[]; . as $t | $q | index($t))) | .key] | max) as $ev
+      | .[($ev + 1):][] | select((.tool // "") | test("^(Edit|Write|MultiEdit|NotebookEdit|apply_patch)$")) | .file // empty' 2>/dev/null | sort -u)"
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      case "$last" in *"$(basename "$f")"*) reason="$(basename "$f") was edited after the run that printed the quoted evidence — that evidence no longer covers it; re-run the check";; esac
+    done <<< "$stale"
   fi
   [ -n "$reason" ] && reason="Completion claim fails judgment-rubrics §2: $reason. Run the verification and quote its output verbatim, or downgrade to \"attempted, unverified\" (title ⏳)."
 else

@@ -155,6 +155,13 @@ ledger_for c14 "$BEFORE" "$PATCH0"; [[ "$(run_claim c14 '修好了，應該沒�
 ledger_for c2 "$BEFORE" "$RUN0";   [[ "$(run_claim c2 '修好了，應該沒問題')" == block ]]            || { echo "FAIL: claim quoting no token not blocked" >&2; exit 1; }
 ledger_for c3 "$BEFORE" "$RUN0";   [[ "$(run_claim c3 'Fixed. `npm test` exit 1')" == block ]]        || { echo "FAIL: mismatched token not blocked" >&2; exit 1; }
 ledger_for c4 "$BEFORE" "$RUN0";   [[ -z "$(run_claim c4 'Fixed. `npm test` → exit 0, 18/18 passed')" ]] || { echo "FAIL: bound claim blocked" >&2; exit 1; }
+# W42-21: an edit to a cited file after the run invalidates its evidence; an edit before it, or to an uncited file, does not
+EDITX='{"timestamp":"2026-01-01T00:00:07Z","tool":"Edit","file":"/r/src/client.ts","evidence":[]}'
+EDITY='{"timestamp":"2026-01-01T00:00:07Z","tool":"Write","file":"/r/notes.md","evidence":[]}'
+ledger_for c4s "$BEFORE" "$RUN0" "$EDITX"; [[ "$(run_claim c4s 'Fixed client.ts. `npm test` → 18/18 passed')" == block ]] || { echo "FAIL: cited file edited after the run not blocked" >&2; exit 1; }
+ledger_for c4r "$BEFORE" "$EDITX" "$RUN0"; [[ -z "$(run_claim c4r 'Fixed client.ts. `npm test` → 18/18 passed')" ]]     || { echo "FAIL: edit before the run blocked" >&2; exit 1; }
+ledger_for c4u "$BEFORE" "$RUN0" "$EDITY"; [[ -z "$(run_claim c4u 'Fixed client.ts. `npm test` → 18/18 passed')" ]]     || { echo "FAIL: edit of an uncited file blocked" >&2; exit 1; }
+ledger_for c4x "$BEFORE" "$RUN0" "$EDITX" "$RUN0"; [[ -z "$(run_claim c4x 'Fixed client.ts. `npm test` → 18/18 passed')" ]] || { echo "FAIL: re-run after the edit blocked" >&2; exit 1; }
 ledger_for c5 "$BEFORE";           [[ -z "$(run_claim c5 'not done yet, still tracing')" ]]           || { echo "FAIL: negated claim blocked" >&2; exit 1; }
 ledger_for c6 "$BEFORE";           [[ -z "$(run_claim c6 '改了設定，attempted, unverified')" ]]        || { echo "FAIL: self-labelled reply blocked" >&2; exit 1; }
 ledger_for c7 "$BEFORE";           [[ -z "$(run_claim c7 'The claim-evidence-gate blocks a `done` claim; 「完成宣告 gate」 is discussed here, and Completion claim text is quoted')" ]] || { echo "FAIL: discussing the gate treated as a claim" >&2; exit 1; }
