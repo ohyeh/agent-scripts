@@ -1,0 +1,4 @@
+{
+  "description": "Collects URLs from tool output into a cross-session store; /urls opens the library pane.",
+  "modules": ["./register.tsx"]
+}

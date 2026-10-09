@@ -1,0 +1,13 @@
+{
+  "name": "url-library",
+  "version": "0.1.0",
+  "description": "Keep every URL tools print (local dev servers, deploys, share links) in a library pane, each labelled with what produced it.",
+  "author": {
+    "name": "PaulYeh",
+    "url": "https://github.com/ohyeh"
+  },
+  "repository": "https://github.com/ohyeh/agent-scripts",
+  "keywords": ["url", "library", "pane"],
+  "displayName": "URL Library",
+  "license": "MIT"
+}

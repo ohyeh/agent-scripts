@@ -19,6 +19,17 @@
       },
       "category": "development",
       "keywords": ["grok-bot", "cdp", "mod", "hooks"]
+    },
+    {
+      "name": "url-library",
+      "source": "./mods/url-library",
+      "description": "Function-hook mod: keeps every URL tools print (local dev servers, deploys, share links) in a cross-session library pane, labelled with what produced it. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.1.0",
+      "author": {
+        "name": "PaulYeh"
+      },
+      "category": "development",
+      "keywords": ["url", "library", "mod", "hooks"]
     }
   ]
 }
