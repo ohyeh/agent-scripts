@@ -1,5 +1,9 @@
 # Changelog
 
+## grok-bot-watch 0.9.5
+
+- The watch and unwatch tool hooks deny on error (`on(...).catch`) instead of leaving the call unanswered; `claude plugin validate` (CC 2.1.295) flagged both as gating hooks without `.catch`. `permissions.txt` is re-pinned.
+
 ## session-assets 0.1.0
 
 - New mod `mods/session-assets` (it was `url-library` before any release): it keeps what a session makes or prints in the band above the prompt. That covers URLs (local and remote marked), Artifact links named by their title, files written by `Write`/`Edit`/`NotebookEdit`, pictures written or printed as a path (screenshots), and `git commit` hashes with their subject. Each entry is labelled with what produced it, and each session has its own store key. Commands: `/assets`, `/assets N`, `/assets open N`, `/assets all`. Built like `grok-bot-watch` and the workers panel: it stacks under them within `maxRows` and has no hotkeys of its own. ANSI escapes are stripped before URLs are read (Vite bolds the port inside its coloured URL).
@@ -14,6 +18,8 @@
 - `rm-home-gate.sh` (Claude and Codex) denies a recursive `rm` on the home dir or the root in any Bash command text. It cannot see a script file's content; the test-harness fix is W42-25 in tmux-agent-tools.
 - `model-dispatch.md`: Claude Agent calls take `effort` too (CC 2.1.292+) (W42-20).
 - `retro-agenda.md`: the one status page is now the Dashboard "[agent-scripts] 艦隊與 Retro"; no separate weekly Retro page.
+- `claim-evidence-gate.sh` no longer fails open on a CJK claim under `LC_ALL=C` (byte-wise grep bound `已?` to the last byte); the jsonl smoke replays it and compares evidence as a set.
+- `settings_claude.json`: `workflowSizeGuideline: small` and `CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS=6` (usage guards, ahead of W42-24).
 - `test-cursor-hook-adapter.sh` no longer runs `chmod +x` on the repo's hooks; it flipped the sourced `subagent-lock.sh` to 0755 in the work tree.
 
 ## review ladder 2026-10-09

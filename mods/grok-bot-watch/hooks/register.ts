@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.9.4'
+const MOD_VERSION = '0.9.5'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -432,10 +432,11 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // A gating hook that throws would leave the call unanswered: an error becomes a deny.
   on('tool.call', { tool: WATCH_TOOL }, async ($, e) => {
     const r = await watchBot(s, $, String((e as unknown as { botUuid?: unknown }).botUuid ?? ''))
     return 'deny' in r ? r : { result: r.result }
-  })
+  }).catch(($, e, next) => ({ deny: `grok-bot-watch: watch failed: ${String(next.error)}` }))
 
   // `/grok-bot-watch <id>` watches at once; bare, it opens the panel's field (the band is hidden with no watch).
   on('command.run', { command: 'grok-bot-watch' }, async ($, e) => {
@@ -457,7 +458,7 @@ export const register: Register = on => {
     if (hits.length !== 1) return { deny: `grok-bot-watch: "${want}" matches ${hits.length} watches of this session` }
     await unwatchKey(s, $, hits[0]!)
     return { result: 'grok-bot-watch: unwatched. No new wake is submitted; one already submitted may still arrive.' }
-  })
+  }).catch(($, e, next) => ({ deny: `grok-bot-watch: unwatch failed: ${String(next.error)}` }))
 
   // The band's rows are shared with every plugin below (the workers panel counts
   // only its own against maxRows), so this draws in what is left: header, then
