@@ -70,6 +70,15 @@ describe('assetsOf', () => {
     expect(call('Bash', { command: 'vite --host' }, `Local: http://localhost:5173/\n${Array.from({ length: 5 }, (_, i) => `https://h${i}.dev`).join(' ')}`).map(a => a.ref)).toEqual(['http://localhost:5173/'])
   })
 
+  test('the browser tab a call ran in, and an API error docs link, are not what it made', async () => {
+    const tab = '\n  • tabId 1034562075: "Submissions - Claude" ("https://claude.ai/directory/manage/new/plugin")'
+    expect(call('mcp__claude-in-chrome__computer', { action: 'left_click' }, `Clicked at (10, 20)${tab}`)).toEqual([])
+    expect(call('mcp__claude-in-chrome__tabs_context_mcp', {}, '{"availableTabs":[{"tabId":1,"url":"https://x.dev/a"}]}')).toEqual([])
+    // A redirect is still seen: the page it landed on is not the one it was given.
+    expect(call('mcp__claude-in-chrome__navigate', { url: 'https://x.dev/a' }, `Navigated to https://x.dev/b${tab}`).map(a => a.ref)).toEqual(['https://x.dev/b'])
+    expect(call('Bash', { command: 'gh api repos/o/r/branches/main/protection' }, '{"message":"Not Found","documentation_url":"https://docs.github.com/rest/branches/branch-protection#get","status":"404"}')).toEqual([])
+  })
+
   test('a written file and a written picture; ~ shortens the folder', async () => {
     expect(call('Write', { file_path: `${HOME}/p/README.md` })).toEqual([{ kind: 'file', ref: `${HOME}/p/README.md`, label: 'README.md', where: '~/p', isLocal: true }])
     expect(call('Edit', { file_path: '/tmp/shot.PNG' })[0]).toMatchObject({ kind: 'image', label: 'shot.PNG', where: '/tmp' })

@@ -1,5 +1,13 @@
 # Changelog
 
+## session-recall 0.9.7
+
+The browser tab a call ran in is not what it made. Claude in Chrome ends every result with the tab it used (`• tabId 1: "title" ("url")`): each click, screenshot, `find` or script on one page added that page again and moved it back to the top of the band, above what the session made. Measured as per-call URL hits on the live path (transcripts over 20 KB, 14 days, before the band merges duplicates): 487, 165 of them from `computer` alone (one form page 63 times). Now 247; every removed hit was a tab line (`computer` 165, `javascript_tool` 37, `find` 19, `tabs_context` 4, `browser_batch` 3) or an API error's docs link (12, `gh api`'s `"documentation_url"`). No hit was added.
+
+- A `navigate` that lands on another page (a redirect) still adds the page it landed on; one that lands where it was told adds none, as `curl <url>` does. The reply that names the page adds it.
+- `tabs_context*` is a read.
+- Trade-off: a click that opens a new page adds no row (the new page was only in the tab line).
+
 ## session-recall 0.9.6
 
 A request a login wall blocked prints the wall, not the page: those URLs add no row. Seen on the real band (screenshot of three sessions): a Cloudflare challenge, a Cloudflare Access login with a JWT that expires in 5 minutes, and a dash login redirect. Measured on the live path: terrain 13→11 tool-output URL rows, automation 4→3, all three removed rows were these. This session stays 16→16: its two wall rows left, and the two URLs the same call printed next took their places under the 5-rows-per-call cap: a catalog-card URL (`impeccable.style/worlds/cards/…`) and a local test page. Catalog cards are the next noise target. An OAuth `authorize?redirect_uri=` link is kept: a CLI may print one for you to open, and 14 days of transcripts (175 files) held none.

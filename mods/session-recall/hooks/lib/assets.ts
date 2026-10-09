@@ -46,7 +46,7 @@ const SKIP = new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch'])
 // context-mode (it searches, fetches and analyses what is already there), an MCP tool named for a read (`get_…`,
 // `search_threads`, `query-docs`, `peek`), a computer-use REPL (it prints the screen and every open tab), and this mod's
 // own tool: its answer lists what is already kept.
-const SKIP_RE = /^mcp__.*__(?:ctx_\w+|(?:get|list|search|read|query|fetch|find|lookup|resolve)[-_]\w[\w-]*|peek)$|^mcp__codex-cu__js$|^mcp__session-recall__/
+const SKIP_RE = /^mcp__.*__(?:ctx_\w+|(?:get|list|search|read|query|fetch|find|lookup|resolve)[-_]\w[\w-]*|peek|tabs_context\w*)$|^mcp__codex-cu__js$|^mcp__session-recall__/
 // A name that also makes something is not a read: `get_or_create_preview`, `fetch_and_deploy`.
 const ACTS_RE = /(?:^|[-_])(?:create|deploy|publish|upload|send|write|launch|put|post)(?=$|[-_])/i
 // A command that says it ships something: its URLs are what it made, however many (a deploy of five services).
@@ -113,7 +113,9 @@ export function assetsOf(c: Call): Asset[] {
   const add = (a: Asset) => {
     if (out.length < PER_CALL && a.ref.length <= MAX_REF && !out.some(x => x.ref === a.ref)) out.push({ ...a, label: a.label.slice(0, 200) })
   }
-  const text = c.text.replace(ANSI_RE, '')
+  // Not what the call made: the browser tab it ran in (Claude in Chrome ends every result with `• tabId 1: "title" ("url")`,
+  // 63 rows for one form page in 14 days), and the docs link of an API error (`gh api`: `"documentation_url": "…"`).
+  const text = c.text.replace(ANSI_RE, '').replace(/^\s*• tabId \d+: .*$/gm, '').replace(/"documentation_url"\s*:\s*"[^"]*"/g, '')
   const path = typeof c.input.file_path === 'string' ? c.input.file_path : typeof c.input.notebook_path === 'string' ? c.input.notebook_path : ''
 
   if (WRITERS.has(c.tool)) {
