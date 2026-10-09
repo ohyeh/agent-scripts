@@ -108,6 +108,8 @@ describe('prose and transcript', () => {
       ['https://y.dev', 'reply: see'],
     ])
     expect(assetsOfText('https://z.dev/q', 'you', at)[0]!.label).toBe('you')
+    // Another URL on the same line is not part of the label.
+    expect(assetsOfText('compare https://a.dev and https://b.dev', 'you', at).map(a => a.label)).toEqual(['you: compare and', 'you: compare and'])
     expect(assetsOfText('look at ~/Desktop/shot.png', 'you', at).map(a => [a.kind, a.label])).toEqual([['image', 'you: shot.png']])
   })
 

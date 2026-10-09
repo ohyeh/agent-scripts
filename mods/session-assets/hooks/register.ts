@@ -208,10 +208,14 @@ export const register: Register = on => {
     })
     // Each part is cut to fit by hand (grok-bot-watch's rule): a Text that flex shrinks wraps instead, and a wrapped row breaks the budget.
     // The age comes before the place, so a long folder is what gets cut.
+    // Labels share one column, as wide as the longest one drawn, at most 40 cells or half the band, so the ages line up.
+    const cap = Math.max(8, Math.min(40, Math.floor(width / 2) - 6))
+    const col = Math.min(cap, Math.max(0, ...[...list.slice(0, PANEL_ROWS), ...(s.others ? rest.slice(0, OTHER_ROWS) : [])].map(x => cells(clean(x.label, 80)))))
     const row = (x: Entry, n: string, where: string) => {
       const [glyph, color] = glyphOf(x)
       const head = `  ${n} ${glyph} `
-      const label = fit(clean(x.label, 80), Math.max(8, Math.floor(width / 2) - cells(head)))
+      const short = fit(clean(x.label, 80), col)
+      const label = short + ' '.repeat(Math.max(0, col - cells(short)))
       // A commit shows its hash: the status line already shows the branch.
       const tail = fit(`  ${ago(now - x.at)} ago · ${x.kind === 'commit' ? x.ref.slice(0, 7) : clean(x.where, 120)}${where}`, Math.max(0, width - cells(head) - cells(label)))
       return Box({

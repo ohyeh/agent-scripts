@@ -87,7 +87,7 @@ export function assetsOfText(text: string, who: 'reply' | 'you', c: { home: stri
   for (const url of extractUrls(plain)) {
     if (out.length >= PER_CALL) break
     const line = plain.split('\n').find(l => l.includes(url)) ?? ''
-    const said = clean(line.replace(url, ' ').replace(/[*_`#>\[\]()<>|]+|^\s*[-+]\s+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\s*[:：—-]$/, ''), 60)
+    const said = clean(line.replace(URL_RE, ' ').replace(/[*_`#>\[\]()<>|]+|^\s*[-+]\s+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\s*[:：—-]$/, ''), 60)
     if (url.length <= MAX_REF) out.push({ kind: 'url', ref: url, label: said ? `${who}: ${said}` : who, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   }
   for (const m of plain.matchAll(IMAGE_PATH_RE)) if (out.length < PER_CALL && !out.some(x => x.ref === m[1])) out.push({ ...fileAsset(m[1]!, c), label: `${who}: ${basename(m[1]!)}` })

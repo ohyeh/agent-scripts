@@ -6,6 +6,7 @@
 - Leaves to the status line what it shows: the band header drops the version (it moved to the `/assets` description), and a commit row shows its hash instead of the branch.
 - Review fixes: a picture URL is no longer also kept as a bogus `//host/x.png` image; a commit on a detached HEAD is kept; `**url**` loses the `**`; read-only calls (`isReadOnly`, e.g. Bash `cat`/`rg`) and context-mode reads add nothing; a ref over 2048 characters is dropped; `+N more` counts assets, not the open row's detail; `/assets` and `[ hide ]` no longer throw when the store refuses a write; a resumed session starts with no row open.
 - The `prompt.submit` hook carries `.catch`, so bookkeeping never holds a prompt back.
+- Labels share one column (at most 40 cells), so ages and places line up; a label leaves out any other URL on its line.
 
 ## grok-bot-watch 0.9.5
 
