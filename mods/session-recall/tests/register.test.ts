@@ -74,6 +74,8 @@ describe('assetsOf', () => {
     const tab = '\n  • tabId 1034562075: "Submissions - Claude" ("https://claude.ai/directory/manage/new/plugin")'
     expect(call('mcp__claude-in-chrome__computer', { action: 'left_click' }, `Clicked at (10, 20)${tab}`)).toEqual([])
     expect(call('mcp__claude-in-chrome__tabs_context_mcp', {}, '{"availableTabs":[{"tabId":1,"url":"https://x.dev/a"}]}')).toEqual([])
+    expect(call('mcp__claude-in-chrome__computer', { action: 'screenshot' }, `ok${tab}\n  • tabId 2: "B" ("https://b.dev/")\n  • tabId 3: "C" ("https://c.dev/")`)).toEqual([])
+    expect(call('Bash', { command: 'gh api repos/o/r' }, '{\n  "message": "Not Found",\n  "documentation_url": "https://docs.github.com/rest/repos"\n}')).toEqual([])
     // A redirect is still seen: the page it landed on is not the one it was given.
     expect(call('mcp__claude-in-chrome__navigate', { url: 'https://x.dev/a' }, `Navigated to https://x.dev/b${tab}`).map(a => a.ref)).toEqual(['https://x.dev/b'])
     expect(call('Bash', { command: 'gh api repos/o/r/branches/main/protection' }, '{"message":"Not Found","documentation_url":"https://docs.github.com/rest/branches/branch-protection#get","status":"404"}')).toEqual([])
@@ -203,6 +205,10 @@ describe('pointing and checking', () => {
     expect(call('Bash', { command: 'cd web && cat log.txt | rg http' }, 'http://localhost:5173/')).toEqual([])
     expect(call('Bash', { command: 'SP=/s; diff <(cut -f2 $SP/a.tsv | sort) <(cut -f2 $SP/b.tsv | sort) | grep "^<"' }, '< https://x.com/search?q=a')).toEqual([])
     expect(call('Bash', { command: 'find ~/.claude -name "*.jsonl" | head; stat -f %Sm f' }, 'https://x.dev/in-a-name')).toEqual([])
+    expect(call('Bash', { command: 'find dist -name "*.html" -exec wrangler pages deploy {} \\;' }, 'https://x.pages.dev').map(a => a.ref), 'find -exec runs a program').toEqual(['https://x.pages.dev'])
+    expect(['fd -e html -x wrangler pages deploy {}', 'fd -e zip -X gh release upload v1', 'fd . --exec-batch wrangler deploy'].map(c => call('Bash', { command: c }, 'https://y.pages.dev').length), 'fd -x / -X run a program').toEqual([1, 1, 1])
+    expect(call('Bash', { command: 'curl -s --data @<(cat body.json) $A/publish' }, 'https://pub.x.uk/a/2').map(a => a.ref), 'a file read into <( ) is not printed').toEqual(['https://pub.x.uk/a/2'])
+    expect(['comm a b', 'fd x', 'file f', 'du -sh d', 'tr a b', 'column -t', 'nl f', 'basename p', 'dirname p', 'realpath p', 'which x'].map(c => call('Bash', { command: c }, 'https://x.dev/r').length)).toEqual(Array(11).fill(0))
     expect(call('Bash', { command: 'grep -rhoE "https://t\\.uk[^\'\\"` )]*" src | sort -u | head' }, 'https://t.uk/data')).toEqual([])
     expect(call('Bash', { command: 'R=$(curl -s https://api.x.dev/deploy); echo "$R"' }, 'https://made.dev/2').map(a => a.ref), 'a program inside $( ) still counts').toEqual(['https://made.dev/2'])
     // A file read into a variable is not printed: the page the PUT made, the login link the CLI printed, stay.
@@ -442,6 +448,49 @@ describe('band', () => {
     await $.turn.complete({ ...turn, agentId: 'a1', answer: 'https://sub.dev' } as never)
     const list = w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; label: string }>
     expect(list.map(x => [x.ref, x.label])).toEqual([['https://x.dev/docs', 'reply: Docs'], ['http://localhost:5173/', 'Start dev server']])
+  })
+
+  const staleRow = (ref: string, label: string) => ({ kind: 'url', ref, where: 'x', isLocal: false, label, project: 'p', at: 5 })
+  const staleList = [
+    staleRow('https://claude.ai/form', 'computer'), staleRow('https://site.pages.dev', 'Deploy'), staleRow('https://pasted.dev', 'you'),
+    staleRow('https://github.com/o/r/compare/a...b', 'push: main a..b'),
+    // Not in the transcript's call output (saved as a preview, past 40 lines, a subagent's): not judged.
+    staleRow('https://big.pages.dev', 'Deploy big'),
+    { ...staleRow('https://claude.ai/artifact/1', 'Report'), kind: 'artifact' }, { ...staleRow('/w/shot.png', 'shot.png'), kind: 'image' },
+    staleRow('https://pasted-then-clicked.dev/', 'computer'),
+  ]
+  test('a link row an older version kept from a call, that this one would not keep, leaves at the next start', async ($, on) => {
+    const transcript = [{ role: 'assistant', text: '', toolUses: [
+      { tool: 'mcp__claude-in-chrome__computer', input: { action: 'left_click' }, text: 'Clicked\n  • tabId 1: "Form" ("https://claude.ai/form")\n  • tabId 2: "Late" ("https://late.dev/")' },
+      { tool: 'Bash', input: { command: 'wrangler pages deploy dist', description: 'Deploy' }, text: 'https://site.pages.dev' },
+      // The big deploy's own output was a preview; a later read printed its URL: that read does not judge the row.
+      { tool: 'Bash', input: { command: 'cat notes.md', description: 'Read notes' }, text: 'deployed https://big.pages.dev' },
+      // A link the person pasted, that a tab line printed again under the tool's label.
+      { tool: 'mcp__claude-in-chrome__computer', input: { action: 'screenshot' }, text: 'ok\n  • tabId 4: "Mine" ("https://pasted-then-clicked.dev/")' },
+    ] }, { role: 'user', text: 'open https://pasted-then-clicked.dev/' }]
+    const w = world(on, { messages: [], transcript })
+    // A tab row recorded while the transcript was read (after the clock reading) is not judged either.
+    w.kv.set('session-recall.s.sess-A', [...staleList, { ...staleRow('https://late.dev/', 'computer'), at: 1e15 }])
+    await w.clock.advance(100)
+    await $.session.start(start)
+    // A pasted link and a push are not judged by the call output: they stay, as does the deploy, with their times.
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; at: number }>).map(x => [x.ref, x.at])).toEqual([
+      ['https://site.pages.dev', 5], ['https://pasted.dev', 5], ['https://github.com/o/r/compare/a...b', 5], ['https://big.pages.dev', 5], ['https://claude.ai/artifact/1', 5], ['/w/shot.png', 5], ['https://pasted-then-clicked.dev/', 5], ['https://late.dev/', 1e15],
+    ])
+  })
+
+  test('an empty transcript, or a row added while it was read, prunes nothing', async ($, on) => {
+    const w = world(on, { messages: [], transcript: [] })
+    w.kv.set('session-recall.s.sess-A', staleList)
+    await $.session.start(start)
+    expect((w.kv.get('session-recall.s.sess-A') as unknown[]).length).toBe(staleList.length)
+  })
+
+  test('with only what follows a compaction (no transcript file), no row leaves: it lacks the calls that made them', async ($, on) => {
+    const w = world(on, { messages: [] })
+    w.kv.set('session-recall.s.sess-A', staleList)
+    await $.session.start(start)
+    expect((w.kv.get('session-recall.s.sess-A') as unknown[]).length).toBe(staleList.length)
   })
 
   test('the replay reads the whole transcript file, not only what the engine holds after a compaction', async ($, on) => {

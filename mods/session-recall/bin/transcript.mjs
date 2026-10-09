@@ -24,11 +24,17 @@ const slim = input => Object.fromEntries(Object.entries(input ?? {}).filter(([k]
 const msgs = []
 const results = new Map()
 for await (const line of createInterface({ input: createReadStream(file) })) {
-  if (!line.includes('"assistant"') && !line.includes('tool_result')) continue
+  if (!line.includes('"assistant"') && !line.includes('"user"')) continue
   let d
   try { d = JSON.parse(line) } catch { continue }
   if (d.isSidechain) continue
   const c = d.message?.content
+  // What the person wrote (a pasted link): the prune never takes a row whose URL they gave.
+  if (d.type === 'user' && !d.isMeta) {
+    const said = typeof c === 'string' ? c : Array.isArray(c) ? c.filter(b => b.type === 'text').map(b => b.text).join('\n') : ''
+    const text = replyLines(said)
+    if (text) msgs.push({ role: 'user', text, toolUses: [], said: true })
+  }
   if (!Array.isArray(c)) continue
   if (d.type === 'user') for (const b of c) if (b.type === 'tool_result') {
     const text = typeof b.content === 'string' ? b.content : Array.isArray(b.content) ? b.content.filter(x => x.type === 'text').map(x => x.text).join('\n') : ''

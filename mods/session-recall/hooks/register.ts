@@ -1,9 +1,9 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
+import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 import { answerId, itemsOf, quoteOf } from './lib/items.ts'
 
-const MOD_VERSION = '0.9.8'
+const MOD_VERSION = '0.9.9'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -353,21 +353,24 @@ async function lostPush(s: State, $: $, command: string, text: string, asked = n
  * its 68 assets), and the file is too big to read here (4 MiB), so `bin/transcript.mjs` reads it and prints the lines
  * the replay reads. A session with no file (or a failed read) replays what the engine holds, and says so in debug.
  */
-async function transcript(s: State, $: $): Promise<readonly { role: string; text: string; toolUses?: readonly StoredUse[] }[]> {
+type Msgs = readonly { role: string; text: string; toolUses?: readonly StoredUse[] }[]
+/** The session's messages; `whole` when they came from the transcript file, not only what follows the last compaction. */
+async function transcript(s: State, $: $): Promise<{ msgs: Msgs; whole: boolean }> {
   try {
     const r = await $.process.run(['node', `${$.plugin.root}/bin/transcript.mjs`, s.sid], { timeoutMs: 15000 })
-    if (r.exitCode === 0) return JSON.parse(r.stdout) as { role: string; text: string; toolUses?: StoredUse[] }[]
+    if (r.exitCode === 0) return { msgs: JSON.parse(r.stdout) as Msgs, whole: true }
     $.ui.log(`session-recall: transcript not read (exit ${r.exitCode}: ${clean(r.stderr.trim().split('\n').pop() ?? '', 120)}), replaying what the engine holds`, { to: 'debug' })
   } catch (err) {
     $.ui.log(`session-recall: transcript not read (${errText(err)}), replaying what the engine holds`, { to: 'debug' })
   }
-  return $.session.messages()
+  return { msgs: await $.session.messages(), whole: false }
 }
 
 /** Rebuilds this session's list from its transcript (dated at the session's start), adding to what is there. */
 async function replay(s: State, $: $, onlyNew = false): Promise<number> {
   try {
-    const msgs = await transcript(s, $)
+    const reading = await $.clock.now()
+    const { msgs, whole } = await transcript(s, $)
     // A push that lost its `To` line needs git (async); asked first, so it lands in transcript order, not after the rest.
     const asked = new Map<string, Promise<string | undefined>>()
     const lost = new Map<StoredUse, Asset[]>()
@@ -381,12 +384,47 @@ async function replay(s: State, $: $, onlyNew = false): Promise<number> {
     const found = assetsOfTranscript(msgs, s, u => lost.get(u) ?? [], s.muted)
     // shortcut: the transcript rows carry no time, so a replayed asset is shown as `earlier`; take times from `as: 'api'` if ages matter.
     if (found.length) await record(s, $, found, (await $.session.usage()).startedAt, onlyNew, true)
+    // A link row an older version kept from a call's output, that this version would not keep (a browser tab, a login
+    // wall, what a reader printed), leaves: else every noise fix shows only once 80 newer rows push the old ones out.
+    // Judged only by the call that made the row: one with the row's label that printed its URL and did not fail. A row
+    // whose call the transcript does not show (an output too large, saved as a preview; past the 40 lines transcript.mjs
+    // keeps; a subagent's; added while the file was read) stays, and so does one only a later `cat` or `rg` printed.
+    // Only from the whole transcript file: what follows a compaction lacks the calls that made earlier rows.
+    if (onlyNew && whole) {
+      try {
+        const uses = msgs.flatMap(m => m.toolUses ?? []).filter(u => !u.isError && u.text)
+        // A link the person pasted that a tool printed again took the tool's label: what they wrote keeps it.
+        const pasted = msgs.filter(m => m.role === 'user').map(m => m.text).join('\n')
+        const kept = new Set([...found, ...assetsOfTranscript(msgs, s, u => lost.get(u) ?? [], new Set(), true)].map(a => a.ref))
+        await prune(s, $, x => x.at < reading && !kept.has(x.ref) && !pasted.includes(x.ref) && uses.some(u => u.text!.includes(x.ref) && labelOf({ tool: u.tool, input: u.input ?? {} }).slice(0, 200) === x.label))
+      } catch (err) {
+        $.ui.log(`session-recall: old link rows not pruned (${errText(err)})`, { to: 'debug' })
+      }
+    }
     $.ui.log(`session-recall: transcript replay kept ${found.length} assets from ${msgs.length} messages`, { to: 'debug' })
     return found.length
   } catch (err) {
     $.ui.log(`session-recall: transcript replay failed (${errText(err)})`, { to: 'debug' })
     return 0
   }
+}
+
+/** Drops the call-output link rows `stale` names: the transcript shows their URL, this version's rules no longer keep it. */
+async function prune(s: State, $: $, stale: (x: Entry) => boolean) {
+  let gone = 0
+  await enqueue(s, async () => {
+    const list = await mine(s, $)
+    // A pasted link (`you: …`) is not in the transcript the replay reads; a push is the compare view git named.
+    const keep = list.filter(x => x.kind !== 'url' || /^(?:you|push)(?::|$)/.test(x.label) || !stale(x))
+    gone = list.length - keep.length
+    if (!gone) return
+    await $.store.set(`${PREFIX}${s.sid}`, keep)
+    await snapshot(s, $, keep)
+  })
+  if (!gone) return
+  s.open = undefined
+  $.ui.invalidate('ui.render')
+  $.ui.log(`session-recall: ${gone} link row(s) an older version kept are gone`, { to: 'debug' })
 }
 
 /** Opens a URL in the browser or a path in its default app; a commit has nothing to open. */

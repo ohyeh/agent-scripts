@@ -1,5 +1,16 @@
 # Changelog
 
+## session-recall 0.9.9
+
+A noise fix now shows on the band at the next start, not once 80 newer rows push the old ones out. Seen on the real screen after 0.9.8: this session's top four rows were still the `diff` output 0.9.8 drops, kept from before the update. At each start the replay reads the transcript with this version's rules, and a link row leaves when the call that made it (same label, did not fail) shows its URL in the transcript and those rules no longer keep it. Simulated on the live sessions' stored lists: this session 11 of 51 leave (the `diff` rows, the Cloudflare walls, the `gh api` docs links), automation 2 of 57 (a Cloudflare Access login, a `127.0.0.1:8787` a read-only `ssh … grep/ps/find` printed), terrain 0 of 18, the old terrain session 0 of 51.
+
+- A row whose call the transcript does not show printing its URL is not judged and stays: an output too large for the transcript (saved as a 2 KB preview), past the 40 URL lines `bin/transcript.mjs` keeps of one call, a subagent's call, a call that failed, a row added while the file was read. A later `cat` or `rg` with another label that prints the same URL does not judge it either. An empty or unreadable transcript prunes nothing.
+- A URL the person wrote in a prompt never leaves, even when a tool printed it again and the row took the tool's label (a pasted form page Claude then clicked on). `bin/transcript.mjs` now also prints the link lines of the person's prompts; the replay itself does not read them.
+- Only call-output link rows: a pasted link (`you`), a push, an Artifact, a picture, a file and a source stay, and so does a reply's link (the transcript gives it back).
+- Only from the whole transcript file. When it cannot be read and the replay takes what follows the last compaction, nothing leaves. A prune that fails says so in the debug log and leaves the list as it was.
+- What stays keeps its time, label and place.
+- `find` with `-exec`, `-execdir`, `-ok`, `-okdir` or `-delete`, and `fd` with `-x`, `-X`, `--exec` or `--exec-batch`, is not a read: `find dist -exec wrangler pages deploy {} \;` and `fd -e html -x wrangler pages deploy {}` keep their URL (0.9.8 read both as reads).
+
 ## session-recall 0.9.8
 
 More read-only commands are read as reads, and a command's programs are found where the shell runs them. Measured as per-call URL hits on the live path, 0.9.7 and 0.9.8 run on the same files (509 transcripts over 20 KB from 14 days, plus frozen copies of the three live sessions): 9 fewer, 8 from `diff <(cut …) <(cut …) | grep` analysis in this session and 1 a `printf` fixture; none added, no real page lost. Two pages the first draft dropped are kept and tested: a page a `curl -X PUT` published, read back with `U=$(jq -r .url r.json)`, and the login link `wrangler login` printed, found with `U=$(grep -oE … $L)`.

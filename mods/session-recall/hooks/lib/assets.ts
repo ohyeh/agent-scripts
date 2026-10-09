@@ -194,7 +194,7 @@ export type StoredUse = { tool: string; input: Record<string, unknown>; text?: s
  * What the transcript shows this session made, oldest first: each answered tool use and each reply's URLs.
  * User messages are left out: in the transcript they also carry reminders and notices, not only what the person typed.
  */
-export function assetsOfTranscript(msgs: readonly { role: string; text: string; toolUses?: readonly StoredUse[] }[], c: { home: string; cwd: string }, extra: (u: StoredUse) => readonly Asset[] = () => [], muted = new Set<string>()): Asset[] {
+export function assetsOfTranscript(msgs: readonly { role: string; text: string; toolUses?: readonly StoredUse[] }[], c: { home: string; cwd: string }, extra: (u: StoredUse) => readonly Asset[] = () => [], muted = new Set<string>(), live = false): Asset[] {
   const out: Asset[] = []
   for (const m of msgs) {
     if (m.role !== 'assistant') continue
@@ -206,13 +206,13 @@ export function assetsOfTranscript(msgs: readonly { role: string; text: string; 
     for (const u of m.toolUses ?? []) for (const url of testUrlsOf(u.tool, u.input ?? {}, u.text ?? '')) muted.add(url)
     // `extra` (a push git named) never repeats what assetsOf found in the same call: that needs a `To` line, it lacks one.
     // A Read of a picture or a sent file needs no text: an image result has none to give.
-    for (const u of m.toolUses ?? []) if (!u.isError && (typeof u.text === 'string' || u.tool === 'Read' || u.tool === 'SendUserFile')) out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text ?? '', ...c, replay: true }), ...extra(u).filter(a => !out.some(x => x.ref === a.ref)))
+    for (const u of m.toolUses ?? []) if (!u.isError && (typeof u.text === 'string' || u.tool === 'Read' || u.tool === 'SendUserFile')) out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text ?? '', ...c, replay: !live }), ...extra(u).filter(a => !out.some(x => x.ref === a.ref)))
   }
   return out
 }
 
 /** What the call said it was for (`description`, `intent`, `title`), else a Bash command's head, else the tool's own name. */
-function labelOf(c: Call): string {
+export function labelOf(c: Pick<Call, 'tool' | 'input'>): string {
   const said = ['description', 'intent', 'title'].map(k => c.input[k]).find(v => typeof v === 'string' && v.trim())
   if (said) return String(said)
   if (c.tool === 'Bash') return String(c.input.command ?? '').slice(0, 60) || 'Bash'
@@ -410,7 +410,7 @@ export function shasIn(text: string): string[] {
 export const sessionIdsIn = (text: string) => [...new Set(text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g) ?? [])]
 
 // Programs that only print what they read; `tmux` and `git` count only with a reading subcommand.
-// shortcut: `find -exec`/`-delete` and `printf > file` are not reads, but print no URLs; split them out if one does.
+// shortcut: `printf > file` writes, but prints no URL; split it out if one does.
 const READERS = /^(?:cat|head|tail|sed|less|grep|rg|jq|yq|wc|sort|uniq|cut|awk|bat|ls|cd|echo|sleep|true|diff|comm|find|fd|stat|file|du|tr|column|nl|printf|basename|dirname|realpath|which|tmux (?:capture-pane|ls|list-\w+)|git (?:log|show|diff|blame|status|grep))$/
 // Readers that print a file or a screen (`agent-browser eval` returns a page's text): by name and positional arguments (a filter's first one is its pattern or script).
 const SHOWS = /^(?:tmux capture-pane|agent-browser (?:eval|snapshot|get)|git (?:log|show|diff|blame|grep))$/
@@ -471,7 +471,9 @@ export function isReader(command: string): boolean {
   const progs = segmentsOf(command)
   // Only what reaches the screen counts as printed: `U=$(jq -r .url r.json)` reads a file into a variable.
   const shows = (w: string[]) => SHOWS.test(`${w[0]} ${w[1] ?? ''}`) || w.slice(1).filter(a => !a.startsWith('-') && !/^\d+$/.test(a)).length >= (FILE_ARGS[w[0]!] ?? Infinity)
-  const reads = (w: string[]) => READERS.test(w[0]!) || READERS.test(`${w[0]} ${w[1] ?? ''}`)
+  // `find -exec wrangler deploy {} \;` and `fd -x wrangler deploy` run a program; `-delete` changes the disk.
+  const runs = (w: string[]) => (w[0] === 'find' && w.some(a => /^-(?:exec|execdir|ok|okdir|delete)$/.test(a))) || (w[0] === 'fd' && w.some(a => /^(?:-[a-zA-Z]*[xX]|--exec(?:-batch)?)$/.test(a)))
+  const reads = (w: string[]) => (READERS.test(w[0]!) && !runs(w)) || READERS.test(`${w[0]} ${w[1] ?? ''}`)
   return progs.length > 0 && (progs.every(reads) || segmentsOf(command, true).some(shows))
 }
 
