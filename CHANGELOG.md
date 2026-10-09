@@ -4,6 +4,12 @@
 
 - An event log you can replay (agent-scripts W42-8; W40-3's four unmet clauses). Each session appends one JSON line per `watch`, `armed` (the bot was seen working), `wake`, `lost` and `unwatch` to `~/.claude/grok-bot-watch/events/<session>.jsonl`. A line holds the bot, the watch generation, a hash of the reply (never its text), and for a watch or unwatch `via` (`tool` = the model, `command` / `panel` = a person) and `prior` (the bot was already watched: a re-watch). `bin/replay.mjs [files]` counts the four classes: `resent` (the same reply delivered twice; must be 0), `sameText` (a new reply with the same text, after the bot worked), `rewatch` by `via`, and `afterUnwatch` (must be 0). It exits 1 when a defect class is not 0. A log write that fails is a debug line, never a lost wake. The file grows with the session (one read and rewrite per line, because the engine has no append); `permissions.txt` adds `$.env.get` HOME and `$.fs.exists/read/write`.
 
+## session-assets 0.5.3
+
+- A push whose output lost its `To` line (`git push … | tail -1`, the common case in this session's own history) still keeps its GitHub page: the mod asks `git -C <dir> remote get-url <remote>` (the command's leading `cd`, else the session's folder; the word after `push`, else `origin`). Read-only, 3 s limit. The transcript replay cannot run git, so it keeps only pushes that printed their `To` line.
+- A dry run (`git push --dry-run`, `-n`) keeps nothing: it prints the same lines for a push that did not happen. A redirect (`2>&1`) is not taken for the remote's name.
+- `ctx_fetch_and_index` with a batch (`requests: [{ url, source }]`) keeps each page as a source, labelled with its `source`.
+
 ## session-assets 0.5.2
 
 - A Bash command that prints a file or a screen anywhere in it (`rg url docs.d.ts`, `cat dist/urls.txt`, `git show`, `tmux capture-pane`) keeps no URL or picture from its output, also when other programs run with it: `git push && rg … index.d.ts` had kept the doc's example links `react.dev` and `vuejs.org`. A commit or a push in the same command is still kept. A filter on a pipe (`npm run dev | grep Local`) reads no file and keeps its URL.

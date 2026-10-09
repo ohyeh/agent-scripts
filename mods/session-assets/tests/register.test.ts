@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, isLocalNoise, localPort, sessionIdsIn, shasIn, parseCwd, parseListen, refsIn, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
+import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, githubRepoOf, pushedOf, pushRemoteOf, isLocalNoise, localPort, sessionIdsIn, shasIn, parseCwd, parseListen, refsIn, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
 
 const HOME = '/h/me'
 const call = (tool: string, input: Record<string, unknown>, text = '', readOnly = false) => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w', readOnly })
@@ -116,6 +116,20 @@ describe('assetsOf', () => {
 })
 
 describe('pointing and checking', () => {
+  test('a push that lost its To line: where to ask git for the remote', async () => {
+    const at = { home: HOME, cwd: '/w/app' }
+    expect(pushRemoteOf('git push origin main 2>&1 | tail -1', '   1a2b3c4..5d6e7f8  main -> main', at)).toEqual({ dir: '/w/app', remote: 'origin' })
+    expect(pushRemoteOf('cd ~/github/x && git push upstream HEAD | tail -1', '   1a2b3c4..5d6e7f8  main -> main', at)).toEqual({ dir: `${HOME}/github/x`, remote: 'upstream' })
+    expect(pushRemoteOf('git -C sub push --tags', ' * [new tag]  v1 -> v1', at)).toEqual({ dir: '/w/app/sub', remote: 'origin' })
+    expect(pushRemoteOf('git push', 'To https://github.com/o/r.git\n   1a2b3c4..5d6e7f8  main -> main', at), 'the To line is there').toBeUndefined()
+    expect(pushRemoteOf('git push', 'Everything up-to-date', at)).toBeUndefined()
+    expect(pushRemoteOf('git push 2>&1 | tail -1', '   1a2b3c4..5d6e7f8  main -> main', at)?.remote, 'a redirect is not a remote').toBe('origin')
+    expect(pushRemoteOf('git push --dry-run origin main | tail -1', '   1a2b3c4..5d6e7f8  main -> main', at), 'a dry run pushed nothing').toBeUndefined()
+    expect(call('Bash', { command: 'git push --dry-run origin main' }, 'To https://github.com/o/r.git\n   1a2b3c4..5d6e7f8  main -> main')).toEqual([])
+    expect(githubRepoOf('git@github.com:ohyeh/agent-scripts.git\n')).toBe('ohyeh/agent-scripts')
+    expect(pushedOf('   1a2b3c4..5d6e7f8  main -> main', 'o/r').map(a => a.ref)).toEqual(['https://github.com/o/r/compare/1a2b3c4...5d6e7f8'])
+  })
+
   test('a push to GitHub gives the compare view, a new branch, the tag page; a fetched page is labelled by its source or host', async () => {
     const out = 'To https://github.com/ohyeh/agent-scripts.git\n   594cff6..b30824f  main -> main\n * [new tag]         v0.5.0 -> v0.5.0\n * [new branch]      feat/x -> feat/x\n'
     expect(call('Bash', { command: 'git push origin main --tags', description: 'Push' }, out).map(a => [a.label, a.ref])).toEqual([
@@ -128,6 +142,7 @@ describe('pointing and checking', () => {
     expect(assetsOfTranscript([{ role: 'assistant', text: '', toolUses: [{ tool: 'Bash', input: { command: 'git push' }, text: out }] }], { home: HOME, cwd: '/w' }).length, 'a push is what a call did: the replay keeps it').toBe(3)
     expect(call('mcp__plugin_context-mode_context-mode__ctx_fetch_and_index', { url: 'https://docs.x.dev/a' }).map(a => a.label)).toEqual(['docs.x.dev'])
     expect(call('mcp__plugin_context-mode_context-mode__ctx_fetch_and_index', { url: 'https://docs.x.dev/a', source: 'X docs' }).map(a => a.label)).toEqual(['X docs'])
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_fetch_and_index', { requests: [{ url: 'https://react.dev/a', source: 'react' }, { url: 'https://vuejs.org/b' }, { url: 'ftp://x' }], concurrency: 2 }).map(a => [a.label, a.ref])).toEqual([['react', 'https://react.dev/a'], ['vuejs.org', 'https://vuejs.org/b']])
   })
 
   test('a page fetched or a link you pasted is a source; a reader command keeps nothing it printed', async () => {
@@ -440,6 +455,13 @@ describe('band', () => {
     expect(w.contexts.at(-1), 'an unknown hash adds nothing').toBeUndefined()
   })
 
+  test('a push piped through tail -1 asks git for the remote and keeps the compare view', async ($, on) => {
+    const w = world(on, { text: '   1a2b3c4..5d6e7f8  main -> main\n' })
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'git push origin main 2>&1 | tail -1', description: 'Push' })
+    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>).map(x => [x.label, x.ref])).toEqual([['push: main 1a2b3c4..5d6e7f8', 'https://github.com/o/r/compare/1a2b3c4...5d6e7f8']])
+  })
+
   test('a failed store write still returns the tool result', async ($, on) => {
     world(on, { failWrites: true })
     await $.session.start(start)
@@ -510,6 +532,7 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
       const stdout = argv.includes('-iTCP:5173') ? 'p4242\ncvite\n' : argv.includes('4242') ? 'p4242\nfcwd\nn/work/retro-w41\n' : ''
       return { value: { exitCode: stdout ? 0 : 1, stdout, stderr: '' } }
     }
+    if (argv[0] === 'git' && argv.includes('get-url')) return { value: { exitCode: 0, stdout: 'git@github.com:o/r.git\n', stderr: '' } }
     if (argv[0] !== 'test') runs.push(argv)
     return { value: { exitCode: 0, stdout: '', stderr: '' } }
   })

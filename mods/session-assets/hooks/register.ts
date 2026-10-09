@@ -1,8 +1,8 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Asset, type Entry, ago, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, glyphOf, localPort, merge, parseCwd, parseListen, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
+import { type Asset, type Entry, ago, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.5.2'
+const MOD_VERSION = '0.5.3'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -304,6 +304,13 @@ export const register: Register = on => {
     // Bookkeeping must never cost the model its tool result.
     try {
       const found = assetsOf({ tool: e.tool, input: e as unknown as Record<string, unknown>, text: typeof ran.text === 'string' ? ran.text : '', home: s.home, cwd: s.cwd, readOnly: ran.isReadOnly === true })
+      // A push piped through `tail -1` lost its `To` line: the remote's URL comes from git, read-only.
+      const lost = e.tool === 'Bash' && typeof ran.text === 'string' ? pushRemoteOf(String(e.command ?? ''), ran.text, s) : undefined
+      if (lost) {
+        const url = await $.process.run(['git', '-C', lost.dir, 'remote', 'get-url', lost.remote], { timeoutMs: 3000 })
+        const repo = url.exitCode === 0 ? githubRepoOf(url.stdout) : undefined
+        if (repo) found.push(...pushedOf(ran.text as string, repo).filter(a => !found.some(x => x.ref === a.ref)))
+      }
       if (found.length) await record(s, $, [...found].reverse(), await $.clock.now())
     } catch (err) {
       $.ui.log(`session-assets: record failed (${errText(err)})`, { to: 'debug' })

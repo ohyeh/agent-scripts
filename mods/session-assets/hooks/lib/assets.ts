@@ -59,11 +59,17 @@ const COMMIT_RE = /^\[([^\]\n]+?)(?: \(root-commit\))? ([0-9a-f]{7,40})\] (.+)$/
 /** Every asset one tool call made or printed, deduped by ref, first PER_CALL. */
 export function assetsOf(c: Call): Asset[] {
   // A fetch is read-only, but the page it was given is a source: what was consulted, not what its page contained.
-  const fetched = c.tool === 'WebFetch' || /^mcp__.*__ctx_fetch_and_index$/.test(c.tool) ? c.input.url : undefined
-  if (typeof fetched === 'string' && /^https?:\/\//i.test(fetched) && fetched.length <= MAX_REF) {
-    const said = ['prompt', 'source'].map(k => c.input[k]).find(v => typeof v === 'string' && v.trim())
-    const label = typeof said === 'string' ? clean(said.trim(), 60) : hostOf(fetched)
-    return [{ kind: 'source', ref: fetched, label, where: hostOf(fetched), isLocal: isLocalHost(hostOf(fetched)) }]
+  if (c.tool === 'WebFetch' || /^mcp__.*__ctx_fetch_and_index$/.test(c.tool)) {
+    // context-mode also takes a batch: `requests: [{ url, source }]`.
+    const asks = Array.isArray(c.input.requests) ? (c.input.requests as Record<string, unknown>[]) : [c.input]
+    const out: Asset[] = []
+    for (const r of asks) {
+      const url = r && typeof r.url === 'string' ? r.url : ''
+      if (!/^https?:\/\//i.test(url) || url.length > MAX_REF || out.length >= PER_CALL || out.some(x => x.ref === url)) continue
+      const said = [r.prompt ?? c.input.prompt, r.source].find(v => typeof v === 'string' && v.trim())
+      out.push({ kind: 'source', ref: url, label: typeof said === 'string' ? clean(said.trim(), 60) : hostOf(url), where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
+    }
+    return out
   }
   // A read-only call (Bash `cat`, `rg`) prints what it read, not what this session made.
   if (c.readOnly || SKIP.has(c.tool) || SKIP_RE.test(c.tool)) return []
@@ -91,7 +97,8 @@ export function assetsOf(c: Call): Asset[] {
   if (c.tool === 'Bash') {
     const commit = /\bgit\b[^\n]*\bcommit\b/.test(String(c.input.command ?? '')) ? COMMIT_RE.exec(text) : null
     if (commit) add({ kind: 'commit', ref: commit[2]!, label: commit[3]!.trim(), where: commit[1]!, isLocal: true })
-    if (/\bgit\b[^\n]*\bpush\b/.test(String(c.input.command ?? ''))) for (const a of pushedOf(text)) add(a)
+    // A dry run prints the same lines for a push that did not happen.
+    if (/\bgit\b[^\n]*\bpush\b/.test(String(c.input.command ?? '')) && !/\bpush\b[^;&|\n]*\s(?:--dry-run|-n)\b/.test(String(c.input.command ?? ''))) for (const a of pushedOf(text)) add(a)
   }
   // The engine does not mark every reader read-only (`tmux capture-pane | grep` printed another session's screen).
   if (c.replay || (c.tool === 'Bash' && isReader(String(c.input.command ?? '')))) return out
@@ -342,11 +349,15 @@ export function bucketOf(x: Entry, now: number): 'today' | 'this week' | 'older'
 }
 
 // `git push` to GitHub prints `To <remote>` and one line per ref: `a..b  main -> main`, `* [new tag]  v1 -> v1`.
-const PUSH_TO_RE = /^To (?:https:\/\/github\.com\/|(?:ssh:\/\/)?git@github\.com[:/])([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/m
+const GITHUB_REMOTE_RE = /^(?:https:\/\/github\.com\/|(?:ssh:\/\/)?git@github\.com[:/])([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/
 const PUSH_REF_RE = /^\s*(?:\+\s*)?(?:([0-9a-f]{7,40})\.\.\.?([0-9a-f]{7,40})|\* \[new (tag|branch)\])\s+\S+ -> (\S+)/gm
-/** What a push put on GitHub, as the page that shows it: the compare view, the new branch, the tag's release page. */
-export function pushedOf(text: string): Asset[] {
-  const repo = PUSH_TO_RE.exec(text)?.[1]
+/** `owner/repo` of a GitHub remote URL, as `git remote get-url` or a push's `To` line gives it. */
+export const githubRepoOf = (remote: string) => GITHUB_REMOTE_RE.exec(remote.trim())?.[1]
+/**
+ * What a push put on GitHub, as the page that shows it: the compare view, the new branch, the tag's release page.
+ * The repo is the `To` line's; `repo` stands in when the output lost that line (`git push | tail -1`).
+ */
+export function pushedOf(text: string, repo = githubRepoOf(/^To (\S+)$/m.exec(text)?.[1] ?? '')): Asset[] {
   if (!repo) return []
   const out: Asset[] = []
   for (const m of text.matchAll(PUSH_REF_RE)) {
@@ -356,4 +367,20 @@ export function pushedOf(text: string): Asset[] {
     out.push({ kind: 'url', ref, label, where: 'github.com', isLocal: false })
   }
   return out
+}
+
+/**
+ * A push whose output lost its `To` line but kept ref lines: where to ask for the remote, `git -C <dir> remote get-url
+ * <remote>`. The folder is the command's leading `cd` (else the session's), the remote the word after `push` (else origin).
+ */
+export function pushRemoteOf(command: string, text: string, c: { home: string; cwd: string }): { dir: string; remote: string } | undefined {
+  if (/^To \S+$/m.test(text) || !new RegExp(PUSH_REF_RE.source, 'm').test(text)) return undefined
+  const push = /\bgit\b((?:\s+-C\s+\S+)?)\s+push\b([^;&|\n]*)/.exec(command)
+  if (!push) return undefined
+  if (/\s(?:--dry-run|-n)\b/.test(push[2]!)) return undefined
+  const remote = push[2]!.split(/\s+/).find(w => w && !w.startsWith('-') && !/[<>]/.test(w)) ?? 'origin'
+  const cd = /^\s*cd\s+("[^"]+"|'[^']+'|\S+)\s*&&/.exec(command)?.[1]?.replace(/^["']|["']$/g, '')
+  const where = push[1]!.trim().replace(/^-C\s+/, '') || cd || '.'
+  const abs = where.startsWith('~') ? `${c.home}${where.slice(1)}` : where.startsWith('/') ? where : `${c.cwd}/${where}`
+  return { dir: abs.replace(/\/\.$/, ''), remote }
 }
