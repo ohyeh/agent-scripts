@@ -1,8 +1,8 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Asset, type Entry, type StoredUse, ago, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
+import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.5.8'
+const MOD_VERSION = '0.5.9'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -429,14 +429,16 @@ export const register: Register = on => {
     // The age comes before the place, so a long folder is what gets cut.
     // Labels share one column, as wide as the longest one drawn, at most 40 cells or half the band, so the ages line up.
     const cap = Math.max(8, Math.min(40, Math.floor(width / 2) - 6))
-    const col = Math.min(cap, Math.max(0, ...[...list.filter(x => x.kind !== 'source').slice(0, PANEL_ROWS), ...(s.others ? rest.slice(0, OTHER_ROWS) : [])].map(x => cells(clean(x.label, 80)))))
+    const col = Math.min(cap, Math.max(0, ...[...list.filter(x => x.kind !== 'source').slice(0, PANEL_ROWS), ...(s.others ? rest.slice(0, OTHER_ROWS) : [])].map(x => cells(clean(nameOf(x), 80)))))
     const row = (x: Entry, n: string, where: string) => {
       const [glyph, color] = glyphOf(x)
       const head = `  ${n} ${glyph} `
-      const short = fit(clean(x.label, 80), col)
+      const short = fit(clean(nameOf(x), 80), col)
       const label = short + ' '.repeat(Math.max(0, col - cells(short)))
       // A commit shows its hash: the status line already shows the branch.
-      const tail = fit(`  ${when(x, now)} · ${x.kind === 'commit' ? x.ref.slice(0, 7) : clean(x.where, 120)}${where}`, Math.max(0, width - cells(head) - cells(label)))
+      // A URL is named by itself, so the place is what made it; a push names the repo.
+      const place = x.kind === 'commit' ? x.ref.slice(0, 7) : x.kind !== 'url' ? x.where : x.label.startsWith('push: ') ? (x.ref.split('/').slice(3, 5).join('/')) : x.label
+      const tail = fit(`  ${when(x, now)} · ${clean(place, 120)}${where}`, Math.max(0, width - cells(head) - cells(label)))
       return Box({
         key: `${n}-${x.ref}`,
         flexDirection: 'row',

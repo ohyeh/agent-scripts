@@ -120,7 +120,7 @@ export function assetsOfText(text: string, who: 'reply' | 'you', c: { home: stri
     if (out.length >= PER_CALL) break
     const line = plain.split('\n').find(l => l.includes(url)) ?? ''
     const said = clean(line.replace(URL_RE, ' ').replace(/[*_`#>\[\]()<>|]+|^\s*[-+]\s+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\s*[:：—-]$/, ''), 60)
-    if (url.length <= MAX_REF) out.push({ kind: who === 'you' ? 'source' : 'url', ref: url, label: said ? `${who}: ${said}` : who, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
+    if (url.length <= MAX_REF && !isLocalNoise(url)) out.push({ kind: who === 'you' ? 'source' : 'url', ref: url, label: said ? `${who}: ${said}` : who, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   }
   for (const m of plain.matchAll(IMAGE_PATH_RE)) {
     // Compared as stored: `~/a.png` is kept as the home path.
@@ -204,8 +204,23 @@ export function isLocalHost(host: string): boolean {
 
 /** Newest first; an asset seen again moves to the top with its newest label. */
 export function merge(list: readonly Entry[], fresh: readonly Entry[]): Entry[] {
-  const refs = new Set(fresh.map(e => e.ref))
-  return [...fresh, ...list.filter(e => !refs.has(e.ref))].slice(0, MAX_ENTRIES)
+  // Pushes that follow on from each other (`a..b`, then `b..c` on one branch) are one compare view, `a..c`: one row, not one per push.
+  const chained = fresh.map(e => {
+    const m = e.label.startsWith('push: ') ? COMPARE_RE.exec(e.ref) : null
+    const prev = m && list.find(x => COMPARE_RE.exec(x.ref)?.[1] === m[1] && COMPARE_RE.exec(x.ref)?.[3] === m[2] && x.label.startsWith('push: ') && x.label.split(' ')[1] === e.label.split(' ')[1])
+    if (!m || !prev) return e
+    const from = COMPARE_RE.exec(prev.ref)![2]!
+    return { ...e, ref: `${m[1]}${from}...${m[3]}`, label: e.label.replace(/\S+\.\.\S+$/, `${from.slice(0, 7)}..${m[3]!.slice(0, 7)}`), drop: prev.ref }
+  })
+  const refs = new Set(chained.flatMap(e => ('drop' in e ? [e.ref, e.drop] : [e.ref])))
+  return [...chained.map(({ drop: _, ...e }: Entry & { drop?: string }) => e), ...list.filter(e => !refs.has(e.ref))].slice(0, MAX_ENTRIES)
+}
+const COMPARE_RE = /^(https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/compare\/)([0-9a-f]{7,40})\.\.\.([0-9a-f]{7,40})$/
+
+/** What the band names a row by: the thing itself. A URL is its host and path (`localhost:5173/app`), anything else its label. */
+export function nameOf(x: Asset): string {
+  if (x.kind !== 'url' || x.label.startsWith('push: ')) return x.label
+  return x.ref.replace(/^https?:\/\/(?:[^@/]*@)?/i, '').replace(/[?#].*$/, '').replace(/\/$/, '')
 }
 
 /** The band's glyph and colour per kind; a URL's colour says local or remote. */

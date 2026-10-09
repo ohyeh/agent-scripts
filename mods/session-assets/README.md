@@ -27,11 +27,12 @@ folded into one line.
 
 ```
 ▌session assets 3 url · 1 artifact · 2 file · 1 commit · #aN in a prompt · /assets list   [ hide ]
-   a1 ● Start dev server        2m ago · localhost:5173
+   a1 ● localhost:5173          2m ago · Start dev server
         http://localhost:5173/  /assets open 1
-   a2 ◆ reply: Docs             5m ago · x.dev
-   a3 ◈ Retro W41               10m ago · claude.ai
-   a4 ⎇ fix: strip ANSI         12m ago · 9685ae2
+   a2 ◆ x.dev/docs              5m ago · reply: Docs
+   a3 ◆ push: main 1a2b3c4..9a8b7c6  8m ago · o/r
+   a4 ◈ Retro W41               10m ago · claude.ai
+   a5 ⎇ fix: strip ANSI         12m ago · 9685ae2
   +3 more — /assets N
   ▸ other sessions: 3 · 12 assets
 ```
@@ -46,6 +47,9 @@ folded into one line.
 | `◆` | `url` (push) | a `git push` to GitHub: the compare view (`push: main a..b`), a new tag's release page, a new branch's tree | the browser |
 | `⎇` | `commit` | `[branch hash] subject` in the output of a Bash `git … commit` | nothing (the hash is shown) |
 
+- A row names the thing: a URL by its host and path, a file by its name, a commit by its subject.
+  What made it (the call, the reply line) follows, dim. Pushes that follow on from each other on one
+  branch (`a..b`, then `b..c`) are one row, the compare view `a..c`.
 - A URL's label is the Bash call's `description`, else the first 60 characters of the
   command, else the tool name. `local` covers loopback, private ranges, Tailscale
   (100.64/10) and `*.local`; a tailnet host name counts as remote, its IP as local.
@@ -157,8 +161,8 @@ During development: `claude --plugin-dir mods/session-assets`.
 - A picture path with a space in it is not read from Bash output.
 - A remote URL is never checked.
 - The replay reads what `$.session.messages()` gives: at most the newest 4096 messages.
-  It runs at session start, and `/reload-plugins` starts the session again only when the
-  plugin's version changed; to replay with the same version, use `/assets clear`.
+  It runs at session start when the list is empty, and `/reload-plugins` starts the session again
+  only when the plugin's version changed; to replay at any time, use `/assets clear`.
 
 ## Checks
 

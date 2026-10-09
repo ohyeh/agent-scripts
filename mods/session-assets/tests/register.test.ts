@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, githubRepoOf, pushedOf, pushRemoteOf, isLocalNoise, localPort, sessionIdsIn, shasIn, parseCwd, parseListen, refsIn, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
+import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, githubRepoOf, pushedOf, pushRemoteOf, isLocalNoise, localPort, sessionIdsIn, shasIn, parseCwd, parseListen, refsIn, isLocalHost, merge, nameOf, rowsOf, shortDir } from '../hooks/lib/assets.ts'
 
 const HOME = '/h/me'
 const call = (tool: string, input: Record<string, unknown>, text = '', readOnly = false) => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w', readOnly })
@@ -275,6 +275,25 @@ describe('band', () => {
     expect(textOf(await $.ui.render(band()))).toContain('Aurora')
   })
 
+  test('pushes that follow on merge into one compare view; another branch or a gap does not', async () => {
+    const p = (from: string, to: string, branch = 'main', repo = 'o/r') => ({ kind: 'url' as const, ref: `https://github.com/${repo}/compare/${from}...${to}`, label: `push: ${branch} ${from}..${to}`, where: 'github.com', isLocal: false, at: 1, project: 'p' })
+    const one = merge(merge([], [p('1111111', '2222222')]), [p('2222222', '3333333')])
+    expect(one.map(x => [x.ref, x.label])).toEqual([['https://github.com/o/r/compare/1111111...3333333', 'push: main 1111111..3333333']])
+    expect(merge([p('1111111', '2222222')], [p('2222222', '3333333', 'dev')]).length, 'another branch').toBe(2)
+    expect(merge([p('1111111', '2222222')], [p('4444444', '5555555')]).length, 'a gap').toBe(2)
+    expect(merge([p('1111111', '2222222')], [{ ...p('2222222', '3333333'), label: 'Show main diff' }]).length, 'a compare URL that is no push').toBe(2)
+    expect(merge([p('1111111', '2222222')], [p('2222222', '3333333', 'main', 'o/other')]).length, 'another repo').toBe(2)
+  })
+
+  test('a URL row is named by the URL; a push and a file by their label', async () => {
+    const a = (kind: 'url' | 'file', ref: string, label: string) => ({ kind, ref, label, where: '', isLocal: true })
+    expect(nameOf(a('url', 'http://localhost:5173/app/?x=1#y', 'reply: I started the dev server'))).toBe('localhost:5173/app')
+    expect(nameOf(a('url', 'https://share.o17y317.uk/', 'Read the reply'))).toBe('share.o17y317.uk')
+    expect(nameOf(a('url', 'https://github.com/o/r/compare/1a...2b', 'push: main 1a..2b'))).toBe('push: main 1a..2b')
+    expect(nameOf(a('file', '/w/a.md', 'a.md'))).toBe('a.md')
+    expect(assetsOfText('Preview: http://127.0.0.1:62120/ and http://localhost:5173/', 'reply', { home: HOME, cwd: '/w' }).map(x => x.ref), 'an ephemeral port in a reply is noise too').toEqual(['http://localhost:5173/'])
+  })
+
   test('a failed tool call records nothing', async ($, on) => {
     const w = world(on, { isError: true })
     await $.session.start(start)
@@ -472,7 +491,7 @@ describe('band', () => {
       { tool: 'Bash', input: { command: 'git push origin main 2>&1 | tail -1' }, text: '   5d6e7f8..9a8b7c6  main -> main' },
     ] }] })
     await $.session.start(start)
-    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string }>).map(x => x.ref).sort()).toEqual(['https://github.com/o/r/compare/1a2b3c4...5d6e7f8', 'https://github.com/o/r/compare/5d6e7f8...9a8b7c6'])
+    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string }>).map(x => x.ref), 'two pushes that follow on are one compare view').toEqual(['https://github.com/o/r/compare/1a2b3c4...9a8b7c6'])
     expect(w.runs.filter(a => a[0] === 'git').length, 'one git call for one remote').toBe(1)
   })
 
