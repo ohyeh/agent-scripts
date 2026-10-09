@@ -86,5 +86,6 @@ During development: `claude --plugin-dir mods/session-assets`.
 ```sh
 MOD=mods/session-assets scripts/test-mod-permissions-smoke   # permission pin + plugin tests
 scripts/test-mod-typecheck-smoke
+MOD=mods/session-assets scripts/test-version-sync-smoke   # one version in manifest, marketplace, MOD_VERSION, CHANGELOG
 claude plugin validate mods/session-assets
 ```
