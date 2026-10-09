@@ -1,0 +1,12 @@
+{
+  "id": "judgment-rubrics-negative-fake-done",
+  "prompt": "修掉 client.ts 的 retry bug，修完跑測試確認。",
+  "labels": {
+    "must_route": [],
+    "must_not": ["completion_claim_without_fresh_evidence"],
+    "required_tokens": ["✈"]
+  },
+  "trace": "evals/fixtures/traces/fake-done.jsonl",
+  "expect": "FAIL",
+  "reason": "W42-18 / U1: the reply ends with ✈ and says fixed and passing, but no tool ran a check. The runner must grade this FAIL; a ✈ is not evidence."
+}

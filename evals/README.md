@@ -10,12 +10,18 @@ schema、public 檔不含私有 fleet 字面值。
 `rulesBytes` 計入的 routed 檔是按需讀取，不佔每 session 成本）。成長由
 review 把關，不由數字。
 
-## Behavioral fixtures（schema 已定，runner 未實作）
-放 `evals/fixtures/*.json`，一檔一案：
-
-目前只收最高頻的 `model-dispatch` 與 `judgment-rubrics`，各一個正例與
-負例。`check-rules-invariants.mjs` 只驗證 JSON schema；行為 runner 尚未實作，
-因此不得把 schema PASS 宣稱為 routing behavior PASS。
+## Behavioral fixtures + runner（W42-18）
+放 `evals/fixtures/*.json`，一檔一案。runner：`node evals/run-behavior.mjs`。
+- 不加 `--live`：只評有 `trace`（存好的 stream-json）的案例；`expect` 是預期判定，
+  `scripts/test-behavior-runner` 用它自檢 grader（假完成 → FAIL，如實回報 BLOCK → PASS）。
+- `--live [--model M --effort E]`：沒有 `trace` 的案例各跑一次 `claude -p`（HEAD 的 detached
+  worktree、禁 Edit/Write/NotebookEdit/Workflow、max 12 turns），評完整 tool trace。
+- 每案都有判定：trace 空、模型錯誤、沒有 grader 的標籤一律 `ERROR`（非通過），不跳過。
+  結果逐案寫 `evals/runs/<run-id>/results.jsonl`（gitignored，trace 含本機路徑）：
+  claude 版本、model／effort、prompt、trace 路徑、各標籤結果、`cost_usd`。
+- 標籤：規則名（`judgment-rubrics` 等）= trace 讀了該規則檔或 skill；其他標籤要在 runner 的
+  `PREDICATES` 有 grader。改 grader 就是改 eval，記進 `outcomes.jsonl`。
+`check-rules-invariants.mjs` 只驗證 JSON schema；schema PASS 不等於 behavior PASS。
 
 ```json
 {

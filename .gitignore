@@ -13,3 +13,5 @@ mods/*/tsconfig.json
 # retro 量測結果只放本機；腳本（*.py）進 repo（2026-10-01 使用者裁決）
 evals/retro-metrics/*
 !evals/retro-metrics/*.py
+# behavior runner traces carry local paths: local only
+evals/runs/
