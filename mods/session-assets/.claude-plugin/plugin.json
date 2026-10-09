@@ -1,6 +1,6 @@
 {
   "name": "session-assets",
-  "version": "0.7.3",
+  "version": "0.8.0",
   "description": "A numbered list of what a session made (URLs, artifacts, files, images, commits): #aN in a prompt hands Claude the exact ref and whether it is still up; Claude looks them up with its assets tool.",
   "author": {
     "name": "PaulYeh",

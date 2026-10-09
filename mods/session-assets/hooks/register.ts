@@ -1,8 +1,9 @@
 import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
+import { answerId, itemsOf, quoteOf } from './lib/items.ts'
 
-const MOD_VERSION = '0.7.3'
+const MOD_VERSION = '0.8.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -15,6 +16,14 @@ const PRUNE_MS = 30 * 86_400_000
 const PANEL_ROWS = 4
 const OTHER_ROWS = 4
 const ACCENT = 'blue'
+/** Answers the TUI offers to quote from: 31% of quoted lines came from an older answer, the furthest 15 back. */
+const MAX_ANSWERS = 16
+/** A request's bounds: quotes are lines of an answer; one past these is refused, never cut (a cut quote says less). */
+const MAX_QUOTES = 60
+const MAX_QUOTE = 4000
+const MAX_ASK_BYTES = 300_000
+/** How often the mod looks for a request from the TUI (a stat, a read only when it changed). */
+const POLL_MS = 500
 
 type $ = EngineInterface
 type State = {
@@ -27,6 +36,127 @@ type State = {
   hidden: boolean
   others: boolean
   writes: Promise<unknown>
+  /** Newest first: each answer of the main loop that has lines to quote. `at` 0 is an answer from before a reload. */
+  answers: { id: string; at: number; items: string[] }[]
+  /** The TUI's requests this load has taken (each is done once), and answers not written yet (path → answer). */
+  handled: Set<string>
+  unacked: Map<string, string>
+}
+
+/** Where the mod and its TUI meet: the TUI reads `<sid>.json` and writes `<sid>.ask.json`; the store is the host's. */
+const dirOf = (s: State) => `${s.home}/.local/state/session-assets`
+const snapPath = (s: State) => `${dirOf(s)}/${s.sid}.json`
+/**
+ * A request is a file of its own, `<sid>.ask/<time>-<pid>-<n>.json`: no TUI can write over another's. Its answer, `{ ok,
+ * text }`, goes to `<sid>.done/` under the same name; the TUI says sent only on `ok`, and removes both.
+ */
+const askDir = (s: State) => `${dirOf(s)}/${s.sid}.ask`
+const doneDir = (s: State) => `${dirOf(s)}/${s.sid}.done`
+const ASK_NAME = /^(\d{13})-(\d+)-(\d+)\.json$/
+/** A request older than this is refused, not done: one left from before a reload must not fill the prompt now. */
+const MAX_ASK_AGE_MS = 30_000
+
+/** What the TUI shows: this session's list, numbered as the band numbers it, and the lines of its last answers. */
+async function snapshot(s: State, $: $, list?: Entry[]) {
+  try {
+    const assets = list ?? (await mine(s, $))
+    await $.fs.write(snapPath(s), JSON.stringify({ v: 1, version: MOD_VERSION, sid: s.sid, project: s.project, cwd: s.cwd, assets, answers: s.answers }))
+  } catch (err) {
+    $.ui.log(`session-assets: TUI snapshot not written (${errText(err)})`, { to: 'debug' })
+  }
+}
+
+function addAnswer(s: State, text: string, at: number) {
+  const items = itemsOf(text)
+  if (items.length) s.answers = [{ id: answerId(items), at, items }, ...s.answers].slice(0, MAX_ANSWERS)
+}
+
+/**
+ * The TUI's requests: quotes, or a row by its exact ref, into the prompt, where only the mod can put text (a paste of
+ * several lines folds into `[Pasted text]` and loses the room to answer each one). Each one is the TUI's input, checked
+ * here, the one place it enters: a bad one is refused whole, never cut. Each is answered, failed ones too, so the TUI
+ * keeps the selection to send again; one with an answer already is not done again.
+ */
+async function poll(s: State, $: $) {
+  // An answer whose write failed: written again, the request never done again.
+  // Each on its own: one that still fails must not hold up the others or the new requests.
+  for (const [out, text] of s.unacked) {
+    await $.fs.write(out, text).then(() => s.unacked.delete(out), err => $.ui.log(`session-assets: TUI answer still not written (${errText(err)})`, { to: 'debug' }))
+  }
+  const asks = (await $.fs.list(askDir(s)).catch(() => [])).flatMap(e => {
+    const m = e.kind === 'file' ? ASK_NAME.exec(e.name) : null
+    return m ? [{ e, key: m.slice(1).map(Number) }] : []
+  })
+  // In the order they were made: time, then TUI, then its own count (a string sort puts -10 before -9).
+  asks.sort((x, y) => x.key[0]! - y.key[0]! || x.key[1]! - y.key[1]! || x.key[2]! - y.key[2]!)
+  for (const { e, key } of asks) {
+    if (s.handled.has(e.name)) continue
+    s.handled.add(e.name)
+    const out = `${doneDir(s)}/${e.name}`
+    // An answer there, or the mark of one taken: done (or begun) before, maybe by the last load.
+    if (await $.fs.exists(out)) continue
+    const said = JSON.stringify(await take(s, $, `${askDir(s)}/${e.name}`, out, e.size, key[0]!, await $.clock.now()))
+    await $.fs.write(out, said).catch(err => {
+      s.unacked.set(out, said)
+      $.ui.log(`session-assets: TUI answer not written, again at the next look (${errText(err)})`, { to: 'debug' })
+    })
+  }
+}
+
+/** One request: what to tell its TUI. */
+async function take(s: State, $: $, path: string, out: string, size: number, made: number, now: number): Promise<{ ok: boolean; text: string }> {
+  if (now - made > MAX_ASK_AGE_MS) return { ok: false, text: 'too old (the session was not listening): check the prompt, then send again' }
+  let ask: { quote?: unknown; ref?: unknown }
+  try {
+    if (size > MAX_ASK_BYTES) throw new Error(`${size} bytes`)
+    const got: unknown = JSON.parse(String(await $.fs.read(path)))
+    if (!got || typeof got !== 'object' || Array.isArray(got)) throw new Error('not an object')
+    ask = got
+  } catch (err) {
+    return { ok: false, text: `refused: not a request (${errText(err)})` }
+  }
+  let text = ''
+  let said = ''
+  const quote = ask.quote
+  if (Array.isArray(quote)) {
+    if (!quote.length || quote.length > MAX_QUOTES || !quote.every(x => typeof x === 'string' && x.length > 0 && x.length <= MAX_QUOTE)) return { ok: false, text: `refused: 1 to ${MAX_QUOTES} quotes of at most ${MAX_QUOTE} characters` }
+    text = quoteOf(quote)
+    said = `${quote.length} quote(s) in the prompt: write under each one.`
+  } else if (typeof ask.ref === 'string') {
+    // The row by what it is, not by its number on the TUI's screen: a new asset since then moved the numbers.
+    const n = (await mine(s, $)).findIndex(x => x.ref === ask.ref) + 1
+    if (!n) return { ok: false, text: 'that row is gone from the list' }
+    text = `#a${n} `
+    said = `#a${n} is in the prompt: write the rest.`
+  } else return { ok: false, text: 'refused: no quote or ref' }
+  // Marked taken before the fill: a load that stops between the fill and its answer leaves the mark, and the next load
+  // does not fill it again. No mark, no fill.
+  try {
+    await $.fs.write(out, JSON.stringify({ taking: true }))
+  } catch (err) {
+    return { ok: false, text: `not done: could not mark it taken (${errText(err)})` }
+  }
+  const f = await $.prompt.fill({ text, mode: 'insert' }).catch(() => ({ isFilled: false }))
+  if (!f.isFilled) return { ok: false, text: 'no prompt box took it (a dialog open?): send it again' }
+  $.ui.toast(said)
+  return { ok: true, text: said }
+}
+
+/** A shell word: the TUI command runs in a shell (tmux's split, or a paste). */
+const shq = (x: string) => `'${x.replace(/'/g, `'\\''`)}'`
+
+/**
+ * Opens the TUI: in a tmux split when this session runs in tmux (full window height, as the workers TUI), else the
+ * command goes on the clipboard, to paste in a new pane of the terminal (no terminal app is driven from here).
+ */
+async function launch(s: State, $: $): Promise<string> {
+  const cmd = `node ${shq(`${$.plugin.root}/bin/tui.mjs`)} --sid ${shq(s.sid)}`
+  if (await $.env.get('TMUX').catch(() => undefined)) {
+    const r = await $.process.run(['tmux', 'split-window', '-h', '-f', '-c', s.cwd, cmd], { timeoutMs: 5000 })
+    return r.exitCode === 0 ? 'TUI opened in a tmux split.' : `tmux split-window failed (exit ${r.exitCode}): ${clean(r.stderr.trim(), 200)}`
+  }
+  const c = await $.ui.copy({ text: cmd })
+  return c.isCopied ? `not in tmux: the TUI command is on the clipboard, paste it in a new pane (Warp: cmd-D): ${cmd}` : `run in another terminal: ${cmd}`
 }
 
 const asList = (v: unknown) => (Array.isArray(v) ? (v as Entry[]).filter(e => e && typeof e.ref === 'string') : [])
@@ -79,6 +209,7 @@ async function record(s: State, $: $, found: readonly Asset[], at: number, onlyN
     const kept = (a: Asset) => (onlyNew || a.kind === 'source') && list.some(x => x.ref === a.ref && x.kind !== 'source')
     for (const a of found) if (!kept(a)) list = merge(list, [{ ...a, project: s.project, at, ...(replayed ? { replayed: true as const } : {}) }])
     await $.store.set(`${PREFIX}${s.sid}`, list)
+    await snapshot(s, $, list)
   })
   // A new asset moves the rows: an open row would point at another entry.
   s.open = undefined
@@ -260,7 +391,7 @@ async function openAsset($: $, e: Entry): Promise<string> {
 }
 
 export const register: Register = on => {
-  const s: State = { sid: '', project: '', cwd: '', home: '', hidden: false, others: false, writes: Promise.resolve() }
+  const s: State = { sid: '', project: '', cwd: '', home: '', hidden: false, others: false, writes: Promise.resolve(), answers: [], handled: new Set(), unacked: new Map() }
 
   on('session.start', async ($, e, next) => {
     s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
@@ -289,11 +420,22 @@ export const register: Register = on => {
         },
       },
     })
-    await $.command.register({ name: 'assets', description: `Session assets v${MOD_VERSION}: /assets (show/hide), /assets N (show row N), /assets open|copy|reply|preview N, /assets list, /assets clear, /assets all` })
+    await $.command.register({ name: 'assets', description: `Session assets v${MOD_VERSION}: /assets (show/hide), /assets N (show row N), /assets open|copy|reply|preview N, /assets list, /assets clear, /assets all, /assets tui` })
     // Loaded mid-session, or a session resumed from before the mod: the transcript says what it made so far.
     // A store that cannot be read is left alone: a replay would write over what it holds.
     const have = await mine(s, $).catch(() => undefined)
     if (have && !have.length) await replay(s, $)
+    // The TUI's lines to quote: the last answers, from the transcript (the module's own memory starts over on a reload).
+    s.answers = []
+    try {
+      for (const m of await $.session.messages()) if (m.role === 'assistant' && m.text) addAnswer(s, m.text, 0)
+    } catch (err) {
+      $.ui.log(`session-assets: answers not read (${errText(err)})`, { to: 'debug' })
+    }
+    await enqueue(s, () => snapshot(s, $))
+    s.handled = new Set()
+    s.unacked = new Map()
+    $.clock.every(POLL_MS, () => poll(s, $).catch(err => $.ui.log(`session-assets: TUI request failed (${errText(err)})`, { to: 'debug' })))
     try {
       const now = await $.clock.now()
       for (const k of (await $.store.keys()).filter(k => k.startsWith(PREFIX) && k !== `${PREFIX}${s.sid}`)) {
@@ -323,13 +465,14 @@ export const register: Register = on => {
       $.ui.invalidate('ui.render')
       return { text: `cleared ${list.length} asset(s); the transcript gave back ${n}.` }
     }
+    if (args === 'tui') return { text: await launch(s, $) }
     if (args === 'all') {
       s.others = !s.others
       await setHidden(s, $, false)
       return { text: s.others ? 'other sessions shown.' : 'other sessions folded.' }
     }
     const m = /^(open\s+|copy\s+|reply\s+|preview\s+)?#?a?(\d+)$/.exec(args)
-    if (!m) return { text: 'usage: /assets | /assets N | /assets open|copy|reply|preview N | /assets list | /assets clear | /assets all' }
+    if (!m) return { text: 'usage: /assets | /assets N | /assets open|copy|reply|preview N | /assets list | /assets clear | /assets all | /assets tui' }
     const i = Number(m[2]) - 1
     const item = list[i]
     if (!item) return { text: `no row ${m[2]}: this session has ${list.length} asset(s).` }
@@ -366,6 +509,8 @@ export const register: Register = on => {
     const done = await next(e)
     if (e.agentId === undefined && e.answer) {
       try {
+        addAnswer(s, e.answer, await $.clock.now())
+        await enqueue(s, () => snapshot(s, $))
         await record(s, $, assetsOfText(e.answer, 'reply', s).reverse(), await $.clock.now(), true)
       } catch (err) {
         $.ui.log(`session-assets: reply not read (${errText(err)})`, { to: 'debug' })
@@ -442,7 +587,9 @@ export const register: Register = on => {
       flexDirection: 'row',
       children: [
         Text({ bold: true, color: ACCENT, children: title }),
-        Text({ dimColor: true, children: fit(`${counts} · #aN in a prompt · /assets list `, width - title.length - 9) }),
+        Text({ dimColor: true, children: fit(`${counts} · #aN in a prompt · /assets list `, width - title.length - 15) }),
+        // The TUI: every row, the last answers' lines to quote.
+        Button({ key: 'tui', label: '⧉', dimColor: true, onPress: () => void launch(s, $).then(t => $.ui.toast(t), err => $.ui.toast(`tui failed: ${errText(err)}`)).catch(err => $.ui.log(`session-assets: tui toast failed (${errText(err)})`, { to: 'debug' })) }),
         Button({ key: 'hide', label: 'hide', dimColor: true, onPress: () => void setHidden(s, $, true) }),
       ],
     })

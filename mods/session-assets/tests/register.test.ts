@@ -2,6 +2,7 @@ import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
 import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, githubRepoOf, pushedOf, pushRemoteOf, isLocalNoise, localPort, sessionIdsIn, shasIn, parseCwd, parseListen, refsIn, isLocalHost, merge, nameOf, rowsOf, shortDir } from '../hooks/lib/assets.ts'
+import { answerId, itemsOf, quoteOf } from '../hooks/lib/items.ts'
 
 const HOME = '/h/me'
 const call = (tool: string, input: Record<string, unknown>, text = '', readOnly = false) => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w', readOnly })
@@ -625,8 +626,29 @@ const band = (props: { maxRows?: number; hasSurvey?: boolean } = {}) => ({
 })
 
 /** The engine under the mod: an in-memory store (or one whose writes fail), tools that print a dev-server URL, a recorded `open`. */
-function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[] } = {}) {
-  mock.clock(on)
+function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[]; tmux?: string } = {}) {
+  const clock = mock.clock(on)
+  const files = new Map<string, { text: string; mtimeMs: number }>()
+  /** Paths whose writes fail, as a disk error would. */
+  const failing = new Set<string>()
+  let mtime = 1
+  on('fs.write', ($, e) => {
+    if (failing.has(e.path) || box.failWrite?.(e.path, e.text)) throw new Error('EIO: i/o error')
+    files.set(e.path, { text: e.text, mtimeMs: mtime++ })
+    return { value: undefined }
+  })
+  on('fs.read', ($, e) => {
+    const f = files.get(e.path)
+    if (!f) throw new Error(`ENOENT: ${e.path}`)
+    return { value: f.text }
+  })
+  on('fs.list', ($, e) => ({ value: [...files].filter(([k]) => k.startsWith(`${e.path}/`) && !k.slice(e.path.length + 1).includes('/')).map(([k, f]) => ({ name: k.slice(e.path.length + 1), kind: 'file', size: f.text.length, mtimeMs: f.mtimeMs, isLink: false })) }) as never)
+  on('fs.exists', ($, e) => ({ value: files.has(e.path) }))
+  on('fs.stat', ($, e) => {
+    const f = files.get(e.path)
+    if (!f) throw new Error(`ENOENT: ${e.path}`)
+    return { value: { kind: 'file', size: f.text.length, mtimeMs: f.mtimeMs, isLink: false } } as never
+  })
   const kv = new Map<string, unknown>()
   const runs: string[][] = []
   const contexts: (string[] | undefined)[] = []
@@ -642,7 +664,10 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
     copied.push(e.text)
     return { value: { isCopied: true } } as never
   })
+  /** `box.open = false`: no prompt box takes text (a dialog is open). */
+  const box: { open: boolean; failWrite?: (path: string, text: string) => boolean } = { open: true }
   on('prompt.fill', ($, e) => {
+    if (!box.open) return { isFilled: false, text: '', cursor: 0 } as never
     filled.push({ text: e.text, mode: e.mode })
     return { isFilled: true, text: e.text, cursor: e.text.length } as never
   })
@@ -661,7 +686,7 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   })
   on('tool.register', ($, e) => ({ value: { tool: e.name } }) as never)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
-  on('env.get', () => ({ value: HOME }))
+  on('env.get', ($, e) => ({ value: e.name === 'TMUX' ? opts.tmux : HOME }))
   on('store.get', ($, e) => ({ value: kv.get(e.key) }))
   on('store.keys', () => ({ value: [...kv.keys()] }))
   on('store.delete', ($, e) => {
@@ -694,7 +719,16 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '' }, text: opts.text ?? '  ➜  Local:   http://localhost:5173/\n', ...(opts.isError ? { isError: true } : {}) }) as never)
   on('tool.call', { tool: 'Write' }, () => ({ result: {}, text: 'File created' }) as never)
   on('tool.call', { tool: 'WebFetch' }, () => ({ result: {}, text: 'page https://inside.dev', isReadOnly: true }) as never)
-  return { kv, runs, contexts, copied, filled, spawned, toasts }
+  /** What the TUI does: a request file of its own, made now (or `age` ms ago); returns where its answer goes. */
+  let n = 0
+  const ask = (req: unknown, age = 0, count = ++n) => {
+    const name = `${String(clock.now() - age).padStart(13, '0')}-77-${count}.json`
+    files.set(`${HOME}/.local/state/session-assets/sess-A.ask/${name}`, { text: typeof req === 'string' ? req : JSON.stringify(req), mtimeMs: clock.now() - age })
+    const done = () => JSON.parse(files.get(`${HOME}/.local/state/session-assets/sess-A.done/${name}`)?.text ?? 'null')
+    return Object.assign(done, { at: `${HOME}/.local/state/session-assets/sess-A.done/${name}` })
+  }
+  const snap = () => JSON.parse(files.get(`${HOME}/.local/state/session-assets/sess-A.json`)?.text ?? 'null')
+  return { kv, runs, contexts, copied, filled, spawned, toasts, files, ask, snap, clock, box, failing }
 }
 
 function textOf(node: unknown): string {
@@ -704,3 +738,146 @@ function textOf(node: unknown): string {
   const el = node as { props?: Record<string, unknown>; children?: unknown }
   return [textOf(el.props?.children), textOf(el.props?.label), textOf(el.children)].filter(Boolean).join('\n')
 }
+
+describe('itemsOf', () => {
+  test('list items, table rows and prose lines; not headings, code, a table header or a rule', async () => {
+    const answer = [
+      '## Plan', '', 'Two things left:', '', '- **D1**: rename the band', '  1. keep `#aN`', '', '| id | what |', '|---|---|', '| q4 | 寫死 timeout |',
+      '```ts', 'const x = 1', '```', '---', '* last one',
+    ].join('\n')
+    expect(itemsOf(answer)).toEqual(['Two things left:', '**D1**: rename the band', 'keep `#aN`', 'q4 | 寫死 timeout', 'last one'])
+    expect(itemsOf('| a\\|b |  x |'), 'a row as written: an escaped pipe is not a cell edge').toEqual(['a\\|b |  x'])
+  })
+
+  test('caps the lines; a quote is a > block with room under it', async () => {
+    expect(itemsOf(Array.from({ length: 80 }, (_, i) => `- ${i}`).join('\n'))).toHaveLength(60)
+    expect(quoteOf(['a', 'b'])).toBe('> a\n\n> b\n\n')
+    expect(quoteOf(['quoted\n直接 push\r\nx\u001b[2J']), 'a line break does not end the quote').toBe('> quoted\n> 直接 push\n> x [2J\n\n')
+    expect(answerId(['a'])).toBe(answerId(['a']))
+    expect(answerId(['a'])).not.toBe(answerId(['b']))
+  })
+})
+
+describe('the TUI', () => {
+  test('the snapshot has the list and the last answers\' lines, newest first, from the transcript too', async ($, on) => {
+    const w = world(on, { messages: [{ role: 'assistant', text: '- old one\n- old two' }, { role: 'user', text: '- not mine' }] })
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    await $.turn.complete({ ...turn, answer: '1. fix it\n2. ship it' } as never)
+    const snap = w.snap()
+    expect(snap.assets.map((x: { ref: string }) => x.ref)).toEqual(['http://localhost:5173/'])
+    expect(snap.answers.map((a: { items: string[] }) => a.items)).toEqual([['fix it', 'ship it'], ['old one', 'old two']])
+    expect(snap.answers[0].id).toBe(answerId(['fix it', 'ship it']))
+    expect(snap.answers[1].at).toBe(0)
+  })
+
+  test('each request is done once and answered; a bad one is refused whole, not cut; an old one is not done', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await w.clock.advance(100_000)
+    const old = w.ask({ quote: ['from before a reload'] }, 60_000)
+    const a = w.ask({ quote: ['a', 'two\nlines'] })
+    const b = w.ask({ quote: ['b'] })
+    await w.clock.advance(600)
+    expect(old()).toMatchObject({ ok: false })
+    expect(w.filled, 'two requests made together are both done, in order').toEqual([
+      { text: '> a\n\n> two\n> lines\n\n', mode: 'insert' },
+      { text: '> b\n\n', mode: 'insert' },
+    ])
+    expect(a()).toEqual({ ok: true, text: '2 quote(s) in the prompt: write under each one.' })
+    expect(b()).toMatchObject({ ok: true })
+    await w.clock.advance(600)
+    expect(w.filled, 'done once').toHaveLength(2)
+    // The row by its ref: a new asset since the TUI drew moved it to #a2.
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/plan.md', content: 'x' })
+    w.ask({ ref: 'http://localhost:5173/' })
+    await w.clock.advance(600)
+    expect(w.filled.at(-1)).toEqual({ text: '#a2 ', mode: 'insert' })
+    for (const bad of [null, [1], { quote: ['x', 7] }, { quote: ['x'.repeat(4001)] }, { quote: [] }, { ref: 'https://gone.dev' }, { ref: 2 }, '{"quote":']) {
+      const done = w.ask(bad)
+      await w.clock.advance(600)
+      expect(done()?.ok, JSON.stringify(bad)).toBe(false)
+    }
+    expect(w.filled).toHaveLength(3)
+  })
+
+  test('a request answered before a reload is not done again; a fill no box took is answered as not done', async ($, on) => {
+    const w = world(on)
+    const done = w.ask({ quote: ['already filled'] })
+    const name = [...w.files.keys()].find(k => k.includes('.ask/'))!.split('/').pop()
+    w.files.set(`${HOME}/.local/state/session-assets/sess-A.done/${name}`, { text: '{"ok":true,"text":"filled"}', mtimeMs: 1 })
+    await $.session.start(start)
+    await w.clock.advance(600)
+    expect(done()).toEqual({ ok: true, text: 'filled' })
+    expect(w.filled).toEqual([])
+    w.box.open = false
+    const later = w.ask({ quote: ['z'] })
+    await w.clock.advance(600)
+    expect(later()).toMatchObject({ ok: false })
+  })
+
+  test('one TUI\'s requests made in one millisecond go in its order: the 10th after the 9th', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    w.ask({ quote: ['tenth'] }, 0, 10)
+    w.ask({ quote: ['ninth'] }, 0, 9)
+    await w.clock.advance(600)
+    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['> ninth\n\n', '> tenth\n\n'])
+  })
+
+  test('an answer that could not be written is written at the next look; the request is filled once, also after a reload', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    const once = w.ask({ quote: ['once'] })
+    // The mark goes down, then the answer write fails.
+    let fails = 1
+    w.box.failWrite = (path, text) => path === once.at && text.includes('"ok"') && fails-- > 0
+    await w.clock.advance(600)
+    expect(once(), 'the mark of one taken stays meanwhile').toEqual({ taking: true })
+    await w.clock.advance(600)
+    expect(once()).toMatchObject({ ok: true })
+    expect(w.filled).toHaveLength(1)
+  })
+
+  test('an answer that keeps failing to be written does not hold up the next request', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    const stuck = w.ask({ quote: ['stuck'] })
+    w.box.failWrite = (path, text) => path === stuck.at && text.includes('"ok"')
+    await w.clock.advance(600)
+    const next = w.ask({ quote: ['next'] })
+    await w.clock.advance(600)
+    await w.clock.advance(600)
+    expect(next()).toMatchObject({ ok: true })
+    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['> stuck\n\n', '> next\n\n'])
+  })
+
+  test('a request marked taken by the last load is not filled again after a reload', async ($, on) => {
+    const w = world(on)
+    const taken = w.ask({ quote: ['taken'] })
+    w.files.set(taken.at, { text: '{"taking":true}', mtimeMs: 1 })
+    await $.session.start(start)
+    await w.clock.advance(600)
+    expect(w.filled).toEqual([])
+    expect(taken()).toEqual({ taking: true })
+  })
+
+  test('/assets tui splits tmux when in it, else copies the command', async ($, on) => {
+    const w = world(on, { tmux: '/tmp/tmux-1/default,1,0' })
+    await $.session.start(start)
+    expect(await $.command.run(cmd('tui'))).toMatchObject({ text: 'TUI opened in a tmux split.' })
+    const split = w.runs.find(a => a[0] === 'tmux')!
+    expect(split.slice(0, 6)).toEqual(['tmux', 'split-window', '-h', '-f', '-c', '/work/retro-w41'])
+    expect(split[6]).toMatch(/^node '.*\/bin\/tui\.mjs' --sid 'sess-A'$/)
+  })
+
+  test('outside tmux /assets tui puts the command on the clipboard', async ($, on) => {
+    const w2 = world(on)
+    await $.session.start(start)
+    const r = (await $.command.run(cmd('tui'))) as { text: string }
+    expect(r.text).toContain('not in tmux: the TUI command is on the clipboard')
+    expect(w2.copied[0]).toMatch(/--sid 'sess-A'$/)
+    expect(w2.runs.some(a => a[0] === 'tmux')).toBe(false)
+  })
+})

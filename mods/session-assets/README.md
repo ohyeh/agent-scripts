@@ -11,6 +11,7 @@ them per session, and puts it where both of you can use it:
 | You | write `#a1` in a prompt: `#a1 掛了，修一下` | Claude gets row 1 beside your prompt: its exact URL or path, what made it, and its state now (`up: vite (pid 4242) in ./web`, `down: nothing listens on :5173`, `exists`, `missing`). No copying URLs, no guessing which server you meant. |
 | Claude | calls its `assets` tool: "the preview URL from before", "is :5173 still up", "which session runs :3000" | It gets the rows that match, with the same live state, from this session or from all of them. This is how it gets an exact port, path or hash back after the context was compacted. |
 | You | click a row in the band, or run `/assets list`, `/assets open N` | You see what was made, by what, and when; open, preview or copy one, or put `#aN` in the prompt. |
+| You | open the TUI (`/assets tui`, `[ ⧉ ]`), mark lines of an answer, press enter | They go into the prompt as `> line` blocks, each with room under it for what you say about it. No copying lines out of the reply. |
 
 The live state is what answers "who is who" for local URLs: the process listening on
 the port, and the folder it runs in. It is checked on demand (a `#aN`, the tool,
@@ -26,7 +27,7 @@ Above the prompt, only after this session has an asset. Other sessions' assets a
 folded into one line.
 
 ```
-▌session assets v<version> 2 url · 1 artifact · 1 image · 1 video · 2 file · 1 commit · #aN in a prompt · /assets list   [ hide ]
+▌session assets v<version> 2 url · 1 artifact · 1 image · 1 video · 2 file · 1 commit · #aN in a prompt · /assets list   [ ⧉ ][ hide ]
    a1 ● localhost:5173          2m ago · Start dev server
        [ open ][ copy ][ reply ]  http://localhost:5173/
    a2 ◆ x.dev/docs              5m ago · reply: Docs
@@ -110,10 +111,57 @@ folded into one line.
 | `/assets list` | every entry, grouped by kind (URLs, Artifacts, Images, Videos, Files, Commits, Sources) and by `today` / `this week` / `older`, numbered `#aN` as the band, with its full URL or path and, for the first 10 local URLs and paths, its state now |
 | `/assets clear` | start this session's list over from its transcript |
 | `/assets all` | unfold or fold the other sessions' assets |
+| `/assets tui` | open the TUI (below) |
 
-The `[ hide ]` and `▸ other sessions` buttons and a row's buttons do the same. In Warp a mouse
+The `[ ⧉ ]`, `[ hide ]` and `▸ other sessions` buttons and a row's buttons do the same. In Warp a mouse
 click reaches them (checked 2026-10-09), but `ctrl+x tab` does not (see the tmux-agent README):
 there the keyboard way is the commands.
+
+## TUI
+
+`bin/tui.mjs`, full screen, in a pane of its own: the band has a few rows, the TUI has every row and the last answers.
+`/assets tui` or the band's `[ ⧉ ]` opens it in a tmux split (full window height) when the session runs in tmux; elsewhere
+(Warp, iTerm) the command goes on the clipboard, to paste in a new pane (Warp: cmd-D). No terminal app is driven from
+the mod. Needs `node` (22 or later) on the PATH; it has no dependencies.
+
+```
+▌session assets v0.8.0 · agent-scripts    1 answers  2 assets
+answer 1/16 · 12 lines · 2m ago · 2 marked   ← → older/newer
+[x] **D1**: rename the band
+[ ] keep `#aN`
+[x] q4 | 寫死 timeout
+────────────────────────────────────────────
+q4 | 寫死 timeout
+space mark · enter quote into the prompt · c copy · a all · esc unmark · tab assets · q quit
+```
+
+- Answers (`1`): the lines of the last 16 answers of the main loop (the newest and 15 before it), newest first (← → or
+  `[ ]` for older and newer): list items without their marker, table rows as written (not the header), prose lines;
+  not headings or code. Marks stay on the answer they were made in when a new one comes in; on the newest with nothing
+  marked, the view follows the newest. Past sessions show
+  why: 204 follow-ups pasted one line of an answer back with a short comment, 61 pasted several, each with its own,
+  and 31% quoted an answer older than the last one. Space marks, `a` marks all, enter puts the marked lines (or the
+  one under the cursor) in the prompt at the cursor as `> line` blocks with an empty line under each (every line of a
+  quote gets its `>`); `c` copies them. The marks stay until the session says the quotes are in.
+- Assets (`2`): every row, numbered as the band. Enter opens, `p` previews (Quick Look), `c` copies, `r` puts `#aN`
+  in the prompt: the TUI sends the row's URL or path, and the mod numbers it as its list stands then.
+- How it talks to the session: the mod writes `~/.local/state/session-assets/<sid>.json` (the list and the answers'
+  lines) after each change, and the TUI redraws when it changes. A process outside Claude Code cannot type into its
+  prompt box, and a paste of several lines folds into `[Pasted text]`, so the TUI writes a request and the mod puts
+  its text in the prompt (it looks twice a second). Each request is a file of its own, `<sid>.ask/<time>-<pid>-<n>.json`,
+  so no TUI writes over another's, and two TUIs on one session both send; they are done in the order made. The mod
+  does each one once and answers it under the same name in `<sid>.done/`, `ok` or why not. Before it fills the prompt
+  it puts down the mark of one taken there, so a reload in between never fills it again (the TUI then says to check
+  the prompt), and an answer it could not write it writes at its next look. The TUI says done only on `ok`, removes the
+  request, and then the answer (never the answer while the request stays). A refused one keeps its marks, to send
+  again. The mod checks what it reads: 1 to 60 quotes of at most 4000
+  characters, or a ref in the list; anything else is refused whole, never cut. A request older than 30 s (made while
+  the session was not listening) is answered as not done. No answer in 5 s: the TUI says so, and keeps waiting.
+- Without `--sid` the TUI shows the session whose snapshot (`<sid>.json`) changed last.
+- `tests/tui-smoke.sh` runs the real TUI in a detached tmux pane: it draws, marks two lines, sends them, and the smoke
+  answers as the mod would; then a row by its ref, refused; one taken and never answered; one it cannot remove; one it
+  cannot write; then two TUIs on one session, two requests. It also checks that marks stay on their answer. `open`,
+  `pbcopy` and `qlmanage` are stand-ins there.
 
 ## Pointing at a row: `#aN`
 
@@ -182,4 +230,5 @@ MOD=mods/session-assets scripts/test-mod-permissions-smoke   # permission pin + 
 scripts/test-mod-typecheck-smoke
 MOD=mods/session-assets scripts/test-version-sync-smoke   # one version in manifest, marketplace, MOD_VERSION, CHANGELOG
 claude plugin validate mods/session-assets
+mods/session-assets/tests/tui-smoke.sh   # the TUI in tmux
 ```
