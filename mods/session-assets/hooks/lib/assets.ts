@@ -97,8 +97,7 @@ export function assetsOf(c: Call): Asset[] {
   if (c.tool === 'Bash') {
     const commit = /\bgit\b[^\n]*\bcommit\b/.test(String(c.input.command ?? '')) ? COMMIT_RE.exec(text) : null
     if (commit) add({ kind: 'commit', ref: commit[2]!, label: commit[3]!.trim(), where: commit[1]!, isLocal: true })
-    // A dry run prints the same lines for a push that did not happen.
-    if (/\bgit\b[^\n]*\bpush\b/.test(String(c.input.command ?? '')) && !/\bpush\b[^;&|\n]*\s(?:--dry-run|-n)\b/.test(String(c.input.command ?? ''))) for (const a of pushedOf(text)) add(a)
+    if (pushIn(String(c.input.command ?? ''))) for (const a of pushedOf(text)) add(a)
   }
   // The engine does not mark every reader read-only (`tmux capture-pane | grep` printed another session's screen).
   if (c.replay || (c.tool === 'Bash' && isReader(String(c.input.command ?? '')))) return out
@@ -370,16 +369,26 @@ export function pushedOf(text: string, repo = githubRepoOf(/^To (\S+)$/m.exec(te
 }
 
 /**
+ * The first `git [-C dir] push` the command runs that is not a dry run (a dry run prints the same lines for a push that
+ * did not happen), and the command without its heredoc bodies: text a program reads, not commands.
+ */
+function pushIn(command: string): { push: RegExpMatchArray; command: string } | undefined {
+  const run = command.replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?=\n|$)/g, '')
+  const push = [...run.matchAll(/\bgit\b((?:\s+-C\s+\S+)?)\s+push\b([^;&|\n]*)/g)].find(m => !/\s(?:--dry-run|-n)\b/.test(m[2]!))
+  return push && { push, command: run }
+}
+
+/**
  * A push whose output lost its `To` line but kept ref lines: where to ask for the remote, `git -C <dir> remote get-url
  * <remote>`. The folder is the command's leading `cd` (else the session's), the remote the word after `push` (else origin).
  */
 export function pushRemoteOf(command: string, text: string, c: { home: string; cwd: string }): { dir: string; remote: string } | undefined {
   if (/^To \S+$/m.test(text) || !new RegExp(PUSH_REF_RE.source, 'm').test(text)) return undefined
-  const push = /\bgit\b((?:\s+-C\s+\S+)?)\s+push\b([^;&|\n]*)/.exec(command)
-  if (!push) return undefined
-  if (/\s(?:--dry-run|-n)\b/.test(push[2]!)) return undefined
+  const run = pushIn(command)
+  if (!run) return undefined
+  const { push } = run
   const remote = push[2]!.split(/\s+/).find(w => w && !w.startsWith('-') && !/[<>]/.test(w)) ?? 'origin'
-  const cd = /^\s*cd\s+("[^"]+"|'[^']+'|\S+)\s*&&/.exec(command)?.[1]?.replace(/^["']|["']$/g, '')
+  const cd = /^\s*cd\s+("[^"]+"|'[^']+'|\S+)\s*&&/.exec(run.command)?.[1]?.replace(/^["']|["']$/g, '')
   const where = push[1]!.trim().replace(/^-C\s+/, '') || cd || '.'
   const abs = where.startsWith('~') ? `${c.home}${where.slice(1)}` : where.startsWith('/') ? where : `${c.cwd}/${where}`
   return { dir: abs.replace(/\/\.$/, ''), remote }
