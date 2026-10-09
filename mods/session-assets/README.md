@@ -121,7 +121,7 @@ there the keyboard way is the commands.
 
 `bin/tui.mjs`, full screen, in a pane of its own: the band has a few rows, the TUI has every row and the last answers.
 `/assets tui` or the band's `[ ⧉ ]` opens it in a tmux split (full window height) when the session runs in tmux. In Warp
-it writes the launch configuration `~/.warp/launch_configurations/session-assets.yaml` (named `session-assets TUI`, one
+it writes the launch configuration (a feature Warp calls legacy, replaced by Tab Configs) `~/.warp/launch_configurations/session-assets.yaml` (named `session-assets TUI`, one
 for all sessions, rewritten each time) and opens it with `warp://launch/`, a new Warp window running the TUI: Warp
 splits no pane from a command. Elsewhere (iTerm), or when that fails, the command goes on the clipboard, to paste in a
 new pane. Needs `node` (22 or later) on the PATH; it has no dependencies.

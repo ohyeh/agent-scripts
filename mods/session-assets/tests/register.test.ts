@@ -891,7 +891,7 @@ describe('the TUI', () => {
   test('in Warp /assets tui opens a launch configuration that runs the TUI, by its name', async ($, on) => {
     const w = world(on, { term: 'WarpTerminal' })
     await $.session.start(start)
-    expect(await $.command.run(cmd('tui'))).toMatchObject({ text: 'TUI opened in a new Warp window.' })
+    expect(await $.command.run(cmd('tui'))).toMatchObject({ text: 'asked Warp to open the TUI in a new window.' })
     const yaml = w.files.get(`${HOME}/.warp/launch_configurations/session-assets.yaml`)?.text ?? ''
     expect(yaml).toContain('name: session-assets TUI')
     expect(yaml).toMatch(/- exec: "node '.*\/bin\/tui\.mjs' --sid 'sess-A'"/)

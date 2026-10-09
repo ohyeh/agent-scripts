@@ -162,7 +162,7 @@ async function launch(s: State, $: $): Promise<string> {
     try {
       await $.fs.write(`${s.home}/.warp/launch_configurations/session-assets.yaml`, yaml)
       const r = await $.process.run(['open', `warp://launch/${encodeURIComponent(WARP_NAME)}`], { timeoutMs: 5000 })
-      if (r.exitCode === 0) return 'TUI opened in a new Warp window.'
+      if (r.exitCode === 0) return 'asked Warp to open the TUI in a new window.'
       $.ui.log(`session-assets: open warp://launch failed (exit ${r.exitCode}): ${clean(r.stderr.trim(), 200)}`, { to: 'debug' })
     } catch (err) {
       $.ui.log(`session-assets: Warp launch configuration not written (${errText(err)})`, { to: 'debug' })
