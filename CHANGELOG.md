@@ -7,6 +7,10 @@
 - `deploy.sh`: on the clone-tracked layout it FAILs while `skills/`, `global/` or `.agents/` hold untracked files (a retired recipe kept coming back on one host); clean them, then rerun. It names each stale skill it removes. `host-load-gate.sh` writes one stats row per gated launch.
 - `skills-lock.json` follows the upstream skill upgrades; `settings_claude.json` keys the luna effort to `gpt-6-luna`.
 - `operator-defaults.md`: "prefer structure" is now conditional (lists when the content has many parts or the user must choose, prose for a chat reply). The other three kernel sweet-spot proposals (stop types, delegation trigger, effective-stack audit) are dropped.
+- `rm-home-gate.sh` (Claude and Codex) denies a recursive `rm` on the home dir or the root in any Bash command text. It cannot see a script file's content; the test-harness fix is W42-25 in tmux-agent-tools.
+- `model-dispatch.md`: Claude Agent calls take `effort` too (CC 2.1.292+) (W42-20).
+- `retro-agenda.md`: the one status page is now the Dashboard "[agent-scripts] 艦隊與 Retro"; no separate weekly Retro page.
+- `test-cursor-hook-adapter.sh` no longer runs `chmod +x` on the repo's hooks; it flipped the sourced `subagent-lock.sh` to 0755 in the work tree.
 
 ## review ladder 2026-10-09
 

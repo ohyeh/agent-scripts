@@ -16,8 +16,8 @@ successor is valid only after live verification per §8.
 
 `haiku` RETIRED 2026-08-01 (user decision; repeated miscounts): former haiku roles run as
 `sonnet` effort `medium`; where only `model` is accepted, pass `sonnet`. Claude Agent calls take
-`model`, not `effort` (plain calls inherit session effort); effort exists in agent frontmatter
-and Workflow `agent(prompt, {effort})`.
+`model` and `effort` (CC 2.1.292+; omitted effort inherits the session's); effort also exists in
+agent frontmatter and Workflow `agent(prompt, {effort})`.
 
 | Codex role | Model | Start effort | Ceiling/contract |
 |---|---|---|---|

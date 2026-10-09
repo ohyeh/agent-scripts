@@ -3,7 +3,6 @@
 cd "$(dirname "$0")/.." || exit 1
 set -u
 ADAPT=.agents/hooks/cursor-adapt.sh
-chmod +x "$ADAPT" .agents/hooks/*.sh 2>/dev/null || true
 fail=0
 
 TMPHOME="$(mktemp -d)"

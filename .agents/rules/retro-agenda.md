@@ -30,7 +30,7 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 ## 議程（固定收集清單，依序）
 
 ### 1. 上週 backlog 對帳 — 做了沒、有效沒
-開跑前先讀上一輪的 Retro artifact 和艦隊儀表板（URL 以 Artifact list 現場查），
+開跑前先讀「[agent-scripts] 艦隊與 Retro」（上一輪紀錄在「歷週紀錄」分頁；URL 以 Artifact list 現場查），
 把上週的 TL;DR「共識後預計這樣做」和「需要你決定」逐條列成本輪起點，再對照本版議程開始。
 逐項對 `next-week-backlog.md`：GitHub commit/issue 為證據，驗收條件逐字檢查。
 「有效沒」與「做了沒」分開評：merge 了但行為沒變 = 做了、無效。
@@ -162,8 +162,9 @@ retro 時倒空 inbox：議題逐條討論、隨手記餵給 §2–4 當 Layer 2
 
 ### 8. 收尾固定更新（使用者裁定 2026-08-08：每輪必做，不待點名）
 裁決落地後、報告收尾前，用當輪活資料重生唯一狀態頁
-「Claude Code 艦隊儀表板」（同 URL 原地更新；URL 以 Artifact list 現場查，
-標題固定）。資料一律現場重測，禁止沿用上輪數字。資料源 repo 與各自量測層：
+「[agent-scripts] 艦隊與 Retro」（Dashboard 型別，同 URL 原地更新：資料寫 datasets、頁面寫
+files/index.html；URL 以 Artifact list 現場查，標題固定；不再另開每週 Retro 頁）。
+資料一律現場重測，禁止沿用上輪數字。資料源 repo 與各自量測層：
 
 | Repo | 量測層 |
 |---|---|
