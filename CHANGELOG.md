@@ -1,5 +1,12 @@
 # Changelog
 
+## session-recall 0.9.10
+
+A command that reads a session's transcript (`~/.claude/projects/…`) or this mod's own state (`~/.local/state/session-recall/…`) adds no link row: the links it prints come from old turns, cut or whole, not from anything it made. Measured on one frozen corpus of 509 transcripts: 11 of 225 per-call URL hits leave, all from such scripts (a staging API URL quoted in an old turn, `https://s` and other URLs cut at a column, a substack redirect, `terrain.o17y317.uk` from a scan of the terrain session). A commit, a push and a picture the command saved are read as before. At the next start, 0.9.9's prune can remove such rows already on the band, within its limits (below in 0.9.9).
+
+- Reading means the path is in a script fed to an interpreter (`python3 - <<'EOF'`, `ssh host 'python3 -' <<'EOF'`), in an interpreter's `-c`/`-e` code (`bash -lc` too), or an unquoted argument (`cd`, a file). Naming it is not reading it: a commit message, a PR body, release notes, a comment, a note a `cat` heredoc writes, posted data, `my.claude/projects` or `.claude/projects-old` keep their URLs. A command that runs a deploy, publish, release or upload (outside its quoted text, heredocs and comments) is never judged here, as with the listing cap.
+- A script that gets the path some other way (a quoted path such as `"$HOME/.claude/projects"`, an argument it builds, a default inside the file) is not caught: `bun prune-sim.ts <mod> <sid>` still added `127.0.0.1:8787` from the state it printed.
+
 ## session-recall 0.9.9
 
 A noise fix now shows on the band at the next start, not once 80 newer rows push the old ones out. Seen on the real screen after 0.9.8: this session's top four rows were still the `diff` output 0.9.8 drops, kept from before the update. At each start the replay reads the transcript with this version's rules, and a link row leaves when the call that made it (same label, did not fail) shows its URL in the transcript and those rules no longer keep it. Simulated on the live sessions' stored lists: this session 11 of 51 leave (the `diff` rows, the Cloudflare walls, the `gh api` docs links), automation 2 of 57 (a Cloudflare Access login, a `127.0.0.1:8787` a read-only `ssh … grep/ps/find` printed), terrain 0 of 18, the old terrain session 0 of 51.

@@ -209,6 +209,35 @@ describe('pointing and checking', () => {
     expect(['fd -e html -x wrangler pages deploy {}', 'fd -e zip -X gh release upload v1', 'fd . --exec-batch wrangler deploy'].map(c => call('Bash', { command: c }, 'https://y.pages.dev').length), 'fd -x / -X run a program').toEqual([1, 1, 1])
     expect(call('Bash', { command: 'curl -s --data @<(cat body.json) $A/publish' }, 'https://pub.x.uk/a/2').map(a => a.ref), 'a file read into <( ) is not printed').toEqual(['https://pub.x.uk/a/2'])
     expect(['comm a b', 'fd x', 'file f', 'du -sh d', 'tr a b', 'column -t', 'nl f', 'basename p', 'dirname p', 'realpath p', 'which x'].map(c => call('Bash', { command: c }, 'https://x.dev/r').length)).toEqual(Array(11).fill(0))
+    // A script that mines a transcript or this mod's state prints old links; one that only runs nearby still counts.
+    expect(call('Bash', { command: "python3 - <<'EOF'\nimport json\np='/root/.claude/projects/-w/a.jsonl'\nEOF" }, 'https://stg.app.cc/api/save\nhttps://s')).toEqual([])
+    expect(call('Bash', { command: 'cd ~/.claude/projects/-w && python3 scan.py' }, 'https://terrain.x.uk')).toEqual([])
+    expect(call('Bash', { command: 'node dump.mjs ~/.local/state/session-recall/a.json' }, 'http://127.0.0.1:8787')).toEqual([])
+    expect(call('Bash', { command: 'node serve.mjs ~/.claude/settings.json' }, 'http://127.0.0.1:8787').map(a => a.ref)).toEqual(['http://127.0.0.1:8787'])
+    expect(call('Bash', { command: `ssh mini 'python3 -' <<'EOF'\nf='/root/.claude/projects/-w/a.jsonl'\nEOF` }, 'https://chatgpt.com/codex/settings/usage')).toEqual([])
+    expect(call('Bash', { command: `python3 -c "import json; d=json.load(open('/root/.claude/projects/-w/a.json'))"` }, 'https://substack.com/redirect/2/x')).toEqual([])
+    // Naming the path is not reading it: a message, a comment, a note a heredoc `cat` writes, posted data, another dir; a deploy keeps its URL.
+    expect([
+      ['wrangler pages deploy dist --commit-message "fix reading ~/.claude/projects"', 'https://x.pages.dev'],
+      ['gh pr create --title t --body "script reads ~/.claude/projects/*.jsonl"', 'https://github.com/o/r/pull/9'],
+      [`gh pr create --body "$(cat <<'EOF'\nreads ~/.claude/projects\nEOF\n)"`, 'https://github.com/o/r/pull/10'],
+      ['gh release create v1 --notes "state in ~/.local/state/session-recall"', 'https://github.com/o/r/releases/tag/v1'],
+      ['cd ~/.claude/projects/-w && wrangler pages deploy dist', 'https://y.pages.dev'],
+      ['npx vercel --prod # was in ~/.claude/projects', 'https://p.vercel.app'],
+      [`cat <<EOF > notes.md\nsee ~/.claude/projects\nEOF\nnpx vercel --prod`, 'https://q.vercel.app'],
+      [`curl -X POST $A/publish -d '{"n":"~/.claude/projects"}'`, 'https://pub.x.uk/a/2'],
+      ['cd /root/my.claude/projects/app && npm run dev', 'http://localhost:5173/'],
+      ['cd ~/.claude/projects-old && npm run dev', 'http://localhost:5174/'],
+      ['vercel --prod -e "DIR=~/.claude/projects"', 'https://r.vercel.app'],
+      ['docker run -e "X=~/.claude/projects" img', 'http://127.0.0.1:8080'],
+    ].map(([command, out]) => call('Bash', { command }, out).map(a => a.ref))).toEqual([['https://x.pages.dev'], ['https://github.com/o/r/pull/9'], ['https://github.com/o/r/pull/10'], ['https://github.com/o/r/releases/tag/v1'], ['https://y.pages.dev'], ['https://p.vercel.app'], ['https://q.vercel.app'], ['https://pub.x.uk/a/2'], ['http://localhost:5173/'], ['http://localhost:5174/'], ['https://r.vercel.app'], ['http://127.0.0.1:8080']])
+    // A mining script that says "deploy" in its code or a comment is still a read; `bash -lc` is code too.
+    expect(call('Bash', { command: `python3 - <<'EOF'\n# find deploy urls\nglob.glob('/root/.claude/projects/*/*.jsonl')\nEOF` }, 'https://stg.app.cc/api/save')).toEqual([])
+    expect(call('Bash', { command: 'python3 scan.py ~/.claude/projects --dry-run # release scan' }, 'https://stg.app.cc/api/save')).toEqual([])
+    expect(call('Bash', { command: `bash -lc "grep -h http ~/.claude/projects/-w/*.jsonl | python3 x.py"` }, 'https://stg.app.cc/api/save')).toEqual([])
+    // A commit, a push and a saved picture are read before the history check.
+    expect(call('Bash', { command: 'git commit -m "x" && python3 scan.py ~/.claude/projects/-w' }, '[main abc1234] scan transcripts').map(a => a.kind)).toEqual(['commit'])
+    expect(call('Bash', { command: 'python3 shot.py ~/.claude/projects/-w' }, 'saved to /tmp/shot.png').map(a => a.kind)).toEqual(['image'])
     expect(call('Bash', { command: 'grep -rhoE "https://t\\.uk[^\'\\"` )]*" src | sort -u | head' }, 'https://t.uk/data')).toEqual([])
     expect(call('Bash', { command: 'R=$(curl -s https://api.x.dev/deploy); echo "$R"' }, 'https://made.dev/2').map(a => a.ref), 'a program inside $( ) still counts').toEqual(['https://made.dev/2'])
     // A file read into a variable is not printed: the page the PUT made, the login link the CLI printed, stay.

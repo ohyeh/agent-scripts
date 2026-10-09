@@ -149,6 +149,8 @@ export function assetsOf(c: Call): Asset[] {
   // A `.git` URL is a remote to clone or push to (`git push` prints `To <remote>`), not a page.
   // A test run prints its fixtures (`tui-smoke.sh` showed a screen of made-up rows): its URLs are not pages it made.
   if (c.tool === 'Bash' && isTestRun(String(c.input.command ?? ''))) return out
+  // A script that reads a session's transcript or this mod's state prints links from old turns, not ones it made.
+  if (c.tool === 'Bash' && readsHistory(String(c.input.command ?? ''))) return out
   const urls = extractUrls(text).filter(url => !given.includes(url) && !isLocalNoise(url) && !/\.git\/?$/.test(url))
   // More remote URLs than a deploy prints (a page and its preview) is a list it printed: an index, a catalog, a scan of a
   // transcript; its links are data, not what the call made. A dev server's local URLs stay (`--host` prints one per
@@ -234,6 +236,19 @@ export function shortDir(path: string, c: { home: string; cwd: string }): string
   return c.home && (dir === c.home || dir.startsWith(`${c.home}/`)) ? `~${dir.slice(c.home.length)}` : dir
 }
 
+const HISTORY_RE = /(?:^|[\s'"=:(])(?:~|\$HOME|\$\{HOME\}|\/Users\/[^/\s'"]+|\/home\/[^/\s'"]+|\/root)\/\.(?:claude\/projects|local\/state\/session-recall)(?=$|[/\s'")])/m
+const INTERPRETER_RE = /(?:^|[\s;&|(])(?:python3?|node|bun|deno|ruby|perl|ssh|sh|bash|zsh)(?=$|[\s'"])/
+/**
+ * A program reads a transcript or this mod's state: the path is in a script's heredoc, in `-c`/`-e` code, or an
+ * unquoted argument (`cd`, a file). A message, a comment or a heredoc `cat` writes only names it; a deploy is kept.
+ */
+export function readsHistory(command: string): boolean {
+  const bare = quoted(withoutHeredocs(command)).replace(/(?:^|\s)#[^\n]*/g, '')
+  if (DEPLOY_RE.test(bare)) return false
+  const scripts = [...command.matchAll(/([^\n]*)<<-?\s*(['"]?)(\w+)\2[^\n]*\n([\s\S]*?)\n\s*\3\s*(?=\n|$)/g)].filter(m => INTERPRETER_RE.test(m[1]!)).map(m => m[4]!)
+  const code = [...command.matchAll(/([^\n;&|]*)\s-\w*[ce]\s+("(?:[^"\\]|\\.)*"|'[^']*')/g)].filter(m => INTERPRETER_RE.test(m[1]!)).map(m => m[2]!)
+  return [...scripts, ...code, bare].some(t => HISTORY_RE.test(t))
+}
 const basename = (p: string) => p.slice(p.lastIndexOf('/') + 1) || p
 
 /** URLs in text, trailing punctuation and unbalanced closers trimmed, deduped, login walls dropped. */
