@@ -1,5 +1,13 @@
 # Changelog
 
+## session-recall 0.9.8
+
+More read-only commands are read as reads, and a command's programs are found where the shell runs them. Measured as per-call URL hits on the live path, 0.9.7 and 0.9.8 run on the same files (509 transcripts over 20 KB from 14 days, plus frozen copies of the three live sessions): 9 fewer, 8 from `diff <(cut …) <(cut …) | grep` analysis in this session and 1 a `printf` fixture; none added, no real page lost. Two pages the first draft dropped are kept and tested: a page a `curl -X PUT` published, read back with `U=$(jq -r .url r.json)`, and the login link `wrangler login` printed, found with `U=$(grep -oE … $L)`.
+
+- Reads: `diff`, `comm`, `find`, `fd`, `stat`, `file`, `du`, `tr`, `column`, `nl`, `printf`, `basename`, `dirname`, `realpath`, `which`.
+- A program inside `$( )`, `<( )` or `( )` counts, and so does `"$(curl …)"` in double quotes. A bare `SP=/x;` is no program, and an escaped `\"` does not end a quote.
+- A program inside `$( )` or `<( )` never makes the command a reader by printing a file: its output goes into the command, not to the screen.
+
 ## session-recall 0.9.7
 
 The browser tab a call ran in is not what it made. Claude in Chrome ends every result with the tab it used (`• tabId 1: "title" ("url")`): each click, screenshot, `find` or script on one page added that page again and moved it back to the top of the band, above what the session made. Measured as per-call URL hits on the live path (transcripts over 20 KB, 14 days, before the band merges duplicates): 487, 165 of them from `computer` alone (one form page 63 times). Now 247; every removed hit was a tab line (`computer` 165, `javascript_tool` 37, `find` 19, `tabs_context` 4, `browser_batch` 3) or an API error's docs link (12, `gh api`'s `"documentation_url"`). No hit was added.

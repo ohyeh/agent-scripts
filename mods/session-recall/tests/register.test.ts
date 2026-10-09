@@ -201,6 +201,13 @@ describe('pointing and checking', () => {
     expect(assetsOfText('see https://discord.com/channels/1/2', 'you', { home: HOME, cwd: '/w' }).map(a => a.kind), 'a link you paste is one to open: a url row').toEqual(['url'])
     expect(call('Bash', { command: 'sleep 15; tmux capture-pane -p -t sa4 -S -60 | grep -vE "^$" | tail -30', description: 'Read the pane' }, 'https://reply-only.dev/42')).toEqual([])
     expect(call('Bash', { command: 'cd web && cat log.txt | rg http' }, 'http://localhost:5173/')).toEqual([])
+    expect(call('Bash', { command: 'SP=/s; diff <(cut -f2 $SP/a.tsv | sort) <(cut -f2 $SP/b.tsv | sort) | grep "^<"' }, '< https://x.com/search?q=a')).toEqual([])
+    expect(call('Bash', { command: 'find ~/.claude -name "*.jsonl" | head; stat -f %Sm f' }, 'https://x.dev/in-a-name')).toEqual([])
+    expect(call('Bash', { command: 'grep -rhoE "https://t\\.uk[^\'\\"` )]*" src | sort -u | head' }, 'https://t.uk/data')).toEqual([])
+    expect(call('Bash', { command: 'R=$(curl -s https://api.x.dev/deploy); echo "$R"' }, 'https://made.dev/2').map(a => a.ref), 'a program inside $( ) still counts').toEqual(['https://made.dev/2'])
+    // A file read into a variable is not printed: the page the PUT made, the login link the CLI printed, stay.
+    expect(call('Bash', { command: 'echo "put: $(curl -s -X PUT --data x $A/api/a/new/t.html)"\nU=$(jq -r .url /tmp/r.txt); echo "$U"' }, 'put: {"url":"https://pub.x.uk/a/1/t.html"}').map(a => a.ref)).toEqual(['https://pub.x.uk/a/1/t.html'])
+    expect(call('Bash', { command: '(wrangler login > $L 2>&1 &); U=$(grep -oE "https://dash[^ ]+" $L | head -1); open "$U"' }, 'https://dash.x.com/oauth2/auth?code=1').map(a => a.ref)).toEqual(['https://dash.x.com/oauth2/auth?code=1'])
     expect(call('Bash', { command: 'npm run dev | tee log', description: 'Start dev server' }, 'http://localhost:5173/').map(a => a.ref)).toEqual(['http://localhost:5173/'])
     expect(call('Bash', { command: 'H=$(git rev-parse x); tmux send-keys -t a "$H" Enter', description: 'Send' }, 'https://made.dev/1').map(a => a.ref)).toEqual(['https://made.dev/1'])
     expect(call('Bash', { command: 'git push origin main && claude plugin update x; rg -n "fetch" -A25 types/index.d.ts | rg source', description: 'Push, update install' }, 'To https://github.com/o/r.git\n   1a2b3c4..5d6e7f8  main -> main\nurl: "https://react.dev/x", url: "https://vuejs.org/y"').map(a => a.ref), 'a file read in the same command: its URLs are not kept, the push is').toEqual(['https://github.com/o/r/compare/1a2b3c4...5d6e7f8'])

@@ -410,7 +410,8 @@ export function shasIn(text: string): string[] {
 export const sessionIdsIn = (text: string) => [...new Set(text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g) ?? [])]
 
 // Programs that only print what they read; `tmux` and `git` count only with a reading subcommand.
-const READERS = /^(?:cat|head|tail|sed|less|grep|rg|jq|yq|wc|sort|uniq|cut|awk|bat|ls|cd|echo|sleep|true|tmux (?:capture-pane|ls|list-\w+)|git (?:log|show|diff|blame|status|grep))$/
+// shortcut: `find -exec`/`-delete` and `printf > file` are not reads, but print no URLs; split them out if one does.
+const READERS = /^(?:cat|head|tail|sed|less|grep|rg|jq|yq|wc|sort|uniq|cut|awk|bat|ls|cd|echo|sleep|true|diff|comm|find|fd|stat|file|du|tr|column|nl|printf|basename|dirname|realpath|which|tmux (?:capture-pane|ls|list-\w+)|git (?:log|show|diff|blame|status|grep))$/
 // Readers that print a file or a screen (`agent-browser eval` returns a page's text): by name and positional arguments (a filter's first one is its pattern or script).
 const SHOWS = /^(?:tmux capture-pane|agent-browser (?:eval|snapshot|get)|git (?:log|show|diff|blame|grep))$/
 // A test runner by name (`npm test`, `pytest`), or a script that says it is one: named `*-smoke`, `test-*`, or in `tests/`.
@@ -443,12 +444,16 @@ export function isTestRun(command: string): boolean {
   return progs.length > 0 && progs.every(isTest)
 }
 /** The command's programs, each as its words: heredoc bodies and quoted text out, leading `VAR=x` assignments dropped. */
-const segmentsOf = (command: string) =>
-  withoutHeredocs(command)
-    .replace(/"[^"]*"|'[^']*'/g, 'Q')
-    .split(/&&|\|\||[;|\n]/)
-    .map(seg => seg.trim().replace(/^(?:\w+=\S*\s+)*(?:timeout\s+(?:-\S+\s+)*\S+\s+)?/, '').split(/\s+/).filter(Boolean))
+const segmentsOf = (command: string, outer = false) =>
+  ((s: string) => outer ? capturedOut(s) : s)(quoted(withoutHeredocs(command)))
+    // `diff <(cut a) <(cut b)` and `x=$(curl …)` run programs inside the brackets too.
+    .split(/&&|\|\||[;|\n]|[<>$]?\(|\)/)
+    .map(seg => seg.trim().replace(/^(?:\w+=\S*(?:\s+|$))*(?:timeout\s+(?:-\S+\s+)*\S+\s+)?/, '').split(/\s+/).filter(Boolean))
     .filter(w => w.length)
+/** Quoted text is not a program, but `"$(curl …)"` runs one: a double quote keeps its `$( )`. */
+const quoted = (s: string) => s.replace(/"((?:[^"\\]|\\.)*)"|'[^']*'/g, (_, d?: string) => ['Q', ...(d?.match(/\$\([^()]*\)/g) ?? [])].join(' '))
+/** The command with what `$( )` and `<( )` capture taken out: those programs print into the command, not to you. */
+const capturedOut = (s: string): string => { const t = s.replace(/[<$]\([^()]*\)/g, 'Q'); return t === s ? s : capturedOut(t) }
 /** The command without its heredoc bodies: text a program reads (`python3 - <<'EOF' … EOF`), not commands. */
 const withoutHeredocs = (command: string) => command.replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?=\n|$)/g, '')
 
@@ -464,9 +469,10 @@ export function isReader(command: string): boolean {
   const remote = /^\s*(?:timeout\s+\S+\s+)?ssh\s+(?:-\S+(?:\s+(?!-)[^\s'"]+)?\s+)*[^\s'"-]\S*\s+(['"])([\s\S]*)\1(?:\s+\d?>&?\s*\S+)*\s*$/.exec(command)
   if (remote) return isReader(remote[2]!)
   const progs = segmentsOf(command)
+  // Only what reaches the screen counts as printed: `U=$(jq -r .url r.json)` reads a file into a variable.
   const shows = (w: string[]) => SHOWS.test(`${w[0]} ${w[1] ?? ''}`) || w.slice(1).filter(a => !a.startsWith('-') && !/^\d+$/.test(a)).length >= (FILE_ARGS[w[0]!] ?? Infinity)
   const reads = (w: string[]) => READERS.test(w[0]!) || READERS.test(`${w[0]} ${w[1] ?? ''}`)
-  return progs.length > 0 && (progs.every(reads) || progs.some(shows))
+  return progs.length > 0 && (progs.every(reads) || segmentsOf(command, true).some(shows))
 }
 
 /** `/recall list` groups by when: today, this week, older (a replayed entry has no time of its own). */
