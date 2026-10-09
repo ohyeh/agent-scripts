@@ -1,10 +1,10 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { assetsOf, extractUrls, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
+import { assetsOf, cut, extractUrls, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
 
 const HOME = '/h/me'
-const call = (tool: string, input: Record<string, unknown>, text = '') => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w' })
+const call = (tool: string, input: Record<string, unknown>, text = '', readOnly = false) => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w', readOnly })
 
 describe('extractUrls', () => {
   test('trims punctuation and unbalanced closers, keeps balanced ones, dedups', async () => {
@@ -16,6 +16,10 @@ describe('extractUrls', () => {
     // Vite colours the URL and bolds the port inside it.
     expect(extractUrls('  ➜  Local:   \u001b[36mhttp://localhost:\u001b[1m5173\u001b[22m/\u001b[39m\n')).toEqual(['http://localhost:5173/'])
     expect(extractUrls('a\u0007http://x.dev/p\u0000q')).toEqual(['http://x.dev/p'])
+  })
+
+  test('markdown bold around a URL is not part of it', async () => {
+    expect(extractUrls('Preview: **https://x.dev/p**')).toEqual(['https://x.dev/p'])
   })
 })
 
@@ -57,10 +61,18 @@ describe('assetsOf', () => {
     expect(out.map(a => [a.kind, a.ref, a.where])).toEqual([['image', '/tmp/s/home.png', '/tmp/s'], ['image', `${HOME}/Desktop/a.png`, '~/Desktop']])
   })
 
+  test('a picture URL is a url, not an image path', async () => {
+    expect(call('Bash', { command: 'deploy', description: 'Deploy' }, 'see https://cdn.x.dev/img/logo.png and file:///h/me/a.png').map(a => [a.kind, a.ref])).toEqual([
+      ['url', 'https://cdn.x.dev/img/logo.png'],
+    ])
+  })
+
   test('git commit output is a commit with its subject and branch', async () => {
-    expect(call('Bash', { command: 'git add -A && git commit -q -m x && git log --oneline -1' }, '[main 9685ae2] fix(session-assets): strip ANSI\n 3 files changed')).toEqual([
+    expect(call('Bash', { command: 'git add -A && git commit -m x' }, '[main 9685ae2] fix(session-assets): strip ANSI\n 3 files changed, 9 insertions(+)')).toEqual([
       { kind: 'commit', ref: '9685ae2', label: 'fix(session-assets): strip ANSI', where: 'main', isLocal: true },
     ])
+    // Mid-rebase or bisect, git prints `detached HEAD` where the branch goes.
+    expect(call('Bash', { command: 'git commit -m y' }, '[detached HEAD 1a2b3c4] fix thing\n 1 file changed').map(a => [a.ref, a.where])).toEqual([['1a2b3c4', 'detached HEAD']])
     expect(call('Bash', { command: 'cat notes' }, '[main 9685ae2] looks like a commit'), 'not a git commit command').toEqual([])
   })
 
@@ -73,9 +85,29 @@ describe('assetsOf', () => {
     expect(call('Artifact', { action: 'read', url: 'https://claude.ai/code/artifact/abc-123' }, text)).toEqual([])
   })
 
+  test('a read-only call and context-mode reads add nothing', async () => {
+    expect(call('Bash', { command: 'rg -n https docs/' }, 'docs/a.md:3: https://x.dev/a', true)).toEqual([])
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_search', {}, 'https://x.dev/a')).toEqual([])
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', {}, 'http://localhost:3000/').map(a => a.ref)).toEqual(['http://localhost:3000/'])
+  })
+
+  test('a ref too long to open is not kept', async () => {
+    expect(call('Bash', { command: 'x' }, `https://x.dev/${'a'.repeat(3000)}`)).toEqual([])
+  })
+
   test('file and page readers add nothing', async () => {
     for (const tool of ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch']) expect(call(tool, { file_path: '/a.png' }, 'https://x.dev /b.png')).toEqual([])
   })
+})
+
+test('cut keeps whole groups and counts the rest as assets, not lines', async () => {
+  const g = [['1'], ['2'], ['3', '3+'], ['4']]
+  const more = (n: number) => `+${n}`
+  expect(cut(g, 9, more)).toEqual(['1', '2', '3', '3+', '4'])
+  expect(cut(g, 4, more)).toEqual(['1', '2', '+2'])
+  expect(cut(g, 1, more)).toEqual(['1'])
+  // The newest row shows even when its open detail does not fit with it.
+  expect(cut([['1', '1+'], ['2']], 2, more)).toEqual(['1', '+1'])
 })
 
 test('an asset seen again moves to the top with its new label', async () => {

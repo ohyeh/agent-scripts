@@ -20,7 +20,7 @@ export type Entry = Asset & {
 }
 
 /** One tool call as the mod sees it after the tool ran. */
-export type Call = { tool: string; input: Record<string, unknown>; text: string; home: string; cwd: string }
+export type Call = { tool: string; input: Record<string, unknown>; text: string; home: string; cwd: string; readOnly?: boolean }
 
 /** Per session: the band shows a handful, the rest only scroll away. */
 export const MAX_ENTRIES = 80
@@ -28,23 +28,28 @@ export const MAX_ENTRIES = 80
 const PER_CALL = 5
 // Tools whose output is file or page content: what they print is not something this session made.
 const SKIP = new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch'])
+// context-mode's reads: search an index or fetch a page.
+const SKIP_RE = /^mcp__.*__ctx_(search|fetch_and_index|index)$/
+/** A ref longer than this is not something a person opens; it would only fill the store. */
+const MAX_REF = 2048
 const WRITERS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|heic)$/i
 
 // A dev server prints its URL in ANSI colour, the port bold inside it: escapes go first, other control characters end a URL.
 const ANSI_RE = /\u001b\[[0-9;?]*[ -\/]*[@-~]/g
 const URL_RE = /\bhttps?:\/\/[^\s<>"'`|\\^{}\u0000-\u001f\u007f-\u009f]+/g
-// An absolute or ~ path to a picture, as a screenshot tool prints it.
-const IMAGE_PATH_RE = /(?:^|[\s'"(=:])((?:~|\/)[^\s'"<>()|:\u0000-\u001f]*\.(?:png|jpe?g|gif|webp|svg|heic))(?=$|[\s'")\],.;:])/gim
-// `git commit` prints `[branch hash] subject` (or `[branch (root-commit) hash]`).
-const COMMIT_RE = /^\[([^\]\s]+)(?: \(root-commit\))? ([0-9a-f]{7,40})\] (.+)$/m
+// An absolute or ~ path to a picture, as a screenshot tool prints it; `//` is a URL's tail (`https://h/x.png`), not a path.
+const IMAGE_PATH_RE = /(?:^|[\s'"(=:])((?:~|\/(?!\/))[^\s'"<>()|:\u0000-\u001f]*\.(?:png|jpe?g|gif|webp|svg|heic))(?=$|[\s'")\],.;:])/gim
+// `git commit` prints `[branch hash] subject`, `[branch (root-commit) hash]`, or `[detached HEAD hash]`.
+const COMMIT_RE = /^\[([^\]\n]+?)(?: \(root-commit\))? ([0-9a-f]{7,40})\] (.+)$/m
 
 /** Every asset one tool call made or printed, deduped by ref, first PER_CALL. */
 export function assetsOf(c: Call): Asset[] {
-  if (SKIP.has(c.tool)) return []
+  // A read-only call (Bash `cat`, `rg`) prints what it read, not what this session made.
+  if (c.readOnly || SKIP.has(c.tool) || SKIP_RE.test(c.tool)) return []
   const out: Asset[] = []
   const add = (a: Asset) => {
-    if (out.length < PER_CALL && !out.some(x => x.ref === a.ref)) out.push(a)
+    if (out.length < PER_CALL && a.ref.length <= MAX_REF && !out.some(x => x.ref === a.ref)) out.push({ ...a, label: a.label.slice(0, 200) })
   }
   const text = c.text.replace(ANSI_RE, '')
   const path = typeof c.input.file_path === 'string' ? c.input.file_path : typeof c.input.notebook_path === 'string' ? c.input.notebook_path : ''
@@ -99,7 +104,7 @@ const basename = (p: string) => p.slice(p.lastIndexOf('/') + 1) || p
 export function extractUrls(text: string): string[] {
   const out: string[] = []
   for (const raw of text.replace(ANSI_RE, '').match(URL_RE) ?? []) {
-    let url = raw.replace(/[.,;:!?'"]+$/, '')
+    let url = raw.replace(/[.,;:!?'"*]+$/, '')
     while (/[)\]]$/.test(url) && count(url, url.endsWith(')') ? '(' : '[') < count(url, url.slice(-1))) url = url.slice(0, -1)
     if (hostOf(url) && !out.includes(url)) out.push(url)
   }
@@ -155,6 +160,18 @@ export function fit(t: string, max: number): string {
   }
   return max > 0 ? `${out}…` : ''
 }
+/** Whole groups that fit in `room` lines; when some do not, the last line says how many are left. One line left: the newest row alone. */
+export function cut<T>(groups: T[][], room: number, more: (n: number) => T): T[] {
+  if (groups.flat().length <= room) return groups.flat()
+  if (room <= 1) return groups[0]?.slice(0, Math.max(0, room)) ?? []
+  const out: T[] = []
+  let n = 0
+  while (n < groups.length && out.length + groups[n]!.length <= room - 1) out.push(...groups[n++]!)
+  // The newest row shows even when its open detail does not fit with it.
+  if (!n) out.push(groups[n++]![0]!)
+  return [...out, more(groups.length - n)]
+}
+
 export const ago = (ms: number) =>
   ms < 60_000 ? `${Math.max(0, Math.round(ms / 1000))}s` : ms < 3600_000 ? `${Math.round(ms / 60_000)}m` : ms < 86_400_000 ? `${Math.round(ms / 3600_000)}h` : `${Math.round(ms / 86_400_000)}d`
 /**

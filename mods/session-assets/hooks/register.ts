@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Entry, ago, assetsOf, cells, clean, fit, glyphOf, merge, rowsOf } from './lib/assets.ts'
+import { type Entry, ago, assetsOf, cells, clean, cut, fit, glyphOf, merge, rowsOf } from './lib/assets.ts'
 
 const MOD_VERSION = '0.1.0'
 /** One store key per session: a shared list would be a read-modify-write race between sessions. */
@@ -45,13 +45,14 @@ async function others(s: State, $: $): Promise<Entry[]> {
   return out.sort((a, b) => b.at - a.at)
 }
 
+const errText = (err: unknown) => `${(err as Error)?.name ?? 'Error'}: ${String((err as Error)?.message ?? err)}`
+
+/** The band follows at once; a store that refuses the write only loses the setting across reloads. */
 async function setHidden(s: State, $: $, hidden: boolean) {
   s.hidden = hidden
-  await $.store.set(PANEL_KEY, hidden ? 'hidden' : 'shown')
   $.ui.invalidate('ui.render')
+  await $.store.set(PANEL_KEY, hidden ? 'hidden' : 'shown').catch(err => $.ui.log(`session-assets: panel state not saved (${errText(err)})`, { to: 'debug' }))
 }
-
-const errText = (err: unknown) => `${(err as Error)?.name ?? 'Error'}: ${String((err as Error)?.message ?? err)}`
 
 /** Opens a URL in the browser or a path in its default app; a commit has nothing to open. */
 async function openAsset($: $, e: Entry): Promise<string> {
@@ -68,6 +69,9 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
     s.cwd = e.cwd
+    // A resumed session starts with nothing open: row N of the last one is another entry here.
+    s.open = undefined
+    s.others = false
     s.project = e.cwd.split('/').filter(Boolean).pop() ?? ''
     s.home = (await $.env.get('HOME').catch(() => undefined)) ?? ''
     s.hidden = (await $.store.get(PANEL_KEY)) === 'hidden'
@@ -112,7 +116,7 @@ export const register: Register = on => {
     if (('deny' in ran && ran.deny) || ran.isError) return ran
     // Bookkeeping must never cost the model its tool result.
     try {
-      const found = assetsOf({ tool: e.tool, input: e as unknown as Record<string, unknown>, text: typeof ran.text === 'string' ? ran.text : '', home: s.home, cwd: s.cwd })
+      const found = assetsOf({ tool: e.tool, input: e as unknown as Record<string, unknown>, text: typeof ran.text === 'string' ? ran.text : '', home: s.home, cwd: s.cwd, readOnly: ran.isReadOnly === true })
       if (!found.length) return ran
       const at = await $.clock.now()
       const fresh: Entry[] = found.map(a => ({ ...a, project: s.project, at }))
@@ -181,7 +185,8 @@ export const register: Register = on => {
           Text({ dimColor: true, children: x.kind === 'commit' ? '' : `  /assets open ${i + 1}` }),
         ],
       })
-    const lines = list.flatMap((x, i) => [row(x, String(i + 1).padStart(2), ''), ...(i === s.open ? [detail(x, i)] : [])])
+    // One group per asset, the open row's detail inside its group: `+N more` counts assets, never a detail line.
+    const groups = list.map((x, i) => [row(x, String(i + 1).padStart(2), ''), ...(i === s.open ? [detail(x, i)] : [])])
     const otherLines = rest.length
       ? [
         Button({ key: 'others', label: `${s.others ? '▾' : '▸'} other sessions: ${rest.length}`, dimColor: true, onPress: () => {
@@ -195,7 +200,7 @@ export const register: Register = on => {
     // Other sessions keep their one line when there is room; this session's rows give way first.
     const keep = otherLines.length && room > 1 ? otherLines.slice(0, Math.max(1, room - 1)) : []
     const left = room - keep.length
-    const shown = lines.length <= left ? lines : left <= 1 ? lines.slice(0, left) : [...lines.slice(0, left - 1), Text({ dimColor: true, children: `  +${lines.length - left + 1} more — /assets N` })]
+    const shown = cut(groups, left, n => Text({ dimColor: true, children: `  +${n} more — /assets N` }))
     return Box({ flexDirection: 'column', children: [below, header, ...shown, ...keep] })
   })
 }
