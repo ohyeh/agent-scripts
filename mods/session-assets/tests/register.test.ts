@@ -58,8 +58,8 @@ describe('assetsOf', () => {
   })
 
   test('git commit output is a commit with its subject and branch', async () => {
-    expect(call('Bash', { command: 'git add -A && git commit -q -m x && git log --oneline -1' }, '[main 9685ae2] fix(url-library): strip ANSI\n 3 files changed')).toEqual([
-      { kind: 'commit', ref: '9685ae2', label: 'fix(url-library): strip ANSI', where: 'main', isLocal: true },
+    expect(call('Bash', { command: 'git add -A && git commit -q -m x && git log --oneline -1' }, '[main 9685ae2] fix(session-assets): strip ANSI\n 3 files changed')).toEqual([
+      { kind: 'commit', ref: '9685ae2', label: 'fix(session-assets): strip ANSI', where: 'main', isLocal: true },
     ])
     expect(call('Bash', { command: 'cat notes' }, '[main 9685ae2] looks like a commit'), 'not a git commit command').toEqual([])
   })
