@@ -135,6 +135,11 @@ describe('prose and transcript', () => {
     ], at)
     expect(out.map(a => [a.kind, a.label])).toEqual([['artifact', 'Demo']])
   })
+
+  test('a reply and a tool in one message that name the same URL: the tool label wins, as live', async () => {
+    const out = assetsOfTranscript([{ role: 'assistant', text: 'Dev: http://localhost:5173/', toolUses: [{ tool: 'Bash', input: { command: 'npm run dev', description: 'Start dev server' }, text: 'http://localhost:5173/' }] }], at)
+    expect(out.map(a => a.label).at(-1)).toBe('Start dev server')
+  })
 })
 
 test('cut keeps whole groups and counts the rest as assets, not lines', async () => {
