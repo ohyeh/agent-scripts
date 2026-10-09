@@ -4,6 +4,12 @@
 
 - An event log you can replay (agent-scripts W42-8; W40-3's four unmet clauses). Each session appends one JSON line per `watch`, `armed` (the bot was seen working), `wake`, `lost` and `unwatch` to `~/.claude/grok-bot-watch/events/<session>.jsonl`. A line holds the bot, the watch generation, a hash of the reply (never its text), and for a watch or unwatch `via` (`tool` = the model, `command` / `panel` = a person) and `prior` (the bot was already watched: a re-watch). `bin/replay.mjs [files]` counts the four classes: `resent` (the same reply delivered twice; must be 0), `sameText` (a new reply with the same text, after the bot worked), `rewatch` by `via`, and `afterUnwatch` (must be 0). It exits 1 when a defect class is not 0. A log write that fails is a debug line, never a lost wake. The file grows with the session (one read and rewrite per line, because the engine has no append); `permissions.txt` adds `$.env.get` HOME and `$.fs.exists/read/write`.
 
+## session-assets 0.7.3
+
+- A link you paste in a prompt is a band row (`you: …`), to open, copy or reply to; before, it was a source, counted and listed but never a row. The core need is links that come up in the conversation, and the ones you paste are among them.
+- A link already listed keeps its row and label when you paste it back (copied from a row) or Claude reads it (`WebFetch`): before, a paste turned a dev server's row into `you: …`, and a fetch turned a pasted link into a source with no row.
+- Sources are now only the pages Claude read. A page Claude read becomes a link row when you paste it or a reply points at it (in the replay too), and a page read again takes its newest label and time.
+
 ## session-assets 0.7.2
 
 - Two pushes in one Bash call (`git push && … && git push -f`) are one row, the compare view from the first to the last. A call's assets are recorded last-first (the first found is the top row), so the later push was listed before the earlier one and the two did not join. A call's pushes are now recorded in the order they ran. Chaining stays one way, a push to the one before it: a later push that ends where an earlier one began (someone else pushed in between) stays its own row.

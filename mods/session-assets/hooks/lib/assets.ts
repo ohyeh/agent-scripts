@@ -128,7 +128,7 @@ export function assetsOfText(text: string, who: 'reply' | 'you', c: { home: stri
     if (out.length >= PER_CALL) break
     const line = plain.split('\n').find(l => l.includes(url)) ?? ''
     const said = clean(line.replace(URL_RE, ' ').replace(/[*_`#>\[\]()<>|]+|^\s*[-+]\s+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\s*[:：—-]$/, ''), 60)
-    if (url.length <= MAX_REF && !isLocalNoise(url)) out.push({ kind: who === 'you' ? 'source' : 'url', ref: url, label: said ? `${who}: ${said}` : who, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
+    if (url.length <= MAX_REF && !isLocalNoise(url)) out.push({ kind: 'url', ref: url, label: said ? `${who}: ${said}` : who, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   }
   for (const m of plain.matchAll(IMAGE_PATH_RE)) {
     // Compared as stored: `~/a.png` is kept as the home path.
@@ -149,8 +149,9 @@ export function assetsOfTranscript(msgs: readonly { role: string; text: string; 
   const out: Asset[] = []
   for (const m of msgs) {
     if (m.role !== 'assistant') continue
-    // As live: a reply adds only a URL nothing named before, so it never turns an artifact or a tool's URL into `reply: …`.
-    out.push(...assetsOfText(m.text, 'reply', c).filter(a => !out.some(x => x.ref === a.ref)))
+    // As live: a reply adds only a URL nothing named before, so it never turns an artifact or a tool's URL into `reply: …`;
+    // a page Claude read (a source) is the exception, it becomes the link the reply points at.
+    out.push(...assetsOfText(m.text, 'reply', c).filter(a => !out.some(x => x.ref === a.ref && x.kind !== 'source')))
     // `extra` (a push git named) never repeats what assetsOf found in the same call: that needs a `To` line, it lacks one.
     for (const u of m.toolUses ?? []) if (!u.isError && typeof u.text === 'string') out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text, ...c, replay: true }), ...extra(u).filter(a => !out.some(x => x.ref === a.ref)))
   }

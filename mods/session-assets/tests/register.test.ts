@@ -160,7 +160,7 @@ describe('pointing and checking', () => {
   test('a page fetched or a link you pasted is a source; a reader command keeps nothing it printed', async () => {
     expect(call('WebFetch', { url: 'https://2140.tw/api/token-target/', prompt: 'token target spec' }, 'body https://inside.dev', true)).toEqual([{ kind: 'source', ref: 'https://2140.tw/api/token-target/', label: 'token target spec', where: '2140.tw', isLocal: false }])
     expect(call('mcp__plugin_context-mode_context-mode__ctx_fetch_and_index', { url: 'https://docs.x.dev/a', source: 'x' }, 'indexed https://docs.x.dev/b').map(a => [a.kind, a.ref])).toEqual([['source', 'https://docs.x.dev/a']])
-    expect(assetsOfText('see https://discord.com/channels/1/2', 'you', { home: HOME, cwd: '/w' }).map(a => a.kind)).toEqual(['source'])
+    expect(assetsOfText('see https://discord.com/channels/1/2', 'you', { home: HOME, cwd: '/w' }).map(a => a.kind), 'a link you paste is one to open: a url row').toEqual(['url'])
     expect(call('Bash', { command: 'sleep 15; tmux capture-pane -p -t sa4 -S -60 | grep -vE "^$" | tail -30', description: 'Read the pane' }, 'https://reply-only.dev/42')).toEqual([])
     expect(call('Bash', { command: 'cd web && cat log.txt | rg http' }, 'http://localhost:5173/')).toEqual([])
     expect(call('Bash', { command: 'npm run dev | tee log', description: 'Start dev server' }, 'http://localhost:5173/').map(a => a.ref)).toEqual(['http://localhost:5173/'])
@@ -388,6 +388,30 @@ describe('band', () => {
     await $.prompt.submit({ text: 'task done https://ci.dev/2', wait: false, origin: { kind: 'notification' } } as never)
     await $.prompt.submit({ text: 'DROP https://dropped.dev', wait: false, origin: { kind: 'composer' } } as never)
     expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>).map(x => [x.ref, x.label])).toEqual([['https://x.dev/bug/1', 'you: fix']])
+    expect(textOf(await $.ui.render(band())), 'a pasted link is a band row').toContain('x.dev/bug/1')
+  })
+
+  test('a link pasted back keeps the row it came from', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    await $.prompt.submit({ text: 'http://localhost:5173/ 白畫面', wait: false, origin: { kind: 'composer' } } as never)
+    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; kind: string; label: string }>).map(x => [x.kind, x.label])).toEqual([['url', 'Start dev server']])
+    // Claude then reads the page: it stays a link, not a source.
+    await $.tool.call({ tool: 'WebFetch', url: 'http://localhost:5173/', prompt: 'what is on it' } as never)
+    expect((w.kv.get('session-assets.s.sess-A') as Array<{ kind: string }>).map(x => x.kind)).toEqual(['url'])
+  })
+
+  test('a page Claude read becomes a link row when you paste it; read again, a source takes its newest label', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    const kinds = () => (w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; kind: string; label: string }>).map(x => [x.ref, x.kind, x.label])
+    await $.tool.call({ tool: 'WebFetch', url: 'https://a.dev/spec', prompt: 'first read' } as never)
+    await $.tool.call({ tool: 'WebFetch', url: 'https://b.dev/doc', prompt: 'old' } as never)
+    await $.tool.call({ tool: 'WebFetch', url: 'https://b.dev/doc', prompt: 'new' } as never)
+    expect(kinds()).toEqual([['https://b.dev/doc', 'source', 'new'], ['https://a.dev/spec', 'source', 'first read']])
+    await $.prompt.submit({ text: 'open https://a.dev/spec', wait: false, origin: { kind: 'composer' } } as never)
+    expect(kinds()[0]).toEqual(['https://a.dev/spec', 'url', 'you: open'])
   })
 
   test('the band shows its version; an open commit row shows its hash, not its branch (the status line has it)', async ($, on) => {
@@ -427,6 +451,15 @@ describe('band', () => {
     expect(band1, 'a file is counted, not a band row').not.toContain('plan.md')
     const text = JSON.stringify(await $.command.run(cmd('list')))
     expect(text).toContain('Sources (1)\\n   today\\n  #a1  token target spec')
+  })
+
+  test('the replay, as live: a page Claude read and then pointed at in a reply is a link row', async ($, on) => {
+    const w = world(on, { messages: [
+      { role: 'assistant', text: '', toolUses: [{ tool: 'WebFetch', input: { url: 'https://a.dev/spec', prompt: 'read spec' }, text: 'body' }] },
+      { role: 'assistant', text: 'Spec: https://a.dev/spec', toolUses: [] },
+    ] })
+    await $.session.start(start)
+    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; kind: string; label: string }>).map(x => [x.ref, x.kind, x.label])).toEqual([['https://a.dev/spec', 'url', 'reply: Spec']])
   })
 
   test('/assets clear starts the list over from the transcript', async ($, on) => {

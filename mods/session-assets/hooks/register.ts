@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.7.2'
+const MOD_VERSION = '0.7.3'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -74,7 +74,10 @@ async function record(s: State, $: $, found: readonly Asset[], at: number, onlyN
   if (!found.length) return
   await enqueue(s, async () => {
     let list = await mine(s, $)
-    for (const a of found) if (!onlyNew || !list.some(x => x.ref === a.ref)) list = merge(list, [{ ...a, project: s.project, at, ...(replayed ? { replayed: true as const } : {}) }])
+    // A listed row keeps its kind and label against a reply or a prompt (`onlyNew`) and against a page Claude reads (a
+    // source): fetching a pasted link keeps it a link. A source row gives way to both, and a source refreshes a source.
+    const kept = (a: Asset) => (onlyNew || a.kind === 'source') && list.some(x => x.ref === a.ref && x.kind !== 'source')
+    for (const a of found) if (!kept(a)) list = merge(list, [{ ...a, project: s.project, at, ...(replayed ? { replayed: true as const } : {}) }])
     await $.store.set(`${PREFIX}${s.sid}`, list)
   })
   // A new asset moves the rows: an open row would point at another entry.
@@ -403,7 +406,8 @@ export const register: Register = on => {
     // A dropped prompt never entered; an entered one is read as it entered (a hook may have rewritten it).
     if (typeof sent.text === 'string' && mineToo) {
       try {
-        await record(s, $, assetsOfText(sent.text, 'you', s).reverse(), await $.clock.now())
+        // As a reply's: a link pasted back (copied from a row) keeps the row it came from, its kind and label.
+        await record(s, $, assetsOfText(sent.text, 'you', s).reverse(), await $.clock.now(), true)
       } catch (err) {
         $.ui.log(`session-assets: prompt not read (${errText(err)})`, { to: 'debug' })
       }

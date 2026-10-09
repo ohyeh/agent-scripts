@@ -39,12 +39,12 @@ folded into one line.
 
 | Glyph | Kind | Comes from | `/assets open N` |
 |---|---|---|---|
-| `●` green / `◆` cyan | `url`, local / remote | an http(s) URL in a tool's output or in Claude's reply (`reply: …`) | the browser |
+| `●` green / `◆` cyan | `url`, local / remote | an http(s) URL in a tool's output, in Claude's reply (`reply: …`), or in a prompt you typed (`you: …`) | the browser |
 | `◈` | `artifact` | an `Artifact` publish; label = its title, else the file name | the browser |
 | `▤` | `file` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | its default app |
 | `▣` | `image` | a picture those tools wrote, or a picture path in Bash output (a screenshot) or in a prompt you typed | Preview |
 | `▶` | `video` | the same, for `mp4 mov m4v webm mkv` | its default app (`/assets preview N`: Quick Look) |
-| `◇` | `source` | a page `WebFetch` or `ctx_fetch_and_index` was given (label: its `prompt`), or a link in a prompt you typed (`you: …`): what the session consulted, apart from what it made. Counted in the header, listed by `/assets list`, no band row | the browser |
+| `◇` | `source` | a page `WebFetch` or `ctx_fetch_and_index` was given (label: its `prompt`): what Claude consulted, apart from what it made. Counted in the header, listed by `/assets list`, no band row | the browser |
 | `◆` | `url` (push) | a `git push` to GitHub: the compare view (`push: main a..b`), a new tag's release page, a new branch's tree | the browser |
 | `⎇` | `commit` | `[branch hash] subject` in the output of a Bash `git … commit` | nothing (the hash is shown) |
 
@@ -64,7 +64,7 @@ folded into one line.
   command, else the tool name. `local` covers loopback, private ranges, Tailscale
   (100.64/10) and `*.local`; a tailnet host name counts as remote, its IP as local.
 - A URL in Claude's reply is labelled with the rest of its line (`Preview: <url>` reads
-  `reply: Preview`). A URL a tool already printed keeps its tool label. Only the main
+  `reply: Preview`), a link you paste `you: …`. A URL already listed keeps its row and label. Only the main
   loop's replies count, not a subagent's. A prompt counts only when you typed it (or sent
   it through Remote Control), not a notification or a peer session's message.
 - `Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, context-mode's `ctx_search` /
