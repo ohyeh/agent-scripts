@@ -38,11 +38,16 @@ async function mine(s: State, $: $): Promise<Entry[]> {
   return asList(await $.store.get(`${PREFIX}${s.sid}`))
 }
 
-/** Other sessions' entries, newest first. */
-async function others(s: State, $: $): Promise<Entry[]> {
-  const out: Entry[] = []
-  for (const k of (await $.store.keys()).filter(k => k.startsWith(PREFIX) && k !== `${PREFIX}${s.sid}`)) out.push(...asList(await $.store.get(k)))
-  return out.sort((a, b) => b.at - a.at)
+/** Other sessions' entries, newest first, and how many sessions they come from. */
+async function others(s: State, $: $): Promise<{ list: Entry[]; sessions: number }> {
+  const list: Entry[] = []
+  let sessions = 0
+  for (const k of (await $.store.keys()).filter(k => k.startsWith(PREFIX) && k !== `${PREFIX}${s.sid}`)) {
+    const got = asList(await $.store.get(k))
+    if (got.length) sessions++
+    list.push(...got)
+  }
+  return { list: list.sort((a, b) => b.at - a.at), sessions }
 }
 
 const errText = (err: unknown) => `${(err as Error)?.name ?? 'Error'}: ${String((err as Error)?.message ?? err)}`
@@ -188,7 +193,7 @@ export const register: Register = on => {
     if (s.hidden) return below
     const list = await mine(s, $)
     if (!list.length) return below
-    const rest = await others(s, $)
+    const { list: rest, sessions } = await others(s, $)
     const open = s.open !== undefined ? list[s.open] : undefined
     const budget = Math.min(1 + PANEL_ROWS + (open ? 1 : 0) + (rest.length ? 1 : 0) + (s.others ? OTHER_ROWS : 0), e.props.maxRows - rowsOf(below))
     if (budget < 1) return below
@@ -242,7 +247,7 @@ export const register: Register = on => {
     const groups = list.map((x, i) => [row(x, String(i + 1).padStart(2), ''), ...(i === s.open ? [detail(x, i)] : [])])
     const otherLines = rest.length
       ? [
-        Button({ key: 'others', label: `${s.others ? '▾' : '▸'} other sessions: ${rest.length}`, dimColor: true, onPress: () => {
+        Button({ key: 'others', label: `${s.others ? '▾' : '▸'} other sessions: ${sessions} · ${rest.length} asset${rest.length === 1 ? '' : 's'}`, dimColor: true, onPress: () => {
           s.others = !s.others
           $.ui.invalidate('ui.render')
         } }),

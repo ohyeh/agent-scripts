@@ -20,7 +20,7 @@ folded into one line.
    3 ◈ Retro W41               10m ago · claude.ai
    4 ⎇ fix: strip ANSI         12m ago · 9685ae2
   +3 more — /assets N
-  ▸ other sessions: 12
+  ▸ other sessions: 3 · 12 assets
 ```
 
 | Glyph | Kind | Comes from | `/assets open N` |

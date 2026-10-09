@@ -174,7 +174,7 @@ describe('band', () => {
     expect(text).toContain('1 url · 1 file')
     expect(text).toContain('Start dev server')
     expect(text).toContain('plan.md')
-    expect(text).toContain('other sessions: 1')
+    expect(text).toContain('other sessions: 1 · 1 asset')
     expect(text, 'folded: another session\'s label is not drawn').not.toContain('Aurora')
 
     await $.command.run(cmd('all'))
