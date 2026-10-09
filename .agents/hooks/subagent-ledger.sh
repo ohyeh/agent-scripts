@@ -26,11 +26,19 @@ case "$EVENT" in
     . "$(dirname "$0")/subagent-lock.sh"
     held=0
     if ledger_lock "$STATE"; then held=1; else echo "subagent-ledger: lock busy; pending not consumed" >&2; fi
+    # Prefer the oldest pending of this agent_type: it carries the W42-12 `nested`
+    # flag. shortcut: same-type dispatches in one message with mixed flags can swap
+    # flags; match on the prompt if SubagentStart ever carries it.
+    flag=""
     if [ "$held" = 1 ]; then
-      oldest="$(ls -1 "$STATE/pending" 2>/dev/null | sort | head -1)"
-      [ -n "$oldest" ] && rm -f "$STATE/pending/$oldest"
+      oldest="$(cd "$STATE/pending" 2>/dev/null && grep -l -E "^[0-9]+ $AGENT_TYPE( |\$)" * 2>/dev/null | sort | head -1)"
+      [ -n "$oldest" ] || oldest="$(ls -1 "$STATE/pending" 2>/dev/null | sort | head -1)"
+      if [ -n "$oldest" ]; then
+        grep -qE "^[0-9]+ $AGENT_TYPE nested" "$STATE/pending/$oldest" && flag=" nested"
+        rm -f "$STATE/pending/$oldest"
+      fi
     fi
-    printf '%s %s\n' "$AGENT_TYPE" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$LEDGER/$AGENT_ID"
+    printf '%s %s%s\n' "$AGENT_TYPE" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$flag" > "$LEDGER/$AGENT_ID"
     [ "$held" = 1 ] && ledger_unlock "$STATE"
     ;;
   SubagentStop)

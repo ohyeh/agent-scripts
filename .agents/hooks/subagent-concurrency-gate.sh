@@ -31,20 +31,37 @@ LEDGER="$STATE/subagents"
 PENDING="$STATE/pending"
 PENDING_TTL="${BOL_CONCURRENCY_PENDING_TTL:-120}"
 mkdir -p "$LEDGER" "$PENDING"
+ST="$(printf '%s' "$IN" | jq -r '.tool_input.subagent_type // empty')"; ST="${ST:-general-purpose}"
+
+# W42-12: a subagent may dispatch its own subagent only when its dispatcher's brief
+# carries the line `NESTED: allowed`. The gate records that flag in the pending
+# marker; subagent-ledger.sh carries it to the live marker keyed by agent_id.
+# A call is nested when it carries agent_id outside a SubagentStart event (Cursor
+# runs this gate AT subagentStart, where agent_id names the subagent being started).
+AGENT_ID="$(printf '%s' "$IN" | jq -r '.agent_id // empty')"
+EVENT="$(printf '%s' "$IN" | jq -r '.hook_event_name // empty')"
+if [ -n "$AGENT_ID" ] && [ "$EVENT" != "SubagentStart" ] && ! grep -q " nested$" "$LEDGER/$AGENT_ID" 2>/dev/null; then
+  jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg st "$ST" \
+    '{timestamp: $ts, result: "nested", missing: [], blocked: true, subagent_type: $st}' >> "$STATS_FILE"
+  echo "BLOCKED: this subagent may not dispatch subagents. Nested dispatch needs the line \`NESTED: allowed\` in the brief that started this subagent (W42-12). Do this work yourself, or report back and let your dispatcher delegate it." >&2
+  exit 2
+fi
+NESTED_OK=""
+printf '%s' "$IN" | jq -r '.tool_input.prompt // empty' | grep -Eq '^[[:space:]]*NESTED:[[:space:]]*allowed' && NESTED_OK=" nested"
 . "$(dirname "$0")/subagent-lock.sh"
 ledger_lock "$STATE" || { echo "subagent-concurrency-gate: lock busy; not counted" >&2; exit 0; }
 now="$(date +%s)"
 for p in "$PENDING"/*; do
   [ -f "$p" ] || continue
-  [ $(( now - $(cat "$p" 2>/dev/null || echo 0) )) -lt "$PENDING_TTL" ] || rm -f "$p"
+  t=0; read -r t _ < "$p" 2>/dev/null
+  [ $(( now - ${t:-0} )) -lt "$PENDING_TTL" ] || rm -f "$p"
 done
 live="$(find "$LEDGER" "$PENDING" -type f | wc -l | tr -d ' ')"
-[ "$live" -ge "$HARD_CAP" ] || printf '%s\n' "$now" > "$PENDING/$now-$$-$RANDOM"
+[ "$live" -ge "$HARD_CAP" ] || printf '%s %s%s\n' "$now" "$ST" "$NESTED_OK" > "$PENDING/$now-$$-$RANDOM"
 ledger_unlock "$STATE"
 
 if [ "$live" -ge "$HARD_CAP" ]; then
-  jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --argjson live "$live" \
-    --arg st "$(printf '%s' "$IN" | jq -r '.tool_input.subagent_type // empty')" \
+  jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --argjson live "$live" --arg st "$ST" \
     '{timestamp: $ts, result: "concurrency", missing: [], blocked: true, live_subagents: $live, subagent_type: $st}' >> "$STATS_FILE"
   echo "BLOCKED: $live subagents are already live in this session; hard cap is $HARD_CAP (user ruling 2026-08-21, model-dispatch.md §4). Wait for a running subagent to finish, or fold this work into one of them." >&2
   exit 2
