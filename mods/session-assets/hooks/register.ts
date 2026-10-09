@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.7.0'
+const MOD_VERSION = '0.7.1'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -463,7 +463,7 @@ export const register: Register = on => {
         children: [
           Text({ color, children: head }),
           // A click on the name opens the row and its buttons; a second click closes it.
-          i === undefined ? Text({ bold: true, children: label }) : Button({ key: `name-${x.ref}`, plain: true, label, onPress: () => toggle(i) }),
+          i === undefined ? Text({ bold: true, children: label }) : Button({ key: `name-${x.ref}`, plain: true, onPress: () => toggle(i), children: Text({ bold: true, children: label }) }),
           Text({ dimColor: true, children: tail }),
         ],
       })

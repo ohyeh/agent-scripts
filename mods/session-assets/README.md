@@ -26,7 +26,7 @@ Above the prompt, only after this session has an asset. Other sessions' assets a
 folded into one line.
 
 ```
-▌session assets v0.7.0 2 url · 1 artifact · 1 image · 1 video · 2 file · 1 commit · #aN in a prompt · /assets list   [ hide ]
+▌session assets v<version> 2 url · 1 artifact · 1 image · 1 video · 2 file · 1 commit · #aN in a prompt · /assets list   [ hide ]
    a1 ● localhost:5173          2m ago · Start dev server
        [ open ][ copy ][ reply ]  http://localhost:5173/
    a2 ◆ x.dev/docs              5m ago · reply: Docs
@@ -111,8 +111,9 @@ folded into one line.
 | `/assets clear` | start this session's list over from its transcript |
 | `/assets all` | unfold or fold the other sessions' assets |
 
-The `[ hide ]` and `▸ other sessions` buttons do the same, but in Warp `ctrl+x tab`
-does not reach the band (see the tmux-agent README), so use the commands there.
+The `[ hide ]` and `▸ other sessions` buttons and a row's buttons do the same. In Warp a mouse
+click reaches them (checked 2026-10-09), but `ctrl+x tab` does not (see the tmux-agent README):
+there the keyboard way is the commands.
 
 ## Pointing at a row: `#aN`
 
