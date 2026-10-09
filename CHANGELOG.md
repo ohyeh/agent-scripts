@@ -1,5 +1,9 @@
 # Changelog
 
+## session-assets 0.8.2
+
+- A reload adds what the transcript shows and the list lacks. The transcript was replayed only into an empty list, so a session listed by an older version never got what a newer one finds: a long session that read 38 screenshots kept none of them after the update. Rows already listed keep their time and label.
+
 ## session-assets 0.8.1
 
 - A picture or video the agent `Read` (shown in the conversation as `[image]`) is an image row, and each file sent with `SendUserFile` is a row labelled by its caption; both come back from the transcript after a reload. A screenshot a script saved to a path it was given (`probe.py <url> out.png`) was never kept: the path was in the command, so it read as given, not made, and the `Read` that showed it was skipped as a reader.

@@ -378,10 +378,14 @@ describe('band', () => {
     const list = w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; at: number }>
     expect(list.map(x => [x.ref, x.at])).toEqual([['/work/retro-w41/a.md', 1000], ['https://x.dev/p', 1000]])
     expect(textOf(await $.ui.render(band()))).toContain('earlier')
-    // A reload finds the list and replays nothing.
-    w.kv.set('session-assets.s.sess-A', list.slice(0, 1))
+    // A reload adds only what the list lacks (a newer version finds more); a row already there keeps its time and label.
+    w.kv.set('session-assets.s.sess-A', [{ ...list[0]!, at: 5, label: 'kept' }])
     await $.session.start(start)
-    expect((w.kv.get('session-assets.s.sess-A') as unknown[]).length).toBe(1)
+    const after = w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; at: number; label: string }>
+    expect(after.map(x => [x.ref, x.at])).toEqual([['https://x.dev/p', 1000], ['/work/retro-w41/a.md', 5]])
+    expect(after.find(x => x.ref === '/work/retro-w41/a.md')?.label).toBe('kept')
+    await $.session.start(start)
+    expect((w.kv.get('session-assets.s.sess-A') as unknown[]).length, 'a second reload adds nothing').toBe(2)
   })
 
   test('a reply adds only URLs no tool printed; a subagent\'s reply adds nothing', async ($, on) => {
@@ -479,7 +483,7 @@ describe('band', () => {
     const w = world(on, { messages: [{ role: 'assistant', text: 'Preview: https://x.dev/p', toolUses: [] }] })
     w.kv.set('session-assets.s.sess-A', [{ kind: 'url', ref: 'https://noise.dev', where: 'noise.dev', isLocal: false, label: 'old', project: 'p', at: 0 }])
     await $.session.start(start)
-    expect(JSON.stringify(await $.command.run(cmd('clear')))).toContain('cleared 1 asset(s); the transcript gave back 1')
+    expect(JSON.stringify(await $.command.run(cmd('clear')))).toContain('cleared 2 asset(s); the transcript gave back 1')
     expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string }>).map(x => x.ref)).toEqual(['https://x.dev/p'])
   })
 

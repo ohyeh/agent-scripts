@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 import { answerId, itemsOf, quoteOf } from './lib/items.ts'
 
-const MOD_VERSION = '0.8.1'
+const MOD_VERSION = '0.8.2'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -331,7 +331,7 @@ async function lostPush(s: State, $: $, command: string, text: string, asked = n
 }
 
 /** Rebuilds this session's list from its transcript (dated at the session's start), adding to what is there. */
-async function replay(s: State, $: $): Promise<number> {
+async function replay(s: State, $: $, onlyNew = false): Promise<number> {
   try {
     const msgs = await $.session.messages()
     // A push that lost its `To` line needs git (async); asked first, so it lands in transcript order, not after the rest.
@@ -346,7 +346,7 @@ async function replay(s: State, $: $): Promise<number> {
     }
     const found = assetsOfTranscript(msgs, s, u => lost.get(u) ?? [])
     // shortcut: the transcript rows carry no time, so a replayed asset is shown as `earlier`; take times from `as: 'api'` if ages matter.
-    if (found.length) await record(s, $, found, (await $.session.usage()).startedAt, false, true)
+    if (found.length) await record(s, $, found, (await $.session.usage()).startedAt, onlyNew, true)
     $.ui.log(`session-assets: transcript replay kept ${found.length} assets from ${msgs.length} messages`, { to: 'debug' })
     return found.length
   } catch (err) {
@@ -421,10 +421,11 @@ export const register: Register = on => {
       },
     })
     await $.command.register({ name: 'assets', description: `Session assets v${MOD_VERSION}: /assets (show/hide), /assets N (show row N), /assets open|copy|reply|preview N, /assets list, /assets clear, /assets all, /assets tui` })
-    // Loaded mid-session, or a session resumed from before the mod: the transcript says what it made so far.
+    // Loaded mid-session, or a session resumed from before the mod: the transcript says what it made so far. A list
+    // already there gets only what it lacks (a newer version finds more, as a picture Read), its rows left as they are.
     // A store that cannot be read is left alone: a replay would write over what it holds.
     const have = await mine(s, $).catch(() => undefined)
-    if (have && !have.length) await replay(s, $)
+    if (have) await replay(s, $, have.length > 0)
     // The TUI's lines to quote: the last answers, from the transcript (the module's own memory starts over on a reload).
     s.answers = []
     try {
