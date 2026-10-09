@@ -73,6 +73,11 @@ serve as an address (measured 2026-08-20 on two hosts, same result on both).
 The `to` field is capped at 300 characters by the tool schema — a limit on the
 recipient string, not on what a title may say.
 
+- A beta build of a mod or skill (unreleased: no version bump pushed, or still under
+  test) is never tested through the user's working session: no peer message asks it
+  to reload plugins or skills, try, or report on that build. A released version
+  (bump pushed, plugin or skills updated) may ask a session to reload.
+
 ## State transitions
 
 1. When a non-trivial goal becomes clear, set `⏳`.
