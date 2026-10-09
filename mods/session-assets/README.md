@@ -26,13 +26,13 @@ Above the prompt, only after this session has an asset. Other sessions' assets a
 folded into one line.
 
 ```
-▌session assets 3 url · 1 artifact · 2 file · 1 commit · #aN in a prompt · /assets list   [ hide ]
+▌session assets 2 url · 1 artifact · 1 image · 1 video · 2 file · 1 commit · #aN in a prompt · /assets list   [ hide ]
    a1 ● localhost:5173          2m ago · Start dev server
         http://localhost:5173/  /assets open 1
    a2 ◆ x.dev/docs              5m ago · reply: Docs
-   a3 ◆ push: main 1a2b3c4..9a8b7c6  8m ago · o/r
+   a3 ▣ IMG 2026-10-08 at 20.40.56.png  6m ago · ~/Desktop
    a4 ◈ Retro W41               10m ago · claude.ai
-   a5 ⎇ fix: strip ANSI         12m ago · 9685ae2
+   a5 ▶ demo.mp4                12m ago · ./web
   +3 more — /assets N
   ▸ other sessions: 3 · 12 assets
 ```
@@ -43,10 +43,16 @@ folded into one line.
 | `◈` | `artifact` | an `Artifact` publish; label = its title, else the file name | the browser |
 | `▤` | `file` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | its default app |
 | `▣` | `image` | a picture those tools wrote, or a picture path in Bash output (a screenshot) or in a prompt you typed | Preview |
+| `▶` | `video` | the same, for `mp4 mov m4v webm mkv` | its default app (`/assets preview N`: Quick Look) |
 | `◇` | `source` | a page `WebFetch` or `ctx_fetch_and_index` was given (label: its `prompt`), or a link in a prompt you typed (`you: …`): what the session consulted, apart from what it made. Counted in the header, listed by `/assets list`, no band row | the browser |
 | `◆` | `url` (push) | a `git push` to GitHub: the compare view (`push: main a..b`), a new tag's release page, a new branch's tree | the browser |
 | `⎇` | `commit` | `[branch hash] subject` in the output of a Bash `git … commit` | nothing (the hash is shown) |
 
+- The band's rows are for what you look at or open: links, Artifacts, pictures, videos. Files,
+  commits, pushes and sources are counted in its header and listed by `/assets list`; one of
+  theirs shows as a row only while it is open (`/assets N`).
+- A picture or video path with spaces counts when it is quoted (a file dragged into the prompt)
+  or its spaces are escaped (`demo\ run.mov`).
 - A row names the thing: a URL by its host and path, a file by its name, a commit by its subject.
   What made it (the call, the reply line) follows, dim. Pushes that follow on from each other on one
   branch (`a..b`, then `b..c`) are one row, the compare view `a..c`.
@@ -79,7 +85,7 @@ folded into one line.
   were read-only, and a `cat` of a doc would add every link in it. Replayed entries show
   `earlier`, not an age.
 - The band does not repeat the status line: no version (see `/assets` in the command
-  list), and a commit shows its hash, not the branch.
+  list), and an open commit row shows its hash, not the branch.
 - At most 5 assets per tool call. One seen again moves to the top with its newest
   label. Each session keeps 80.
 - The band draws in what `maxRows` leaves after the plugins below it (the workers
@@ -96,8 +102,8 @@ folded into one line.
 | `/assets open N` | open row N: `open <url or path>`, as an argv; only http(s) or an absolute path |
 | `/assets copy N` | put row N's URL, path or hash on the clipboard |
 | `/assets reply N` | put `#aN ` in the prompt, to write the rest around it |
-| `/assets preview N` | a file or picture in Quick Look (`qlmanage -p`); a URL in the browser |
-| `/assets list` | every entry, grouped by kind (URLs, Artifacts, Images, Files, Commits, Sources) and by `today` / `this week` / `older`, numbered `#aN` as the band, with its full URL or path and, for the first 10 local URLs and paths, its state now |
+| `/assets preview N` | a file, picture or video in Quick Look (`qlmanage -p`); a URL in the browser |
+| `/assets list` | every entry, grouped by kind (URLs, Artifacts, Images, Videos, Files, Commits, Sources) and by `today` / `this week` / `older`, numbered `#aN` as the band, with its full URL or path and, for the first 10 local URLs and paths, its state now |
 | `/assets clear` | start this session's list over from its transcript |
 | `/assets all` | unfold or fold the other sessions' assets |
 
@@ -158,7 +164,7 @@ During development: `claude --plugin-dir mods/session-assets`.
 - No thumbnails. `Image` draws only in kitty or Ghostty, not in Warp or tmux.
 - The replay does not give back a dev server's URL that only a tool printed (see above);
   the live hook keeps it.
-- A picture path with a space in it is not read from Bash output.
+- A picture or video path with a space in it is read only when quoted or escaped.
 - A remote URL is never checked.
 - The replay reads what `$.session.messages()` gives: at most the newest 4096 messages.
   It runs at session start when the list is empty, and `/reload-plugins` starts the session again

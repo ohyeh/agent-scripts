@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.5.9'
+const MOD_VERSION = '0.6.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -82,7 +82,13 @@ async function record(s: State, $: $, found: readonly Asset[], at: number, onlyN
   $.ui.invalidate('ui.render')
 }
 
-const KIND_TITLE: Record<Entry['kind'], string> = { url: 'URLs', artifact: 'Artifacts', image: 'Images', file: 'Files', commit: 'Commits', source: 'Sources' }
+/**
+ * What the band's rows are for: what you look at or open, links, Artifacts, pictures, videos. Files, commits, pushes and
+ * sources are counted in its header and listed by `/assets list`.
+ */
+const onBand = (x: Entry) => x.kind === 'artifact' || x.kind === 'image' || x.kind === 'video' || (x.kind === 'url' && !x.label.startsWith('push: '))
+
+const KIND_TITLE: Record<Entry['kind'], string> = { url: 'URLs', artifact: 'Artifacts', image: 'Images', video: 'Videos', file: 'Files', commit: 'Commits', source: 'Sources' }
 /** When an entry was seen; a replayed one has no time of its own. */
 const when = (x: Entry, now: number) => (x.replayed ? 'earlier' : `${ago(now - x.at)} ago`)
 
@@ -90,7 +96,7 @@ const when = (x: Entry, now: number) => (x.replayed ? 'earlier' : `${ago(now - x
 function listText(list: Entry[], now: number, status: ReadonlyMap<Entry, string> = new Map()): string {
   if (!list.length) return 'no assets this session yet.'
   const out: string[] = []
-  for (const kind of ['url', 'artifact', 'image', 'file', 'commit', 'source'] as const) {
+  for (const kind of ['url', 'artifact', 'image', 'video', 'file', 'commit', 'source'] as const) {
     const rows = list.map((x, i) => [x, i + 1] as const).filter(([x]) => x.kind === kind)
     if (!rows.length) continue
     out.push(`${KIND_TITLE[kind]} (${rows.length})`)
@@ -117,14 +123,17 @@ async function check(s: State, $: $, x: Entry): Promise<string> {
     const cwd = parseCwd((await $.process.run(['lsof', '-a', '-p', String(proc.pid), '-d', 'cwd', '-Fn'], { timeoutMs: 3000 })).stdout)
     return `up: ${clean(proc.command, 40)} (pid ${proc.pid})${cwd ? ` in ${shortDir(cwd, s)}` : ''}`
   }
-  if ((x.kind === 'file' || x.kind === 'image') && x.ref.startsWith('/')) return (await $.process.run(['test', '-e', x.ref], { timeoutMs: 3000 })).exitCode === 0 ? 'exists' : 'missing'
+  if (isPath(x)) return (await $.process.run(['test', '-e', x.ref], { timeoutMs: 3000 })).exitCode === 0 ? 'exists' : 'missing'
   return ''
 }
+
+/** A file, picture or video at an absolute path: it can be `exists` or `missing`. */
+const isPath = (x: Entry) => (x.kind === 'file' || x.kind === 'image' || x.kind === 'video') && x.ref.startsWith('/')
 
 /** Checks the first MAX_CHECKS entries that have something to check; a check that fails says so in place of a status. */
 async function checks(s: State, $: $, list: readonly Entry[]): Promise<Map<Entry, string>> {
   const out = new Map<Entry, string>()
-  for (const x of list.filter(x => localPort(x) !== undefined || ((x.kind === 'file' || x.kind === 'image') && x.ref.startsWith('/'))).slice(0, MAX_CHECKS)) {
+  for (const x of list.filter(x => localPort(x) !== undefined || isPath(x)).slice(0, MAX_CHECKS)) {
     out.set(x, await check(s, $, x).catch(err => `not checked (${errText(err)})`))
   }
   return out
@@ -237,7 +246,7 @@ export const register: Register = on => {
       name: 'assets',
       description:
         'What this session made or was shown, kept by the session-assets mod: URLs (dev servers, deploys, previews), ' +
-        'published Artifacts, files written, pictures (screenshots), commits. Use it to get back an exact URL, port, ' +
+        'published Artifacts, files written, pictures (screenshots), videos, commits, sources consulted. Use it to get back an exact URL, port, ' +
         'path or hash instead of guessing, above all after the context was compacted, and to answer "which server is ' +
         'on :5173 / is it still up / where does that link come from". Local URLs are checked: the listening process ' +
         'and its folder, or down. Rows are numbered #aN as the user sees them; the user may write #aN in a prompt.',
@@ -245,7 +254,7 @@ export const register: Register = on => {
         type: 'object',
         properties: {
           query: { type: 'string', description: 'words that must all appear in the label, URL/path, host/folder or project' },
-          kind: { type: 'string', enum: ['url', 'artifact', 'file', 'image', 'commit', 'source'] },
+          kind: { type: 'string', enum: ['url', 'artifact', 'file', 'image', 'video', 'commit', 'source'] },
           all_sessions: { type: 'boolean', description: "also search other sessions' assets (default false)" },
           check: { type: 'boolean', description: 'check local URLs and paths (default true)' },
         },
@@ -307,9 +316,9 @@ export const register: Register = on => {
       const f = await $.prompt.fill({ text: `#a${i + 1} `, mode: 'insert' })
       return { text: f.isFilled ? `#a${i + 1} is in the prompt: write the rest.` : 'no prompt box to fill here.' }
     }
-    // Preview: a file or picture in Quick Look (no app switch); a URL in the browser.
+    // Preview: a file, picture or video in Quick Look (no app switch); a URL in the browser.
     if (verb === 'preview') {
-      if ((item.kind === 'file' || item.kind === 'image') && item.ref.startsWith('/')) {
+      if ((item.kind === 'file' || item.kind === 'image' || item.kind === 'video') && item.ref.startsWith('/')) {
         // Quick Look stays open until closed: run it on its own, not awaited.
         void (async () => {
           for await (const _ of $.process.spawn({ argv: ['qlmanage', '-p', item.ref] })) void _
@@ -411,7 +420,7 @@ export const register: Register = on => {
     const { Box, Text, Button, Link } = $.ui.resolve(e)
     const width = e.props.bodyColumns
     const now = await $.clock.now()
-    const counts = (['url', 'artifact', 'file', 'image', 'commit', 'source'] as const)
+    const counts = (['url', 'artifact', 'image', 'video', 'file', 'commit', 'source'] as const)
       .map(k => [k, list.filter(x => x.kind === k).length] as const)
       .filter(([, n]) => n)
       .map(([k, n]) => `${n} ${k}`)
@@ -429,7 +438,7 @@ export const register: Register = on => {
     // The age comes before the place, so a long folder is what gets cut.
     // Labels share one column, as wide as the longest one drawn, at most 40 cells or half the band, so the ages line up.
     const cap = Math.max(8, Math.min(40, Math.floor(width / 2) - 6))
-    const col = Math.min(cap, Math.max(0, ...[...list.filter(x => x.kind !== 'source').slice(0, PANEL_ROWS), ...(s.others ? rest.slice(0, OTHER_ROWS) : [])].map(x => cells(clean(nameOf(x), 80)))))
+    const col = Math.min(cap, Math.max(0, ...[...list.filter(onBand).slice(0, PANEL_ROWS), ...(s.others ? rest.filter(onBand).slice(0, OTHER_ROWS) : [])].map(x => cells(clean(nameOf(x), 80)))))
     const row = (x: Entry, n: string, where: string) => {
       const [glyph, color] = glyphOf(x)
       const head = `  ${n} ${glyph} `
@@ -457,15 +466,15 @@ export const register: Register = on => {
         ],
       })
     // One group per asset, the open row's detail inside its group: `+N more` counts assets, never a detail line.
-    // Sources are counted in the header and listed by `/assets list`; the band's few rows are for what the session made.
-    const groups = list.flatMap((x, i) => (x.kind === 'source' && i !== s.open ? [] : [[row(x, `a${i + 1}`.padStart(3), ''), ...(i === s.open ? [detail(x, i)] : [])]]))
+    // The rest are counted in the header and listed by `/assets list`; an open row still shows.
+    const groups = list.flatMap((x, i) => (!onBand(x) && i !== s.open ? [] : [[row(x, `a${i + 1}`.padStart(3), ''), ...(i === s.open ? [detail(x, i)] : [])]]))
     const otherLines = rest.length
       ? [
         Button({ key: 'others', label: `${s.others ? '▾' : '▸'} other sessions: ${sessions} · ${rest.length} asset${rest.length === 1 ? '' : 's'}`, dimColor: true, onPress: () => {
           s.others = !s.others
           $.ui.invalidate('ui.render')
         } }),
-        ...(s.others ? rest.slice(0, OTHER_ROWS).map(x => row(x, ' ·', ` @${clean(x.project, 40)}`)) : []),
+        ...(s.others ? rest.filter(onBand).slice(0, OTHER_ROWS).map(x => row(x, ' ·', ` @${clean(x.project, 40)}`)) : []),
       ]
       : []
     const room = budget - 1

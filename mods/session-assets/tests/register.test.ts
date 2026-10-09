@@ -59,6 +59,15 @@ describe('assetsOf', () => {
     expect(call('Write', { file_path: '/var/w/plan.md' })[0]?.where).toBe('.')
   })
 
+  test('a quoted media path is one file, not prose or a glob; an escaped one the call was given is not kept', async () => {
+    expect(call('Bash', { command: 'x' }, "it says '/etc/hosts is read; see notes at foo.png'\nusage: '/path/to/x [opts] out.png'\n+ rm -f '/tmp/shots/*.png'\n'/a  b.png'")).toEqual([])
+    expect(call('Bash', { command: 'ffmpeg -i /tmp/in\\ 1.mov /tmp/o.mp4' }, 'Input from /tmp/in\\ 1.mov\nwrote /tmp/o.mp4')).toEqual([])
+    expect(call('Bash', { command: 'render' }, "saved '/tmp/rec 1.mp4'").map(a => [a.kind, a.ref])).toEqual([['video', '/tmp/rec 1.mp4']])
+    const t0 = Date.now()
+    call('Bash', { command: 'x' }, '/a\\ '.repeat(20000))
+    expect(Date.now() - t0, 'a line of escaped spaces does not rescan from every slash').toBeLessThan(200)
+  })
+
   test('a screenshot path in Bash output is an image', async () => {
     const out = call('Bash', { command: 'agent-browser screenshot', description: 'Screenshot' }, 'Screenshot saved to /tmp/s/home.png\nalso ~/Desktop/a.png, and /tmp/IMG 1.png')
     // A path with a space is not read (limit, README).
@@ -201,6 +210,9 @@ describe('prose and transcript', () => {
     // Another URL on the same line is not part of the label.
     expect(assetsOfText('compare https://a.dev and https://b.dev', 'you', at).map(a => a.label)).toEqual(['you: compare and', 'you: compare and'])
     expect(assetsOfText('look at ~/Desktop/shot.png', 'you', at).map(a => [a.kind, a.label])).toEqual([['image', 'you: shot.png']])
+    // A file dragged into the prompt is quoted, spaces and all; an escaped space counts too; a video is its own kind.
+    expect(assetsOfText("'~/Desktop/IMG 2026-10-08 at 20.40.56.png' 這張", 'you', at).map(a => [a.kind, a.ref])).toEqual([['image', `${HOME}/Desktop/IMG 2026-10-08 at 20.40.56.png`]])
+    expect(assetsOfText('see ~/Movies/demo\\ run.mov and "/tmp/rec 1.mp4"', 'you', at).map(a => [a.kind, a.ref])).toEqual([['video', `${HOME}/Movies/demo run.mov`], ['video', '/tmp/rec 1.mp4']])
     // A repeated ~ path is one asset; it does not use up the five places.
     expect(assetsOfText(`${' ~/Desktop/a.png'.repeat(5)} ~/Desktop/b.png`, 'you', at).map(a => a.ref)).toEqual([`${HOME}/Desktop/a.png`, `${HOME}/Desktop/b.png`])
   })
@@ -267,7 +279,7 @@ describe('band', () => {
     expect(text).toContain('session assets')
     expect(text).toContain('1 url · 1 file')
     expect(text).toContain('Start dev server')
-    expect(text).toContain('plan.md')
+    expect(text, 'a file is counted, not a band row').not.toContain('plan.md')
     expect(text).toContain('other sessions: 1 · 1 asset')
     expect(text, 'folded: another session\'s label is not drawn').not.toContain('Aurora')
 
@@ -380,8 +392,10 @@ describe('band', () => {
     world(on, { text: '[main 9685ae2] fix: x\n 1 file changed' })
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'git commit -m x' })
+    expect(textOf(await $.ui.render(band())), 'a commit is counted, not a band row').not.toContain('9685ae2')
+    await $.command.run(cmd('1'))
     const text = textOf(await $.ui.render(band()))
-    expect(text).toContain('9685ae2')
+    expect(text, 'an opened row shows').toContain('9685ae2')
     expect(text).not.toContain('main')
     expect(text).not.toMatch(/v\d+\.\d+\.\d+/)
   })
@@ -408,7 +422,7 @@ describe('band', () => {
     const band1 = textOf(await $.ui.render(band()))
     expect(band1).toContain('1 file · 1 source')
     expect(band1).not.toContain('token target spec')
-    expect(band1).toContain('a2 ▤ \nplan.md')
+    expect(band1, 'a file is counted, not a band row').not.toContain('plan.md')
     const text = JSON.stringify(await $.command.run(cmd('list')))
     expect(text).toContain('Sources (1)\\n   today\\n  #a1  token target spec')
   })
@@ -461,6 +475,24 @@ describe('band', () => {
     expect(JSON.stringify(await $.command.run(cmd('preview a2')))).toContain('Quick Look')
     for (let i = 0; i < 10; i++) await Promise.resolve()
     expect(w.spawned).toEqual([['qlmanage', '-p', '/work/retro-w41/shot.png']])
+  })
+
+  test('the band rows are what you look at: a video and a picture get rows, a file and a push only counts', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/notes.md', content: 'x' })
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/demo.mp4', content: 'x' })
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/shot.png', content: 'x' })
+    const text = textOf(await $.ui.render(band()))
+    expect(text).toContain('1 image · 1 video · 1 file')
+    expect(text).toContain('▶')
+    expect(text).toContain('demo.mp4')
+    expect(text).toContain('shot.png')
+    expect(text).not.toContain('notes.md')
+    await $.command.run(cmd('preview 2'))
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    expect(w.spawned).toEqual([['qlmanage', '-p', '/work/retro-w41/demo.mp4']])
+    expect(JSON.stringify(await $.command.run(cmd('list'))), 'a video has a state too').toContain('Videos (1)\\n   today\\n  #a2  demo.mp4 · 0s ago · exists')
   })
 
   test('a commit hash or session id pasted from another session comes with what that session made', async ($, on) => {

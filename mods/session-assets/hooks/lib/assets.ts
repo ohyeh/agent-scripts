@@ -1,5 +1,5 @@
 /** `source`: a page this session consulted (WebFetch, a fetched page, a link you pasted), kept apart from what it made. */
-export type Kind = 'url' | 'artifact' | 'file' | 'image' | 'commit' | 'source'
+export type Kind = 'url' | 'artifact' | 'file' | 'image' | 'video' | 'commit' | 'source'
 
 export type Asset = {
   kind: Kind
@@ -46,13 +46,19 @@ const SKIP_RE = /^mcp__.*__ctx_(search|fetch_and_index|index)$|^mcp__session-ass
 const MAX_REF = 2048
 const WRITERS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|heic)$/i
+const VIDEO_EXT = /\.(mp4|mov|m4v|webm|mkv)$/i
 
 // A dev server prints its URL in ANSI colour, the port bold inside it: escapes go first, other control characters end a URL.
 const ANSI_RE = /\u001b\[[0-9;?]*[ -\/]*[@-~]/g
 // Fullwidth punctuation (`（`, `，`, `。`) ends a URL: in CJK prose it follows one with no space.
 const URL_RE = /\bhttps?:\/\/[^\s<>"'`|\\^{}\u0000-\u001f\u007f-\u009f\u3000-\u303f\uff00-\uffef]+/g
-// An absolute or ~ path to a picture, as a screenshot tool prints it; `//` is a URL's tail (`https://h/x.png`), not a path.
-const IMAGE_PATH_RE = /(?:^|[\s'"(=:])((?:~|\/(?!\/))[^\s'"<>()|:\u0000-\u001f]*\.(?:png|jpe?g|gif|webp|svg|heic))(?=$|[\s'")\],.;:])/gim
+// An absolute or ~ path to a picture or a video, as a screenshot tool prints it; `//` is a URL's tail (`https://h/x.png`), not a path.
+// A path with spaces counts when quoted (`'/Desktop/IMG 1.png'`, a file dragged into the prompt) or escaped (`IMG\ 1.png`).
+// Inside quotes a single space is part of the name; `;`, `*`, `[ ]` and two spaces are prose or a glob, not one file.
+// After `\ ` a new path does not start: a line of `/a\ /a\ ` would otherwise rescan to its end from every `/`.
+const IMAGE_PATH_RE = /(?:(['"])((?:~|\/(?!\/))(?:[^'"\s<>|;*[\]\u0000-\u001f]| (?! ))*\.(?:png|jpe?g|gif|webp|svg|heic|mp4|mov|m4v|webm|mkv))\1|(?:^|(?<!\\)[\s'"(=:])((?:~|\/(?!\/))(?:\\ |[^\s'"<>()|:*\u0000-\u001f])*\.(?:png|jpe?g|gif|webp|svg|heic|mp4|mov|m4v|webm|mkv))(?=$|[\s'")\],.;:]))/gim
+/** The path an IMAGE_PATH_RE match names; an unquoted one is unescaped (inside quotes a backslash is literal). */
+const mediaPath = (m: RegExpMatchArray) => m[2] ?? m[3]!.replace(/\\ /g, ' ')
 // `git commit` prints `[branch hash] subject`, `[branch (root-commit) hash]`, or `[detached HEAD hash]`.
 const COMMIT_RE = /^\[([^\]\n]+?)(?: \(root-commit\))? ([0-9a-f]{7,40})\] (.+)$/m
 
@@ -103,7 +109,9 @@ export function assetsOf(c: Call): Asset[] {
   if (c.replay || (c.tool === 'Bash' && isReader(String(c.input.command ?? '')))) return out
   // What the call was given is not what it made: `curl <url>`, or a tool that echoes its own code back.
   const given = JSON.stringify(c.input)
-  if (c.tool === 'Bash') for (const m of text.matchAll(IMAGE_PATH_RE)) if (!given.includes(m[1]!)) add(fileAsset(m[1]!, c))
+  // The command as typed, not JSON: `in\ 1.mov` is not doubled, and its unescaped form is checked too.
+  const typed = Object.values(c.input).map(String).join('\n')
+  if (c.tool === 'Bash') for (const m of text.matchAll(IMAGE_PATH_RE)) if (!typed.includes(m[2] ?? m[3]!) && !typed.includes(mediaPath(m))) add(fileAsset(mediaPath(m), c))
   // A `.git` URL is a remote to clone or push to (`git push` prints `To <remote>`), not a page.
   for (const url of extractUrls(text)) if (!given.includes(url) && !isLocalNoise(url) && !/\.git\/?$/.test(url)) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   return out
@@ -124,7 +132,7 @@ export function assetsOfText(text: string, who: 'reply' | 'you', c: { home: stri
   }
   for (const m of plain.matchAll(IMAGE_PATH_RE)) {
     // Compared as stored: `~/a.png` is kept as the home path.
-    const a = fileAsset(m[1]!, c)
+    const a = fileAsset(mediaPath(m), c)
     if (out.length < PER_CALL && !out.some(x => x.ref === a.ref)) out.push({ ...a, label: `${who}: ${a.label}` })
   }
   return out
@@ -159,7 +167,7 @@ function labelOf(c: Call): string {
 
 function fileAsset(path: string, c: { home: string; cwd: string }): Asset {
   const abs = path.startsWith('~/') && c.home ? `${c.home}${path.slice(1)}` : path
-  return { kind: IMAGE_EXT.test(abs) ? 'image' : 'file', ref: abs, label: basename(abs), where: shortDir(abs.slice(0, abs.lastIndexOf('/')) || '/', c), isLocal: true }
+  return { kind: IMAGE_EXT.test(abs) ? 'image' : VIDEO_EXT.test(abs) ? 'video' : 'file', ref: abs, label: basename(abs), where: shortDir(abs.slice(0, abs.lastIndexOf('/')) || '/', c), isLocal: true }
 }
 
 /** A folder as the person reads it: `.` or `./sub` inside the session's cwd, `~/…` under home, else as is. */
@@ -229,6 +237,7 @@ export function glyphOf(a: Asset): [string, string] {
     case 'url': return a.isLocal ? ['●', 'green'] : ['◆', 'cyan']
     case 'artifact': return ['◈', 'magenta']
     case 'image': return ['▣', 'yellow']
+    case 'video': return ['▶', 'yellow']
     case 'file': return ['▤', 'white']
     case 'commit': return ['⎇', 'blue']
     case 'source': return ['◇', 'gray']
