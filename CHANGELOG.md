@@ -1,5 +1,10 @@
 # Changelog
 
+## session-assets 0.2.1
+
+- The transcript replay keeps an artifact's kind and title, and a tool URL's label, when a later reply names the same URL; it now follows the live rule (a reply adds only a URL nothing named before).
+- A picture path typed as `~/…` and repeated no longer uses up the five places per message; it is compared as stored (the home path).
+
 ## session-assets 0.2.0
 
 - Reads more than tool calls. A URL only in Claude's reply is kept, labelled `reply: <rest of its line>`; a URL a tool already printed keeps its tool label. A link or picture path the person pastes is kept as `you: …` (their own prompts only, not notifications or peer messages). A session with no list yet (the mod loaded mid-session, or a resumed session from before it) replays its transcript at start; replayed assets are dated at the session's start.

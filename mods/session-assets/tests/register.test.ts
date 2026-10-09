@@ -111,6 +111,8 @@ describe('prose and transcript', () => {
     // Another URL on the same line is not part of the label.
     expect(assetsOfText('compare https://a.dev and https://b.dev', 'you', at).map(a => a.label)).toEqual(['you: compare and', 'you: compare and'])
     expect(assetsOfText('look at ~/Desktop/shot.png', 'you', at).map(a => [a.kind, a.label])).toEqual([['image', 'you: shot.png']])
+    // A repeated ~ path is one asset; it does not use up the five places.
+    expect(assetsOfText(`${' ~/Desktop/a.png'.repeat(5)} ~/Desktop/b.png`, 'you', at).map(a => a.ref)).toEqual([`${HOME}/Desktop/a.png`, `${HOME}/Desktop/b.png`])
   })
 
   test('the transcript replays answered tool uses and replies; user messages and errors add nothing', async () => {
@@ -123,6 +125,15 @@ describe('prose and transcript', () => {
       ] },
     ], at)
     expect(out.map(a => [a.kind, a.ref])).toEqual([['url', 'http://localhost:3000/'], ['file', '/private/var/w/a.md']])
+  })
+
+  test('a replayed reply does not turn an artifact into a reply URL', async () => {
+    const url = 'https://claude.ai/code/artifact/abc'
+    const out = assetsOfTranscript([
+      { role: 'assistant', text: '', toolUses: [{ tool: 'Artifact', input: { title: 'Demo' }, text: `Published ${url}` }] },
+      { role: 'assistant', text: `Preview: ${url}`, toolUses: [] },
+    ], at)
+    expect(out.map(a => [a.kind, a.label])).toEqual([['artifact', 'Demo']])
   })
 })
 

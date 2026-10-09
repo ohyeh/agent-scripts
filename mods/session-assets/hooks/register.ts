@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, ago, assetsOf, assetsOfText, assetsOfTranscript, cells, clean, cut, fit, glyphOf, merge, rowsOf } from './lib/assets.ts'
 
-const MOD_VERSION = '0.2.0'
+const MOD_VERSION = '0.2.1'
 /** One store key per session: a shared list would be a read-modify-write race between sessions. */
 const PREFIX = 'session-assets.s.'
 const PANEL_KEY = 'session-assets.panel'

@@ -90,7 +90,11 @@ export function assetsOfText(text: string, who: 'reply' | 'you', c: { home: stri
     const said = clean(line.replace(URL_RE, ' ').replace(/[*_`#>\[\]()<>|]+|^\s*[-+]\s+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\s*[:：—-]$/, ''), 60)
     if (url.length <= MAX_REF) out.push({ kind: 'url', ref: url, label: said ? `${who}: ${said}` : who, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   }
-  for (const m of plain.matchAll(IMAGE_PATH_RE)) if (out.length < PER_CALL && !out.some(x => x.ref === m[1])) out.push({ ...fileAsset(m[1]!, c), label: `${who}: ${basename(m[1]!)}` })
+  for (const m of plain.matchAll(IMAGE_PATH_RE)) {
+    // Compared as stored: `~/a.png` is kept as the home path.
+    const a = fileAsset(m[1]!, c)
+    if (out.length < PER_CALL && !out.some(x => x.ref === a.ref)) out.push({ ...a, label: `${who}: ${a.label}` })
+  }
   return out
 }
 
@@ -105,7 +109,8 @@ export function assetsOfTranscript(msgs: readonly { role: string; text: string; 
   const out: Asset[] = []
   for (const m of msgs) {
     if (m.role !== 'assistant') continue
-    out.push(...assetsOfText(m.text, 'reply', c))
+    // As live: a reply adds only a URL nothing named before, so it never turns an artifact or a tool's URL into `reply: …`.
+    out.push(...assetsOfText(m.text, 'reply', c).filter(a => !out.some(x => x.ref === a.ref)))
     for (const u of m.toolUses ?? []) if (!u.isError && typeof u.text === 'string') out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text, ...c }))
   }
   return out
