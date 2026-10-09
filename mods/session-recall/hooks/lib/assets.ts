@@ -41,7 +41,7 @@ const PER_CALL = 5
 // Tools whose output is file or page content: what they print is not something this session made.
 const SKIP = new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch'])
 // context-mode's reads (search an index, fetch a page), and this mod's own tool: its answer lists what is already kept.
-const SKIP_RE = /^mcp__.*__ctx_(search|fetch_and_index|index)$|^mcp__session-assets__/
+const SKIP_RE = /^mcp__.*__ctx_(search|fetch_and_index|index)$|^mcp__session-recall__/
 /** A ref longer than this is not something a person opens; it would only fill the store. */
 const MAX_REF = 2048
 const WRITERS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
@@ -412,7 +412,7 @@ export function isReader(command: string): boolean {
   return progs.length > 0 && (progs.every(reads) || progs.some(shows))
 }
 
-/** `/assets list` groups by when: today, this week, older (a replayed entry has no time of its own). */
+/** `/recall list` groups by when: today, this week, older (a replayed entry has no time of its own). */
 export function bucketOf(x: Entry, now: number): 'today' | 'this week' | 'older' {
   if (x.replayed) return 'older'
   if (new Date(x.at).toDateString() === new Date(now).toDateString()) return 'today'

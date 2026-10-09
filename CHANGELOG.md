@@ -1,5 +1,9 @@
 # Changelog
 
+## session-recall 0.9.0
+
+- Renamed from `session-assets`: the mod keeps more than assets (the answer lines the TUI quotes back), so it is `session-recall` and its command is `/recall` (`/recall list`, `/recall N`, `/recall tui`, …). The model tool is `mcp__session-recall__recall`; the TUI's files are under `~/.local/state/session-recall/`, the Warp launch configuration is `session-recall.yaml`. No alias: `/assets` is gone. Each session's list starts empty under the new name and is rebuilt from its transcript at the next start. Install `session-recall@agent-scripts` and uninstall `session-assets@agent-scripts`.
+
 ## session-assets 0.8.4
 
 - `agent-browser eval`, `snapshot` and `get` print a page they read, like `tmux capture-pane`: their URLs are not kept. A session that searched a bot app's transcript with `agent-browser eval` had two of the bot's pages as its top band rows. A screenshot `agent-browser` saves is still kept.

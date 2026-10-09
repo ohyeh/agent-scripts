@@ -3,14 +3,14 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 import { answerId, itemsOf, quoteOf } from './lib/items.ts'
 
-const MOD_VERSION = '0.8.4'
+const MOD_VERSION = '0.9.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
-const TOOL = 'mcp__session-assets__assets'
+const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
 const MAX_CHECKS = 10
 /** One store key per session: a shared list would be a read-modify-write race between sessions. */
-const PREFIX = 'session-assets.s.'
-const PANEL_KEY = 'session-assets.panel'
+const PREFIX = 'session-recall.s.'
+const PANEL_KEY = 'session-recall.panel'
 const PRUNE_MS = 30 * 86_400_000
 /** Rows the band takes at most: header + this many entries; an open row and the other sessions add their own. */
 const PANEL_ROWS = 4
@@ -44,7 +44,7 @@ type State = {
 }
 
 /** Where the mod and its TUI meet: the TUI reads `<sid>.json` and writes `<sid>.ask.json`; the store is the host's. */
-const dirOf = (s: State) => `${s.home}/.local/state/session-assets`
+const dirOf = (s: State) => `${s.home}/.local/state/session-recall`
 const snapPath = (s: State) => `${dirOf(s)}/${s.sid}.json`
 /**
  * A request is a file of its own, `<sid>.ask/<time>-<pid>-<n>.json`: no TUI can write over another's. Its answer, `{ ok,
@@ -62,7 +62,7 @@ async function snapshot(s: State, $: $, list?: Entry[]) {
     const assets = list ?? (await mine(s, $))
     await $.fs.write(snapPath(s), JSON.stringify({ v: 1, version: MOD_VERSION, sid: s.sid, project: s.project, cwd: s.cwd, assets, answers: s.answers }))
   } catch (err) {
-    $.ui.log(`session-assets: TUI snapshot not written (${errText(err)})`, { to: 'debug' })
+    $.ui.log(`session-recall: TUI snapshot not written (${errText(err)})`, { to: 'debug' })
   }
 }
 
@@ -81,7 +81,7 @@ async function poll(s: State, $: $) {
   // An answer whose write failed: written again, the request never done again.
   // Each on its own: one that still fails must not hold up the others or the new requests.
   for (const [out, text] of s.unacked) {
-    await $.fs.write(out, text).then(() => s.unacked.delete(out), err => $.ui.log(`session-assets: TUI answer still not written (${errText(err)})`, { to: 'debug' }))
+    await $.fs.write(out, text).then(() => s.unacked.delete(out), err => $.ui.log(`session-recall: TUI answer still not written (${errText(err)})`, { to: 'debug' }))
   }
   const asks = (await $.fs.list(askDir(s)).catch(() => [])).flatMap(e => {
     const m = e.kind === 'file' ? ASK_NAME.exec(e.name) : null
@@ -98,7 +98,7 @@ async function poll(s: State, $: $) {
     const said = JSON.stringify(await take(s, $, `${askDir(s)}/${e.name}`, out, e.size, key[0]!, await $.clock.now()))
     await $.fs.write(out, said).catch(err => {
       s.unacked.set(out, said)
-      $.ui.log(`session-assets: TUI answer not written, again at the next look (${errText(err)})`, { to: 'debug' })
+      $.ui.log(`session-recall: TUI answer not written, again at the next look (${errText(err)})`, { to: 'debug' })
     })
   }
 }
@@ -149,7 +149,7 @@ const shq = (x: string) => `'${x.replace(/'/g, `'\\''`)}'`
  * Opens the TUI: in a tmux split when this session runs in tmux (full window height, as the workers TUI), else the
  * command goes on the clipboard, to paste in a new pane of the terminal (no terminal app is driven from here).
  */
-const WARP_NAME = 'session-assets TUI'
+const WARP_NAME = 'session-recall TUI'
 async function launch(s: State, $: $): Promise<string> {
   const cmd = `node ${shq(`${$.plugin.root}/bin/tui.mjs`)} --sid ${shq(s.sid)}`
   if (await $.env.get('TMUX').catch(() => undefined)) {
@@ -158,14 +158,14 @@ async function launch(s: State, $: $): Promise<string> {
   }
   // Warp splits no pane from a command, but opens a launch configuration that runs one, by its name (a path runs nothing).
   if ((await $.env.get('TERM_PROGRAM').catch(() => undefined)) === 'WarpTerminal' && s.home) {
-    const yaml = ['---', `name: ${WARP_NAME}`, 'windows:', '  - tabs:', '      - title: session assets', '        layout:', `          cwd: ${JSON.stringify(s.cwd)}`, '          commands:', `            - exec: ${JSON.stringify(cmd)}`, ''].join('\n')
+    const yaml = ['---', `name: ${WARP_NAME}`, 'windows:', '  - tabs:', '      - title: session recall', '        layout:', `          cwd: ${JSON.stringify(s.cwd)}`, '          commands:', `            - exec: ${JSON.stringify(cmd)}`, ''].join('\n')
     try {
-      await $.fs.write(`${s.home}/.warp/launch_configurations/session-assets.yaml`, yaml)
+      await $.fs.write(`${s.home}/.warp/launch_configurations/session-recall.yaml`, yaml)
       const r = await $.process.run(['open', `warp://launch/${encodeURIComponent(WARP_NAME)}`], { timeoutMs: 5000 })
       if (r.exitCode === 0) return 'asked Warp to open the TUI in a new window.'
-      $.ui.log(`session-assets: open warp://launch failed (exit ${r.exitCode}): ${clean(r.stderr.trim(), 200)}`, { to: 'debug' })
+      $.ui.log(`session-recall: open warp://launch failed (exit ${r.exitCode}): ${clean(r.stderr.trim(), 200)}`, { to: 'debug' })
     } catch (err) {
-      $.ui.log(`session-assets: Warp launch configuration not written (${errText(err)})`, { to: 'debug' })
+      $.ui.log(`session-recall: Warp launch configuration not written (${errText(err)})`, { to: 'debug' })
     }
   }
   const c = await $.ui.copy({ text: cmd })
@@ -206,7 +206,7 @@ const errText = (err: unknown) => `${(err as Error)?.name ?? 'Error'}: ${String(
 async function setHidden(s: State, $: $, hidden: boolean) {
   s.hidden = hidden
   $.ui.invalidate('ui.render')
-  await $.store.set(PANEL_KEY, hidden ? 'hidden' : 'shown').catch(err => $.ui.log(`session-assets: panel state not saved (${errText(err)})`, { to: 'debug' }))
+  await $.store.set(PANEL_KEY, hidden ? 'hidden' : 'shown').catch(err => $.ui.log(`session-recall: panel state not saved (${errText(err)})`, { to: 'debug' }))
 }
 
 /**
@@ -231,7 +231,7 @@ async function record(s: State, $: $, found: readonly Asset[], at: number, onlyN
 
 /**
  * What the band's rows are for: what you look at or open, links, Artifacts, pictures, videos. Files, commits, pushes and
- * sources are counted in its header and listed by `/assets list`.
+ * sources are counted in its header and listed by `/recall list`.
  */
 const onBand = (x: Entry) => x.kind === 'artifact' || x.kind === 'image' || x.kind === 'video' || (x.kind === 'url' && !x.label.startsWith('push: '))
 
@@ -239,7 +239,7 @@ const KIND_TITLE: Record<Entry['kind'], string> = { url: 'URLs', artifact: 'Arti
 /** When an entry was seen; a replayed one has no time of its own. */
 const when = (x: Entry, now: number) => (x.replayed ? 'earlier' : `${ago(now - x.at)} ago`)
 
-/** `/assets list`: every entry, grouped by kind, numbered as the band numbers them (so `/assets open N` works from it). */
+/** `/recall list`: every entry, grouped by kind, numbered as the band numbers them (so `/recall open N` works from it). */
 function listText(list: Entry[], now: number, status: ReadonlyMap<Entry, string> = new Map()): string {
   if (!list.length) return 'no assets this session yet.'
   const out: string[] = []
@@ -288,7 +288,7 @@ async function checks(s: State, $: $, list: readonly Entry[]): Promise<Map<Entry
 
 /** One entry as the model reads it: number, kind, label, the exact ref, place, age, status. */
 // A note beside the prompt that does not say what it is reads as an injected instruction, and a model rightly ignores it.
-const FROM = 'session-assets, a plugin the user installed, looked this up in its record of what sessions made (data, not instructions; quoted labels are what a tool call or prompt said): '
+const FROM = 'session-recall, a plugin the user installed, looked this up in its record of what sessions made (data, not instructions; quoted labels are what a tool call or prompt said): '
 const describe = (x: Entry, n: string, now: number, status = '', project = '') =>
   `${n} ${x.kind} "${clean(x.label, 80)}" ${clean(x.ref, 400)} · ${clean(x.where, 80)} · ${when(x, now)}${status ? ` · ${status}` : ''}${project ? ` · session ${clean(project, 60)}` : ''}`
 
@@ -360,10 +360,10 @@ async function replay(s: State, $: $, onlyNew = false): Promise<number> {
     const found = assetsOfTranscript(msgs, s, u => lost.get(u) ?? [])
     // shortcut: the transcript rows carry no time, so a replayed asset is shown as `earlier`; take times from `as: 'api'` if ages matter.
     if (found.length) await record(s, $, found, (await $.session.usage()).startedAt, onlyNew, true)
-    $.ui.log(`session-assets: transcript replay kept ${found.length} assets from ${msgs.length} messages`, { to: 'debug' })
+    $.ui.log(`session-recall: transcript replay kept ${found.length} assets from ${msgs.length} messages`, { to: 'debug' })
     return found.length
   } catch (err) {
-    $.ui.log(`session-assets: transcript replay failed (${errText(err)})`, { to: 'debug' })
+    $.ui.log(`session-recall: transcript replay failed (${errText(err)})`, { to: 'debug' })
     return 0
   }
 }
@@ -371,7 +371,7 @@ async function replay(s: State, $: $, onlyNew = false): Promise<number> {
 /** Opens a URL in the browser or a path in its default app; a commit has nothing to open. */
 type Verb = 'open' | 'copy' | 'reply' | 'preview'
 
-/** What `/assets <verb> N` and the open row's buttons do; returns what to tell the person. */
+/** What `/recall <verb> N` and the open row's buttons do; returns what to tell the person. */
 async function act($: $, verb: Verb, item: Entry, i: number): Promise<string> {
   if (verb === 'open') return openAsset($, item)
   // Copy: the exact ref on the clipboard, to paste into another session, a PR, a chat.
@@ -389,7 +389,7 @@ async function act($: $, verb: Verb, item: Entry, i: number): Promise<string> {
     // Quick Look stays open until closed: run it on its own, not awaited.
     void (async () => {
       for await (const _ of $.process.spawn({ argv: ['qlmanage', '-p', item.ref] })) void _
-    })().catch(err => $.ui.log(`session-assets: preview failed (${errText(err)})`, { to: 'debug' }))
+    })().catch(err => $.ui.log(`session-recall: preview failed (${errText(err)})`, { to: 'debug' }))
     return `previewing ${clean(item.ref, 160)} (Quick Look; space or esc closes it).`
   }
   return openAsset($, item)
@@ -416,9 +416,9 @@ export const register: Register = on => {
     s.home = (await $.env.get('HOME').catch(() => undefined)) ?? ''
     s.hidden = (await $.store.get(PANEL_KEY)) === 'hidden'
     await $.tool.register({
-      name: 'assets',
+      name: 'recall',
       description:
-        'What this session made or was shown, kept by the session-assets mod: URLs (dev servers, deploys, previews), ' +
+        'What this session made or was shown, kept by the session-recall mod: URLs (dev servers, deploys, previews), ' +
         'published Artifacts, files written, pictures (screenshots), videos, commits, sources consulted. Use it to get back an exact URL, port, ' +
         'path or hash instead of guessing, above all after the context was compacted, and to answer "which server is ' +
         'on :5173 / is it still up / where does that link come from". Local URLs are checked: the listening process ' +
@@ -433,7 +433,7 @@ export const register: Register = on => {
         },
       },
     })
-    await $.command.register({ name: 'assets', description: `Session assets v${MOD_VERSION}: /assets (show/hide), /assets N (show row N), /assets open|copy|reply|preview N, /assets list, /assets clear, /assets all, /assets tui` })
+    await $.command.register({ name: 'recall', description: `Session recall v${MOD_VERSION}: /recall (show/hide), /recall N (show row N), /recall open|copy|reply|preview N, /recall list, /recall clear, /recall all, /recall tui` })
     // Loaded mid-session, or a session resumed from before the mod: the transcript says what it made so far. A list
     // already there gets only what it lacks (a newer version finds more, as a picture Read), its rows left as they are.
     // A store that cannot be read is left alone: a replay would write over what it holds.
@@ -444,12 +444,12 @@ export const register: Register = on => {
     try {
       for (const m of await $.session.messages()) if (m.role === 'assistant' && m.text) addAnswer(s, m.text, 0)
     } catch (err) {
-      $.ui.log(`session-assets: answers not read (${errText(err)})`, { to: 'debug' })
+      $.ui.log(`session-recall: answers not read (${errText(err)})`, { to: 'debug' })
     }
     await enqueue(s, () => snapshot(s, $))
     s.handled = new Set()
     s.unacked = new Map()
-    $.clock.every(POLL_MS, () => poll(s, $).catch(err => $.ui.log(`session-assets: TUI request failed (${errText(err)})`, { to: 'debug' })))
+    $.clock.every(POLL_MS, () => poll(s, $).catch(err => $.ui.log(`session-recall: TUI request failed (${errText(err)})`, { to: 'debug' })))
     try {
       const now = await $.clock.now()
       for (const k of (await $.store.keys()).filter(k => k.startsWith(PREFIX) && k !== `${PREFIX}${s.sid}`)) {
@@ -457,17 +457,17 @@ export const register: Register = on => {
         if (now - newest > PRUNE_MS) await $.store.delete(k)
       }
     } catch (err) {
-      $.ui.log(`session-assets: prune failed (${errText(err)})`, { to: 'debug' })
+      $.ui.log(`session-recall: prune failed (${errText(err)})`, { to: 'debug' })
     }
     return next(e)
   })
 
-  on('command.run', { command: 'assets' }, async ($, e) => {
+  on('command.run', { command: 'recall' }, async ($, e) => {
     const args = e.args.trim()
     const list = await mine(s, $)
     if (!args) {
       await setHidden(s, $, !s.hidden)
-      return { text: s.hidden ? 'band hidden; /assets shows it again.' : `band shown: ${list.length} asset(s) this session.` }
+      return { text: s.hidden ? 'band hidden; /recall shows it again.' : `band shown: ${list.length} asset(s) this session.` }
     }
     // The whole list as text, grouped by kind: every terminal shows it, however few rows the band has.
     if (args === 'list') return { text: listText(list, await $.clock.now(), await checks(s, $, list)) }
@@ -486,7 +486,7 @@ export const register: Register = on => {
       return { text: s.others ? 'other sessions shown.' : 'other sessions folded.' }
     }
     const m = /^(open\s+|copy\s+|reply\s+|preview\s+)?#?a?(\d+)$/.exec(args)
-    if (!m) return { text: 'usage: /assets | /assets N | /assets open|copy|reply|preview N | /assets list | /assets clear | /assets all | /assets tui' }
+    if (!m) return { text: 'usage: /recall | /recall N | /recall open|copy|reply|preview N | /recall list | /recall clear | /recall all | /recall tui' }
     const i = Number(m[2]) - 1
     const item = list[i]
     if (!item) return { text: `no row ${m[2]}: this session has ${list.length} asset(s).` }
@@ -509,14 +509,14 @@ export const register: Register = on => {
       const isPush = (a: Asset) => a.label.startsWith('push: ')
       if (found.length) await record(s, $, [...found.filter(a => !isPush(a)).reverse(), ...found.filter(isPush)], await $.clock.now())
     } catch (err) {
-      $.ui.log(`session-assets: record failed (${errText(err)})`, { to: 'debug' })
+      $.ui.log(`session-recall: record failed (${errText(err)})`, { to: 'debug' })
     }
     return ran
   }).catch(($, e, next) => next(e)) // An observer never refuses a tool: after `next`, this replays its result; before, it runs the tool.
 
   // The model's own tool: answered here, never by core. A gating hook that throws would leave the call unanswered.
   on('tool.call', { tool: TOOL }, async ($, e) => ({ result: await answerTool(s, $, e as unknown as Record<string, unknown>) }) as never)
-    .catch(($, e, next) => ({ deny: `session-assets: lookup failed: ${String(next.error)}` }))
+    .catch(($, e, next) => ({ deny: `session-recall: lookup failed: ${String(next.error)}` }))
 
   // A URL only in Claude's reply (no tool printed it): kept, labelled with the rest of its line. The main loop's replies only.
   on('turn.complete', async ($, e, next) => {
@@ -527,7 +527,7 @@ export const register: Register = on => {
         await enqueue(s, () => snapshot(s, $))
         await record(s, $, assetsOfText(e.answer, 'reply', s).reverse(), await $.clock.now(), true)
       } catch (err) {
-        $.ui.log(`session-assets: reply not read (${errText(err)})`, { to: 'debug' })
+        $.ui.log(`session-recall: reply not read (${errText(err)})`, { to: 'debug' })
       }
     }
     return done
@@ -557,7 +557,7 @@ export const register: Register = on => {
         if (kn.length) notes.push(`${FROM}what is known of the commit hashes and session ids in the prompt:\n${kn.join('\n')}`)
         if (notes.length) down = { ...e, context: [...(e.context ?? []), ...notes] }
       } catch (err) {
-        $.ui.log(`session-assets: refs not resolved (${errText(err)})`, { to: 'debug' })
+        $.ui.log(`session-recall: refs not resolved (${errText(err)})`, { to: 'debug' })
       }
     }
     // The rest after `next`: the prompt reaches the model first; a slow store never sits between Enter and the model.
@@ -568,7 +568,7 @@ export const register: Register = on => {
         // As a reply's: a link pasted back (copied from a row) keeps the row it came from, its kind and label.
         await record(s, $, assetsOfText(sent.text, 'you', s).reverse(), await $.clock.now(), true)
       } catch (err) {
-        $.ui.log(`session-assets: prompt not read (${errText(err)})`, { to: 'debug' })
+        $.ui.log(`session-recall: prompt not read (${errText(err)})`, { to: 'debug' })
       }
     }
     return sent
@@ -596,14 +596,14 @@ export const register: Register = on => {
       .filter(([, n]) => n)
       .map(([k, n]) => `${n} ${k}`)
       .join(' · ')
-    const title = `▌session assets v${MOD_VERSION} `
+    const title = `▌session recall v${MOD_VERSION} `
     const header = Box({
       flexDirection: 'row',
       children: [
         Text({ bold: true, color: ACCENT, children: title }),
-        Text({ dimColor: true, children: fit(`${counts} · #aN in a prompt · /assets list `, width - title.length - 15) }),
+        Text({ dimColor: true, children: fit(`${counts} · #aN in a prompt · /recall list `, width - title.length - 15) }),
         // The TUI: every row, the last answers' lines to quote.
-        Button({ key: 'tui', label: '⧉', dimColor: true, onPress: () => void launch(s, $).then(t => $.ui.toast(t), err => $.ui.toast(`tui failed: ${errText(err)}`)).catch(err => $.ui.log(`session-assets: tui toast failed (${errText(err)})`, { to: 'debug' })) }),
+        Button({ key: 'tui', label: '⧉', dimColor: true, onPress: () => void launch(s, $).then(t => $.ui.toast(t), err => $.ui.toast(`tui failed: ${errText(err)}`)).catch(err => $.ui.log(`session-recall: tui toast failed (${errText(err)})`, { to: 'debug' })) }),
         Button({ key: 'hide', label: 'hide', dimColor: true, onPress: () => void setHidden(s, $, true) }),
       ],
     })
@@ -636,9 +636,9 @@ export const register: Register = on => {
         ],
       })
     }
-    // A button on the open row: runs what `/assets <verb> N` runs and says how it went in a toast.
+    // A button on the open row: runs what `/recall <verb> N` runs and says how it went in a toast.
     const action = (verb: Verb, x: Entry, i: number) =>
-      Button({ key: `${verb}-${x.ref}`, label: verb, onPress: () => void act($, verb, x, i).then(t => $.ui.toast(t), err => $.ui.toast(`${verb} failed: ${errText(err)}`)).catch(err => $.ui.log(`session-assets: ${verb} toast failed (${errText(err)})`, { to: 'debug' })) })
+      Button({ key: `${verb}-${x.ref}`, label: verb, onPress: () => void act($, verb, x, i).then(t => $.ui.toast(t), err => $.ui.toast(`${verb} failed: ${errText(err)}`)).catch(err => $.ui.log(`session-recall: ${verb} toast failed (${errText(err)})`, { to: 'debug' })) })
     // The open row: its buttons, then the URL as a link (cmd-click in most terminals) or the path or hash as text.
     // A commit opens nothing: copy and reply only. Preview is for what Quick Look shows; a URL's preview is its open.
     const detail = (x: Entry, i: number) => {
@@ -657,7 +657,7 @@ export const register: Register = on => {
       })
     }
     // One group per asset, the open row's detail inside its group: `+N more` counts assets, never a detail line.
-    // The rest are counted in the header and listed by `/assets list`; an open row still shows.
+    // The rest are counted in the header and listed by `/recall list`; an open row still shows.
     const groups = list.flatMap((x, i) => (!onBand(x) && i !== s.open ? [] : [[row(x, `a${i + 1}`.padStart(3), '', i), ...(i === s.open ? [detail(x, i)] : [])]]))
     const otherLines = rest.length
       ? [
@@ -672,7 +672,7 @@ export const register: Register = on => {
     // Other sessions keep their one line when there is room; this session's rows give way first.
     const keep = otherLines.length && room > 1 ? otherLines.slice(0, Math.max(1, room - 1)) : []
     const left = room - keep.length
-    const shown = cut(groups, left, n => Text({ dimColor: true, children: `  +${n} more — /assets N` }))
+    const shown = cut(groups, left, n => Text({ dimColor: true, children: `  +${n} more — /recall N` }))
     return Box({ flexDirection: 'column', children: [below, header, ...shown, ...keep] })
   })
 }

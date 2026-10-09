@@ -8,7 +8,7 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 work="$(mktemp -d -t sa-tui.XXXXXX)"
 sock="sa-tui-$$"
 trap 'tmux -L "$sock" kill-server 2>/dev/null || true; chmod -R u+w "$work" 2>/dev/null; rm -rf "$work"' EXIT
-d="$work/.local/state/session-assets"
+d="$work/.local/state/session-recall"
 mkdir -p "$d"
 cat > "$d/sid-1.json" <<'J'
 {"v":1,"version":"9.9.9","sid":"sid-1","project":"demo","assets":[{"kind":"url","ref":"http://localhost:5173/","label":"Start dev","where":"localhost:5173","at":0},{"kind":"image","ref":"/tmp/shot.png","label":"shot.png","where":"/tmp","at":0}],"answers":[{"id":"x1","at":0,"items":["first line","第二行 寫死","third"]}]}

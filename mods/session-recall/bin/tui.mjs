@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// session-assets TUI: a session's assets and the lines of its last answers, full screen, in a pane of its own.
-// Reads the snapshot the mod writes (~/.local/state/session-assets/<sid>.json); writes only <sid>.ask.json, a request
+// session-recall TUI: a session's assets and the lines of its last answers, full screen, in a pane of its own.
+// Reads the snapshot the mod writes (~/.local/state/session-recall/<sid>.json); writes only <sid>.ask.json, a request
 // the mod turns into prompt text (an outside process cannot type into Claude's prompt box). No dependencies.
 import { spawn } from 'node:child_process'
 import { mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
-export const DIR = `${process.env.HOME || homedir()}/.local/state/session-assets`
+export const DIR = `${process.env.HOME || homedir()}/.local/state/session-recall`
 
 /** Terminal cells of a string: CJK, fullwidth and emoji take two. */
 export const cells = str => {
@@ -61,7 +61,7 @@ const OFF = '\x1b[0m'
  */
 export function frame(data, v, cols, rows, now) {
   const tabs = ['answers', 'assets'].map((t, i) => (v.tab === t ? `${INV} ${i + 1} ${t} ${OFF}` : ` ${i + 1} ${t} `)).join('')
-  const head = `${BOLD}▌session assets${OFF} ${DIM}${fit(`v${data.version ?? '?'} · ${data.project ?? ''}`, Math.max(0, cols - 40))}${OFF}  ${tabs}`
+  const head = `${BOLD}▌session recall${OFF} ${DIM}${fit(`v${data.version ?? '?'} · ${data.project ?? ''}`, Math.max(0, cols - 40))}${OFF}  ${tabs}`
   const lines = [head]
   const body = Math.max(1, rows - 6)
   let detail = ''
@@ -147,7 +147,7 @@ function main() {
   const arg = process.argv.indexOf('--sid')
   const sid = arg > 0 ? process.argv[arg + 1] : undefined
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    process.stderr.write('session-assets tui: needs a terminal\n')
+    process.stderr.write('session-recall tui: needs a terminal\n')
     process.exit(2)
   }
   const snap = pick(DIR, sid)

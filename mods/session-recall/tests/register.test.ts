@@ -82,8 +82,8 @@ describe('assetsOf', () => {
   })
 
   test('git commit output is a commit with its subject and branch', async () => {
-    expect(call('Bash', { command: 'git add -A && git commit -m x' }, '[main 9685ae2] fix(session-assets): strip ANSI\n 3 files changed, 9 insertions(+)')).toEqual([
-      { kind: 'commit', ref: '9685ae2', label: 'fix(session-assets): strip ANSI', where: 'main', isLocal: true },
+    expect(call('Bash', { command: 'git add -A && git commit -m x' }, '[main 9685ae2] fix(session-recall): strip ANSI\n 3 files changed, 9 insertions(+)')).toEqual([
+      { kind: 'commit', ref: '9685ae2', label: 'fix(session-recall): strip ANSI', where: 'main', isLocal: true },
     ])
     // Mid-rebase or bisect, git prints `detached HEAD` where the branch goes.
     expect(call('Bash', { command: 'git commit -m y' }, '[detached HEAD 1a2b3c4] fix thing\n 1 file changed').map(a => [a.ref, a.where])).toEqual([['1a2b3c4', 'detached HEAD']])
@@ -283,16 +283,16 @@ test('an asset seen again moves to the top with its new label', async () => {
 describe('band', () => {
   test('assets land in this session\'s key and the band draws them; another session\'s are folded', async ($, on) => {
     const w = world(on)
-    w.kv.set('session-assets.s.sess-B', [{ kind: 'url', ref: 'https://share.o17y317.uk/x', where: 'share.o17y317.uk', isLocal: false, label: 'Aurora', project: 'other', at: 0 }])
+    w.kv.set('session-recall.s.sess-B', [{ kind: 'url', ref: 'https://share.o17y317.uk/x', where: 'share.o17y317.uk', isLocal: false, label: 'Aurora', project: 'other', at: 0 }])
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
     await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/plan.md', content: 'x' })
-    const list = w.kv.get('session-assets.s.sess-A') as Array<{ kind: string; ref: string; label: string; project: string }>
+    const list = w.kv.get('session-recall.s.sess-A') as Array<{ kind: string; ref: string; label: string; project: string }>
     expect(list.map(x => x.kind)).toEqual(['file', 'url'])
     expect(list[1]).toMatchObject({ ref: 'http://localhost:5173/', label: 'Start dev server', project: 'retro-w41' })
 
     const text = textOf(await $.ui.render(band()))
-    expect(text).toContain('session assets')
+    expect(text).toContain('session recall')
     expect(text).toContain('1 url · 1 file')
     expect(text).toContain('Start dev server')
     expect(text, 'a file is counted, not a band row').not.toContain('plan.md')
@@ -328,20 +328,20 @@ describe('band', () => {
     const w = world(on, { isError: true })
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
-    expect(w.kv.get('session-assets.s.sess-A')).toBeUndefined()
+    expect(w.kv.get('session-recall.s.sess-A')).toBeUndefined()
   })
 
   test('no asset this session: the band is left alone', async ($, on) => {
     world(on)
     await $.session.start(start)
-    expect(textOf(await $.ui.render(band()))).not.toContain('session assets')
+    expect(textOf(await $.ui.render(band()))).not.toContain('session recall')
   })
 
   test('never more rows than maxRows leaves', async ($, on) => {
     const w = world(on, { text: Array.from({ length: 5 }, (_, i) => `http://localhost:30${i}0/`).join('\n') })
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'up', description: 'up' })
-    expect(w.kv.get('session-assets.s.sess-A')).toHaveLength(5)
+    expect(w.kv.get('session-recall.s.sess-A')).toHaveLength(5)
     for (const maxRows of [1, 2, 3, 40]) {
       const tree = await $.ui.render(band({ maxRows }))
       expect(rowsOf(tree), `maxRows ${maxRows}`).toBeLessThanOrEqual(maxRows)
@@ -351,18 +351,18 @@ describe('band', () => {
     expect(textOf(await $.ui.render(band({ maxRows: 3 })))).toContain('+4 more')
   })
 
-  test('a survey keeps the band; /assets hides and shows it', async ($, on) => {
+  test('a survey keeps the band; /recall hides and shows it', async ($, on) => {
     world(on)
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
-    expect(textOf(await $.ui.render(band({ hasSurvey: true })))).not.toContain('session assets')
+    expect(textOf(await $.ui.render(band({ hasSurvey: true })))).not.toContain('session recall')
     await $.command.run(cmd(''))
-    expect(textOf(await $.ui.render(band()))).not.toContain('session assets')
+    expect(textOf(await $.ui.render(band()))).not.toContain('session recall')
     await $.command.run(cmd(''))
-    expect(textOf(await $.ui.render(band()))).toContain('session assets')
+    expect(textOf(await $.ui.render(band()))).toContain('session recall')
   })
 
-  test('/assets N opens the row; /assets open N runs open with the URL or path as argv; a commit opens nothing', async ($, on) => {
+  test('/recall N opens the row; /recall open N runs open with the URL or path as argv; a commit opens nothing', async ($, on) => {
     const w = world(on)
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
@@ -378,17 +378,17 @@ describe('band', () => {
   test('a session without a list replays its transcript, dated at the session start', async ($, on) => {
     const w = world(on, { messages: [{ role: 'assistant', text: 'Preview: https://x.dev/p', toolUses: [{ tool: 'Write', input: { file_path: '/work/retro-w41/a.md' }, text: 'ok' }] }] })
     await $.session.start(start)
-    const list = w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; at: number }>
+    const list = w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; at: number }>
     expect(list.map(x => [x.ref, x.at])).toEqual([['/work/retro-w41/a.md', 1000], ['https://x.dev/p', 1000]])
     expect(textOf(await $.ui.render(band()))).toContain('earlier')
     // A reload adds only what the list lacks (a newer version finds more); a row already there keeps its time and label.
-    w.kv.set('session-assets.s.sess-A', [{ ...list[0]!, at: 5, label: 'kept' }])
+    w.kv.set('session-recall.s.sess-A', [{ ...list[0]!, at: 5, label: 'kept' }])
     await $.session.start(start)
-    const after = w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; at: number; label: string }>
+    const after = w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; at: number; label: string }>
     expect(after.map(x => [x.ref, x.at])).toEqual([['https://x.dev/p', 1000], ['/work/retro-w41/a.md', 5]])
     expect(after.find(x => x.ref === '/work/retro-w41/a.md')?.label).toBe('kept')
     await $.session.start(start)
-    expect((w.kv.get('session-assets.s.sess-A') as unknown[]).length, 'a second reload adds nothing').toBe(2)
+    expect((w.kv.get('session-recall.s.sess-A') as unknown[]).length, 'a second reload adds nothing').toBe(2)
   })
 
   test('a reply adds only URLs no tool printed; a subagent\'s reply adds nothing', async ($, on) => {
@@ -397,7 +397,7 @@ describe('band', () => {
     await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
     await $.turn.complete({ ...turn, answer: 'Dev server: http://localhost:5173/\nDocs: https://x.dev/docs' } as never)
     await $.turn.complete({ ...turn, agentId: 'a1', answer: 'https://sub.dev' } as never)
-    const list = w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>
+    const list = w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; label: string }>
     expect(list.map(x => [x.ref, x.label])).toEqual([['https://x.dev/docs', 'reply: Docs'], ['http://localhost:5173/', 'Start dev server']])
   })
 
@@ -407,7 +407,7 @@ describe('band', () => {
     await $.prompt.submit({ text: 'fix https://x.dev/bug/1', wait: false, origin: { kind: 'composer' } } as never)
     await $.prompt.submit({ text: 'task done https://ci.dev/2', wait: false, origin: { kind: 'notification' } } as never)
     await $.prompt.submit({ text: 'DROP https://dropped.dev', wait: false, origin: { kind: 'composer' } } as never)
-    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>).map(x => [x.ref, x.label])).toEqual([['https://x.dev/bug/1', 'you: fix']])
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; label: string }>).map(x => [x.ref, x.label])).toEqual([['https://x.dev/bug/1', 'you: fix']])
     expect(textOf(await $.ui.render(band())), 'a pasted link is a band row').toContain('x.dev/bug/1')
   })
 
@@ -416,16 +416,16 @@ describe('band', () => {
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
     await $.prompt.submit({ text: 'http://localhost:5173/ 白畫面', wait: false, origin: { kind: 'composer' } } as never)
-    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; kind: string; label: string }>).map(x => [x.kind, x.label])).toEqual([['url', 'Start dev server']])
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; kind: string; label: string }>).map(x => [x.kind, x.label])).toEqual([['url', 'Start dev server']])
     // Claude then reads the page: it stays a link, not a source.
     await $.tool.call({ tool: 'WebFetch', url: 'http://localhost:5173/', prompt: 'what is on it' } as never)
-    expect((w.kv.get('session-assets.s.sess-A') as Array<{ kind: string }>).map(x => x.kind)).toEqual(['url'])
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ kind: string }>).map(x => x.kind)).toEqual(['url'])
   })
 
   test('a page Claude read becomes a link row when you paste it; read again, a source takes its newest label', async ($, on) => {
     const w = world(on)
     await $.session.start(start)
-    const kinds = () => (w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; kind: string; label: string }>).map(x => [x.ref, x.kind, x.label])
+    const kinds = () => (w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; kind: string; label: string }>).map(x => [x.ref, x.kind, x.label])
     await $.tool.call({ tool: 'WebFetch', url: 'https://a.dev/spec', prompt: 'first read' } as never)
     await $.tool.call({ tool: 'WebFetch', url: 'https://b.dev/doc', prompt: 'old' } as never)
     await $.tool.call({ tool: 'WebFetch', url: 'https://b.dev/doc', prompt: 'new' } as never)
@@ -443,10 +443,10 @@ describe('band', () => {
     const text = textOf(await $.ui.render(band()))
     expect(text, 'an opened row shows').toContain('9685ae2')
     expect(text).not.toContain('main')
-    expect(text).toMatch(/▌session assets v\d+\.\d+\.\d+/)
+    expect(text).toMatch(/▌session recall v\d+\.\d+\.\d+/)
   })
 
-  test('/assets list prints every entry grouped by kind, numbered as the band', async ($, on) => {
+  test('/recall list prints every entry grouped by kind, numbered as the band', async ($, on) => {
     world(on)
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
@@ -479,31 +479,31 @@ describe('band', () => {
       { role: 'assistant', text: 'Spec: https://a.dev/spec', toolUses: [] },
     ] })
     await $.session.start(start)
-    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; kind: string; label: string }>).map(x => [x.ref, x.kind, x.label])).toEqual([['https://a.dev/spec', 'url', 'reply: Spec']])
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; kind: string; label: string }>).map(x => [x.ref, x.kind, x.label])).toEqual([['https://a.dev/spec', 'url', 'reply: Spec']])
   })
 
-  test('/assets clear starts the list over from the transcript', async ($, on) => {
+  test('/recall clear starts the list over from the transcript', async ($, on) => {
     const w = world(on, { messages: [{ role: 'assistant', text: 'Preview: https://x.dev/p', toolUses: [] }] })
-    w.kv.set('session-assets.s.sess-A', [{ kind: 'url', ref: 'https://noise.dev', where: 'noise.dev', isLocal: false, label: 'old', project: 'p', at: 0 }])
+    w.kv.set('session-recall.s.sess-A', [{ kind: 'url', ref: 'https://noise.dev', where: 'noise.dev', isLocal: false, label: 'old', project: 'p', at: 0 }])
     await $.session.start(start)
     expect(JSON.stringify(await $.command.run(cmd('clear')))).toContain('cleared 2 asset(s); the transcript gave back 1')
-    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string }>).map(x => x.ref)).toEqual(['https://x.dev/p'])
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string }>).map(x => x.ref)).toEqual(['https://x.dev/p'])
   })
 
   test('the model asks: its tool finds rows by words, checks local URLs, and is not recorded itself', async ($, on) => {
     const w = world(on)
-    w.kv.set('session-assets.s.sess-B', [{ kind: 'url', ref: 'http://localhost:3000/', where: 'localhost:3000', isLocal: true, label: 'Start api', project: 'other', at: 0 }])
+    w.kv.set('session-recall.s.sess-B', [{ kind: 'url', ref: 'http://localhost:3000/', where: 'localhost:3000', isLocal: true, label: 'Start api', project: 'other', at: 0 }])
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
     await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/plan.md', content: 'x' })
-    const one = JSON.stringify(await $.tool.call({ tool: 'mcp__session-assets__assets', query: 'dev server' } as never))
+    const one = JSON.stringify(await $.tool.call({ tool: 'mcp__session-recall__recall', query: 'dev server' } as never))
     expect(one).toContain('#a2 url \\"Start dev server\\" http://localhost:5173/ · localhost:5173 · 0s ago · up: vite (pid 4242) in .')
     expect(one).not.toContain('plan.md')
-    const all = JSON.stringify(await $.tool.call({ tool: 'mcp__session-assets__assets', query: 'start', all_sessions: true } as never))
+    const all = JSON.stringify(await $.tool.call({ tool: 'mcp__session-recall__recall', query: 'start', all_sessions: true } as never))
     expect(all).toContain('Start api')
     expect(all).toContain('down: nothing listens on :3000')
     expect(all).toContain("session sess-B (other)")
-    expect((w.kv.get('session-assets.s.sess-A') as unknown[]).length, 'the tool answer adds nothing').toBe(2)
+    expect((w.kv.get('session-recall.s.sess-A') as unknown[]).length, 'the tool answer adds nothing').toBe(2)
   })
 
   test('the person points: #a1 goes to the model as the exact ref and its status; #123 adds nothing', async ($, on) => {
@@ -538,7 +538,7 @@ describe('band', () => {
     await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/shot.png', content: 'x' })
     await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
     await $.ui.render(band())
-    const press = (key: string) => $.ui.press({ plugin: 'session-assets', key, requestId: 'above-prompt' } as never)
+    const press = (key: string) => $.ui.press({ plugin: 'session-recall', key, requestId: 'above-prompt' } as never)
     await press('name-http://localhost:5173/')
     const opened = textOf(await $.ui.render(band()))
     expect(opened).toContain('open\ncopy\nreply')
@@ -562,7 +562,7 @@ describe('band', () => {
     const w = world(on, { text: 'To https://github.com/o/r.git\n   1a2b3c4..5d6e7f8  main -> main\nTo https://github.com/o/r.git\n   5d6e7f8..9a8b7c6  main -> main\n' })
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'git push && git commit --amend -q --no-edit && git push -f' })
-    const list = w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>
+    const list = w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; label: string }>
     expect(list.map(x => [x.ref, x.label])).toEqual([['https://github.com/o/r/compare/1a2b3c4...9a8b7c6', 'push: main 1a2b3c4..9a8b7c6']])
   })
 
@@ -586,7 +586,7 @@ describe('band', () => {
 
   test('a commit hash or session id pasted from another session comes with what that session made', async ($, on) => {
     const w = world(on)
-    w.kv.set('session-assets.s.af85cbe5-4f43-4769-a7f1-91da0c051fbd', [
+    w.kv.set('session-recall.s.af85cbe5-4f43-4769-a7f1-91da0c051fbd', [
       { kind: 'commit', ref: '9ec9669', where: 'main', isLocal: true, label: 'fix: ios matrix', project: 'healthgo', at: 0 },
       { kind: 'url', ref: 'https://github.com/o/r/pull/131', where: 'github.com', isLocal: false, label: 'gh pr create', project: 'healthgo', at: 0 },
     ])
@@ -603,7 +603,7 @@ describe('band', () => {
     const w = world(on, { text: '   1a2b3c4..5d6e7f8  main -> main\n' })
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'git push origin main 2>&1 | tail -1', description: 'Push' })
-    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>).map(x => [x.label, x.ref])).toEqual([['push: main 1a2b3c4..5d6e7f8', 'https://github.com/o/r/compare/1a2b3c4...5d6e7f8']])
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; label: string }>).map(x => [x.label, x.ref])).toEqual([['push: main 1a2b3c4..5d6e7f8', 'https://github.com/o/r/compare/1a2b3c4...5d6e7f8']])
   })
 
   test('the replay asks git for a push that lost its To line, once per remote', async ($, on) => {
@@ -612,7 +612,7 @@ describe('band', () => {
       { tool: 'Bash', input: { command: 'git push origin main 2>&1 | tail -1' }, text: '   5d6e7f8..9a8b7c6  main -> main' },
     ] }] })
     await $.session.start(start)
-    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string }>).map(x => x.ref), 'two pushes that follow on are one compare view').toEqual(['https://github.com/o/r/compare/1a2b3c4...9a8b7c6'])
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string }>).map(x => x.ref), 'two pushes that follow on are one compare view').toEqual(['https://github.com/o/r/compare/1a2b3c4...9a8b7c6'])
     expect(w.runs.filter(a => a[0] === 'git').length, 'one git call for one remote').toBe(1)
   })
 
@@ -622,7 +622,7 @@ describe('band', () => {
       { tool: 'Write', input: { file_path: '/work/retro-w41/later.md' }, text: 'ok' },
     ] }] })
     await $.session.start(start)
-    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string }>).map(x => x.ref), 'the file written later is the newer row').toEqual(['/work/retro-w41/later.md', 'https://github.com/o/r/compare/1a2b3c4...5d6e7f8'])
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string }>).map(x => x.ref), 'the file written later is the newer row').toEqual(['/work/retro-w41/later.md', 'https://github.com/o/r/compare/1a2b3c4...5d6e7f8'])
   })
 
   test('a failed store write still returns the tool result', async ($, on) => {
@@ -635,7 +635,7 @@ describe('band', () => {
 
 const turn = { answer: '', durationMs: 1, isAborted: false, turnId: 't1' }
 const start = { cwd: '/work/retro-w41', surface: 'terminal' as const, isInteractive: true }
-const cmd = (args: string) => ({ command: 'assets', args, origin: { kind: 'composer' as const }, presentation: { isFullscreen: false, columns: 120 } })
+const cmd = (args: string) => ({ command: 'recall', args, origin: { kind: 'composer' as const }, presentation: { isFullscreen: false, columns: 120 } })
 const band = (props: { maxRows?: number; hasSurvey?: boolean } = {}) => ({
   surface: 'terminal' as const,
   component: 'AbovePrompt' as const,
@@ -713,7 +713,7 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
     return { value: undefined }
   })
   on('store.set', ($, e) => {
-    if (opts.failWrites && e.key.startsWith('session-assets.s.')) throw new Error('disk full')
+    if (opts.failWrites && e.key.startsWith('session-recall.s.')) throw new Error('disk full')
     kv.set(e.key, e.value)
     return { value: undefined }
   })
@@ -742,11 +742,11 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   let n = 0
   const ask = (req: unknown, age = 0, count = ++n) => {
     const name = `${String(clock.now() - age).padStart(13, '0')}-77-${count}.json`
-    files.set(`${HOME}/.local/state/session-assets/sess-A.ask/${name}`, { text: typeof req === 'string' ? req : JSON.stringify(req), mtimeMs: clock.now() - age })
-    const done = () => JSON.parse(files.get(`${HOME}/.local/state/session-assets/sess-A.done/${name}`)?.text ?? 'null')
-    return Object.assign(done, { at: `${HOME}/.local/state/session-assets/sess-A.done/${name}` })
+    files.set(`${HOME}/.local/state/session-recall/sess-A.ask/${name}`, { text: typeof req === 'string' ? req : JSON.stringify(req), mtimeMs: clock.now() - age })
+    const done = () => JSON.parse(files.get(`${HOME}/.local/state/session-recall/sess-A.done/${name}`)?.text ?? 'null')
+    return Object.assign(done, { at: `${HOME}/.local/state/session-recall/sess-A.done/${name}` })
   }
-  const snap = () => JSON.parse(files.get(`${HOME}/.local/state/session-assets/sess-A.json`)?.text ?? 'null')
+  const snap = () => JSON.parse(files.get(`${HOME}/.local/state/session-recall/sess-A.json`)?.text ?? 'null')
   return { kv, runs, contexts, copied, filled, spawned, toasts, files, ask, snap, clock, box, failing }
 }
 
@@ -825,7 +825,7 @@ describe('the TUI', () => {
     const w = world(on)
     const done = w.ask({ quote: ['already filled'] })
     const name = [...w.files.keys()].find(k => k.includes('.ask/'))!.split('/').pop()
-    w.files.set(`${HOME}/.local/state/session-assets/sess-A.done/${name}`, { text: '{"ok":true,"text":"filled"}', mtimeMs: 1 })
+    w.files.set(`${HOME}/.local/state/session-recall/sess-A.done/${name}`, { text: '{"ok":true,"text":"filled"}', mtimeMs: 1 })
     await $.session.start(start)
     await w.clock.advance(600)
     expect(done()).toEqual({ ok: true, text: 'filled' })
@@ -882,7 +882,7 @@ describe('the TUI', () => {
     expect(taken()).toEqual({ taking: true })
   })
 
-  test('/assets tui splits tmux when in it, else copies the command', async ($, on) => {
+  test('/recall tui splits tmux when in it, else copies the command', async ($, on) => {
     const w = world(on, { tmux: '/tmp/tmux-1/default,1,0' })
     await $.session.start(start)
     expect(await $.command.run(cmd('tui'))).toMatchObject({ text: 'TUI opened in a tmux split.' })
@@ -891,18 +891,18 @@ describe('the TUI', () => {
     expect(split[6]).toMatch(/^node '.*\/bin\/tui\.mjs' --sid 'sess-A'$/)
   })
 
-  test('in Warp /assets tui opens a launch configuration that runs the TUI, by its name', async ($, on) => {
+  test('in Warp /recall tui opens a launch configuration that runs the TUI, by its name', async ($, on) => {
     const w = world(on, { term: 'WarpTerminal' })
     await $.session.start(start)
     expect(await $.command.run(cmd('tui'))).toMatchObject({ text: 'asked Warp to open the TUI in a new window.' })
-    const yaml = w.files.get(`${HOME}/.warp/launch_configurations/session-assets.yaml`)?.text ?? ''
-    expect(yaml).toContain('name: session-assets TUI')
+    const yaml = w.files.get(`${HOME}/.warp/launch_configurations/session-recall.yaml`)?.text ?? ''
+    expect(yaml).toContain('name: session-recall TUI')
     expect(yaml).toMatch(/- exec: "node '.*\/bin\/tui\.mjs' --sid 'sess-A'"/)
     expect(yaml).toContain('cwd: "/work/retro-w41"')
-    expect(w.runs.find(a => a[0] === 'open')).toEqual(['open', 'warp://launch/session-assets%20TUI'])
+    expect(w.runs.find(a => a[0] === 'open')).toEqual(['open', 'warp://launch/session-recall%20TUI'])
     expect(w.copied).toEqual([])
   })
-  test('outside tmux /assets tui puts the command on the clipboard', async ($, on) => {
+  test('outside tmux /recall tui puts the command on the clipboard', async ($, on) => {
     const w2 = world(on)
     await $.session.start(start)
     const r = (await $.command.run(cmd('tui'))) as { text: string }

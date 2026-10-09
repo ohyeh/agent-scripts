@@ -1,7 +1,7 @@
-./register.ts hooks: session.start, command.run{command=assets}, tool.call, tool.call{tool=mcp__session-assets__assets}, turn.complete, prompt.submit, ui.render{component=AbovePrompt}
-./register.ts answers its own command: command.run{command=assets}
+./register.ts hooks: session.start, command.run{command=recall}, tool.call, tool.call{tool=mcp__session-recall__recall}, turn.complete, prompt.submit, ui.render{component=AbovePrompt}
+./register.ts answers its own command: command.run{command=recall}
 ./register.ts gating hook with .catch: tool.call
-./register.ts gating hook with .catch: tool.call{tool=mcp__session-assets__assets}
+./register.ts gating hook with .catch: tool.call{tool=mcp__session-recall__recall}
 ./register.ts gating hook with .catch: prompt.submit
 ./register.ts calls: $.clock.every, $.clock.now, $.command.register, $.env.get, $.fs.exists (via poll), $.fs.list (via poll), $.fs.read (via take), $.fs.write (via launch, poll, snapshot, take), $.process.run (via check, launch, lostPush, openAsset), $.process.spawn (via act), $.prompt.fill (via act, take), $.session.id, $.session.messages, $.session.usage (via replay), $.store.delete, $.store.get, $.store.keys, $.store.set (via record, setHidden), $.tool.register, $.ui.copy (via act, launch), $.ui.invalidate, $.ui.log, $.ui.resolve, $.ui.toast
 ./register.ts env writes: nothing
