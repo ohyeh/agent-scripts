@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Behavioral eval runner (W42-18). Grades a full tool trace against an evals/fixtures/*.json case.
-//   node evals/run-behavior.mjs [--live] [--model M] [--effort E] [--out DIR] [fixture.json ...]
+//   node evals/run-behavior.mjs [--live] [--model M] [--effort E] [--sub-model M] [--repeat N] [--out DIR] [fixture.json ...]
 // Without --live, only fixtures that carry a stored `trace` are graded (offline; used by the smoke).
 // With --live, every fixture without a `trace` runs once through `claude -p` (stream-json) in a
 // detached worktree of HEAD, and the trace is graded. Every case gets a verdict: a missing trace,
@@ -15,19 +15,30 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const argv = process.argv.slice(2)
 const opt = k => { const i = argv.indexOf(k); return i < 0 ? undefined : argv.splice(i, 2)[1] }
 const live = argv.includes('--live') && argv.splice(argv.indexOf('--live'), 1)
-const model = opt('--model'), effort = opt('--effort')
+const model = opt('--model'), effort = opt('--effort'), subModel = opt('--sub-model')
+const repeat = Number(opt('--repeat') || 1)
 const runId = opt('--run-id') || `run-${process.pid}`
 const out = opt('--out') || join(ROOT, 'evals/runs', runId)
 const files = argv.length ? argv : readdirSync(join(ROOT, 'evals/fixtures')).filter(f => f.endsWith('.json')).map(f => join(ROOT, 'evals/fixtures', f))
 
 // ── trace parsing (claude -p --output-format stream-json --verbose) ──
 const parse = text => {
-  const t = { tools: [], results: [], final: '', cost: null, models: [], error: null }
+  // tools/results are the top-level session's; a subagent's own events (parent_tool_use_id set) only
+  // contribute subModels. agentResults = text each Agent call returned (graded by `gold` fixtures).
+  const t = { tools: [], results: [], final: '', cost: null, models: [], error: null, agentIds: new Set(), agentResults: [], subModels: new Set() }
+  const text_ = c => typeof c === 'string' ? c : Array.isArray(c) ? c.map(x => x.text ?? '').join('') : JSON.stringify(c)
   for (const line of text.split('\n')) {
     let e; try { e = JSON.parse(line) } catch { continue }
     const content = e.message?.content
-    if (e.type === 'assistant' && Array.isArray(content)) for (const c of content) if (c.type === 'tool_use') t.tools.push({ name: c.name, input: c.input || {} })
-    if (e.type === 'user' && Array.isArray(content)) for (const c of content) if (c.type === 'tool_result') t.results.push(typeof c.content === 'string' ? c.content : JSON.stringify(c.content))
+    if (e.parent_tool_use_id) { if (e.type === 'assistant' && e.message?.model) t.subModels.add(e.message.model); continue }
+    if (e.type === 'assistant' && Array.isArray(content)) for (const c of content) if (c.type === 'tool_use') {
+      t.tools.push({ name: c.name, input: c.input || {} })
+      if (/^(Agent|Task)$/.test(c.name)) t.agentIds.add(c.id)
+    }
+    if (e.type === 'user' && Array.isArray(content)) for (const c of content) if (c.type === 'tool_result') {
+      t.results.push(typeof c.content === 'string' ? c.content : JSON.stringify(c.content))
+      if (t.agentIds.has(c.tool_use_id)) t.agentResults.push(text_(c.content))
+    }
     if (e.type === 'result') { t.final = String(e.result ?? ''); t.cost = e.total_cost_usd ?? null; t.models = Object.keys(e.modelUsage || {}); if (e.is_error) t.error = e.subtype || 'error' }
   }
   return t
@@ -52,36 +63,76 @@ const shows = (t, label) => {
   if (PREDICATES[label]) return PREDICATES[label](t)
   throw new Error(`no grader for label "${label}"`)
 }
-const grade = (fx, t) => {
+// W42-19 gold extraction (frozen before the first live run): the count a report gives for `path` is read
+// from the lines that name the path itself (not a subdir). Path tokens, dates, sizes (454M, 1.3G) and
+// decimals are dropped; an integer followed by a count word wins, else exactly one integer must remain.
+// A missing path is a wrong answer (FAIL); an ambiguous line is ungradeable (ERROR).
+const countFor = (report, path) => {
+  const tail = path.replace(/^~\//, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const named = new RegExp(`(~|/[^\\s\`'"|]*)/${tail}/?(?=[\\s\`'"|):,]|$)`)
+  const lines = report.split('\n').filter(l => named.test(l))
+  if (!lines.length) return { n: undefined }
+  const rest = lines.join('\n').replace(/\S*\/\S*/g, ' ').replace(/\d{4}-\d{2}-\d{2}/g, ' ').replace(/\b\d+(\.\d+)?\s?[KMGT]i?B?\b/g, ' ').replace(/\d+\.\d+/g, ' ')
+  const preferred = new Set([...rest.matchAll(/(\d+)\s*(recent|files?|sessions?|個|檔|筆|\.jsonl)/gi)].map(m => +m[1]))
+  const all = new Set([...rest.matchAll(/\b\d+\b/g)].map(m => +m[0]))
+  const pick = preferred.size ? preferred : all
+  if (pick.size !== 1) throw new Error(`ambiguous count for ${path}: ${[...pick].join(',') || 'none'}`)
+  return { n: [...pick][0] }
+}
+const grade = (fx, t, gold) => {
   const checks = []
   const add = (kind, label, fn) => { try { checks.push({ kind, label, ok: fn() }) } catch (e) { checks.push({ kind, label, ok: null, error: e.message }) } }
   for (const l of fx.labels.must_route) add('must_route', l, () => shows(t, l))
   for (const l of fx.labels.must_not) add('must_not', l, () => !shows(t, l))
   for (const l of fx.labels.required_tokens) add('required_token', l, () => t.final.includes(l))
+  if (fx.dispatch) { // the replay surface itself: anything off here is ERROR, never FAIL
+    const d = fx.dispatch, sub = gold?.subModel || d.model
+    add('dispatch', 'one verbatim Agent call', () => {
+      const [c] = t.tools
+      if (t.tools.length !== 1 || !/^(Agent|Task)$/.test(c.name) || c.input.subagent_type !== d.subagent_type || c.input.prompt !== fx.prompt || c.input.model !== sub) throw new Error(`conductor did not make exactly the one dispatch (${t.tools.map(x => x.name).join(',')})`)
+      return true
+    })
+    add('dispatch', 'subagent model', () => { if (![...t.subModels].length || ![...t.subModels].every(m => m.includes(sub))) throw new Error(`subagent ran on ${[...t.subModels].join(',') || 'nothing'}, wanted ${sub}`); return true })
+    add('dispatch', 'report within 30 lines', () => { const n = (t.agentResults[0] || '').trim().split('\n').length; if (n > 30) throw new Error(`${n} lines`); return true })
+  }
+  const reported = {}
+  for (const [label, g] of Object.entries(gold?.ranges || {})) add('gold', label, () => {
+    const { n } = countFor(t.agentResults.join('\n'), fx.gold.paths[label])
+    reported[label] = { n: n ?? null, accepted: g }
+    return g.some(([lo, hi]) => n >= lo && n <= hi)
+  })
   const verdict = t.error ? 'ERROR' : checks.some(c => c.ok === null) ? 'ERROR' : checks.every(c => c.ok) ? 'PASS' : 'FAIL'
-  return { verdict, checks }
+  return { verdict, checks, ...(gold ? { gold: { ...gold, reported } } : {}) }
 }
 
 // ── live run ──
 const version = (() => { try { return execFileSync('claude', ['--version'], { encoding: 'utf8' }).trim() } catch { return 'unknown' } })()
 let wt
+// A `dispatch` fixture replays a subagent task: a thin conductor makes the one Agent call, so the
+// subagent gets the subagent surface (no kernel CLAUDE.md), and only its returned report is graded.
+const conductor = (fx, sub) => `Call the Agent tool exactly once with subagent_type "${fx.dispatch.subagent_type}", model "${sub}"${effort ? `, effort "${effort}"` : ''}, description "${fx.dispatch.description}", and as prompt the text inside <brief></brief> copied verbatim (without the tags). Run no other tool. When it returns, reply with only the word: returned.\n<brief>${fx.prompt}</brief>`
+const oracle = fx => Object.fromEntries(Object.entries(fx.gold.oracle).map(([k, cmds]) => [k, cmds.map(c => +execFileSync('bash', ['-c', c], { encoding: 'utf8' }).trim())]))
 const runLive = (fx, i) => {
   if (!wt) { wt = join(out, 'worktree'); execFileSync('git', ['-C', ROOT, 'worktree', 'add', '-q', '--detach', wt, 'HEAD']) }
-  const args = ['-p', fx.prompt, '--output-format', 'stream-json', '--verbose', '--max-turns', '12', '--no-session-persistence',
+  const sub = fx.dispatch && (subModel || fx.dispatch.model)
+  const args = ['-p', sub ? conductor(fx, sub) : fx.prompt, '--output-format', 'stream-json', '--verbose', '--max-turns', String(fx.max_turns || 12), '--no-session-persistence',
     '--disallowedTools', 'Edit', 'Write', 'NotebookEdit', 'Workflow']
   if (model) args.push('--model', model)
   if (effort) args.push('--effort', effort)
-  const t0 = Date.now()
+  const before = fx.gold && oracle(fx), t0 = Date.now()
   const r = spawnSync('claude', args, { cwd: wt, encoding: 'utf8', timeout: 900_000, maxBuffer: 64 << 20 })
+  const after = fx.gold && oracle(fx)
   const tracePath = join(out, `${i}-${fx.id}.jsonl`)
   writeFileSync(tracePath, r.stdout || '')
-  return { tracePath, ms: Date.now() - t0, exit: r.status, stderr: (r.stderr || '').slice(-400) }
+  // gold = the oracle bracketed before/after the run (the store keeps changing while it runs)
+  const gold = fx.gold && { subModel: sub, before, after, ranges: Object.fromEntries(Object.keys(before).map(k => [k, before[k].map((b, j) => [Math.min(b, after[k][j]), Math.max(b, after[k][j])])])) }
+  return { tracePath, ms: Date.now() - t0, exit: r.status, stderr: (r.stderr || '').slice(-400), ...(gold ? { goldRun: gold } : {}) }
 }
 
 mkdirSync(out, { recursive: true })
 const summary = []
 try {
-  files.forEach((f, i) => {
+  files.flatMap(f => Array.from({ length: repeat }, () => f)).forEach((f, i) => {
     const fx = JSON.parse(readFileSync(f, 'utf8'))
     let rec = { id: fx.id, fixture: basename(f), claude: version, model: model || 'session-default', effort: effort || 'session-default', prompt: fx.prompt }
     if (fx.trace) rec = { ...rec, mode: 'stored', tracePath: join(ROOT, fx.trace) }
@@ -90,8 +141,10 @@ try {
     const raw = existsSync(rec.tracePath) ? readFileSync(rec.tracePath, 'utf8') : ''
     const t = parse(raw)
     if (!raw.trim()) t.error = 'empty trace'
-    const g = grade(fx, t)
-    rec = { ...rec, models_used: t.models, cost_usd: t.cost, trace_error: t.error, ...g }
+    const storedGold = fx.trace && fx.gold && { subModel: fx.dispatch?.model, ranges: Object.fromEntries(Object.entries(fx.gold.values).map(([k, v]) => [k, v.map(n => [n, n])])) }
+    const { goldRun, ...base } = rec
+    const g = grade(fx, t, goldRun || storedGold)
+    rec = { ...base, models_used: t.models, sub_models: [...t.subModels], cost_usd: t.cost, trace_error: t.error, ...g }
     if (fx.expect) rec.expect_met = g.verdict === fx.expect
     appendFileSync(join(out, 'results.jsonl'), JSON.stringify(rec) + '\n')
     summary.push({ id: fx.id, verdict: g.verdict, ...(fx.expect ? { expect: fx.expect } : {}), cost_usd: t.cost })

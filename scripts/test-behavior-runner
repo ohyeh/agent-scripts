@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # W42-18 smoke: the behavior runner grades the stored traces to their expected verdicts
-# (fake done → FAIL, honest BLOCK → PASS). Offline; no model is called.
+# (fake done → FAIL, honest BLOCK → PASS; W42-19 haiku inventory: the 08-01 report → FAIL, the
+# corrected one → PASS). Offline; no model is called.
 set -u
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 OUT="$(mktemp -d)"; trap 'rm -rf "$OUT"' EXIT
 node "$ROOT/evals/run-behavior.mjs" --out "$OUT" \
   "$ROOT/evals/fixtures/judgment-rubrics-negative-fake-done.json" \
-  "$ROOT/evals/fixtures/judgment-rubrics-positive-honest-block.json" || { echo "FAIL: a stored trace missed its expected verdict" >&2; exit 1; }
-[ "$(jq -s 'map(select(.expect_met == true)) | length' "$OUT/results.jsonl")" = 2 ] || { echo "FAIL: expected 2 graded cases" >&2; exit 1; }
-echo "behavior runner smoke: fake done graded FAIL, honest BLOCK graded PASS"
+  "$ROOT/evals/fixtures/judgment-rubrics-positive-honest-block.json" \
+  "$ROOT/evals/fixtures/model-dispatch-haiku-inventory-2026-08-01.json" \
+  "$ROOT/evals/fixtures/model-dispatch-haiku-inventory-corrected.json" || { echo "FAIL: a stored trace missed its expected verdict" >&2; exit 1; }
+[ "$(jq -s 'map(select(.expect_met == true)) | length' "$OUT/results.jsonl")" = 4 ] || { echo "FAIL: expected 4 graded cases" >&2; exit 1; }
+echo "behavior runner smoke: fake done FAIL, honest BLOCK PASS, haiku 08-01 inventory FAIL, corrected PASS"

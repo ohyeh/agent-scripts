@@ -1,0 +1,38 @@
+{
+  "id": "model-dispatch-haiku-inventory-replay",
+  "prompt": "GOAL: Inventory ALL agent-CLI session stores on THIS local machine (macOS) for three CLIs: codex, claude (Claude Code), agy. This drives a weekly usage retro covering 2026-07-25 through 2026-08-01, INCLUDING archived/compacted sessions.\nSCOPE: Check at minimum: ~/.codex/sessions, ~/.codex/archived_sessions, ~/.codex/rollout* dirs; ~/.claude/projects (session .jsonl per project), ~/.claude/history*, any archive/trash subdirs; for agy: look in ~/.agy, ~/.config/agy, ~/Library/Application Support — discover live, do not assume. Also note ~/.codex/memories/rollout_summaries if present.\nACCEPTANCE:\n- For each CLI: every session-store path found, listed as absolute path + file count with mtime within last 7 days (find -mtime -7) + total size + one-line note on format (jsonl? dir-per-session?) and how archiving works (separate dir? flag in file?).\n- Sample ONE recent file per store: report its first-line structure (keys only, no content dump) so the analyst worker knows how to parse.\n- Zero-result duty: before reporting a CLI has no store, prove your search pattern works on a known positive (e.g. locate claude's store first); an unproven zero = UNCONFIRMED.\nNON-GOALS: Do not analyze session content, do not review quality, do not propose fixes.\nREPORT: return ONLY short conclusion bullets + path per claim + counts. Hard cap 30 lines. Do not paste file contents or logs. If you cannot meet an acceptance criterion, say which one and why — do not fake it.",
+  "labels": {
+    "must_route": [],
+    "must_not": [],
+    "required_tokens": []
+  },
+  "dispatch": {
+    "subagent_type": "Explore",
+    "model": "haiku",
+    "description": "本機 session store 盤點"
+  },
+  "max_turns": 6,
+  "gold": {
+    "paths": {
+      "claude7d": "~/.claude/projects",
+      "codex_sess7d": "~/.codex/sessions",
+      "codex_arch7d": "~/.codex/archived_sessions"
+    },
+    "oracle": {
+      "claude7d": [
+        "find ~/.claude/projects -name '*.jsonl' -mtime -7 | wc -l",
+        "find ~/.claude/projects -type f -mtime -7 | wc -l"
+      ],
+      "codex_sess7d": [
+        "find ~/.codex/sessions -name '*.jsonl' -mtime -7 | wc -l",
+        "find ~/.codex/sessions -type f -mtime -7 | wc -l"
+      ],
+      "codex_arch7d": [
+        "find ~/.codex/archived_sessions -name '*.jsonl' -mtime -7 | wc -l",
+        "find ~/.codex/archived_sessions -type f -mtime -7 | wc -l"
+      ]
+    }
+  },
+  "source": "W31 retro 2026-08-01T03:05Z (cloud session cse_01GPv3vE…, events seq 54/91/94-95): haiku Explore reported claude projects 1 and codex sessions 1; the conductor oracle printed claude7d=172 codex_sess7d=105 codex_arch7d=367. Commit 6b1b3b5 retired haiku on it.",
+  "reason": "W42-19: replay the exact 2026-08-01 inventory brief that retired haiku. Prompt verbatim; gold = the same oracle commands, run right before and after each run (the 08-01 file state is gone). Pre-registered before any live run: see evals/README.md \"W42-19\"."
+}
