@@ -106,7 +106,8 @@ describe('assetsOf', () => {
   test('a read-only call and context-mode reads add nothing', async () => {
     expect(call('Bash', { command: 'rg -n https docs/' }, 'docs/a.md:3: https://x.dev/a', true)).toEqual([])
     expect(call('mcp__plugin_context-mode_context-mode__ctx_search', {}, 'https://x.dev/a')).toEqual([])
-    expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', {}, 'http://localhost:3000/').map(a => a.ref)).toEqual(['http://localhost:3000/'])
+    // Its code runs analysis: in two long sessions every URL it printed was data it read (22 of 22).
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', {}, 'http://localhost:3000/')).toEqual([])
   })
 
   test('a URL the call was given is not something it made', async () => {
@@ -116,8 +117,8 @@ describe('assetsOf', () => {
   })
 
   test('an MCP call is labelled with what it said it was for, else its short name', async () => {
-    expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', { intent: 'start preview' }, 'http://localhost:4000/')[0]!.label).toBe('start preview')
-    expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', {}, 'http://localhost:4000/')[0]!.label).toBe('ctx_execute')
+    expect(call('mcp__x__deploy_site', { intent: 'start preview' }, 'http://localhost:4000/')[0]!.label).toBe('start preview')
+    expect(call('mcp__x__deploy_site', {}, 'http://localhost:4000/')[0]!.label).toBe('deploy_site')
   })
 
   test('a ref too long to open is not kept', async () => {
@@ -414,6 +415,17 @@ describe('band', () => {
     // The replay after a reload: the same.
     const msgs = [{ role: 'assistant', text: '', toolUses: [{ tool: 'Bash', input: { command: 'bash tests/fx-smoke.sh' }, text: 'serving http://localhost:5199/ ok' }] }, { role: 'assistant', text: 'see http://localhost:5199/' }]
     expect(assetsOfTranscript(msgs, { home: HOME, cwd: '/w' })).toEqual([])
+  })
+
+  test('a tool that reads, searches or analyses adds no URL row; one that makes or deploys does', () => {
+    const out = 'see https://x.dev/page'
+    for (const tool of ['mcp__plugin_context-mode_context-mode__ctx_execute', 'mcp__plugin_context-mode_context-mode__ctx_batch_execute', 'mcp__claude_ai_Context7__query-docs', 'mcp__claude_ai_Gmail__search_threads', 'mcp__claude_ai_Gmail__get_thread', 'mcp__tmux-agent__peek', 'mcp__codex-cu__js'])
+      expect(call(tool, {}, out), tool).toEqual([])
+    expect(call('mcp__x__deploy_site', {}, out).map(a => a.ref)).toEqual(['https://x.dev/page'])
+    expect(call('Bash', { command: "ssh box@h 'grep -n port ~/logs/a.log; tail -5 /tmp/b.log' 2>&1" }, out)).toEqual([])
+    expect(call('Bash', { command: "timeout 20 ssh -o BatchMode=yes box@h 'cat ~/x.conf'" }, out)).toEqual([])
+    expect(call('Bash', { command: 'timeout 5 cat ~/x.conf' }, out)).toEqual([])
+    expect(call('Bash', { command: "ssh box@h 'cd ~/app && bash scripts/deploy.sh'" }, out).map(a => a.ref)).toEqual(['https://x.dev/page'])
   })
 
   test('a written source file is no row; a written document or picture is', () => {

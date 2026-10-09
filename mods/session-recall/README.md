@@ -42,7 +42,7 @@ folded into one line.
 |---|---|---|---|
 | `●` green / `◆` cyan | `url`, local / remote | an http(s) URL in a tool's output, in Claude's reply (`reply: …`), or in a prompt you typed (`you: …`) | the browser |
 | `◈` | `artifact` | an `Artifact` publish; label = its title, else the file name | the browser |
-| `▤` | `file` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | its default app |
+| `▤` | `file` | a document `Write`, `Edit`, `MultiEdit` or `NotebookEdit` made (`.md`, `.html`, `.pdf`, `.txt`, `.csv`, office files, notebooks); a source file gets no row | its default app |
 | `▣` | `image` | a picture those tools wrote, or a picture path in Bash output (a screenshot) or in a prompt you typed | Preview |
 | `▶` | `video` | the same, for `mp4 mov m4v webm mkv` | its default app (`/recall preview N`: Quick Look) |
 | `◇` | `source` | a page `WebFetch` or `ctx_fetch_and_index` was given (label: its `prompt`): what Claude consulted, apart from what it made. Counted in the header, listed by `/recall list`, no band row | the browser |
@@ -68,14 +68,17 @@ folded into one line.
   `reply: Preview`), a link you paste `you: …`. A URL already listed keeps its row and label. Only the main
   loop's replies count, not a subagent's. A prompt counts only when you typed it (or sent
   it through Remote Control), not a notification or a peer session's message.
-- `Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, context-mode's `ctx_search` /
-  `ctx_fetch_and_index` / `ctx_index`, and any call the engine marks read-only (Bash
-  `cat`, `rg`) add nothing: their output is content they read, not something this session
-  made. A call that failed adds nothing. Neither does a Bash command whose programs all only read
+- `Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, every context-mode tool (`ctx_execute`
+  and `ctx_batch_execute` too: their code analyses what is already there), an MCP tool named
+  for a read (`get_…`, `list_…`, `search_…`, `read_…`, `query…`, `fetch_…`, `find_…`,
+  `peek`), the codex-cu `js` REPL (it prints the screen and every open tab), and any call
+  the engine marks read-only (Bash `cat`, `rg`) add nothing: their output is content they
+  read, not something this session made. A call that failed adds nothing. Neither does a Bash command whose programs all only read
   (`cat`, `sed`, `rg`, `jq`, `tmux capture-pane`, `git log`/`show`/`diff`, with `cd`, `echo`,
   `sleep` around them): the engine does not mark all of these read-only.
   Nor does one that prints a file or a screen anywhere in it (`cat f`, `rg x f`, `git show`,
   `tmux capture-pane`): `git push && rg url docs.d.ts` keeps the push, not the doc's links.
+  `ssh host '<cmd>'` and `timeout N <cmd>` are read as `<cmd>`.
   A heredoc's body (`python3 - <<'EOF' … EOF`) is text a program reads, not commands: it
   neither makes the call a reader nor hides or fakes a push.
 - A local URL on an ephemeral port (49152 and up, a debugger or CDP endpoint) or to a

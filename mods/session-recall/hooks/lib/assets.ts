@@ -40,8 +40,10 @@ export const MAX_ENTRIES = 80
 const PER_CALL = 5
 // Tools whose output is file or page content: what they print is not something this session made.
 const SKIP = new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch'])
-// context-mode's reads (search an index, fetch a page), and this mod's own tool: its answer lists what is already kept.
-const SKIP_RE = /^mcp__.*__ctx_(search|fetch_and_index|index)$|^mcp__session-recall__/
+// context-mode (it searches, fetches and analyses what is already there), an MCP tool named for a read (`get_…`,
+// `search_threads`, `query-docs`, `peek`), a computer-use REPL (it prints the screen and every open tab), and this mod's
+// own tool: its answer lists what is already kept.
+const SKIP_RE = /^mcp__.*__(?:ctx_\w+|(?:get|list|search|read|query|fetch|find|lookup|resolve)[-_]\w[\w-]*|peek)$|^mcp__codex-cu__js$|^mcp__session-recall__/
 /** A ref longer than this is not something a person opens; it would only fill the store. */
 const MAX_REF = 2048
 const WRITERS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
@@ -405,7 +407,7 @@ const segmentsOf = (command: string) =>
   withoutHeredocs(command)
     .replace(/"[^"]*"|'[^']*'/g, 'Q')
     .split(/&&|\|\||[;|\n]/)
-    .map(seg => seg.trim().replace(/^(?:\w+=\S*\s+)*/, '').split(/\s+/).filter(Boolean))
+    .map(seg => seg.trim().replace(/^(?:\w+=\S*\s+)*(?:timeout\s+(?:-\S+\s+)*\S+\s+)?/, '').split(/\s+/).filter(Boolean))
     .filter(w => w.length)
 /** The command without its heredoc bodies: text a program reads (`python3 - <<'EOF' … EOF`), not commands. */
 const withoutHeredocs = (command: string) => command.replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?=\n|$)/g, '')
@@ -418,6 +420,9 @@ const FILE_ARGS: Record<string, number> = { cat: 1, head: 1, tail: 1, less: 1, b
  * own lines.
  */
 export function isReader(command: string): boolean {
+  // `ssh host '<cmd>'` prints what `<cmd>` prints there.
+  const remote = /^\s*(?:timeout\s+\S+\s+)?ssh\s+(?:-\S+(?:\s+(?!-)[^\s'"]+)?\s+)*[^\s'"-]\S*\s+(['"])([\s\S]*)\1(?:\s+\d?>&?\s*\S+)*\s*$/.exec(command)
+  if (remote) return isReader(remote[2]!)
   const progs = segmentsOf(command)
   const shows = (w: string[]) => SHOWS.test(`${w[0]} ${w[1] ?? ''}`) || w.slice(1).filter(a => !a.startsWith('-') && !/^\d+$/.test(a)).length >= (FILE_ARGS[w[0]!] ?? Infinity)
   const reads = (w: string[]) => READERS.test(w[0]!) || READERS.test(`${w[0]} ${w[1] ?? ''}`)

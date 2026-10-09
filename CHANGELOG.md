@@ -1,5 +1,13 @@
 # Changelog
 
+## session-recall 0.9.2
+
+The band's links: tool-output URL rows 87 → 24, measured on two real long transcripts with the live path (each tool use run through `assetsOf`). Of the 24 left, 11 are pages a command deployed or published; 13 are still noise a CLI printed (a design tool's catalog, `yt-dlp` warnings, a login redirect, an index path), the next target. Trade-off: a page published with `curl` inside `ctx_execute` adds no row from the tool; the reply that names it still adds one.
+
+- Every context-mode tool reads: `ctx_execute` and `ctx_batch_execute` too. In those two sessions all 22 URLs they printed were data they analysed (status checks, transcript scans, config lines).
+- An MCP tool named for a read (`get_…`, `list_…`, `search_…`, `read_…`, `query…`, `fetch_…`, `find_…`, `resolve_…`, `peek`) adds no URL row: docs lookups, mail searches, a worker's screen. So does the codex-cu `js` REPL: it prints the screen and every open browser tab.
+- `ssh host '<cmd>'` and `timeout N <cmd>` are read as `<cmd>`: a remote `grep` or `tail` of a log is a read.
+
 ## session-recall 0.9.1
 
 Fewer file rows in the 80-row list, so links and pictures are not pushed out. Measured by replaying two real long transcripts: file rows 35 → 16 and 36 → 13, URL rows 9 → 9 and 14 → 12, pictures unchanged. The band rows (links from tool output) are not changed by this release.
