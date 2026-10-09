@@ -234,7 +234,7 @@ export function shortDir(path: string, c: { home: string; cwd: string }): string
 
 const basename = (p: string) => p.slice(p.lastIndexOf('/') + 1) || p
 
-/** URLs in text, trailing punctuation and unbalanced closers trimmed, deduped. */
+/** URLs in text, trailing punctuation and unbalanced closers trimmed, deduped, login walls dropped. */
 export function extractUrls(text: string): string[] {
   const out: string[] = []
   const plain = text.replace(ANSI_RE, '')
@@ -244,12 +244,20 @@ export function extractUrls(text: string): string[] {
     if (/\$$/.test(raw) || /^(?:[<{]|['"`]\s*\+)/.test(plain.slice(hit.index! + raw.length))) continue
     let url = raw.replace(/[.,;:!?'"*]+$/, '')
     while (/[)\]]$/.test(url) && count(url, url.endsWith(')') ? '(' : '[') < count(url, url.slice(-1))) url = url.slice(0, -1)
-    if (hostOf(url) && !out.includes(url)) out.push(url)
+    if (hostOf(url) && !out.includes(url) && !isAuthWall(url)) out.push(url)
   }
   return out
 }
 
 const count = (s: string, ch: string) => s.split(ch).length - 1
+
+/**
+ * What a blocked request printed instead of the page: a Cloudflare endpoint (`/cdn-cgi/` challenge, Access login,
+ * trace; an image resize there is a picture, kept) or a login page that sends you back (`?redirect_uri=`, `?next=`).
+ */
+export const isAuthWall = (url: string): boolean =>
+  /^https?:\/\/[^/?#]+\/(?:[^?#]*\/)?cdn-cgi\/(?!image\/)/i.test(url) ||
+  (/\/(?:log-?in|sign-?in|sign_in)\b/i.test(url) && /[?&](?:redirect(?:_ur[il])?|return_?to|returnTo|next|continue)=/i.test(url))
 
 export function hostOf(url: string): string {
   const m = /^https?:\/\/(?:[^@/]*@)?(\[[^\]]+\]|[^/:?#]+)(:\d+)?/i.exec(url)

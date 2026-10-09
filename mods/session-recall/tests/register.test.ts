@@ -12,6 +12,21 @@ describe('extractUrls', () => {
     const text = "PUT https://pub.x.uk/a/<22 chars>.html\nconst u = `https://share.x.uk/p/${name}`\nfetch('https://share.x.uk/p/' + name)\nGET https://api.x.com/v1/s/{id}\nok https://x.dev/real/"
     expect(extractUrls(text)).toEqual(['https://x.dev/real/'])
   })
+  test('what a blocked request printed instead of the page is not a page', () => {
+    const text = [
+      'https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/g/turnstile',
+      'https://team.cloudflareaccess.com/cdn-cgi/access/login/app.x.uk?kid=1&meta=eyJ&redirect_url=%2F',
+      'https://dash.cloudflare.com/login?redirect_uri=%2F',
+      'https://stg.x.cc/login?redirect=/tool',
+      'https://www.cloudflare.com/cdn-cgi/trace',
+      // kept: a resized picture, an auth link to click, a login page that sends you nowhere, a page with ?next=
+      'https://media.x.com/cdn-cgi/image/fit=scale-down/p.png',
+      'https://login.tailscale.com/a/l18a49d2',
+      'https://app.x.dev/login',
+      'https://x.dev/list?next=2',
+    ].join('\n')
+    expect(extractUrls(text)).toEqual(['https://media.x.com/cdn-cgi/image/fit=scale-down/p.png', 'https://login.tailscale.com/a/l18a49d2', 'https://app.x.dev/login', 'https://x.dev/list?next=2'])
+  })
   test('trims punctuation and unbalanced closers, keeps balanced ones, dedups', async () => {
     const text = 'Local: http://localhost:5173/, see (https://x.dev/a) and https://en.wikipedia.org/wiki/A_(b). again http://localhost:5173/'
     expect(extractUrls(text)).toEqual(['http://localhost:5173/', 'https://x.dev/a', 'https://en.wikipedia.org/wiki/A_(b)'])

@@ -1,5 +1,12 @@
 # Changelog
 
+## session-recall 0.9.6
+
+A request a login wall blocked prints the wall, not the page: those URLs add no row. Seen on the real band (screenshot of three sessions): a Cloudflare challenge, a Cloudflare Access login with a JWT that expires in 5 minutes, and a dash login redirect. Measured on the live path: terrain 13→11 tool-output URL rows, automation 4→3, all three removed rows were these. This session stays 16→16: its two wall rows left, and the two URLs the same call printed next took their places under the 5-rows-per-call cap: a catalog-card URL (`impeccable.style/worlds/cards/…`) and a local test page. Catalog cards are the next noise target. An OAuth `authorize?redirect_uri=` link is kept: a CLI may print one for you to open, and 14 days of transcripts (175 files) held none.
+
+- Skipped: a Cloudflare endpoint (`/cdn-cgi/` challenge, Access login, trace) and a login page that sends you back (`/login?redirect_uri=`, `?next=`, `?return_to=`).
+- Kept: a resized picture (`/cdn-cgi/image/`), an auth link to click (`login.tailscale.com/a/…`), a login page with no way back, any other page with `?next=`.
+
 ## session-recall 0.9.5
 
 A second-model review (agy, VERDICT: BLOCK on 0.9.1-0.9.4) found five ways a real asset was lost. Four are fixed; measured on the two long transcripts, tool-output URL rows are 16 (14 before, the 2 new ones are the terrain site and its report page a deploy script printed), and automation's replay finds 15 pictures (11 before).
