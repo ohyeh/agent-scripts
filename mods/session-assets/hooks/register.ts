@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, ago, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.5.6'
+const MOD_VERSION = '0.5.7'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -191,15 +191,17 @@ async function lostPush(s: State, $: $, command: string, text: string, asked = n
 async function replay(s: State, $: $): Promise<number> {
   try {
     const msgs = await $.session.messages()
-    const found = assetsOfTranscript(msgs, s)
+    // A push that lost its `To` line needs git (async); asked first, so it lands in transcript order, not after the rest.
     const asked = new Map<string, Promise<string | undefined>>()
+    const lost = new Map<object, Asset[]>()
     for (const m of msgs) {
       if (m.role !== 'assistant') continue
       for (const u of m.toolUses ?? []) {
         if (u.tool !== 'Bash' || u.isError || typeof u.text !== 'string') continue
-        for (const a of await lostPush(s, $, String(u.input?.command ?? ''), u.text, asked)) if (!found.some(x => x.ref === a.ref)) found.push(a)
+        lost.set(u, await lostPush(s, $, String(u.input?.command ?? ''), u.text, asked))
       }
     }
+    const found = assetsOfTranscript(msgs, s, u => lost.get(u) ?? [])
     // shortcut: the transcript rows carry no time, so a replayed asset is shown as `earlier`; take times from `as: 'api'` if ages matter.
     if (found.length) await record(s, $, found, (await $.session.usage()).startedAt, false, true)
     return found.length

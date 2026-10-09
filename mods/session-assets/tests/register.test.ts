@@ -476,6 +476,15 @@ describe('band', () => {
     expect(w.runs.filter(a => a[0] === 'git').length, 'one git call for one remote').toBe(1)
   })
 
+  test('the replay keeps a lost-To push in transcript order', async ($, on) => {
+    const w = world(on, { messages: [{ role: 'assistant', text: '', toolUses: [
+      { tool: 'Bash', input: { command: 'git push origin main 2>&1 | tail -1' }, text: '   1a2b3c4..5d6e7f8  main -> main' },
+      { tool: 'Write', input: { file_path: '/work/retro-w41/later.md' }, text: 'ok' },
+    ] }] })
+    await $.session.start(start)
+    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string }>).map(x => x.ref), 'the file written later is the newer row').toEqual(['/work/retro-w41/later.md', 'https://github.com/o/r/compare/1a2b3c4...5d6e7f8'])
+  })
+
   test('a failed store write still returns the tool result', async ($, on) => {
     world(on, { failWrites: true })
     await $.session.start(start)
