@@ -1,5 +1,9 @@
 # Changelog
 
+## session-assets 0.8.3
+
+- In Warp, `/assets tui` and `[ ⧉ ]` open the TUI in a new Warp window: the mod writes `~/.warp/launch_configurations/session-assets.yaml` and opens `warp://launch/session-assets%20TUI` (a launch configuration opens by its name; by its path it runs nothing). Before, Warp got only the command on the clipboard. `permissions.txt` adds the env read `TERM_PROGRAM` and `$.fs.write` via `launch`.
+
 ## session-assets 0.8.2
 
 - A reload adds what the transcript shows and the list lacks. The transcript was replayed only into an empty list, so a session listed by an older version never got what a newer one finds: a long session that read 38 screenshots kept none of them after the update. Rows already listed keep their time and label.

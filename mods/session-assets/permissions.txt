@@ -3,6 +3,6 @@
 ./register.ts gating hook with .catch: tool.call
 ./register.ts gating hook with .catch: tool.call{tool=mcp__session-assets__assets}
 ./register.ts gating hook with .catch: prompt.submit
-./register.ts calls: $.clock.every, $.clock.now, $.command.register, $.env.get, $.fs.exists (via poll), $.fs.list (via poll), $.fs.read (via take), $.fs.write (via poll, snapshot, take), $.process.run (via check, launch, lostPush, openAsset), $.process.spawn (via act), $.prompt.fill (via act, take), $.session.id, $.session.messages, $.session.usage (via replay), $.store.delete, $.store.get, $.store.keys, $.store.set (via record, setHidden), $.tool.register, $.ui.copy (via act, launch), $.ui.invalidate, $.ui.log, $.ui.resolve, $.ui.toast
+./register.ts calls: $.clock.every, $.clock.now, $.command.register, $.env.get, $.fs.exists (via poll), $.fs.list (via poll), $.fs.read (via take), $.fs.write (via launch, poll, snapshot, take), $.process.run (via check, launch, lostPush, openAsset), $.process.spawn (via act), $.prompt.fill (via act, take), $.session.id, $.session.messages, $.session.usage (via replay), $.store.delete, $.store.get, $.store.keys, $.store.set (via record, setHidden), $.tool.register, $.ui.copy (via act, launch), $.ui.invalidate, $.ui.log, $.ui.resolve, $.ui.toast
 ./register.ts env writes: nothing
-./register.ts env reads: HOME, TMUX
+./register.ts env reads: HOME, TERM_PROGRAM, TMUX

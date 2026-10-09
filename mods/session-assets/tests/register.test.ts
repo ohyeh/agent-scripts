@@ -642,7 +642,7 @@ const band = (props: { maxRows?: number; hasSurvey?: boolean } = {}) => ({
 })
 
 /** The engine under the mod: an in-memory store (or one whose writes fail), tools that print a dev-server URL, a recorded `open`. */
-function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[]; tmux?: string } = {}) {
+function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[]; tmux?: string; term?: string } = {}) {
   const clock = mock.clock(on)
   const files = new Map<string, { text: string; mtimeMs: number }>()
   /** Paths whose writes fail, as a disk error would. */
@@ -702,7 +702,7 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   })
   on('tool.register', ($, e) => ({ value: { tool: e.name } }) as never)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
-  on('env.get', ($, e) => ({ value: e.name === 'TMUX' ? opts.tmux : HOME }))
+  on('env.get', ($, e) => ({ value: e.name === 'TMUX' ? opts.tmux : e.name === 'TERM_PROGRAM' ? opts.term : HOME }))
   on('store.get', ($, e) => ({ value: kv.get(e.key) }))
   on('store.keys', () => ({ value: [...kv.keys()] }))
   on('store.delete', ($, e) => {
@@ -888,6 +888,17 @@ describe('the TUI', () => {
     expect(split[6]).toMatch(/^node '.*\/bin\/tui\.mjs' --sid 'sess-A'$/)
   })
 
+  test('in Warp /assets tui opens a launch configuration that runs the TUI, by its name', async ($, on) => {
+    const w = world(on, { term: 'WarpTerminal' })
+    await $.session.start(start)
+    expect(await $.command.run(cmd('tui'))).toMatchObject({ text: 'TUI opened in a new Warp window.' })
+    const yaml = w.files.get(`${HOME}/.warp/launch_configurations/session-assets.yaml`)?.text ?? ''
+    expect(yaml).toContain('name: session-assets TUI')
+    expect(yaml).toMatch(/- exec: "node '.*\/bin\/tui\.mjs' --sid 'sess-A'"/)
+    expect(yaml).toContain('cwd: "/work/retro-w41"')
+    expect(w.runs.find(a => a[0] === 'open')).toEqual(['open', 'warp://launch/session-assets%20TUI'])
+    expect(w.copied).toEqual([])
+  })
   test('outside tmux /assets tui puts the command on the clipboard', async ($, on) => {
     const w2 = world(on)
     await $.session.start(start)

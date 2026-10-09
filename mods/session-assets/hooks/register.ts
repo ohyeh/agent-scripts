@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 import { answerId, itemsOf, quoteOf } from './lib/items.ts'
 
-const MOD_VERSION = '0.8.2'
+const MOD_VERSION = '0.8.3'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -149,11 +149,24 @@ const shq = (x: string) => `'${x.replace(/'/g, `'\\''`)}'`
  * Opens the TUI: in a tmux split when this session runs in tmux (full window height, as the workers TUI), else the
  * command goes on the clipboard, to paste in a new pane of the terminal (no terminal app is driven from here).
  */
+const WARP_NAME = 'session-assets TUI'
 async function launch(s: State, $: $): Promise<string> {
   const cmd = `node ${shq(`${$.plugin.root}/bin/tui.mjs`)} --sid ${shq(s.sid)}`
   if (await $.env.get('TMUX').catch(() => undefined)) {
     const r = await $.process.run(['tmux', 'split-window', '-h', '-f', '-c', s.cwd, cmd], { timeoutMs: 5000 })
     return r.exitCode === 0 ? 'TUI opened in a tmux split.' : `tmux split-window failed (exit ${r.exitCode}): ${clean(r.stderr.trim(), 200)}`
+  }
+  // Warp splits no pane from a command, but opens a launch configuration that runs one, by its name (a path runs nothing).
+  if ((await $.env.get('TERM_PROGRAM').catch(() => undefined)) === 'WarpTerminal' && s.home) {
+    const yaml = ['---', `name: ${WARP_NAME}`, 'windows:', '  - tabs:', '      - title: session assets', '        layout:', `          cwd: ${JSON.stringify(s.cwd)}`, '          commands:', `            - exec: ${JSON.stringify(cmd)}`, ''].join('\n')
+    try {
+      await $.fs.write(`${s.home}/.warp/launch_configurations/session-assets.yaml`, yaml)
+      const r = await $.process.run(['open', `warp://launch/${encodeURIComponent(WARP_NAME)}`], { timeoutMs: 5000 })
+      if (r.exitCode === 0) return 'TUI opened in a new Warp window.'
+      $.ui.log(`session-assets: open warp://launch failed (exit ${r.exitCode}): ${clean(r.stderr.trim(), 200)}`, { to: 'debug' })
+    } catch (err) {
+      $.ui.log(`session-assets: Warp launch configuration not written (${errText(err)})`, { to: 'debug' })
+    }
   }
   const c = await $.ui.copy({ text: cmd })
   return c.isCopied ? `not in tmux: the TUI command is on the clipboard, paste it in a new pane (Warp: cmd-D): ${cmd}` : `run in another terminal: ${cmd}`

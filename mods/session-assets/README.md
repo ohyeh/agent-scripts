@@ -120,9 +120,11 @@ there the keyboard way is the commands.
 ## TUI
 
 `bin/tui.mjs`, full screen, in a pane of its own: the band has a few rows, the TUI has every row and the last answers.
-`/assets tui` or the band's `[ ⧉ ]` opens it in a tmux split (full window height) when the session runs in tmux; elsewhere
-(Warp, iTerm) the command goes on the clipboard, to paste in a new pane (Warp: cmd-D). No terminal app is driven from
-the mod. Needs `node` (22 or later) on the PATH; it has no dependencies.
+`/assets tui` or the band's `[ ⧉ ]` opens it in a tmux split (full window height) when the session runs in tmux. In Warp
+it writes the launch configuration `~/.warp/launch_configurations/session-assets.yaml` (named `session-assets TUI`, one
+for all sessions, rewritten each time) and opens it with `warp://launch/`, a new Warp window running the TUI: Warp
+splits no pane from a command. Elsewhere (iTerm), or when that fails, the command goes on the clipboard, to paste in a
+new pane. Needs `node` (22 or later) on the PATH; it has no dependencies.
 
 ```
 ▌session assets v0.8.0 · agent-scripts    1 answers  2 assets
