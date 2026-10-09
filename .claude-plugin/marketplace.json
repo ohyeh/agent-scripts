@@ -24,7 +24,7 @@
       "name": "session-assets",
       "source": "./mods/session-assets",
       "description": "Function-hook mod: a numbered list of what a session made (URLs, artifacts, files, images, commits). Write #aN in a prompt to hand Claude the exact ref and whether it is still up; Claude looks them up with its assets tool, even after compaction. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.5.5",
+      "version": "0.5.6",
       "author": {
         "name": "PaulYeh"
       },

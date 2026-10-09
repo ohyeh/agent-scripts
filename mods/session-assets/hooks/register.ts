@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, ago, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.5.5'
+const MOD_VERSION = '0.5.6'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */

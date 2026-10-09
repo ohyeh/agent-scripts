@@ -61,6 +61,8 @@ folded into one line.
   `sleep` around them): the engine does not mark all of these read-only.
   Nor does one that prints a file or a screen anywhere in it (`cat f`, `rg x f`, `git show`,
   `tmux capture-pane`): `git push && rg url docs.d.ts` keeps the push, not the doc's links.
+  A heredoc's body (`python3 - <<'EOF' … EOF`) is text a program reads, not commands: it
+  neither makes the call a reader nor hides or fakes a push.
 - A local URL on an ephemeral port (49152 and up, a debugger or CDP endpoint) or to a
   file a page loads (`/assets/a.js`, `/data/x.json`) is not kept: 12,554 of 16k local
   URLs in past sessions' tool output were of that kind.

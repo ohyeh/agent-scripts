@@ -95,7 +95,7 @@ export function assetsOf(c: Call): Asset[] {
   }
   const label = labelOf(c)
   if (c.tool === 'Bash') {
-    const commit = /\bgit\b[^\n]*\bcommit\b/.test(String(c.input.command ?? '')) ? COMMIT_RE.exec(text) : null
+    const commit = /\bgit\b[^\n]*\bcommit\b/.test(withoutHeredocs(String(c.input.command ?? ''))) ? COMMIT_RE.exec(text) : null
     if (commit) add({ kind: 'commit', ref: commit[2]!, label: commit[3]!.trim(), where: commit[1]!, isLocal: true })
     if (pushIn(String(c.input.command ?? ''))) for (const a of pushedOf(text)) add(a)
   }
@@ -322,6 +322,9 @@ export const sessionIdsIn = (text: string) => [...new Set(text.match(/[0-9a-f]{8
 const READERS = /^(?:cat|head|tail|sed|less|grep|rg|jq|yq|wc|sort|uniq|cut|awk|bat|ls|cd|echo|sleep|true|tmux (?:capture-pane|ls|list-\w+)|git (?:log|show|diff|blame|status|grep))$/
 // Readers that print a file or a screen: by name and positional arguments (a filter's first one is its pattern or script).
 const SHOWS = /^(?:tmux capture-pane|git (?:log|show|diff|blame|grep))$/
+/** The command without its heredoc bodies: text a program reads (`python3 - <<'EOF' … EOF`), not commands. */
+const withoutHeredocs = (command: string) => command.replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?=\n|$)/g, '')
+
 // shortcut: an option's detached value counts as a positional unless it is a number (`tail -n 30`, `grep -A 4`); `grep -e pat` on a pipe reads as a file, add option arity if that drops real URLs.
 const FILE_ARGS: Record<string, number> = { cat: 1, head: 1, tail: 1, less: 1, bat: 1, sed: 2, grep: 2, rg: 2, jq: 2, yq: 2, awk: 2 }
 /**
@@ -330,7 +333,7 @@ const FILE_ARGS: Record<string, number> = { cat: 1, head: 1, tail: 1, less: 1, b
  * own lines.
  */
 export function isReader(command: string): boolean {
-  const progs = command
+  const progs = withoutHeredocs(command)
     .replace(/"[^"]*"|'[^']*'/g, 'Q')
     .split(/&&|\|\||[;|\n]/)
     .map(seg => seg.trim().replace(/^(?:\w+=\S*\s+)*/, '').split(/\s+/).filter(Boolean))
@@ -370,10 +373,10 @@ export function pushedOf(text: string, repo = githubRepoOf(/^To (\S+)$/m.exec(te
 
 /**
  * The first `git [-C dir] push` the command runs that is not a dry run (a dry run prints the same lines for a push that
- * did not happen), and the command without its heredoc bodies: text a program reads, not commands.
+ * did not happen), and the command without its heredoc bodies.
  */
 function pushIn(command: string): { push: RegExpMatchArray; command: string } | undefined {
-  const run = command.replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?=\n|$)/g, '')
+  const run = withoutHeredocs(command)
   const push = [...run.matchAll(/\bgit\b((?:\s+-C\s+\S+)?)\s+push\b([^;&|\n]*)/g)].find(m => !/\s(?:--dry-run|-n)\b/.test(m[2]!))
   return push && { push, command: run }
 }
