@@ -1,8 +1,8 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Entry, ago, assetsOf, cells, clean, cut, fit, glyphOf, merge, rowsOf } from './lib/assets.ts'
+import { type Asset, type Entry, ago, assetsOf, assetsOfText, assetsOfTranscript, cells, clean, cut, fit, glyphOf, merge, rowsOf } from './lib/assets.ts'
 
-const MOD_VERSION = '0.1.0'
+const MOD_VERSION = '0.2.0'
 /** One store key per session: a shared list would be a read-modify-write race between sessions. */
 const PREFIX = 'session-assets.s.'
 const PANEL_KEY = 'session-assets.panel'
@@ -54,6 +54,22 @@ async function setHidden(s: State, $: $, hidden: boolean) {
   await $.store.set(PANEL_KEY, hidden ? 'hidden' : 'shown').catch(err => $.ui.log(`session-assets: panel state not saved (${errText(err)})`, { to: 'debug' }))
 }
 
+/**
+ * Adds assets to this session's list, newest last in `found`. `onlyNew`: a ref the list holds keeps its entry
+ * (a reply that repeats a URL must not replace the label the tool call gave it).
+ */
+async function record(s: State, $: $, found: readonly Asset[], at: number, onlyNew = false) {
+  if (!found.length) return
+  await enqueue(s, async () => {
+    let list = await mine(s, $)
+    for (const a of found) if (!onlyNew || !list.some(x => x.ref === a.ref)) list = merge(list, [{ ...a, project: s.project, at }])
+    await $.store.set(`${PREFIX}${s.sid}`, list)
+  })
+  // A new asset moves the rows: an open row would point at another entry.
+  s.open = undefined
+  $.ui.invalidate('ui.render')
+}
+
 /** Opens a URL in the browser or a path in its default app; a commit has nothing to open. */
 async function openAsset($: $, e: Entry): Promise<string> {
   // The one trust boundary: only http(s) or an absolute path reaches `open`, as an argv, never a shell.
@@ -75,7 +91,17 @@ export const register: Register = on => {
     s.project = e.cwd.split('/').filter(Boolean).pop() ?? ''
     s.home = (await $.env.get('HOME').catch(() => undefined)) ?? ''
     s.hidden = (await $.store.get(PANEL_KEY)) === 'hidden'
-    await $.command.register({ name: 'assets', description: 'Session assets band: /assets (show/hide), /assets N (open row N), /assets open N, /assets all' })
+    await $.command.register({ name: 'assets', description: `Session assets v${MOD_VERSION}: /assets (show/hide), /assets N (open row N), /assets open N, /assets all` })
+    // Loaded mid-session, or a session resumed from before the mod: the transcript says what it made so far.
+    try {
+      if (!(await mine(s, $)).length) {
+        const found = assetsOfTranscript(await $.session.messages(), s)
+        // shortcut: the transcript rows carry no time, so a replayed asset is dated at the session's start; take times from `as: 'api'` if ages matter.
+        if (found.length) await record(s, $, found, (await $.session.usage()).startedAt)
+      }
+    } catch (err) {
+      $.ui.log(`session-assets: transcript replay failed (${errText(err)})`, { to: 'debug' })
+    }
     try {
       const now = await $.clock.now()
       for (const k of (await $.store.keys()).filter(k => k.startsWith(PREFIX) && k !== `${PREFIX}${s.sid}`)) {
@@ -117,18 +143,37 @@ export const register: Register = on => {
     // Bookkeeping must never cost the model its tool result.
     try {
       const found = assetsOf({ tool: e.tool, input: e as unknown as Record<string, unknown>, text: typeof ran.text === 'string' ? ran.text : '', home: s.home, cwd: s.cwd, readOnly: ran.isReadOnly === true })
-      if (!found.length) return ran
-      const at = await $.clock.now()
-      const fresh: Entry[] = found.map(a => ({ ...a, project: s.project, at }))
-      await enqueue(s, async () => $.store.set(`${PREFIX}${s.sid}`, merge(await mine(s, $), fresh)))
-      // A new asset moves the rows: an open row would point at another entry.
-      s.open = undefined
-      $.ui.invalidate('ui.render')
+      if (found.length) await record(s, $, [...found].reverse(), await $.clock.now())
     } catch (err) {
       $.ui.log(`session-assets: record failed (${errText(err)})`, { to: 'debug' })
     }
     return ran
   }).catch(($, e, next) => next(e)) // An observer never refuses a tool: after `next`, this replays its result; before, it runs the tool.
+
+  // A URL only in Claude's reply (no tool printed it): kept, labelled with the rest of its line. The main loop's replies only.
+  on('turn.complete', async ($, e, next) => {
+    const done = await next(e)
+    if (e.agentId === undefined && e.answer) {
+      try {
+        await record(s, $, assetsOfText(e.answer, 'reply', s).reverse(), await $.clock.now(), true)
+      } catch (err) {
+        $.ui.log(`session-assets: reply not read (${errText(err)})`, { to: 'debug' })
+      }
+    }
+    return done
+  })
+
+  // A link or picture path the person pasted. Only their own prompts: a notification or a peer's message is not theirs.
+  on('prompt.submit', async ($, e, next) => {
+    if (e.origin.kind === 'composer' || e.origin.kind === 'bridge') {
+      try {
+        await record(s, $, assetsOfText(e.text, 'you', s).reverse(), await $.clock.now())
+      } catch (err) {
+        $.ui.log(`session-assets: prompt not read (${errText(err)})`, { to: 'debug' })
+      }
+    }
+    return next(e)
+  }).catch(($, e, next) => next(e)) // A prompt is never held back by bookkeeping.
 
   // The band is shared with every plugin below (the workers panel, grok-bot-watch): this
   // draws in what is left of maxRows, header first, and nothing when even that does not
@@ -157,7 +202,7 @@ export const register: Register = on => {
       flexDirection: 'row',
       children: [
         Text({ bold: true, color: ACCENT, children: title }),
-        Text({ dimColor: true, children: fit(`v${MOD_VERSION} · ${counts} · /assets N opens a row `, width - title.length - 9) }),
+        Text({ dimColor: true, children: fit(`${counts} · /assets N opens a row `, width - title.length - 9) }),
         Button({ key: 'hide', label: 'hide', dimColor: true, onPress: () => void setHidden(s, $, true) }),
       ],
     })
@@ -167,7 +212,8 @@ export const register: Register = on => {
       const [glyph, color] = glyphOf(x)
       const head = `  ${n} ${glyph} `
       const label = fit(clean(x.label, 80), Math.max(8, Math.floor(width / 2) - cells(head)))
-      const tail = fit(`  ${ago(now - x.at)} ago · ${clean(x.where, 120)}${where}`, Math.max(0, width - cells(head) - cells(label)))
+      // A commit shows its hash: the status line already shows the branch.
+      const tail = fit(`  ${ago(now - x.at)} ago · ${x.kind === 'commit' ? x.ref.slice(0, 7) : clean(x.where, 120)}${where}`, Math.max(0, width - cells(head) - cells(label)))
       return Box({
         key: `${n}-${x.ref}`,
         flexDirection: 'row',

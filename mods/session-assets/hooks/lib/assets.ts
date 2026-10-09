@@ -77,6 +77,40 @@ export function assetsOf(c: Call): Asset[] {
   return out
 }
 
+/**
+ * URLs and picture paths in prose: Claude's reply (`reply`) or the user's prompt (`you`).
+ * The label is the rest of the URL's line, markdown and the URL taken out, so `Preview: <url>` reads `Preview`.
+ */
+export function assetsOfText(text: string, who: 'reply' | 'you', c: { home: string; cwd: string }): Asset[] {
+  const out: Asset[] = []
+  const plain = text.replace(ANSI_RE, '')
+  for (const url of extractUrls(plain)) {
+    if (out.length >= PER_CALL) break
+    const line = plain.split('\n').find(l => l.includes(url)) ?? ''
+    const said = clean(line.replace(url, ' ').replace(/[*_`#>\[\]()<>|]+|^\s*[-+]\s+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\s*[:：—-]$/, ''), 60)
+    if (url.length <= MAX_REF) out.push({ kind: 'url', ref: url, label: said ? `${who}: ${said}` : who, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
+  }
+  for (const m of plain.matchAll(IMAGE_PATH_RE)) if (out.length < PER_CALL && !out.some(x => x.ref === m[1])) out.push({ ...fileAsset(m[1]!, c), label: `${who}: ${basename(m[1]!)}` })
+  return out
+}
+
+/** One tool use as the transcript stored it, for the replay at session start. */
+export type StoredUse = { tool: string; input: Record<string, unknown>; text?: string; isError?: true }
+
+/**
+ * What the transcript shows this session made, oldest first: each answered tool use and each reply's URLs.
+ * User messages are left out: in the transcript they also carry reminders and notices, not only what the person typed.
+ */
+export function assetsOfTranscript(msgs: readonly { role: string; text: string; toolUses?: readonly StoredUse[] }[], c: { home: string; cwd: string }): Asset[] {
+  const out: Asset[] = []
+  for (const m of msgs) {
+    if (m.role !== 'assistant') continue
+    out.push(...assetsOfText(m.text, 'reply', c))
+    for (const u of m.toolUses ?? []) if (!u.isError && typeof u.text === 'string') out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text, ...c }))
+  }
+  return out
+}
+
 /** A Bash call's description, else its command head; another tool's name. */
 function labelOf(c: Call): string {
   if (c.tool !== 'Bash') return c.tool.replace(/^mcp__/, '')

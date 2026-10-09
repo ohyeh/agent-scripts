@@ -1,5 +1,12 @@
 # Changelog
 
+## session-assets 0.2.0
+
+- Reads more than tool calls. A URL only in Claude's reply is kept, labelled `reply: <rest of its line>`; a URL a tool already printed keeps its tool label. A link or picture path the person pastes is kept as `you: …` (their own prompts only, not notifications or peer messages). A session with no list yet (the mod loaded mid-session, or a resumed session from before it) replays its transcript at start; replayed assets are dated at the session's start.
+- Leaves to the status line what it shows: the band header drops the version (it moved to the `/assets` description), and a commit row shows its hash instead of the branch.
+- Review fixes: a picture URL is no longer also kept as a bogus `//host/x.png` image; a commit on a detached HEAD is kept; `**url**` loses the `**`; read-only calls (`isReadOnly`, e.g. Bash `cat`/`rg`) and context-mode reads add nothing; a ref over 2048 characters is dropped; `+N more` counts assets, not the open row's detail; `/assets` and `[ hide ]` no longer throw when the store refuses a write; a resumed session starts with no row open.
+- The `prompt.submit` hook carries `.catch`, so bookkeeping never holds a prompt back.
+
 ## grok-bot-watch 0.9.5
 
 - The watch and unwatch tool hooks deny on error (`on(...).catch`) instead of leaving the call unanswered; `claude plugin validate` (CC 2.1.295) flagged both as gating hooks without `.catch`. `permissions.txt` is re-pinned.

@@ -1,6 +1,7 @@
-./register.ts hooks: session.start, command.run{command=assets}, tool.call, ui.render{component=AbovePrompt}
+./register.ts hooks: session.start, command.run{command=assets}, tool.call, turn.complete, prompt.submit, ui.render{component=AbovePrompt}
 ./register.ts answers its own command: command.run{command=assets}
 ./register.ts gating hook with .catch: tool.call
-./register.ts calls: $.clock.now, $.command.register, $.env.get, $.process.run (via openAsset), $.session.id, $.store.delete, $.store.get, $.store.keys, $.store.set, $.ui.invalidate, $.ui.log, $.ui.resolve
+./register.ts gating hook with .catch: prompt.submit
+./register.ts calls: $.clock.now, $.command.register, $.env.get, $.process.run (via openAsset), $.session.id, $.session.messages, $.session.usage, $.store.delete, $.store.get, $.store.keys, $.store.set (via record, setHidden), $.ui.invalidate, $.ui.log, $.ui.resolve
 ./register.ts env writes: nothing
 ./register.ts env reads: HOME

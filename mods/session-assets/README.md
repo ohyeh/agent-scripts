@@ -13,28 +13,41 @@ Above the prompt, only after this session has an asset. Other sessions' assets a
 folded into one line.
 
 ```
-▌session assets v0.1.0 · 2 url · 1 artifact · 2 file · 1 commit · /assets N opens a row   [ hide ]
-   1 ● Start dev server      localhost:5173 · 2m ago
+▌session assets 3 url · 1 artifact · 2 file · 1 commit · /assets N opens a row   [ hide ]
+   1 ● Start dev server        2m ago · localhost:5173
        http://localhost:5173/  /assets open 1
-   2 ◈ Retro W41             claude.ai · 10m ago
-   3 ⎇ fix: strip ANSI       main · 12m ago
+   2 ◆ reply: Docs             5m ago · x.dev
+   3 ◈ Retro W41               10m ago · claude.ai
+   4 ⎇ fix: strip ANSI         12m ago · 9685ae2
   +3 more — /assets N
   ▸ other sessions: 12
 ```
 
 | Glyph | Kind | Comes from | `/assets open N` |
 |---|---|---|---|
-| `●` green / `◆` cyan | `url`, local / remote | an http(s) URL in a tool's output | the browser |
+| `●` green / `◆` cyan | `url`, local / remote | an http(s) URL in a tool's output, in Claude's reply (`reply: …`), or in a prompt you typed (`you: …`) | the browser |
 | `◈` | `artifact` | an `Artifact` publish; label = its title, else the file name | the browser |
 | `▤` | `file` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | its default app |
-| `▣` | `image` | a picture those tools wrote, or a picture path in Bash output (a screenshot) | Preview |
+| `▣` | `image` | a picture those tools wrote, or a picture path in Bash output (a screenshot) or in a prompt you typed | Preview |
 | `⎇` | `commit` | `[branch hash] subject` in the output of a Bash `git … commit` | nothing (the hash is shown) |
 
 - A URL's label is the Bash call's `description`, else the first 60 characters of the
   command, else the tool name. `local` covers loopback, private ranges, Tailscale
   (100.64/10) and `*.local`; a tailnet host name counts as remote, its IP as local.
-- `Read`, `Grep`, `Glob`, `WebFetch` and `WebSearch` add nothing: their output is file
-  or page content, not something this session made. A call that failed adds nothing.
+- A URL in Claude's reply is labelled with the rest of its line (`Preview: <url>` reads
+  `reply: Preview`). A URL a tool already printed keeps its tool label. Only the main
+  loop's replies count, not a subagent's. A prompt counts only when you typed it (or sent
+  it through Remote Control), not a notification or a peer session's message.
+- `Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, context-mode's `ctx_search` /
+  `ctx_fetch_and_index` / `ctx_index`, and any call the engine marks read-only (Bash
+  `cat`, `rg`) add nothing: their output is content they read, not something this session
+  made. A call that failed adds nothing.
+- A session with no list yet (the mod loaded mid-session, or a resumed session from
+  before it) replays its transcript once at start: answered tool uses and replies, not
+  user messages (in the transcript those also carry reminders). Replayed assets are
+  dated at the session's start.
+- The band does not repeat the status line: no version (see `/assets` in the command
+  list), and a commit shows its hash, not the branch.
 - At most 5 assets per tool call. One seen again moves to the top with its newest
   label. Each session keeps 80.
 - The band draws in what `maxRows` leaves after the plugins below it (the workers
@@ -77,7 +90,8 @@ During development: `claude --plugin-dir mods/session-assets`.
 ## Limits
 
 - No thumbnails. `Image` draws only in kitty or Ghostty, not in Warp or tmux.
-- Only tool calls are read. A URL that appears only in Claude's reply text is not kept.
+- The replay cannot tell a read-only call from the transcript, so a replayed `cat` or
+  `rg` can add the links it read.
 - A picture path with a space in it is not read from Bash output.
 - Not checked: whether a local URL still answers, or whether a file still exists.
 

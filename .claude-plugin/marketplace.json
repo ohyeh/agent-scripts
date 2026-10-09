@@ -24,7 +24,7 @@
       "name": "session-assets",
       "source": "./mods/session-assets",
       "description": "Function-hook mod: keeps what a session makes or prints (URLs, artifacts, files, images, commits) in a band above the prompt, per session, labelled with what produced it. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "PaulYeh"
       },

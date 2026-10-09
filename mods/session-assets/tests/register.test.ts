@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { assetsOf, cut, extractUrls, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
+import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
 
 const HOME = '/h/me'
 const call = (tool: string, input: Record<string, unknown>, text = '', readOnly = false) => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w', readOnly })
@@ -100,6 +100,30 @@ describe('assetsOf', () => {
   })
 })
 
+describe('prose and transcript', () => {
+  const at = { home: HOME, cwd: '/private/var/w' }
+  test('a URL in prose is labelled with the rest of its line', async () => {
+    expect(assetsOfText('Done.\n- Preview: **https://x.dev/p**\nsee https://y.dev', 'reply', at).map(a => [a.ref, a.label])).toEqual([
+      ['https://x.dev/p', 'reply: Preview'],
+      ['https://y.dev', 'reply: see'],
+    ])
+    expect(assetsOfText('https://z.dev/q', 'you', at)[0]!.label).toBe('you')
+    expect(assetsOfText('look at ~/Desktop/shot.png', 'you', at).map(a => [a.kind, a.label])).toEqual([['image', 'you: shot.png']])
+  })
+
+  test('the transcript replays answered tool uses and replies; user messages and errors add nothing', async () => {
+    const out = assetsOfTranscript([
+      { role: 'user', text: 'see https://user.dev/x', toolUses: [] },
+      { role: 'assistant', text: 'Live at http://localhost:3000/', toolUses: [
+        { tool: 'Write', input: { file_path: '/private/var/w/a.md' }, text: 'ok' },
+        { tool: 'Bash', input: { command: 'deploy' }, text: 'https://fail.dev', isError: true },
+        { tool: 'Bash', input: { command: 'deploy' } },
+      ] },
+    ], at)
+    expect(out.map(a => [a.kind, a.ref])).toEqual([['url', 'http://localhost:3000/'], ['file', '/private/var/w/a.md']])
+  })
+})
+
 test('cut keeps whole groups and counts the rest as assets, not lines', async () => {
   const g = [['1'], ['2'], ['3', '3+'], ['4']]
   const more = (n: number) => `+${n}`
@@ -190,6 +214,45 @@ describe('band', () => {
     expect(JSON.stringify(await $.command.run(cmd('9')))).toContain('no row 9')
   })
 
+  test('a session without a list replays its transcript, dated at the session start', async ($, on) => {
+    const w = world(on, { messages: [{ role: 'assistant', text: 'Preview: https://x.dev/p', toolUses: [{ tool: 'Write', input: { file_path: '/work/retro-w41/a.md' }, text: 'ok' }] }] })
+    await $.session.start(start)
+    const list = w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; at: number }>
+    expect(list.map(x => [x.ref, x.at])).toEqual([['/work/retro-w41/a.md', 1000], ['https://x.dev/p', 1000]])
+    // A reload finds the list and replays nothing.
+    w.kv.set('session-assets.s.sess-A', list.slice(0, 1))
+    await $.session.start(start)
+    expect((w.kv.get('session-assets.s.sess-A') as unknown[]).length).toBe(1)
+  })
+
+  test('a reply adds only URLs no tool printed; a subagent\'s reply adds nothing', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    await $.turn.complete({ ...turn, answer: 'Dev server: http://localhost:5173/\nDocs: https://x.dev/docs' } as never)
+    await $.turn.complete({ ...turn, agentId: 'a1', answer: 'https://sub.dev' } as never)
+    const list = w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>
+    expect(list.map(x => [x.ref, x.label])).toEqual([['https://x.dev/docs', 'reply: Docs'], ['http://localhost:5173/', 'Start dev server']])
+  })
+
+  test('a link the person pastes is kept; a notification\'s is not', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await $.prompt.submit({ text: 'fix https://x.dev/bug/1', wait: false, origin: { kind: 'composer' } } as never)
+    await $.prompt.submit({ text: 'task done https://ci.dev/2', wait: false, origin: { kind: 'notification' } } as never)
+    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>).map(x => [x.ref, x.label])).toEqual([['https://x.dev/bug/1', 'you: fix']])
+  })
+
+  test('the band leaves to the status line what it shows: no version, a commit\'s hash not its branch', async ($, on) => {
+    world(on, { text: '[main 9685ae2] fix: x\n 1 file changed' })
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'git commit -m x' })
+    const text = textOf(await $.ui.render(band()))
+    expect(text).toContain('9685ae2')
+    expect(text).not.toContain('main')
+    expect(text).not.toMatch(/v\d+\.\d+\.\d+/)
+  })
+
   test('a failed store write still returns the tool result', async ($, on) => {
     world(on, { failWrites: true })
     await $.session.start(start)
@@ -198,6 +261,7 @@ describe('band', () => {
   })
 })
 
+const turn = { answer: '', durationMs: 1, isAborted: false, turnId: 't1' }
 const start = { cwd: '/work/retro-w41', surface: 'terminal' as const, isInteractive: true }
 const cmd = (args: string) => ({ command: 'assets', args, origin: { kind: 'composer' as const }, presentation: { isFullscreen: false, columns: 120 } })
 const band = (props: { maxRows?: number; hasSurvey?: boolean } = {}) => ({
@@ -209,11 +273,15 @@ const band = (props: { maxRows?: number; hasSurvey?: boolean } = {}) => ({
 })
 
 /** The engine under the mod: an in-memory store (or one whose writes fail), tools that print a dev-server URL, a recorded `open`. */
-function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean } = {}) {
+function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[] } = {}) {
   mock.clock(on)
   const kv = new Map<string, unknown>()
   const runs: string[][] = []
   on('session.id', () => ({ value: 'sess-A' }))
+  on('session.messages', () => ({ value: opts.messages ?? [] }) as never)
+  on('session.usage', () => ({ value: { startedAt: 1000 } }) as never)
+  on('turn.complete', ($, e) => ({ text: e.answer }) as never)
+  on('prompt.submit', ($, e) => ({ text: e.text }) as never)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('env.get', () => ({ value: HOME }))
   on('store.get', ($, e) => ({ value: kv.get(e.key) }))
