@@ -364,8 +364,11 @@ const TEST_RUNNERS = /^(?:npx )?(?:(?:npm|pnpm|yarn|bun) (?:run )?test|pytest|vi
 const TEST_SCRIPT = /(?:^|\/)(?:tests?\/[^/]+|(?:[^/]*[._-])?(?:tests?|smoke|spec)(?:[._-][^/]*)?)$/
 // An interpreter runs the script it is given: `bash tests/x.sh` is the script's run.
 const INTERPRETERS = /^(?:bash|sh|zsh|node|python3?|bun|deno|tsx|ruby)$/
-const isTest = (w: string[]) => {
-  const script = INTERPRETERS.test(w[0]!) ? (w.slice(1).find(a => !a.startsWith('-')) ?? '') : w[0]!
+const isTest = (words: string[]) => {
+  const base = (x: string) => x.split('/').pop()!
+  const w = base(words[0]!) === 'env' ? words.slice(1) : words
+  if (!w.length) return false
+  const script = INTERPRETERS.test(base(w[0]!)) ? (w.slice(1).find(a => !a.startsWith('-')) ?? '') : w[0]!
   return TEST_RUNNERS.test(w.slice(0, 4).join(' ')) || TEST_SCRIPT.test(script)
 }
 /**
