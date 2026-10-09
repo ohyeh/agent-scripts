@@ -1,5 +1,11 @@
 # Changelog
 
+## session-assets 0.8.1
+
+- A picture or video the agent `Read` (shown in the conversation as `[image]`) is an image row, and each file sent with `SendUserFile` is a row labelled by its caption; both come back from the transcript after a reload. A screenshot a script saved to a path it was given (`probe.py <url> out.png`) was never kept: the path was in the command, so it read as given, not made, and the `Read` that showed it was skipped as a reader.
+- A test run prints its fixtures, not pages it made: URLs a Bash test run printed (`npm test`, `pytest`, `claude plugin test`, a `tests/` script, a `*-smoke` script) are not kept. A screenshot it saved still is. A smoke run had added the made-up `http://localhost:5173/` row.
+- README: after a quote fill the cursor is under the last quote; no hook can move it.
+
 ## session-assets 0.8.0
 
 - A TUI of its own, as the workers panel has: `/assets tui` or the band's `[ ⧉ ]` opens `bin/tui.mjs` full screen. In tmux it opens in a split (full window height); elsewhere, Warp among them, the command goes on the clipboard, to paste in a new pane. The band has a few rows; the TUI has every row and the last answers.

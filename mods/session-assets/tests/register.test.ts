@@ -120,8 +120,10 @@ describe('assetsOf', () => {
     expect(call('Bash', { command: 'x' }, `https://x.dev/${'a'.repeat(3000)}`)).toEqual([])
   })
 
-  test('file and page readers add nothing', async () => {
-    for (const tool of ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch']) expect(call(tool, { file_path: '/a.png' }, 'https://x.dev /b.png')).toEqual([])
+  test('file and page readers add nothing; a picture Read adds itself only', async () => {
+    for (const tool of ['Grep', 'Glob', 'WebFetch', 'WebSearch']) expect(call(tool, { file_path: '/a.png' }, 'https://x.dev /b.png')).toEqual([])
+    expect(call('Read', { file_path: '/a.md' }, 'https://x.dev /b.png')).toEqual([])
+    expect(call('Read', { file_path: '/a.png' }, 'https://x.dev /b.png').map(a => a.ref)).toEqual(['/a.png'])
   })
 })
 
@@ -171,6 +173,16 @@ describe('pointing and checking', () => {
     expect(call('Bash', { command: 'npm run dev 2>&1 | grep -A2 "Local: x" | head -5', description: 'Start' }, 'Local: http://localhost:5173/').map(a => a.ref), 'filters on a pipe read no file').toEqual(['http://localhost:5173/'])
     expect(call('Bash', { command: 'npm run dev | tail -n 30 | grep -A 4 Local', description: 'Start' }, 'Local: http://localhost:5173/').map(a => a.ref)).toEqual(['http://localhost:5173/'])
     expect(call('Bash', { command: 'make build && cat dist/urls.txt' }, 'https://cdn.x.dev/a')).toEqual([])
+    const screen = 'FAIL: quote\n 2 url localhost:5173 Start dev server\nhttp://localhost:5173/'
+    for (const command of ['tests/tui-smoke.sh 2>&1 | tail -25', 'MOD=m scripts/test-mod-permissions-smoke', 'npm test', 'claude plugin test mods/x', 'cd web && npx vitest run', 'bin/test'])
+      expect(call('Bash', { command, description: 'Run' }, screen), `${command}: a test run prints fixtures`).toEqual([])
+    for (const command of ['npm run dev', 'claude plugin update x', 'bash contest.sh', 'python3 latest.py'])
+      expect(call('Bash', { command, description: 'Run' }, screen).map(a => a.ref), command).toEqual(['http://localhost:5173/'])
+    expect(call('Read', { file_path: '/w/s/live-btc.png' }, '[image]', true).map(a => [a.kind, a.ref]), 'a picture Read is shown in the conversation').toEqual([['image', '/w/s/live-btc.png']])
+    expect(call('Read', { file_path: '/w/src/a.ts' }, 'https://x.dev/a', true)).toEqual([])
+    expect(call('SendUserFile', { files: ['/w/s/live-btc.png', '/w/r.md', '/w/s/live-btc.png'], caption: '首屏第二步上線' }).map(a => [a.kind, a.label]), 'a file sent to the person, by its caption').toEqual([['image', '首屏第二步上線'], ['file', '首屏第二步上線']])
+    expect(assetsOfTranscript([{ role: 'assistant', text: '', toolUses: [{ tool: 'Read', input: { file_path: '/w/s/a.png' }, text: '' }] }], { home: HOME, cwd: '/w' }).map(a => a.kind), 'the replay keeps a picture Read').toEqual(['image'])
+    expect(call('Bash', { command: 'npm test', description: 'Run' }, 'saved /w/test-results/fail.png').map(a => a.kind), 'a test run\'s screenshot is kept').toEqual(['image'])
   })
 
   test('a local page is kept; an ephemeral port or a file a page loads is noise; a remote URL never is', async () => {

@@ -77,6 +77,14 @@ export function assetsOf(c: Call): Asset[] {
     }
     return out
   }
+  // A picture Read is one shown in the conversation; a file sent to the person is one they were meant to see.
+  if (c.tool === 'Read' && typeof c.input.file_path === 'string' && (IMAGE_EXT.test(c.input.file_path) || VIDEO_EXT.test(c.input.file_path))) return [fileAsset(c.input.file_path, c)]
+  if (c.tool === 'SendUserFile' && Array.isArray(c.input.files)) {
+    const said = typeof c.input.caption === 'string' && c.input.caption.trim() ? clean(c.input.caption.trim(), 60) : ''
+    const out: Asset[] = []
+    for (const f of c.input.files) if (typeof f === 'string' && f.length <= MAX_REF && out.length < PER_CALL && !out.some(x => x.ref === fileAsset(f, c).ref)) out.push({ ...fileAsset(f, c), ...(said ? { label: said } : {}) })
+    return out
+  }
   // A read-only call (Bash `cat`, `rg`) prints what it read, not what this session made.
   if (c.readOnly || SKIP.has(c.tool) || SKIP_RE.test(c.tool)) return []
   const out: Asset[] = []
@@ -113,6 +121,8 @@ export function assetsOf(c: Call): Asset[] {
   const typed = Object.values(c.input).map(String).join('\n')
   if (c.tool === 'Bash') for (const m of text.matchAll(IMAGE_PATH_RE)) if (!typed.includes(m[2] ?? m[3]!) && !typed.includes(mediaPath(m))) add(fileAsset(mediaPath(m), c))
   // A `.git` URL is a remote to clone or push to (`git push` prints `To <remote>`), not a page.
+  // A test run prints its fixtures (`tui-smoke.sh` showed a screen of made-up rows): its URLs are not pages it made.
+  if (c.tool === 'Bash' && isTestRun(String(c.input.command ?? ''))) return out
   for (const url of extractUrls(text)) if (!given.includes(url) && !isLocalNoise(url) && !/\.git\/?$/.test(url)) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   return out
 }
@@ -348,6 +358,20 @@ export const sessionIdsIn = (text: string) => [...new Set(text.match(/[0-9a-f]{8
 const READERS = /^(?:cat|head|tail|sed|less|grep|rg|jq|yq|wc|sort|uniq|cut|awk|bat|ls|cd|echo|sleep|true|tmux (?:capture-pane|ls|list-\w+)|git (?:log|show|diff|blame|status|grep))$/
 // Readers that print a file or a screen: by name and positional arguments (a filter's first one is its pattern or script).
 const SHOWS = /^(?:tmux capture-pane|git (?:log|show|diff|blame|grep))$/
+// A test runner by name (`npm test`, `pytest`), or a script that says it is one (`tests/x.sh`, `test-y-smoke`).
+const TEST_RUNNERS = /^(?:npx )?(?:(?:npm|pnpm|yarn|bun) (?:run )?test|pytest|vitest|jest|go test|cargo test|node --test|claude plugin test)(?: |$)/
+const TEST_SCRIPT = /(?:^|[/._-])(?:tests?|smoke|spec)(?:[/._-]|$)/
+/** Some program in the command runs tests: what it printed is fixture data. */
+export function isTestRun(command: string): boolean {
+  return segmentsOf(command).some(w => TEST_RUNNERS.test(w.slice(0, 4).join(' ')) || TEST_SCRIPT.test(w[0]!))
+}
+/** The command's programs, each as its words: heredoc bodies and quoted text out, leading `VAR=x` assignments dropped. */
+const segmentsOf = (command: string) =>
+  withoutHeredocs(command)
+    .replace(/"[^"]*"|'[^']*'/g, 'Q')
+    .split(/&&|\|\||[;|\n]/)
+    .map(seg => seg.trim().replace(/^(?:\w+=\S*\s+)*/, '').split(/\s+/).filter(Boolean))
+    .filter(w => w.length)
 /** The command without its heredoc bodies: text a program reads (`python3 - <<'EOF' … EOF`), not commands. */
 const withoutHeredocs = (command: string) => command.replace(/<<-?\s*(['"]?)(\w+)\1[^\n]*\n[\s\S]*?\n\s*\2\s*(?=\n|$)/g, '')
 
@@ -359,11 +383,7 @@ const FILE_ARGS: Record<string, number> = { cat: 1, head: 1, tail: 1, less: 1, b
  * own lines.
  */
 export function isReader(command: string): boolean {
-  const progs = withoutHeredocs(command)
-    .replace(/"[^"]*"|'[^']*'/g, 'Q')
-    .split(/&&|\|\||[;|\n]/)
-    .map(seg => seg.trim().replace(/^(?:\w+=\S*\s+)*/, '').split(/\s+/).filter(Boolean))
-    .filter(w => w.length)
+  const progs = segmentsOf(command)
   const shows = (w: string[]) => SHOWS.test(`${w[0]} ${w[1] ?? ''}`) || w.slice(1).filter(a => !a.startsWith('-') && !/^\d+$/.test(a)).length >= (FILE_ARGS[w[0]!] ?? Infinity)
   const reads = (w: string[]) => READERS.test(w[0]!) || READERS.test(`${w[0]} ${w[1] ?? ''}`)
   return progs.length > 0 && (progs.every(reads) || progs.some(shows))
