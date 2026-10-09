@@ -46,16 +46,23 @@ review 把關，不由數字。
   以 `dispatch` 欄位由一個指揮者只做一次 `Agent(Explore, model, effort)`，只評 subagent 回傳的報告。
   原檔案狀態已不在，gold = 當天指揮者的同一組 `find -mtime -7` oracle，在每次 run 前後各跑一次，
   取前後區間。`*.jsonl` 與「全部檔案」兩種 oracle 皆算對（prompt 兩種說法都有），記錄報的數字。
-- 抽數規則：只看寫出該路徑本身（非子目錄）的行；去掉路徑、日期、容量（454M）、小數；後接計數字
-  （recent／files／個…）的整數優先，否則必須只剩一個整數。路徑沒報 = FAIL；一行多個數 = ERROR。
+- 抽數規則（10-09 試跑後修訂一次，見下）：只看寫出該路徑本身（非子目錄）的行；brief 要的是
+  「mtime 7 日內的檔案數」，所以綁在 7 日標記上的整數優先（`mtime<=7d: N`、`-mtime -7: N`、
+  `last 7 days: N`、`7 日內 N`）；沒有標記時去掉路徑、日期、容量（454M）、小數，必須只剩一個整數。
+  路徑沒報 = FAIL；一行多個數 = ERROR。
   原 prompt 的期間（07-25..08-01）已過期：照它自己的 acceptance 評 `-mtime -7` 數字，只報期間數 = FAIL。
-- 介面錯 = ERROR 不是 FAIL：指揮者沒做恰好一次逐字派工、subagent 不是指定模型、報告超過 30 行。
+- 介面錯 = ERROR 不是 FAIL：指揮者沒做恰好一次逐字派工、subagent 不是指定模型。報告行數（brief 上限 30）
+  記在 `report_lines`，不影響判定：要問的是數錯，不是格式。
 - 組別：haiku（Haiku 5.5）medium、haiku high、對照 sonnet low（現行替代），各 3 次；指揮者 `--model sonnet`。
 - 判定：某組 3/3 PASS = 「3 次內未見數錯」，不是「已修好」；任何 FAIL = 該組維持退役。
   只有 haiku 某組 3/3 且 sonnet low 也 3/3，才提 model-dispatch:17 的 diff（只提，等核准）。
   ERROR 不算通過；ERROR 佔多數就修介面重跑，不改 grader。
 - 限制：原紀錄只追到一次事件（1 vs 172、1 vs 105）；「repeated miscounts」其餘次數 UNCONFIRMED。
   `effort` 經 Agent 參數與指揮者 `--effort` 同時給，subagent 實際 effort trace 看不到（UNCONFIRMED）。
+- 修訂紀錄（唯一一次）：10-09 介面試跑（haiku medium，不列入判定）抓到兩個 grader 缺陷，不是不想要的結果：
+  ①背景 Agent 的報告在 `task_notification.handback_report`，不在 tool_result；②「計數字優先」抓到
+  「705 session」而非報告寫明的 `mtime<=7d: 274`。改為綁 7 日標記、行數只記錄；試跑報告存成第 4 個
+  stored 案例（expect PASS）。此 commit 之後到 9 次跑完前不再改 grader，ERROR 照計。
 
 ## Outcome ledger（`evals/outcomes.jsonl`）
 每次 rules/global/skill 變更 append 一行 JSON：`{"date","commit","change","reason","eval"}`。

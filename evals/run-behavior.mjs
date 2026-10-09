@@ -31,13 +31,18 @@ const parse = text => {
     let e; try { e = JSON.parse(line) } catch { continue }
     const content = e.message?.content
     if (e.parent_tool_use_id) { if (e.type === 'assistant' && e.message?.model) t.subModels.add(e.message.model); continue }
+    // a background Agent returns "Async agent launched"; its report arrives later as the handback
+    if (e.subtype === 'task_notification' && t.agentIds.has(e.tool_use_id) && e.handback_report) {
+      const h = e.handback_report
+      t.agentResults.push(String((typeof h === 'string' ? h : h.text) ?? ''))
+    }
     if (e.type === 'assistant' && Array.isArray(content)) for (const c of content) if (c.type === 'tool_use') {
       t.tools.push({ name: c.name, input: c.input || {} })
       if (/^(Agent|Task)$/.test(c.name)) t.agentIds.add(c.id)
     }
     if (e.type === 'user' && Array.isArray(content)) for (const c of content) if (c.type === 'tool_result') {
       t.results.push(typeof c.content === 'string' ? c.content : JSON.stringify(c.content))
-      if (t.agentIds.has(c.tool_use_id)) t.agentResults.push(text_(c.content))
+      if (t.agentIds.has(c.tool_use_id) && !text_(c.content).startsWith('Async agent launched')) t.agentResults.push(text_(c.content))
     }
     if (e.type === 'result') { t.final = String(e.result ?? ''); t.cost = e.total_cost_usd ?? null; t.models = Object.keys(e.modelUsage || {}); if (e.is_error) t.error = e.subtype || 'error' }
   }
@@ -63,19 +68,22 @@ const shows = (t, label) => {
   if (PREDICATES[label]) return PREDICATES[label](t)
   throw new Error(`no grader for label "${label}"`)
 }
-// W42-19 gold extraction (frozen before the first live run): the count a report gives for `path` is read
-// from the lines that name the path itself (not a subdir). Path tokens, dates, sizes (454M, 1.3G) and
-// decimals are dropped; an integer followed by a count word wins, else exactly one integer must remain.
+// W42-19 gold extraction (revised once after the surface probe, then frozen — see evals/README.md):
+// the count a report gives for `path` is read from the lines that name the path itself (not a subdir).
+// The brief asks for "file count with mtime within last 7 days", so an integer bound to a 7-day marker
+// (`mtime<=7d: N`, `-mtime -7: N`, `last 7 days: N`, `7 日內 N`) wins. Without a marker:
+// drop path tokens, dates, sizes (454M, 1.3G) and decimals; exactly one integer must remain.
 // A missing path is a wrong answer (FAIL); an ambiguous line is ungradeable (ERROR).
 const countFor = (report, path) => {
   const tail = path.replace(/^~\//, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const named = new RegExp(`(~|/[^\\s\`'"|]*)/${tail}/?(?=[\\s\`'"|):,]|$)`)
   const lines = report.split('\n').filter(l => named.test(l))
   if (!lines.length) return { n: undefined }
-  const rest = lines.join('\n').replace(/\S*\/\S*/g, ' ').replace(/\d{4}-\d{2}-\d{2}/g, ' ').replace(/\b\d+(\.\d+)?\s?[KMGT]i?B?\b/g, ' ').replace(/\d+\.\d+/g, ' ')
-  const preferred = new Set([...rest.matchAll(/(\d+)\s*(recent|files?|sessions?|個|檔|筆|\.jsonl)/gi)].map(m => +m[1]))
-  const all = new Set([...rest.matchAll(/\b\d+\b/g)].map(m => +m[0]))
-  const pick = preferred.size ? preferred : all
+  const int = s => +s.replace(/,/g, '')
+  const noPath = lines.join('\n').replace(/\S*\/\S*/g, ' ')
+  const marked = new Set([...noPath.matchAll(/(?:mtime\s*<=?\s*7\s*d(?:ays?)?|-mtime\s+-7|(?:last|within)\s+7\s*days?|7\s*日內|近\s*7\s*日)\)?\s*[:=]?\s*(\d[\d,]*)/gi)].map(m => int(m[1])))
+  const rest = noPath.replace(/\d{4}-\d{2}-\d{2}/g, ' ').replace(/\b\d+(\.\d+)?\s?[KMGT]i?B?\b/g, ' ').replace(/\d+\.\d+/g, ' ')
+  const pick = marked.size ? marked : new Set([...rest.matchAll(/\b\d+\b/g)].map(m => +m[0]))
   if (pick.size !== 1) throw new Error(`ambiguous count for ${path}: ${[...pick].join(',') || 'none'}`)
   return { n: [...pick][0] }
 }
@@ -93,7 +101,6 @@ const grade = (fx, t, gold) => {
       return true
     })
     add('dispatch', 'subagent model', () => { if (![...t.subModels].length || ![...t.subModels].every(m => m.includes(sub))) throw new Error(`subagent ran on ${[...t.subModels].join(',') || 'nothing'}, wanted ${sub}`); return true })
-    add('dispatch', 'report within 30 lines', () => { const n = (t.agentResults[0] || '').trim().split('\n').length; if (n > 30) throw new Error(`${n} lines`); return true })
   }
   const reported = {}
   for (const [label, g] of Object.entries(gold?.ranges || {})) add('gold', label, () => {
@@ -102,7 +109,8 @@ const grade = (fx, t, gold) => {
     return g.some(([lo, hi]) => n >= lo && n <= hi)
   })
   const verdict = t.error ? 'ERROR' : checks.some(c => c.ok === null) ? 'ERROR' : checks.every(c => c.ok) ? 'PASS' : 'FAIL'
-  return { verdict, checks, ...(gold ? { gold: { ...gold, reported } } : {}) }
+  // report_lines: the brief caps the report at 30 lines; recorded, not gated (the question is the count)
+  return { verdict, checks, ...(gold ? { gold: { ...gold, reported }, report_lines: (t.agentResults[0] || '').trim().split('\n').length } : {}) }
 }
 
 // ── live run ──
