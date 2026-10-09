@@ -52,11 +52,12 @@ speech="$(printf '%s' "$last" \
   | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告' )"
 
 claim=""
+# Under LC_ALL=C grep is byte-wise: never put ?/*/+ right after a CJK char (it binds to its last byte); group it.
 case "$title" in ✅*) claim="positive";; esac
-if [ -z "$claim" ] && printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(done|fixed|verified|shipped|completed?|resolved|all green|tests? pass(ed|ing)?)([^a-z]|$)|已?(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|✅|VERDICT: *PASS'; then
+if [ -z "$claim" ] && printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(done|fixed|verified|shipped|completed?|resolved|all green|tests? pass(ed|ing)?)([^a-z]|$)|(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|✅|VERDICT: *PASS'; then
   claim="positive"
 fi
-if [ -z "$claim" ] && printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(stuck|failed|missing|not implemented|no (reply|response)|never (reported|responded)|hung|dead)([^a-z]|$)|卡住|受阻|失敗|缺少|不存在|尚未實作|沒有?回(覆|應)|掛了'; then
+if [ -z "$claim" ] && printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(stuck|failed|missing|not implemented|no (reply|response)|never (reported|responded)|hung|dead)([^a-z]|$)|卡住|受阻|失敗|缺少|不存在|尚未實作|沒(有)?回(覆|應)|掛了'; then
   claim="negative"
 fi
 [ -n "$claim" ] || exit 0

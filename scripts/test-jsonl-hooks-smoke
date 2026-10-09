@@ -67,7 +67,7 @@ check_jsonl "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" 2 \
   'type == "object" and (.timestamp | type) == "string" and (.tool | type) == "string" and (.input_sha256 | test("^[0-9a-f]{64}$")) and .evidence == []'
 # evidence tokens: normalized shapes only, never surrounding output (secrets stay out)
 run_ledger "$(jq -cn '{session_id:"jsonl-smoke",tool_name:"Bash",tool_input:{command:"make test"},tool_response:{stdout:"token=TEST_SECRET_123\nexit code 0\n18/18 passed\nPASS [hooks] ok\n463 tests passed",stderr:"",interrupted:false}}')"
-tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" | jq -e '.evidence == ["18/18 passed","463 passed","PASS","exit=0"]' >/dev/null || { echo "FAIL: evidence tokens not normalized: $(tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl")" >&2; exit 1; }
+tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" | jq -e '(.evidence | sort) == (["18/18 passed","463 passed","PASS","exit=0"] | sort)' >/dev/null || { echo "FAIL: evidence tokens not normalized: $(tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl")" >&2; exit 1; }
 ! grep -q 'TEST_SECRET_123' "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl"
 
 # provenance: a token present only in the ECHOED INPUT is not evidence
@@ -145,6 +145,7 @@ RUN0='{"timestamp":"2026-01-01T00:00:05Z","tool":"Bash","evidence":["exit=0","18
 READ='{"timestamp":"2026-01-01T00:00:06Z","tool":"Read","evidence":[]}'
 EDIT0='{"timestamp":"2026-01-01T00:00:05Z","tool":"Edit","evidence":[]}'
 ledger_for c1 "$BEFORE" "$EDIT0";  [[ "$(run_claim c1 '修好了，應該沒問題')" == block ]]            || { echo "FAIL: claim with nothing run not blocked" >&2; exit 1; }
+ledger_for c1c "$BEFORE" "$EDIT0"; [[ "$(LC_ALL=C run_claim c1c '修好了，應該沒問題')" == block ]]   || { echo "FAIL: CJK claim not blocked under LC_ALL=C" >&2; exit 1; }
 ledger_for c1b "$BEFORE";          [[ -z "$(run_claim c1b '修好了，應該沒問題')" ]]                  || { echo "FAIL: plain answer (no mutating tool) blocked" >&2; exit 1; }
 TRX="$WORK/transcript-codex.jsonl"   # Codex rollout: a real user turn is an item_completed UserMessage
 printf '%s\n' '{"timestamp":"2026-01-01T00:00:00.000Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage"}}}' > "$TRX"
