@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 import argparse
+import atexit
 import glob
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import sqlite3
+import tempfile
 from collections import Counter
 from datetime import datetime, timedelta
 
@@ -33,8 +37,82 @@ def known_skills():
     return {name for name in names if re.match(r"^[A-Za-z0-9_:-]+$", name)}
 
 
+OPEN_PATHS = Counter()
+
+
 def open_ro(path):
-    return sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    """Open a context-mode db read-only and see its WAL frames.
+
+    `mode=ro` reads the WAL, but on a WAL-mode db with no `-shm` in a directory
+    the reader cannot write it fails with "unable to open database file"
+    (W40 F8, W41 check 7). `immutable=1` opens but skips every WAL frame.
+    So on that failure we read a temp copy of the db plus its `-wal`.
+    """
+    try:
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        con.execute("select count(*) from sqlite_master").fetchone()  # connect() is lazy; force the open
+        OPEN_PATHS["mode=ro"] += 1
+        return con
+    except sqlite3.OperationalError as exc:
+        reason = f"{type(exc).__name__}: {exc}"
+    tmp = tempfile.mkdtemp(prefix="ctx-usage-")
+    atexit.register(shutil.rmtree, tmp, True)
+    copy = os.path.join(tmp, os.path.basename(path))
+    shutil.copy2(path, copy)
+    wal = os.path.exists(path + "-wal")
+    if wal:
+        shutil.copy2(path + "-wal", copy + "-wal")
+    con = sqlite3.connect(copy)
+    con.execute("select count(*) from sqlite_master").fetchone()
+    OPEN_PATHS["temp-copy"] += 1
+    print(
+        f"INFO {path}: mode=ro failed ({reason}); read temp copy (db{' + -wal' if wal else ' only, no -wal'})",
+        file=sys.stderr,
+    )
+    return con
+
+
+def self_test():
+    """WAL-mode db whose rows live only in the -wal, no -shm, directory not writable."""
+    root = tempfile.mkdtemp(prefix="ctx-usage-selftest-")
+    src, ro = os.path.join(root, "src"), os.path.join(root, "ro")
+    os.mkdir(src)
+    os.mkdir(ro)
+    w = sqlite3.connect(os.path.join(src, "s.db"))
+    w.execute("pragma journal_mode=wal")
+    w.execute("pragma wal_autocheckpoint=0")
+    w.executescript(
+        "create table session_meta(session_id, project_dir, started_at, last_event_at, event_count, compact_count);"
+        "create table session_events(session_id, type, category, data, project_dir);"
+        "create table tool_calls(session_id, tool, calls, bytes_returned);"
+    )
+    w.execute("pragma wal_checkpoint(truncate)")  # schema in the main file, rows below only in the WAL
+    w.execute("insert into session_meta values('s1', '/p', '2026-10-01 00:00:00', null, 2, 0)")
+    w.executemany("insert into session_events values('s1', 't', 'c', 'claude', '/p')", [(), ()])
+    w.execute("insert into tool_calls values('s1', 'ctx_execute', 3, 10)")
+    w.commit()
+    for name in ("s.db", "s.db-wal"):
+        shutil.copy2(os.path.join(src, name), ro)
+    w.close()
+    os.chmod(ro, 0o555)
+    try:
+        assert not os.path.exists(os.path.join(ro, "s.db-shm"))
+        db = os.path.join(ro, "s.db")
+        imm = sqlite3.connect(f"file:{db}?immutable=1", uri=True)
+        assert imm.execute("select count(*) from session_events").fetchone()[0] == 0, "immutable=1 should miss WAL rows"
+        imm.close()
+        out = subprocess.run(
+            [sys.executable, os.path.abspath(__file__), "--sessions-dir", ro],
+            capture_output=True, text=True,
+        )
+        print(out.stdout.splitlines()[0] if out.stdout else "", out.stderr.strip(), sep="\n")
+        assert out.returncode == 0, f"report exit {out.returncode}: {out.stderr[-300:]}"
+        assert "Scope: 1 db files, 1 sessions, 2 events" in out.stdout, out.stdout[:300]
+        assert "temp-copy 1" in out.stdout, out.stdout[:300]
+    finally:
+        os.chmod(ro, 0o755)
+        shutil.rmtree(root, True)
+    print("self-test ok")
 
 
 def print_counter(title, counter, limit, suffix=""):
@@ -104,7 +182,10 @@ def main():
     parser.add_argument("--since", help="Only sessions started on/after this date, e.g. 2026-07-01")
     parser.add_argument("--until", help="Only sessions started before this date boundary. YYYY-MM-DD includes that whole day.")
     parser.add_argument("--days", type=int, help="Only sessions from the last N days")
+    parser.add_argument("--self-test", action="store_true", help="Check the WAL-without-sidecar open path")
     args = parser.parse_args()
+    if args.self_test:
+        return self_test()
     if args.days is not None and args.since:
         parser.error("--days and --since are mutually exclusive")
 
@@ -167,7 +248,9 @@ def main():
         try:
             con = open_ro(db)
             cur = con.cursor()
-        except sqlite3.Error:
+        except (sqlite3.Error, OSError) as exc:
+            OPEN_PATHS["failed"] += 1
+            print(f"WARN {db}: skipped ({type(exc).__name__}: {exc})", file=sys.stderr)
             continue
 
         session_text = {}
@@ -298,6 +381,7 @@ def main():
         con.close()
 
     print(f"Scope: {len(dbs)} db files, {len(sessions)} sessions, {events} events")
+    print("Open paths: " + ", ".join(f"{k} {v}" for k, v in sorted(OPEN_PATHS.items())))
     if duplicate_sessions:
         print(f"Skipped duplicate sessions: {duplicate_sessions}")
     print("Session dirs:")

@@ -12,15 +12,31 @@ import json,sys,glob,os
 RATES={"opus-5":(5.0,25.0,0.50),"opus-5-5":(4.0,20.0,0.20)}  # (input, output, cache read)
 def rates(week): return RATES["opus-5-5" if week>="2026-W40" else "opus-5"]
 assert rates("2026-W39")==RATES["opus-5"] and rates("2026-W40")==RATES["opus-5-5"]
+def num(x):
+    # W40 起每個數值葉節點包成 {"value": N, "method": ..., "tier": ...}；W39 以前是裸數字
+    return x["value"] if isinstance(x,dict) and "value" in x else x
 def usd(d,week):
     IN,OUT,READ=rates(week)
-    return (d.get("input",0)*IN + d.get("output",0)*OUT
-            + d.get("cache_read",0)*READ + d.get("cache_create",0)*IN*1.25)/1e6
-for f in sorted(glob.glob(os.path.join(os.path.dirname(__file__) or ".","*.json"))):
-    d=json.load(open(f)); tot=0.0; w=d['week']
-    print(f"== {w} ({d['window']['start']} → {d['window']['end']})  費率 {'Opus 5.5' if rates(w)==RATES['opus-5-5'] else 'Opus 5'}")
+    g=lambda k: num(d.get(k,0))
+    return (g("input")*IN + g("output")*OUT + g("cache_read")*READ + g("cache_create")*IN*1.25)/1e6
+def self_test():
+    plain={"input":1000,"output":2000,"cache_read":3000,"cache_create":4000}
+    wrapped={k:{"value":v,"method":"m","tier":"t"} for k,v in plain.items()}
+    assert usd(plain,"2026-W41")==usd(wrapped,"2026-W41")>0, (usd(plain,"2026-W41"),usd(wrapped,"2026-W41"))
+    assert num({"value":"2026-W41","tier":"RAW"})=="2026-W41" and num(7)==7
+    print("self-test OK")
+def report(f):
+    d=json.load(open(f)); tot=0.0; w=num(d['week']); win=d['window']
+    print(f"== {w} ({num(win['start'])} → {num(win['end'])})  費率 {'Opus 5.5' if rates(w)==RATES['opus-5-5'] else 'Opus 5'}")
+    turns=0
     for m,v in d["machines"].items():
-        c=v.get("claude",{}); cost=usd(c,w); tot+=cost
-        print(f"  {m:20s} claude ${cost:8.2f}  ({c.get('sessions',0)} 場 / {c.get('turns',0)} 輪)"
-              f"  codex {(v.get('codex',{}).get('with_archived') or v.get('codex',{})).get('total',0)/1e6:.0f}M UNPRICED")
-    print(f"  {'合計 Claude':20s} ${tot:8.2f}   ·  每輪 ${tot/max(1,sum(v.get('claude',{}).get('turns',0) for v in d['machines'].values())):.3f}")
+        c=v.get("claude",{}); cost=usd(c,w); tot+=cost; turns+=num(c.get('turns',0))
+        cx=v.get('codex',{}); cx=cx.get('with_archived') or cx
+        print(f"  {m:20s} claude ${cost:8.2f}  ({num(c.get('sessions',0))} 場 / {num(c.get('turns',0))} 輪)"
+              f"  codex {num(cx.get('total',0))/1e6:.0f}M UNPRICED")
+    print(f"  {'合計 Claude':20s} ${tot:8.2f}   ·  每輪 ${tot/max(1,turns):.3f}")
+# 只讀週次彙總檔 <YYYY>-W<NN>.json；不給參數時掃本目錄，避免吃進其他 JSON
+args=sys.argv[1:]
+if args==["--self-test"]: self_test(); sys.exit(0)
+for f in args or sorted(glob.glob(os.path.join(os.path.dirname(__file__) or ".","[0-9][0-9][0-9][0-9]-W[0-9][0-9].json"))):
+    report(f)
