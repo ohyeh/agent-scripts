@@ -43,6 +43,7 @@ folded into one line.
 | `▤` | `file` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | its default app |
 | `▣` | `image` | a picture those tools wrote, or a picture path in Bash output (a screenshot) or in a prompt you typed | Preview |
 | `◇` | `source` | a page `WebFetch` or `ctx_fetch_and_index` was given (label: its `prompt`), or a link in a prompt you typed (`you: …`): what the session consulted, apart from what it made. Counted in the header, listed by `/assets list`, no band row | the browser |
+| `◆` | `url` (push) | a `git push` to GitHub: the compare view (`push: main a..b`), a new tag's release page, a new branch's tree | the browser |
 | `⎇` | `commit` | `[branch hash] subject` in the output of a Bash `git … commit` | nothing (the hash is shown) |
 
 - A URL's label is the Bash call's `description`, else the first 60 characters of the

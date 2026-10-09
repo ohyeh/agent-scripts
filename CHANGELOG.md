@@ -1,5 +1,10 @@
 # Changelog
 
+## session-assets 0.5.1
+
+- A `git push` to GitHub keeps the page it changed: the compare view for `a..b  main -> main` (`push: main a..b`), the release page for a new tag, the tree of a new branch. The replay keeps them too: they are what the call did. A `.git` URL (the `To <remote>` line) is a remote, not a page, and is not kept.
+- A source fetched without a `prompt` is labelled with its `source`, else its host, not the tool's name.
+
 ## session-assets 0.5.0
 
 - **Sources**, apart from what the session made: the page a `WebFetch` or context-mode's `ctx_fetch_and_index` was given (labelled with its `prompt`), and a link you pasted (it was `url`, `you: …`). They are counted in the band's header and listed under `Sources` by `/assets list`, take no band row, and answer `#aN`, the tool (`kind: "source"`) and the checks like any URL.

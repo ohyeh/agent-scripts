@@ -116,6 +116,20 @@ describe('assetsOf', () => {
 })
 
 describe('pointing and checking', () => {
+  test('a push to GitHub gives the compare view, a new branch, the tag page; a fetched page is labelled by its source or host', async () => {
+    const out = 'To https://github.com/ohyeh/agent-scripts.git\n   594cff6..b30824f  main -> main\n * [new tag]         v0.5.0 -> v0.5.0\n * [new branch]      feat/x -> feat/x\n'
+    expect(call('Bash', { command: 'git push origin main --tags', description: 'Push' }, out).map(a => [a.label, a.ref])).toEqual([
+      ['push: main 594cff6..b30824f', 'https://github.com/ohyeh/agent-scripts/compare/594cff6...b30824f'],
+      ['push: new tag v0.5.0', 'https://github.com/ohyeh/agent-scripts/releases/tag/v0.5.0'],
+      ['push: new branch feat/x', 'https://github.com/ohyeh/agent-scripts/tree/feat/x'],
+    ])
+    expect(call('Bash', { command: 'git push' }, 'To git@github.com:o/r.git\n + 1a2b3c4...5d6e7f8 main -> main (forced update)').map(a => a.ref)).toEqual(['https://github.com/o/r/compare/1a2b3c4...5d6e7f8'])
+    expect(call('Bash', { command: 'git push' }, 'To ssh://host/srv/r.git\n   1a2b3c4..5d6e7f8  main -> main')).toEqual([])
+    expect(assetsOfTranscript([{ role: 'assistant', text: '', toolUses: [{ tool: 'Bash', input: { command: 'git push' }, text: out }] }], { home: HOME, cwd: '/w' }).length, 'a push is what a call did: the replay keeps it').toBe(3)
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_fetch_and_index', { url: 'https://docs.x.dev/a' }).map(a => a.label)).toEqual(['docs.x.dev'])
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_fetch_and_index', { url: 'https://docs.x.dev/a', source: 'X docs' }).map(a => a.label)).toEqual(['X docs'])
+  })
+
   test('a page fetched or a link you pasted is a source; a reader command keeps nothing it printed', async () => {
     expect(call('WebFetch', { url: 'https://2140.tw/api/token-target/', prompt: 'token target spec' }, 'body https://inside.dev', true)).toEqual([{ kind: 'source', ref: 'https://2140.tw/api/token-target/', label: 'token target spec', where: '2140.tw', isLocal: false }])
     expect(call('mcp__plugin_context-mode_context-mode__ctx_fetch_and_index', { url: 'https://docs.x.dev/a', source: 'x' }, 'indexed https://docs.x.dev/b').map(a => [a.kind, a.ref])).toEqual([['source', 'https://docs.x.dev/a']])

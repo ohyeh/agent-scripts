@@ -61,8 +61,9 @@ export function assetsOf(c: Call): Asset[] {
   // A fetch is read-only, but the page it was given is a source: what was consulted, not what its page contained.
   const fetched = c.tool === 'WebFetch' || /^mcp__.*__ctx_fetch_and_index$/.test(c.tool) ? c.input.url : undefined
   if (typeof fetched === 'string' && /^https?:\/\//i.test(fetched) && fetched.length <= MAX_REF) {
-    const said = typeof c.input.prompt === 'string' && c.input.prompt.trim() ? clean(c.input.prompt.trim(), 60) : labelOf(c)
-    return [{ kind: 'source', ref: fetched, label: said, where: hostOf(fetched), isLocal: isLocalHost(hostOf(fetched)) }]
+    const said = ['prompt', 'source'].map(k => c.input[k]).find(v => typeof v === 'string' && v.trim())
+    const label = typeof said === 'string' ? clean(said.trim(), 60) : hostOf(fetched)
+    return [{ kind: 'source', ref: fetched, label, where: hostOf(fetched), isLocal: isLocalHost(hostOf(fetched)) }]
   }
   // A read-only call (Bash `cat`, `rg`) prints what it read, not what this session made.
   if (c.readOnly || SKIP.has(c.tool) || SKIP_RE.test(c.tool)) return []
@@ -90,13 +91,15 @@ export function assetsOf(c: Call): Asset[] {
   if (c.tool === 'Bash') {
     const commit = /\bgit\b[^\n]*\bcommit\b/.test(String(c.input.command ?? '')) ? COMMIT_RE.exec(text) : null
     if (commit) add({ kind: 'commit', ref: commit[2]!, label: commit[3]!.trim(), where: commit[1]!, isLocal: true })
+    if (/\bgit\b[^\n]*\bpush\b/.test(String(c.input.command ?? ''))) for (const a of pushedOf(text)) add(a)
   }
   // The engine does not mark every reader read-only (`tmux capture-pane | grep` printed another session's screen).
   if (c.replay || (c.tool === 'Bash' && isReader(String(c.input.command ?? '')))) return out
   // What the call was given is not what it made: `curl <url>`, or a tool that echoes its own code back.
   const given = JSON.stringify(c.input)
   if (c.tool === 'Bash') for (const m of text.matchAll(IMAGE_PATH_RE)) if (!given.includes(m[1]!)) add(fileAsset(m[1]!, c))
-  for (const url of extractUrls(text)) if (!given.includes(url) && !isLocalNoise(url)) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
+  // A `.git` URL is a remote to clone or push to (`git push` prints `To <remote>`), not a page.
+  for (const url of extractUrls(text)) if (!given.includes(url) && !isLocalNoise(url) && !/\.git\/?$/.test(url)) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   return out
 }
 
@@ -322,4 +325,21 @@ export function bucketOf(x: Entry, now: number): 'today' | 'this week' | 'older'
   if (x.replayed) return 'older'
   if (new Date(x.at).toDateString() === new Date(now).toDateString()) return 'today'
   return now - x.at < 7 * 86_400_000 ? 'this week' : 'older'
+}
+
+// `git push` to GitHub prints `To <remote>` and one line per ref: `a..b  main -> main`, `* [new tag]  v1 -> v1`.
+const PUSH_TO_RE = /^To (?:https:\/\/github\.com\/|(?:ssh:\/\/)?git@github\.com[:/])([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/m
+const PUSH_REF_RE = /^\s*(?:\+\s*)?(?:([0-9a-f]{7,40})\.\.\.?([0-9a-f]{7,40})|\* \[new (tag|branch)\])\s+\S+ -> (\S+)/gm
+/** What a push put on GitHub, as the page that shows it: the compare view, the new branch, the tag's release page. */
+export function pushedOf(text: string): Asset[] {
+  const repo = PUSH_TO_RE.exec(text)?.[1]
+  if (!repo) return []
+  const out: Asset[] = []
+  for (const m of text.matchAll(PUSH_REF_RE)) {
+    const [, from, to, made, dst] = m
+    const ref = made === 'tag' ? `https://github.com/${repo}/releases/tag/${dst}` : made ? `https://github.com/${repo}/tree/${dst}` : `https://github.com/${repo}/compare/${from}...${to}`
+    const label = made ? `push: new ${made} ${dst}` : `push: ${dst} ${from!.slice(0, 7)}..${to!.slice(0, 7)}`
+    out.push({ kind: 'url', ref, label, where: 'github.com', isLocal: false })
+  }
+  return out
 }
