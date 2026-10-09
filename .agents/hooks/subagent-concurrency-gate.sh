@@ -35,12 +35,12 @@ ST="$(printf '%s' "$IN" | jq -r '.tool_input.subagent_type // empty')"; ST="${ST
 
 # W42-12: a subagent may dispatch its own subagent only when its dispatcher's brief
 # carries the line `NESTED: allowed`. The gate records that flag in the pending
-# marker; subagent-ledger.sh carries it to the live marker keyed by agent_id.
+# marker; subagent-ledger.sh turns it into nested/<agent_id>.
 # A call is nested when it carries agent_id outside a SubagentStart event (Cursor
 # runs this gate AT subagentStart, where agent_id names the subagent being started).
 AGENT_ID="$(printf '%s' "$IN" | jq -r '.agent_id // empty')"
 EVENT="$(printf '%s' "$IN" | jq -r '.hook_event_name // empty')"
-if [ -n "$AGENT_ID" ] && [ "$EVENT" != "SubagentStart" ] && ! grep -q " nested$" "$LEDGER/$AGENT_ID" 2>/dev/null; then
+if [ -n "$AGENT_ID" ] && [ "$EVENT" != "SubagentStart" ] && [ ! -e "$STATE/nested/$AGENT_ID" ]; then
   jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg st "$ST" \
     '{timestamp: $ts, result: "nested", missing: [], blocked: true, subagent_type: $st}' >> "$STATS_FILE"
   echo "BLOCKED: this subagent may not dispatch subagents. Nested dispatch needs the line \`NESTED: allowed\` in the brief that started this subagent (W42-12). Do this work yourself, or report back and let your dispatcher delegate it." >&2

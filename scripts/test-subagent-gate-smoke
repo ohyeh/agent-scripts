@@ -37,12 +37,15 @@ nest() { jq -cn --arg s "$1" --arg a "$2" --arg p "$3" --arg e "${4:-PreToolUse}
 nest s3 "" "GOAL: g
 NESTED: allowed"; ledger SubagentStart s3 lead
 nest s3 "" "GOAL: g"; ledger SubagentStart s3 plain
-grep -q ' nested$' "$XDG_STATE_HOME/agent-hooks/s3/subagents/lead" && ! grep -q nested "$XDG_STATE_HOME/agent-hooks/s3/subagents/plain" && ok "flag reaches only the authorized marker" || bad "flag not carried to the right marker"
+[ -e "$XDG_STATE_HOME/agent-hooks/s3/nested/lead" ] && [ ! -e "$XDG_STATE_HOME/agent-hooks/s3/nested/plain" ] && ok "flag reaches only the authorized marker" || bad "flag not carried to the right marker"
 nest s3 lead "GOAL: sub"; [ $? = 0 ] && ok "authorized nested dispatch passes" || bad "authorized nested dispatch blocked"
+# a subagent woken by a background child stops and starts again under the same id
+ledger SubagentStop s3 lead; ledger SubagentStart s3 lead
+nest s3 lead "GOAL: sub2"; [ $? = 0 ] && ok "authorization survives stop/restart of the same id" || bad "restart lost the authorization"
 nest s3 plain "GOAL: sub"; [ $? = 2 ] && ok "unauthorized nested dispatch blocked" || bad "unauthorized nested dispatch passed"
 nest s3 plain "GOAL: sub
 NESTED: allowed"; [ $? = 2 ] && ok "a subagent cannot authorize itself" || bad "a subagent authorized itself"
-nest s3 cursor-x "GOAL: g" SubagentStart; [ $? = 0 ] && ok "SubagentStart with agent_id (Cursor) is not nested" || bad "Cursor start blocked as nested"
+nest s4 cursor-x "GOAL: g" SubagentStart; [ $? = 0 ] && ok "SubagentStart with agent_id (Cursor) is not nested" || bad "Cursor start blocked as nested"
 grep -c '"result":"nested"' "$XDG_DATA_HOME/agent-hooks/bol-prompt-stats.jsonl" | grep -qx 2 && ok "nested denies logged as result=nested" || bad "nested stat count wrong"
 
 [ "$fail" = 0 ] && echo "PASS subagent-gate-smoke" || { echo "FAIL subagent-gate-smoke"; exit 1; }
