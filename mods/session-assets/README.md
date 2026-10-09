@@ -38,10 +38,11 @@ folded into one line.
 
 | Glyph | Kind | Comes from | `/assets open N` |
 |---|---|---|---|
-| `●` green / `◆` cyan | `url`, local / remote | an http(s) URL in a tool's output, in Claude's reply (`reply: …`), or in a prompt you typed (`you: …`) | the browser |
+| `●` green / `◆` cyan | `url`, local / remote | an http(s) URL in a tool's output or in Claude's reply (`reply: …`) | the browser |
 | `◈` | `artifact` | an `Artifact` publish; label = its title, else the file name | the browser |
 | `▤` | `file` | `Write`, `Edit`, `MultiEdit`, `NotebookEdit` | its default app |
 | `▣` | `image` | a picture those tools wrote, or a picture path in Bash output (a screenshot) or in a prompt you typed | Preview |
+| `◇` | `source` | a page `WebFetch` or `ctx_fetch_and_index` was given (label: its `prompt`), or a link in a prompt you typed (`you: …`): what the session consulted, apart from what it made. Counted in the header, listed by `/assets list`, no band row | the browser |
 | `⎇` | `commit` | `[branch hash] subject` in the output of a Bash `git … commit` | nothing (the hash is shown) |
 
 - A URL's label is the Bash call's `description`, else the first 60 characters of the
@@ -54,7 +55,9 @@ folded into one line.
 - `Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, context-mode's `ctx_search` /
   `ctx_fetch_and_index` / `ctx_index`, and any call the engine marks read-only (Bash
   `cat`, `rg`) add nothing: their output is content they read, not something this session
-  made. A call that failed adds nothing.
+  made. A call that failed adds nothing. Neither does a Bash command whose programs all only read
+  (`cat`, `sed`, `rg`, `jq`, `tmux capture-pane`, `git log`/`show`/`diff`, with `cd`, `echo`,
+  `sleep` around them): the engine does not mark all of these read-only.
 - A local URL on an ephemeral port (49152 and up, a debugger or CDP endpoint) or to a
   file a page loads (`/assets/a.js`, `/data/x.json`) is not kept: 12,554 of 16k local
   URLs in past sessions' tool output were of that kind.
@@ -85,7 +88,7 @@ folded into one line.
 | `/assets copy N` | put row N's URL, path or hash on the clipboard |
 | `/assets reply N` | put `#aN ` in the prompt, to write the rest around it |
 | `/assets preview N` | a file or picture in Quick Look (`qlmanage -p`); a URL in the browser |
-| `/assets list` | every entry, grouped by kind (URLs, Artifacts, Images, Files, Commits), numbered `#aN` as the band, with its full URL or path and, for the first 10 local URLs and paths, its state now |
+| `/assets list` | every entry, grouped by kind (URLs, Artifacts, Images, Files, Commits, Sources) and by `today` / `this week` / `older`, numbered `#aN` as the band, with its full URL or path and, for the first 10 local URLs and paths, its state now |
 | `/assets clear` | start this session's list over from its transcript |
 | `/assets all` | unfold or fold the other sessions' assets |
 

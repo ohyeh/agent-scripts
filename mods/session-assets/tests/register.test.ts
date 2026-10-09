@@ -116,6 +116,16 @@ describe('assetsOf', () => {
 })
 
 describe('pointing and checking', () => {
+  test('a page fetched or a link you pasted is a source; a reader command keeps nothing it printed', async () => {
+    expect(call('WebFetch', { url: 'https://2140.tw/api/token-target/', prompt: 'token target spec' }, 'body https://inside.dev', true)).toEqual([{ kind: 'source', ref: 'https://2140.tw/api/token-target/', label: 'token target spec', where: '2140.tw', isLocal: false }])
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_fetch_and_index', { url: 'https://docs.x.dev/a', source: 'x' }, 'indexed https://docs.x.dev/b').map(a => [a.kind, a.ref])).toEqual([['source', 'https://docs.x.dev/a']])
+    expect(assetsOfText('see https://discord.com/channels/1/2', 'you', { home: HOME, cwd: '/w' }).map(a => a.kind)).toEqual(['source'])
+    expect(call('Bash', { command: 'sleep 15; tmux capture-pane -p -t sa4 -S -60 | grep -vE "^$" | tail -30', description: 'Read the pane' }, 'https://reply-only.dev/42')).toEqual([])
+    expect(call('Bash', { command: 'cd web && cat log.txt | rg http' }, 'http://localhost:5173/')).toEqual([])
+    expect(call('Bash', { command: 'npm run dev | tee log', description: 'Start dev server' }, 'http://localhost:5173/').map(a => a.ref)).toEqual(['http://localhost:5173/'])
+    expect(call('Bash', { command: 'H=$(git rev-parse x); tmux send-keys -t a "$H" Enter', description: 'Send' }, 'https://made.dev/1').map(a => a.ref)).toEqual(['https://made.dev/1'])
+  })
+
   test('a local page is kept; an ephemeral port or a file a page loads is noise; a remote URL never is', async () => {
     expect(['http://127.0.0.1:58755/json', 'http://localhost:5173/assets/a1.js', 'http://localhost:8787/data/a.json'].map(isLocalNoise)).toEqual([true, true, true])
     expect(['http://localhost:5173/', 'http://localhost:5173/app', 'http://localhost:8765/x.html', 'https://x.dev/a.json'].map(isLocalNoise)).toEqual([false, false, false, false])
@@ -331,6 +341,20 @@ describe('band', () => {
     expect(text).toContain('#a2  Start dev server · 0s ago · up: vite (pid 4242) in .')
     expect(text).toContain('#a1  plan.md · 0s ago · exists')
     expect(text).toContain('http://localhost:5173/')
+    expect(text).toContain('URLs (1)\\n   today')
+  })
+
+  test('sources are listed apart and counted in the header, but take no band row', async ($, on) => {
+    world(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/plan.md', content: 'x' })
+    await $.tool.call({ tool: 'WebFetch', url: 'https://2140.tw/api/token-target/', prompt: 'token target spec' } as never)
+    const band1 = textOf(await $.ui.render(band()))
+    expect(band1).toContain('1 file · 1 source')
+    expect(band1).not.toContain('token target spec')
+    expect(band1).toContain('a2 ▤ \nplan.md')
+    const text = JSON.stringify(await $.command.run(cmd('list')))
+    expect(text).toContain('Sources (1)\\n   today\\n  #a1  token target spec')
   })
 
   test('/assets clear starts the list over from the transcript', async ($, on) => {
@@ -477,6 +501,7 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '' }, text: opts.text ?? '  ➜  Local:   http://localhost:5173/\n', ...(opts.isError ? { isError: true } : {}) }) as never)
   on('tool.call', { tool: 'Write' }, () => ({ result: {}, text: 'File created' }) as never)
+  on('tool.call', { tool: 'WebFetch' }, () => ({ result: {}, text: 'page https://inside.dev', isReadOnly: true }) as never)
   return { kv, runs, contexts, copied, filled, spawned }
 }
 

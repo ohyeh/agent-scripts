@@ -1,4 +1,5 @@
-export type Kind = 'url' | 'artifact' | 'file' | 'image' | 'commit'
+/** `source`: a page this session consulted (WebFetch, a fetched page, a link you pasted), kept apart from what it made. */
+export type Kind = 'url' | 'artifact' | 'file' | 'image' | 'commit' | 'source'
 
 export type Asset = {
   kind: Kind
@@ -57,6 +58,12 @@ const COMMIT_RE = /^\[([^\]\n]+?)(?: \(root-commit\))? ([0-9a-f]{7,40})\] (.+)$/
 
 /** Every asset one tool call made or printed, deduped by ref, first PER_CALL. */
 export function assetsOf(c: Call): Asset[] {
+  // A fetch is read-only, but the page it was given is a source: what was consulted, not what its page contained.
+  const fetched = c.tool === 'WebFetch' || /^mcp__.*__ctx_fetch_and_index$/.test(c.tool) ? c.input.url : undefined
+  if (typeof fetched === 'string' && /^https?:\/\//i.test(fetched) && fetched.length <= MAX_REF) {
+    const said = typeof c.input.prompt === 'string' && c.input.prompt.trim() ? clean(c.input.prompt.trim(), 60) : labelOf(c)
+    return [{ kind: 'source', ref: fetched, label: said, where: hostOf(fetched), isLocal: isLocalHost(hostOf(fetched)) }]
+  }
   // A read-only call (Bash `cat`, `rg`) prints what it read, not what this session made.
   if (c.readOnly || SKIP.has(c.tool) || SKIP_RE.test(c.tool)) return []
   const out: Asset[] = []
@@ -84,7 +91,8 @@ export function assetsOf(c: Call): Asset[] {
     const commit = /\bgit\b[^\n]*\bcommit\b/.test(String(c.input.command ?? '')) ? COMMIT_RE.exec(text) : null
     if (commit) add({ kind: 'commit', ref: commit[2]!, label: commit[3]!.trim(), where: commit[1]!, isLocal: true })
   }
-  if (c.replay) return out
+  // The engine does not mark every reader read-only (`tmux capture-pane | grep` printed another session's screen).
+  if (c.replay || (c.tool === 'Bash' && isReader(String(c.input.command ?? '')))) return out
   // What the call was given is not what it made: `curl <url>`, or a tool that echoes its own code back.
   const given = JSON.stringify(c.input)
   if (c.tool === 'Bash') for (const m of text.matchAll(IMAGE_PATH_RE)) if (!given.includes(m[1]!)) add(fileAsset(m[1]!, c))
@@ -103,7 +111,7 @@ export function assetsOfText(text: string, who: 'reply' | 'you', c: { home: stri
     if (out.length >= PER_CALL) break
     const line = plain.split('\n').find(l => l.includes(url)) ?? ''
     const said = clean(line.replace(URL_RE, ' ').replace(/[*_`#>\[\]()<>|]+|^\s*[-+]\s+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\s*[:：—-]$/, ''), 60)
-    if (url.length <= MAX_REF) out.push({ kind: 'url', ref: url, label: said ? `${who}: ${said}` : who, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
+    if (url.length <= MAX_REF) out.push({ kind: who === 'you' ? 'source' : 'url', ref: url, label: said ? `${who}: ${said}` : who, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   }
   for (const m of plain.matchAll(IMAGE_PATH_RE)) {
     // Compared as stored: `~/a.png` is kept as the home path.
@@ -198,6 +206,7 @@ export function glyphOf(a: Asset): [string, string] {
     case 'image': return ['▣', 'yellow']
     case 'file': return ['▤', 'white']
     case 'commit': return ['⎇', 'blue']
+    case 'source': return ['◇', 'gray']
   }
 }
 
@@ -253,7 +262,7 @@ export function refsIn(text: string): number[] {
 
 /** The local port a URL is served on, or undefined when it is not local. */
 export function localPort(e: Asset): number | undefined {
-  if (e.kind !== 'url' || !e.isLocal) return undefined
+  if ((e.kind !== 'url' && e.kind !== 'source') || !e.isLocal) return undefined
   const m = /^(https?):\/\/(?:[^@/]*@)?(?:\[[^\]]+\]|[^/:?#]+)(?::(\d+))?/i.exec(e.ref)
   return m ? Number(m[2] ?? (m[1]!.toLowerCase() === 'https' ? 443 : 80)) : undefined
 }
@@ -299,3 +308,18 @@ export function shasIn(text: string): string[] {
 
 /** A session id someone pasted (`sid: 77e282e3-…`). */
 export const sessionIdsIn = (text: string) => [...new Set(text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g) ?? [])]
+
+// Programs that only print what they read; `tmux` and `git` count only with a reading subcommand.
+const READERS = /^(?:cat|head|tail|sed|less|grep|rg|jq|yq|wc|sort|uniq|cut|awk|bat|ls|cd|echo|sleep|true|tmux (?:capture-pane|ls|list-\w+)|git (?:log|show|diff|blame|status|grep))$/
+/** Every program in the command only reads: what it printed is content, not something this session made. */
+export function isReader(command: string): boolean {
+  const progs = command.split(/&&|\|\||[;|\n]/).map(seg => seg.trim().replace(/^(?:\w+=\S*\s+)*/, '').split(/\s+/).filter(w => !w.startsWith('-'))).filter(w => w.length && w[0])
+  return progs.length > 0 && progs.every(w => READERS.test(w[0]!) || READERS.test(`${w[0]} ${w[1] ?? ''}`))
+}
+
+/** `/assets list` groups by when: today, this week, older (a replayed entry has no time of its own). */
+export function bucketOf(x: Entry, now: number): 'today' | 'this week' | 'older' {
+  if (x.replayed) return 'older'
+  if (new Date(x.at).toDateString() === new Date(now).toDateString()) return 'today'
+  return now - x.at < 7 * 86_400_000 ? 'this week' : 'older'
+}

@@ -1,8 +1,8 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Asset, type Entry, ago, assetsOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, glyphOf, localPort, merge, parseCwd, parseListen, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
+import { type Asset, type Entry, ago, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, glyphOf, localPort, merge, parseCwd, parseListen, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.4.0'
+const MOD_VERSION = '0.5.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -82,7 +82,7 @@ async function record(s: State, $: $, found: readonly Asset[], at: number, onlyN
   $.ui.invalidate('ui.render')
 }
 
-const KIND_TITLE: Record<Entry['kind'], string> = { url: 'URLs', artifact: 'Artifacts', image: 'Images', file: 'Files', commit: 'Commits' }
+const KIND_TITLE: Record<Entry['kind'], string> = { url: 'URLs', artifact: 'Artifacts', image: 'Images', file: 'Files', commit: 'Commits', source: 'Sources' }
 /** When an entry was seen; a replayed one has no time of its own. */
 const when = (x: Entry, now: number) => (x.replayed ? 'earlier' : `${ago(now - x.at)} ago`)
 
@@ -90,11 +90,15 @@ const when = (x: Entry, now: number) => (x.replayed ? 'earlier' : `${ago(now - x
 function listText(list: Entry[], now: number, status: ReadonlyMap<Entry, string> = new Map()): string {
   if (!list.length) return 'no assets this session yet.'
   const out: string[] = []
-  for (const kind of ['url', 'artifact', 'image', 'file', 'commit'] as const) {
+  for (const kind of ['url', 'artifact', 'image', 'file', 'commit', 'source'] as const) {
     const rows = list.map((x, i) => [x, i + 1] as const).filter(([x]) => x.kind === kind)
     if (!rows.length) continue
     out.push(`${KIND_TITLE[kind]} (${rows.length})`)
-    for (const [x, n] of rows) out.push(`  #a${n}  ${clean(x.label, 60)} · ${when(x, now)}${status.get(x) ? ` · ${status.get(x)}` : ''}\n       ${clean(x.ref, 300)}`)
+    let at = ''
+    for (const [x, n] of rows) {
+      if (bucketOf(x, now) !== at) out.push(`   ${(at = bucketOf(x, now))}`)
+      out.push(`  #a${n}  ${clean(x.label, 60)} · ${when(x, now)}${status.get(x) ? ` · ${status.get(x)}` : ''}\n       ${clean(x.ref, 300)}`)
+    }
   }
   return out.join('\n')
 }
@@ -184,7 +188,7 @@ async function replay(s: State, $: $): Promise<number> {
 /** Opens a URL in the browser or a path in its default app; a commit has nothing to open. */
 async function openAsset($: $, e: Entry): Promise<string> {
   // The one trust boundary: only http(s) or an absolute path reaches `open`, as an argv, never a shell.
-  const ok = e.kind === 'url' || e.kind === 'artifact' ? /^https?:\/\//i.test(e.ref) : e.kind !== 'commit' && e.ref.startsWith('/')
+  const ok = e.kind === 'url' || e.kind === 'artifact' || e.kind === 'source' ? /^https?:\/\//i.test(e.ref) : e.kind !== 'commit' && e.ref.startsWith('/')
   if (!ok) return e.kind === 'commit' ? `commit ${e.ref.slice(0, 12)} on ${clean(e.where, 40)}: nothing to open` : `not opened: ${clean(e.ref, 80)}`
   const r = await $.process.run(['open', e.ref], { timeoutMs: 5000 })
   return r.exitCode === 0 ? `opened ${clean(e.ref, 120)}` : `open failed (exit ${r.exitCode}): ${clean(r.stderr.trim(), 200)}`
@@ -214,7 +218,7 @@ export const register: Register = on => {
         type: 'object',
         properties: {
           query: { type: 'string', description: 'words that must all appear in the label, URL/path, host/folder or project' },
-          kind: { type: 'string', enum: ['url', 'artifact', 'file', 'image', 'commit'] },
+          kind: { type: 'string', enum: ['url', 'artifact', 'file', 'image', 'commit', 'source'] },
           all_sessions: { type: 'boolean', description: "also search other sessions' assets (default false)" },
           check: { type: 'boolean', description: 'check local URLs and paths (default true)' },
         },
@@ -379,7 +383,7 @@ export const register: Register = on => {
     const { Box, Text, Button, Link } = $.ui.resolve(e)
     const width = e.props.bodyColumns
     const now = await $.clock.now()
-    const counts = (['url', 'artifact', 'file', 'image', 'commit'] as const)
+    const counts = (['url', 'artifact', 'file', 'image', 'commit', 'source'] as const)
       .map(k => [k, list.filter(x => x.kind === k).length] as const)
       .filter(([, n]) => n)
       .map(([k, n]) => `${n} ${k}`)
@@ -397,7 +401,7 @@ export const register: Register = on => {
     // The age comes before the place, so a long folder is what gets cut.
     // Labels share one column, as wide as the longest one drawn, at most 40 cells or half the band, so the ages line up.
     const cap = Math.max(8, Math.min(40, Math.floor(width / 2) - 6))
-    const col = Math.min(cap, Math.max(0, ...[...list.slice(0, PANEL_ROWS), ...(s.others ? rest.slice(0, OTHER_ROWS) : [])].map(x => cells(clean(x.label, 80)))))
+    const col = Math.min(cap, Math.max(0, ...[...list.filter(x => x.kind !== 'source').slice(0, PANEL_ROWS), ...(s.others ? rest.slice(0, OTHER_ROWS) : [])].map(x => cells(clean(x.label, 80)))))
     const row = (x: Entry, n: string, where: string) => {
       const [glyph, color] = glyphOf(x)
       const head = `  ${n} ${glyph} `
@@ -418,12 +422,13 @@ export const register: Register = on => {
         flexDirection: 'row',
         children: [
           Text({ children: '       ' }),
-          x.kind === 'url' || x.kind === 'artifact' ? Link({ href: x.ref, label: fit(x.ref, width - 30) }) : Text({ children: fit(clean(x.ref, 400), width - 30) }),
+          x.kind === 'url' || x.kind === 'artifact' || x.kind === 'source' ? Link({ href: x.ref, label: fit(x.ref, width - 30) }) : Text({ children: fit(clean(x.ref, 400), width - 30) }),
           Text({ dimColor: true, children: x.kind === 'commit' ? '' : `  /assets open ${i + 1}` }),
         ],
       })
     // One group per asset, the open row's detail inside its group: `+N more` counts assets, never a detail line.
-    const groups = list.map((x, i) => [row(x, `a${i + 1}`.padStart(3), ''), ...(i === s.open ? [detail(x, i)] : [])])
+    // Sources are counted in the header and listed by `/assets list`; the band's few rows are for what the session made.
+    const groups = list.flatMap((x, i) => (x.kind === 'source' && i !== s.open ? [] : [[row(x, `a${i + 1}`.padStart(3), ''), ...(i === s.open ? [detail(x, i)] : [])]]))
     const otherLines = rest.length
       ? [
         Button({ key: 'others', label: `${s.others ? '▾' : '▸'} other sessions: ${sessions} · ${rest.length} asset${rest.length === 1 ? '' : 's'}`, dimColor: true, onPress: () => {

@@ -1,5 +1,11 @@
 # Changelog
 
+## session-assets 0.5.0
+
+- **Sources**, apart from what the session made: the page a `WebFetch` or context-mode's `ctx_fetch_and_index` was given (labelled with its `prompt`), and a link you pasted (it was `url`, `you: …`). They are counted in the band's header and listed under `Sources` by `/assets list`, take no band row, and answer `#aN`, the tool (`kind: "source"`) and the checks like any URL.
+- `/assets list` groups each kind by `today`, `this week` and `older` (a replayed entry is `older`).
+- A Bash command whose programs all only read (`cat`, `sed`, `rg`, `jq`, `tmux capture-pane`, `git log`/`show`/`diff`, and `cd`, `echo`, `sleep` around them) keeps nothing it printed. The engine does not mark all of these read-only: `tmux capture-pane | grep` had kept the URLs on another session's screen.
+
 ## session-assets 0.4.0
 
 - The list is now for using, not only for looking at. Three paths, each checked in a live session:
