@@ -20,6 +20,9 @@
 - `retro-agenda.md`: the one status page is now the Dashboard "[agent-scripts] 艦隊與 Retro"; no separate weekly Retro page.
 - `claim-evidence-gate.sh` no longer fails open on a CJK claim under `LC_ALL=C` (byte-wise grep bound `已?` to the last byte); the jsonl smoke replays it and compares evidence as a set.
 - `settings_claude.json`: `workflowSizeGuideline: small` and `CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS=6` (usage guards, ahead of W42-24).
+- `claim-evidence-gate.sh`: a done claim fails when a file the reply cites was edited after the last run that printed the quoted token; re-run the check after editing (W42-21).
+- `docs-vs-code-audit`: each file gets one fixer even when group scopes overlap; a fixer that edits a file it does not own fails its group (W42-23).
+- `evals/run-behavior.mjs`: the behavior runner grades full tool traces; a done claim with a ✈ and no check run grades FAIL. `--live` runs each fixture through `claude -p` (W42-18).
 - `test-cursor-hook-adapter.sh` no longer runs `chmod +x` on the repo's hooks; it flipped the sourced `subagent-lock.sh` to 0755 in the work tree.
 
 ## review ladder 2026-10-09
