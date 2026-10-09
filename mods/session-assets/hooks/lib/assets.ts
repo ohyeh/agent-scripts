@@ -366,7 +366,7 @@ const TEST_SCRIPT = /(?:^|\/)(?:tests?\/[^/]+|(?:[^/]*[._-])?(?:tests?|smoke|spe
 const INTERPRETERS = /^(?:bash|sh|zsh|node|python3?|bun|deno|tsx|ruby)$/
 const base = (x: string) => x.split('/').pop()!
 /**
- * A program that runs tests. Through an interpreter (`/bin/bash`, `env CI=1 node`) every file it is given must be a
+ * A program that runs tests. Through an interpreter (`/bin/bash`, `env CI=1 node`) every word it is given must be a
  * test's: which one is the main script is not known without each option's arity (`node --require ./x.cjs main.mjs`).
  * Unsure keeps the URLs: a fixture row costs less than a real link gone.
  */
@@ -375,8 +375,9 @@ const isTest = (words: string[]) => {
   if (!w.length) return false
   if (TEST_RUNNERS.test(w.slice(0, 4).join(' '))) return true
   if (!INTERPRETERS.test(base(w[0]!))) return TEST_SCRIPT.test(w[0]!)
-  const files = w.slice(1).filter(a => !a.startsWith('-') && /[/.]/.test(a))
-  return files.length > 0 && files.every(f => TEST_SCRIPT.test(f.replace(/\.\w+$/, '')) || TEST_SCRIPT.test(f))
+  // Every word it is given, quoted code (`-e '…'`, read as `Q`) and a bare entrypoint (`server`) too.
+  const args = w.slice(1).filter(a => !a.startsWith('-') && !/^\d*[<>]/.test(a))
+  return args.length > 0 && args.every(f => TEST_SCRIPT.test(f.replace(/\.\w+$/, '')) || TEST_SCRIPT.test(f))
 }
 /**
  * Every program in the command, filters and `cd` aside, runs tests: what it printed is fixture data. Only the file name
