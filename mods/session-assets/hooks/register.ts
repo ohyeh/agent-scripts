@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.7.1'
+const MOD_VERSION = '0.7.2'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -344,7 +344,10 @@ export const register: Register = on => {
     try {
       const found = assetsOf({ tool: e.tool, input: e as unknown as Record<string, unknown>, text: typeof ran.text === 'string' ? ran.text : '', home: s.home, cwd: s.cwd, readOnly: ran.isReadOnly === true })
       if (e.tool === 'Bash' && typeof ran.text === 'string') found.push(...(await lostPush(s, $, String(e.command ?? ''), ran.text)).filter(a => !found.some(x => x.ref === a.ref)))
-      if (found.length) await record(s, $, [...found].reverse(), await $.clock.now())
+      // The first found is the top row, so the rest go last-first; pushes go in the order they ran, so `a..b` then `b..c`
+      // chain into one row. Chaining stays one way (a push to the one before it): only here is the order known.
+      const isPush = (a: Asset) => a.label.startsWith('push: ')
+      if (found.length) await record(s, $, [...found.filter(a => !isPush(a)).reverse(), ...found.filter(isPush)], await $.clock.now())
     } catch (err) {
       $.ui.log(`session-assets: record failed (${errText(err)})`, { to: 'debug' })
     }

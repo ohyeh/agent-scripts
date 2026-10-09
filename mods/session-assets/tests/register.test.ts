@@ -291,6 +291,8 @@ describe('band', () => {
     const p = (from: string, to: string, branch = 'main', repo = 'o/r') => ({ kind: 'url' as const, ref: `https://github.com/${repo}/compare/${from}...${to}`, label: `push: ${branch} ${from}..${to}`, where: 'github.com', isLocal: false, at: 1, project: 'p' })
     const one = merge(merge([], [p('1111111', '2222222')]), [p('2222222', '3333333')])
     expect(one.map(x => [x.ref, x.label])).toEqual([['https://github.com/o/r/compare/1111111...3333333', 'push: main 1111111..3333333']])
+    // A later push that ends where an earlier one began is not its continuation (someone else pushed in between).
+    expect(merge([p('1111111', '2222222')], [p('3333333', '1111111')]).map(x => x.ref), 'no chaining backwards').toEqual(['https://github.com/o/r/compare/3333333...1111111', 'https://github.com/o/r/compare/1111111...2222222'])
     expect(merge([p('1111111', '2222222')], [p('2222222', '3333333', 'dev')]).length, 'another branch').toBe(2)
     expect(merge([p('1111111', '2222222')], [p('4444444', '5555555')]).length, 'a gap').toBe(2)
     expect(merge([p('1111111', '2222222')], [{ ...p('2222222', '3333333'), label: 'Show main diff' }]).length, 'a compare URL that is no push').toBe(2)
@@ -501,6 +503,14 @@ describe('band', () => {
     expect(w.filled).toEqual([{ text: '#a2 ', mode: 'insert' }])
     await press('name-/work/retro-w41/shot.png')
     expect(textOf(await $.ui.render(band())), 'closed again').not.toContain('preview')
+  })
+
+  test('two pushes in one Bash call are one row: the compare view from the first to the last', async ($, on) => {
+    const w = world(on, { text: 'To https://github.com/o/r.git\n   1a2b3c4..5d6e7f8  main -> main\nTo https://github.com/o/r.git\n   5d6e7f8..9a8b7c6  main -> main\n' })
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'git push && git commit --amend -q --no-edit && git push -f' })
+    const list = w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>
+    expect(list.map(x => [x.ref, x.label])).toEqual([['https://github.com/o/r/compare/1a2b3c4...9a8b7c6', 'push: main 1a2b3c4..9a8b7c6']])
   })
 
   test('the band rows are what you look at: a video and a picture get rows, a file and a push only counts', async ($, on) => {
