@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, ago, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.5.3'
+const MOD_VERSION = '0.5.4'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -174,10 +174,32 @@ async function answerTool(s: State, $: $, input: Record<string, unknown>): Promi
   return [...rows.map(r => describe(r.x, r.n, now, status.get(r.x), r.project)), ...(more > 0 ? [`(${more} more: narrow the query)`] : [])].join('\n')
 }
 
+/**
+ * A push piped through `tail -1` lost its `To` line: the remote's URL comes from git (read-only, 3 s), asked once per
+ * folder and remote. Nothing when git has no such remote or it is not GitHub.
+ */
+async function lostPush(s: State, $: $, command: string, text: string, asked = new Map<string, Promise<string | undefined>>()): Promise<Asset[]> {
+  const lost = pushRemoteOf(command, text, s)
+  if (!lost) return []
+  const key = `${lost.dir}\0${lost.remote}`
+  if (!asked.has(key)) asked.set(key, $.process.run(['git', '-C', lost.dir, 'remote', 'get-url', lost.remote], { timeoutMs: 3000 }).then(u => (u.exitCode === 0 ? githubRepoOf(u.stdout) : undefined)))
+  const repo = await asked.get(key)
+  return repo ? pushedOf(text, repo) : []
+}
+
 /** Rebuilds this session's list from its transcript (dated at the session's start), adding to what is there. */
 async function replay(s: State, $: $): Promise<number> {
   try {
-    const found = assetsOfTranscript(await $.session.messages(), s)
+    const msgs = await $.session.messages()
+    const found = assetsOfTranscript(msgs, s)
+    const asked = new Map<string, Promise<string | undefined>>()
+    for (const m of msgs) {
+      if (m.role !== 'assistant') continue
+      for (const u of m.toolUses ?? []) {
+        if (u.tool !== 'Bash' || u.isError || typeof u.text !== 'string') continue
+        for (const a of await lostPush(s, $, String(u.input?.command ?? ''), u.text, asked)) if (!found.some(x => x.ref === a.ref)) found.push(a)
+      }
+    }
     // shortcut: the transcript rows carry no time, so a replayed asset is shown as `earlier`; take times from `as: 'api'` if ages matter.
     if (found.length) await record(s, $, found, (await $.session.usage()).startedAt, false, true)
     return found.length
@@ -304,13 +326,7 @@ export const register: Register = on => {
     // Bookkeeping must never cost the model its tool result.
     try {
       const found = assetsOf({ tool: e.tool, input: e as unknown as Record<string, unknown>, text: typeof ran.text === 'string' ? ran.text : '', home: s.home, cwd: s.cwd, readOnly: ran.isReadOnly === true })
-      // A push piped through `tail -1` lost its `To` line: the remote's URL comes from git, read-only.
-      const lost = e.tool === 'Bash' && typeof ran.text === 'string' ? pushRemoteOf(String(e.command ?? ''), ran.text, s) : undefined
-      if (lost) {
-        const url = await $.process.run(['git', '-C', lost.dir, 'remote', 'get-url', lost.remote], { timeoutMs: 3000 })
-        const repo = url.exitCode === 0 ? githubRepoOf(url.stdout) : undefined
-        if (repo) found.push(...pushedOf(ran.text as string, repo).filter(a => !found.some(x => x.ref === a.ref)))
-      }
+      if (e.tool === 'Bash' && typeof ran.text === 'string') found.push(...(await lostPush(s, $, String(e.command ?? ''), ran.text)).filter(a => !found.some(x => x.ref === a.ref)))
       if (found.length) await record(s, $, [...found].reverse(), await $.clock.now())
     } catch (err) {
       $.ui.log(`session-assets: record failed (${errText(err)})`, { to: 'debug' })

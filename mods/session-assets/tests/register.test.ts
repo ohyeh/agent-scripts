@@ -462,6 +462,16 @@ describe('band', () => {
     expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>).map(x => [x.label, x.ref])).toEqual([['push: main 1a2b3c4..5d6e7f8', 'https://github.com/o/r/compare/1a2b3c4...5d6e7f8']])
   })
 
+  test('the replay asks git for a push that lost its To line, once per remote', async ($, on) => {
+    const w = world(on, { messages: [{ role: 'assistant', text: '', toolUses: [
+      { tool: 'Bash', input: { command: 'git push origin main 2>&1 | tail -1' }, text: '   1a2b3c4..5d6e7f8  main -> main' },
+      { tool: 'Bash', input: { command: 'git push origin main 2>&1 | tail -1' }, text: '   5d6e7f8..9a8b7c6  main -> main' },
+    ] }] })
+    await $.session.start(start)
+    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string }>).map(x => x.ref).sort()).toEqual(['https://github.com/o/r/compare/1a2b3c4...5d6e7f8', 'https://github.com/o/r/compare/5d6e7f8...9a8b7c6'])
+    expect(w.runs.filter(a => a[0] === 'git').length, 'one git call for one remote').toBe(1)
+  })
+
   test('a failed store write still returns the tool result', async ($, on) => {
     world(on, { failWrites: true })
     await $.session.start(start)
@@ -532,7 +542,10 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
       const stdout = argv.includes('-iTCP:5173') ? 'p4242\ncvite\n' : argv.includes('4242') ? 'p4242\nfcwd\nn/work/retro-w41\n' : ''
       return { value: { exitCode: stdout ? 0 : 1, stdout, stderr: '' } }
     }
-    if (argv[0] === 'git' && argv.includes('get-url')) return { value: { exitCode: 0, stdout: 'git@github.com:o/r.git\n', stderr: '' } }
+    if (argv[0] === 'git' && argv.includes('get-url')) {
+      runs.push(argv)
+      return { value: { exitCode: 0, stdout: 'git@github.com:o/r.git\n', stderr: '' } }
+    }
     if (argv[0] !== 'test') runs.push(argv)
     return { value: { exitCode: 0, stdout: '', stderr: '' } }
   })

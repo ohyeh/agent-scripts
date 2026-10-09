@@ -3,6 +3,6 @@
 ./register.ts gating hook with .catch: tool.call
 ./register.ts gating hook with .catch: tool.call{tool=mcp__session-assets__assets}
 ./register.ts gating hook with .catch: prompt.submit
-./register.ts calls: $.clock.now, $.command.register, $.env.get, $.process.run, $.process.spawn, $.prompt.fill, $.session.id, $.session.messages (via replay), $.session.usage (via replay), $.store.delete, $.store.get, $.store.keys, $.store.set (via record, setHidden), $.tool.register, $.ui.copy, $.ui.invalidate, $.ui.log, $.ui.resolve
+./register.ts calls: $.clock.now, $.command.register, $.env.get, $.process.run (via check, lostPush, openAsset), $.process.spawn, $.prompt.fill, $.session.id, $.session.messages (via replay), $.session.usage (via replay), $.store.delete, $.store.get, $.store.keys, $.store.set (via record, setHidden), $.tool.register, $.ui.copy, $.ui.invalidate, $.ui.log, $.ui.resolve
 ./register.ts env writes: nothing
 ./register.ts env reads: HOME
