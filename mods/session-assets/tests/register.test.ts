@@ -242,6 +242,7 @@ describe('band', () => {
     await $.session.start(start)
     await $.prompt.submit({ text: 'fix https://x.dev/bug/1', wait: false, origin: { kind: 'composer' } } as never)
     await $.prompt.submit({ text: 'task done https://ci.dev/2', wait: false, origin: { kind: 'notification' } } as never)
+    await $.prompt.submit({ text: 'DROP https://dropped.dev', wait: false, origin: { kind: 'composer' } } as never)
     expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>).map(x => [x.ref, x.label])).toEqual([['https://x.dev/bug/1', 'you: fix']])
   })
 
@@ -283,7 +284,8 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   on('session.messages', () => ({ value: opts.messages ?? [] }) as never)
   on('session.usage', () => ({ value: { startedAt: 1000 } }) as never)
   on('turn.complete', ($, e) => ({ text: e.answer }) as never)
-  on('prompt.submit', ($, e) => ({ text: e.text }) as never)
+  // A prompt starting DROP is refused beneath, as a settings hook's block would be.
+  on('prompt.submit', ($, e) => (e.text.startsWith('DROP') ? { drop: 'blocked' } : { text: e.text }) as never)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('env.get', () => ({ value: HOME }))
   on('store.get', ($, e) => ({ value: kv.get(e.key) }))

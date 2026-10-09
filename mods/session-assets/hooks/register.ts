@@ -165,14 +165,17 @@ export const register: Register = on => {
 
   // A link or picture path the person pasted. Only their own prompts: a notification or a peer's message is not theirs.
   on('prompt.submit', async ($, e, next) => {
-    if (e.origin.kind === 'composer' || e.origin.kind === 'bridge') {
+    // After `next`: the prompt reaches the model first; a slow store never sits between Enter and the model.
+    const sent = await next(e)
+    // A dropped prompt never entered; an entered one is read as it entered (a hook may have rewritten it).
+    if (typeof sent.text === 'string' && (e.origin.kind === 'composer' || e.origin.kind === 'bridge')) {
       try {
-        await record(s, $, assetsOfText(e.text, 'you', s).reverse(), await $.clock.now())
+        await record(s, $, assetsOfText(sent.text, 'you', s).reverse(), await $.clock.now())
       } catch (err) {
         $.ui.log(`session-assets: prompt not read (${errText(err)})`, { to: 'debug' })
       }
     }
-    return next(e)
+    return sent
   }).catch(($, e, next) => next(e)) // A prompt is never held back by bookkeeping.
 
   // The band is shared with every plugin below (the workers panel, grok-bot-watch): this
