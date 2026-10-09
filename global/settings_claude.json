@@ -4,6 +4,7 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_NO_FLICKER": "1",
     "CLAUDE_CODE_WORKFLOWS": "1",
+    "CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS": "6",
     "ENABLE_EXPERIMENTAL_MCP_CLI": "true",
     "ENABLE_TOOL_SEARCH": "true",
     "USE_BUILTIN_RIPGREP": "0"
@@ -236,6 +237,7 @@
     }
   },
   "autoCompactWindow": 450000,
+  "workflowSizeGuideline": "small",
   "advisorModel": "fable",
   "askUserQuestionTimeout": "5m",
   "autoUpdatesChannel": "latest",
