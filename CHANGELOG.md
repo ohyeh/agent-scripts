@@ -87,6 +87,9 @@
 - `claim-evidence-gate.sh`: a done claim fails when a file the reply cites was edited after the last run that printed the quoted token; re-run the check after editing (W42-21).
 - `docs-vs-code-audit`: each file gets one fixer even when group scopes overlap; a fixer that edits a file it does not own fails its group (W42-23).
 - `evals/run-behavior.mjs`: the behavior runner grades full tool traces; a done claim with a ✈ and no check run grades FAIL. `--live` runs each fixture through `claude -p` (W42-18).
+- `subagent-concurrency-gate.sh`: an Agent call made inside a subagent is denied unless the brief that started that subagent has the line `NESTED: allowed`; the deny is logged as `result=nested`. The flag lives in `nested/<agent_id>` and survives the subagent's stop and restart under one id. `delegation-templates` documents the line (W42-12).
+- `session-titles.md`: a beta build of a mod or skill is never tested through the user's working session; a released version may ask a session to reload (W42-8).
+- `evals/retro-metrics` collectors cut by each row's timestamp (`--since/--until`), read `.gz`/`.zst` archives, and have `--self-test`; `ctx-usage-report.py` reads a temp copy of a WAL db that `mode=ro` cannot open; new `grok-bot-store.py` (W42-4).
 - `test-cursor-hook-adapter.sh` no longer runs `chmod +x` on the repo's hooks; it flipped the sourced `subagent-lock.sh` to 0755 in the work tree.
 
 ## review ladder 2026-10-09

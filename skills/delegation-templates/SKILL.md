@@ -20,6 +20,8 @@ For non-trivial work, add these filled lines before ACCEPTANCE:
 > EXCLUDED PATHS: `{attempted or ruled-out approaches + evidence}`.
 > MAIN VERIFICATION: `{fresh evidence the delegator must reproduce before
 > accepting done}`.
+> NESTED: allowed — only when the subagent must dispatch its own subagents;
+> without it the gate denies nested dispatch (W42-12).
 
 Common footer — include in EVERY delegation:
 
