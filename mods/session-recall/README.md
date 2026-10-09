@@ -91,7 +91,9 @@ folded into one line.
   The replay keeps what calls did (files written, Artifacts, commits) and URLs in Claude's
   replies. It does not keep what a call printed: the transcript does not say which calls
   were read-only, and a `cat` of a doc would add every link in it. Replayed entries show
-  `earlier`, not an age.
+  `earlier`, not an age. It reads the whole transcript file (`bin/transcript.mjs`, under
+  `${CLAUDE_CONFIG_DIR:-~/.claude}/projects/`): what the engine holds starts at the last
+  compaction. With no file it replays what the engine holds.
 - The band's title shows the mod's version, so a reload can be seen to have taken. An open
   commit row shows its hash, not the branch: the status line has the branch.
 - At most 5 assets per tool call. One seen again moves to the top with its newest

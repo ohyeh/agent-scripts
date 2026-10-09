@@ -390,7 +390,8 @@ describe('band', () => {
     w.kv.set('session-recall.s.sess-A', [{ ...list[0]!, at: 5, label: 'kept' }])
     await $.session.start(start)
     const after = w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; at: number; label: string }>
-    expect(after.map(x => [x.ref, x.at])).toEqual([['https://x.dev/p', 1000], ['/work/retro-w41/a.md', 5]])
+    // What the list held stays on top: the replay goes under it.
+    expect(after.map(x => [x.ref, x.at])).toEqual([['/work/retro-w41/a.md', 5], ['https://x.dev/p', 1000]])
     expect(after.find(x => x.ref === '/work/retro-w41/a.md')?.label).toBe('kept')
     await $.session.start(start)
     expect((w.kv.get('session-recall.s.sess-A') as unknown[]).length, 'a second reload adds nothing').toBe(2)
@@ -404,6 +405,14 @@ describe('band', () => {
     await $.turn.complete({ ...turn, agentId: 'a1', answer: 'https://sub.dev' } as never)
     const list = w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; label: string }>
     expect(list.map(x => [x.ref, x.label])).toEqual([['https://x.dev/docs', 'reply: Docs'], ['http://localhost:5173/', 'Start dev server']])
+  })
+
+  test('the replay reads the whole transcript file, not only what the engine holds after a compaction', async ($, on) => {
+    const before = [{ role: 'assistant', text: 'Report: https://x.dev/r1', toolUses: [{ tool: 'Read', input: { file_path: '/w/a.png' } }] }]
+    const after = [{ role: 'assistant', text: 'See https://x.dev/r2' }]
+    const w = world(on, { messages: after, transcript: [...before, ...after] })
+    await $.session.start(start)
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string }>).map(x => x.ref).sort()).toEqual(['/w/a.png', 'https://x.dev/r1', 'https://x.dev/r2'])
   })
 
   test('a reply that repeats a URL a test run printed adds nothing, also after a reload', async ($, on) => {
@@ -680,7 +689,7 @@ const band = (props: { maxRows?: number; hasSurvey?: boolean } = {}) => ({
 })
 
 /** The engine under the mod: an in-memory store (or one whose writes fail), tools that print a dev-server URL, a recorded `open`. */
-function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[]; tmux?: string; term?: string } = {}) {
+function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[]; transcript?: unknown[]; tmux?: string; term?: string } = {}) {
   const clock = mock.clock(on)
   const files = new Map<string, { text: string; mtimeMs: number }>()
   /** Paths whose writes fail, as a disk error would. */
@@ -759,6 +768,8 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
       const stdout = argv.includes('-iTCP:5173') ? 'p4242\ncvite\n' : argv.includes('4242') ? 'p4242\nfcwd\nn/work/retro-w41\n' : ''
       return { value: { exitCode: stdout ? 0 : 1, stdout, stderr: '' } }
     }
+    // The transcript file: none unless the test gives one (the replay then reads what the engine holds).
+    if (argv[0] === 'node' && argv[1]?.endsWith('/bin/transcript.mjs')) return { value: opts.transcript ? { exitCode: 0, stdout: JSON.stringify(opts.transcript), stderr: '' } : { exitCode: 1, stdout: '', stderr: 'Error: no transcript' } }
     if (argv[0] === 'git' && argv.includes('get-url')) {
       runs.push(argv)
       return { value: { exitCode: 0, stdout: 'git@github.com:o/r.git\n', stderr: '' } }

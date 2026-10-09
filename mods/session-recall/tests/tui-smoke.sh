@@ -100,4 +100,16 @@ mkdirSync(dd + '/s.ask'); mkdirSync(dd + '/s.done')
 ok(pick(dd).endsWith('/s.json'), 'no --sid picks the snapshot, not a request folder or another file')
 
 " || { echo "VERDICT: FAIL"; exit 1; }
+# bin/transcript.mjs: the whole file, main loop only, cut to the lines the replay reads.
+mkdir -p "$work/cfg/projects/-w"
+cat > "$work/cfg/projects/-w/sid-9.jsonl" <<'J'
+{"type":"assistant","message":{"content":[{"type":"text","text":"Plan below.\nReport: https://x.dev/r1"},{"type":"tool_use","id":"t1","name":"Write","input":{"file_path":"/w/a.md","content":"BIG BODY"}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","content":"File created\nsee https://x.dev/w"}]}}
+{"type":"assistant","isSidechain":true,"message":{"content":[{"type":"text","text":"sub https://sub.dev"}]}}
+not json
+J
+got="$(CLAUDE_CONFIG_DIR="$work/cfg" node "$here/bin/transcript.mjs" sid-9)"
+want='[{"role":"assistant","text":"Report: https://x.dev/r1","toolUses":[{"tool":"Write","input":{"file_path":"/w/a.md"},"text":"see https://x.dev/w"}]}]'
+[ "$got" = "$want" ] || { echo "FAIL: transcript.mjs printed $got"; echo "VERDICT: FAIL"; exit 1; }
+CLAUDE_CONFIG_DIR="$work/cfg" node "$here/bin/transcript.mjs" sid-0 >/dev/null 2>&1 && { echo "FAIL: a missing transcript exited 0"; echo "VERDICT: FAIL"; exit 1; }
 echo "VERDICT: PASS"

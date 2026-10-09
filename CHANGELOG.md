@@ -1,5 +1,10 @@
 # Changelog
 
+## session-recall 0.9.3
+
+- The replay reads the whole transcript file, not only what the engine holds. `$.session.messages()` starts at the last compaction: after the rename, a long session that had compacted 6 times rebuilt 5 of its 68 assets (terrain: 5 pictures of 43), another 1 of 38. A reload now adds the rest to a list that is already there. `bin/transcript.mjs` reads the file (24-79 MB, too big for the mod's 4 MiB read) and prints only the lines the replay reads: about 1 MB and 0.3 s for the largest local transcript (79 MB). Subagent messages are left out. A session with no file, or a failed read, replays what the engine holds, and says why in the debug log.
+- A replay into a list that has rows puts what it adds under them: the earlier rows never push a live one down or out of the 80.
+
 ## session-recall 0.9.2
 
 The band's links: tool-output URL rows 87 → 24, measured on two real long transcripts with the live path (each tool use run through `assetsOf`). Of the 24 left, 11 are pages a command deployed or published; 13 are still noise a CLI printed (a design tool's catalog, `yt-dlp` warnings, a login redirect, an index path), the next target. Trade-off: a page published with `curl` inside `ctx_execute` adds no row from the tool; the reply that names it still adds one.

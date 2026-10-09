@@ -1,9 +1,9 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
+import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 import { answerId, itemsOf, quoteOf } from './lib/items.ts'
 
-const MOD_VERSION = '0.9.2'
+const MOD_VERSION = '0.9.3'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -222,7 +222,10 @@ async function record(s: State, $: $, found: readonly Asset[], at: number, onlyN
     // A listed row keeps its kind and label against a reply or a prompt (`onlyNew`) and against a page Claude reads (a
     // source): fetching a pasted link keeps it a link. A source row gives way to both, and a source refreshes a source.
     const kept = (a: Asset) => (onlyNew || a.kind === 'source') && list.some(x => x.ref === a.ref && x.kind !== 'source')
-    for (const a of found) if (!kept(a)) list = merge(list, [{ ...a, project: s.project, at, ...(replayed ? { replayed: true as const } : {}) }])
+    // A replay goes under what the list holds: earlier rows never push a live one down or out.
+    let sub: Entry[] = replayed ? [] : list
+    for (const a of found) if (!kept(a)) sub = merge(sub, [{ ...a, project: s.project, at, ...(replayed ? { replayed: true as const } : {}) }])
+    list = replayed ? [...list, ...sub.filter(x => !list.some(l => l.ref === x.ref))].slice(0, MAX_ENTRIES) : sub
     await $.store.set(`${PREFIX}${s.sid}`, list)
     await snapshot(s, $, list)
   })
@@ -345,10 +348,26 @@ async function lostPush(s: State, $: $, command: string, text: string, asked = n
   return repo ? pushedOf(text, repo) : []
 }
 
+/**
+ * The whole transcript: `$.session.messages()` holds only what follows the last compaction (a long session kept 5 of
+ * its 68 assets), and the file is too big to read here (4 MiB), so `bin/transcript.mjs` reads it and prints the lines
+ * the replay reads. A session with no file (or a failed read) replays what the engine holds, and says so in debug.
+ */
+async function transcript(s: State, $: $): Promise<readonly { role: string; text: string; toolUses?: readonly StoredUse[] }[]> {
+  try {
+    const r = await $.process.run(['node', `${$.plugin.root}/bin/transcript.mjs`, s.sid], { timeoutMs: 15000 })
+    if (r.exitCode === 0) return JSON.parse(r.stdout) as { role: string; text: string; toolUses?: StoredUse[] }[]
+    $.ui.log(`session-recall: transcript not read (exit ${r.exitCode}: ${clean(r.stderr.trim().split('\n').pop() ?? '', 120)}), replaying what the engine holds`, { to: 'debug' })
+  } catch (err) {
+    $.ui.log(`session-recall: transcript not read (${errText(err)}), replaying what the engine holds`, { to: 'debug' })
+  }
+  return $.session.messages()
+}
+
 /** Rebuilds this session's list from its transcript (dated at the session's start), adding to what is there. */
 async function replay(s: State, $: $, onlyNew = false): Promise<number> {
   try {
-    const msgs = await $.session.messages()
+    const msgs = await transcript(s, $)
     // A push that lost its `To` line needs git (async); asked first, so it lands in transcript order, not after the rest.
     const asked = new Map<string, Promise<string | undefined>>()
     const lost = new Map<StoredUse, Asset[]>()
