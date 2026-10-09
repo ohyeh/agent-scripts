@@ -87,6 +87,7 @@ phase('Consult')
 const r = await agent(
   `Drive a ${cli} session via agent-tmux to get a high-effort architecture/decision consensus, then return its verdict.
 If the agent-tmux / ${cli}-tmux wrappers are not on PATH, run them from the tmux-agent-tools skill bundle (its scripts/ dir).
+Drive the session ONLY with the agent-tmux CLI through Bash, by the exact name ${session}. Never call the tmux-agent mod tools (assign, tell, peek, stop) for it: this session is not a mod dispatch, so the mod has no record of it and rejects the name.
 Steps:
 1. Ensure the proposal text is available. ${a.proposalFile ? `Proposal file: ${a.proposalFile}.` : `Proposal text:\n<<<\n${a.proposalText}\n>>>\n(write it to a temp file to send via --from-file).`}
    OUT = /tmp/${cli}-consensus-${session}-r${round}.md (one file per round; never delete an earlier round's file). Append to the proposal the reviewer contract below, plus an instruction so ${cli}, when done, WRITES its full verdict to OUT and ENDS that file with a line exactly: ${marker}

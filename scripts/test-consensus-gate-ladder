@@ -23,6 +23,7 @@ const check = (name, ok, got) => { if (!ok) fail = 1; console.log(`${ok ? 'ok  '
 { const { out } = await run(base, { consensus: 'agree_with_changes' }); check('agree_with_changes does not pass', out.passed === false, JSON.stringify(out)) }
 { const { prompt } = await run({ ...base, round: 2 }, {}); check('round 2 writes its own OUT and never deletes', /-g1-r2\.md/.test(prompt) && !/[Dd]elete OUT/.test(prompt), prompt.slice(0, 300)) }
 { const { prompt } = await run(base, {}); check('manifest hashes HEAD, diff and the proposal file', /rev-parse HEAD/.test(prompt) && /diff HEAD/.test(prompt) && /shasum -a 256 \/abs\/p\.md/.test(prompt), prompt) }
+{ const { prompt } = await run(base, {}); check('the session is driven by the CLI only, never the mod tools (W42-9)', /ONLY with the agent-tmux CLI/.test(prompt) && /Never call the tmux-agent mod tools/.test(prompt), prompt.slice(0, 600)) }
 for (const [k, v] of [['layer', 'L4'], ['round', 0], ['freeze', ['a b; rm']]]) {
   const { out } = await run({ ...base, [k]: v }, {}); check(`rejects ${k}=${JSON.stringify(v)}`, out.aborted === true, JSON.stringify(out))
 }
