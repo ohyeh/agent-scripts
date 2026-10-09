@@ -1,5 +1,9 @@
 # Changelog
 
+## session-assets 0.5.2
+
+- A Bash command that prints a file or a screen anywhere in it (`rg url docs.d.ts`, `cat dist/urls.txt`, `git show`, `tmux capture-pane`) keeps no URL or picture from its output, also when other programs run with it: `git push && rg … index.d.ts` had kept the doc's example links `react.dev` and `vuejs.org`. A commit or a push in the same command is still kept. A filter on a pipe (`npm run dev | grep Local`) reads no file and keeps its URL.
+
 ## session-assets 0.5.1
 
 - A `git push` to GitHub keeps the page it changed: the compare view for `a..b  main -> main` (`push: main a..b`), the release page for a new tag, the tree of a new branch. The replay keeps them too: they are what the call did. A `.git` URL (the `To <remote>` line) is a remote, not a page, and is not kept.

@@ -138,6 +138,10 @@ describe('pointing and checking', () => {
     expect(call('Bash', { command: 'cd web && cat log.txt | rg http' }, 'http://localhost:5173/')).toEqual([])
     expect(call('Bash', { command: 'npm run dev | tee log', description: 'Start dev server' }, 'http://localhost:5173/').map(a => a.ref)).toEqual(['http://localhost:5173/'])
     expect(call('Bash', { command: 'H=$(git rev-parse x); tmux send-keys -t a "$H" Enter', description: 'Send' }, 'https://made.dev/1').map(a => a.ref)).toEqual(['https://made.dev/1'])
+    expect(call('Bash', { command: 'git push origin main && claude plugin update x; rg -n "fetch" -A25 types/index.d.ts | rg source', description: 'Push, update install' }, 'To https://github.com/o/r.git\n   1a2b3c4..5d6e7f8  main -> main\nurl: "https://react.dev/x", url: "https://vuejs.org/y"').map(a => a.ref), 'a file read in the same command: its URLs are not kept, the push is').toEqual(['https://github.com/o/r/compare/1a2b3c4...5d6e7f8'])
+    expect(call('Bash', { command: 'npm run dev 2>&1 | grep -A2 "Local: x" | head -5', description: 'Start' }, 'Local: http://localhost:5173/').map(a => a.ref), 'filters on a pipe read no file').toEqual(['http://localhost:5173/'])
+    expect(call('Bash', { command: 'npm run dev | tail -n 30 | grep -A 4 Local', description: 'Start' }, 'Local: http://localhost:5173/').map(a => a.ref)).toEqual(['http://localhost:5173/'])
+    expect(call('Bash', { command: 'make build && cat dist/urls.txt' }, 'https://cdn.x.dev/a')).toEqual([])
   })
 
   test('a local page is kept; an ephemeral port or a file a page loads is noise; a remote URL never is', async () => {

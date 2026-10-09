@@ -59,6 +59,8 @@ folded into one line.
   made. A call that failed adds nothing. Neither does a Bash command whose programs all only read
   (`cat`, `sed`, `rg`, `jq`, `tmux capture-pane`, `git log`/`show`/`diff`, with `cd`, `echo`,
   `sleep` around them): the engine does not mark all of these read-only.
+  Nor does one that prints a file or a screen anywhere in it (`cat f`, `rg x f`, `git show`,
+  `tmux capture-pane`): `git push && rg url docs.d.ts` keeps the push, not the doc's links.
 - A local URL on an ephemeral port (49152 and up, a debugger or CDP endpoint) or to a
   file a page loads (`/assets/a.js`, `/data/x.json`) is not kept: 12,554 of 16k local
   URLs in past sessions' tool output were of that kind.

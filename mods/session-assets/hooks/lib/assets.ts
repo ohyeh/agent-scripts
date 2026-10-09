@@ -314,10 +314,24 @@ export const sessionIdsIn = (text: string) => [...new Set(text.match(/[0-9a-f]{8
 
 // Programs that only print what they read; `tmux` and `git` count only with a reading subcommand.
 const READERS = /^(?:cat|head|tail|sed|less|grep|rg|jq|yq|wc|sort|uniq|cut|awk|bat|ls|cd|echo|sleep|true|tmux (?:capture-pane|ls|list-\w+)|git (?:log|show|diff|blame|status|grep))$/
-/** Every program in the command only reads: what it printed is content, not something this session made. */
+// Readers that print a file or a screen: by name and positional arguments (a filter's first one is its pattern or script).
+const SHOWS = /^(?:tmux capture-pane|git (?:log|show|diff|blame|grep))$/
+// shortcut: an option's detached value counts as a positional unless it is a number (`tail -n 30`, `grep -A 4`); `grep -e pat` on a pipe reads as a file, add option arity if that drops real URLs.
+const FILE_ARGS: Record<string, number> = { cat: 1, head: 1, tail: 1, less: 1, bat: 1, sed: 2, grep: 2, rg: 2, jq: 2, yq: 2, awk: 2 }
+/**
+ * What the command printed is something it read: every program in it only reads (`tmux capture-pane | grep`), or one
+ * of them prints a file or a screen (`git push && rg url docs.d.ts`). A commit or a push is read before this, from its
+ * own lines.
+ */
 export function isReader(command: string): boolean {
-  const progs = command.split(/&&|\|\||[;|\n]/).map(seg => seg.trim().replace(/^(?:\w+=\S*\s+)*/, '').split(/\s+/).filter(w => !w.startsWith('-'))).filter(w => w.length && w[0])
-  return progs.length > 0 && progs.every(w => READERS.test(w[0]!) || READERS.test(`${w[0]} ${w[1] ?? ''}`))
+  const progs = command
+    .replace(/"[^"]*"|'[^']*'/g, 'Q')
+    .split(/&&|\|\||[;|\n]/)
+    .map(seg => seg.trim().replace(/^(?:\w+=\S*\s+)*/, '').split(/\s+/).filter(Boolean))
+    .filter(w => w.length)
+  const shows = (w: string[]) => SHOWS.test(`${w[0]} ${w[1] ?? ''}`) || w.slice(1).filter(a => !a.startsWith('-') && !/^\d+$/.test(a)).length >= (FILE_ARGS[w[0]!] ?? Infinity)
+  const reads = (w: string[]) => READERS.test(w[0]!) || READERS.test(`${w[0]} ${w[1] ?? ''}`)
+  return progs.length > 0 && (progs.every(reads) || progs.some(shows))
 }
 
 /** `/assets list` groups by when: today, this week, older (a replayed entry has no time of its own). */
