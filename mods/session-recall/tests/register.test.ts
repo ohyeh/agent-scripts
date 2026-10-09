@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, githubRepoOf, pushedOf, pushRemoteOf, isLocalNoise, localPort, sessionIdsIn, shasIn, parseCwd, parseListen, refsIn, isLocalHost, merge, nameOf, rowsOf, shortDir } from '../hooks/lib/assets.ts'
+import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, githubRepoOf, pushedOf, pushRemoteOf, isLocalNoise, localPort, sessionIdsIn, shasIn, parseCwd, parseListen, refsIn, isLocalHost, merge, nameOf, rowsOf, shortDir, subagentMade } from '../hooks/lib/assets.ts'
 import { answerId, itemsOf, quoteOf } from '../hooks/lib/items.ts'
 
 const HOME = '/h/me'
@@ -26,6 +26,9 @@ describe('extractUrls', () => {
       'https://x.dev/list?next=2',
     ].join('\n')
     expect(extractUrls(text)).toEqual(['https://media.x.com/cdn-cgi/image/fit=scale-down/p.png', 'https://login.tailscale.com/a/l18a49d2', 'https://app.x.dev/login', 'https://x.dev/list?next=2'])
+  })
+  test('a URL cut at a column is not a page: only a host with no dot, port or path; localhost, a port, an IP, a path stay', async () => {
+    expect(extractUrls('https://s\nhttps://api\nhttp://localhost/a\nhttp://mini:7717/v1\nhttp://127.0.0.1/x\nhttp://[::1]:3000/\nhttps://x.dev\nhttp://localhost\nhttp://nas/share\nhttp://router/')).toEqual(['http://localhost/a', 'http://mini:7717/v1', 'http://127.0.0.1/x', 'http://[::1]:3000/', 'https://x.dev', 'http://localhost', 'http://nas/share', 'http://router/'])
   })
   test('trims punctuation and unbalanced closers, keeps balanced ones, dedups', async () => {
     const text = 'Local: http://localhost:5173/, see (https://x.dev/a) and https://en.wikipedia.org/wiki/A_(b). again http://localhost:5173/'
@@ -124,6 +127,20 @@ describe('assetsOf', () => {
     // Mid-rebase or bisect, git prints `detached HEAD` where the branch goes.
     expect(call('Bash', { command: 'git commit -m y' }, '[detached HEAD 1a2b3c4] fix thing\n 1 file changed').map(a => [a.ref, a.where])).toEqual([['1a2b3c4', 'detached HEAD']])
     expect(call('Bash', { command: 'cat notes' }, '[main 9685ae2] looks like a commit'), 'not a git commit command').toEqual([])
+  })
+
+  test('of a subagent\'s call, what it made stays; its research and probes do not', async () => {
+    const made = (tool: string, input: Record<string, unknown>, text = '') => call(tool, input, text).filter(a => subagentMade({ tool, input }, a)).map(a => `${a.kind} ${a.ref}`)
+    expect(made('Bash', { command: 'bun probe.ts --mode x' }, 'https://github.com/o/r/pull/9')).toEqual([])
+    expect(made('Bash', { command: 'npx wrangler deploy' }, 'https://w.me.workers.dev')).toEqual(['url https://w.me.workers.dev'])
+    expect(made('Bash', { command: 'git push -u origin f && gh pr create --fill' }, 'https://github.com/o/r/pull/12')).toEqual(['url https://github.com/o/r/pull/12'])
+    expect(made('mcp__plugin_context-mode_context-mode__ctx_execute', { language: 'shell', code: 'wrangler deploy' }, 'https://w.me.workers.dev')).toEqual(['url https://w.me.workers.dev'])
+    expect(made('mcp__plugin_context-mode_context-mode__ctx_batch_execute', { commands: [{ label: 'd', command: 'npm run deploy' }] }, 'https://app.pages.dev')).toEqual(['url https://app.pages.dev'])
+    expect(made('mcp__claude_ai_Atlassian_Rovo__createJiraIssue', { summary: 'x' }, 'https://x.atlassian.net/browse/AB-1')).toEqual(['url https://x.atlassian.net/browse/AB-1'])
+    expect(made('WebFetch', { url: 'https://docs.x.dev/a', prompt: 'p' }), 'a page it read').toEqual([])
+    expect(made('Read', { file_path: '/w/tests/fixture.png' }), 'a picture it looked at').toEqual([])
+    expect(made('Write', { file_path: '/w/report.md', content: 'x' }, 'ok')).toEqual(['file /w/report.md'])
+    expect(made('Bash', { command: 'bash shot.sh' }, 'saved to /tmp/s.png')).toEqual(['image /tmp/s.png'])
   })
 
   test('an Artifact publish is an artifact named by its title; a read is nothing', async () => {
@@ -477,6 +494,34 @@ describe('band', () => {
     await $.turn.complete({ ...turn, agentId: 'a1', answer: 'https://sub.dev' } as never)
     const list = w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; label: string }>
     expect(list.map(x => [x.ref, x.label])).toEqual([['https://x.dev/docs', 'reply: Docs'], ['http://localhost:5173/', 'Start dev server']])
+  })
+
+  test('a subagent\'s call adds no link row; its commit and push stay', async ($, on) => {
+    const w = world(on, { text: 'https://github.com/o/r/pull/9\n[main 1a2b3c4] fix: x\nTo git@github.com:o/r.git\n   1a2b3c4..5d6e7f8  main -> main' })
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'git commit -m x && git push && bun probe.ts', description: 'Run probe script', agentId: 'a1' } as never)
+    const list = w.kv.get('session-recall.s.sess-A') as Array<{ kind: string; ref: string }>
+    expect(list.map(x => x.kind === 'commit' ? 'commit' : x.ref).sort()).toEqual(['commit', 'https://github.com/o/r/compare/1a2b3c4...5d6e7f8'])
+    await $.tool.call({ tool: 'Bash', command: 'bun probe.ts', description: 'Run probe script' })
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string }>).map(x => x.ref), 'the main loop\'s call keeps it').toContain('https://github.com/o/r/pull/9')
+  })
+
+  test('what a subagent made stays: an Artifact, a file it sent or wrote, a deploy\'s or a new PR\'s URL', async ($, on) => {
+    const w = world(on, { text: 'Published https://claude.ai/code/artifact/abc-123 (private)\nhttps://site.pages.dev' })
+    await $.session.start(start)
+    const refs = () => (w.kv.get('session-recall.s.sess-A') as Array<{ kind: string; ref: string }> | undefined ?? []).map(x => `${x.kind} ${x.ref}`)
+    await $.tool.call({ tool: 'Bash', command: 'bun probe.ts', description: 'Run probe script', agentId: 'a1' } as never)
+    expect(refs(), 'a probe adds nothing').toEqual([])
+    await $.tool.call({ tool: 'Artifact', file_path: '/s/r.html', title: 'Retro', agentId: 'a1' } as never)
+    expect(refs()).toEqual(['artifact https://claude.ai/code/artifact/abc-123'])
+    await $.tool.call({ tool: 'Bash', command: 'npx wrangler pages deploy dist', description: 'Deploy', agentId: 'a1' } as never)
+    expect(refs()).toContain('url https://site.pages.dev')
+    await $.tool.call({ tool: 'SendUserFile', files: ['/w/s/b.png'], status: 'proactive', agentId: 'a1' } as never)
+    expect(refs()).toContain('image /w/s/b.png')
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/report.md', content: 'x', agentId: 'a1' } as never)
+    expect(refs()).toContain('file /work/retro-w41/report.md')
+    await $.tool.call({ tool: 'Bash', command: 'gh pr create --fill', description: 'Open PR', agentId: 'a1' } as never)
+    expect(refs().filter(r => r === 'url https://site.pages.dev'), 'a new PR\'s output is kept').toHaveLength(1)
   })
 
   const staleRow = (ref: string, label: string) => ({ kind: 'url', ref, where: 'x', isLocal: false, label, project: 'p', at: 5 })
@@ -926,6 +971,8 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '' }, text: opts.text ?? '  ➜  Local:   http://localhost:5173/\n', ...(opts.isError ? { isError: true } : {}) }) as never)
   on('tool.call', { tool: 'Write' }, () => ({ result: {}, text: 'File created' }) as never)
+  on('tool.call', { tool: 'Artifact' as never }, () => ({ result: {}, text: opts.text ?? '' }) as never)
+  on('tool.call', { tool: 'SendUserFile' as never }, () => ({ result: {}, text: '1 file delivered to user.' }) as never)
   on('tool.call', { tool: 'WebFetch' }, () => ({ result: {}, text: 'page https://inside.dev', isReadOnly: true }) as never)
   /** What the TUI does: a request file of its own, made now (or `age` ms ago); returns where its answer goes. */
   let n = 0

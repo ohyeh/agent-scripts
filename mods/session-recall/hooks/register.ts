@@ -1,9 +1,9 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
+import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir, subagentMade } from './lib/assets.ts'
 import { answerId, itemsOf, quoteOf } from './lib/items.ts'
 
-const MOD_VERSION = '0.9.10'
+const MOD_VERSION = '0.9.11'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -563,7 +563,10 @@ export const register: Register = on => {
     // Bookkeeping must never cost the model its tool result.
     try {
       if (typeof ran.text === 'string') for (const url of testUrlsOf(e.tool, e as unknown as Record<string, unknown>, ran.text)) s.muted.add(url)
-      const found = assetsOf({ tool: e.tool, input: e as unknown as Record<string, unknown>, text: typeof ran.text === 'string' ? ran.text : '', home: s.home, cwd: s.cwd, readOnly: ran.isReadOnly === true })
+      const made = assetsOf({ tool: e.tool, input: e as unknown as Record<string, unknown>, text: typeof ran.text === 'string' ? ran.text : '', home: s.home, cwd: s.cwd, readOnly: ran.isReadOnly === true })
+      // A subagent's links are mostly its research and probes (a reviewer's fixture URLs); what it made stays, since the
+      // replay cannot bring it back.
+      const found = e.agentId === undefined ? made : made.filter(a => subagentMade({ tool: e.tool, input: e as unknown as Record<string, unknown> }, a))
       if (e.tool === 'Bash' && typeof ran.text === 'string') found.push(...(await lostPush(s, $, String(e.command ?? ''), ran.text)).filter(a => !found.some(x => x.ref === a.ref)))
       // The first found is the top row, so the rest go last-first; pushes go in the order they ran, so `a..b` then `b..c`
       // chain into one row. Chaining stays one way (a push to the one before it): only here is the order known.

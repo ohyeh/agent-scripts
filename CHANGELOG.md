@@ -1,5 +1,13 @@
 # Changelog
 
+## session-recall 0.9.11
+
+A link a subagent's call printed adds no row, unless the call deployed, published, released, uploaded or opened a PR (in Bash or a context-mode shell) or was an MCP tool that creates, sends or posts (`createJiraIssue`, a Gmail draft). Seen on the real band after 0.9.10: row 3 was `github.com/o/r/pull/9`, a fixture URL a reviewer subagent's probe script printed, labelled with the subagent's own "Run probe script". On the subagent transcripts of the last 14 days (380 files), their calls gave 50 per-call URL hits; a sample of 40 read mostly as research and probes (release pages and docs a researcher read, `example.com`, fixture and test-server URLs, a tab list).
+
+- What else a subagent made stays, since the start replay cannot bring it back (the main transcript does not hold a subagent's calls) and a parent's reply may not name it: a file it wrote, a picture it saved or sent, an Artifact it published, a commit, a push. A page it fetched (`WebFetch`, `ctx_fetch_and_index`) and a picture it Read are its research: no row.
+- A URL that is only a host with no dot, port or path, and not `localhost`, is a URL cut at a column (`https://s`, `https://api`), not a page: it adds no row from a call, a reply or a prompt. Seen on the band after 0.9.10: row 4 was `https://s`, from a reply that quoted a cut URL. On the frozen 509-transcript corpus: `https://api` twice and `https://s` once. `http://nas/share`, `http://router/`, `http://mini:7717` and an IP stay.
+- Limits: a subagent's link row added before this version stays until it ages out; the start prune does not judge it. A cut URL with a dot in it (`https://share.o17y31`) is not caught. A short host with nothing after it (`http://nas`) is taken as cut. A probe whose command has the word `release`, `publish` or `upload` in it (`bun probe.ts --mode release`) still adds its links.
+
 ## session-recall 0.9.10
 
 A command that reads a session's transcript (`~/.claude/projects/…`) or this mod's own state (`~/.local/state/session-recall/…`) adds no link row: the links it prints come from old turns, cut or whole, not from anything it made. Measured on one frozen corpus of 509 transcripts: 11 of 225 per-call URL hits leave, all from such scripts (a staging API URL quoted in an old turn, `https://s` and other URLs cut at a column, a substack redirect, `terrain.o17y317.uk` from a scan of the terrain session). A commit, a push and a picture the command saved are read as before. At the next start, 0.9.9's prune can remove such rows already on the band, within its limits (below in 0.9.9).

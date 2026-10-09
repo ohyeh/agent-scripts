@@ -57,6 +57,17 @@ const CTX_RUN_RE = /^mcp__.*__ctx_(?:execute|batch_execute)$/
 /** The shell a context-mode call ran: `code` in shell, or a batch's commands. Analysis in another language is none. */
 const ctxCommand = (input: Record<string, unknown>) =>
   Array.isArray(input.commands) ? input.commands.map(x => String((x as { command?: unknown })?.command ?? '')).join('\n') : input.language === 'shell' && typeof input.code === 'string' ? input.code : ''
+/**
+ * Of what `assetsOf` found in a subagent's call, what it made: a file, a picture, an Artifact, a commit, a push, and the
+ * links of a deploy or a new PR (in Bash or context-mode) or of an MCP tool that creates (`createJiraIssue`). Its other
+ * links, the pages it fetched (`source`) and the pictures it Read are its research and probes.
+ */
+export function subagentMade(c: Pick<Call, 'tool' | 'input'>, a: Asset): boolean {
+  if (a.kind === 'source' || c.tool === 'Read') return false
+  if (a.kind !== 'url' || a.label.startsWith('push: ')) return true
+  const command = c.tool === 'Bash' ? String(c.input.command ?? '') : CTX_RUN_RE.test(c.tool) ? ctxCommand(c.input) : ''
+  return DEPLOY_RE.test(command) || /\bgh\s+pr\s+create\b/.test(command) || (c.tool.startsWith('mcp__') && /create|deploy|publish|upload|send|post/i.test(c.tool.split('__').pop() ?? ''))
+}
 /** A ref longer than this is not something a person opens; it would only fill the store. */
 const MAX_REF = 2048
 const WRITERS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
@@ -261,12 +272,14 @@ export function extractUrls(text: string): string[] {
     if (/\$$/.test(raw) || /^(?:[<{]|['"`]\s*\+)/.test(plain.slice(hit.index! + raw.length))) continue
     let url = raw.replace(/[.,;:!?'"*]+$/, '')
     while (/[)\]]$/.test(url) && count(url, url.endsWith(')') ? '(' : '[') < count(url, url.slice(-1))) url = url.slice(0, -1)
-    if (hostOf(url) && !out.includes(url) && !isAuthWall(url)) out.push(url)
+    if (hostOf(url) && !isCut(url) && !out.includes(url) && !isAuthWall(url)) out.push(url)
   }
   return out
 }
 
 const count = (s: string, ch: string) => s.split(ch).length - 1
+/** Only a host with no dot, port or path, not localhost: a URL cut at a column (`https://s`, `https://api`), not a page. */
+const isCut = (url: string) => /^https?:\/\/[^/.:?#[\]]+$/.test(url) && hostOf(url) !== 'localhost'
 
 /**
  * What a blocked request printed instead of the page: a Cloudflare endpoint (`/cdn-cgi/` challenge, Access login,
