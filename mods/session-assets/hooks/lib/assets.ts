@@ -364,12 +364,19 @@ const TEST_RUNNERS = /^(?:npx )?(?:(?:npm|pnpm|yarn|bun) (?:run )?test|pytest|vi
 const TEST_SCRIPT = /(?:^|\/)(?:tests?\/[^/]+|(?:[^/]*[._-])?(?:tests?|smoke|spec)(?:[._-][^/]*)?)$/
 // An interpreter runs the script it is given: `bash tests/x.sh` is the script's run.
 const INTERPRETERS = /^(?:bash|sh|zsh|node|python3?|bun|deno|tsx|ruby)$/
+const base = (x: string) => x.split('/').pop()!
+/**
+ * A program that runs tests. Through an interpreter (`/bin/bash`, `env CI=1 node`) every file it is given must be a
+ * test's: which one is the main script is not known without each option's arity (`node --require ./x.cjs main.mjs`).
+ * Unsure keeps the URLs: a fixture row costs less than a real link gone.
+ */
 const isTest = (words: string[]) => {
-  const base = (x: string) => x.split('/').pop()!
-  const w = base(words[0]!) === 'env' ? words.slice(1) : words
+  const w = base(words[0]!) === 'env' ? words.slice(1).filter(a => !a.startsWith('-') && !/^\w+=/.test(a)) : words
   if (!w.length) return false
-  const script = INTERPRETERS.test(base(w[0]!)) ? (w.slice(1).find(a => !a.startsWith('-')) ?? '') : w[0]!
-  return TEST_RUNNERS.test(w.slice(0, 4).join(' ')) || TEST_SCRIPT.test(script)
+  if (TEST_RUNNERS.test(w.slice(0, 4).join(' '))) return true
+  if (!INTERPRETERS.test(base(w[0]!))) return TEST_SCRIPT.test(w[0]!)
+  const files = w.slice(1).filter(a => !a.startsWith('-') && /[/.]/.test(a))
+  return files.length > 0 && files.every(f => TEST_SCRIPT.test(f.replace(/\.\w+$/, '')) || TEST_SCRIPT.test(f))
 }
 /**
  * Every program in the command, filters and `cd` aside, runs tests: what it printed is fixture data. Only the file name
