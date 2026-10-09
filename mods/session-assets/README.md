@@ -55,6 +55,9 @@ folded into one line.
   `ctx_fetch_and_index` / `ctx_index`, and any call the engine marks read-only (Bash
   `cat`, `rg`) add nothing: their output is content they read, not something this session
   made. A call that failed adds nothing.
+- A local URL on an ephemeral port (49152 and up, a debugger or CDP endpoint) or to a
+  file a page loads (`/assets/a.js`, `/data/x.json`) is not kept: 12,554 of 16k local
+  URLs in past sessions' tool output were of that kind.
 - A URL or picture path that is in the call's own input (`curl <url>`, code a tool echoes
   back) is not kept: it is what the call was given, not what it made.
 - A session with no list yet (the mod loaded mid-session, or a resumed session from
@@ -79,6 +82,9 @@ folded into one line.
 | `/assets` | hide or show the band (kept across reloads) |
 | `/assets N` (or `a N`, `#aN`) | open or close row N: the full URL as a link (cmd-click opens it), or the path or hash |
 | `/assets open N` | open row N: `open <url or path>`, as an argv; only http(s) or an absolute path |
+| `/assets copy N` | put row N's URL, path or hash on the clipboard |
+| `/assets reply N` | put `#aN ` in the prompt, to write the rest around it |
+| `/assets preview N` | a file or picture in Quick Look (`qlmanage -p`); a URL in the browser |
 | `/assets list` | every entry, grouped by kind (URLs, Artifacts, Images, Files, Commits), numbered `#aN` as the band, with its full URL or path and, for the first 10 local URLs and paths, its state now |
 | `/assets clear` | start this session's list over from its transcript |
 | `/assets all` | unfold or fold the other sessions' assets |
@@ -93,6 +99,15 @@ The prompt itself is not changed; the rows go to Claude beside it as a note it r
 you do not see. `#123` (an issue number) and `x#a3` are not references. A number past the
 end of the list is reported to Claude as `no such row`.
 
+## Pasted hashes and session ids
+
+Past sessions show the habit: a commit hash pasted to say "this one is verified, tag it",
+often from another session, and a session id pasted to relay "that one is done". A
+commit hash (7 to 40 hex, with a letter and a digit) that any session here committed
+goes to Claude beside the prompt as `<hash> = commit "<subject>" on <branch>, made in
+session <sid8> (<project>)`. A pasted session id goes with that session's 8 newest
+assets. Unknown ones add nothing.
+
 ## The model's tool: `assets`
 
 `mcp__session-assets__assets` with `query` (words that must all appear in the label,
@@ -101,7 +116,7 @@ URL or path, host or folder, or project), `kind`, `all_sessions` (default false)
 
 ```
 #a2 url "Start dev server" http://localhost:5173/ · localhost:5173 · 3m ago · up: vite (pid 4242) in ./web
-- url "Start api" http://localhost:3000/ · localhost:3000 · 1h ago · down: nothing listens on :3000 · session in api
+- url "Start api" http://localhost:3000/ · localhost:3000 · 1h ago · down: nothing listens on :3000 · session 3f2a91c0 (api)
 ```
 
 Its own answers are not kept as assets.
@@ -132,7 +147,7 @@ During development: `claude --plugin-dir mods/session-assets`.
 - The replay does not give back a dev server's URL that only a tool printed (see above);
   the live hook keeps it.
 - A picture path with a space in it is not read from Bash output.
-- Not checked: whether a local URL still answers, or whether a file still exists.
+- A remote URL is never checked.
 
 ## Checks
 

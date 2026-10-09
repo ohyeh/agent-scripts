@@ -7,6 +7,11 @@
   - **Claude asks.** A model tool, `assets` (`query`, `kind`, `all_sessions`, `check`), answers the matching rows with the same state: how Claude gets an exact port, path or hash back after compaction, or finds which session runs a port.
   - **Who is who.** A local URL is checked on demand: the process listening on its port and the folder it runs in (`up: python3.12 (pid 10799) in .`), or `down: nothing listens on :8765`. A path: `exists` or `missing`. Shown by `#aN`, the tool and `/assets list` (first 10); never checked while drawing, and remote URLs are never requested.
 - Rows are numbered `a1`, `a2` in the band; `/assets N` also takes `aN` and `#aN`.
+- Built from what 304 past sessions show about how the list gets used: commit hashes pasted into 224 prompts (128 from another session), session ids into 100 (78 from another), Artifact links pasted back, and 12,554 of 16k local URLs in tool output on ephemeral ports.
+  - **A pasted hash or session id is resolved.** A commit hash (7 to 40 hex) that a session here made goes to Claude as `<hash> = commit "<subject>" on <branch>, made in session <sid8> (<project>)`; a pasted session id goes with that session's newest 8 assets. Unknown ones add nothing.
+  - `/assets copy N` puts row N's URL, path or hash on the clipboard; `/assets reply N` puts `#aN ` in the prompt; `/assets preview N` opens a file or picture in Quick Look (`qlmanage -p`), a URL in the browser.
+  - A local URL on an ephemeral port (49152 and up: a debugger, a CDP endpoint) or to a file a page loads (`/assets/a.js`, `/data/x.json`) is not kept. Remote URLs are kept as before.
+  - The tool names another session as `session <sid8> (<project>)`.
 - The mod's own tool calls are not kept as assets.
 
 ## session-assets 0.3.0

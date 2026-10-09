@@ -88,7 +88,7 @@ export function assetsOf(c: Call): Asset[] {
   // What the call was given is not what it made: `curl <url>`, or a tool that echoes its own code back.
   const given = JSON.stringify(c.input)
   if (c.tool === 'Bash') for (const m of text.matchAll(IMAGE_PATH_RE)) if (!given.includes(m[1]!)) add(fileAsset(m[1]!, c))
-  for (const url of extractUrls(text)) if (!given.includes(url)) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
+  for (const url of extractUrls(text)) if (!given.includes(url) && !isLocalNoise(url)) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   return out
 }
 
@@ -276,3 +276,26 @@ export function findAssets<T extends Entry>(list: readonly T[], q: { query?: str
   const words = (q.query ?? '').toLowerCase().split(/\s+/).filter(Boolean)
   return list.filter(x => (!q.kind || x.kind === q.kind) && words.every(w => `${x.label} ${x.ref} ${x.where} ${x.project}`.toLowerCase().includes(w)))
 }
+
+/**
+ * A local URL nobody opens: an ephemeral port (a debugger, a test server: 12,554 of 16,000 local URLs in 300 sessions'
+ * tool output), or a file a page loads (`/assets/x.js`, `/data/a.json`). A page (`/`, `/app`, `/x.html`) is kept.
+ */
+export function isLocalNoise(url: string): boolean {
+  if (!isLocalHost(hostOf(url))) return false
+  const m = /^https?:\/\/(?:[^@/]*@)?(?:\[[^\]]+\]|[^/:?#]+)(?::(\d+))?([^?#]*)/i.exec(url)
+  if (!m) return false
+  if (Number(m[1] ?? 0) >= 49152) return true
+  const ext = /\.([a-z0-9]{1,5})$/i.exec(m[2] ?? '')?.[1]?.toLowerCase()
+  return ext !== undefined && ext !== 'html' && ext !== 'htm'
+}
+
+/** A commit hash someone pasted: 7-40 hex characters with a letter and a digit, not part of a longer word or a UUID. */
+export function shasIn(text: string): string[] {
+  const out: string[] = []
+  for (const m of text.matchAll(/(?<![0-9A-Za-z-])[0-9a-f]{7,40}(?![0-9A-Za-z-])/g)) if (/[a-f]/.test(m[0]) && /\d/.test(m[0]) && !out.includes(m[0])) out.push(m[0])
+  return out
+}
+
+/** A session id someone pasted (`sid: 77e282e3-…`). */
+export const sessionIdsIn = (text: string) => [...new Set(text.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g) ?? [])]

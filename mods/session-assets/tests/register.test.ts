@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, localPort, parseCwd, parseListen, refsIn, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
+import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, isLocalNoise, localPort, sessionIdsIn, shasIn, parseCwd, parseListen, refsIn, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
 
 const HOME = '/h/me'
 const call = (tool: string, input: Record<string, unknown>, text = '', readOnly = false) => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w', readOnly })
@@ -116,6 +116,17 @@ describe('assetsOf', () => {
 })
 
 describe('pointing and checking', () => {
+  test('a local page is kept; an ephemeral port or a file a page loads is noise; a remote URL never is', async () => {
+    expect(['http://127.0.0.1:58755/json', 'http://localhost:5173/assets/a1.js', 'http://localhost:8787/data/a.json'].map(isLocalNoise)).toEqual([true, true, true])
+    expect(['http://localhost:5173/', 'http://localhost:5173/app', 'http://localhost:8765/x.html', 'https://x.dev/a.json'].map(isLocalNoise)).toEqual([false, false, false, false])
+    expect(call('Bash', { command: 'agent-browser open', description: 'Browse' }, 'CDP http://127.0.0.1:58755/json and http://localhost:5173/assets/a.js, page http://localhost:5173/').map(a => a.ref)).toEqual(['http://localhost:5173/'])
+  })
+
+  test('a pasted commit hash and session id are found; a UUID is not a hash, a word is not either', async () => {
+    expect(shasIn('打 TAG 6e05de1613a68bb18e19c8071c5d755983881327，比 9ec9669 前；deadbeef 1234567 sid af85cbe5-4f43-4769-a7f1-91da0c051fbd')).toEqual(['6e05de1613a68bb18e19c8071c5d755983881327', '9ec9669'])
+    expect(sessionIdsIn('cursor sid: c0011711-9b2a-474c-89d0-b0b12b96f324 還在跑')).toEqual(['c0011711-9b2a-474c-89d0-b0b12b96f324'])
+  })
+
   test('#aN is a row; #123 (an issue) and x#a4 are not', async () => {
     expect(refsIn('#a3 掛了，比對 (#a12) 和 #a3；fix #123, x#a4')).toEqual([3, 12])
   })
@@ -342,7 +353,7 @@ describe('band', () => {
     const all = JSON.stringify(await $.tool.call({ tool: 'mcp__session-assets__assets', query: 'start', all_sessions: true } as never))
     expect(all).toContain('Start api')
     expect(all).toContain('down: nothing listens on :3000')
-    expect(all).toContain('session in other')
+    expect(all).toContain("session sess-B (other)")
     expect((w.kv.get('session-assets.s.sess-A') as unknown[]).length, 'the tool answer adds nothing').toBe(2)
   })
 
@@ -356,6 +367,35 @@ describe('band', () => {
     expect(w.contexts.at(-1)).toBeUndefined()
     await $.prompt.submit({ text: '#a9 ?', wait: false, origin: { kind: 'composer' } } as never)
     expect(w.contexts.at(-1)?.join('\n')).toContain('#a9: no such row')
+  })
+
+  test('copy puts the ref on the clipboard; reply puts #aN in the prompt; preview opens a file in Quick Look', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/shot.png', content: 'x' })
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    expect(JSON.stringify(await $.command.run(cmd('copy 1')))).toContain('copied http://localhost:5173/')
+    expect(w.copied).toEqual(['http://localhost:5173/'])
+    expect(JSON.stringify(await $.command.run(cmd('reply 2')))).toContain('#a2 is in the prompt')
+    expect(w.filled).toEqual([{ text: '#a2 ', mode: 'insert' }])
+    expect(JSON.stringify(await $.command.run(cmd('preview a2')))).toContain('Quick Look')
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    expect(w.spawned).toEqual([['qlmanage', '-p', '/work/retro-w41/shot.png']])
+  })
+
+  test('a commit hash or session id pasted from another session comes with what that session made', async ($, on) => {
+    const w = world(on)
+    w.kv.set('session-assets.s.af85cbe5-4f43-4769-a7f1-91da0c051fbd', [
+      { kind: 'commit', ref: '9ec9669', where: 'main', isLocal: true, label: 'fix: ios matrix', project: 'healthgo', at: 0 },
+      { kind: 'url', ref: 'https://github.com/o/r/pull/131', where: 'github.com', isLocal: false, label: 'gh pr create', project: 'healthgo', at: 0 },
+    ])
+    await $.session.start(start)
+    await $.prompt.submit({ text: '9ec9669d3c936282a1580cdfee76e44dffa7f3d0 這個驗過了嗎', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)?.join('\n')).toContain('9ec9669d3c936282a1580cdfee76e44dffa7f3d0 = commit "fix: ios matrix" on main, made in session af85cbe5 (healthgo)')
+    await $.prompt.submit({ text: 'claude session sid: af85cbe5-4f43-4769-a7f1-91da0c051fbd 好了', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)?.join('\n')).toContain('https://github.com/o/r/pull/131')
+    await $.prompt.submit({ text: 'what about 1a2b3c4d?', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1), 'an unknown hash adds nothing').toBeUndefined()
   })
 
   test('a failed store write still returns the tool result', async ($, on) => {
@@ -383,6 +423,21 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   const kv = new Map<string, unknown>()
   const runs: string[][] = []
   const contexts: (string[] | undefined)[] = []
+  const copied: string[] = []
+  const filled: unknown[] = []
+  const spawned: string[][] = []
+  on('ui.copy', ($, e) => {
+    copied.push(e.text)
+    return { value: { isCopied: true } } as never
+  })
+  on('prompt.fill', ($, e) => {
+    filled.push({ text: e.text, mode: e.mode })
+    return { isFilled: true, text: e.text, cursor: e.text.length } as never
+  })
+  on('process.spawn', async function* (_$: unknown, e: { argv: string[] }) {
+    spawned.push([...e.argv])
+    return { value: { code: 0, signal: null } } as never
+  } as never)
   on('session.id', () => ({ value: 'sess-A' }))
   on('session.messages', () => ({ value: opts.messages ?? [] }) as never)
   on('session.usage', () => ({ value: { startedAt: 1000 } }) as never)
@@ -422,7 +477,7 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '' }, text: opts.text ?? '  ➜  Local:   http://localhost:5173/\n', ...(opts.isError ? { isError: true } : {}) }) as never)
   on('tool.call', { tool: 'Write' }, () => ({ result: {}, text: 'File created' }) as never)
-  return { kv, runs, contexts }
+  return { kv, runs, contexts, copied, filled, spawned }
 }
 
 function textOf(node: unknown): string {

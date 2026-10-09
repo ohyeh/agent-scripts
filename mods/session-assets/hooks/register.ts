@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Asset, type Entry, ago, assetsOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, glyphOf, localPort, merge, parseCwd, parseListen, refsIn, rowsOf, shortDir } from './lib/assets.ts'
+import { type Asset, type Entry, ago, assetsOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, glyphOf, localPort, merge, parseCwd, parseListen, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
 const MOD_VERSION = '0.4.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
@@ -42,14 +42,17 @@ async function mine(s: State, $: $): Promise<Entry[]> {
   return asList(await $.store.get(`${PREFIX}${s.sid}`))
 }
 
+/** An entry of another session, with that session's id. */
+type Theirs = Entry & { sid: string }
+
 /** Other sessions' entries, newest first, and how many sessions they come from. */
-async function others(s: State, $: $): Promise<{ list: Entry[]; sessions: number }> {
-  const list: Entry[] = []
+async function others(s: State, $: $): Promise<{ list: Theirs[]; sessions: number }> {
+  const list: Theirs[] = []
   let sessions = 0
   for (const k of (await $.store.keys()).filter(k => k.startsWith(PREFIX) && k !== `${PREFIX}${s.sid}`)) {
     const got = asList(await $.store.get(k))
     if (got.length) sessions++
-    list.push(...got)
+    list.push(...got.map(x => ({ ...x, sid: k.slice(PREFIX.length) })))
   }
   return { list: list.sort((a, b) => b.at - a.at), sessions }
 }
@@ -125,7 +128,31 @@ async function checks(s: State, $: $, list: readonly Entry[]): Promise<Map<Entry
 
 /** One entry as the model reads it: number, kind, label, the exact ref, place, age, status. */
 const describe = (x: Entry, n: string, now: number, status = '', project = '') =>
-  `${n} ${x.kind} "${clean(x.label, 80)}" ${clean(x.ref, 400)} · ${clean(x.where, 80)} · ${when(x, now)}${status ? ` · ${status}` : ''}${project ? ` · session in ${clean(project, 40)}` : ''}`
+  `${n} ${x.kind} "${clean(x.label, 80)}" ${clean(x.ref, 400)} · ${clean(x.where, 80)} · ${when(x, now)}${status ? ` · ${status}` : ''}${project ? ` · session ${clean(project, 60)}` : ''}`
+
+/**
+ * What the store knows about commit hashes and session ids pasted into a prompt: the most common things people carry
+ * between sessions (in 300 sessions: 224 prompts with a commit hash, 100 with a session id, over half from elsewhere).
+ * Says nothing about one it does not know.
+ */
+async function known(s: State, $: $, text: string, now: number): Promise<string[]> {
+  const shas = shasIn(text)
+  const sids = sessionIdsIn(text).filter(x => x !== s.sid)
+  if (!shas.length && !sids.length) return []
+  const here = await mine(s, $)
+  const { list: there } = await others(s, $)
+  const lines: string[] = []
+  for (const sha of shas) {
+    const same = (x: Entry) => x.kind === 'commit' && (x.ref.startsWith(sha) || sha.startsWith(x.ref))
+    const hit = here.find(same) ?? there.find(same)
+    if (hit) lines.push(`${sha} = commit "${clean(hit.label, 120)}" on ${clean(hit.where, 40)}, made ${'sid' in hit ? `in session ${String(hit.sid).slice(0, 8)} (${clean(hit.project, 40)})` : 'in this session'} ${when(hit, now)}`)
+  }
+  for (const sid of sids) {
+    const theirs = there.filter(x => x.sid === sid)
+    if (theirs.length) lines.push(`session ${sid} (${clean(theirs[0]!.project, 40)}) made, newest first:\n${theirs.slice(0, 8).map(x => describe(x, '-', now)).join('\n')}`)
+  }
+  return lines
+}
 
 /** The model's tool: what this session (or every session) made, filtered, with live checks. */
 async function answerTool(s: State, $: $, input: Record<string, unknown>): Promise<string> {
@@ -133,7 +160,7 @@ async function answerTool(s: State, $: $, input: Record<string, unknown>): Promi
   const q = { query: typeof input.query === 'string' ? input.query : undefined, kind: typeof input.kind === 'string' ? input.kind : undefined }
   const list = await mine(s, $)
   const here = findAssets(list, q).map(x => ({ x, n: `#a${list.indexOf(x) + 1}`, project: '' }))
-  const there = input.all_sessions === true ? findAssets((await others(s, $)).list, q).map(x => ({ x, n: '-', project: x.project })) : []
+  const there = input.all_sessions === true ? findAssets((await others(s, $)).list, q).map(x => ({ x, n: '-', project: `${x.sid.slice(0, 8)} (${x.project})` })) : []
   const rows = [...here, ...there].slice(0, 30)
   if (!rows.length) return list.length ? `no asset matches (this session has ${list.length}; try all_sessions: true or a shorter query).` : 'this session has no assets yet.'
   const status = input.check === false ? new Map<Entry, string>() : await checks(s, $, rows.map(r => r.x))
@@ -193,7 +220,7 @@ export const register: Register = on => {
         },
       },
     })
-    await $.command.register({ name: 'assets', description: `Session assets v${MOD_VERSION}: /assets (show/hide), /assets N (open row N), /assets open N, /assets list, /assets clear, /assets all` })
+    await $.command.register({ name: 'assets', description: `Session assets v${MOD_VERSION}: /assets (show/hide), /assets N (show row N), /assets open|copy|reply|preview N, /assets list, /assets clear, /assets all` })
     // Loaded mid-session, or a session resumed from before the mod: the transcript says what it made so far.
     // A store that cannot be read is left alone: a replay would write over what it holds.
     const have = await mine(s, $).catch(() => undefined)
@@ -232,12 +259,34 @@ export const register: Register = on => {
       await setHidden(s, $, false)
       return { text: s.others ? 'other sessions shown.' : 'other sessions folded.' }
     }
-    const m = /^(open\s+)?#?a?(\d+)$/.exec(args)
-    if (!m) return { text: 'usage: /assets | /assets N | /assets open N | /assets list | /assets clear | /assets all' }
+    const m = /^(open\s+|copy\s+|reply\s+|preview\s+)?#?a?(\d+)$/.exec(args)
+    if (!m) return { text: 'usage: /assets | /assets N | /assets open|copy|reply|preview N | /assets list | /assets clear | /assets all' }
     const i = Number(m[2]) - 1
     const item = list[i]
     if (!item) return { text: `no row ${m[2]}: this session has ${list.length} asset(s).` }
-    if (m[1]) return { text: await openAsset($, item) }
+    const verb = m[1]?.trim()
+    if (verb === 'open') return { text: await openAsset($, item) }
+    // Copy: the exact ref on the clipboard, to paste into another session, a PR, a chat.
+    if (verb === 'copy') {
+      const c = await $.ui.copy({ text: item.ref })
+      return { text: c.isCopied ? `copied ${clean(item.ref, 200)}` : `not copied (${'reason' in c ? c.reason : 'no clipboard'})` }
+    }
+    // Reply: `#aN ` at the cursor, so the next prompt is about this row and Claude gets its ref and state with it.
+    if (verb === 'reply') {
+      const f = await $.prompt.fill({ text: `#a${i + 1} `, mode: 'insert' })
+      return { text: f.isFilled ? `#a${i + 1} is in the prompt: write the rest.` : 'no prompt box to fill here.' }
+    }
+    // Preview: a file or picture in Quick Look (no app switch); a URL in the browser.
+    if (verb === 'preview') {
+      if ((item.kind === 'file' || item.kind === 'image') && item.ref.startsWith('/')) {
+        // Quick Look stays open until closed: run it on its own, not awaited.
+        void (async () => {
+          for await (const _ of $.process.spawn({ argv: ['qlmanage', '-p', item.ref] })) void _
+        })().catch(err => $.ui.log(`session-assets: preview failed (${errText(err)})`, { to: 'debug' }))
+        return { text: `previewing ${clean(item.ref, 160)} (Quick Look; space or esc closes it).` }
+      }
+      return { text: await openAsset($, item) }
+    }
     s.open = s.open === i ? undefined : i
     await setHidden(s, $, false)
     return { text: `${item.kind} · ${item.label}: ${item.ref}` }
@@ -279,17 +328,25 @@ export const register: Register = on => {
     // `#a3` in the prompt: the model gets row 3's exact ref and its live status beside the prompt (context must go
     // down with `next`; one added after is not attached). A prompt without a token reads nothing before `next`.
     const refs = mineToo ? refsIn(e.text) : []
+    // A pasted commit hash or session id: what the store knows of it. Cheap test first: no hex, no store read.
+    const pasted = mineToo && /[0-9a-f]{7}/.test(e.text)
     let down = e
-    if (refs.length) {
+    if (refs.length || pasted) {
       try {
-        const list = await mine(s, $)
         const now = await $.clock.now()
-        const picked = refs.map(n => [n, list[n - 1]] as const)
-        const status = await checks(s, $, picked.flatMap(([, x]) => (x ? [x] : [])))
-        const lines = picked.map(([n, x]) => (x ? describe(x, `#a${n}`, now, status.get(x)) : `#a${n}: no such row (this session has ${list.length})`))
-        down = { ...e, context: [...(e.context ?? []), `session-assets: the user's #aN refer to these rows of the session's asset list:\n${lines.join('\n')}`] }
+        const notes: string[] = []
+        if (refs.length) {
+          const list = await mine(s, $)
+          const picked = refs.map(n => [n, list[n - 1]] as const)
+          const status = await checks(s, $, picked.flatMap(([, x]) => (x ? [x] : [])))
+          const lines = picked.map(([n, x]) => (x ? describe(x, `#a${n}`, now, status.get(x)) : `#a${n}: no such row (this session has ${list.length})`))
+          notes.push(`session-assets: the user's #aN refer to these rows of the session's asset list:\n${lines.join('\n')}`)
+        }
+        const kn = pasted ? await known(s, $, e.text, now) : []
+        if (kn.length) notes.push(`session-assets: what is known of the commit hashes and session ids in the prompt:\n${kn.join('\n')}`)
+        if (notes.length) down = { ...e, context: [...(e.context ?? []), ...notes] }
       } catch (err) {
-        $.ui.log(`session-assets: #a refs not resolved (${errText(err)})`, { to: 'debug' })
+        $.ui.log(`session-assets: refs not resolved (${errText(err)})`, { to: 'debug' })
       }
     }
     // The rest after `next`: the prompt reaches the model first; a slow store never sits between Enter and the model.
