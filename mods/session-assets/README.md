@@ -156,6 +156,7 @@ During development: `claude --plugin-dir mods/session-assets`.
   the live hook keeps it.
 - A picture path with a space in it is not read from Bash output.
 - A remote URL is never checked.
+- The replay reads what `$.session.messages()` gives: at most the newest 4096 messages.
 
 ## Checks
 

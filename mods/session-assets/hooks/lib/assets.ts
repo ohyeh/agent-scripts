@@ -143,6 +143,7 @@ export function assetsOfTranscript(msgs: readonly { role: string; text: string; 
     if (m.role !== 'assistant') continue
     // As live: a reply adds only a URL nothing named before, so it never turns an artifact or a tool's URL into `reply: …`.
     out.push(...assetsOfText(m.text, 'reply', c).filter(a => !out.some(x => x.ref === a.ref)))
+    // `extra` (a push git named) never repeats what assetsOf found in the same call: that needs a `To` line, it lacks one.
     for (const u of m.toolUses ?? []) if (!u.isError && typeof u.text === 'string') out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text, ...c, replay: true }), ...extra(u).filter(a => !out.some(x => x.ref === a.ref)))
   }
   return out

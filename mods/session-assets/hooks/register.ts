@@ -1,8 +1,8 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Asset, type Entry, ago, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
+import { type Asset, type Entry, type StoredUse, ago, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.5.7'
+const MOD_VERSION = '0.5.8'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -193,7 +193,7 @@ async function replay(s: State, $: $): Promise<number> {
     const msgs = await $.session.messages()
     // A push that lost its `To` line needs git (async); asked first, so it lands in transcript order, not after the rest.
     const asked = new Map<string, Promise<string | undefined>>()
-    const lost = new Map<object, Asset[]>()
+    const lost = new Map<StoredUse, Asset[]>()
     for (const m of msgs) {
       if (m.role !== 'assistant') continue
       for (const u of m.toolUses ?? []) {
@@ -204,6 +204,7 @@ async function replay(s: State, $: $): Promise<number> {
     const found = assetsOfTranscript(msgs, s, u => lost.get(u) ?? [])
     // shortcut: the transcript rows carry no time, so a replayed asset is shown as `earlier`; take times from `as: 'api'` if ages matter.
     if (found.length) await record(s, $, found, (await $.session.usage()).startedAt, false, true)
+    $.ui.log(`session-assets: transcript replay kept ${found.length} assets from ${msgs.length} messages`, { to: 'debug' })
     return found.length
   } catch (err) {
     $.ui.log(`session-assets: transcript replay failed (${errText(err)})`, { to: 'debug' })

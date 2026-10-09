@@ -4,6 +4,10 @@
 
 - An event log you can replay (agent-scripts W42-8; W40-3's four unmet clauses). Each session appends one JSON line per `watch`, `armed` (the bot was seen working), `wake`, `lost` and `unwatch` to `~/.claude/grok-bot-watch/events/<session>.jsonl`. A line holds the bot, the watch generation, a hash of the reply (never its text), and for a watch or unwatch `via` (`tool` = the model, `command` / `panel` = a person) and `prior` (the bot was already watched: a re-watch). `bin/replay.mjs [files]` counts the four classes: `resent` (the same reply delivered twice; must be 0), `sameText` (a new reply with the same text, after the bot worked), `rewatch` by `via`, and `afterUnwatch` (must be 0). It exits 1 when a defect class is not 0. A log write that fails is a debug line, never a lost wake. The file grows with the session (one read and rewrite per line, because the engine has no append); `permissions.txt` adds `$.env.get` HOME and `$.fs.exists/read/write`.
 
+## session-assets 0.5.8
+
+- A transcript replay writes a debug line with how many assets it kept from how many messages, so a replay that kept nothing can be told from one that did not run. The replay reads what `$.session.messages()` returns; README says so under Limits.
+
 ## session-assets 0.5.7
 
 - The replay puts a push that lost its `To` line where it happened in the transcript. Before, those pushes were added after everything else, so the oldest push of the session showed as row `a1`, above the files written after it.
