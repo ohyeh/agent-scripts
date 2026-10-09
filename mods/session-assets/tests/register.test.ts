@@ -174,9 +174,9 @@ describe('pointing and checking', () => {
     expect(call('Bash', { command: 'npm run dev | tail -n 30 | grep -A 4 Local', description: 'Start' }, 'Local: http://localhost:5173/').map(a => a.ref)).toEqual(['http://localhost:5173/'])
     expect(call('Bash', { command: 'make build && cat dist/urls.txt' }, 'https://cdn.x.dev/a')).toEqual([])
     const screen = 'FAIL: quote\n 2 url localhost:5173 Start dev server\nhttp://localhost:5173/'
-    for (const command of ['tests/tui-smoke.sh 2>&1 | tail -25', 'MOD=m scripts/test-mod-permissions-smoke', 'npm test', 'claude plugin test mods/x', 'cd web && npx vitest run', 'bin/test'])
+    for (const command of ['tests/tui-smoke.sh 2>&1 | tail -25', 'MOD=m scripts/test-mod-permissions-smoke', 'npm test', 'claude plugin test mods/x', 'cd web && npx vitest run', 'bin/test', 'bash tests/tui-smoke.sh', 'node --test test/a.mjs | tail -3'])
       expect(call('Bash', { command, description: 'Run' }, screen), `${command}: a test run prints fixtures`).toEqual([])
-    for (const command of ['npm run dev', 'claude plugin update x', 'bash contest.sh', 'python3 latest.py'])
+    for (const command of ['npm run dev', 'claude plugin update x', 'bash contest.sh', 'python3 latest.py', '/work/test-site/node_modules/.bin/vite --host 0.0.0.0', 'npm test && npm run dev', 'bash scripts/serve.sh'])
       expect(call('Bash', { command, description: 'Run' }, screen).map(a => a.ref), command).toEqual(['http://localhost:5173/'])
     expect(call('Read', { file_path: '/w/s/live-btc.png' }, '[image]', true).map(a => [a.kind, a.ref]), 'a picture Read is shown in the conversation').toEqual([['image', '/w/s/live-btc.png']])
     expect(call('Read', { file_path: '/w/src/a.ts' }, 'https://x.dev/a', true)).toEqual([])

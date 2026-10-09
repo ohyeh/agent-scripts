@@ -359,12 +359,23 @@ export const sessionIdsIn = (text: string) => [...new Set(text.match(/[0-9a-f]{8
 const READERS = /^(?:cat|head|tail|sed|less|grep|rg|jq|yq|wc|sort|uniq|cut|awk|bat|ls|cd|echo|sleep|true|tmux (?:capture-pane|ls|list-\w+)|git (?:log|show|diff|blame|status|grep))$/
 // Readers that print a file or a screen: by name and positional arguments (a filter's first one is its pattern or script).
 const SHOWS = /^(?:tmux capture-pane|git (?:log|show|diff|blame|grep))$/
-// A test runner by name (`npm test`, `pytest`), or a script that says it is one (`tests/x.sh`, `test-y-smoke`).
+// A test runner by name (`npm test`, `pytest`), or a script that says it is one: named `*-smoke`, `test-*`, or in `tests/`.
 const TEST_RUNNERS = /^(?:npx )?(?:(?:npm|pnpm|yarn|bun) (?:run )?test|pytest|vitest|jest|go test|cargo test|node --test|claude plugin test)(?: |$)/
-const TEST_SCRIPT = /(?:^|[/._-])(?:tests?|smoke|spec)(?:[/._-]|$)/
-/** Some program in the command runs tests: what it printed is fixture data. */
+const TEST_SCRIPT = /(?:^|\/)(?:tests?\/[^/]+|(?:[^/]*[._-])?(?:tests?|smoke|spec)(?:[._-][^/]*)?)$/
+// An interpreter runs the script it is given: `bash tests/x.sh` is the script's run.
+const INTERPRETERS = /^(?:bash|sh|zsh|node|python3?|bun|deno|tsx|ruby)$/
+const isTest = (w: string[]) => {
+  const script = INTERPRETERS.test(w[0]!) ? (w.slice(1).find(a => !a.startsWith('-')) ?? '') : w[0]!
+  return TEST_RUNNERS.test(w.slice(0, 4).join(' ')) || TEST_SCRIPT.test(script)
+}
+/**
+ * Every program in the command, filters and `cd` aside, runs tests: what it printed is fixture data. Only the file name
+ * and its folder count (`/work/test-site/…/vite` is a dev server). A test next to anything else (`npm test && npm run
+ * dev`) keeps its URLs: its output has no line between the two.
+ */
 export function isTestRun(command: string): boolean {
-  return segmentsOf(command).some(w => TEST_RUNNERS.test(w.slice(0, 4).join(' ')) || TEST_SCRIPT.test(w[0]!))
+  const progs = segmentsOf(command).filter(w => !READERS.test(w[0]!))
+  return progs.length > 0 && progs.every(isTest)
 }
 /** The command's programs, each as its words: heredoc bodies and quoted text out, leading `VAR=x` assignments dropped. */
 const segmentsOf = (command: string) =>
