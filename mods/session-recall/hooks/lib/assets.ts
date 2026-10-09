@@ -47,6 +47,8 @@ const MAX_REF = 2048
 const WRITERS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|heic)$/i
 const VIDEO_EXT = /\.(mp4|mov|m4v|webm|mkv)$/i
+/** What a written file is worth a row for: something to read or open. Source code is churn the diff already shows. */
+const DOC_EXT = /\.(md|markdown|html?|pdf|txt|csv|tsv|ipynb|docx|xlsx|pptx)$/i
 
 // A dev server prints its URL in ANSI colour, the port bold inside it: escapes go first, other control characters end a URL.
 const ANSI_RE = /\u001b\[[0-9;?]*[ -\/]*[@-~]/g
@@ -95,7 +97,7 @@ export function assetsOf(c: Call): Asset[] {
   const path = typeof c.input.file_path === 'string' ? c.input.file_path : typeof c.input.notebook_path === 'string' ? c.input.notebook_path : ''
 
   if (WRITERS.has(c.tool)) {
-    if (path) add(fileAsset(path, c))
+    if (path && (DOC_EXT.test(path) || IMAGE_EXT.test(path) || VIDEO_EXT.test(path))) add(fileAsset(path, c))
     return out
   }
   if (c.tool === 'Artifact') {
@@ -148,6 +150,11 @@ export function assetsOfText(text: string, who: 'reply' | 'you', c: { home: stri
   return out
 }
 
+/** The URLs a test run printed: its fixtures. A reply that repeats one is talking about the test, not a page it made. */
+export function testUrlsOf(tool: string, input: Record<string, unknown>, text: string): string[] {
+  return tool === 'Bash' && isTestRun(String(input.command ?? '')) ? extractUrls(text) : []
+}
+
 /** One tool use as the transcript stored it, for the replay at session start. */
 export type StoredUse = { tool: string; input: Record<string, unknown>; text?: string; isError?: true }
 
@@ -155,13 +162,14 @@ export type StoredUse = { tool: string; input: Record<string, unknown>; text?: s
  * What the transcript shows this session made, oldest first: each answered tool use and each reply's URLs.
  * User messages are left out: in the transcript they also carry reminders and notices, not only what the person typed.
  */
-export function assetsOfTranscript(msgs: readonly { role: string; text: string; toolUses?: readonly StoredUse[] }[], c: { home: string; cwd: string }, extra: (u: StoredUse) => readonly Asset[] = () => []): Asset[] {
+export function assetsOfTranscript(msgs: readonly { role: string; text: string; toolUses?: readonly StoredUse[] }[], c: { home: string; cwd: string }, extra: (u: StoredUse) => readonly Asset[] = () => [], muted = new Set<string>()): Asset[] {
   const out: Asset[] = []
   for (const m of msgs) {
     if (m.role !== 'assistant') continue
     // As live: a reply adds only a URL nothing named before, so it never turns an artifact or a tool's URL into `reply: …`;
     // a page Claude read (a source) is the exception, it becomes the link the reply points at.
-    out.push(...assetsOfText(m.text, 'reply', c).filter(a => !out.some(x => x.ref === a.ref && x.kind !== 'source')))
+    out.push(...assetsOfText(m.text, 'reply', c).filter(a => !muted.has(a.ref) && !out.some(x => x.ref === a.ref && x.kind !== 'source')))
+    for (const u of m.toolUses ?? []) for (const url of testUrlsOf(u.tool, u.input ?? {}, u.text ?? '')) muted.add(url)
     // `extra` (a push git named) never repeats what assetsOf found in the same call: that needs a `To` line, it lacks one.
     // A Read of a picture or a sent file needs no text: an image result has none to give.
     for (const u of m.toolUses ?? []) if (!u.isError && (typeof u.text === 'string' || u.tool === 'Read' || u.tool === 'SendUserFile')) out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text ?? '', ...c, replay: true }), ...extra(u).filter(a => !out.some(x => x.ref === a.ref)))
@@ -197,7 +205,11 @@ const basename = (p: string) => p.slice(p.lastIndexOf('/') + 1) || p
 /** URLs in text, trailing punctuation and unbalanced closers trimmed, deduped. */
 export function extractUrls(text: string): string[] {
   const out: string[] = []
-  for (const raw of text.replace(ANSI_RE, '').match(URL_RE) ?? []) {
+  const plain = text.replace(ANSI_RE, '')
+  for (const hit of plain.matchAll(URL_RE)) {
+    const raw = hit[0]
+    // A URL built in code or prose (`/a/<id>`, `/p/${name}`, `'/p/' + name`) is a pattern, not a page.
+    if (/\$$/.test(raw) || /^(?:[<{]|['"`]\s*\+)/.test(plain.slice(hit.index! + raw.length))) continue
     let url = raw.replace(/[.,;:!?'"*]+$/, '')
     while (/[)\]]$/.test(url) && count(url, url.endsWith(')') ? '(' : '[') < count(url, url.slice(-1))) url = url.slice(0, -1)
     if (hostOf(url) && !out.includes(url)) out.push(url)

@@ -1,5 +1,13 @@
 # Changelog
 
+## session-recall 0.9.1
+
+Fewer file rows in the 80-row list, so links and pictures are not pushed out. Measured by replaying two real long transcripts: file rows 35 → 16 and 36 → 13, URL rows 9 → 9 and 14 → 12, pictures unchanged. The band rows (links from tool output) are not changed by this release.
+
+- A written or edited source file (`.ts`, `.sh`, `.json`, …) gets no row. The diff already shows it, and it pushed links and pictures out of the 80-row list. A written document (`.md`, `.html`, `.pdf`, `.txt`, `.csv`, office files, notebooks), picture or video still gets a row.
+- A URL built in code or prose is a pattern, not a page: `https://x/a/<id>`, `` `https://x/p/${name}` ``, `'https://x/p/' + name`, `https://x/s/{id}` add nothing.
+- A reply that repeats a URL a test run printed adds no row: the URL is a fixture, not a page. The replay after a reload does the same.
+
 ## session-recall 0.9.0
 
 - Renamed from `session-assets`: the mod keeps more than assets (the answer lines the TUI quotes back), so it is `session-recall` and its command is `/recall` (`/recall list`, `/recall N`, `/recall tui`, …). The model tool is `mcp__session-recall__recall`; the TUI's files are under `~/.local/state/session-recall/`, the Warp launch configuration is `session-recall.yaml`. No alias: `/assets` is gone. Each session's list starts empty under the new name and is rebuilt from its transcript at the next start. Install `session-recall@agent-scripts` and uninstall `session-assets@agent-scripts`.

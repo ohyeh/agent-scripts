@@ -1,9 +1,9 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
+import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 import { answerId, itemsOf, quoteOf } from './lib/items.ts'
 
-const MOD_VERSION = '0.9.0'
+const MOD_VERSION = '0.9.1'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -41,6 +41,8 @@ type State = {
   /** The TUI's requests this load has taken (each is done once), and answers not written yet (path → answer). */
   handled: Set<string>
   unacked: Map<string, string>
+  /** URLs test runs printed this session (the replay refills it): a reply that repeats one adds no row. */
+  muted: Set<string>
 }
 
 /** Where the mod and its TUI meet: the TUI reads `<sid>.json` and writes `<sid>.ask.json`; the store is the host's. */
@@ -357,7 +359,7 @@ async function replay(s: State, $: $, onlyNew = false): Promise<number> {
         lost.set(u, await lostPush(s, $, String(u.input?.command ?? ''), u.text, asked))
       }
     }
-    const found = assetsOfTranscript(msgs, s, u => lost.get(u) ?? [])
+    const found = assetsOfTranscript(msgs, s, u => lost.get(u) ?? [], s.muted)
     // shortcut: the transcript rows carry no time, so a replayed asset is shown as `earlier`; take times from `as: 'api'` if ages matter.
     if (found.length) await record(s, $, found, (await $.session.usage()).startedAt, onlyNew, true)
     $.ui.log(`session-recall: transcript replay kept ${found.length} assets from ${msgs.length} messages`, { to: 'debug' })
@@ -404,7 +406,7 @@ async function openAsset($: $, e: Entry): Promise<string> {
 }
 
 export const register: Register = on => {
-  const s: State = { sid: '', project: '', cwd: '', home: '', hidden: false, others: false, writes: Promise.resolve(), answers: [], handled: new Set(), unacked: new Map() }
+  const s: State = { sid: '', project: '', cwd: '', home: '', hidden: false, others: false, writes: Promise.resolve(), answers: [], handled: new Set(), unacked: new Map(), muted: new Set() }
 
   on('session.start', async ($, e, next) => {
     s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
@@ -437,6 +439,7 @@ export const register: Register = on => {
     // Loaded mid-session, or a session resumed from before the mod: the transcript says what it made so far. A list
     // already there gets only what it lacks (a newer version finds more, as a picture Read), its rows left as they are.
     // A store that cannot be read is left alone: a replay would write over what it holds.
+    s.muted = new Set()
     const have = await mine(s, $).catch(() => undefined)
     if (have) await replay(s, $, have.length > 0)
     // The TUI's lines to quote: the last answers, from the transcript (the module's own memory starts over on a reload).
@@ -502,6 +505,7 @@ export const register: Register = on => {
     if (('deny' in ran && ran.deny) || ran.isError) return ran
     // Bookkeeping must never cost the model its tool result.
     try {
+      if (typeof ran.text === 'string') for (const url of testUrlsOf(e.tool, e as unknown as Record<string, unknown>, ran.text)) s.muted.add(url)
       const found = assetsOf({ tool: e.tool, input: e as unknown as Record<string, unknown>, text: typeof ran.text === 'string' ? ran.text : '', home: s.home, cwd: s.cwd, readOnly: ran.isReadOnly === true })
       if (e.tool === 'Bash' && typeof ran.text === 'string') found.push(...(await lostPush(s, $, String(e.command ?? ''), ran.text)).filter(a => !found.some(x => x.ref === a.ref)))
       // The first found is the top row, so the rest go last-first; pushes go in the order they ran, so `a..b` then `b..c`
@@ -525,7 +529,7 @@ export const register: Register = on => {
       try {
         addAnswer(s, e.answer, await $.clock.now())
         await enqueue(s, () => snapshot(s, $))
-        await record(s, $, assetsOfText(e.answer, 'reply', s).reverse(), await $.clock.now(), true)
+        await record(s, $, assetsOfText(e.answer, 'reply', s).filter(a => !s.muted.has(a.ref)).reverse(), await $.clock.now(), true)
       } catch (err) {
         $.ui.log(`session-recall: reply not read (${errText(err)})`, { to: 'debug' })
       }

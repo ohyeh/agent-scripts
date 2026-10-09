@@ -8,6 +8,10 @@ const HOME = '/h/me'
 const call = (tool: string, input: Record<string, unknown>, text = '', readOnly = false) => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w', readOnly })
 
 describe('extractUrls', () => {
+  test('a URL built in code or prose is a pattern, not a page', () => {
+    const text = "PUT https://pub.x.uk/a/<22 chars>.html\nconst u = `https://share.x.uk/p/${name}`\nfetch('https://share.x.uk/p/' + name)\nGET https://api.x.com/v1/s/{id}\nok https://x.dev/real/"
+    expect(extractUrls(text)).toEqual(['https://x.dev/real/'])
+  })
   test('trims punctuation and unbalanced closers, keeps balanced ones, dedups', async () => {
     const text = 'Local: http://localhost:5173/, see (https://x.dev/a) and https://en.wikipedia.org/wiki/A_(b). again http://localhost:5173/'
     expect(extractUrls(text)).toEqual(['http://localhost:5173/', 'https://x.dev/a', 'https://en.wikipedia.org/wiki/A_(b)'])
@@ -399,6 +403,25 @@ describe('band', () => {
     await $.turn.complete({ ...turn, agentId: 'a1', answer: 'https://sub.dev' } as never)
     const list = w.kv.get('session-recall.s.sess-A') as Array<{ ref: string; label: string }>
     expect(list.map(x => [x.ref, x.label])).toEqual([['https://x.dev/docs', 'reply: Docs'], ['http://localhost:5173/', 'Start dev server']])
+  })
+
+  test('a reply that repeats a URL a test run printed adds nothing, also after a reload', async ($, on) => {
+    const w = world(on, { text: 'serving http://localhost:5199/ ok' })
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'bash tests/fx-smoke.sh', description: 'Run fx smoke' })
+    await $.turn.complete({ ...turn, answer: 'The smoke printed http://localhost:5199/ and https://x.dev/docs' } as never)
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string }>).map(x => x.ref)).toEqual(['https://x.dev/docs'])
+    // The replay after a reload: the same.
+    const msgs = [{ role: 'assistant', text: '', toolUses: [{ tool: 'Bash', input: { command: 'bash tests/fx-smoke.sh' }, text: 'serving http://localhost:5199/ ok' }] }, { role: 'assistant', text: 'see http://localhost:5199/' }]
+    expect(assetsOfTranscript(msgs, { home: HOME, cwd: '/w' })).toEqual([])
+  })
+
+  test('a written source file is no row; a written document or picture is', () => {
+    expect(call('Write', { file_path: '/w/src/a.ts' })).toEqual([])
+    expect(call('Edit', { file_path: '/w/run.sh' })).toEqual([])
+    expect(call('Write', { file_path: '/w/PLAN.md' }).map(a => a.kind)).toEqual(['file'])
+    expect(call('Write', { file_path: '/w/out/page.html' }).map(a => a.kind)).toEqual(['file'])
+    expect(call('Write', { file_path: '/w/shot.png' }).map(a => a.kind)).toEqual(['image'])
   })
 
   test('a link the person pastes is kept; a notification\'s is not', async ($, on) => {
