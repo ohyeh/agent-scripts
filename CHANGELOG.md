@@ -4,6 +4,11 @@
 
 - An event log you can replay (agent-scripts W42-8; W40-3's four unmet clauses). Each session appends one JSON line per `watch`, `armed` (the bot was seen working), `wake`, `lost` and `unwatch` to `~/.claude/grok-bot-watch/events/<session>.jsonl`. A line holds the bot, the watch generation, a hash of the reply (never its text), and for a watch or unwatch `via` (`tool` = the model, `command` / `panel` = a person) and `prior` (the bot was already watched: a re-watch). `bin/replay.mjs [files]` counts the four classes: `resent` (the same reply delivered twice; must be 0), `sameText` (a new reply with the same text, after the bot worked), `rewatch` by `via`, and `afterUnwatch` (must be 0). It exits 1 when a defect class is not 0. A log write that fails is a debug line, never a lost wake. The file grows with the session (one read and rewrite per line, because the engine has no append); `permissions.txt` adds `$.env.get` HOME and `$.fs.exists/read/write`.
 
+## session-assets 0.7.0
+
+- A click on a row's name opens the row: its buttons `[ open ] [ preview ] [ copy ] [ reply ]` and its full URL or path. Each button does what `/assets <verb> N` does and says how it went in a toast; a second click on the name closes the row. Preview shows only for a file, picture or video (Quick Look); a commit has copy and reply. The `/assets` commands stay for a terminal where a click does not reach the band.
+- The band's title shows the version (`▌session assets v0.7.0`), as the workers panel and grok-bot-watch do, so a reload can be seen to have taken.
+
 ## session-assets 0.6.0
 
 - The band is for what you look at or open: its rows are links, Artifacts, pictures and videos. Files, commits, pushes and sources are counted in its header and listed by `/assets list`; a row of theirs shows only while it is open (`/assets N`). In a long session the band's few rows went to files written and pushes, not to the screenshot or the preview link.

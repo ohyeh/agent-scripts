@@ -10,7 +10,7 @@ them per session, and puts it where both of you can use it:
 |---|---|---|
 | You | write `#a1` in a prompt: `#a1 掛了，修一下` | Claude gets row 1 beside your prompt: its exact URL or path, what made it, and its state now (`up: vite (pid 4242) in ./web`, `down: nothing listens on :5173`, `exists`, `missing`). No copying URLs, no guessing which server you meant. |
 | Claude | calls its `assets` tool: "the preview URL from before", "is :5173 still up", "which session runs :3000" | It gets the rows that match, with the same live state, from this session or from all of them. This is how it gets an exact port, path or hash back after the context was compacted. |
-| You | glance at the band, or run `/assets list`, `/assets open N` | You see what was made, by what, and when; open one in the browser or its app. |
+| You | click a row in the band, or run `/assets list`, `/assets open N` | You see what was made, by what, and when; open, preview or copy one, or put `#aN` in the prompt. |
 
 The live state is what answers "who is who" for local URLs: the process listening on
 the port, and the folder it runs in. It is checked on demand (a `#aN`, the tool,
@@ -26,9 +26,9 @@ Above the prompt, only after this session has an asset. Other sessions' assets a
 folded into one line.
 
 ```
-▌session assets 2 url · 1 artifact · 1 image · 1 video · 2 file · 1 commit · #aN in a prompt · /assets list   [ hide ]
+▌session assets v0.7.0 2 url · 1 artifact · 1 image · 1 video · 2 file · 1 commit · #aN in a prompt · /assets list   [ hide ]
    a1 ● localhost:5173          2m ago · Start dev server
-        http://localhost:5173/  /assets open 1
+       [ open ][ copy ][ reply ]  http://localhost:5173/
    a2 ◆ x.dev/docs              5m ago · reply: Docs
    a3 ▣ IMG 2026-10-08 at 20.40.56.png  6m ago · ~/Desktop
    a4 ◈ Retro W41               10m ago · claude.ai
@@ -48,6 +48,10 @@ folded into one line.
 | `◆` | `url` (push) | a `git push` to GitHub: the compare view (`push: main a..b`), a new tag's release page, a new branch's tree | the browser |
 | `⎇` | `commit` | `[branch hash] subject` in the output of a Bash `git … commit` | nothing (the hash is shown) |
 
+- A click on a row's name opens it: `[ open ] [ preview ] [ copy ] [ reply ]` and its full URL
+  (cmd-click in most terminals) or path. A button does what `/assets <verb> N` does and says how
+  it went in a toast. Preview is for a file, picture or video; a commit has copy and reply only.
+  A second click closes the row.
 - The band's rows are for what you look at or open: links, Artifacts, pictures, videos. Files,
   commits, pushes and sources are counted in its header and listed by `/assets list`; one of
   theirs shows as a row only while it is open (`/assets N`).
@@ -84,8 +88,8 @@ folded into one line.
   replies. It does not keep what a call printed: the transcript does not say which calls
   were read-only, and a `cat` of a doc would add every link in it. Replayed entries show
   `earlier`, not an age.
-- The band does not repeat the status line: no version (see `/assets` in the command
-  list), and an open commit row shows its hash, not the branch.
+- The band's title shows the mod's version, so a reload can be seen to have taken. An open
+  commit row shows its hash, not the branch: the status line has the branch.
 - At most 5 assets per tool call. One seen again moves to the top with its newest
   label. Each session keeps 80.
 - The band draws in what `maxRows` leaves after the plugins below it (the workers

@@ -388,7 +388,7 @@ describe('band', () => {
     expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; label: string }>).map(x => [x.ref, x.label])).toEqual([['https://x.dev/bug/1', 'you: fix']])
   })
 
-  test('the band leaves to the status line what it shows: no version, a commit\'s hash not its branch', async ($, on) => {
+  test('the band shows its version; an open commit row shows its hash, not its branch (the status line has it)', async ($, on) => {
     world(on, { text: '[main 9685ae2] fix: x\n 1 file changed' })
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'git commit -m x' })
@@ -397,7 +397,7 @@ describe('band', () => {
     const text = textOf(await $.ui.render(band()))
     expect(text, 'an opened row shows').toContain('9685ae2')
     expect(text).not.toContain('main')
-    expect(text).not.toMatch(/v\d+\.\d+\.\d+/)
+    expect(text).toMatch(/▌session assets v\d+\.\d+\.\d+/)
   })
 
   test('/assets list prints every entry grouped by kind, numbered as the band', async ($, on) => {
@@ -475,6 +475,32 @@ describe('band', () => {
     expect(JSON.stringify(await $.command.run(cmd('preview a2')))).toContain('Quick Look')
     for (let i = 0; i < 10; i++) await Promise.resolve()
     expect(w.spawned).toEqual([['qlmanage', '-p', '/work/retro-w41/shot.png']])
+  })
+
+  test('a click on a row\'s name opens it with open, preview, copy and reply buttons; a second click closes it', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/shot.png', content: 'x' })
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    await $.ui.render(band())
+    const press = (key: string) => $.ui.press({ plugin: 'session-assets', key, requestId: 'above-prompt' } as never)
+    await press('name-http://localhost:5173/')
+    const opened = textOf(await $.ui.render(band()))
+    expect(opened).toContain('open\ncopy\nreply')
+    expect(opened, 'a URL has no preview of its own').not.toContain('preview')
+    await press('copy-http://localhost:5173/')
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    expect(w.copied).toEqual(['http://localhost:5173/'])
+    expect(w.toasts).toEqual(['copied http://localhost:5173/'])
+    await press('name-/work/retro-w41/shot.png')
+    expect(textOf(await $.ui.render(band()))).toContain('open\npreview\ncopy\nreply')
+    await press('preview-/work/retro-w41/shot.png')
+    await press('reply-/work/retro-w41/shot.png')
+    for (let i = 0; i < 10; i++) await Promise.resolve()
+    expect(w.spawned).toEqual([['qlmanage', '-p', '/work/retro-w41/shot.png']])
+    expect(w.filled).toEqual([{ text: '#a2 ', mode: 'insert' }])
+    await press('name-/work/retro-w41/shot.png')
+    expect(textOf(await $.ui.render(band())), 'closed again').not.toContain('preview')
   })
 
   test('the band rows are what you look at: a video and a picture get rows, a file and a push only counts', async ($, on) => {
@@ -564,6 +590,11 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   const copied: string[] = []
   const filled: unknown[] = []
   const spawned: string[][] = []
+  const toasts: string[] = []
+  on('ui.toast', ($, e) => {
+    toasts.push(String((e as unknown as { text: string }).text))
+    return { value: undefined } as never
+  })
   on('ui.copy', ($, e) => {
     copied.push(e.text)
     return { value: { isCopied: true } } as never
@@ -620,7 +651,7 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '' }, text: opts.text ?? '  ➜  Local:   http://localhost:5173/\n', ...(opts.isError ? { isError: true } : {}) }) as never)
   on('tool.call', { tool: 'Write' }, () => ({ result: {}, text: 'File created' }) as never)
   on('tool.call', { tool: 'WebFetch' }, () => ({ result: {}, text: 'page https://inside.dev', isReadOnly: true }) as never)
-  return { kv, runs, contexts, copied, filled, spawned }
+  return { kv, runs, contexts, copied, filled, spawned, toasts }
 }
 
 function textOf(node: unknown): string {

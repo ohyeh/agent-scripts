@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.6.0'
+const MOD_VERSION = '0.7.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-assets__assets'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -222,6 +222,32 @@ async function replay(s: State, $: $): Promise<number> {
 }
 
 /** Opens a URL in the browser or a path in its default app; a commit has nothing to open. */
+type Verb = 'open' | 'copy' | 'reply' | 'preview'
+
+/** What `/assets <verb> N` and the open row's buttons do; returns what to tell the person. */
+async function act($: $, verb: Verb, item: Entry, i: number): Promise<string> {
+  if (verb === 'open') return openAsset($, item)
+  // Copy: the exact ref on the clipboard, to paste into another session, a PR, a chat.
+  if (verb === 'copy') {
+    const c = await $.ui.copy({ text: item.ref })
+    return c.isCopied ? `copied ${clean(item.ref, 200)}` : `not copied (${'reason' in c ? c.reason : 'no clipboard'})`
+  }
+  // Reply: `#aN ` at the cursor, so the next prompt is about this row and Claude gets its ref and state with it.
+  if (verb === 'reply') {
+    const f = await $.prompt.fill({ text: `#a${i + 1} `, mode: 'insert' })
+    return f.isFilled ? `#a${i + 1} is in the prompt: write the rest.` : 'no prompt box to fill here.'
+  }
+  // Preview: a file, picture or video in Quick Look (no app switch); a URL in the browser.
+  if (isPath(item)) {
+    // Quick Look stays open until closed: run it on its own, not awaited.
+    void (async () => {
+      for await (const _ of $.process.spawn({ argv: ['qlmanage', '-p', item.ref] })) void _
+    })().catch(err => $.ui.log(`session-assets: preview failed (${errText(err)})`, { to: 'debug' }))
+    return `previewing ${clean(item.ref, 160)} (Quick Look; space or esc closes it).`
+  }
+  return openAsset($, item)
+}
+
 async function openAsset($: $, e: Entry): Promise<string> {
   // The one trust boundary: only http(s) or an absolute path reaches `open`, as an argv, never a shell.
   const ok = e.kind === 'url' || e.kind === 'artifact' || e.kind === 'source' ? /^https?:\/\//i.test(e.ref) : e.kind !== 'commit' && e.ref.startsWith('/')
@@ -305,28 +331,7 @@ export const register: Register = on => {
     const item = list[i]
     if (!item) return { text: `no row ${m[2]}: this session has ${list.length} asset(s).` }
     const verb = m[1]?.trim()
-    if (verb === 'open') return { text: await openAsset($, item) }
-    // Copy: the exact ref on the clipboard, to paste into another session, a PR, a chat.
-    if (verb === 'copy') {
-      const c = await $.ui.copy({ text: item.ref })
-      return { text: c.isCopied ? `copied ${clean(item.ref, 200)}` : `not copied (${'reason' in c ? c.reason : 'no clipboard'})` }
-    }
-    // Reply: `#aN ` at the cursor, so the next prompt is about this row and Claude gets its ref and state with it.
-    if (verb === 'reply') {
-      const f = await $.prompt.fill({ text: `#a${i + 1} `, mode: 'insert' })
-      return { text: f.isFilled ? `#a${i + 1} is in the prompt: write the rest.` : 'no prompt box to fill here.' }
-    }
-    // Preview: a file, picture or video in Quick Look (no app switch); a URL in the browser.
-    if (verb === 'preview') {
-      if ((item.kind === 'file' || item.kind === 'image' || item.kind === 'video') && item.ref.startsWith('/')) {
-        // Quick Look stays open until closed: run it on its own, not awaited.
-        void (async () => {
-          for await (const _ of $.process.spawn({ argv: ['qlmanage', '-p', item.ref] })) void _
-        })().catch(err => $.ui.log(`session-assets: preview failed (${errText(err)})`, { to: 'debug' }))
-        return { text: `previewing ${clean(item.ref, 160)} (Quick Look; space or esc closes it).` }
-      }
-      return { text: await openAsset($, item) }
-    }
+    if (verb) return { text: await act($, verb as Verb, item, i) }
     s.open = s.open === i ? undefined : i
     await setHidden(s, $, false)
     return { text: `${item.kind} · ${item.label}: ${item.ref}` }
@@ -425,7 +430,7 @@ export const register: Register = on => {
       .filter(([, n]) => n)
       .map(([k, n]) => `${n} ${k}`)
       .join(' · ')
-    const title = '▌session assets '
+    const title = `▌session assets v${MOD_VERSION} `
     const header = Box({
       flexDirection: 'row',
       children: [
@@ -439,7 +444,11 @@ export const register: Register = on => {
     // Labels share one column, as wide as the longest one drawn, at most 40 cells or half the band, so the ages line up.
     const cap = Math.max(8, Math.min(40, Math.floor(width / 2) - 6))
     const col = Math.min(cap, Math.max(0, ...[...list.filter(onBand).slice(0, PANEL_ROWS), ...(s.others ? rest.filter(onBand).slice(0, OTHER_ROWS) : [])].map(x => cells(clean(nameOf(x), 80)))))
-    const row = (x: Entry, n: string, where: string) => {
+    const toggle = (i: number) => {
+      s.open = s.open === i ? undefined : i
+      $.ui.invalidate('ui.render')
+    }
+    const row = (x: Entry, n: string, where: string, i?: number) => {
       const [glyph, color] = glyphOf(x)
       const head = `  ${n} ${glyph} `
       const short = fit(clean(nameOf(x), 80), col)
@@ -451,23 +460,37 @@ export const register: Register = on => {
       return Box({
         key: `${n}-${x.ref}`,
         flexDirection: 'row',
-        children: [Text({ color, children: head }), Text({ bold: true, children: label }), Text({ dimColor: true, children: tail })],
+        children: [
+          Text({ color, children: head }),
+          // A click on the name opens the row and its buttons; a second click closes it.
+          i === undefined ? Text({ bold: true, children: label }) : Button({ key: `name-${x.ref}`, plain: true, label, onPress: () => toggle(i) }),
+          Text({ dimColor: true, children: tail }),
+        ],
       })
     }
-    // The open row: the URL as a link (cmd-click in most terminals), a path or hash as text, and `/assets open N` for any terminal.
-    const detail = (x: Entry, i: number) =>
-      Box({
+    // A button on the open row: runs what `/assets <verb> N` runs and says how it went in a toast.
+    const action = (verb: Verb, x: Entry, i: number) =>
+      Button({ key: `${verb}-${x.ref}`, label: verb, onPress: () => void act($, verb, x, i).then(t => $.ui.toast(t), err => $.ui.toast(`${verb} failed: ${errText(err)}`)).catch(err => $.ui.log(`session-assets: ${verb} toast failed (${errText(err)})`, { to: 'debug' })) })
+    // The open row: its buttons, then the URL as a link (cmd-click in most terminals) or the path or hash as text.
+    // A commit opens nothing: copy and reply only. Preview is for what Quick Look shows; a URL's preview is its open.
+    const detail = (x: Entry, i: number) => {
+      const verbs: Verb[] = x.kind === 'commit' ? ['copy', 'reply'] : isPath(x) ? ['open', 'preview', 'copy', 'reply'] : ['open', 'copy', 'reply']
+      const buttons = verbs.map(v => action(v, x, i))
+      const used = 7 + verbs.reduce((n, v) => n + v.length + 4, 0) + 2
+      return Box({
         key: 'open',
         flexDirection: 'row',
         children: [
           Text({ children: '       ' }),
-          x.kind === 'url' || x.kind === 'artifact' || x.kind === 'source' ? Link({ href: x.ref, label: fit(x.ref, width - 30) }) : Text({ children: fit(clean(x.ref, 400), width - 30) }),
-          Text({ dimColor: true, children: x.kind === 'commit' ? '' : `  /assets open ${i + 1}` }),
+          ...buttons,
+          Text({ children: '  ' }),
+          x.kind === 'url' || x.kind === 'artifact' || x.kind === 'source' ? Link({ href: x.ref, label: fit(x.ref, Math.max(8, width - used)) }) : Text({ dimColor: true, children: fit(clean(x.ref, 400), Math.max(8, width - used)) }),
         ],
       })
+    }
     // One group per asset, the open row's detail inside its group: `+N more` counts assets, never a detail line.
     // The rest are counted in the header and listed by `/assets list`; an open row still shows.
-    const groups = list.flatMap((x, i) => (!onBand(x) && i !== s.open ? [] : [[row(x, `a${i + 1}`.padStart(3), ''), ...(i === s.open ? [detail(x, i)] : [])]]))
+    const groups = list.flatMap((x, i) => (!onBand(x) && i !== s.open ? [] : [[row(x, `a${i + 1}`.padStart(3), '', i), ...(i === s.open ? [detail(x, i)] : [])]]))
     const otherLines = rest.length
       ? [
         Button({ key: 'others', label: `${s.others ? '▾' : '▸'} other sessions: ${sessions} · ${rest.length} asset${rest.length === 1 ? '' : 's'}`, dimColor: true, onPress: () => {
