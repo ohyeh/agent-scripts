@@ -1,5 +1,17 @@
 # Changelog
 
+## session-assets 0.3.0
+
+- Less noise, found by using it on a long session: of 21 URLs, about 20 were links that `sed`/`cat`/context-mode had read, or URLs inside the command itself.
+  - The transcript replay trusts what a call did (files written, Artifacts, commits) and Claude's replies, not what a call printed: the transcript does not say which calls were read-only.
+  - A URL or picture path that is in the call's own input (`curl <url>`, code a tool echoes back) is not kept.
+  - Fullwidth punctuation (`（`, `，`, `。`) ends a URL.
+  - An MCP call is labelled with its `description`, `intent` or `title`, else its short name (`ctx_execute`), not `plugin_context-mode_context-mode__ctx_execute`.
+  - A replayed entry shows `earlier` in place of an age that was only the session's start.
+- `/assets list` prints every entry grouped by kind, numbered as the band, each with its full URL or path.
+- `/assets clear` starts this session's list over from its transcript: for a list an older version filled, or one gone noisy.
+- Changes from 0.2.1 not released before: the other-sessions line reads `other sessions: 3 · 12 assets` (it counted assets as sessions).
+
 ## session-assets 0.2.1
 
 - The transcript replay keeps an artifact's kind and title, and a tool URL's label, when a later reply names the same URL; it now follows the live rule (a reply adds only a URL nothing named before).

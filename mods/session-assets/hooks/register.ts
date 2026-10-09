@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, type Entry, ago, assetsOf, assetsOfText, assetsOfTranscript, cells, clean, cut, fit, glyphOf, merge, rowsOf } from './lib/assets.ts'
 
-const MOD_VERSION = '0.2.1'
+const MOD_VERSION = '0.3.0'
 /** One store key per session: a shared list would be a read-modify-write race between sessions. */
 const PREFIX = 'session-assets.s.'
 const PANEL_KEY = 'session-assets.panel'
@@ -63,16 +63,46 @@ async function setHidden(s: State, $: $, hidden: boolean) {
  * Adds assets to this session's list, newest last in `found`. `onlyNew`: a ref the list holds keeps its entry
  * (a reply that repeats a URL must not replace the label the tool call gave it).
  */
-async function record(s: State, $: $, found: readonly Asset[], at: number, onlyNew = false) {
+async function record(s: State, $: $, found: readonly Asset[], at: number, onlyNew = false, replayed = false) {
   if (!found.length) return
   await enqueue(s, async () => {
     let list = await mine(s, $)
-    for (const a of found) if (!onlyNew || !list.some(x => x.ref === a.ref)) list = merge(list, [{ ...a, project: s.project, at }])
+    for (const a of found) if (!onlyNew || !list.some(x => x.ref === a.ref)) list = merge(list, [{ ...a, project: s.project, at, ...(replayed ? { replayed: true as const } : {}) }])
     await $.store.set(`${PREFIX}${s.sid}`, list)
   })
   // A new asset moves the rows: an open row would point at another entry.
   s.open = undefined
   $.ui.invalidate('ui.render')
+}
+
+const KIND_TITLE: Record<Entry['kind'], string> = { url: 'URLs', artifact: 'Artifacts', image: 'Images', file: 'Files', commit: 'Commits' }
+/** When an entry was seen; a replayed one has no time of its own. */
+const when = (x: Entry, now: number) => (x.replayed ? 'earlier' : `${ago(now - x.at)} ago`)
+
+/** `/assets list`: every entry, grouped by kind, numbered as the band numbers them (so `/assets open N` works from it). */
+function listText(list: Entry[], now: number): string {
+  if (!list.length) return 'no assets this session yet.'
+  const out: string[] = []
+  for (const kind of ['url', 'artifact', 'image', 'file', 'commit'] as const) {
+    const rows = list.map((x, i) => [x, i + 1] as const).filter(([x]) => x.kind === kind)
+    if (!rows.length) continue
+    out.push(`${KIND_TITLE[kind]} (${rows.length})`)
+    for (const [x, n] of rows) out.push(`  ${String(n).padStart(2)}  ${clean(x.label, 60)} · ${when(x, now)}\n      ${clean(x.ref, 300)}`)
+  }
+  return out.join('\n')
+}
+
+/** Rebuilds this session's list from its transcript (dated at the session's start), adding to what is there. */
+async function replay(s: State, $: $): Promise<number> {
+  try {
+    const found = assetsOfTranscript(await $.session.messages(), s)
+    // shortcut: the transcript rows carry no time, so a replayed asset is shown as `earlier`; take times from `as: 'api'` if ages matter.
+    if (found.length) await record(s, $, found, (await $.session.usage()).startedAt, false, true)
+    return found.length
+  } catch (err) {
+    $.ui.log(`session-assets: transcript replay failed (${errText(err)})`, { to: 'debug' })
+    return 0
+  }
 }
 
 /** Opens a URL in the browser or a path in its default app; a commit has nothing to open. */
@@ -96,17 +126,11 @@ export const register: Register = on => {
     s.project = e.cwd.split('/').filter(Boolean).pop() ?? ''
     s.home = (await $.env.get('HOME').catch(() => undefined)) ?? ''
     s.hidden = (await $.store.get(PANEL_KEY)) === 'hidden'
-    await $.command.register({ name: 'assets', description: `Session assets v${MOD_VERSION}: /assets (show/hide), /assets N (open row N), /assets open N, /assets all` })
+    await $.command.register({ name: 'assets', description: `Session assets v${MOD_VERSION}: /assets (show/hide), /assets N (open row N), /assets open N, /assets list, /assets clear, /assets all` })
     // Loaded mid-session, or a session resumed from before the mod: the transcript says what it made so far.
-    try {
-      if (!(await mine(s, $)).length) {
-        const found = assetsOfTranscript(await $.session.messages(), s)
-        // shortcut: the transcript rows carry no time, so a replayed asset is dated at the session's start; take times from `as: 'api'` if ages matter.
-        if (found.length) await record(s, $, found, (await $.session.usage()).startedAt)
-      }
-    } catch (err) {
-      $.ui.log(`session-assets: transcript replay failed (${errText(err)})`, { to: 'debug' })
-    }
+    // A store that cannot be read is left alone: a replay would write over what it holds.
+    const have = await mine(s, $).catch(() => undefined)
+    if (have && !have.length) await replay(s, $)
     try {
       const now = await $.clock.now()
       for (const k of (await $.store.keys()).filter(k => k.startsWith(PREFIX) && k !== `${PREFIX}${s.sid}`)) {
@@ -126,13 +150,23 @@ export const register: Register = on => {
       await setHidden(s, $, !s.hidden)
       return { text: s.hidden ? 'band hidden; /assets shows it again.' : `band shown: ${list.length} asset(s) this session.` }
     }
+    // The whole list as text, grouped by kind: every terminal shows it, however few rows the band has.
+    if (args === 'list') return { text: listText(list, await $.clock.now()) }
+    // Starts this session's list over from its transcript: for a list an older version filled, or one gone noisy.
+    if (args === 'clear') {
+      await enqueue(s, () => $.store.delete(`${PREFIX}${s.sid}`))
+      s.open = undefined
+      const n = await replay(s, $)
+      $.ui.invalidate('ui.render')
+      return { text: `cleared ${list.length} asset(s); the transcript gave back ${n}.` }
+    }
     if (args === 'all') {
       s.others = !s.others
       await setHidden(s, $, false)
       return { text: s.others ? 'other sessions shown.' : 'other sessions folded.' }
     }
     const m = /^(open\s+)?(\d+)$/.exec(args)
-    if (!m) return { text: 'usage: /assets | /assets N | /assets open N | /assets all' }
+    if (!m) return { text: 'usage: /assets | /assets N | /assets open N | /assets list | /assets clear | /assets all' }
     const i = Number(m[2]) - 1
     const item = list[i]
     if (!item) return { text: `no row ${m[2]}: this session has ${list.length} asset(s).` }
@@ -225,7 +259,7 @@ export const register: Register = on => {
       const short = fit(clean(x.label, 80), col)
       const label = short + ' '.repeat(Math.max(0, col - cells(short)))
       // A commit shows its hash: the status line already shows the branch.
-      const tail = fit(`  ${ago(now - x.at)} ago · ${x.kind === 'commit' ? x.ref.slice(0, 7) : clean(x.where, 120)}${where}`, Math.max(0, width - cells(head) - cells(label)))
+      const tail = fit(`  ${when(x, now)} · ${x.kind === 'commit' ? x.ref.slice(0, 7) : clean(x.where, 120)}${where}`, Math.max(0, width - cells(head) - cells(label)))
       return Box({
         key: `${n}-${x.ref}`,
         flexDirection: 'row',

@@ -42,10 +42,14 @@ folded into one line.
   `ctx_fetch_and_index` / `ctx_index`, and any call the engine marks read-only (Bash
   `cat`, `rg`) add nothing: their output is content they read, not something this session
   made. A call that failed adds nothing.
+- A URL or picture path that is in the call's own input (`curl <url>`, code a tool echoes
+  back) is not kept: it is what the call was given, not what it made.
 - A session with no list yet (the mod loaded mid-session, or a resumed session from
-  before it) replays its transcript once at start: answered tool uses and replies, not
-  user messages (in the transcript those also carry reminders). Replayed assets are
-  dated at the session's start.
+  before it) replays its transcript once at start, and `/assets clear` replays it again.
+  The replay keeps what calls did (files written, Artifacts, commits) and URLs in Claude's
+  replies. It does not keep what a call printed: the transcript does not say which calls
+  were read-only, and a `cat` of a doc would add every link in it. Replayed entries show
+  `earlier`, not an age.
 - The band does not repeat the status line: no version (see `/assets` in the command
   list), and a commit shows its hash, not the branch.
 - At most 5 assets per tool call. One seen again moves to the top with its newest
@@ -62,6 +66,8 @@ folded into one line.
 | `/assets` | hide or show the band (kept across reloads) |
 | `/assets N` | open or close row N: the full URL as a link (cmd-click opens it), or the path or hash |
 | `/assets open N` | open row N: `open <url or path>`, as an argv; only http(s) or an absolute path |
+| `/assets list` | every entry, grouped by kind (URLs, Artifacts, Images, Files, Commits), numbered as the band, with its full URL or path |
+| `/assets clear` | start this session's list over from its transcript |
 | `/assets all` | unfold or fold the other sessions' assets |
 
 The `[ hide ]` and `▸ other sessions` buttons do the same, but in Warp `ctrl+x tab`
@@ -90,8 +96,8 @@ During development: `claude --plugin-dir mods/session-assets`.
 ## Limits
 
 - No thumbnails. `Image` draws only in kitty or Ghostty, not in Warp or tmux.
-- The replay cannot tell a read-only call from the transcript, so a replayed `cat` or
-  `rg` can add the links it read.
+- The replay does not give back a dev server's URL that only a tool printed (see above);
+  the live hook keeps it.
 - A picture path with a space in it is not read from Bash output.
 - Not checked: whether a local URL still answers, or whether a file still exists.
 

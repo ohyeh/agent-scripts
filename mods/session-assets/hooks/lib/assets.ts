@@ -17,10 +17,21 @@ export type Entry = Asset & {
   project: string
   /** Last time seen, epoch ms. */
   at: number
+  /** Replayed from the transcript: `at` is the session's start, not when it was made. */
+  replayed?: true
 }
 
 /** One tool call as the mod sees it after the tool ran. */
-export type Call = { tool: string; input: Record<string, unknown>; text: string; home: string; cwd: string; readOnly?: boolean }
+export type Call = {
+  tool: string
+  input: Record<string, unknown>
+  text: string
+  home: string
+  cwd: string
+  readOnly?: boolean
+  /** Replayed from the transcript, which does not say what was read-only: what a call printed is not trusted, only what it did. */
+  replay?: boolean
+}
 
 /** Per session: the band shows a handful, the rest only scroll away. */
 export const MAX_ENTRIES = 80
@@ -37,7 +48,8 @@ const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|heic)$/i
 
 // A dev server prints its URL in ANSI colour, the port bold inside it: escapes go first, other control characters end a URL.
 const ANSI_RE = /\u001b\[[0-9;?]*[ -\/]*[@-~]/g
-const URL_RE = /\bhttps?:\/\/[^\s<>"'`|\\^{}\u0000-\u001f\u007f-\u009f]+/g
+// Fullwidth punctuation (`（`, `，`, `。`) ends a URL: in CJK prose it follows one with no space.
+const URL_RE = /\bhttps?:\/\/[^\s<>"'`|\\^{}\u0000-\u001f\u007f-\u009f\u3000-\u303f\uff00-\uffef]+/g
 // An absolute or ~ path to a picture, as a screenshot tool prints it; `//` is a URL's tail (`https://h/x.png`), not a path.
 const IMAGE_PATH_RE = /(?:^|[\s'"(=:])((?:~|\/(?!\/))[^\s'"<>()|:\u0000-\u001f]*\.(?:png|jpe?g|gif|webp|svg|heic))(?=$|[\s'")\],.;:])/gim
 // `git commit` prints `[branch hash] subject`, `[branch (root-commit) hash]`, or `[detached HEAD hash]`.
@@ -71,9 +83,12 @@ export function assetsOf(c: Call): Asset[] {
   if (c.tool === 'Bash') {
     const commit = /\bgit\b[^\n]*\bcommit\b/.test(String(c.input.command ?? '')) ? COMMIT_RE.exec(text) : null
     if (commit) add({ kind: 'commit', ref: commit[2]!, label: commit[3]!.trim(), where: commit[1]!, isLocal: true })
-    for (const m of text.matchAll(IMAGE_PATH_RE)) add(fileAsset(m[1]!, c))
   }
-  for (const url of extractUrls(text)) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
+  if (c.replay) return out
+  // What the call was given is not what it made: `curl <url>`, or a tool that echoes its own code back.
+  const given = JSON.stringify(c.input)
+  if (c.tool === 'Bash') for (const m of text.matchAll(IMAGE_PATH_RE)) if (!given.includes(m[1]!)) add(fileAsset(m[1]!, c))
+  for (const url of extractUrls(text)) if (!given.includes(url)) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   return out
 }
 
@@ -111,15 +126,17 @@ export function assetsOfTranscript(msgs: readonly { role: string; text: string; 
     if (m.role !== 'assistant') continue
     // As live: a reply adds only a URL nothing named before, so it never turns an artifact or a tool's URL into `reply: …`.
     out.push(...assetsOfText(m.text, 'reply', c).filter(a => !out.some(x => x.ref === a.ref)))
-    for (const u of m.toolUses ?? []) if (!u.isError && typeof u.text === 'string') out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text, ...c }))
+    for (const u of m.toolUses ?? []) if (!u.isError && typeof u.text === 'string') out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text, ...c, replay: true }))
   }
   return out
 }
 
-/** A Bash call's description, else its command head; another tool's name. */
+/** What the call said it was for (`description`, `intent`, `title`), else a Bash command's head, else the tool's own name. */
 function labelOf(c: Call): string {
-  if (c.tool !== 'Bash') return c.tool.replace(/^mcp__/, '')
-  return String(c.input.description || String(c.input.command ?? '').slice(0, 60) || 'Bash')
+  const said = ['description', 'intent', 'title'].map(k => c.input[k]).find(v => typeof v === 'string' && v.trim())
+  if (said) return String(said)
+  if (c.tool === 'Bash') return String(c.input.command ?? '').slice(0, 60) || 'Bash'
+  return c.tool.split('__').pop() || c.tool
 }
 
 function fileAsset(path: string, c: { home: string; cwd: string }): Asset {

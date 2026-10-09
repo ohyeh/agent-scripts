@@ -18,6 +18,10 @@ describe('extractUrls', () => {
     expect(extractUrls('a\u0007http://x.dev/p\u0000q')).toEqual(['http://x.dev/p'])
   })
 
+  test('fullwidth punctuation after a URL ends it', async () => {
+    expect(extractUrls('打開 http://localhost:5173/（ANSI 版），或 https://x.dev/p。')).toEqual(['http://localhost:5173/', 'https://x.dev/p'])
+  })
+
   test('markdown bold around a URL is not part of it', async () => {
     expect(extractUrls('Preview: **https://x.dev/p**')).toEqual(['https://x.dev/p'])
   })
@@ -91,6 +95,17 @@ describe('assetsOf', () => {
     expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', {}, 'http://localhost:3000/').map(a => a.ref)).toEqual(['http://localhost:3000/'])
   })
 
+  test('a URL the call was given is not something it made', async () => {
+    expect(call('Bash', { command: 'curl -s https://api.x.dev/v1/s' }, '{"url":"https://api.x.dev/v1/s","next":"https://cdn.x.dev/a"}').map(a => a.ref)).toEqual(['https://cdn.x.dev/a'])
+    // context-mode echoes the code it ran.
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', { code: 'curl https://api.x.dev/v1' }, '```\ncurl https://api.x.dev/v1\n```\nok')).toEqual([])
+  })
+
+  test('an MCP call is labelled with what it said it was for, else its short name', async () => {
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', { intent: 'start preview' }, 'http://localhost:4000/')[0]!.label).toBe('start preview')
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', {}, 'http://localhost:4000/')[0]!.label).toBe('ctx_execute')
+  })
+
   test('a ref too long to open is not kept', async () => {
     expect(call('Bash', { command: 'x' }, `https://x.dev/${'a'.repeat(3000)}`)).toEqual([])
   })
@@ -136,9 +151,13 @@ describe('prose and transcript', () => {
     expect(out.map(a => [a.kind, a.label])).toEqual([['artifact', 'Demo']])
   })
 
-  test('a reply and a tool in one message that name the same URL: the tool label wins, as live', async () => {
-    const out = assetsOfTranscript([{ role: 'assistant', text: 'Dev: http://localhost:5173/', toolUses: [{ tool: 'Bash', input: { command: 'npm run dev', description: 'Start dev server' }, text: 'http://localhost:5173/' }] }], at)
-    expect(out.map(a => a.label).at(-1)).toBe('Start dev server')
+  test('the replay trusts what a call did, not what it printed: a cat of a doc adds no URL, a commit still counts', async () => {
+    const out = assetsOfTranscript([{ role: 'assistant', text: '', toolUses: [
+      { tool: 'Bash', input: { command: 'sed -n 1,40p README.md', description: 'Read README' }, text: 'see https://docs.dev/x and /tmp/s/home.png' },
+      { tool: 'mcp__plugin_context-mode_context-mode__ctx_execute', input: { code: 'cat a' }, text: 'https://other.dev' },
+      { tool: 'Bash', input: { command: 'git commit -m x' }, text: '[main 1a2b3c4] fix: x' },
+    ] }], at)
+    expect(out.map(a => [a.kind, a.ref])).toEqual([['commit', '1a2b3c4']])
   })
 })
 
@@ -237,6 +256,7 @@ describe('band', () => {
     await $.session.start(start)
     const list = w.kv.get('session-assets.s.sess-A') as Array<{ ref: string; at: number }>
     expect(list.map(x => [x.ref, x.at])).toEqual([['/work/retro-w41/a.md', 1000], ['https://x.dev/p', 1000]])
+    expect(textOf(await $.ui.render(band()))).toContain('earlier')
     // A reload finds the list and replays nothing.
     w.kv.set('session-assets.s.sess-A', list.slice(0, 1))
     await $.session.start(start)
@@ -270,6 +290,26 @@ describe('band', () => {
     expect(text).toContain('9685ae2')
     expect(text).not.toContain('main')
     expect(text).not.toMatch(/v\d+\.\d+\.\d+/)
+  })
+
+  test('/assets list prints every entry grouped by kind, numbered as the band', async ($, on) => {
+    world(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/plan.md', content: 'x' })
+    const text = JSON.stringify(await $.command.run(cmd('list')))
+    expect(text).toContain('URLs (1)')
+    expect(text).toContain('Files (1)')
+    expect(text).toMatch(/ 2  Start dev server/)
+    expect(text).toContain('http://localhost:5173/')
+  })
+
+  test('/assets clear starts the list over from the transcript', async ($, on) => {
+    const w = world(on, { messages: [{ role: 'assistant', text: 'Preview: https://x.dev/p', toolUses: [] }] })
+    w.kv.set('session-assets.s.sess-A', [{ kind: 'url', ref: 'https://noise.dev', where: 'noise.dev', isLocal: false, label: 'old', project: 'p', at: 0 }])
+    await $.session.start(start)
+    expect(JSON.stringify(await $.command.run(cmd('clear')))).toContain('cleared 1 asset(s); the transcript gave back 1')
+    expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string }>).map(x => x.ref)).toEqual(['https://x.dev/p'])
   })
 
   test('a failed store write still returns the tool result', async ($, on) => {
