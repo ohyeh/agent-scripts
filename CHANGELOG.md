@@ -1,5 +1,9 @@
 # Changelog
 
+## session-assets 0.1.0
+
+- New mod `mods/session-assets` (it was `url-library` before any release): it keeps what a session makes or prints in the band above the prompt. That covers URLs (local and remote marked), Artifact links named by their title, files written by `Write`/`Edit`/`NotebookEdit`, pictures written or printed as a path (screenshots), and `git commit` hashes with their subject. Each entry is labelled with what produced it, and each session has its own store key. Commands: `/assets`, `/assets N`, `/assets open N`, `/assets all`. Built like `grok-bot-watch` and the workers panel: it stacks under them within `maxRows` and has no hotkeys of its own. ANSI escapes are stripped before URLs are read (Vite bolds the port inside its coloured URL).
+
 ## lessons B + W42 2026-10-09
 
 - Kernel 4.35.0-ironlaws: `lessons.md` is gone (option B). Friction becomes a gate, a rule fix, or a backlog row in `evals/retro-metrics/inbox.md` (maintenance §2–§3); old entries: `git show a3992bd:.agents/rules/lessons.md`. The 7 open entries landed: `check-rules-invariants` checks the four iron-law clauses in both kernels and bans a bare `python3`/`shasum` in hooks; new `pr-create-gate.sh` (Claude and Codex) denies a second `gh pr create` per session until `PR_CREATE_GATE=allow`; judgment-rubrics adds the pipe exit-code rule and the Codex `yield_time_ms` rule (no hook can see that field: live payload has `command` only); operator-defaults wants copy-paste commands; delegation-templates asks for a progress line on long work.

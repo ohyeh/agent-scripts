@@ -1,0 +1,13 @@
+{
+  "name": "session-assets",
+  "version": "0.1.0",
+  "description": "Keep what a session makes or prints (URLs, artifacts, files, images, commits) in a band above the prompt, each labelled with what produced it.",
+  "author": {
+    "name": "PaulYeh",
+    "url": "https://github.com/ohyeh"
+  },
+  "repository": "https://github.com/ohyeh/agent-scripts",
+  "keywords": ["assets", "url", "library", "band"],
+  "displayName": "Session Assets",
+  "license": "MIT"
+}

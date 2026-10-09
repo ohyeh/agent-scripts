@@ -1,0 +1,4 @@
+{
+  "description": "Records the assets each tool call makes or prints, per session; draws them in the band above the prompt; /assets drives it.",
+  "modules": ["./register.ts"]
+}

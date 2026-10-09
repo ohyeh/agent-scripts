@@ -1,0 +1,201 @@
+import type { EngineInterface, Register } from 'claude-code'
+
+import { type Entry, ago, assetsOf, cells, clean, fit, glyphOf, merge, rowsOf } from './lib/assets.ts'
+
+const MOD_VERSION = '0.1.0'
+/** One store key per session: a shared list would be a read-modify-write race between sessions. */
+const PREFIX = 'session-assets.s.'
+const PANEL_KEY = 'session-assets.panel'
+const PRUNE_MS = 30 * 86_400_000
+/** Rows the band takes at most: header + this many entries; an open row and the other sessions add their own. */
+const PANEL_ROWS = 4
+const OTHER_ROWS = 4
+const ACCENT = 'blue'
+
+type $ = EngineInterface
+type State = {
+  sid: string
+  project: string
+  cwd: string
+  home: string
+  /** Index (0-based) of the open row in this session's list. */
+  open?: number
+  hidden: boolean
+  others: boolean
+  writes: Promise<unknown>
+}
+
+const asList = (v: unknown) => (Array.isArray(v) ? (v as Entry[]).filter(e => e && typeof e.ref === 'string') : [])
+
+/** Store writes of one session in order: two tool calls finishing together must not drop each other's assets. */
+function enqueue<T>(s: State, run: () => Promise<T>): Promise<T> {
+  const p = s.writes.then(run, run)
+  s.writes = p.catch(() => undefined)
+  return p
+}
+
+async function mine(s: State, $: $): Promise<Entry[]> {
+  return asList(await $.store.get(`${PREFIX}${s.sid}`))
+}
+
+/** Other sessions' entries, newest first. */
+async function others(s: State, $: $): Promise<Entry[]> {
+  const out: Entry[] = []
+  for (const k of (await $.store.keys()).filter(k => k.startsWith(PREFIX) && k !== `${PREFIX}${s.sid}`)) out.push(...asList(await $.store.get(k)))
+  return out.sort((a, b) => b.at - a.at)
+}
+
+async function setHidden(s: State, $: $, hidden: boolean) {
+  s.hidden = hidden
+  await $.store.set(PANEL_KEY, hidden ? 'hidden' : 'shown')
+  $.ui.invalidate('ui.render')
+}
+
+const errText = (err: unknown) => `${(err as Error)?.name ?? 'Error'}: ${String((err as Error)?.message ?? err)}`
+
+/** Opens a URL in the browser or a path in its default app; a commit has nothing to open. */
+async function openAsset($: $, e: Entry): Promise<string> {
+  // The one trust boundary: only http(s) or an absolute path reaches `open`, as an argv, never a shell.
+  const ok = e.kind === 'url' || e.kind === 'artifact' ? /^https?:\/\//i.test(e.ref) : e.kind !== 'commit' && e.ref.startsWith('/')
+  if (!ok) return e.kind === 'commit' ? `commit ${e.ref.slice(0, 12)} on ${clean(e.where, 40)}: nothing to open` : `not opened: ${clean(e.ref, 80)}`
+  const r = await $.process.run(['open', e.ref], { timeoutMs: 5000 })
+  return r.exitCode === 0 ? `opened ${clean(e.ref, 120)}` : `open failed (exit ${r.exitCode}): ${clean(r.stderr.trim(), 200)}`
+}
+
+export const register: Register = on => {
+  const s: State = { sid: '', project: '', cwd: '', home: '', hidden: false, others: false, writes: Promise.resolve() }
+
+  on('session.start', async ($, e, next) => {
+    s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
+    s.cwd = e.cwd
+    s.project = e.cwd.split('/').filter(Boolean).pop() ?? ''
+    s.home = (await $.env.get('HOME').catch(() => undefined)) ?? ''
+    s.hidden = (await $.store.get(PANEL_KEY)) === 'hidden'
+    await $.command.register({ name: 'assets', description: 'Session assets band: /assets (show/hide), /assets N (open row N), /assets open N, /assets all' })
+    try {
+      const now = await $.clock.now()
+      for (const k of (await $.store.keys()).filter(k => k.startsWith(PREFIX) && k !== `${PREFIX}${s.sid}`)) {
+        const newest = Math.max(0, ...asList(await $.store.get(k)).map(x => x.at))
+        if (now - newest > PRUNE_MS) await $.store.delete(k)
+      }
+    } catch (err) {
+      $.ui.log(`session-assets: prune failed (${errText(err)})`, { to: 'debug' })
+    }
+    return next(e)
+  })
+
+  on('command.run', { command: 'assets' }, async ($, e) => {
+    const args = e.args.trim()
+    const list = await mine(s, $)
+    if (!args) {
+      await setHidden(s, $, !s.hidden)
+      return { text: s.hidden ? 'band hidden; /assets shows it again.' : `band shown: ${list.length} asset(s) this session.` }
+    }
+    if (args === 'all') {
+      s.others = !s.others
+      await setHidden(s, $, false)
+      return { text: s.others ? 'other sessions shown.' : 'other sessions folded.' }
+    }
+    const m = /^(open\s+)?(\d+)$/.exec(args)
+    if (!m) return { text: 'usage: /assets | /assets N | /assets open N | /assets all' }
+    const i = Number(m[2]) - 1
+    const item = list[i]
+    if (!item) return { text: `no row ${m[2]}: this session has ${list.length} asset(s).` }
+    if (m[1]) return { text: await openAsset($, item) }
+    s.open = s.open === i ? undefined : i
+    await setHidden(s, $, false)
+    return { text: `${item.kind} · ${item.label}: ${item.ref}` }
+  })
+
+  on('tool.call', async ($, e, next) => {
+    const ran = await next(e)
+    if (('deny' in ran && ran.deny) || ran.isError) return ran
+    // Bookkeeping must never cost the model its tool result.
+    try {
+      const found = assetsOf({ tool: e.tool, input: e as unknown as Record<string, unknown>, text: typeof ran.text === 'string' ? ran.text : '', home: s.home, cwd: s.cwd })
+      if (!found.length) return ran
+      const at = await $.clock.now()
+      const fresh: Entry[] = found.map(a => ({ ...a, project: s.project, at }))
+      await enqueue(s, async () => $.store.set(`${PREFIX}${s.sid}`, merge(await mine(s, $), fresh)))
+      // A new asset moves the rows: an open row would point at another entry.
+      s.open = undefined
+      $.ui.invalidate('ui.render')
+    } catch (err) {
+      $.ui.log(`session-assets: record failed (${errText(err)})`, { to: 'debug' })
+    }
+    return ran
+  }).catch(($, e, next) => next(e)) // An observer never refuses a tool: after `next`, this replays its result; before, it runs the tool.
+
+  // The band is shared with every plugin below (the workers panel, grok-bot-watch): this
+  // draws in what is left of maxRows, header first, and nothing when even that does not
+  // fit — a taller tree scrolls and disarms the band's digit hotkeys. No digit or letter
+  // hotkey of its own: the workers panel owns digits and r x q i a, grok-bot-watch w f o u.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.props.hasSurvey) return next(e)
+    const below = await next(e)
+    if (s.hidden) return below
+    const list = await mine(s, $)
+    if (!list.length) return below
+    const rest = await others(s, $)
+    const open = s.open !== undefined ? list[s.open] : undefined
+    const budget = Math.min(1 + PANEL_ROWS + (open ? 1 : 0) + (rest.length ? 1 : 0) + (s.others ? OTHER_ROWS : 0), e.props.maxRows - rowsOf(below))
+    if (budget < 1) return below
+    const { Box, Text, Button, Link } = $.ui.resolve(e)
+    const width = e.props.bodyColumns
+    const now = await $.clock.now()
+    const counts = (['url', 'artifact', 'file', 'image', 'commit'] as const)
+      .map(k => [k, list.filter(x => x.kind === k).length] as const)
+      .filter(([, n]) => n)
+      .map(([k, n]) => `${n} ${k}`)
+      .join(' · ')
+    const title = '▌session assets '
+    const header = Box({
+      flexDirection: 'row',
+      children: [
+        Text({ bold: true, color: ACCENT, children: title }),
+        Text({ dimColor: true, children: fit(`v${MOD_VERSION} · ${counts} · /assets N opens a row `, width - title.length - 9) }),
+        Button({ key: 'hide', label: 'hide', dimColor: true, onPress: () => void setHidden(s, $, true) }),
+      ],
+    })
+    // Each part is cut to fit by hand (grok-bot-watch's rule): a Text that flex shrinks wraps instead, and a wrapped row breaks the budget.
+    // The age comes before the place, so a long folder is what gets cut.
+    const row = (x: Entry, n: string, where: string) => {
+      const [glyph, color] = glyphOf(x)
+      const head = `  ${n} ${glyph} `
+      const label = fit(clean(x.label, 80), Math.max(8, Math.floor(width / 2) - cells(head)))
+      const tail = fit(`  ${ago(now - x.at)} ago · ${clean(x.where, 120)}${where}`, Math.max(0, width - cells(head) - cells(label)))
+      return Box({
+        key: `${n}-${x.ref}`,
+        flexDirection: 'row',
+        children: [Text({ color, children: head }), Text({ bold: true, children: label }), Text({ dimColor: true, children: tail })],
+      })
+    }
+    // The open row: the URL as a link (cmd-click in most terminals), a path or hash as text, and `/assets open N` for any terminal.
+    const detail = (x: Entry, i: number) =>
+      Box({
+        key: 'open',
+        flexDirection: 'row',
+        children: [
+          Text({ children: '       ' }),
+          x.kind === 'url' || x.kind === 'artifact' ? Link({ href: x.ref, label: fit(x.ref, width - 30) }) : Text({ children: fit(clean(x.ref, 400), width - 30) }),
+          Text({ dimColor: true, children: x.kind === 'commit' ? '' : `  /assets open ${i + 1}` }),
+        ],
+      })
+    const lines = list.flatMap((x, i) => [row(x, String(i + 1).padStart(2), ''), ...(i === s.open ? [detail(x, i)] : [])])
+    const otherLines = rest.length
+      ? [
+        Button({ key: 'others', label: `${s.others ? '▾' : '▸'} other sessions: ${rest.length}`, dimColor: true, onPress: () => {
+          s.others = !s.others
+          $.ui.invalidate('ui.render')
+        } }),
+        ...(s.others ? rest.slice(0, OTHER_ROWS).map(x => row(x, ' ·', ` @${clean(x.project, 40)}`)) : []),
+      ]
+      : []
+    const room = budget - 1
+    // Other sessions keep their one line when there is room; this session's rows give way first.
+    const keep = otherLines.length && room > 1 ? otherLines.slice(0, Math.max(1, room - 1)) : []
+    const left = room - keep.length
+    const shown = lines.length <= left ? lines : left <= 1 ? lines.slice(0, left) : [...lines.slice(0, left - 1), Text({ dimColor: true, children: `  +${lines.length - left + 1} more — /assets N` })]
+    return Box({ flexDirection: 'column', children: [below, header, ...shown, ...keep] })
+  })
+}
