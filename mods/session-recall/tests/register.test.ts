@@ -137,6 +137,8 @@ describe('assetsOf', () => {
     expect(made('mcp__plugin_context-mode_context-mode__ctx_execute', { language: 'shell', code: 'wrangler deploy' }, 'https://w.me.workers.dev')).toEqual(['url https://w.me.workers.dev'])
     expect(made('mcp__plugin_context-mode_context-mode__ctx_batch_execute', { commands: [{ label: 'd', command: 'npm run deploy' }] }, 'https://app.pages.dev')).toEqual(['url https://app.pages.dev'])
     expect(made('mcp__claude_ai_Atlassian_Rovo__createJiraIssue', { summary: 'x' }, 'https://x.atlassian.net/browse/AB-1')).toEqual(['url https://x.atlassian.net/browse/AB-1'])
+    expect(['mcp__x__create_draft', 'mcp__x__sendMessage', 'mcp__x__upload_image', 'mcp__x__CreateIssue', 'mcp__x__CREATE_ISSUE', 'mcp__x__v2Create', 'mcp__x__create2', 'mcp__x__drive.files.create', 'mcp__x__get_or_create_doc', 'mcp__x__getOrCreateDoc'].map(t => made(t, {}, 'https://m.dev/1').length), 'a creator keeps its link, in any case').toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    expect(['mcp__x__postmortem', 'mcp__x__getPostComments', 'mcp__x__search_posts', 'mcp__x__view_post', 'mcp__x__deletePost', 'mcp__x__createdBy'].map(t => made(t, {}, 'https://m.dev/1').length), 'a read, a removal or a word that only starts like a verb does not').toEqual([0, 0, 0, 0, 0, 0])
     expect(made('WebFetch', { url: 'https://docs.x.dev/a', prompt: 'p' }), 'a page it read').toEqual([])
     expect(made('Read', { file_path: '/w/tests/fixture.png' }), 'a picture it looked at').toEqual([])
     expect(made('Write', { file_path: '/w/report.md', content: 'x' }, 'ok')).toEqual(['file /w/report.md'])

@@ -58,6 +58,17 @@ const CTX_RUN_RE = /^mcp__.*__ctx_(?:execute|batch_execute)$/
 const ctxCommand = (input: Record<string, unknown>) =>
   Array.isArray(input.commands) ? input.commands.map(x => String((x as { command?: unknown })?.command ?? '')).join('\n') : input.language === 'shell' && typeof input.code === 'string' ? input.code : ''
 /**
+ * A tool name with a making verb as a word, in any case (`create_draft`, `createJiraIssue`, `CreateIssue`, `CREATE_ISSUE`),
+ * or `drive.files.create`, and not led by a read or a removal (`getPostComments`, `delete_post`) unless it says so
+ * (`get_or_create_doc`); `postmortem` has no such word.
+ */
+const makes = (name: string) => {
+  const words = name.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/([a-zA-Z])(\d)/g, '$1 $2').toLowerCase().split(/[\s_.:/-]+/)
+  // `get_or_create_doc` makes one too.
+  const led = /^(?:get|list|search|read|query|fetch|find|lookup|view|show|retrieve|describe|delete|remove)$/.test(words[0] ?? '') && !words.some(w => /^(?:or|and|then)$/.test(w))
+  return !led && words.some(w => /^(?:create|deploy|publish|upload|send|post)$/.test(w))
+}
+/**
  * Of what `assetsOf` found in a subagent's call, what it made: a file, a picture, an Artifact, a commit, a push, and the
  * links of a deploy or a new PR (in Bash or context-mode) or of an MCP tool that creates (`createJiraIssue`). Its other
  * links, the pages it fetched (`source`) and the pictures it Read are its research and probes.
@@ -66,7 +77,7 @@ export function subagentMade(c: Pick<Call, 'tool' | 'input'>, a: Asset): boolean
   if (a.kind === 'source' || c.tool === 'Read') return false
   if (a.kind !== 'url' || a.label.startsWith('push: ')) return true
   const command = c.tool === 'Bash' ? String(c.input.command ?? '') : CTX_RUN_RE.test(c.tool) ? ctxCommand(c.input) : ''
-  return DEPLOY_RE.test(command) || /\bgh\s+pr\s+create\b/.test(command) || (c.tool.startsWith('mcp__') && /create|deploy|publish|upload|send|post/i.test(c.tool.split('__').pop() ?? ''))
+  return DEPLOY_RE.test(command) || /\bgh\s+pr\s+create\b/.test(command) || (c.tool.startsWith('mcp__') && makes(c.tool.split('__').pop() ?? ''))
 }
 /** A ref longer than this is not something a person opens; it would only fill the store. */
 const MAX_REF = 2048

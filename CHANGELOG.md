@@ -1,5 +1,9 @@
 # Changelog
 
+## session-recall 0.9.12
+
+A subagent's MCP call keeps its link only when the tool's name has a making verb (`create`, `deploy`, `publish`, `upload`, `send`, `post`) as a word, in any case and split at `_ - . : /`, case changes and digits: `create_draft`, `createJiraIssue`, `CreateIssue`, `CREATE_ISSUE`, `drive.files.create`, `create2`. 0.9.11 matched the verb anywhere in the name, so `postmortem` or a read such as `getPostComments` kept the links a subagent's research printed. A name led by a read or a removal (`get`, `list`, `search`, `read`, `query`, `fetch`, `find`, `lookup`, `view`, `show`, `retrieve`, `describe`, `delete`, `remove`) does not count, unless it says `or`, `and` or `then` (`get_or_create_doc`). Checked against the 124 MCP tool names in this machine's transcripts: every creator among them (`createJiraIssue`, `createConfluencePage`, `create_draft`, `send_message`, `upload_image`) still counts. A verb run into another word (`createdraft`, `uploads`) is not seen.
+
 ## session-recall 0.9.11
 
 A link a subagent's call printed adds no row, unless the call deployed, published, released, uploaded or opened a PR (in Bash or a context-mode shell) or was an MCP tool that creates, sends or posts (`createJiraIssue`, a Gmail draft). Seen on the real band after 0.9.10: row 3 was `github.com/o/r/pull/9`, a fixture URL a reviewer subagent's probe script printed, labelled with the subagent's own "Run probe script". On the subagent transcripts of the last 14 days (380 files), their calls gave 50 per-call URL hits; a sample of 40 read mostly as research and probes (release pages and docs a researcher read, `example.com`, fixture and test-server URLs, a tab list).
