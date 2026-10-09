@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# W42-23 smoke for docs-vs-code-audit: two groups that report the same file never get two
+# fixers on it, and a fixer that edits a file it does not own is not reported as a success.
+# Runs the recipe body with stubbed agent()/parallel(); no model is called.
+set -u
+W="$(CDPATH= cd -- "$(dirname -- "$0")/../skills/using-workflows/workflows" && pwd)"
+node --input-type=module - "$W/docs-vs-code-audit.workflow.js" <<'EOF'
+import fs from 'node:fs'
+const body = fs.readFileSync(process.argv[2], 'utf8').replace(/^export const meta/m, 'const meta')
+const AsyncFn = Object.getPrototypeOf(async () => {}).constructor
+const issue = d => ({ type: 'stale-fact', detail: d, fix: 'f' })
+const run = async (audit, fix) => {
+  const st = { fixes: {} }
+  const agent = async (prompt, o) => {
+    const [kind, key] = o.label.split(':')
+    if (kind === 'audit') return audit[key]
+    if (kind === 'fix') { st.fixes[key] = JSON.parse(prompt.match(/may edit ONLY these files \(paths relative to [^)]*\): (\[.*?\])\./)[1]); return fix(key, st.fixes[key]) }
+    return 'sweep'
+  }
+  const parallel = async thunks => Promise.all(thunks.map(t => t().catch(() => null)))
+  const args = { repoPath: '/r', groups: [{ key: 'a', scope: 'docs/a' }, { key: 'b', scope: 'docs/' }] }
+  const out = await new AsyncFn('args', 'agent', 'parallel', 'phase', 'log', body)(args, agent, parallel, () => {}, () => {})
+  return { out, st }
+}
+let fail = 0
+const check = (name, ok, got) => { if (!ok) fail = 1; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : ` — got: ${JSON.stringify(got)}`}`) }
+
+// both groups report docs/a/x.md (b's scope contains a's); b also owns docs/b/y.md
+const audit = {
+  a: { files: [{ path: 'docs/a/x.md', verdict: 'minor-fixes', issues: [issue('a1')] }] },
+  b: { files: [{ path: '/r/docs/a/x.md', verdict: 'minor-fixes', issues: [issue('b1')] }, { path: './docs/b/y.md', verdict: 'minor-fixes', issues: [issue('b2')] }] },
+}
+const honest = (key, own) => ({ edited: own, skipped: [], summary: `${key} ok` })
+let { out, st } = await run(audit, honest)
+const all = Object.values(st.fixes).flat()
+check('shared file goes to exactly one fixer', all.filter(p => p === 'docs/a/x.md').length === 1, st.fixes)
+check('owner is the first group to report it', JSON.stringify(st.fixes.a) === '["docs/a/x.md"]', st.fixes)
+check('both non-conflicting changes land', JSON.stringify(st.fixes.b) === '["docs/b/y.md"]' && out.ok === true, out)
+check('shared file is reported', out.shared_files.length === 1 && out.shared_files[0].owner === 'a', out.shared_files)
+
+// b's fixer also writes a's file: its success must not stand
+;({ out } = await run(audit, (key, own) => ({ edited: key === 'b' ? [...own, 'docs/a/x.md'] : own, skipped: [], summary: 's' })))
+check('stray edit fails its group', out.ok === false && out.failed_groups.includes('b'), out)
+check('owner group still passes', out.groups.find(g => g.group === 'a').failed === false, out.groups)
+process.exit(fail)
+EOF

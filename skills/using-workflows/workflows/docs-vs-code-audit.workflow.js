@@ -97,44 +97,60 @@ const failClosedRefutes = (votes, total) => { const ok = votes.filter(Boolean); 
 // ── /SAFE_LIB ──
 
 phase('Audit')
-const results = await pipeline(
-  a.groups,
-  (g) => agent(
-    `You are a READ-ONLY documentation auditor. Do not edit any file.\n${CONTEXT}\n` +
-    `Your scope (audit EVERY file in it): ${g.scope}\n` +
-    `For each file: read it fully, then verify every factual claim against the actual code/config using rg and Read. ` +
-    `Check: stale facts, broken relative links (target file must exist), references to deleted/renamed files, ` +
-    `contradictions with the ground truth above, missing coverage where the doc's topic demands it, ` +
-    `and structural problems (duplicated sections, orphan headings). ` +
-    `Do NOT report stylistic preferences as issues; 'wording' only for genuinely confusing or wrong statements. ` +
-    `Return findings for every file in scope (verdict 'clean' with empty issues when fine).`,
-    { label: `audit:${g.key}`, phase: 'Audit', schema: FINDINGS_SCHEMA, model, effort, isolation, agentType }
-  ),
-  (findings, g) => {
-    // Bind the group key into every return path so the final map never relies on
-    // post-filter index alignment with a.groups (a dropped/null item would misalign labels).
-    // Guard BOTH null paths: a null audit (agent failed) would otherwise throw on
-    // findings.files and silently drop the whole group; a null fix would spread to {}
-    // and lose edited/skipped/summary. Mark such groups failed instead of swallowing them.
-    if (!findings || !Array.isArray(findings.files)) {
-      return { group: g.key, edited: [], skipped: [], summary: `${g.key}: AUDIT FAILED (auditor returned null) — not audited, not fixed`, failed: true, findings: null }
-    }
-    const actionable = findings.files.filter(f => f.issues.length > 0)
-    if (actionable.length === 0) return { group: g.key, edited: [], skipped: [], summary: `${g.key}: all clean`, failed: false, findings }
-    return agent(
-      `You are a documentation fixer with EXCLUSIVE ownership of: ${g.scope}. Other agents own other docs directories — do NOT edit anything outside your scope, and do not touch code.\n${CONTEXT}\n` +
-      `Apply these audited findings by editing the files directly. Re-verify each claimed issue against the code before fixing (the auditor may have erred); skip and record any finding you can refute. ` +
-      `Keep edits surgical: fix the facts, repair the links, remove dead references. Match each file's existing language and tone. Do not pad, do not add new sections unless a finding says coverage is missing. ` +
-      `For 'delete-candidate' verdicts: do NOT delete; note it in your summary instead.\n` +
-      `FINDINGS:\n${JSON.stringify(actionable, null, 2)}\n` +
-      `Return the list of files you edited, findings you skipped (with reason), and a 2-3 sentence summary.`,
-      { label: `fix:${g.key}`, phase: 'Fix', schema: FIX_SCHEMA, model, effort, isolation, agentType }
-    ).then(r => r
-      ? { ...r, group: g.key, failed: false, findings }
-      : { group: g.key, edited: [], skipped: [], summary: `${g.key}: FIX FAILED (fixer returned null) — audited findings NOT applied`, failed: true, findings })
+// Barrier: file ownership needs every group's file list — scopes are free text and can overlap.
+const audits = await parallel(a.groups.map(g => () => agent(
+  `You are a READ-ONLY documentation auditor. Do not edit any file.\n${CONTEXT}\n` +
+  `Your scope (audit EVERY file in it): ${g.scope}\n` +
+  `For each file: read it fully, then verify every factual claim against the actual code/config using rg and Read. ` +
+  `Check: stale facts, broken relative links (target file must exist), references to deleted/renamed files, ` +
+  `contradictions with the ground truth above, missing coverage where the doc's topic demands it, ` +
+  `and structural problems (duplicated sections, orphan headings). ` +
+  `Do NOT report stylistic preferences as issues; 'wording' only for genuinely confusing or wrong statements. ` +
+  `Return findings for every file in scope (verdict 'clean' with empty issues when fine).`,
+  { label: `audit:${g.key}`, phase: 'Audit', schema: FINDINGS_SCHEMA, model, effort, isolation, agentType }
+)))
+
+// W42-23: one writer per file. The first group that reports a file owns it and gets every
+// group's findings on it; the others skip it. Two fixers never edit the same file at once.
+const norm = p => String(p).replace(`${repo.replace(/\/$/, '')}/`, '').replace(/^\.\//, '')
+const owner = new Map(), merged = new Map(), shared = []
+audits.forEach((f, i) => {
+  if (!f || !Array.isArray(f.files)) return
+  for (const file of f.files.filter(x => x.issues.length > 0)) {
+    const p = norm(file.path)
+    if (!owner.has(p)) { owner.set(p, i); merged.set(p, { ...file, path: p, issues: [...file.issues] }); continue }
+    merged.get(p).issues.push(...file.issues)
+    shared.push({ path: p, owner: a.groups[owner.get(p)].key, from: a.groups[i].key })
   }
-)
-// A pipeline stage that THROWS (not just an agent returning null) drops its item to a
+})
+if (shared.length) log(`${shared.length} file(s) reported by two groups; each goes to one owner: ${JSON.stringify(shared)}`)
+
+phase('Fix')
+const results = await parallel(a.groups.map((g, i) => async () => {
+  // Bind the group key into every return path; mark null audit/fix as failed, never swallow.
+  const findings = audits[i]
+  if (!findings || !Array.isArray(findings.files)) {
+    return { group: g.key, edited: [], skipped: [], summary: `${g.key}: AUDIT FAILED (auditor returned null) — not audited, not fixed`, failed: true, findings: null }
+  }
+  const actionable = [...merged].filter(([p]) => owner.get(p) === i).map(([, f]) => f)
+  if (actionable.length === 0) return { group: g.key, edited: [], skipped: [], summary: `${g.key}: nothing to fix in files it owns`, failed: false, findings }
+  const own = actionable.map(f => f.path)
+  const r = await agent(
+    `You are a documentation fixer. You may edit ONLY these files (paths relative to ${repo}): ${JSON.stringify(own)}. Other agents edit other files at the same time — do NOT edit any other file, and do not touch code.\n${CONTEXT}\n` +
+    `Apply these audited findings by editing the files directly. Re-verify each claimed issue against the code before fixing (the auditor may have erred); skip and record any finding you can refute. ` +
+    `Keep edits surgical: fix the facts, repair the links, remove dead references. Match each file's existing language and tone. Do not pad, do not add new sections unless a finding says coverage is missing. ` +
+    `For 'delete-candidate' verdicts: do NOT delete; note it in your summary instead.\n` +
+    `FINDINGS:\n${JSON.stringify(actionable, null, 2)}\n` +
+    `Return the list of files you edited (paths relative to the repo), findings you skipped (with reason), and a 2-3 sentence summary.`,
+    { label: `fix:${g.key}`, phase: 'Fix', schema: FIX_SCHEMA, model, effort, isolation, agentType }
+  )
+  if (!r) return { group: g.key, edited: [], skipped: [], summary: `${g.key}: FIX FAILED (fixer returned null) — audited findings NOT applied`, failed: true, findings }
+  const stray = r.edited.map(norm).filter(p => !own.includes(p))
+  return stray.length
+    ? { ...r, group: g.key, failed: true, findings, summary: `${g.key}: REJECTED — edited files it does not own ${JSON.stringify(stray)}; another fixer may have written them too` }
+    : { ...r, group: g.key, failed: false, findings }
+}))
+// A parallel() thunk that THROWS (not just an agent returning null) drops its item to a
 // raw null in results. Detect those BY INDEX before filtering, else they vanish from the
 // report and `ok` would stay true — the very silent-failure class this guards against.
 const droppedGroups = nullIndices(results).map(i => (a.groups[i] && a.groups[i].key) || `group#${i}`)
@@ -166,5 +182,6 @@ return {
   groups: coalesceNull(results, i => ({ group: (a.groups[i] && a.groups[i].key) || `group#${i}`, summary: 'PIPELINE ERROR (stage threw — group dropped to null)', edited: [], skipped: [], failed: true }))
     .map(r => ({ group: r.group, summary: r.summary, edited: r.edited, skipped: r.skipped, failed: !!r.failed })),
   failed_groups: failedGroups,
+  shared_files: shared,
   consistency,
 }
