@@ -219,6 +219,9 @@ During development: `claude --plugin-dir mods/session-assets`.
   the live hook keeps it.
 - A picture or video path with a space in it is read only when quoted or escaped.
 - A remote URL is never checked.
+- After the TUI puts quotes in the prompt, the cursor is on the empty line under the last one: the engine moves it to
+  the end of each fill, and no hook can place it (tried 2026-10-09: an insert then an append still ends at the end).
+  Move up to comment on the others.
 - The replay reads what `$.session.messages()` gives: at most the newest 4096 messages.
   It runs at session start when the list is empty, and `/reload-plugins` starts the session again
   only when the plugin's version changed; to replay at any time, use `/assets clear`.
