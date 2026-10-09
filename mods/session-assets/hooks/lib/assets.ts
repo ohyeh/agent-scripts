@@ -163,7 +163,8 @@ export function assetsOfTranscript(msgs: readonly { role: string; text: string; 
     // a page Claude read (a source) is the exception, it becomes the link the reply points at.
     out.push(...assetsOfText(m.text, 'reply', c).filter(a => !out.some(x => x.ref === a.ref && x.kind !== 'source')))
     // `extra` (a push git named) never repeats what assetsOf found in the same call: that needs a `To` line, it lacks one.
-    for (const u of m.toolUses ?? []) if (!u.isError && typeof u.text === 'string') out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text, ...c, replay: true }), ...extra(u).filter(a => !out.some(x => x.ref === a.ref)))
+    // A Read of a picture or a sent file needs no text: an image result has none to give.
+    for (const u of m.toolUses ?? []) if (!u.isError && (typeof u.text === 'string' || u.tool === 'Read' || u.tool === 'SendUserFile')) out.push(...assetsOf({ tool: u.tool, input: u.input ?? {}, text: u.text ?? '', ...c, replay: true }), ...extra(u).filter(a => !out.some(x => x.ref === a.ref)))
   }
   return out
 }

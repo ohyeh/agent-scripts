@@ -181,7 +181,7 @@ describe('pointing and checking', () => {
     expect(call('Read', { file_path: '/w/s/live-btc.png' }, '[image]', true).map(a => [a.kind, a.ref]), 'a picture Read is shown in the conversation').toEqual([['image', '/w/s/live-btc.png']])
     expect(call('Read', { file_path: '/w/src/a.ts' }, 'https://x.dev/a', true)).toEqual([])
     expect(call('SendUserFile', { files: ['/w/s/live-btc.png', '/w/r.md', '/w/s/live-btc.png'], caption: '首屏第二步上線' }).map(a => [a.kind, a.label]), 'a file sent to the person, by its caption').toEqual([['image', '首屏第二步上線'], ['file', '首屏第二步上線']])
-    expect(assetsOfTranscript([{ role: 'assistant', text: '', toolUses: [{ tool: 'Read', input: { file_path: '/w/s/a.png' }, text: '' }] }], { home: HOME, cwd: '/w' }).map(a => a.kind), 'the replay keeps a picture Read').toEqual(['image'])
+    expect(assetsOfTranscript([{ role: 'assistant', text: '', toolUses: [{ tool: 'Read', input: { file_path: '/w/s/a.png' } }, { tool: 'SendUserFile', input: { files: ['/w/s/b.png'] } }] }], { home: HOME, cwd: '/w' }).map(a => a.kind), 'the replay keeps a picture Read and a sent one, with no text').toEqual(['image', 'image'])
     expect(call('Bash', { command: 'npm test', description: 'Run' }, 'saved /w/test-results/fail.png').map(a => a.kind), 'a test run\'s screenshot is kept').toEqual(['image'])
   })
 
