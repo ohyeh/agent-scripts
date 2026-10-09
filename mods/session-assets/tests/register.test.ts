@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
-import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
+import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, localPort, parseCwd, parseListen, refsIn, isLocalHost, merge, rowsOf, shortDir } from '../hooks/lib/assets.ts'
 
 const HOME = '/h/me'
 const call = (tool: string, input: Record<string, unknown>, text = '', readOnly = false) => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w', readOnly })
@@ -112,6 +112,23 @@ describe('assetsOf', () => {
 
   test('file and page readers add nothing', async () => {
     for (const tool of ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch']) expect(call(tool, { file_path: '/a.png' }, 'https://x.dev /b.png')).toEqual([])
+  })
+})
+
+describe('pointing and checking', () => {
+  test('#aN is a row; #123 (an issue) and x#a4 are not', async () => {
+    expect(refsIn('#a3 掛了，比對 (#a12) 和 #a3；fix #123, x#a4')).toEqual([3, 12])
+  })
+
+  test('a local URL has a port; a remote one has none', async () => {
+    const u = (ref: string, isLocal: boolean) => ({ kind: 'url' as const, ref, label: '', where: '', isLocal })
+    expect([localPort(u('http://localhost:5173/', true)), localPort(u('https://127.0.0.1/x', true)), localPort(u('http://localhost/', true)), localPort(u('https://x.dev:8443/', false))]).toEqual([5173, 443, 80, undefined])
+  })
+
+  test('lsof output: the listening process and its folder, as this macOS prints them', async () => {
+    expect(parseListen('p655\ncControlCenter\nf8\nn*:7000\n')).toEqual({ pid: 655, command: 'ControlCenter' })
+    expect(parseListen('')).toBeUndefined()
+    expect(parseCwd('p655\nfcwd\nn/w/app\n')).toBe('/w/app')
   })
 })
 
@@ -300,7 +317,8 @@ describe('band', () => {
     const text = JSON.stringify(await $.command.run(cmd('list')))
     expect(text).toContain('URLs (1)')
     expect(text).toContain('Files (1)')
-    expect(text).toMatch(/ 2  Start dev server/)
+    expect(text).toContain('#a2  Start dev server · 0s ago · up: vite (pid 4242) in .')
+    expect(text).toContain('#a1  plan.md · 0s ago · exists')
     expect(text).toContain('http://localhost:5173/')
   })
 
@@ -310,6 +328,34 @@ describe('band', () => {
     await $.session.start(start)
     expect(JSON.stringify(await $.command.run(cmd('clear')))).toContain('cleared 1 asset(s); the transcript gave back 1')
     expect((w.kv.get('session-assets.s.sess-A') as Array<{ ref: string }>).map(x => x.ref)).toEqual(['https://x.dev/p'])
+  })
+
+  test('the model asks: its tool finds rows by words, checks local URLs, and is not recorded itself', async ($, on) => {
+    const w = world(on)
+    w.kv.set('session-assets.s.sess-B', [{ kind: 'url', ref: 'http://localhost:3000/', where: 'localhost:3000', isLocal: true, label: 'Start api', project: 'other', at: 0 }])
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/plan.md', content: 'x' })
+    const one = JSON.stringify(await $.tool.call({ tool: 'mcp__session-assets__assets', query: 'dev server' } as never))
+    expect(one).toContain('#a2 url \\"Start dev server\\" http://localhost:5173/ · localhost:5173 · 0s ago · up: vite (pid 4242) in .')
+    expect(one).not.toContain('plan.md')
+    const all = JSON.stringify(await $.tool.call({ tool: 'mcp__session-assets__assets', query: 'start', all_sessions: true } as never))
+    expect(all).toContain('Start api')
+    expect(all).toContain('down: nothing listens on :3000')
+    expect(all).toContain('session in other')
+    expect((w.kv.get('session-assets.s.sess-A') as unknown[]).length, 'the tool answer adds nothing').toBe(2)
+  })
+
+  test('the person points: #a1 goes to the model as the exact ref and its status; #123 adds nothing', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    await $.prompt.submit({ text: '#a1 掛了嗎', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)?.join('\n')).toContain('#a1 url "Start dev server" http://localhost:5173/ · localhost:5173 · 0s ago · up: vite (pid 4242) in .')
+    await $.prompt.submit({ text: 'fix #123', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)).toBeUndefined()
+    await $.prompt.submit({ text: '#a9 ?', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)?.join('\n')).toContain('#a9: no such row')
   })
 
   test('a failed store write still returns the tool result', async ($, on) => {
@@ -336,12 +382,17 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   mock.clock(on)
   const kv = new Map<string, unknown>()
   const runs: string[][] = []
+  const contexts: (string[] | undefined)[] = []
   on('session.id', () => ({ value: 'sess-A' }))
   on('session.messages', () => ({ value: opts.messages ?? [] }) as never)
   on('session.usage', () => ({ value: { startedAt: 1000 } }) as never)
   on('turn.complete', ($, e) => ({ text: e.answer }) as never)
   // A prompt starting DROP is refused beneath, as a settings hook's block would be.
-  on('prompt.submit', ($, e) => (e.text.startsWith('DROP') ? { drop: 'blocked' } : { text: e.text }) as never)
+  on('prompt.submit', ($, e) => {
+    contexts.push(e.context ? [...e.context] : undefined)
+    return (e.text.startsWith('DROP') ? { drop: 'blocked' } : { text: e.text }) as never
+  })
+  on('tool.register', ($, e) => ({ value: { tool: e.name } }) as never)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('env.get', () => ({ value: HOME }))
   on('store.get', ($, e) => ({ value: kv.get(e.key) }))
@@ -355,8 +406,14 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
     kv.set(e.key, e.value)
     return { value: undefined }
   })
+  // lsof: vite listens on :5173 from the session's folder; nothing else listens.
   on('process.run', ($, e) => {
-    runs.push([...e.argv])
+    const argv = [...e.argv]
+    if (argv[0] === 'lsof') {
+      const stdout = argv.includes('-iTCP:5173') ? 'p4242\ncvite\n' : argv.includes('4242') ? 'p4242\nfcwd\nn/work/retro-w41\n' : ''
+      return { value: { exitCode: stdout ? 0 : 1, stdout, stderr: '' } }
+    }
+    if (argv[0] !== 'test') runs.push(argv)
     return { value: { exitCode: 0, stdout: '', stderr: '' } }
   })
   on('ui.render', () => ({ type: 'engine', ref: 0 }) as never)
@@ -365,7 +422,7 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   on('command.register', ($, e) => ({ value: { command: e.name } }))
   on('tool.call', { tool: 'Bash' }, () => ({ result: { stdout: '' }, text: opts.text ?? '  ➜  Local:   http://localhost:5173/\n', ...(opts.isError ? { isError: true } : {}) }) as never)
   on('tool.call', { tool: 'Write' }, () => ({ result: {}, text: 'File created' }) as never)
-  return { kv, runs }
+  return { kv, runs, contexts }
 }
 
 function textOf(node: unknown): string {

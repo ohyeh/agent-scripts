@@ -1,11 +1,24 @@
 # session-assets
 
-A Claude Code function-hook mod. A session makes and prints things: a dev server's
+A Claude Code function-hook mod. A session makes things: a dev server on
 `http://localhost:5173/`, a published Artifact, the files it wrote, a screenshot, a
-commit. After a while you cannot tell which is which or find them again. This mod
-keeps them in a band above the prompt, each one labelled with what produced it. It
-is built the way `grok-bot-watch` and the `tmux-agent` workers panel are built: one
-band, per-session state, and slash commands as the path that works in every terminal.
+commit. After a while neither you nor Claude can say which URL is which, whether that
+server still answers, or where the screenshot went. This mod keeps a numbered list of
+them per session, and puts it where both of you can use it:
+
+| Who | Does | What happens |
+|---|---|---|
+| You | write `#a1` in a prompt: `#a1 掛了，修一下` | Claude gets row 1 beside your prompt: its exact URL or path, what made it, and its state now (`up: vite (pid 4242) in ./web`, `down: nothing listens on :5173`, `exists`, `missing`). No copying URLs, no guessing which server you meant. |
+| Claude | calls its `assets` tool: "the preview URL from before", "is :5173 still up", "which session runs :3000" | It gets the rows that match, with the same live state, from this session or from all of them. This is how it gets an exact port, path or hash back after the context was compacted. |
+| You | glance at the band, or run `/assets list`, `/assets open N` | You see what was made, by what, and when; open one in the browser or its app. |
+
+The live state is what answers "who is who" for local URLs: the process listening on
+the port, and the folder it runs in. It is checked on demand (a `#aN`, the tool,
+`/assets list`), never while drawing. Remote URLs are not checked: a request from a hook
+to an arbitrary host is a side effect nobody asked for.
+
+Built the way `grok-bot-watch` and the `tmux-agent` workers panel are built: one band,
+per-session state, slash commands that work in every terminal, and a tool for the model.
 
 ## Band
 
@@ -13,12 +26,12 @@ Above the prompt, only after this session has an asset. Other sessions' assets a
 folded into one line.
 
 ```
-▌session assets 3 url · 1 artifact · 2 file · 1 commit · /assets N opens a row   [ hide ]
-   1 ● Start dev server        2m ago · localhost:5173
-       http://localhost:5173/  /assets open 1
-   2 ◆ reply: Docs             5m ago · x.dev
-   3 ◈ Retro W41               10m ago · claude.ai
-   4 ⎇ fix: strip ANSI         12m ago · 9685ae2
+▌session assets 3 url · 1 artifact · 2 file · 1 commit · #aN in a prompt · /assets list   [ hide ]
+   a1 ● Start dev server        2m ago · localhost:5173
+        http://localhost:5173/  /assets open 1
+   a2 ◆ reply: Docs             5m ago · x.dev
+   a3 ◈ Retro W41               10m ago · claude.ai
+   a4 ⎇ fix: strip ANSI         12m ago · 9685ae2
   +3 more — /assets N
   ▸ other sessions: 3 · 12 assets
 ```
@@ -64,14 +77,34 @@ folded into one line.
 | Command | Does |
 |---|---|
 | `/assets` | hide or show the band (kept across reloads) |
-| `/assets N` | open or close row N: the full URL as a link (cmd-click opens it), or the path or hash |
+| `/assets N` (or `a N`, `#aN`) | open or close row N: the full URL as a link (cmd-click opens it), or the path or hash |
 | `/assets open N` | open row N: `open <url or path>`, as an argv; only http(s) or an absolute path |
-| `/assets list` | every entry, grouped by kind (URLs, Artifacts, Images, Files, Commits), numbered as the band, with its full URL or path |
+| `/assets list` | every entry, grouped by kind (URLs, Artifacts, Images, Files, Commits), numbered `#aN` as the band, with its full URL or path and, for the first 10 local URLs and paths, its state now |
 | `/assets clear` | start this session's list over from its transcript |
 | `/assets all` | unfold or fold the other sessions' assets |
 
 The `[ hide ]` and `▸ other sessions` buttons do the same, but in Warp `ctrl+x tab`
 does not reach the band (see the tmux-agent README), so use the commands there.
+
+## Pointing at a row: `#aN`
+
+`#a3` anywhere in a prompt you typed (or sent through Remote Control) refers to row 3.
+The prompt itself is not changed; the rows go to Claude beside it as a note it reads and
+you do not see. `#123` (an issue number) and `x#a3` are not references. A number past the
+end of the list is reported to Claude as `no such row`.
+
+## The model's tool: `assets`
+
+`mcp__session-assets__assets` with `query` (words that must all appear in the label,
+URL or path, host or folder, or project), `kind`, `all_sessions` (default false) and
+`check` (default true). It answers up to 30 rows, one per line:
+
+```
+#a2 url "Start dev server" http://localhost:5173/ · localhost:5173 · 3m ago · up: vite (pid 4242) in ./web
+- url "Start api" http://localhost:3000/ · localhost:3000 · 1h ago · down: nothing listens on :3000 · session in api
+```
+
+Its own answers are not kept as assets.
 
 ## Storage
 

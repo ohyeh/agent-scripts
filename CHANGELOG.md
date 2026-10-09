@@ -1,5 +1,14 @@
 # Changelog
 
+## session-assets 0.4.0
+
+- The list is now for using, not only for looking at. Three paths, each checked in a live session:
+  - **You point, Claude gets it.** `#a3` in a prompt sends row 3 to Claude beside the prompt: the exact URL or path, what made it, and its state now. `#123` (an issue) is not a reference.
+  - **Claude asks.** A model tool, `assets` (`query`, `kind`, `all_sessions`, `check`), answers the matching rows with the same state: how Claude gets an exact port, path or hash back after compaction, or finds which session runs a port.
+  - **Who is who.** A local URL is checked on demand: the process listening on its port and the folder it runs in (`up: python3.12 (pid 10799) in .`), or `down: nothing listens on :8765`. A path: `exists` or `missing`. Shown by `#aN`, the tool and `/assets list` (first 10); never checked while drawing, and remote URLs are never requested.
+- Rows are numbered `a1`, `a2` in the band; `/assets N` also takes `aN` and `#aN`.
+- The mod's own tool calls are not kept as assets.
+
 ## session-assets 0.3.0
 
 - Less noise, found by using it on a long session: of 21 URLs, about 20 were links that `sed`/`cat`/context-mode had read, or URLs inside the command itself.

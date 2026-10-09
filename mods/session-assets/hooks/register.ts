@@ -1,8 +1,12 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-import { type Asset, type Entry, ago, assetsOf, assetsOfText, assetsOfTranscript, cells, clean, cut, fit, glyphOf, merge, rowsOf } from './lib/assets.ts'
+import { type Asset, type Entry, ago, assetsOf, assetsOfText, assetsOfTranscript, cells, clean, cut, findAssets, fit, glyphOf, localPort, merge, parseCwd, parseListen, refsIn, rowsOf, shortDir } from './lib/assets.ts'
 
-const MOD_VERSION = '0.3.0'
+const MOD_VERSION = '0.4.0'
+/** The model calls it as this: `mcp__<plugin>__<name>`. */
+const TOOL = 'mcp__session-assets__assets'
+/** Checks run per answer at most: each local URL is two `lsof` runs. */
+const MAX_CHECKS = 10
 /** One store key per session: a shared list would be a read-modify-write race between sessions. */
 const PREFIX = 'session-assets.s.'
 const PANEL_KEY = 'session-assets.panel'
@@ -80,16 +84,61 @@ const KIND_TITLE: Record<Entry['kind'], string> = { url: 'URLs', artifact: 'Arti
 const when = (x: Entry, now: number) => (x.replayed ? 'earlier' : `${ago(now - x.at)} ago`)
 
 /** `/assets list`: every entry, grouped by kind, numbered as the band numbers them (so `/assets open N` works from it). */
-function listText(list: Entry[], now: number): string {
+function listText(list: Entry[], now: number, status: ReadonlyMap<Entry, string> = new Map()): string {
   if (!list.length) return 'no assets this session yet.'
   const out: string[] = []
   for (const kind of ['url', 'artifact', 'image', 'file', 'commit'] as const) {
     const rows = list.map((x, i) => [x, i + 1] as const).filter(([x]) => x.kind === kind)
     if (!rows.length) continue
     out.push(`${KIND_TITLE[kind]} (${rows.length})`)
-    for (const [x, n] of rows) out.push(`  ${String(n).padStart(2)}  ${clean(x.label, 60)} · ${when(x, now)}\n      ${clean(x.ref, 300)}`)
+    for (const [x, n] of rows) out.push(`  #a${n}  ${clean(x.label, 60)} · ${when(x, now)}${status.get(x) ? ` · ${status.get(x)}` : ''}\n       ${clean(x.ref, 300)}`)
   }
   return out.join('\n')
+}
+
+/**
+ * Is it still there, and whose is it: a local URL's listening process and its folder (`lsof`), a path's existence.
+ * Answers the two questions a list of URLs cannot: which server is this, and does it still answer. Remote URLs are not
+ * checked: a request to an arbitrary host from a hook is a side effect nobody asked for.
+ */
+async function check(s: State, $: $, x: Entry): Promise<string> {
+  const port = localPort(x)
+  if (port !== undefined) {
+    const up = await $.process.run(['lsof', '-nP', `-iTCP:${port}`, '-sTCP:LISTEN', '-Fpc'], { timeoutMs: 3000 })
+    const proc = up.exitCode === 0 ? parseListen(up.stdout) : undefined
+    if (!proc) return `down: nothing listens on :${port}`
+    const cwd = parseCwd((await $.process.run(['lsof', '-a', '-p', String(proc.pid), '-d', 'cwd', '-Fn'], { timeoutMs: 3000 })).stdout)
+    return `up: ${clean(proc.command, 40)} (pid ${proc.pid})${cwd ? ` in ${shortDir(cwd, s)}` : ''}`
+  }
+  if ((x.kind === 'file' || x.kind === 'image') && x.ref.startsWith('/')) return (await $.process.run(['test', '-e', x.ref], { timeoutMs: 3000 })).exitCode === 0 ? 'exists' : 'missing'
+  return ''
+}
+
+/** Checks the first MAX_CHECKS entries that have something to check; a check that fails says so in place of a status. */
+async function checks(s: State, $: $, list: readonly Entry[]): Promise<Map<Entry, string>> {
+  const out = new Map<Entry, string>()
+  for (const x of list.filter(x => localPort(x) !== undefined || ((x.kind === 'file' || x.kind === 'image') && x.ref.startsWith('/'))).slice(0, MAX_CHECKS)) {
+    out.set(x, await check(s, $, x).catch(err => `not checked (${errText(err)})`))
+  }
+  return out
+}
+
+/** One entry as the model reads it: number, kind, label, the exact ref, place, age, status. */
+const describe = (x: Entry, n: string, now: number, status = '', project = '') =>
+  `${n} ${x.kind} "${clean(x.label, 80)}" ${clean(x.ref, 400)} · ${clean(x.where, 80)} · ${when(x, now)}${status ? ` · ${status}` : ''}${project ? ` · session in ${clean(project, 40)}` : ''}`
+
+/** The model's tool: what this session (or every session) made, filtered, with live checks. */
+async function answerTool(s: State, $: $, input: Record<string, unknown>): Promise<string> {
+  const now = await $.clock.now()
+  const q = { query: typeof input.query === 'string' ? input.query : undefined, kind: typeof input.kind === 'string' ? input.kind : undefined }
+  const list = await mine(s, $)
+  const here = findAssets(list, q).map(x => ({ x, n: `#a${list.indexOf(x) + 1}`, project: '' }))
+  const there = input.all_sessions === true ? findAssets((await others(s, $)).list, q).map(x => ({ x, n: '-', project: x.project })) : []
+  const rows = [...here, ...there].slice(0, 30)
+  if (!rows.length) return list.length ? `no asset matches (this session has ${list.length}; try all_sessions: true or a shorter query).` : 'this session has no assets yet.'
+  const status = input.check === false ? new Map<Entry, string>() : await checks(s, $, rows.map(r => r.x))
+  const more = here.length + there.length - rows.length
+  return [...rows.map(r => describe(r.x, r.n, now, status.get(r.x), r.project)), ...(more > 0 ? [`(${more} more: narrow the query)`] : [])].join('\n')
 }
 
 /** Rebuilds this session's list from its transcript (dated at the session's start), adding to what is there. */
@@ -126,6 +175,24 @@ export const register: Register = on => {
     s.project = e.cwd.split('/').filter(Boolean).pop() ?? ''
     s.home = (await $.env.get('HOME').catch(() => undefined)) ?? ''
     s.hidden = (await $.store.get(PANEL_KEY)) === 'hidden'
+    await $.tool.register({
+      name: 'assets',
+      description:
+        'What this session made or was shown, kept by the session-assets mod: URLs (dev servers, deploys, previews), ' +
+        'published Artifacts, files written, pictures (screenshots), commits. Use it to get back an exact URL, port, ' +
+        'path or hash instead of guessing, above all after the context was compacted, and to answer "which server is ' +
+        'on :5173 / is it still up / where does that link come from". Local URLs are checked: the listening process ' +
+        'and its folder, or down. Rows are numbered #aN as the user sees them; the user may write #aN in a prompt.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'words that must all appear in the label, URL/path, host/folder or project' },
+          kind: { type: 'string', enum: ['url', 'artifact', 'file', 'image', 'commit'] },
+          all_sessions: { type: 'boolean', description: "also search other sessions' assets (default false)" },
+          check: { type: 'boolean', description: 'check local URLs and paths (default true)' },
+        },
+      },
+    })
     await $.command.register({ name: 'assets', description: `Session assets v${MOD_VERSION}: /assets (show/hide), /assets N (open row N), /assets open N, /assets list, /assets clear, /assets all` })
     // Loaded mid-session, or a session resumed from before the mod: the transcript says what it made so far.
     // A store that cannot be read is left alone: a replay would write over what it holds.
@@ -151,7 +218,7 @@ export const register: Register = on => {
       return { text: s.hidden ? 'band hidden; /assets shows it again.' : `band shown: ${list.length} asset(s) this session.` }
     }
     // The whole list as text, grouped by kind: every terminal shows it, however few rows the band has.
-    if (args === 'list') return { text: listText(list, await $.clock.now()) }
+    if (args === 'list') return { text: listText(list, await $.clock.now(), await checks(s, $, list)) }
     // Starts this session's list over from its transcript: for a list an older version filled, or one gone noisy.
     if (args === 'clear') {
       await enqueue(s, () => $.store.delete(`${PREFIX}${s.sid}`))
@@ -165,7 +232,7 @@ export const register: Register = on => {
       await setHidden(s, $, false)
       return { text: s.others ? 'other sessions shown.' : 'other sessions folded.' }
     }
-    const m = /^(open\s+)?(\d+)$/.exec(args)
+    const m = /^(open\s+)?#?a?(\d+)$/.exec(args)
     if (!m) return { text: 'usage: /assets | /assets N | /assets open N | /assets list | /assets clear | /assets all' }
     const i = Number(m[2]) - 1
     const item = list[i]
@@ -189,6 +256,10 @@ export const register: Register = on => {
     return ran
   }).catch(($, e, next) => next(e)) // An observer never refuses a tool: after `next`, this replays its result; before, it runs the tool.
 
+  // The model's own tool: answered here, never by core. A gating hook that throws would leave the call unanswered.
+  on('tool.call', { tool: TOOL }, async ($, e) => ({ result: await answerTool(s, $, e as unknown as Record<string, unknown>) }) as never)
+    .catch(($, e, next) => ({ deny: `session-assets: lookup failed: ${String(next.error)}` }))
+
   // A URL only in Claude's reply (no tool printed it): kept, labelled with the rest of its line. The main loop's replies only.
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
@@ -204,10 +275,27 @@ export const register: Register = on => {
 
   // A link or picture path the person pasted. Only their own prompts: a notification or a peer's message is not theirs.
   on('prompt.submit', async ($, e, next) => {
-    // After `next`: the prompt reaches the model first; a slow store never sits between Enter and the model.
-    const sent = await next(e)
+    const mineToo = e.origin.kind === 'composer' || e.origin.kind === 'bridge'
+    // `#a3` in the prompt: the model gets row 3's exact ref and its live status beside the prompt (context must go
+    // down with `next`; one added after is not attached). A prompt without a token reads nothing before `next`.
+    const refs = mineToo ? refsIn(e.text) : []
+    let down = e
+    if (refs.length) {
+      try {
+        const list = await mine(s, $)
+        const now = await $.clock.now()
+        const picked = refs.map(n => [n, list[n - 1]] as const)
+        const status = await checks(s, $, picked.flatMap(([, x]) => (x ? [x] : [])))
+        const lines = picked.map(([n, x]) => (x ? describe(x, `#a${n}`, now, status.get(x)) : `#a${n}: no such row (this session has ${list.length})`))
+        down = { ...e, context: [...(e.context ?? []), `session-assets: the user's #aN refer to these rows of the session's asset list:\n${lines.join('\n')}`] }
+      } catch (err) {
+        $.ui.log(`session-assets: #a refs not resolved (${errText(err)})`, { to: 'debug' })
+      }
+    }
+    // The rest after `next`: the prompt reaches the model first; a slow store never sits between Enter and the model.
+    const sent = await next(down)
     // A dropped prompt never entered; an entered one is read as it entered (a hook may have rewritten it).
-    if (typeof sent.text === 'string' && (e.origin.kind === 'composer' || e.origin.kind === 'bridge')) {
+    if (typeof sent.text === 'string' && mineToo) {
       try {
         await record(s, $, assetsOfText(sent.text, 'you', s).reverse(), await $.clock.now())
       } catch (err) {
@@ -244,7 +332,7 @@ export const register: Register = on => {
       flexDirection: 'row',
       children: [
         Text({ bold: true, color: ACCENT, children: title }),
-        Text({ dimColor: true, children: fit(`${counts} · /assets N opens a row `, width - title.length - 9) }),
+        Text({ dimColor: true, children: fit(`${counts} · #aN in a prompt · /assets list `, width - title.length - 9) }),
         Button({ key: 'hide', label: 'hide', dimColor: true, onPress: () => void setHidden(s, $, true) }),
       ],
     })
@@ -278,7 +366,7 @@ export const register: Register = on => {
         ],
       })
     // One group per asset, the open row's detail inside its group: `+N more` counts assets, never a detail line.
-    const groups = list.map((x, i) => [row(x, String(i + 1).padStart(2), ''), ...(i === s.open ? [detail(x, i)] : [])])
+    const groups = list.map((x, i) => [row(x, `a${i + 1}`.padStart(3), ''), ...(i === s.open ? [detail(x, i)] : [])])
     const otherLines = rest.length
       ? [
         Button({ key: 'others', label: `${s.others ? '▾' : '▸'} other sessions: ${sessions} · ${rest.length} asset${rest.length === 1 ? '' : 's'}`, dimColor: true, onPress: () => {

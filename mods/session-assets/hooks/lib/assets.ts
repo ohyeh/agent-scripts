@@ -39,8 +39,8 @@ export const MAX_ENTRIES = 80
 const PER_CALL = 5
 // Tools whose output is file or page content: what they print is not something this session made.
 const SKIP = new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch'])
-// context-mode's reads: search an index or fetch a page.
-const SKIP_RE = /^mcp__.*__ctx_(search|fetch_and_index|index)$/
+// context-mode's reads (search an index, fetch a page), and this mod's own tool: its answer lists what is already kept.
+const SKIP_RE = /^mcp__.*__ctx_(search|fetch_and_index|index)$|^mcp__session-assets__/
 /** A ref longer than this is not something a person opens; it would only fill the store. */
 const MAX_REF = 2048
 const WRITERS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
@@ -242,4 +242,37 @@ export function rowsOf(n: unknown): number {
   if (el.type !== 'Box') return 1
   const kids = [el.children ?? el.props?.children].flat(9)
   return el.props?.flexDirection === 'column' ? kids.reduce((a: number, c) => a + rowsOf(c), 0) : Math.max(1, ...kids.map(rowsOf))
+}
+
+/** `#a3` in a prompt: the person pointing at row 3 of the band. `#123` (an issue) is not one. */
+export function refsIn(text: string): number[] {
+  const out: number[] = []
+  for (const m of text.matchAll(/(?:^|[\s(（,，])#a(\d{1,3})\b/g)) if (!out.includes(Number(m[1]))) out.push(Number(m[1]))
+  return out
+}
+
+/** The local port a URL is served on, or undefined when it is not local. */
+export function localPort(e: Asset): number | undefined {
+  if (e.kind !== 'url' || !e.isLocal) return undefined
+  const m = /^(https?):\/\/(?:[^@/]*@)?(?:\[[^\]]+\]|[^/:?#]+)(?::(\d+))?/i.exec(e.ref)
+  return m ? Number(m[2] ?? (m[1]!.toLowerCase() === 'https' ? 443 : 80)) : undefined
+}
+
+/** `lsof -Fpc` output: the first listening process. */
+export function parseListen(out: string): { pid: number; command: string } | undefined {
+  const pid = /^p(\d+)$/m.exec(out)?.[1]
+  return pid ? { pid: Number(pid), command: /^c(.+)$/m.exec(out)?.[1] ?? '?' } : undefined
+}
+
+/** `lsof -d cwd -Fn` output: the process's folder (the `n` line after `fcwd`). */
+export function parseCwd(out: string): string | undefined {
+  const lines = out.split('\n')
+  const at = lines.indexOf('fcwd')
+  return at >= 0 && lines[at + 1]?.startsWith('n') ? lines[at + 1]!.slice(1) : undefined
+}
+
+/** Entries whose kind matches and whose label, ref, place or project holds every word of the query. */
+export function findAssets<T extends Entry>(list: readonly T[], q: { query?: string; kind?: string }): T[] {
+  const words = (q.query ?? '').toLowerCase().split(/\s+/).filter(Boolean)
+  return list.filter(x => (!q.kind || x.kind === q.kind) && words.every(w => `${x.label} ${x.ref} ${x.where} ${x.project}`.toLowerCase().includes(w)))
 }
