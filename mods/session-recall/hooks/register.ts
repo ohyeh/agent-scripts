@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir } from './lib/assets.ts'
 import { answerId, itemsOf, quoteOf } from './lib/items.ts'
 
-const MOD_VERSION = '0.9.4'
+const MOD_VERSION = '0.9.5'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -41,7 +41,7 @@ type State = {
   /** The TUI's requests this load has taken (each is done once), and answers not written yet (path → answer). */
   handled: Set<string>
   unacked: Map<string, string>
-  /** URLs test runs printed this session (the replay refills it): a reply that repeats one adds no row. */
+  /** Local URLs test runs printed this turn: the turn's reply that repeats one adds no row. */
   muted: Set<string>
 }
 
@@ -549,6 +549,8 @@ export const register: Register = on => {
         addAnswer(s, e.answer, await $.clock.now())
         await enqueue(s, () => snapshot(s, $))
         await record(s, $, assetsOfText(e.answer, 'reply', s).filter(a => !s.muted.has(a.ref)).reverse(), await $.clock.now(), true)
+        // A test's URLs are muted for its own turn: a later dev server on the same port is a page again.
+        s.muted.clear()
       } catch (err) {
         $.ui.log(`session-recall: reply not read (${errText(err)})`, { to: 'debug' })
       }

@@ -47,13 +47,23 @@ const SKIP = new Set(['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch'])
 // `search_threads`, `query-docs`, `peek`), a computer-use REPL (it prints the screen and every open tab), and this mod's
 // own tool: its answer lists what is already kept.
 const SKIP_RE = /^mcp__.*__(?:ctx_\w+|(?:get|list|search|read|query|fetch|find|lookup|resolve)[-_]\w[\w-]*|peek)$|^mcp__codex-cu__js$|^mcp__session-recall__/
+// A name that also makes something is not a read: `get_or_create_preview`, `fetch_and_deploy`.
+const ACTS_RE = /(?:^|[-_])(?:create|deploy|publish|upload|send|write|launch|put|post)(?=$|[-_])/i
+// A command that says it ships something: its URLs are what it made, however many (a deploy of five services).
+// The verb as a word of the command (`wrangler pages deploy`, `gh release create`), or a deploy script (`deploy-web.sh`);
+// not a path that only names it (`~/deploy-stash-1`).
+const DEPLOY_RE = /(?:^|[\s;&|(])(?:deploy|publish|release|upload)(?=$|[\s;&|)])|(?:^|[\s/])deploy[\w-]*\.(?:sh|mjs|js|ts|py)\b/m
+const CTX_RUN_RE = /^mcp__.*__ctx_(?:execute|batch_execute)$/
+/** The shell a context-mode call ran: `code` in shell, or a batch's commands. Analysis in another language is none. */
+const ctxCommand = (input: Record<string, unknown>) =>
+  Array.isArray(input.commands) ? input.commands.map(x => String((x as { command?: unknown })?.command ?? '')).join('\n') : input.language === 'shell' && typeof input.code === 'string' ? input.code : ''
 /** A ref longer than this is not something a person opens; it would only fill the store. */
 const MAX_REF = 2048
 const WRITERS = new Set(['Write', 'Edit', 'MultiEdit', 'NotebookEdit'])
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|heic)$/i
 const VIDEO_EXT = /\.(mp4|mov|m4v|webm|mkv)$/i
 /** What a written file is worth a row for: something to read or open. Source code is churn the diff already shows. */
-const DOC_EXT = /\.(md|markdown|html?|pdf|txt|csv|tsv|ipynb|docx|xlsx|pptx)$/i
+const DOC_EXT = /\.(md|markdown|html?|pdf|txt|rtf|csv|tsv|ipynb|docx?|xlsx?|pptx?|odt|ods|odp|key|pages|numbers|epub|mp3|wav|m4a|aac|flac|ogg)$/i
 
 // A dev server prints its URL in ANSI colour, the port bold inside it: escapes go first, other control characters end a URL.
 const ANSI_RE = /\u001b\[[0-9;?]*[ -\/]*[@-~]/g
@@ -93,7 +103,12 @@ export function assetsOf(c: Call): Asset[] {
     return out
   }
   // A read-only call (Bash `cat`, `rg`) prints what it read, not what this session made.
-  if (c.readOnly || SKIP.has(c.tool) || SKIP_RE.test(c.tool)) return []
+  // context-mode runs commands as well as analysis: a shell command that says it deploys or publishes is read as Bash.
+  if (CTX_RUN_RE.test(c.tool)) {
+    const command = ctxCommand(c.input)
+    if (command && DEPLOY_RE.test(command)) return assetsOf({ ...c, tool: 'Bash', input: { ...c.input, command } })
+  }
+  if (c.readOnly || SKIP.has(c.tool) || (SKIP_RE.test(c.tool) && !ACTS_RE.test(c.tool.split('__').pop() ?? ''))) return []
   const out: Asset[] = []
   const add = (a: Asset) => {
     if (out.length < PER_CALL && a.ref.length <= MAX_REF && !out.some(x => x.ref === a.ref)) out.push({ ...a, label: a.label.slice(0, 200) })
@@ -121,12 +136,14 @@ export function assetsOf(c: Call): Asset[] {
     if (pushIn(String(c.input.command ?? ''))) for (const a of pushedOf(text)) add(a)
   }
   // The engine does not mark every reader read-only (`tmux capture-pane | grep` printed another session's screen).
-  if (c.replay || (c.tool === 'Bash' && isReader(String(c.input.command ?? '')))) return out
+  if (c.tool === 'Bash' && isReader(String(c.input.command ?? ''))) return out
   // What the call was given is not what it made: `curl <url>`, or a tool that echoes its own code back.
   const given = JSON.stringify(c.input)
   // The command as typed, not JSON: `in\ 1.mov` is not doubled, and its unescaped form is checked too.
   const typed = Object.values(c.input).map(String).join('\n')
+  // A picture a command saved (`saved to /tmp/shot.png`): the replay keeps it too, a picture path is rarely in a doc.
   if (c.tool === 'Bash') for (const m of text.matchAll(IMAGE_PATH_RE)) if (!typed.includes(m[2] ?? m[3]!) && !typed.includes(mediaPath(m))) add(fileAsset(mediaPath(m), c))
+  if (c.replay) return out
   // A `.git` URL is a remote to clone or push to (`git push` prints `To <remote>`), not a page.
   // A test run prints its fixtures (`tui-smoke.sh` showed a screen of made-up rows): its URLs are not pages it made.
   if (c.tool === 'Bash' && isTestRun(String(c.input.command ?? ''))) return out
@@ -134,7 +151,7 @@ export function assetsOf(c: Call): Asset[] {
   // More remote URLs than a deploy prints (a page and its preview) is a list it printed: an index, a catalog, a scan of a
   // transcript; its links are data, not what the call made. A dev server's local URLs stay (`--host` prints one per
   // network interface).
-  const listing = urls.filter(url => !isLocalHost(hostOf(url))).length > LISTING
+  const listing = urls.filter(url => !isLocalHost(hostOf(url))).length > LISTING && !(c.tool === 'Bash' && DEPLOY_RE.test(String(c.input.command ?? '')))
   for (const url of urls) if (!listing || isLocalHost(hostOf(url))) add({ kind: 'url', ref: url, label, where: hostOf(url), isLocal: isLocalHost(hostOf(url)) })
   return out
 }
@@ -160,9 +177,12 @@ export function assetsOfText(text: string, who: 'reply' | 'you', c: { home: stri
   return out
 }
 
-/** The URLs a test run printed: its fixtures. A reply that repeats one is talking about the test, not a page it made. */
+/**
+ * The local URLs a test run printed: its fixtures. A reply that repeats one is talking about the test, not a page it
+ * made. A remote one stays: an e2e run against the real site prints the site.
+ */
 export function testUrlsOf(tool: string, input: Record<string, unknown>, text: string): string[] {
-  return tool === 'Bash' && isTestRun(String(input.command ?? '')) ? extractUrls(text) : []
+  return tool === 'Bash' && isTestRun(String(input.command ?? '')) ? extractUrls(text).filter(url => isLocalHost(hostOf(url))) : []
 }
 
 /** One tool use as the transcript stored it, for the replay at session start. */
@@ -179,6 +199,8 @@ export function assetsOfTranscript(msgs: readonly { role: string; text: string; 
     // As live: a reply adds only a URL nothing named before, so it never turns an artifact or a tool's URL into `reply: …`;
     // a page Claude read (a source) is the exception, it becomes the link the reply points at.
     out.push(...assetsOfText(m.text, 'reply', c).filter(a => !muted.has(a.ref) && !out.some(x => x.ref === a.ref && x.kind !== 'source')))
+    // As live, a test's URLs are muted for its turn only: a reply with no tool use ends it.
+    if (!m.toolUses?.length) muted.clear()
     for (const u of m.toolUses ?? []) for (const url of testUrlsOf(u.tool, u.input ?? {}, u.text ?? '')) muted.add(url)
     // `extra` (a push git named) never repeats what assetsOf found in the same call: that needs a `To` line, it lacks one.
     // A Read of a picture or a sent file needs no text: an image result has none to give.

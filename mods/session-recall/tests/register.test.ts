@@ -422,14 +422,21 @@ describe('band', () => {
   })
 
   test('a reply that repeats a URL a test run printed adds nothing, also after a reload', async ($, on) => {
-    const w = world(on, { text: 'serving http://localhost:5199/ ok' })
+    const w = world(on, { text: 'serving http://localhost:5199/ ok, e2e against https://site.dev/' })
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'bash tests/fx-smoke.sh', description: 'Run fx smoke' })
-    await $.turn.complete({ ...turn, answer: 'The smoke printed http://localhost:5199/ and https://x.dev/docs' } as never)
-    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string }>).map(x => x.ref)).toEqual(['https://x.dev/docs'])
+    await $.turn.complete({ ...turn, answer: 'The smoke printed http://localhost:5199/ and https://x.dev/docs; the site https://site.dev/ passed' } as never)
+    // A remote URL a test printed is the real site it ran against: kept.
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string }>).map(x => x.ref).sort()).toEqual(['https://site.dev/', 'https://x.dev/docs'])
+    // The next turn: the test's mute is over (a dev server on that port is a page again).
+    await $.turn.complete({ ...turn, answer: 'Dev server: http://localhost:5199/' } as never)
+    expect((w.kv.get('session-recall.s.sess-A') as Array<{ ref: string }>).map(x => x.ref)).toContain('http://localhost:5199/')
     // The replay after a reload: the same.
     const msgs = [{ role: 'assistant', text: '', toolUses: [{ tool: 'Bash', input: { command: 'bash tests/fx-smoke.sh' }, text: 'serving http://localhost:5199/ ok' }] }, { role: 'assistant', text: 'see http://localhost:5199/' }]
     expect(assetsOfTranscript(msgs, { home: HOME, cwd: '/w' })).toEqual([])
+    // A reply with no URL ends the turn there too: the next turn's dev server on that port is a link.
+    const later = [msgs[0]!, { role: 'assistant', text: '' }, { role: 'assistant', text: 'Dev server: http://localhost:5199/' }]
+    expect(assetsOfTranscript(later, { home: HOME, cwd: '/w' }).map(a => a.ref)).toEqual(['http://localhost:5199/'])
   })
 
   test('a tool that reads, searches or analyses adds no URL row; one that makes or deploys does', () => {
@@ -443,12 +450,33 @@ describe('band', () => {
     expect(call('Bash', { command: "ssh box@h 'cd ~/app && bash scripts/deploy.sh'" }, out).map(a => a.ref)).toEqual(['https://x.dev/page'])
   })
 
+  test('what a second review found lost: a deploy of five services, a get-or-create tool, a deploy run through context-mode', () => {
+    const five = Array.from({ length: 5 }, (_, i) => `https://s${i}.example.com`).join('\n')
+    expect(call('Bash', { command: 'turbo run deploy' }, five)).toHaveLength(5)
+    expect(call('mcp__cloud__get_or_create_preview', {}, 'ready at https://pr-42.preview.dev').map(a => a.ref)).toEqual(['https://pr-42.preview.dev'])
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', { language: 'shell', code: 'wrangler pages deploy dist' }, 'Visit https://my-app.pages.dev').map(a => a.ref)).toEqual(['https://my-app.pages.dev'])
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_batch_execute', { commands: [{ label: 'ship', command: 'npm run deploy' }] }, 'https://my-app.pages.dev').map(a => a.ref)).toEqual(['https://my-app.pages.dev'])
+    expect(call('Bash', { command: 'bash scripts/deploy-web.sh' }, five)).toHaveLength(5)
+    expect(call('Bash', { command: 'du -sh ~/deploy-stash-*' }, five), 'a path that names deploy is not one').toEqual([])
+    for (const tool of ['mcp__x__get_output', 'mcp__x__get_updates', 'mcp__x__list_runs', 'mcp__x__search_posts'])
+      expect(call(tool, {}, 'https://a.dev/'), `${tool} reads`).toEqual([])
+    // Analysis stays a read.
+    expect(call('mcp__plugin_context-mode_context-mode__ctx_execute', { language: 'python', code: 'print(deploy_log)' }, 'https://my-app.pages.dev')).toEqual([])
+  })
+
+  test('the replay keeps a picture a command saved, as live does', () => {
+    const msgs = [{ role: 'assistant', text: '', toolUses: [{ tool: 'Bash', input: { command: 'python3 plot.py' }, text: 'saved to /tmp/shot.png' }] }]
+    expect(assetsOfTranscript(msgs, { home: HOME, cwd: '/w' }).map(a => [a.kind, a.ref])).toEqual([['image', '/tmp/shot.png']])
+  })
+
   test('a written source file is no row; a written document or picture is', () => {
     expect(call('Write', { file_path: '/w/src/a.ts' })).toEqual([])
     expect(call('Edit', { file_path: '/w/run.sh' })).toEqual([])
     expect(call('Write', { file_path: '/w/PLAN.md' }).map(a => a.kind)).toEqual(['file'])
     expect(call('Write', { file_path: '/w/out/page.html' }).map(a => a.kind)).toEqual(['file'])
     expect(call('Write', { file_path: '/w/shot.png' }).map(a => a.kind)).toEqual(['image'])
+    expect(call('Write', { file_path: '/w/notes.rtf' }).map(a => a.kind)).toEqual(['file'])
+    expect(call('Write', { file_path: '/w/voice.m4a' }).map(a => a.kind)).toEqual(['file'])
   })
 
   test('a link the person pastes is kept; a notification\'s is not', async ($, on) => {

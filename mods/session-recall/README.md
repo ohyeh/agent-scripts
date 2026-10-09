@@ -42,7 +42,7 @@ folded into one line.
 |---|---|---|---|
 | `●` green / `◆` cyan | `url`, local / remote | an http(s) URL in a tool's output, in Claude's reply (`reply: …`), or in a prompt you typed (`you: …`) | the browser |
 | `◈` | `artifact` | an `Artifact` publish; label = its title, else the file name | the browser |
-| `▤` | `file` | a document `Write`, `Edit`, `MultiEdit` or `NotebookEdit` made (`.md`, `.html`, `.pdf`, `.txt`, `.csv`, office files, notebooks); a source file gets no row | its default app |
+| `▤` | `file` | a document `Write`, `Edit`, `MultiEdit` or `NotebookEdit` made (`.md`, `.html`, `.pdf`, `.txt`, `.csv`, office and iWork files, `.epub`, audio, notebooks); code and config get no row | its default app |
 | `▣` | `image` | a picture those tools wrote, or a picture path in Bash output (a screenshot) or in a prompt you typed | Preview |
 | `▶` | `video` | the same, for `mp4 mov m4v webm mkv` | its default app (`/recall preview N`: Quick Look) |
 | `◇` | `source` | a page `WebFetch` or `ctx_fetch_and_index` was given (label: its `prompt`): what Claude consulted, apart from what it made. Counted in the header, listed by `/recall list`, no band row | the browser |
@@ -71,7 +71,7 @@ folded into one line.
 - `Read`, `Grep`, `Glob`, `WebFetch`, `WebSearch`, every context-mode tool (`ctx_execute`
   and `ctx_batch_execute` too: their code analyses what is already there), an MCP tool named
   for a read (`get_…`, `list_…`, `search_…`, `read_…`, `query…`, `fetch_…`, `find_…`,
-  `peek`), the codex-cu `js` REPL (it prints the screen and every open tab), and any call
+  `peek`; not when the name also makes something, `get_or_create_…`), the codex-cu `js` REPL (it prints the screen and every open tab), and any call
   the engine marks read-only (Bash `cat`, `rg`) add nothing: their output is content they
   read, not something this session made. A call that failed adds nothing. Neither does a Bash command whose programs all only read
   (`cat`, `sed`, `rg`, `jq`, `tmux capture-pane`, `git log`/`show`/`diff`, with `cd`, `echo`,
@@ -88,8 +88,8 @@ folded into one line.
   back) is not kept: it is what the call was given, not what it made.
 - A session with no list yet (the mod loaded mid-session, or a resumed session from
   before it) replays its transcript once at start, and `/recall clear` replays it again.
-  The replay keeps what calls did (files written, Artifacts, commits) and URLs in Claude's
-  replies. It does not keep what a call printed: the transcript does not say which calls
+  The replay keeps what calls did (files written, Artifacts, commits), a picture a command
+  saved, and URLs in Claude's replies. It does not keep the URLs a call printed: the transcript does not say which calls
   were read-only, and a `cat` of a doc would add every link in it. Replayed entries show
   `earlier`, not an age. It reads the whole transcript file (`bin/transcript.mjs`, under
   `${CLAUDE_CONFIG_DIR:-~/.claude}/projects/`): what the engine holds starts at the last
@@ -97,7 +97,8 @@ folded into one line.
 - The band's title shows the mod's version, so a reload can be seen to have taken. An open
   commit row shows its hash, not the branch: the status line has the branch.
 - A call that prints more than 4 remote URLs printed a list (an index, a catalog, a scan):
-  none of its remote URLs are kept; its local ones are (a dev server with `--host`).
+  none of its remote URLs are kept; its local ones are (a dev server with `--host`). A
+  command that ships (`… deploy`, `gh release create`, `deploy-web.sh`) keeps them all.
 - At most 5 assets per tool call. One seen again moves to the top with its newest
   label. Each session keeps 80.
 - The band draws in what `maxRows` leaves after the plugins below it (the workers

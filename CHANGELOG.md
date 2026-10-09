@@ -1,5 +1,16 @@
 # Changelog
 
+## session-recall 0.9.5
+
+A second-model review (agy, VERDICT: BLOCK on 0.9.1-0.9.4) found five ways a real asset was lost. Four are fixed; measured on the two long transcripts, tool-output URL rows are 16 (14 before, the 2 new ones are the terrain site and its report page a deploy script printed), and automation's replay finds 15 pictures (11 before).
+
+- A command that ships something keeps all its URLs, however many: the verb as a word of the command (`wrangler pages deploy`, `gh release create`, `npm run deploy`) or a deploy script (`deploy-web.sh`). A path that only names it (`~/deploy-stash-1`) does not count.
+- A context-mode shell command that deploys or publishes (`ctx_execute` with `language: shell`, a `ctx_batch_execute` command) is read as Bash. Analysis in another language stays a read.
+- An MCP tool whose name also makes something (`get_or_create_preview`, `fetch_and_deploy`) is not a read.
+- The replay keeps a picture a command saved (`saved to /tmp/shot.png`), as live does; `bin/transcript.mjs` keeps those lines.
+- A test run mutes its URLs for its own turn only, and only local ones: a later dev server on that port, or the real site an e2e run hit, is a link again.
+- More written documents get a row: `.rtf`, `.doc`, `.xls`, `.ppt`, OpenDocument and iWork files, `.epub`, audio (`.mp3`, `.wav`, `.m4a`, …). Not changed: config and code (`.yaml`, `.sql`, `.json`, `.env`, scripts) get no row; the diff shows them, and an `.env` must not be one click away.
+
 ## session-recall 0.9.4
 
 - A call that prints more than 4 remote URLs printed a list (a site's index, a design tool's catalog, a script that scans a transcript): its remote URLs add no row, its local ones do. Live-path tally on the two long transcripts: 24 → 14 tool-output URL rows. The rows dropped were index entries and catalog cards; the deploys, published pages and a login link stay.
