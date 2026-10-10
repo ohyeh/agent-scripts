@@ -228,7 +228,7 @@ Default effort per tier (user ruling 2026-10-10); the commander moves it per tas
 | `opus` | `medium` | `low` | `high` |
 | `fable` | `low` | `low` | `high` |
 | `sonnet` | `medium` | `medium` (at `low` it skips instructions) | `high` |
-| `haiku` | `medium` | `medium` | `high` (at `max` it burns ~162k output tokens per task, Artificial Analysis) |
+| `haiku` | `medium` | `medium` | `high` (at `max` it used 440M output tokens on the Artificial Analysis Intelligence Index vs a 100M median, checked 2026-10-10) |
 
 Move it dynamically, one step at a time, and say why in the dispatch record (§7):
 - Up front, +1: planning, architecture, risky or adversarial review, root-cause convergence.

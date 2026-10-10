@@ -43,7 +43,7 @@ the first `/loop` night that runs on the merged branch. Window = that night;
 | # | Question | Command | Expect |
 |---|---|---|---|
 | 1 | Did commanders dispatch the new lane? | `rg -o '"subagent_type":"(explore-bounded\|Explore)"' $P/*/*.jsonl \| sort \| uniq -c` | bare `Explore` = 0 |
-| 2 | Is the read-only lane on sonnet, rest on opus? | `rg -o '"model":"claude-[a-z]+-5"' $P/*/*/subagents/*.jsonl \| sort \| uniq -c` | sonnet count ≈ explore-bounded calls |
+| 2 | Do subagent models follow model-dispatch §1? | `rg -o '"model":"claude-[a-z]+-[0-9-]+"' $P/*/*/subagents/*.jsonl \| sort \| uniq -c` | sonnet ≥ explore-bounded calls; haiku/sonnet only on worker roles (gathering, implementation, extraction); planning, synthesis and verdict agents on opus/fable |
 | 3 | Did `maxTurns` bite? | `rg -l 'stopped at its 60-turn limit' $P/*/*.jsonl` | rare; each hit = a GOAL that was too wide |
 | 4 | Did the write gate fire? | `rg -c 'read-only agent:' $P/*/*/subagents/*.jsonl` | 0 ideally; any hit → false positive or an agent trying to write |
 | 5 | Cost share moved? | `session-report` plugin `analyze-sessions.mjs --json --since 7d` → `by_subagent_type` | `workflow-subagent` share < 23.4% |
