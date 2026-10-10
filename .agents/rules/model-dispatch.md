@@ -13,7 +13,7 @@ successor is valid only after live verification per §8.
 | `opus` | `claude-opus-5-5` (live 2026-09-24; API default effort `medium`, effort sweep pending) | DEFAULT worker at effort `medium` (user ruling 2026-09-02): implementation, refactor, research, first review; `high` for architecture, hard debugging, adversarial review |
 | `sonnet` | `claude-sonnet-5-5` (live 2026-10-01) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, solved-pattern batches; effort floor `medium` (user ruling 2026-10-01: at `low` it skips instructions); no planning, synthesis, revision, or verdicts |
 | `fable` | `claude-fable-5-1` | scarce; at `low` often beats opus/sonnet on cost per task — include in any sweep; picker rejection falls back to `opus` |
-| `haiku` | `claude-haiku-5-5` (live check pending, §8) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, bulk tagging or extraction (including web/community scans); effort floor `medium`; no planning, synthesis, revision, or verdicts |
+| `haiku` | `claude-haiku-5-5` (live 2026-10-10) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, bulk tagging or extraction (including web/community scans); effort floor `medium`; no planning, synthesis, revision, or verdicts |
 
 Haiku 4.x RETIRED 2026-08-01 (user decision; the old model miscounted). Haiku 5.5+ is a
 situational tier (row above). Where the commander does not pick it, former haiku roles run as
