@@ -100,10 +100,10 @@ plan. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
 (`model-dispatch.md` §Review ladder, user ruling 2026-10-09; `plan-pipeline`
 and `spec-implement-dual-review-verify` do this in-script, the latter as
 `pr-review-toolkit` lenses); the verdict stays with `opus` (L2) or `fable` (L3).
-Otherwise `sonnet` is permitted in exactly two roles, and only by explicit
-arg: implementation (`spec-implement…` `model`, `pr-review-triage-resolve`
-`fixModel`) and read-only data gathering (`feature-plan-consensus`
-`discoverModel`).
+Otherwise `sonnet`/`haiku` 5.5+ may run implementation and read-only data
+gathering by commander's call (user ruling 2026-10-10); recipe args carry the
+choice: `spec-implement…` `model`, `pr-review-triage-resolve` `fixModel`,
+`feature-plan-consensus` `discoverModel`.
 
 ## ADVISOR GATE (user ruling 2026-09-02)
 

@@ -11,9 +11,9 @@ successor is valid only after live verification per §8.
 | Claude tier | Current ID | Role |
 |---|---|---|
 | `opus` | `claude-opus-5-5` (live 2026-09-24; API default effort `medium`, effort sweep pending) | DEFAULT worker at effort `medium` (user ruling 2026-09-02): implementation, refactor, research, first review; `high` for architecture, hard debugging, adversarial review |
-| `sonnet` | `claude-sonnet-5-5` (live 2026-10-01) | only by explicit arg: implementation or read-only data gathering; effort floor `medium` (user ruling 2026-10-01: at `low` it skips instructions); mechanical search, read-back, solved-pattern batches at `medium` |
+| `sonnet` | `claude-sonnet-5-5` (live 2026-10-01) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, solved-pattern batches; effort floor `medium` (user ruling 2026-10-01: at `low` it skips instructions) |
 | `fable` | `claude-fable-5-1` | scarce; at `low` often beats opus/sonnet on cost per task — include in any sweep; picker rejection falls back to `opus` |
-| `haiku` | `claude-haiku-5-5` (live check pending, §8) | situational, commander's call (user ruling 2026-10-10): pick it when the task fits — e.g. high-volume read-only gathering, community/web scans, bulk tagging or extraction; effort floor `medium`; never above `sonnet`'s limits (no planning, synthesis, or verdicts in workflow recipes) |
+| `haiku` | `claude-haiku-5-5` (live check pending, §8) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): high-volume read-only gathering, web/community scans, bulk tagging or extraction; effort floor `medium`; no planning, synthesis, or verdicts |
 
 Haiku 4.x RETIRED 2026-08-01 (user decision; the old model miscounted). Haiku 5.5+ is a
 situational tier (row above). Where the commander does not pick it, former haiku roles run as
@@ -104,7 +104,7 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 |---|---|---|
 | locate/inventory | `sonnet` medium; `sonnet` high for synthesis | Luna xhigh |
 | read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
-| implement/refactor/research | `opus` medium (`sonnet` only by explicit arg, §1) | Luna xhigh |
+| implement/refactor/research | `opus` medium; `sonnet`/`haiku` 5.5+ by commander's call (§1) | Luna xhigh |
 | review/verification | review ladder (§Review ladder below): L1 `sonnet` high → L2 `opus` medium+ → L3 `fable` | review ladder: Luna xhigh at L1, Astra xhigh as the L3 fallback |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` medium | Luna xhigh |
@@ -114,8 +114,8 @@ Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above 
 2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
 3.5 h): every recipe agent runs at least `opus` effort `low`; planning, synthesis, revision,
 and verdicts NEVER run on `sonnet`. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
-below (user ruling 2026-10-09); otherwise `sonnet` is allowed in a recipe only for
-implementation or read-only data gathering, and only by explicit arg. The second-model CLI
+below (user ruling 2026-10-09); otherwise `sonnet`/`haiku` 5.5+ may run implementation or
+read-only data gathering in a recipe by commander's call (user ruling 2026-10-10). The second-model CLI
 (`cli`) is optional and NOT codex-specific: any agent-tmux profile (codex, claude fable/opus,
 cursor grok, agy) qualifies as the review gate, provided it differs from the author; absent, a
 fresh Claude `opus` agent is the second brain. The commander calls `advisor` before launch, at every gate, and before any
