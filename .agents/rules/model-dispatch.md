@@ -11,9 +11,9 @@ successor is valid only after live verification per §8.
 | Claude tier | Current ID | Role |
 |---|---|---|
 | `opus` | `claude-opus-5-5` (live 2026-09-24; API default effort `medium`, effort sweep pending) | DEFAULT worker at effort `medium` (user ruling 2026-09-02): implementation, refactor, research, first review; `high` for architecture, hard debugging, adversarial review |
-| `sonnet` | `claude-sonnet-5-5` (live 2026-10-01) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, solved-pattern batches; effort floor `medium` (user ruling 2026-10-01: at `low` it skips instructions) |
+| `sonnet` | `claude-sonnet-5-5` (live 2026-10-01) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, solved-pattern batches; effort floor `medium` (user ruling 2026-10-01: at `low` it skips instructions); no planning, synthesis, revision, or verdicts |
 | `fable` | `claude-fable-5-1` | scarce; at `low` often beats opus/sonnet on cost per task — include in any sweep; picker rejection falls back to `opus` |
-| `haiku` | `claude-haiku-5-5` (live check pending, §8) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): high-volume read-only gathering, web/community scans, bulk tagging or extraction; effort floor `medium`; no planning, synthesis, or verdicts |
+| `haiku` | `claude-haiku-5-5` (live check pending, §8) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, bulk tagging or extraction (including web/community scans); effort floor `medium`; no planning, synthesis, revision, or verdicts |
 
 Haiku 4.x RETIRED 2026-08-01 (user decision; the old model miscounted). Haiku 5.5+ is a
 situational tier (row above). Where the commander does not pick it, former haiku roles run as
@@ -102,7 +102,7 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 
 | Task | Claude | Codex |
 |---|---|---|
-| locate/inventory | `sonnet` medium; `sonnet` high for synthesis | Luna xhigh |
+| locate/inventory | `sonnet` medium for gathering; `opus`/`fable` for synthesis | Luna xhigh |
 | read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
 | implement/refactor/research | `opus` medium; `sonnet`/`haiku` 5.5+ by commander's call (§1) | Luna xhigh |
 | review/verification | review ladder (§Review ladder below): L1 `sonnet` high → L2 `opus` medium+ → L3 `fable` | review ladder: Luna xhigh at L1, Astra xhigh as the L3 fallback |
@@ -112,8 +112,8 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 
 Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
 2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
-3.5 h): every recipe agent runs at least `opus` effort `low`; planning, synthesis, revision,
-and verdicts NEVER run on `sonnet`. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
+3.5 h): except for the worker and L1 roles below, every recipe agent runs at least `opus` effort
+`low`; planning, synthesis, revision, and verdicts NEVER run on `sonnet` or `haiku`. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
 below (user ruling 2026-10-09); otherwise `sonnet`/`haiku` 5.5+ may run implementation or
 read-only data gathering in a recipe by commander's call (user ruling 2026-10-10). The second-model CLI
 (`cli`) is optional and NOT codex-specific: any agent-tmux profile (codex, claude fable/opus,
@@ -221,12 +221,24 @@ tmux worker mechanics (highest-frequency real-world failure, re-hit by ≥4 sess
 
 ## §5 Effort and retry ladder
 
-| Effort | Use |
-|---|---|
-| `low` | `opus`/`fable` mechanical execution (never `sonnet`: floor `medium`, §1) |
-| `medium` | default implementation, refactor, research, first review |
-| `high` | planning, risky/adversarial review, root-cause convergence |
-| `xhigh`/`max` | only after two evidenced lower-tier failures or explicit user choice |
+Default effort per tier (user ruling 2026-10-10); the commander moves it per task:
+
+| Tier | Start | Floor | Ceiling without evidence |
+|---|---|---|---|
+| `opus` | `medium` | `low` | `high` |
+| `fable` | `low` | `low` | `high` |
+| `sonnet` | `medium` | `medium` (at `low` it skips instructions) | `high` |
+| `haiku` | `medium` | `medium` | `high` (at `max` it burns ~162k output tokens per task, Artificial Analysis) |
+
+Move it dynamically, one step at a time, and say why in the dispatch record (§7):
+- Up front, +1: planning, architecture, risky or adversarial review, root-cause convergence.
+- After an evidenced failure, +1 where the retry ladder below permits it; that ladder controls any
+  required jump to worker high or advisor. First fix decomposition or missing context.
+- Down, −1: the hard part is solved and the rest is a mechanical batch with one worked example.
+  Never below the tier's floor; a tier at its floor that is still too costly moves to a cheaper tier instead.
+- `xhigh`/`max` for Claude tiers: only after two evidenced failures at `high`, or by explicit user
+  choice. This does not permit repeating a tier or a fourth round. Codex roles and the review
+  ladder keep their explicit effort settings.
 
 `model` on an `Agent` call, two cases (both measured 2026-09-04):
 - Built-in `subagent_type` (`general-purpose`, `Explore`, `Plan`): `model` is REQUIRED.
@@ -238,8 +250,7 @@ tmux worker mechanics (highest-frequency real-world failure, re-hit by ≥4 sess
   upgrade deliberately, never as the "不知道先 opus" default.
 
 Effort names are NOT equivalent across models (Fable 5.1 guide): re-run the sweep when the model
-changes. Default worker = `opus` `medium`. Raise one step from failure evidence; first
-repair decomposition or missing context. Before `xhigh`/`max`, prefer bounded same-tier sampling
+changes. Before `xhigh`/`max`, prefer bounded same-tier sampling
 plus a judge when cheaper. Workflow `agent()` calls set effort explicitly. Sol workers never
 exceed `medium`; Sol high+ is reserved for the commander.
 

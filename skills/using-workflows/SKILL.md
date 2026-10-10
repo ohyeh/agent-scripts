@@ -93,10 +93,11 @@ inside the script (`consensus-gate`, `cli` review gates) keep the conduit agent.
 
 ## MODEL FLOOR (user ruling 2026-09-02)
 
-Every recipe agent runs at least `opus` effort `low`; the default worker is
+Except for the worker and L1 roles below, every recipe agent runs at least
+`opus` effort `low`; the default worker is
 `opus` effort `medium`, reviewers `high`. Planning, synthesis,
-revision, and verdicts NEVER run on `sonnet` — a sonnet-written plan is not a
-plan. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
+revision, and verdicts NEVER run on `sonnet` or `haiku` — a plan written by
+either is not a plan. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
 (`model-dispatch.md` §Review ladder, user ruling 2026-10-09; `plan-pipeline`
 and `spec-implement-dual-review-verify` do this in-script, the latter as
 `pr-review-toolkit` lenses); the verdict stays with `opus` (L2) or `fable` (L3).
