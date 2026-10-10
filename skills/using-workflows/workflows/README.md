@@ -167,6 +167,16 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   one-off aurora-future-direction-plan run. **See the file header for args
   examples.**
 
+- **`haiku-research-round.workflow.js`** — one round of a commander-driven
+  research loop: N read-only scouts (default `haiku` effort `medium`, allowed
+  as read-only data gathering under the MODEL FLOOR) answer the questions in
+  `args.scouts` in parallel with sourced, structured findings (`args.fields`
+  adds per-finding fields, e.g. `measured_gain`). The loop is NOT in the
+  script: the commander reads the round, consults `advisor`, picks the next
+  questions and calls it again with the next `round`. A failed scout comes
+  back as `{key, failed: true}`. Harvested from the 2026-10-10 haiku-decide
+  experiment. **See the file header for args examples.**
+
 - **`design-vs-code-audit.workflow.js`** — design-vs-code drift audit
   (domain-agnostic): the sibling of `docs-vs-code-audit` — that one treats
   code as ground truth and docs as the audit target; this one treats the
