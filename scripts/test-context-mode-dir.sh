@@ -99,12 +99,12 @@ print("ok   second run not double-wrapped")
 PY
 
 # Wrapper forces DIR even when the parent env is wrong
-got="$(HOME="$TMPHOME" CONTEXT_MODE_DIR=/tmp/wrong bash -c 'source "'"$wrapper"'" 2>/dev/null; printf %s "$CONTEXT_MODE_DIR"' 2>/dev/null || true)"
-# sourcing would exec npx — instead parse the script
-if grep -q 'export CONTEXT_MODE_DIR="${HOME}/.claude/context-mode"' "$wrapper"; then
+# (with arguments the wrapper execs them instead of `npx context-mode`, so nothing is downloaded)
+if got="$(HOME="$TMPHOME" CONTEXT_MODE_DIR=/tmp/wrong bash "$wrapper" printenv CONTEXT_MODE_DIR)" \
+  && [ "$got" = "$TMPHOME/.claude/context-mode" ]; then
   ok "wrapper hard-sets Claude store"
 else
-  bad "wrapper missing DIR export"
+  bad "wrapper DIR: got '${got:-}' want '$TMPHOME/.claude/context-mode'"
 fi
 
 bash -n scripts/context-mode-mcp.sh && ok "bash -n wrapper"
