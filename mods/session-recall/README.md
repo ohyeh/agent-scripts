@@ -239,8 +239,7 @@ During development: `claude --plugin-dir mods/session-recall`.
 ## Checks
 
 ```sh
-MOD=mods/session-recall scripts/test-mod-permissions-smoke   # permission pin + plugin tests
-scripts/test-mod-typecheck-smoke
+MOD=mods/session-recall scripts/test-mod-permissions-smoke   # permission pin + plugin tests + tsc over mods/
 MOD=mods/session-recall scripts/test-version-sync-smoke   # one version in manifest, marketplace, MOD_VERSION, CHANGELOG
 claude plugin validate mods/session-recall
 mods/session-recall/tests/tui-smoke.sh   # the TUI in tmux

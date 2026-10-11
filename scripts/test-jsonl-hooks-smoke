@@ -183,6 +183,45 @@ GOAL: host one assign ACCEPTANCE: it returns
 REPORT
 exit code + status/summary only; do not read or reproduce worker output.'; then echo "FAIL: proxy brief without WORKER_ARTIFACT not blocked" >&2; exit 1; fi
 tail -1 "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" | jq -e '.result == "fail" and .missing == ["SCHEMA"] and .blocked == true' >/dev/null
+# typed proxy contract: a canonical marked brief passes, an altered REPORT is denied, and
+# unmarked briefs that only QUOTE dispatch vocabulary keep passing (Codex counterexamples
+# A/B/C, 2026-08-30 adversarial review) or the gate blocks its own review and tests.
+# shellcheck disable=SC2016  # single-quoted fixtures hold literal backticks on purpose
+PROXY_HEAD='PROXY_MODE: agent-tmux-assign
+WORKER_ARTIFACT: /tmp/run/findings.md
+
+GOAL
+Host exactly one blocking `agent-tmux agy assign w1 /tmp/run /tmp/run/p.md` call.
+
+ACCEPTANCE
+The assign call returns.
+'
+run_bol "$PROXY_HEAD
+REPORT
+exit code + status/summary only; do not read or reproduce worker output." || { echo "FAIL: canonical proxy brief blocked" >&2; exit 1; }
+if run_bol "$PROXY_HEAD
+REPORT
+Return the worker's answer VERBATIM."; then echo "FAIL: proxy brief with altered REPORT not blocked" >&2; exit 1; fi
+run_bol 'GOAL: Update the dispatch runbook. Explain why `agent-tmux agy assign NAME DIR PROMPT`
+must be hosted by a supervision proxy.
+
+ACCEPTANCE: Preserve the current policy sentence "reports exit code + status/summary
+only" VERBATIM, add one valid command example, and run `bash scripts/check-rules-invariants.mjs`.
+
+REPORT: List changed files and the checker exit code.' || { echo "FAIL: unmarked runbook brief blocked" >&2; exit 1; }
+run_bol 'GOAL: Adversarially review a hook that rejects prompts containing
+`agent-tmux` followed by `assign` plus a full-output demand.
+
+ACCEPTANCE: Quote each tested denial message word for word and include the complete
+output of `bash scripts/test-jsonl-hooks-smoke`. Do not summarize the supplied incident quotation.
+
+REPORT: Write findings to review.md and return only the verdict.' || { echo "FAIL: unmarked review brief blocked" >&2; exit 1; }
+run_bol 'GOAL: Diagnose why the documented `agent-tmux claude assign` example exits 2.
+
+ACCEPTANCE: Reproduce locally with `zsh -n scripts/agent-tmux`. Capture the error line VERBATIM so its
+punctuation can be compared with the parser fixture. Do not summarise the error message.
+
+REPORT: Give the root cause, test exit code, and the exact failing log line only.' || { echo "FAIL: unmarked debugging brief blocked" >&2; exit 1; }
 
 # deny-replay: the same (tool, input) that a gate BLOCKED earlier is short-circuited; a fresh input and a plain error are not
 TR5="$WORK/transcript-deny.jsonl"

@@ -23,6 +23,3 @@ repo — duplicate trees drift):
   skill's `scripts/install.sh`).
 - **skills** → [`../skills/`](../skills/) (installed on machines via
   `npx skills`).
-
-Fleet manifests (Workflow / Skill inventory HTML) live under
-[`../artifacts/manifests/`](../artifacts/manifests/).

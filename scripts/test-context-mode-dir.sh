@@ -42,8 +42,8 @@ cwd = "/tmp"
 CONTEXT_MODE_PLATFORM = "codex"
 TOML
 
-bash scripts/install-context-mode-dir.sh >/tmp/ctx-dir-install.out 2>/tmp/ctx-dir-install.err || {
-  bad "install exit $? stderr=$(head -c 400 /tmp/ctx-dir-install.err)"
+bash scripts/install-context-mode-dir.sh >"$TMPHOME/install.out" 2>"$TMPHOME/install.err" || {
+  bad "install exit $? stderr=$(head -c 400 "$TMPHOME/install.err")"
   exit 1
 }
 

@@ -103,6 +103,6 @@ rule fix (commit sha), or as dropped (user approval, §1).
   symlinked, never stored under `~/.agents/rules/`.
 - Machine verification: each machine's runtime `~/.agents/rules/` and global
   files match the repo's md5 for the same paths, and both global files show
-  the same `Version:`. Before deployment, `scripts/check-canary.sh` must pass;
+  the same `Version:`. Before deployment, `node scripts/check-rules-invariants.mjs` must pass;
   after deployment, a new session reply must end with `✈` unless its required
   format fixes the final line (see `rules/agent-environment-provisioning.md`).

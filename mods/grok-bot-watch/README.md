@@ -170,8 +170,7 @@ bot opened in the 50 ms; the text stays in the first bot's composer), `edited`,
 ## Checks
 
 ```sh
-scripts/test-mod-permissions-smoke   # pinned permission surface + plugin test
-scripts/test-mod-typecheck-smoke     # tsc over mods/
+scripts/test-mod-permissions-smoke   # pinned permission surface + plugin test + tsc over mods/
 node --test skills/using-grok-bot-app/scripts/{sidebar,ensure,send}.test.mjs
 scripts/sync-mod-core --check       # the copies match the skill (also in test-version-sync-smoke)
 ```

@@ -8,8 +8,7 @@ This repository is the canonical home (ADR-0001) for the fleet's generic agent p
 routers, workflow recipes, and shared rule files; machines are deployed copies only. Built
 incrementally per a frozen, second-model-reviewed implementation plan. Key contents:
 
-- `skills/using-design-skills/` — the Gate R2 `CLEAN`-reviewed design router (repaired, 16
-  regression cases in `evals/evals.json`).
+- `skills/using-design-skills/` — the Gate R2 `CLEAN`-reviewed design router.
 - `skills/using-workflows/` — the workflow meta-router and its 12 canonical recipes
   (`skills/using-workflows/workflows/`), migrated from `ohyeh/tmux-agent-tools`. This bundle is
   the single canonical copy; machines deploy it to `~/.claude/workflows/` via the install script.
@@ -30,27 +29,6 @@ previously handed a ZIP or a Drive folder — the bootstrap prompt is a single U
 
 Release channel: immutable tag (primary), protected `main` (fallback), per the frozen ADR
 governing this spinout's repo boundary, release policy, and per-skill fleet cutover invariant.
-
-## Local execution-frontier check
-
-Use the zero-dependency harness to compare observable execution outcomes without conflating
-single-model reasoning effort, repeated sampling, and multi-agent topology:
-
-```sh
-node scripts/execution-frontier.mjs \
-  --fixture evals/execution-frontier/fixtures/local-smoke.json \
-  --output-dir .workflow/execution-frontier-local
-node scripts/test-execution-frontier.mjs
-```
-
-The runner writes per-attempt JSONL plus a JSON summary. Case summaries report
-`assertion_pass_rate`, not model task success. Provider-only metrics such as hidden
-reasoning tokens remain explicitly unavailable; the harness does not estimate them. A fixture
-may name one comparison axis, and validation fails if its profiles differ on any other axis.
-Every comparison profile must execute the same `workload_id` with the same command and
-expectations; unused profiles and mismatched workloads fail validation.
-Commands receive `EXECUTION_PROFILE_ID`, `EXECUTION_REASONING_EFFORT`, and
-`EXECUTION_PROFILE_JSON`; the sample fixture verifies this plumbing but does not invoke a model.
 
 ## Deploy (clone-free, one command)
 

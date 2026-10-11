@@ -133,6 +133,31 @@ if ! (cd "$SRC" && node scripts/check-rules-invariants.mjs); then
 fi
 echo "PASS [invariants] all checks green"
 
+# Hook and recipe regressions, on the release tree before any layer mutates ~.
+# Explicit list (no glob: installers and live-model evals must not run here); each
+# test gets its own HOME/XDG/TMPDIR so a fixture never writes the real home.
+# Budget: ~30s total on the operator host.
+layer0_tests=(
+  test-rm-home-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
+  test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke
+  test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate
+  test-context-mode-dir.sh test-docs-audit-ownership test-behavior-runner
+  test-consensus-gate-ladder test-plan-pipeline-ladder
+  test-feature-plan-consensus-ladder test-review-gate-smoke.mjs
+)
+for t in "${layer0_tests[@]}"; do
+  th="$WORKDIR/t-$t"; mkdir -p "$th/tmp"
+  case "$t" in *.mjs) run=(node "scripts/$t") ;; *.sh) run=(bash "scripts/$t") ;; *) run=("scripts/$t") ;; esac
+  if ! (cd "$SRC" && HOME="$th" XDG_STATE_HOME="$th/.local/state" XDG_DATA_HOME="$th/.local/share" \
+        XDG_CONFIG_HOME="$th/.config" XDG_CACHE_HOME="$th/.cache" TMPDIR="$th/tmp" \
+        "${run[@]}" >"$th/log" 2>&1 </dev/null); then
+    echo "FAIL [tests] $t; refusing to deploy. Log:" >&2
+    tail -20 "$th/log" >&2
+    exit 1
+  fi
+done
+echo "PASS [tests] ${#layer0_tests[@]} hook/recipe regressions"
+
 # --- Layer 1: global runtime files -----------------------------------------
 # Same kernel to every present runtime: Claude, Codex, and Gemini/agy (GEMINI.md
 # only when ~/.gemini exists — that runtime is optional).

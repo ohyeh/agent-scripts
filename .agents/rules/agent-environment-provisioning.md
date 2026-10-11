@@ -46,7 +46,7 @@ is unavailable. Live-used on two fleet nodes at W15/W18.
 - **Canonical**: routed rules live in `~/.agents/rules/` (both runtimes read them on demand per the global-file routing table); the two global files are native duplicates, `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` (same content, maintained separately, no symlink).
 - **Rebuild (ADR-0001 ACTIVE)**: rules are version-controlled — the public `agent-scripts` repo's `.agents/rules/` is canonical; machine copies are deployed, direction always repo → machine. Deploy = `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/`. The Fast-path `deploy.sh` does exactly this as its rules layer. Global files are canonical in the repo's `global/` directory, deployed byte-identical to `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`.
 - **Verify**: the `~/.agents/rules/` manifest matches the global-file routing
-  table, both global files have the same `Version:` line, `scripts/check-canary.sh`
+  table, both global files have the same `Version:` line, `node scripts/check-rules-invariants.mjs`
   passes before deployment, and a new session reply ends with `✈`.
 
 ## Plugins / Marketplaces
