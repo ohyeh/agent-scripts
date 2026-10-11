@@ -247,6 +247,8 @@ ladder: for (const [li, L] of LADDER.entries()) {
     }
     if (![...ledger.values()].some(BLOCKING)) {
       if (L.freezes) { frozen = true; log(`${L.tier} verdict: 0 Critical / 0 Major`); break ladder }
+      // TK's report is suggestions too: the fixer answers its Minors (fixed | deferred) before L2
+      if (L.tier === 'TK' && ledger.size && !(await fix(`Findings (ledger, every open one):\n${JSON.stringify([...ledger.values()], null, 2)}`, rounds))) return stop('fixer failed on a fix', [])
       break
     }
     if (li === LADDER.length - 1 && r === L.max) break   // last round of the top layer: no reviewer left for a fix

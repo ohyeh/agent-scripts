@@ -85,6 +85,9 @@ for (const [k, v] of [['cli', 'codex'], ['l1Lenses', []], ['toolkit', ['code-rev
   check('toolkit: [] skips the TK step', seq(calls) === 'L1:code-reviewer L2', seq(calls)) }
 { const { result, calls } = await run((s, r, p) => s === 'TK:silent-failure-hunter' ? V([MAJOR]) : clean(s, r, p))
   check('TK runs one round: its Major goes to the fixer once, then L2 clears it', result.verified === true && seq(calls) === `L1:code-reviewer ${TK4} fix L2`, seq(calls)) }
+{ const MINOR = { ...MAJOR, severity: 'Minor', issue: 'minor' }
+  const { result, calls, seen } = await run((s, r, p) => s === 'TK:comment-analyzer' ? V([MINOR]) : clean(s, r, p))
+  check('a TK-only Minor still goes to the fixer once, and L2 sees it', result.verified === true && seq(calls) === `L1:code-reviewer ${TK4} fix L2` && /"id": "TK-1"/.test(seen.fix) && /"id": "TK-1"/.test(seen['L2#1'] || ''), seq(calls)) }
 { const { calls } = await run(clean, TWO)
   check('luna joins L1 and toolkit picks the TK agents', seq(calls) === 'L1:code-reviewer L1:luna TK:silent-failure-hunter TK:pr-test-analyzer L2' && calls.some(c => c.startsWith('TK:pr-test-analyzer#1|sonnet|pr-review-toolkit:pr-test-analyzer')), calls.join('\n')) }
 { const { result } = await run((s, r, p) => s === 'L1:luna' ? null : clean(s, r, p), TWO)
