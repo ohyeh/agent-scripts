@@ -107,7 +107,7 @@ Steps:
    OUT = ${OUT} (one file per round; never delete an earlier round's file).
    L0 (run checks, then hash): ${l0 ? `run \`${l0}\` in ${repo} → l0_rc (exit code) and l0_output (last 40 lines).` : 'no l0 command: l0_rc = 0, l0_output = "no l0 command".'} Then run \`${MANIFEST}\` → manifest_before.${l0 ? ' If l0_rc is not 0, stop here: skip steps 2–3, verdict = "", consensus = unclear, and still fill manifest_after by re-running the manifest command.' : ''}
 2. Get the review (task = the proposal plus the reviewer contract below):
-${modConduit({ profile: cli, base: session, dir: repo, worker: a.worker, out: OUT, marker, timeout, task: `the proposal above, then this reviewer contract: ${REVIEWER_CONTRACT}` })}
+${modConduit({ profile: cli, base: session, dir: repo, worker: a.worker, out: OUT, marker, timeout, task: `the proposal above, then the L0 result from step 1 (l0_rc and l0_output, verbatim), then this reviewer contract: ${REVIEWER_CONTRACT}` })}
 3. Run the manifest command again → manifest_after. Return: verdict = the verdict text read from OUT (trimmed, drop the trailing marker line); consensus = your classification (agree / agree_with_changes / disagree / unclear); notes = key objections or required changes; worker.
 Return only the structured fields.`,
   { label: `${cli}:${session}`, phase: 'Consult', model, effort, isolation, agentType, schema: SCHEMA }

@@ -154,7 +154,10 @@ const results = await pipeline(
     return agent(
       `Adversarially verify ALL of these design-vs-code drift findings for the "${s.key}" section of the project at ${ROOT}, in this one call. Default to skeptical — only confirm a finding if you can prove it in the code. If you can neither prove nor disprove it, return verdict=unknown (never refuted).\n\n${DESIGN_SOURCE}\n\nFindings:\n${list}\n\nRe-Read the cited code locations and related files in ${JSON.stringify(s.files)} once. For EACH finding check: (a) is the claimed code-reality actually true, or is it implemented somewhere the finder missed? (b) is this just design-WIP (design unfinished), not a code bug? (c) how severe is it for a user? You may re-check the design refs (${JSON.stringify(s.designRefs)}) to confirm the expectation. Read-only: do not edit files or run build, test, lint or any command that writes into the tree.\nReturn exactly one verdict per finding, with index set to the finding's #number.`,
       { label: `verify:${s.key}`, phase: 'Verify', schema: BATCH_VERDICT_SCHEMA, ...effortOpt, ...modelOpt }
-    ).then(r => res.findings.map((f, i) => ({ ...f, section: s.key, verdict: ((r && r.verdicts) || []).find(v => v.index === i) || null })))
+    ).then(r => res.findings.map((f, i) => {
+      const m = ((r && r.verdicts) || []).filter(v => v.index === i)
+      return { ...f, section: s.key, verdict: m.length === 1 ? m[0] : null }   // zero or conflicting verdicts → unverified, never a silent pick
+    }))
   }
 )
 

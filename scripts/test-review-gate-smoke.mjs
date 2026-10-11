@@ -16,7 +16,7 @@ const here = dirname(fileURLToPath(import.meta.url))
 const recipePath = join(here, '..', 'skills', 'using-workflows', 'workflows', 'spec-implement-dual-review-verify.workflow.js')
 const src = readFileSync(recipePath, 'utf8').replace(/^export\s+const\s+meta/m, 'const meta')
 
-const M = 'manifest-1'
+const M = 'a'.repeat(64)   // reviewers return the bare hex; L0 returns shasum's "<hex>  -" (seen in real journals)
 const V = (open = [], extra = {}) => ({ manifest_start: M, manifest_end: M, open, resolved: [], summary: 's', ...extra })
 const MAJOR = { id: 'x', severity: 'Major', status: 'new', issue: 'major', evidence: 'f:1', fix: 'f', check: 'c' }
 const known = p => [...new Set([...p.matchAll(/"id": "(L\d-\d+)"/g)].map(m => m[1]))].map(id => ({ id, evidence: 'verified' }))
@@ -28,7 +28,7 @@ async function run(policy, extraArgs = {}, opts = {}) {
     calls.push(`${o.label}|${o.model || ''}|${o.agentType || ''}`)
     if (o.label === 'implement') return 'IMPL_DONE'
     if (o.label.startsWith('fix#')) { seen.fix = prompt; return { ok: true, summary: 's', actions: [] } }
-    if (o.label.startsWith('L0#')) { seen.l0 = prompt; return { manifest: M, rc: 0, output: 'L0-OUT-42' } }
+    if (o.label.startsWith('L0#')) { seen.l0 = prompt; return { manifest: `${M}  -`, rc: 0, output: 'L0-OUT-42' } }
     if (o.label === 'verify-and-classify') { seen.finalize = prompt; return { summary: 'ok', manifest: opts.finalManifest ?? M, verified: opts.verified ?? true, amendment_needed: false, deviations: opts.deviations || [] } }
     const [, seat, r] = o.label.match(/^(L[123](?::[a-z-]+)?)#(\d+)$/)
     seen[`${seat}#${r}`] = prompt
@@ -59,8 +59,10 @@ const seq = calls => calls.filter(c => /^L[123]/.test(c)).map(c => c.split('|')[
 { const { seen } = await run(clean, { verifyCommands: ['npm test'] })
   check('L0 hashes the tree after the verify commands', seen.l0.indexOf('npm test') < seen.l0.indexOf('shasum'), seen.l0)
   check('the finalizer reuses the L0 evidence, it does not rerun verify', seen.finalize.includes('L0-OUT-42') && !seen.finalize.includes('npm test'), seen.finalize.slice(0, 300)) }
-{ const { result } = await run(clean, {}, { finalManifest: 'manifest-2' })
+{ const { result } = await run(clean, {}, { finalManifest: 'b'.repeat(64) })
   check('a tree change after the last L0 stops finalize', result.aborted === true && result.stage === 'finalize' && /changed after/.test(result.reason), JSON.stringify(result)) }
+{ const { seen } = await run(clean)
+  check('without verifyCommands, L0 still picks and runs the narrowest checks', /choose and run the narrowest relevant checks/.test(seen.l0), seen.l0) }
 { const { result } = await run(clean, { isolation: 'worktree' })
   check('rejects isolation (the ladder needs one live tree)', result.aborted === true && !result.stage, JSON.stringify(result)) }
 for (const [k, v] of [['cli', 'codex'], ['l1Lenses', ['code-reviewer']], ['maxReviewRounds', 0], ['reviewEffort', 'low']]) {

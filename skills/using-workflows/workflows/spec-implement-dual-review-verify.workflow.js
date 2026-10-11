@@ -94,6 +94,7 @@ const snapDir = `/tmp/spec-implement-${String(a.slug || 'change').replace(/[^a-z
 // The change under review, as one text: tracked diff plus every untracked file as a new-file diff.
 const CHANGE = `{ git -C ${R} diff HEAD; git -C ${R} ls-files -o --exclude-standard | while IFS= read -r f; do git -C ${R} diff --no-index /dev/null "$f"; done; }`
 const MANIFEST = `{ git -C ${R} rev-parse HEAD; ${CHANGE}; } 2>/dev/null | shasum -a 256`
+const hex = s => String(s || '').slice(0, 64)   // shasum prints "<hex>  -"; a seat may drop the suffix (7 of 20 Luna verdicts did)
 const target = a.targetFile ? `\nTarget file: ${a.targetFile}` : ''
 const focus = a.reviewFocus || 'correctness, error handling, edge cases, anything that could silently corrupt state or data'
 const verifyCommands = Array.isArray(a.verifyCommands) ? a.verifyCommands : []
@@ -149,7 +150,7 @@ const LADDER = [
 ]
 const BLOCKING = f => f.severity !== 'Minor'
 const runL0 = n => agent(
-  `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. ${verifyCommands.length ? `Run each, in order, stopping at the first non-zero exit:\n${verifyCommands.map(c => `  - ${c}`).join('\n')}\nrc = the first non-zero exit code, or 0; output = the last 40 lines verbatim.` : 'No verifyCommands were given: rc = 0, output = "no verify commands".'}\n2. Then run \`${MANIFEST}\`; manifest = its output.`,
+  `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. ${verifyCommands.length ? `Run each, in order, stopping at the first non-zero exit:\n${verifyCommands.map(c => `  - ${c}`).join('\n')}\nrc = the first non-zero exit code, or 0; output = the last 40 lines verbatim.` : 'No verifyCommands were given: choose and run the narrowest relevant checks for this change (syntax check, linter, a smoke invocation) that write nothing into the repo; rc = the first non-zero exit code, or 0; output = each command and the last 40 lines verbatim.'}\n2. Then run \`${MANIFEST}\`; manifest = its output.`,
   { label: `L0#${n}`, phase: 'Review', model: 'opus', effort: 'low', agentType, schema: L0 })   // manifest AFTER verify: checks that rewrite files must not void the round
 // No isolation (rejected above), so the prompt is the only guard: a reviewer that runs a check writes into the tree under review.
 const reviewPrompt = (tier, r, max, ledger, prev, l0) =>
@@ -218,7 +219,7 @@ ladder: for (const [li, L] of LADDER.entries()) {
     verdicts.filter(v => v && v.seatFailed).forEach(v => warnings.push(`${L.tier} ${v.seatFailed}`))
     const ran = verdicts.filter(v => v && !v.seatFailed)
     if (!ran.length || (L.tier !== 'L1' && ran.length !== seats.length)) return stop(`${L.tier} reviewer failed (returned null) — no silent degradation`, [])
-    if (ran.some(v => v.manifest_start !== pre.manifest || v.manifest_end !== pre.manifest)) {   // the change moved during the round
+    if (ran.some(v => hex(v.manifest_start) !== hex(pre.manifest) || hex(v.manifest_end) !== hex(pre.manifest))) {   // the change moved during the round
       if (++voids >= 2) return stop('the change moved during review twice', ['void round: manifest drifted during review'])
       log(`${L.tier} round ${r + 1} void (the change moved during review); rerun`)
       continue
@@ -283,7 +284,7 @@ const fixed = await agent(
   { label: 'verify-and-classify', phase: 'Finalize', model: 'opus', effort: reviewEffort, agentType, schema: FINALIZE_SCHEMA }
 )
 if (!fixed) return { aborted: true, stage: 'finalize', reason: 'finalize agent failed (returned null) — implementation not verified', impl, rounds, warnings }
-if (fixed.manifest !== lastL0.manifest) return { aborted: true, stage: 'finalize', reason: 'the tree changed after the last reviewed L0 — the review and check evidence no longer cover it', needsUser: true, impl, rounds, warnings }
+if (hex(fixed.manifest) !== hex(lastL0.manifest)) return { aborted: true, stage: 'finalize', reason: 'the tree changed after the last reviewed L0 — the review and check evidence no longer cover it', needsUser: true, impl, rounds, warnings }
 // Gate on BOTH the boolean AND any amendment-needed deviation — a finalizer that sets the flag false
 // while classifying a deviation as amendment-needed must NOT slip through (fail closed).
 const amendmentNeeded = fixed.amendment_needed === true || (fixed.deviations || []).some(d => d && d.classification === 'amendment-needed')

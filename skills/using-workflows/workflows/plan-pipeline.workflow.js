@@ -229,7 +229,8 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
       const ran = verdicts.filter(v => v && !v.seatFailed)
       verdicts.filter(v => v && v.seatFailed).forEach(v => warnings.push(`${L.tier} ${v.seatFailed}`))
       if (!ran.length) return fail(`${L.tier} reviewer failed`, ['reviewer returned null'])
-      if (ran.some(v => v.sha256_start !== pre.sha256 || v.sha256_end !== pre.sha256)) {   // artifact moved during the round
+      const hex = s => String(s || '').slice(0, 64)   // shasum prints "<hex>  <path>"; a seat may return the hex only
+      if (ran.some(v => hex(v.sha256_start) !== hex(pre.sha256) || hex(v.sha256_end) !== hex(pre.sha256))) {   // artifact moved during the round
         if (++voids >= 2) return fail('artifact changed during review twice', ['void round: sha256 drifted during review'])
         log(`${label}: ${L.tier} round ${r + 1} void (artifact changed during review); rerun`)
         continue

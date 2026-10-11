@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Smoke for design-vs-code-audit's batched verifier: one verify call per section, and each finding
+# takes its verdict only when exactly one verdict carries its index (zero or several → unverified).
+# Runs the recipe body with stubbed agent()/pipeline(); no model is called.
+set -u
+W="$(CDPATH= cd -- "$(dirname -- "$0")/../skills/using-workflows/workflows" && pwd)"
+node --input-type=module - "$W/design-vs-code-audit.workflow.js" <<'EOF'
+import fs from 'node:fs'
+const body = fs.readFileSync(process.argv[2], 'utf8').replace(/^export const meta/m, 'const meta')
+const AsyncFn = Object.getPrototypeOf(async () => {}).constructor
+const F = c => ({ component: c, category: 'MISSING', designExpectation: 'd', codeReality: 'r', location: 'f:1', confidence: 4 })
+const V = (index, verdict) => ({ index, verdict, isDesignWip: false, severity: 'high', reason: 'r' })
+const run = async (verdicts) => {
+  let verifies = 0
+  const agent = async (p, o) => o.label.startsWith('audit:') ? { findings: [F('a'), F('b')] } : (verifies++, { verdicts })
+  const pipeline = async (items, a1, a2) => Promise.all(items.map(async s => a2(await a1(s), s)))
+  const out = await new AsyncFn('args', 'agent', 'parallel', 'pipeline', 'phase', 'log', body)(
+    { root: '/r', designSource: 'x', sections: [{ key: 's1', files: ['f'], designRefs: [] }] }, agent, async ts => Promise.all(ts.map(t => t())), pipeline, () => {}, () => {})
+  return { s: out.summary, verifies }
+}
+let fail = 0
+const check = (name, ok, got) => { if (!ok) fail = 1; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : ` — got: ${got}`}`) }
+{ const { s, verifies } = await run([V(0, 'real'), V(1, 'refuted')])
+  check('one verify call per section; each finding gets its own verdict', verifies === 1 && s.confirmedReal === 1 && s.falsePositive === 1, JSON.stringify(s)) }
+{ const { s } = await run([V(0, 'refuted'), V(0, 'real'), V(1, 'real')])
+  check('conflicting verdicts for one index leave it unverified', s.unverified === 1 && s.falsePositive === 0 && s.confirmedReal === 1, JSON.stringify(s)) }
+{ const { s } = await run([V(1, 'real')])
+  check('a finding with no verdict is unverified', s.unverified === 1 && s.confirmedReal === 1, JSON.stringify(s)) }
+console.log(fail ? 'FAIL design-audit-verdicts' : 'PASS design-audit-verdicts')
+process.exit(fail)
+EOF
