@@ -278,7 +278,7 @@ const triaged = await pipeline(
     .then(v => ({ finding: f, verdict: v })),
   async ({ finding: f, verdict: v }) => {
     if (!v) return { finding: f, verdict: null, tier: 'T1', failed: true } // triage agent failed -> NOT dropped silently
-    const highStakes = v.severity === 'P0' || (v.verdict === 'already-fixed' && v.confidence !== 'high')
+    const highStakes = v.severity === 'P0' || v.verdict === 'already-fixed'   // already-fixed closes a thread with no code change: always the panel
     const needPanel = v.confidence !== 'high' || highStakes
     if (!needPanel) return { finding: f, verdict: v, tier: 'T1', escalated: false }
     // T2: independent panel of 3 opus verifiers — FULL quorum (4 votes) required.
