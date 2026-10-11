@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# CLI-worker smoke for feature-plan-consensus: runs the recipe body with stubbed agent()/parallel()/log()
+# and checks that parallel cli calls share one mod worker and that a lost worker name stops the run.
+# No model is called.
+set -u
+W="$(CDPATH= cd -- "$(dirname -- "$0")/../skills/using-workflows/workflows" && pwd)"
+node --input-type=module - "$W/feature-plan-consensus.workflow.js" <<'EOF'
+import fs from 'node:fs'
+const body = fs.readFileSync(process.argv[2], 'utf8').replace(/^export const meta/m, 'const meta')
+const AsyncFn = Object.getPrototypeOf(async () => {}).constructor
+// Only the cli rung runs (workerTries/selfTries 0); two areas skip Decompose and run Discover in parallel.
+const ARGS = { repoPath: '/r', featureBrief: 'b', cli: 'codex', workerTries: 0, selfTries: 0, areas: [{ key: 'a', scope: 'a' }, { key: 'b', scope: 'b' }] }
+const run = async (worker) => {
+  const st = { assign: 0, tell: 0, order: [], live: 0, overlap: false }
+  const agent = async (prompt, o) => {
+    const kind = /mcp__tmux-agent__assign \{profile/.test(prompt) ? 'assign' : /mcp__tmux-agent__tell \{name/.test(prompt) ? 'tell' : null
+    if (kind) { st[kind]++; st.order.push(kind); if (st.live++) st.overlap = true }
+    await new Promise(r => setTimeout(r, 10))   // a cli call that started early would overlap this one
+    if (kind) st.live--
+    if (o.label.startsWith('discover:')) return { area: o.label, gaps: [{ task: 't' }], ...(worker ? { worker } : {}) }
+    return null   // Synthesize dies: the run stops there
+  }
+  const parallel = async thunks => Promise.all(thunks.map(t => t().catch(() => null)))
+  const out = await new AsyncFn('args', 'agent', 'parallel', 'phase', 'log', body)(JSON.stringify(ARGS), agent, parallel, () => {}, () => {})
+  return { out, st }
+}
+let fail = 0
+const check = (name, ok, got) => { if (!ok) fail = 1; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : ` — got: ${got}`}`) }
+{ const { st } = await run('fpc.ab12c')
+  check('two parallel cli calls: one assign, then one tell, never overlapping', st.order.slice(0, 2).join() === 'assign,tell' && st.assign === 1 && !st.overlap, JSON.stringify(st)) }
+{ const { out, st } = await run(null)
+  check('lost worker name: no second assign, the run surfaces needsUser', st.assign === 1 && st.tell === 0 && out.needsUser === true, JSON.stringify({ st, out })) }
+console.log(fail ? 'FAIL feature-plan-consensus-ladder' : 'PASS feature-plan-consensus-ladder')
+process.exit(fail)
+EOF

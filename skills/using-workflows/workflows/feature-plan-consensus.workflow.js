@@ -117,7 +117,22 @@ const modConduit = ({ profile, base, dir, worker, out, marker, timeout, task }) 
   `2. Call mcp__tmux-agent__await {name: worker, max_seconds: ${Math.min(540, timeout)}} until it returns status success, failed or blocked; after ${Math.max(1, Math.ceil(timeout / 540))} pending calls, stop and report the timeout.\n` +
   `3. Read ${out}; it must end with the marker line. Return worker in the worker field.\n\nTASK:\n${task}`
 // One cli worker for the run (escalation rung and external review alike): later calls tell it, so it keeps context.
+// null = not started; false = a call returned no worker name, so a second assign would orphan the first.
 let cliWorker = null
+const cliLost = () => cliWorker === false && (log(`${cli} worker name lost (an earlier call returned none); not assigning a second worker. Check tmux for an orphan.`), true)
+// One worker serves one episode at a time: every cli call waits in one queue (in-script tiers stay parallel).
+// prompt is a thunk so it reads cliWorker when the call runs. Resolves { lost } or { res }.
+let cliQueue = Promise.resolve()
+const cliCall = (prompt, o) => {
+  const run = cliQueue.then(async () => {
+    if (cliLost()) return { lost: true }
+    const res = await agent(prompt(), o).catch(e => { cliWorker = cliWorker || false; throw e })
+    cliWorker = res?.worker || cliWorker || false
+    return { res }
+  })
+  cliQueue = run.catch(() => {})
+  return run
+}
 const withWorker = (schema) => ({ ...schema, properties: { ...schema.properties, worker: { type: 'string', description: 'the cli worker name' } } })
 const driveCli = (taskForCli, out) =>
   `Get a genuine SECOND-MODEL (${cli}) verdict from a tmux-agent mod worker — do NOT use any harness agent type.\n` +
@@ -154,8 +169,12 @@ async function runEscalated(label, phaseName, makePrompt, opts = {}) {
     if (schema) o.schema = r.driveCli ? withWorker(schema) : schema
     if (r.model) o.model = r.model   // per-tier model (worker / self / cli-driven) — intentionally varies
     const p = makePrompt(feedback, r.tier)
-    const res = await agent(r.driveCli ? driveCli(p, `/tmp/${cli}-${label.replace(/[^a-zA-Z0-9._-]/g, '_')}-${i + 1}.md`) : p, o)
-    if (r.driveCli && res?.worker) cliWorker = res.worker
+    let res
+    if (r.driveCli) {
+      const c = await cliCall(() => driveCli(p, `/tmp/${cli}-${label.replace(/[^a-zA-Z0-9._-]/g, '_')}-${i + 1}.md`), o)
+      if (c.lost) break
+      res = c.res
+    } else res = await agent(p, o)
     const v = verify ? await verify(res) : { ok: res != null, feedback: 'empty result' }
     if (v.ok) { log(`${label}: accepted via ${r.tier} (attempt ${i + 1})`); return { result: res, tier: r.tier, attempt: i + 1, ok: true, needsUser: false } }
     last = res
@@ -314,11 +333,10 @@ while (externalRound < maxExternal) {
     `Act as an INDEPENDENT adversarial reviewer for an implementation PLAN. Repo: ${repo}.\n${EVIDENCE}\n` +
     `INDEPENDENTLY verify the plan's "current state" claims with rg/Read and logs/real runs — do not take the plan's or any doc's word for it. Then judge completeness, sequencing, effort realism, and unverified assumptions. ` +
     `Set verified_against_code + default consensus=false unless genuinely sound. Each issue needs evidence (file:line/log) + fix.\n\nPLAN:\n${plan}`
-  const review = await agent(
-    cli ? driveCli(extPrompt, `/tmp/${cli}-extreview-${slug}-${externalRound}.md`) : extPrompt,
-    { label: `${externalTier}-review#${externalRound}`, phase: 'ExternalReview', model, effort: reviewEffort, isolation, agentType, schema: cli ? withWorker(CRITIQUE_SCHEMA) : CRITIQUE_SCHEMA }
-  )
-  if (cli && review?.worker) cliWorker = review.worker
+  const extOpts = { label: `${externalTier}-review#${externalRound}`, phase: 'ExternalReview', model, effort: reviewEffort, isolation, agentType, schema: cli ? withWorker(CRITIQUE_SCHEMA) : CRITIQUE_SCHEMA }
+  const c = cli ? await cliCall(() => driveCli(extPrompt, `/tmp/${cli}-extreview-${slug}-${externalRound}.md`), extOpts) : { res: await agent(extPrompt, extOpts) }
+  if (c.lost) return { aborted: true, stage: 'external-review', needsUser: true, round: externalRound, reason: 'cli worker name lost' }
+  const review = c.res
   if (!review) return { aborted: true, stage: 'external-review', needsUser: true, round: externalRound } // external reviewer (top automated tier) died -> escalate to user
   const blocking = (review.blocking_issues || []).filter(i => i.severity !== 'minor')
   if (review.consensus && review.verified_against_code === true && blocking.length === 0) {

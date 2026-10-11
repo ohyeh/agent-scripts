@@ -43,6 +43,9 @@ const byTier = (map) => (seat, r, p, st) => (map[seat] || map[seat.slice(0, 2)])
 { const pol = (seat, r, p) => seat === 'L2' && r === 1 ? V([MAJOR('a')]) : clean(seat, r, p)
   const { st } = await run(pol, { brief: 'b', skipDirection: true, cli: 'codex', sessionName: 'pp' }, { worker: 'pp.ab12c' })
   check('cli drafter: the draft assigns a mod worker, the fix tells the same worker', /mcp__tmux-agent__assign \{profile: "codex", name: "pp"/.test(st.draft || '') && /mcp__tmux-agent__tell \{name: "pp\.ab12c"/.test(st.fixes[0] || ''), (st.fixes[0] || st.draft || '').slice(0, 400)) }
+{ const pol = (seat, r, p) => seat === 'L2' && r === 1 ? V([MAJOR('a')]) : clean(seat, r, p)
+  const { out, st } = await run(pol, { brief: 'b', skipDirection: true, cli: 'codex', sessionName: 'pp' })   // draft returns no worker name
+  check('cli drafter: no worker name back → no second assign, the plan stops', st.fixes.length === 0 && out.plan.frozen === false && /drafter failed/.test(out.plan.summary), JSON.stringify({ fixes: st.fixes.length, plan: out.plan })) }
 { const { out } = await run(clean, { brief: 'b', skipDirection: true, cli: 'codex', launchEnv: 'X=1 ' }); check('rejects launchEnv', out.aborted === true, JSON.stringify(out)) }
 for (const [bad, val] of [['maxReviewRounds', -1], ['maxReviewRounds', 5], ['reviewEffort', 'low']]) {
   const { out } = await run(clean, { brief: 'b', skipDirection: true, [bad]: val })

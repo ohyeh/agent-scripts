@@ -105,6 +105,7 @@ const modConduit = ({ profile, base, dir, worker, out, marker, timeout, task }) 
   `2. Call mcp__tmux-agent__await {name: worker, max_seconds: ${Math.min(540, timeout)}} until it returns status success, failed or blocked; after ${Math.max(1, Math.ceil(timeout / 540))} pending calls, stop and report the timeout.\n` +
   `3. Read ${out}; it must end with the marker line. Return worker in the worker field.\n\nTASK:\n${task}`
 // The drafter worker, shared by every author call of this run (draft, fixes, every artifact): one context.
+// null = not started; false = a call returned no worker name, so a second assign would orphan the first.
 let cliWorker = null
 
 const DRAFT = { type: 'object', additionalProperties: false,
@@ -159,12 +160,13 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
   // worker, later calls tell it), else opus in-script.
   const author = (task, n) => {
     calls++
+    if (cliWorker === false) { log(`${label}: ${cli} worker name lost (an earlier author call returned none); not assigning a second worker. Check tmux for an orphan.`); return Promise.resolve(null) }
     const prompt = cli
       ? modConduit({ profile: cli, base: session, dir: repo, worker: cliWorker, out: `${snapDir}/${base}-author-${n}.md`, marker: '=== AUTHOR END ===', timeout, task }) +
         '\nReturn its report in the schema fields.'
       : task
     return agent(prompt, { label: `${label}:${n === 0 ? 'draft' : `fix#${n}`}`, phase: phaseName, model, effort, agentType, schema: DRAFT })
-      .then(res => { if (cli && res?.worker) cliWorker = res.worker; return res })
+      .then(res => { if (cli) cliWorker = res?.worker || cliWorker || false; return res })
   }
   const runL0 = n => { calls++; return agent(
     `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. Run \`shasum -a 256 ${outPath}\`; sha256 = the hash.\n2. ${l0Cmd ? `Run \`${l0Cmd}\`; rc = its exit code; output = its last 40 lines verbatim.` : 'No L0 command was given: rc = 0, output = "no l0 command".'}`,
