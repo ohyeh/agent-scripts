@@ -119,6 +119,22 @@ const VERDICT_SCHEMA = {
   },
 }
 
+const BATCH_VERDICT_SCHEMA = {
+  type: 'object',
+  required: ['verdicts'],
+  additionalProperties: false,
+  properties: {
+    verdicts: {
+      type: 'array',
+      items: {
+        ...VERDICT_SCHEMA,
+        required: [...VERDICT_SCHEMA.required, 'index'],
+        properties: { ...VERDICT_SCHEMA.properties, index: { type: 'integer', description: "the finding's #number" } },
+      },
+    },
+  },
+}
+
 const wipHint = (wip) => wip === true
   ? 'the WHOLE section is flagged WIP in the design — expect the design itself to be unfinished; only flag code issues you are confident are NOT just missing design.'
   : wip === 'partial'
@@ -128,18 +144,17 @@ const wipHint = (wip) => wip === true
 const results = await pipeline(
   SECTIONS,
   (s) => agent(
-    `${DESIGN_SOURCE}\n\nYou are auditing the "${s.key}" section of the project at ${ROOT}.\n\nStep 1 — pull the design spec for this section using these refs/queries (add your own follow-ups as needed): ${JSON.stringify(s.designRefs)}.\nStep 2 — Read these code files (use Read/Grep; follow into view-models/state files if you need to confirm a state machine): ${JSON.stringify(s.files)}.\nStep 3 — ${RULES}\n\nDesign-WIP hint for this section: ${wipHint(s.wip)}\n\nReturn structured findings.`,
+    `${DESIGN_SOURCE}\n\nYou are auditing the "${s.key}" section of the project at ${ROOT}.\n\nStep 1 — pull the design spec for this section using these refs/queries (add your own follow-ups as needed): ${JSON.stringify(s.designRefs)}.\nStep 2 — Read these code files (use Read/Grep; follow into view-models/state files if you need to confirm a state machine): ${JSON.stringify(s.files)}.\nStep 3 — ${RULES}\n\nDesign-WIP hint for this section: ${wipHint(s.wip)}\n\nRead-only: do not edit files or run build, test, lint or any command that writes into the tree.\n\nReturn structured findings.`,
     { label: `audit:${s.key}`, phase: 'Audit', schema: FINDINGS_SCHEMA, ...effortOpt, ...modelOpt }
   ),
   (res, s) => {
     if (res == null) return { section: s.key, finderFailed: true, verified: [] }
     if (!res.findings || !res.findings.length) return { section: s.key, wipNote: res.wipNote, verified: [] }
-    return parallel(res.findings.map(f => () =>
-      agent(
-        `Adversarially verify ONE design-vs-code drift finding for the "${s.key}" section of the project at ${ROOT}. Default to skeptical — only confirm if you can prove it in the code. If you can neither prove nor disprove it, return verdict=unknown (never refuted).\n\n${DESIGN_SOURCE}\n\nFinding:\n- component: ${f.component}\n- category: ${f.category}\n- design says: ${f.designExpectation}\n- code reality (claimed): ${f.codeReality}\n- location: ${f.location}\n- reporter confidence: ${f.confidence}/5\n\nRe-Read the cited code (${f.location}) and related files in ${JSON.stringify(s.files)}. Check: (a) is the claimed code-reality actually true, or is it implemented somewhere the finder missed? (b) is this just design-WIP (design unfinished), not a code bug? (c) how severe is it for a user? You may re-check the design refs (${JSON.stringify(s.designRefs)}) to confirm the expectation. Return your verdict.`,
-        { label: `verify:${s.key}:${f.component}`.slice(0, 60), phase: 'Verify', schema: VERDICT_SCHEMA, ...effortOpt, ...modelOpt }
-      ).then(v => ({ ...f, section: s.key, verdict: v }))
-    )).then(vs => vs.map((v, i) => v || { ...res.findings[i], section: s.key, verdict: null }))
+    const list = res.findings.map((f, i) => `#${i}\n- component: ${f.component}\n- category: ${f.category}\n- design says: ${f.designExpectation}\n- code reality (claimed): ${f.codeReality}\n- location: ${f.location}\n- reporter confidence: ${f.confidence}/5`).join('\n\n')
+    return agent(
+      `Adversarially verify ALL of these design-vs-code drift findings for the "${s.key}" section of the project at ${ROOT}, in this one call. Default to skeptical — only confirm a finding if you can prove it in the code. If you can neither prove nor disprove it, return verdict=unknown (never refuted).\n\n${DESIGN_SOURCE}\n\nFindings:\n${list}\n\nRe-Read the cited code locations and related files in ${JSON.stringify(s.files)} once. For EACH finding check: (a) is the claimed code-reality actually true, or is it implemented somewhere the finder missed? (b) is this just design-WIP (design unfinished), not a code bug? (c) how severe is it for a user? You may re-check the design refs (${JSON.stringify(s.designRefs)}) to confirm the expectation. Read-only: do not edit files or run build, test, lint or any command that writes into the tree.\nReturn exactly one verdict per finding, with index set to the finding's #number.`,
+      { label: `verify:${s.key}`, phase: 'Verify', schema: BATCH_VERDICT_SCHEMA, ...effortOpt, ...modelOpt }
+    ).then(r => res.findings.map((f, i) => ({ ...f, section: s.key, verdict: ((r && r.verdicts) || []).find(v => v.index === i) || null })))
   }
 )
 

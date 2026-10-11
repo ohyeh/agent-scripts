@@ -224,7 +224,7 @@ STEP A — trigger the review by running the repo trigger script (it posts a com
 
 STEP B — WAIT for the review with a DETACHED POLL (a single bash call caps ~10min; minGrace alone is ${wait.minGraceSec}s, so you MUST loop across multiple bounded bash calls):
   - Hard-wait minGrace FIRST: sleep in bounded chunks (each bash call sleeps <= 480s) until ${wait.minGraceSec}s elapsed since trigger. Do NOT check for completion before minGrace — bots are slow to start; checking early falsely concludes "done".
-  - Then POLL every ~30s. Each poll: fetch reviewThreads (paginated) + \`gh pr view ${prNum} --json reviews\`.
+  - Then POLL every ~${Math.max(10, Math.round(wait.quietWindowSec / 2))}s. Each poll: fetch reviewThreads (paginated) + \`gh pr view ${prNum} --json reviews\`.
     * NEW threads = thread node ids NOT in this baseline set: ${JSON.stringify(baseline)}. (Primary signal — robust to same-second timestamps. Timestamps are only a secondary cross-check vs trigger_epoch=${ground.trigger_epoch}.)
     * Track, per responded bot, the latest new-comment time and the total NEW-thread count.
   - A bot is "done" iff it submitted a review (after trigger) OR posted >=1 new comment then stayed quiet > ${wait.quietWindowSec}s.
@@ -267,7 +267,8 @@ Judge it AGAINST THE ACTUAL CODE (read ${f.file}; git blame / git log if needed)
 - accept: the code is genuinely wrong/at-risk and needs a change. Set owner: 'worker' if the fix is small/local/1-file, 'self' if cross-file/risky/subtle.
 - already-fixed: a prior commit ALREADY satisfies this; the thread just wasn't resolved. evidence MUST name the exact commit sha and/or code that satisfies it (no commit/code cited -> you may NOT use this verdict).
 - reject: false-positive / outdated / out-of-scope. evidence = why.
-Self-judge severity (P0/P1/P2/none) from the code — do NOT copy the bot's label. Set confidence honestly.`
+Self-judge severity (P0/P1/P2/none) from the code — do NOT copy the bot's label. Set confidence honestly.
+Read-only: do not edit files or run build, test, lint or any command that writes into the tree.`
 }
 
 // Per finding: a first self/worker judgment; escalate medium/low-confidence or high-severity.
@@ -277,7 +278,7 @@ const triaged = await pipeline(
     .then(v => ({ finding: f, verdict: v })),
   async ({ finding: f, verdict: v }) => {
     if (!v) return { finding: f, verdict: null, tier: 'T1', failed: true } // triage agent failed -> NOT dropped silently
-    const highStakes = v.severity === 'P0' || v.verdict === 'already-fixed'
+    const highStakes = v.severity === 'P0' || (v.verdict === 'already-fixed' && v.confidence !== 'high')
     const needPanel = v.confidence !== 'high' || highStakes
     if (!needPanel) return { finding: f, verdict: v, tier: 'T1', escalated: false }
     // T2: independent panel of 3 opus verifiers — FULL quorum (4 votes) required.
@@ -292,12 +293,12 @@ const triaged = await pipeline(
     const fullPanel = panelOk.length === 3            // any panel agent null -> incomplete quorum
     const deadlock = !fullPanel || winner[1] < 3      // require >=3/4 agreement on a full panel
     const p0 = v.severity === 'P0' || consensusVerdict.severity === 'P0' // panel may surface a P0 T1 missed
-    if (!(p0 || deadlock)) {
+    if (!deadlock && (!p0 || winner[1] === 4)) { // P0 skips T3 only on a unanimous full panel
       return { finding: f, verdict: consensusVerdict, tier: 'T2', escalated: true, tally }
     }
     // T3: the deciding pass is AUTHORITATIVE (schema-validated, not a note) — external agent type when configured, else a fresh opus agent.
     const t3 = await agent(
-      `${GH}\nHigh-stakes / deadlocked PR finding — you are the DECIDING independent reviewer (fresh context). ${groundBlob}\nFINDING ${f.thread_id} @ ${f.file}:${f.line || '?'} — "${f.summary}".\nInternal panel tally: ${JSON.stringify(tally)} (votes=${votes.length}). Verify against the ACTUAL code and return the single correct verdict (accept/already-fixed/reject) WITH concrete code/commit evidence; for already-fixed you MUST cite the commit sha. Self-judge severity.`,
+      `${GH}\nHigh-stakes / deadlocked PR finding — you are the DECIDING independent reviewer (fresh context). ${groundBlob}\nFINDING ${f.thread_id} @ ${f.file}:${f.line || '?'} — "${f.summary}".\nInternal panel tally: ${JSON.stringify(tally)} (votes=${votes.length}). Verify against the ACTUAL code and return the single correct verdict (accept/already-fixed/reject) WITH concrete code/commit evidence; for already-fixed you MUST cite the commit sha. Self-judge severity.\nRead-only: do not edit files or run build, test, lint or any command that writes into the tree.`,
       { label: `triage:${f.thread_id}:external`, phase: 'Triage', ...externalOpts, schema: TRIAGE_SCHEMA }
     )
     if (!t3) return { finding: f, verdict: null, tier: 'T3', failed: true, tally } // external unavailable/failed -> do NOT resolve this thread

@@ -37,7 +37,7 @@ if (!Array.isArray(a.groups) || !a.groups.length) return { aborted: true, reason
 const repo = a.repoPath
 const docsRoot = a.docsRoot || 'docs/'
 const model = a.model || 'opus'     // listed on every agent() below (never omitted); floor opus
-const effort = a.effort || 'high'    // reasoning effort — "not shown" must not read as "unsupported"
+const effort = a.effort || 'medium'    // reasoning effort — "not shown" must not read as "unsupported"
 // Official agent() opts, listed on every call. Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)
@@ -137,7 +137,7 @@ const results = await parallel(a.groups.map((g, i) => async () => {
   const own = actionable.map(f => f.path)
   const r = await agent(
     `You are a documentation fixer. You may edit ONLY these files (paths relative to ${repo}): ${JSON.stringify(own)}. Other agents edit other files at the same time — do NOT edit any other file, and do not touch code.\n${CONTEXT}\n` +
-    `Apply these audited findings by editing the files directly. Re-verify each claimed issue against the code before fixing (the auditor may have erred); skip and record any finding you can refute. ` +
+    `Apply these audited findings by editing the files directly. Re-verify against the code only the findings that carry no evidence (the auditor already verified the rest); skip and record any finding you can refute. ` +
     `Keep edits surgical: fix the facts, repair the links, remove dead references. Match each file's existing language and tone. Do not pad, do not add new sections unless a finding says coverage is missing. ` +
     `For 'delete-candidate' verdicts: do NOT delete; note it in your summary instead.\n` +
     `FINDINGS:\n${JSON.stringify(actionable, null, 2)}\n` +

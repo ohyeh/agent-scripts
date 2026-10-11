@@ -14,7 +14,7 @@
 //     layer: "L2",                      // L1 | L2 | L3 (model-dispatch.md §Review ladder); L1 can never pass the gate
 //     freeze: ["/abs/file.md"],         // files hashed into the round manifest (default: proposalFile)
 //     l0: "scripts/test-x",             // OPTIONAL deterministic check run before the review; non-zero = gate fails
-//     effort: "high",                   // low|medium|high (high => reviewer's own high-effort knob)
+//     effort: "low",                    // low|medium|high: the conduit agent's effort (reviewer effort = profile effort_flags)
 //     marker: "=== REVIEWER VERDICT END ===",  // just a sentinel; pass "=== CODEX VERDICT END ===" for legacy byte-compat
 //     timeoutSec: 600
 //   }})
@@ -42,7 +42,7 @@ const a = typeof args === 'string' ? (() => { try { return JSON.parse(args) } ca
 if (!a.proposalFile && !a.proposalText) return { aborted: true, reason: 'need proposalFile or proposalText' }
 const repo = a.repoPath || '.'
 const session = a.sessionName || 'consensus'
-const effort = a.effort || 'high'   // also the reviewer's own reasoning-effort knob (shell env below)
+const effort = a.effort || 'low'    // the conduit agent only relays a file; the reviewer's effort comes from its profile (effort_flags)
 const model = a.model || 'opus'     // the driving Claude agent's model (floor opus — user ruling 2026-09-02)
 // Official agent() opts, listed on every call so none reads as "unsupported". Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit (NOT false/'none')
@@ -67,7 +67,7 @@ const l0 = typeof a.l0 === 'string' ? a.l0 : ''
 const MANIFEST = `{ git -C ${repo} rev-parse HEAD 2>/dev/null || echo no-git; git -C ${repo} diff HEAD 2>/dev/null; ${freeze.length ? `shasum -a 256 ${freeze.join(' ')}` : 'true'}; } | shasum -a 256`
 
 // _lib/worker-doctrine.md §7, kept byte-close (scripts cannot import).
-const REVIEWER_CONTRACT = 'ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise. Round 1: list EVERY finding now, in one pass; a finding held back for a later round counts as a miss. Each finding: stable id, file:line or command output, severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that proves the fix. A finding without evidence is dropped. Round 2+: you get the finding ledger and the before/after diff of the fix. Report (a) each ledger finding: resolved (with evidence) or still open (not_fixed | partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect fix_caused=true only when the diff shows the fix caused it; a new defect the fix did not cause is a round-1 miss. PASS only with 0 Critical and 0 Major open.'
+const REVIEWER_CONTRACT = 'ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise. Round 1: list EVERY finding now, in one pass; a finding held back for a later round counts as a miss. Each finding: stable id, file:line or command output, severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that proves the fix. A finding without evidence is dropped. Round 2+: you get the finding ledger and the before/after diff of the fix. Report (a) each ledger finding: resolved (with evidence) or still open (not_fixed | partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect fix_caused=true only when the diff shows the fix caused it; a new defect the fix did not cause is a round-1 miss. Read-only: do not edit files or run build, test, lint or any command that writes into the tree; the L0 output you are given is the check evidence. A live reproduction runs in a scratch dir outside the repo. PASS only with 0 Critical and 0 Major open.'
 
 // One CLI worker driven through the tmux-agent mod tools (needs the mod at tmux-agent-tools >= a68ecd4:
 // assign/tell + await). Kept byte-close in consensus-gate, plan-pipeline and feature-plan-consensus (scripts
@@ -105,7 +105,7 @@ const r = await agent(
 Steps:
 1. Ensure the proposal text is available. ${a.proposalFile ? `Proposal file: ${a.proposalFile}.` : `Proposal text:\n<<<\n${a.proposalText}\n>>>`}
    OUT = ${OUT} (one file per round; never delete an earlier round's file).
-   L0: run \`${MANIFEST}\` → manifest_before. ${l0 ? `Then run \`${l0}\` in ${repo} → l0_rc (exit code) and l0_output (last 40 lines). If l0_rc is not 0, stop here: skip steps 2–3, verdict = "", consensus = unclear, and still fill manifest_after by re-running the manifest command.` : 'No l0 command: l0_rc = 0, l0_output = "no l0 command".'}
+   L0 (run checks, then hash): ${l0 ? `run \`${l0}\` in ${repo} → l0_rc (exit code) and l0_output (last 40 lines).` : 'no l0 command: l0_rc = 0, l0_output = "no l0 command".'} Then run \`${MANIFEST}\` → manifest_before.${l0 ? ' If l0_rc is not 0, stop here: skip steps 2–3, verdict = "", consensus = unclear, and still fill manifest_after by re-running the manifest command.' : ''}
 2. Get the review (task = the proposal plus the reviewer contract below):
 ${modConduit({ profile: cli, base: session, dir: repo, worker: a.worker, out: OUT, marker, timeout, task: `the proposal above, then this reviewer contract: ${REVIEWER_CONTRACT}` })}
 3. Run the manifest command again → manifest_after. Return: verdict = the verdict text read from OUT (trimmed, drop the trailing marker line); consensus = your classification (agree / agree_with_changes / disagree / unclear); notes = key objections or required changes; worker.

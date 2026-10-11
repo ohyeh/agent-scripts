@@ -134,7 +134,7 @@ if (planClean && planPath) {
     `Under repo ${a.repoPath}, write this JSON to .claude/workflows/${slug}/job.json ` +
     `(mkdir -p the parent dir; overwrite if present), then confirm the written path. ` +
     `Do NOT git add/commit it. JSON:\n${JSON.stringify(execJob, null, 2)}`,
-    { label: `write-exec-job:${slug}`, phase: 'Plan', model, effort, isolation, agentType }
+    { label: `write-exec-job:${slug}`, phase: 'Plan', model, effort: 'low', isolation, agentType }
   )
   log(`Execution-side job recorded at <repo>/.claude/workflows/${slug}/job.json (planPath → ${planPath})`)
 }

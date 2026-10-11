@@ -93,7 +93,7 @@ You may Read cited files to confirm a shared root cause when unsure. Every input
 
 Findings (JSON):
 ${JSON.stringify(FINDINGS)}`,
-  { label: 'cluster', phase: 'Cluster', schema: CLUSTER_SCHEMA, effort: 'high' }
+  { label: 'cluster', phase: 'Cluster', schema: CLUSTER_SCHEMA, effort: 'medium' }
 )
 // fail-closed (judgment-rubrics §9.2): dead clusterer → nothing is lost and nothing is auto-fixed;
 // every finding stays unclassified, because an unknown action is not a pass.

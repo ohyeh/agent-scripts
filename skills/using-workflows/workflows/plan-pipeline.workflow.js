@@ -89,8 +89,8 @@ const STATUS = { type: 'object', additionalProperties: false,
   required: ['ok', 'summary'], properties: { ok: { type: 'boolean' }, summary: { type: 'string' }, detail: { type: 'string' } } }
 
 // _lib/worker-doctrine.md §7/§8, kept byte-close (scripts cannot import).
-const REVIEWER_CONTRACT = 'ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise. Round 1: list EVERY finding now, in one pass; a finding held back for a later round counts as a miss. Each finding: stable id, file:line or command output, severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that proves the fix. A finding without evidence is dropped. Round 2+: you get the finding ledger and the before/after diff of the fix. Report (a) each ledger finding: resolved (with evidence) or still open (not_fixed | partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect fix_caused=true only when the diff shows the fix caused it; a new defect the fix did not cause is a round-1 miss. PASS only with 0 Critical and 0 Major open.'
-const FIXER_CONTRACT = 'Address EVERY finding in this pass, Minor included: fix it at the root cause, or reject it with evidence (file:line / command output). Never skip one silently. No surface bypass: no special case, disabled check, weakened test, or suppressed error to make a finding go away. Finish the whole task in scope, not the smallest patch: "surgical" limits WHERE you edit, never WHAT you finish. Before you hand back, run the L0 checks and quote their output. Report per finding: id, fixed | rejected, evidence.'
+const REVIEWER_CONTRACT = 'ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise. Round 1: list EVERY finding now, in one pass; a finding held back for a later round counts as a miss. Each finding: stable id, file:line or command output, severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that proves the fix. A finding without evidence is dropped. Round 2+: you get the finding ledger and the before/after diff of the fix. Report (a) each ledger finding: resolved (with evidence) or still open (not_fixed | partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect fix_caused=true only when the diff shows the fix caused it; a new defect the fix did not cause is a round-1 miss. Read-only: do not edit files or run build, test, lint or any command that writes into the tree; the L0 output you are given is the check evidence. PASS only with 0 Critical and 0 Major open.'
+const FIXER_CONTRACT = 'Address EVERY Critical and Major finding in this pass: fix it at the root cause, or reject it with evidence (file:line / command output). Fix a Minor only when the edit is small and stays in lines you already touch; otherwise mark it deferred with a one-line reason. Never skip one silently, and never mark an unfixed Minor rejected. No surface bypass: no special case, disabled check, weakened test, or suppressed error to make a finding go away. Finish the whole task in scope, not the smallest patch: "surgical" limits WHERE you edit, never WHAT you finish. Before you hand back, run the narrowest check that covers your edit and quote its output; L0 runs the full checks after you. Report per finding: id, fixed | rejected | deferred, evidence.'
 
 // One CLI worker driven through the tmux-agent mod tools (needs the mod at tmux-agent-tools >= a68ecd4:
 // assign/tell + await). Kept byte-close in consensus-gate, plan-pipeline and feature-plan-consensus (scripts
@@ -120,7 +120,7 @@ const DRAFT = { type: 'object', additionalProperties: false,
     worker: { type: 'string', description: 'cli drafter only: the worker name' },
     actions: { type: 'array', description: 'fix rounds: one entry per finding id; [] for the first draft',
       items: { type: 'object', additionalProperties: false, required: ['id', 'action', 'evidence'],
-        properties: { id: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'rejected'] }, evidence: { type: 'string' } } } },
+        properties: { id: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'rejected', 'deferred'] }, evidence: { type: 'string' } } } },
   } }
 const L0 = { type: 'object', additionalProperties: false, required: ['sha256', 'rc', 'output'],
   properties: { sha256: { type: 'string' }, rc: { type: 'integer' }, output: { type: 'string', description: 'last 40 lines, verbatim' } } }
@@ -169,17 +169,19 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
       .then(res => { if (cli) cliWorker = res?.worker || cliWorker || false; return res })
   }
   const runL0 = n => { calls++; return agent(
-    `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. Run \`shasum -a 256 ${outPath}\`; sha256 = the hash.\n2. ${l0Cmd ? `Run \`${l0Cmd}\`; rc = its exit code; output = its last 40 lines verbatim.` : 'No L0 command was given: rc = 0, output = "no l0 command".'}`,
-    { label: `${label}:L0#${n}`, phase: phaseName, model, effort: 'low', agentType, schema: L0 }) }   // no isolation: L0 and reviewers read the live tree
-  const reviewPrompt = (tier, r, max, ledger, prev) =>
-    `${tier} REVIEW, round ${r}/${max} (you did not write this). Repo ${repo}. First run \`shasum -a 256 ${outPath}\`; sha256_start = the hash field only. Read ${outPath} fully, then verify each "current state" claim against the real code. Judge completeness, sequencing, effort realism, unverified assumptions.\n${REVIEWER_CONTRACT}\n` +
+    `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. ${l0Cmd ? `Run \`${l0Cmd}\`; rc = its exit code; output = its last 40 lines verbatim.` : 'No L0 command was given: rc = 0, output = "no l0 command".'}\n2. Then run \`shasum -a 256 ${outPath}\`; sha256 = the hash.`,
+    { label: `${label}:L0#${n}`, phase: phaseName, model, effort: 'low', agentType, schema: L0 }) }   // hash AFTER l0: a check that rewrites the artifact must not void the round
+  // No isolation, so the prompt is the only guard: a reviewer that runs a check writes into the tree under review.
+  const reviewPrompt = (tier, r, max, ledger, prev, l0) =>
+    `${tier} REVIEW, round ${r}/${max} (you did not write this). Repo ${repo}. First run \`shasum -a 256 ${outPath}\`; sha256_start = the hash field only. ` +
+    `L0 output (the check evidence; do not rerun checks):\n${l0}\nRead ${outPath} fully, then verify each "current state" claim against the real code. Judge completeness, sequencing, effort realism, unverified assumptions.\n${REVIEWER_CONTRACT}\n` +
     (ledger.length ? `FINDING LEDGER (open findings from earlier rounds and layers, with fixer actions):\n${JSON.stringify(ledger, null, 2)}\n` : 'No earlier findings: this is round 1 for this artifact.\n') +
     (prev ? `Before/after diff of the last fix: run \`diff -u ${prev} ${outPath}\`.\n` : '') +
     `Last step: run \`shasum -a 256 ${outPath}\` again; sha256_end = the hash field only. Do not edit any file.`
   const seatFailed = (who, why) => { log(`${label}: L1 ${who} reviewer did not run (${why})`); return { seatFailed: `${who} did not run: ${why}` } }
-  const review = (tier, who, r, max, ledger, prev) => {
+  const review = (tier, who, r, max, ledger, prev, l0) => {
     calls++
-    const prompt = reviewPrompt(tier, r, max, ledger, prev)
+    const prompt = reviewPrompt(tier, r, max, ledger, prev, l0)
     const opts = { label: `${label}:${tier}${who}#${r}`, phase: phaseName, agentType }
     if (who === 'luna') return agent(
       `Run a gpt-6-luna review with codex, read-only, and return its verdict. Steps:\n1. mkdir -p ${snapDir}; write the review request between <<< >>> below verbatim to ${snapDir}/${base}-luna-r${calls}.in\n` +
@@ -223,7 +225,7 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
       l0Fails = 0
       const known = [...ledger.values()]
       const who = L.tier === 'L1' ? ['sonnet', 'luna'] : ['']
-      const verdicts = await parallel(who.map(w => () => review(L.tier, w, r + 1, L.max, known, prev)))
+      const verdicts = await parallel(who.map(w => () => review(L.tier, w, r + 1, L.max, known, prev, pre.output)))
       const ran = verdicts.filter(v => v && !v.seatFailed)
       verdicts.filter(v => v && v.seatFailed).forEach(v => warnings.push(`${L.tier} ${v.seatFailed}`))
       if (!ran.length) return fail(`${L.tier} reviewer failed`, ['reviewer returned null'])

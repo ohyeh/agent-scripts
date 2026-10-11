@@ -30,6 +30,29 @@ const check = (name, ok, got) => { if (!ok) fail = 1; console.log(`${ok ? 'ok  '
   check('two parallel cli calls: one assign, then one tell, never overlapping', st.order.slice(0, 2).join() === 'assign,tell' && st.assign === 1 && !st.overlap, JSON.stringify(st)) }
 { const { out, st } = await run(null)
   check('lost worker name: no second assign, the run surfaces needsUser', st.assign === 1 && st.tell === 0 && out.needsUser === true, JSON.stringify({ st, out })) }
+// Full run without cli: the external reviewer is a plain agent() call. criticOk decides every critic verdict.
+const PLAN = ['# Goal & success criteria', '# Scope / non-goals', '# Work breakdown', '# Risks & open questions', '# Phased sequence', 'x'.repeat(300)].join('\n')
+const full = async (criticOk) => {
+  const labels = []
+  const agent = async (prompt, o) => {
+    labels.push(o.label)
+    if (o.label.startsWith('discover:')) return { area: o.label, gaps: [{ task: 't' }] }
+    if (/^(synthesize|revise-)/.test(o.label)) return PLAN
+    const issue = [{ issue: 'i', severity: 'blocker', evidence: 'f:1', fix: 'f' }]
+    if (o.label.startsWith('critic:')) return criticOk ? { consensus: true, verified_against_code: true, blocking_issues: [] } : { consensus: false, verified_against_code: true, blocking_issues: issue }
+    if (o.label === 'claude-opus-review#1') return { consensus: false, verified_against_code: true, blocking_issues: issue }
+    if (o.label === 'claude-opus-review#2') return { consensus: true, verified_against_code: true, blocking_issues: [] }
+    if (o.label === 'commit-plan') return { written: true, committed: false, pushed: false }
+    return null
+  }
+  const parallel = async thunks => Promise.all(thunks.map(t => t().catch(() => null)))
+  const out = await new AsyncFn('args', 'agent', 'parallel', 'phase', 'log', body)(JSON.stringify({ ...ARGS, cli: undefined, workerTries: 1 }), agent, parallel, () => {}, () => {})
+  return { out, labels }
+}
+{ const { out, labels } = await full(true)
+  check('external revise -> internal critics re-run once on the final plan, gate can pass', out.needsUser === false && out.internal.consensus === true && out.external.consensus === true && labels.filter(l => /^critic:.*#final$/.test(l)).length === 4 && labels.filter(l => l.startsWith('revise-external')).length === 1, JSON.stringify({ out, labels })) }
+{ const { out, labels } = await full(false)
+  check('no internal consensus: external review skipped, no revise on the last round', out.needsUser === true && !labels.some(l => /-review#/.test(l)) && labels.filter(l => l.startsWith('revise-internal')).length === 2, JSON.stringify({ out, labels })) }
 console.log(fail ? 'FAIL feature-plan-consensus-ladder' : 'PASS feature-plan-consensus-ladder')
 process.exit(fail)
 EOF

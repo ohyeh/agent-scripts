@@ -235,7 +235,7 @@ const CRITIQUE_SCHEMA = {
     consensus: { type: 'boolean' },
     verified_against_code: { type: 'boolean', description: 'true only if you checked the plan claims with rg/Read/logs this pass; false otherwise (the gate then rejects consensus).' },
     blocking_issues: { type: 'array', items: {
-      type: 'object', additionalProperties: false, required: ['issue', 'evidence', 'fix'],
+      type: 'object', additionalProperties: false, required: ['issue', 'severity', 'evidence', 'fix'],
       properties: { issue: { type: 'string' }, area: { type: 'string' }, severity: { type: 'string', enum: ['blocker', 'major', 'minor'] }, evidence: { type: 'string', description: 'REQUIRED: file:line or log excerpt proving the issue (no code evidence = not a valid issue)' }, fix: { type: 'string' } },
     } },
     notes: { type: 'string' },
@@ -293,33 +293,45 @@ let plan = synth.result
 
 // ───────────────────────── 4. Internal consensus loop ─────────────────────────
 phase('InternalConsensus')
+const READ_ONLY = 'Read-only: do not edit files or run build, test, lint or any command that writes into the tree.'
+// panel[i] = lens i's verdict on the CURRENT plan (null = not judged yet); a plan change resets it.
+let panel = lenses.map(() => null)
+const runCritics = async (tag) => {
+  const todo = lenses.map((l, i) => i).filter(i => panel[i] == null)
+  const res = await parallel(todo.map(i => () =>
+    agent(
+      `${CONTEXT}\nAdversarially critique this v1 plan through ONE lens: ${lenses[i]}. ` +
+      `VERIFY each "current state" claim against the actual code (rg/Read) — flag any claim that rests on docs/memory rather than code. Set verified_against_code honestly. ` +
+      `Be skeptical; default consensus=false if you find a blocker. Each issue needs concrete evidence (file:line / log) and a fix. Skip nitpicks. ${READ_ONLY}\n\nPLAN:\n${plan}`,
+      { label: `critic:${String(lenses[i]).split(' ')[0]}#${tag}`, phase: 'InternalConsensus', model, effort: reviewEffort, isolation, agentType, schema: CRITIQUE_SCHEMA }
+    )
+  ))
+  todo.forEach((i, k) => { panel[i] = res[k] || null })
+  const critiques = panel.filter(Boolean)
+  const missingLenses = lenses.filter((l, i) => panel[i] == null)
+  const blocking = critiques.flatMap(c => (c.blocking_issues || []).filter(i => i.severity !== 'minor'))
+  const consensus = !missingLenses.length && critiques.every(c => c.consensus && c.verified_against_code === true) && blocking.length === 0
+  return { critiques, missingLenses, blocking, consensus }
+}
 let internalRound = 0, internalConsensus = false
 while (internalRound < maxInternal) {
   internalRound++
-  let critiques = (await parallel(lenses.map(lens => () =>
-    agent(
-      `${CONTEXT}\nAdversarially critique this v1 plan through ONE lens: ${lens}. ` +
-      `VERIFY each "current state" claim against the actual code (rg/Read) — flag any claim that rests on docs/memory rather than code. Set verified_against_code honestly. ` +
-      `Be skeptical; default consensus=false if you find a blocker. Each issue needs concrete evidence (file:line / log) and a fix. Skip nitpicks.\n\nPLAN:\n${plan}`,
-      { label: `critic:${String(lens).split(' ')[0]}#${internalRound}`, phase: 'InternalConsensus', model, effort: reviewEffort, isolation, agentType, schema: CRITIQUE_SCHEMA }
-    )
-  )))
-  const missingLenses = lenses.filter((l, i) => critiques[i] == null)
-  critiques = critiques.filter(Boolean)
+  const { critiques, missingLenses, blocking, consensus } = await runCritics(internalRound)
   if (!critiques.length) return { aborted: true, stage: 'internal-critics', needsUser: true, round: internalRound } // all critics died -> can't trust convergence
-  const blocking = critiques.flatMap(c => (c.blocking_issues || []).filter(i => i.severity !== 'minor'))
-  if (!missingLenses.length && critiques.every(c => c.consensus && c.verified_against_code === true) && blocking.length === 0) {
+  if (consensus) {
     internalConsensus = true; log(`internal consensus in round ${internalRound}`); break
   }
-  // judgment-rubrics §9.2: a dead critic is not a pass — no consensus from a partial panel; re-run the full panel
-  if (missingLenses.length && blocking.length === 0) { log(`internal round ${internalRound}: critic(s) missing for ${missingLenses.join(', ')} -> re-run critics, no consensus`); continue }
+  // judgment-rubrics §9.2: a dead critic is not a pass — no consensus from a partial panel; the plan is unchanged, so re-run only the missing lenses
+  if (missingLenses.length && blocking.length === 0) { log(`internal round ${internalRound}: critic(s) missing for ${missingLenses.join(', ')} -> re-run those critics, no consensus`); continue }
+  // a revision on the last round is never judged
+  if (internalRound >= maxInternal) { log(`internal round ${internalRound}: ${blocking.length} blocking, last round -> no revise`); break }
   log(`internal round ${internalRound}: ${blocking.length} blocking -> revise`)
   const rev = await runEscalated(`revise-internal#${internalRound}`, 'InternalConsensus',
     (fb) => `${CONTEXT}\nRevise the plan to resolve these critic issues; RE-VERIFY each asserted fact in code. Keep structure (${PLAN_SECTIONS}). Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
     { verify: planOk }
   )
   if (!rev.ok) return { aborted: true, stage: 'internal-revise', needsUser: true, round: internalRound }
-  plan = rev.result
+  plan = rev.result; panel = lenses.map(() => null)
 }
 
 // ───────────────────────── 5. External (second-brain) review loop ─────────────────────────
@@ -327,12 +339,15 @@ while (internalRound < maxInternal) {
 // (independent context — it never saw the critics or the revisions) runs the same adversarial prompt.
 phase('ExternalReview')
 let externalRound = 0, externalConsensus = false
-while (externalRound < maxExternal) {
+// The gate needs both verdicts: without internal consensus an external round cannot change the outcome.
+const externalRounds = internalConsensus ? maxExternal : 0
+if (!internalConsensus) log('no internal consensus -> external review skipped')
+while (externalRound < externalRounds) {
   externalRound++
   const extPrompt =
     `Act as an INDEPENDENT adversarial reviewer for an implementation PLAN. Repo: ${repo}.\n${EVIDENCE}\n` +
     `INDEPENDENTLY verify the plan's "current state" claims with rg/Read and logs/real runs — do not take the plan's or any doc's word for it. Then judge completeness, sequencing, effort realism, and unverified assumptions. ` +
-    `Set verified_against_code + default consensus=false unless genuinely sound. Each issue needs evidence (file:line/log) + fix.\n\nPLAN:\n${plan}`
+    `Set verified_against_code + default consensus=false unless genuinely sound. Each issue needs evidence (file:line/log) + fix. ${READ_ONLY}\n\nPLAN:\n${plan}`
   const extOpts = { label: `${externalTier}-review#${externalRound}`, phase: 'ExternalReview', model, effort: reviewEffort, isolation, agentType, schema: cli ? withWorker(CRITIQUE_SCHEMA) : CRITIQUE_SCHEMA }
   const c = cli ? await cliCall(() => driveCli(extPrompt, `/tmp/${cli}-extreview-${slug}-${externalRound}.md`), extOpts) : { res: await agent(extPrompt, extOpts) }
   if (c.lost) return { aborted: true, stage: 'external-review', needsUser: true, round: externalRound, reason: 'cli worker name lost' }
@@ -342,15 +357,22 @@ while (externalRound < maxExternal) {
   if (review.consensus && review.verified_against_code === true && blocking.length === 0) {
     externalConsensus = true; log(`external consensus in round ${externalRound}`); break
   }
+  if (externalRound >= externalRounds) { log(`external round ${externalRound}: ${blocking.length} blocking, last round -> no revise`); break }
   log(`external round ${externalRound}: ${blocking.length} blocking -> revise`)
   const rev = await runEscalated(`revise-external#${externalRound}`, 'ExternalReview',
     (fb) => `${CONTEXT}\nThe independent reviewer (${externalTier}) raised these issues; resolve each and RE-VERIFY facts in code/logs. Keep structure. Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
     { verify: planOk }
   )
   if (!rev.ok) return { aborted: true, stage: 'external-revise', needsUser: true, round: externalRound }
-  plan = rev.result
+  plan = rev.result; panel = lenses.map(() => null)
   // judgment-rubrics §9.1: the internal verdict judged the previous plan; it does not carry over to the revision.
   if (internalConsensus) { internalConsensus = false; log(`external revision #${externalRound} changed the plan — internal consensus no longer applies (needs a re-run on the final plan)`) }
+}
+// An external revise cleared internalConsensus: re-judge the final plan once with the full panel (no revise after it).
+if (externalConsensus && !internalConsensus) {
+  internalRound++
+  internalConsensus = (await runCritics('final')).consensus
+  log(`internal re-run on the final plan: consensus=${internalConsensus}`)
 }
 
 // ───────────────────────── 6. Commit (consensus + approval gated) ─────────────────────────
@@ -374,7 +396,7 @@ const commit = await agent(
     ? `2) APPROVED: git add ONLY the artifacts under ${outDir} (verify with 'git status --porcelain' that nothing outside ${outDir} is staged; if anything else is staged, unstage it). Commit "docs(plan): ${slug} v1 implementation plan (internal+external consensus)". ${wantPush ? 'Then push current branch.' : 'Do NOT push.'} Report the staged_files list and commit sha.`
     : `2) Do NOT git add/commit/push — ${bothConsensus ? 'commit not approved (args.commit!=true)' : undiscoveredAreas.length ? `discovery failed for ${undiscoveredAreas.join(', ')}; needs user decision` : 'consensus NOT reached; needs user decision'}. Just confirm files written (committed=false, pushed=false).`) +
   `\nReturn the schema honestly (committed/pushed reflect what you actually did).`,
-  { label: 'commit-plan', phase: 'Commit', model, effort, isolation, agentType, schema: COMMIT_SCHEMA }
+  { label: 'commit-plan', phase: 'Commit', model, effort: wantCommit ? effort : 'low', isolation, agentType, schema: COMMIT_SCHEMA }
 )
 // commit agent died -> we have no trustworthy write/commit result; do not silently report false. Surface to user.
 if (!commit) return { aborted: true, stage: 'commit', needsUser: true, planPath, internal: { consensus: internalConsensus, rounds: internalRound }, external: { consensus: externalConsensus, rounds: externalRound } }

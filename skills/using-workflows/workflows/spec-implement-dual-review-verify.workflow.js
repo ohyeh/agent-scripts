@@ -3,6 +3,8 @@
 // Generalized from the one-off `jenkins-cli-build` / `-trigger-cli` / `-iap-finalize`
 // session workflows (standard-portal-app) — they were three instances of this same skeleton.
 // Cross-project: fully parameterized via `args`. No hardcoded spec/paths.
+// Run it once per PR/push checkpoint on the accumulated change, not once per slice; between
+// slices run only the verify commands (model-dispatch.md §Review ladder "When").
 //
 // Invoke reliably via absolute scriptPath (independent of discovery/name):
 //   Workflow({ scriptPath: ".claude/workflows/spec-implement-dual-review-verify.workflow.js", args: {
@@ -10,7 +12,7 @@
 //     spec:      "Full implementation spec (multi-line): what file to write/edit, style to match, exact behavior...",
 //     targetFile:"scripts/foo/bar.sh",            // optional: file under review (repo-relative or absolute)
 //     reviewFocus:"bash quoting under set -euo pipefail, curl error handling, edge cases",  // optional
-//     verifyCommands: [                            // optional: the L0 checks, run before every review round and in Finalize
+//     verifyCommands: [                            // optional: the L0 checks, run before every review round (Finalize reuses the last run)
 //       "bash -n scripts/foo/bar.sh",
 //       "shellcheck scripts/foo/bar.sh",
 //       "./scripts/foo/bar.sh --help"
@@ -95,21 +97,18 @@ const MANIFEST = `{ git -C ${R} rev-parse HEAD; ${CHANGE}; } 2>/dev/null | shasu
 const target = a.targetFile ? `\nTarget file: ${a.targetFile}` : ''
 const focus = a.reviewFocus || 'correctness, error handling, edge cases, anything that could silently corrupt state or data'
 const verifyCommands = Array.isArray(a.verifyCommands) ? a.verifyCommands : []
-const verifyClause = verifyCommands.length
-  ? `VERIFY by running each of these and pasting the outputs:\n${verifyCommands.map(c => `  - ${c}`).join('\n')}`
-  : `VERIFY with the narrowest relevant checks for this change (syntax check, linter, a smoke invocation) and paste the outputs.`
 
 const SPEC = `Repo: ${repo}.${target}\n\nSPEC:\n${a.spec}`
 
 // _lib/worker-doctrine.md §7/§8, kept byte-close (scripts cannot import).
-const REVIEWER_CONTRACT = 'ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise. Round 1: list EVERY finding now, in one pass; a finding held back for a later round counts as a miss. Each finding: stable id, file:line or command output, severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that proves the fix. A finding without evidence is dropped. Round 2+: you get the finding ledger and the before/after diff of the fix. Report (a) each ledger finding: resolved (with evidence) or still open (not_fixed | partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect fix_caused=true only when the diff shows the fix caused it; a new defect the fix did not cause is a round-1 miss. PASS only with 0 Critical and 0 Major open.'
-const FIXER_CONTRACT = 'Address EVERY finding in this pass, Minor included: fix it at the root cause, or reject it with evidence (file:line / command output). Never skip one silently. No surface bypass: no special case, disabled check, weakened test, or suppressed error to make a finding go away. Finish the whole task in scope, not the smallest patch: "surgical" limits WHERE you edit, never WHAT you finish. Before you hand back, run the L0 checks and quote their output. Report per finding: id, fixed | rejected, evidence.'
+const REVIEWER_CONTRACT = 'ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise. Round 1: list EVERY finding now, in one pass; a finding held back for a later round counts as a miss. Each finding: stable id, file:line or command output, severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that proves the fix. A finding without evidence is dropped. Round 2+: you get the finding ledger and the before/after diff of the fix. Report (a) each ledger finding: resolved (with evidence) or still open (not_fixed | partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect fix_caused=true only when the diff shows the fix caused it; a new defect the fix did not cause is a round-1 miss. Read-only: do not edit files or run build, test, lint or any command that writes into the tree; the L0 output you are given is the check evidence. PASS only with 0 Critical and 0 Major open.'
+const FIXER_CONTRACT = 'Address EVERY Critical and Major finding in this pass: fix it at the root cause, or reject it with evidence (file:line / command output). Fix a Minor only when the edit is small and stays in lines you already touch; otherwise mark it deferred with a one-line reason. Never skip one silently, and never mark an unfixed Minor rejected. No surface bypass: no special case, disabled check, weakened test, or suppressed error to make a finding go away. Finish the whole task in scope, not the smallest patch: "surgical" limits WHERE you edit, never WHAT you finish. Before you hand back, run the narrowest check that covers your edit and quote its output; L0 runs the full checks after you. Report per finding: id, fixed | rejected | deferred, evidence.'
 
 const FIX = { type: 'object', additionalProperties: false, required: ['ok', 'summary', 'actions'],
   properties: {
     ok: { type: 'boolean' }, summary: { type: 'string' },
     actions: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'action', 'evidence'],
-      properties: { id: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'rejected'] }, evidence: { type: 'string' } } } },
+      properties: { id: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'rejected', 'deferred'] }, evidence: { type: 'string' } } } },
   } }
 const L0 = { type: 'object', additionalProperties: false, required: ['manifest', 'rc', 'output'],
   properties: { manifest: { type: 'string' }, rc: { type: 'integer' }, output: { type: 'string', description: 'last 40 lines, verbatim' } } }
@@ -150,10 +149,12 @@ const LADDER = [
 ]
 const BLOCKING = f => f.severity !== 'Minor'
 const runL0 = n => agent(
-  `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. Run \`${MANIFEST}\`; manifest = its output.\n2. ${verifyCommands.length ? `Run each, in order, stopping at the first non-zero exit:\n${verifyCommands.map(c => `  - ${c}`).join('\n')}\nrc = the first non-zero exit code, or 0; output = the last 40 lines verbatim.` : 'No verifyCommands were given: rc = 0, output = "no verify commands".'}`,
-  { label: `L0#${n}`, phase: 'Review', model: 'opus', effort: 'low', agentType, schema: L0 })   // no isolation: L0 and reviewers read the live tree
-const reviewPrompt = (tier, r, max, ledger, prev) =>
+  `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. ${verifyCommands.length ? `Run each, in order, stopping at the first non-zero exit:\n${verifyCommands.map(c => `  - ${c}`).join('\n')}\nrc = the first non-zero exit code, or 0; output = the last 40 lines verbatim.` : 'No verifyCommands were given: rc = 0, output = "no verify commands".'}\n2. Then run \`${MANIFEST}\`; manifest = its output.`,
+  { label: `L0#${n}`, phase: 'Review', model: 'opus', effort: 'low', agentType, schema: L0 })   // manifest AFTER verify: checks that rewrite files must not void the round
+// No isolation (rejected above), so the prompt is the only guard: a reviewer that runs a check writes into the tree under review.
+const reviewPrompt = (tier, r, max, ledger, prev, l0) =>
   `${tier} REVIEW, round ${r}/${max}, of the change just implemented (you did not write it). Repo ${repo}. First run \`${MANIFEST}\`; manifest_start = its output. ` +
+  `L0 output for this tree (the check evidence; do not rerun checks):\n${l0}\n` +
   `The change = the output of \`${CHANGE}\`. Review it against the spec below. Focus: ${focus}. Verify against the real code, not the implementer's claims. ` +
   `Every new concept or abstraction (type, layer, option, config surface, helper used once) must name the spec line or reproduced failure that requires it; one that cannot is an issue. Never flag the change for covering the full requested scope.\n${REVIEWER_CONTRACT}\n` +
   (ledger.length ? `FINDING LEDGER (open findings from earlier rounds and layers, with fixer actions):\n${JSON.stringify(ledger, null, 2)}\n` : 'No earlier findings: this is round 1 for this change.\n') +
@@ -161,8 +162,8 @@ const reviewPrompt = (tier, r, max, ledger, prev) =>
   `Last step: run the manifest command again; manifest_end = its output. Do not edit any file.\n${SPEC}`
 let seat = 0
 const seatFailed = (who, why) => { log(`L1 ${who} reviewer did not run (${why})`); return { seatFailed: `${who}: ${why}` } }
-const review = (tier, who, r, max, ledger, prev) => {
-  const prompt = reviewPrompt(tier, r, max, ledger, prev)
+const review = (tier, who, r, max, ledger, prev, l0) => {
+  const prompt = reviewPrompt(tier, r, max, ledger, prev, l0)
   const label = `${tier}${who ? `:${who}` : ''}#${r}`
   if (who === 'luna') {
     const f = `${snapDir}/luna-${++seat}`
@@ -184,7 +185,7 @@ const review = (tier, who, r, max, ledger, prev) => {
   // an L2/L3 reviewer that fails stops the gate (null).
   return tier === 'L1' ? v.then(x => x || seatFailed(who, 'agent null'), e => seatFailed(who, `threw: ${e}`)) : v
 }
-let calls = 0, prev = null, nid = 0, rounds = 0, frozen = false
+let calls = 0, prev = null, nid = 0, rounds = 0, frozen = false, lastL0 = null
 const ledger = new Map()   // id → finding (+ tier, + fixer action); survives layer changes
 const warnings = []
 const fix = async (task, n) => {
@@ -209,11 +210,11 @@ ladder: for (const [li, L] of LADDER.entries()) {
       if (!(await fix(`L0 FAILED (rc=${pre.rc}). Output:\n${pre.output}\nFix the cause; also keep every open ledger finding in mind:\n${JSON.stringify([...ledger.values()], null, 2)}`, rounds + 1))) return stop('fixer failed on an L0 fix', [])
       continue
     }
-    l0Fails = 0
+    l0Fails = 0; lastL0 = pre
     const known = [...ledger.values()]
     const seats = L.tier === 'L1' ? [...lenses, 'luna'] : ['']
     calls += seats.length
-    const verdicts = await parallel(seats.map(w => () => review(L.tier, w, r + 1, L.max, known, prev)))
+    const verdicts = await parallel(seats.map(w => () => review(L.tier, w, r + 1, L.max, known, prev, pre.output)))
     verdicts.filter(v => v && v.seatFailed).forEach(v => warnings.push(`${L.tier} ${v.seatFailed}`))
     const ran = verdicts.filter(v => v && !v.seatFailed)
     if (!ran.length || (L.tier !== 'L1' && ran.length !== seats.length)) return stop(`${L.tier} reviewer failed (returned null) — no silent degradation`, [])
@@ -254,10 +255,11 @@ phase('Finalize')
 // escalate to an ADR amendment (re-freeze via plan-pipeline) instead of silently editing through.
 const FINALIZE_SCHEMA = {
   type: 'object', additionalProperties: false,
-  required: ['summary', 'verified', 'amendment_needed', 'deviations'],
+  required: ['summary', 'manifest', 'verified', 'amendment_needed', 'deviations'],
   properties: {
     summary: { type: 'string' },
-    verified: { type: 'boolean', description: 'verify commands ran and passed' },
+    manifest: { type: 'string', description: 'the manifest command output' },
+    verified: { type: 'boolean', description: 'the L0 evidence shows every check passed' },
     amendment_needed: { type: 'boolean', description: 'true iff any change contradicts a frozen spec/ADR line' },
     deviations: { type: 'array', items: {
       type: 'object', additionalProperties: false, required: ['what', 'classification'],
@@ -271,15 +273,17 @@ const FINALIZE_SCHEMA = {
   },
 }
 const fixed = await agent(
-  `You are finalizing the change in ${repo}. The review ladder already passed it; do NOT edit any file — an edit now would be unreviewed. ${verifyClause}\n` +
+  `You are finalizing the change in ${repo}. The review ladder already passed it; do NOT edit any file — an edit now would be unreviewed. First run \`${MANIFEST}\`; manifest = its output.\n` +
+  `Do not run build, test or verify commands: the last L0 run on the reviewed tree is the check evidence (rc=${lastL0.rc}):\n${lastL0.output}\n` +
   `DEVIATION GATE: list every change that touches an EXPLICIT frozen claim in the spec (an SC-x success criterion or an ADR Decision/Consequence line). Classify each as ` +
   `"within-spec" (only elaborates what the frozen line left open), "deviation" (small/reversible departure — record it), or "amendment-needed" (CONTRADICTS a frozen line). ` +
   `If ANY item is amendment-needed, set amendment_needed=true.\n` +
-  `Report the verification outputs and return the deviations honestly. verified=true only if every verify command passed.\n\n` +
+  `Return the deviations honestly. verified=true only if the L0 evidence above shows every check passed.\n\n` +
   `The change: run \`${CHANGE}\`.\n\n${SPEC}`,
   { label: 'verify-and-classify', phase: 'Finalize', model: 'opus', effort: reviewEffort, agentType, schema: FINALIZE_SCHEMA }
 )
 if (!fixed) return { aborted: true, stage: 'finalize', reason: 'finalize agent failed (returned null) — implementation not verified', impl, rounds, warnings }
+if (fixed.manifest !== lastL0.manifest) return { aborted: true, stage: 'finalize', reason: 'the tree changed after the last reviewed L0 — the review and check evidence no longer cover it', needsUser: true, impl, rounds, warnings }
 // Gate on BOTH the boolean AND any amendment-needed deviation — a finalizer that sets the flag false
 // while classifying a deviation as amendment-needed must NOT slip through (fail closed).
 const amendmentNeeded = fixed.amendment_needed === true || (fixed.deviations || []).some(d => d && d.classification === 'amendment-needed')

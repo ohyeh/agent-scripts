@@ -27,9 +27,9 @@ async function run(policy, extraArgs = {}, opts = {}) {
   const agent = async (prompt, o = {}) => {
     calls.push(`${o.label}|${o.model || ''}|${o.agentType || ''}`)
     if (o.label === 'implement') return 'IMPL_DONE'
-    if (o.label.startsWith('fix#')) return { ok: true, summary: 's', actions: [] }
-    if (o.label.startsWith('L0#')) return { manifest: M, rc: 0, output: '' }
-    if (o.label === 'verify-and-classify') { seen.finalize = prompt; return { summary: 'ok', verified: opts.verified ?? true, amendment_needed: false, deviations: opts.deviations || [] } }
+    if (o.label.startsWith('fix#')) { seen.fix = prompt; return { ok: true, summary: 's', actions: [] } }
+    if (o.label.startsWith('L0#')) { seen.l0 = prompt; return { manifest: M, rc: 0, output: 'L0-OUT-42' } }
+    if (o.label === 'verify-and-classify') { seen.finalize = prompt; return { summary: 'ok', manifest: opts.finalManifest ?? M, verified: opts.verified ?? true, amendment_needed: false, deviations: opts.deviations || [] } }
     const [, seat, r] = o.label.match(/^(L[123](?::[a-z-]+)?)#(\d+)$/)
     seen[`${seat}#${r}`] = prompt
     const v = policy(seat, +r, prompt)
@@ -52,7 +52,15 @@ const seq = calls => calls.filter(c => /^L[123]/.test(c)).map(c => c.split('|')[
   check('an L1 seat that throws is a warning, not a silent skip', result.verified === true && result.warnings.some(w => /pr-test-analyzer: threw/.test(w)), JSON.stringify(result.warnings)) }
 { const { seen } = await run((s, r, p) => s === 'L1:silent-failure-hunter' && r === 1 ? V([MAJOR]) : clean(s, r, p))
   const p2 = seen['L1:luna#2'] || ''
-  check('round 2 gets the fix diff by pipe, no shared file', /\| diff -u \S+r1\.prev\.diff -/.test(p2) && !/now\.diff/.test(p2), p2.slice(0, 200)) }
+  check('round 2 gets the fix diff by pipe, no shared file', /\| diff -u \S+r1\.prev\.diff -/.test(p2) && !/now\.diff/.test(p2), p2.slice(0, 200))
+  const l2 = seen['L2#1'] || ''
+  check('reviewers get the L0 output and must not run checks', l2.includes('L0-OUT-42') && /Read-only: do not edit files or run build, test, lint/.test(l2), l2.slice(0, 300))
+  check('the fixer runs a narrow check, not the full L0 set', /narrowest check/.test(seen.fix) && !/run the L0 checks/.test(seen.fix), seen.fix.slice(0, 200)) }
+{ const { seen } = await run(clean, { verifyCommands: ['npm test'] })
+  check('L0 hashes the tree after the verify commands', seen.l0.indexOf('npm test') < seen.l0.indexOf('shasum'), seen.l0)
+  check('the finalizer reuses the L0 evidence, it does not rerun verify', seen.finalize.includes('L0-OUT-42') && !seen.finalize.includes('npm test'), seen.finalize.slice(0, 300)) }
+{ const { result } = await run(clean, {}, { finalManifest: 'manifest-2' })
+  check('a tree change after the last L0 stops finalize', result.aborted === true && result.stage === 'finalize' && /changed after/.test(result.reason), JSON.stringify(result)) }
 { const { result } = await run(clean, { isolation: 'worktree' })
   check('rejects isolation (the ladder needs one live tree)', result.aborted === true && !result.stage, JSON.stringify(result)) }
 for (const [k, v] of [['cli', 'codex'], ['l1Lenses', ['code-reviewer']], ['maxReviewRounds', 0], ['reviewEffort', 'low']]) {

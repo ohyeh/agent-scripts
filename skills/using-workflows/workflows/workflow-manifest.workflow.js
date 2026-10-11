@@ -125,7 +125,7 @@ const judgments = await parallel(okScans.map(s => () =>
   s.exhaust.length
     ? agent(
       `${DECISION_TREE}\n\nRepo canonical recipe set (source of truth): ${recipeCatalog}.\nRead the repo recipes' meta blocks at ${REPO_DIR}/ (the repo checkout) when a coverage call needs the description, not just the name.${a.priorJudgments ? `\nPrior judgments for consistency (follow unless clearly wrong): ${a.priorJudgments}` : ''}\n\nJudge these exhaust base names from machine "${s.machine}" (runs count in parentheses matters for Q3's ≥2 rule ACROSS names, and high run counts strengthen 已內化 claims):\n${s.exhaust.map(e => `- ${e.base} (${e.runs} runs)${e.metaDescription ? ` — ${e.metaDescription}` : ''}`).join('\n')}\n\nWrite reasons in ${OUT_LANG}. Every base name gets exactly one tag.`,
-      { label: `judge:${s.machine}`, phase: 'Classify', schema: JUDGE_SCHEMA, effort: 'high' }
+      { label: `judge:${s.machine}`, phase: 'Classify', schema: JUDGE_SCHEMA, effort: 'medium' }
     )
     : Promise.resolve({ machine: s.machine, judgments: [] })
 ))
@@ -138,7 +138,7 @@ phase('Render')
 const payload = { generatedFor: MACHINES.map(m => m.name), repoDir: REPO_DIR, repoNote: a.repoNote || '', repoScan, scans: okScans, unscanned: deadScans, judgments: judged, decisionTree: DECISION_TREE }
 const rendered = await agent(
   `Render the "Workflow Manifest" HTML.\nDESIGN: Read ${a.templatePath} and inherit its ENTIRE CSS token/component system verbatim (palette vars, light/dark theming incl. data-theme overrides, sheet width, numbered h2, ledger rows, tag chips, copyblock w/ copy button, stamp). This must read as a sibling document — same family, new data. No external resources (strict CSP): inline everything.\nSTRUCTURE (mirror the template's 6-section skeleton): summary head w/ machine badges + recipe-count stamp; meta row (SoT = repoDir, per-machine recipe counts, exhaust totals); 01 core workflows as cards (repo's canonical recipes + _lib, mark any recipe missing from a machine); 02 per-machine alignment ledger (recipe count + hash drift vs the REPO baseline — not vs any machine — + agents-file drift); 03 exhaust judgments per machine with color-coded tags (已內化/preset/泛化候選/doctrine/一次性; untagged machines get an "unjudged" warning row); 04 待清理/degraded (unscanned machines, unjudged exhaust, anything the data marks pending); 05 對齊步驟 (concrete rsync/scp commands repo→every lagging machine derived from the diffs); 06 the decision tree full text in a copyblock. Footer: static snapshot, regenerate by re-running the workflow-manifest recipe.\nDATA (embed faithfully, no invention):\n${JSON.stringify(payload)}\n\nWrite the file to ${a.outPath} with the Write tool. Prose in ${OUT_LANG}. Then verify: file exists, contains every machine name and all 6 numbered sections; report byte size. Return a one-line JSON-ish summary: path, bytes, sectionsOk true/false.`,
-  { label: 'render-manifest', phase: 'Render', effort: 'high' }
+  { label: 'render-manifest', phase: 'Render', effort: 'medium' }
 )
 if (rendered == null) return { aborted: true, reason: 'render agent died — no manifest written', degraded: { unscanned: deadScans, unjudged }, data: payload }
 

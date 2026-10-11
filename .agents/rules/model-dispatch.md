@@ -129,11 +129,16 @@ Every other recipe keeps its own loop until the W43 retro decides, and does not 
 
 | Layer | Who | Job | Cap |
 |---|---|---|---|
-| L0 | deterministic | test/build/lint/scrub/grep/checksum before every round; hash what is under review, a hash change during the round voids it | must PASS before the round |
+| L0 | deterministic | test/build/lint/scrub/grep/checksum before every round, then hash what is under review; a hash change during the round voids it | must PASS before the round |
 | L1 | `sonnet` 5.5+ high and `gpt-6-luna` xhigh/max, in parallel; code reviews run `sonnet` as `pr-review-toolkit` lenses (`silent-failure-hunter`, `pr-test-analyzer`, optional `type-design-analyzer`/`comment-analyzer`) | pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
 | L2 | `opus` 5.5 medium+ (code: `pr-review-toolkit:code-reviewer`) | the verdict; always runs | 3 rounds |
 | L3 | `fable` 5.1 (`gpt-6-astra` xhigh fallback) | final verdict, only when L2 round 3 still blocks | 1 round |
 
+- When: a code change runs the full ladder once per PR or push checkpoint, on the accumulated
+  diff; between slices only L0 runs (kernel: CI at the checkpoint, local checks between). Only
+  the L0 agent runs checks: reviewers read the L0 output, the fixer runs the narrowest check for
+  its edit, and Finalize reuses the last L0 (2026-10-11: reviewer-run tests rewrote the tree and
+  voided rounds; 5 aborted runs cost 65.6M weighted tokens with no result).
 - Reviewer and fixer contracts: `skills/using-workflows/workflows/_lib/worker-doctrine.md` §7–§9.
   One finding ledger runs through every round and layer: a reviewer resolves or keeps each known
   finding and adjudicates each fixer rejection; when two L1 reviewers disagree, the finding stays

@@ -21,7 +21,7 @@ const run = async (policy, args = { brief: 'b', skipDirection: true }, opts = {}
     const k = m ? m[1] : o.label
     if (k === 'draft') { st.draft = prompt; return { ok: true, path: 'x', summary: 's', actions: [], ...(opts.worker ? { worker: opts.worker } : {}) } }
     if (k.startsWith('fix')) { st.seq.push('fix'); st.fixes.push(prompt); return { ok: true, path: 'x', summary: 's', actions: opts.actions || [] } }
-    if (k.startsWith('L0')) { st.l0++; return { sha256: SHA, rc: opts.l0rc ? opts.l0rc(st.l0) : 0, output: 'out' } }
+    if (k.startsWith('L0')) { st.l0++; st.l0p = prompt; return { sha256: SHA, rc: opts.l0rc ? opts.l0rc(st.l0) : 0, output: 'out' } }
     const [, seat, r] = k.match(/^(L[123](?:sonnet|luna)?)#(\d+)$/)
     st.seq.push(seat); st.prompts[`${seat}#${r}`] = prompt
     const v = policy(seat, +r, prompt, st)
@@ -89,6 +89,9 @@ for (const [bad, val] of [['maxReviewRounds', -1], ['maxReviewRounds', 5], ['rev
   check('L1 luna that throws is a warning, not silent', out.plan.frozen === true && out.plan.warnings.some(w => /luna.*threw/.test(w)), JSON.stringify(out.plan.warnings)) }
 { const { out } = await run(clean, { brief: 'b', skipDirection: true, isolation: 'worktree' })
   check('rejects isolation (the ladder needs one live tree)', out.aborted === true, JSON.stringify(out)) }
+{ const { st } = await run(byTier({ L1: clean, L2: clean }), { brief: 'b', skipDirection: true, l0: 'scrub-check' })
+  check('L0 hashes the artifact after the l0 command', st.l0p.indexOf('scrub-check') < st.l0p.indexOf('shasum'), st.l0p)
+  check('reviewers get the L0 output and must not run checks', /do not rerun checks\):\nout/.test(st.prompts['L2#1']) && /Read-only: do not edit files or run build, test, lint/.test(st.prompts['L2#1']), st.prompts['L2#1'].slice(0, 300)) }
 console.log(fail ? 'FAIL plan-pipeline-ladder' : 'PASS plan-pipeline-ladder')
 process.exit(fail)
 EOF

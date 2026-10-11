@@ -32,6 +32,9 @@ export const meta = {
 if (!args || !args.context || !Array.isArray(args.scouts) || !args.scouts.length) {
   throw new Error('haiku-research-round: args.context (string) and args.scouts ([{key, prompt}]) are required')
 }
+if (args.scouts.length > 5) {
+  throw new Error(`haiku-research-round: at most 5 scouts per round (got ${args.scouts.length}); split the questions across rounds`)
+}
 
 const extra = args.fields || {}
 const findingProps = {
@@ -54,7 +57,7 @@ const OUT = {
 
 const RULES = `
 TOOLS: WebSearch / WebFetch (load via ToolSearch "select:WebSearch,WebFetch"), local Read/Bash. No browser automation.
-RULES: read-only — do not edit files${args.scratchDir ? `; scratch notes only under ${args.scratchDir}` : ''}. Every finding has a source (URL or absolute path:line); status "documented" only if the source says it; "not_found" must list the queries tried. Never invent URLs, numbers, product features, or paper results. 6-12 high-value findings. Return the structured result only.`
+RULES: read-only — do not edit files${args.scratchDir ? `; scratch notes only under ${args.scratchDir}` : ''}. Every finding has a source (URL or absolute path:line); status "documented" only if the source says it; "not_found" must list the queries tried. Never invent URLs, numbers, product features, or paper results. Up to 12 high-value findings; stop when the question is answered. Return the structured result only.`
 
 phase('Research')
 const res = await parallel(args.scouts.map(s => () =>

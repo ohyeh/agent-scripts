@@ -44,7 +44,7 @@ const EVID = { type: 'object', additionalProperties: false, required: ['id', 'su
 const VERD = { type: 'object', additionalProperties: false, required: ['id', 'refuted'],
   properties: { id: { type: 'string' }, refuted: { type: 'boolean' }, reason: { type: 'string' } } }
 
-const COMMON = `Repo: ${repo}. Symptom under investigation: "${a.symptom}". ${hints ? `Search seeds: ${hints}.` : ''} Use rg/fd and read real code/logs/tests — cite file:line evidence, never speculate. Keep raw dumps out of the final message.`
+const COMMON = `Repo: ${repo}. Symptom under investigation: "${a.symptom}". ${hints ? `Search seeds: ${hints}.` : ''} Use rg/fd and read real code/logs/tests — cite file:line evidence, never speculate. Keep raw dumps out of the final message. Read-only: do not edit files or run build, test, lint or any command that writes into the tree.`
 
 // ── SAFE_LIB (canonical repo source: skills/using-workflows/workflows/_lib/safe.js — keep byte-identical) ──
 const coalesceNull = (arr, fb) => arr.map((r, i) => (r == null ? fb(i) : r))
@@ -61,7 +61,7 @@ if (!hyp || !(hyp.hypotheses || []).length) return { aborted: true, stage: 'hypo
 
 // Evidence per hypothesis, then adversarial verify for the supported ones — pipelined.
 const results = await pipeline(
-  hyp.hypotheses,
+  hyp.hypotheses.slice(0, N),
   h => agent(`${COMMON}\nGather concrete evidence for hypothesis ${h.id}: "${h.claim}" (look in: ${h.where || hints}). Set supported true/false with file:line evidence + confidence 0..1.`,
     { label: `rca:evidence:${h.id}`, phase: 'Evidence', model, effort, isolation, agentType, schema: EVID }),
   (ev, h) => {

@@ -89,6 +89,9 @@ fails, FIX it (respecting the traps above) and re-run until green, committing
 fixes. Report final per-suite counts + git log --oneline <base>..HEAD.
 ```
 
+Skip the run when the tree hash equals the one the last green L0 hashed: quote that
+L0 output instead. Rerunning the same suites on the same tree buys nothing.
+
 ## 7. Reviewer contract (every review layer of the ladder, `model-dispatch.md` §Review ladder)
 
 ```
@@ -102,6 +105,8 @@ Round 2+: you get the finding ledger and the before/after diff of the fix. Repor
 partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect
 fix_caused=true only when the diff shows the fix caused it; a new defect the fix
 did not cause is a round-1 miss.
+Read-only: do not edit files or run build, test, lint or any command that writes
+into the tree; the L0 output you are given is the check evidence.
 PASS only with 0 Critical and 0 Major open.
 ```
 
@@ -113,22 +118,26 @@ helper can break an untouched caller.
 ## 8. Fixer contract (the author answering a review round)
 
 ```
-Address EVERY finding in this pass, Minor included: fix it at the root cause, or
-reject it with evidence (file:line / command output). Never skip one silently.
+Address EVERY Critical and Major finding in this pass: fix it at the root cause,
+or reject it with evidence (file:line / command output). Fix a Minor only when the
+edit is small and stays in lines you already touch; otherwise mark it deferred with
+a one-line reason. Never skip one silently, and never mark an unfixed Minor rejected.
 No surface bypass: no special case, disabled check, weakened test, or suppressed
 error to make a finding go away.
 Finish the whole task in scope, not the smallest patch: "surgical" limits WHERE
 you edit, never WHAT you finish.
-Before you hand back, run the L0 checks and quote their output.
-Report per finding: id, fixed | rejected, evidence.
+Before you hand back, run the narrowest check that covers your edit and quote its
+output; L0 runs the full checks after you.
+Report per finding: id, fixed | rejected | deferred, evidence.
 ```
 
 A rejection is not the last word: it stays in the ledger until a reviewer accepts it.
+A deferred Minor stays in the ledger and is listed with the result; it never blocks.
 
 ## 9. L0 freeze (the orchestrator, around every review round)
 
 ```
-Before the round: run <deterministic checks>; hash everything under review
+Before the round: run <deterministic checks>, then hash everything under review
 (artifact files, HEAD, `git diff HEAD`). A failing check goes to the fixer first;
 the round has not started. Nobody edits those files while the round runs.
 After the round: hash again; any change voids the round. Rerun it once; a second
