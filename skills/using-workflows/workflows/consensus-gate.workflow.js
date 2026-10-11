@@ -1,6 +1,6 @@
 // Reusable building block: get a high-effort second-model consensus on a proposal before acting.
 // Encodes the "ask an independent reviewer for architecture consensus" rule as a one-call workflow.
-// Maturity: WORKING (drives any agent-tmux profile inside a single agent).
+// Maturity: WORKING (drives any agent-tmux profile through the tmux-agent mod tools inside a single agent).
 //
 //   Workflow({ scriptPath: ".claude/workflows/consensus-gate.workflow.js", args: {
 //     repoPath: "/abs/repo",            // cwd for the reviewer session
@@ -8,7 +8,8 @@
 //     proposalText: "....",
 //     cli: "codex",                     // REQUIRED: reviewer profile — any profile that is not the
 //                                       // author's session (model-dispatch.md §6); pick it by ladder layer
-//     sessionName: "arch1",             // agent-tmux session name; the SAME name for every round of one layer
+//     sessionName: "arch1",             // worker base name for round 1 (the mod adds a suffix)
+//     worker: "arch1.k3x9a",            // round 2+: the `worker` the previous round returned (same reviewer context)
 //     round: 1,                         // round number inside the layer (names OUT; earlier OUT files are kept)
 //     layer: "L2",                      // L1 | L2 | L3 (model-dispatch.md §Review ladder); L1 can never pass the gate
 //     freeze: ["/abs/file.md"],         // files hashed into the round manifest (default: proposalFile)
@@ -27,15 +28,15 @@
 //     not trust this description; read the issue text yourself". It lists EVERY finding at once.
 //   - require LIVE reproduction of each fix (real construction path / real command output),
 //     "not just that a unit test asserts a string constant".
-//   - round 2+: SAME sessionName, round+1 (the reviewer keeps its context); send the fix diff and
+//   - round 2+: pass the returned `worker`, round+1 (the reviewer keeps its context); send the fix diff and
 //     the fixer's per-finding report; the reviewer resolves or keeps each finding and adds new defects.
 //   - close with the stake: "only agree if you would be comfortable with this being pushed with
-//     no further changes". L2 caps at 3 rounds, then one L3 round with a new cli and sessionName.
+//     no further changes". L2 caps at 3 rounds, then one L3 round with a new cli and no worker.
 export const meta = {
   name: 'consensus-gate',
   description: 'Get a high-effort second-model consensus verdict on a proposal via any agent-tmux profile',
   whenToUse: 'When a decision, diff, or proposal needs an independent second-model verdict before acting — the reusable gate primitive other recipes call. args.cli is REQUIRED and picks the reviewer (codex / claude / agy / any agent-tmux profile — heterogeneous reviewers are a config concern, not a recipe concern). For push gates, see the multi-round preset in the header.',
-  phases: [{ title: 'Consult', detail: 'drive the reviewer CLI via agent-tmux, capture verdict', model: 'opus' }],
+  phases: [{ title: 'Consult', detail: 'drive the reviewer CLI via the tmux-agent mod, capture verdict', model: 'opus' }],
 }
 const a = typeof args === 'string' ? (() => { try { return JSON.parse(args) } catch { return {} } })() : (args || {})
 if (!a.proposalFile && !a.proposalText) return { aborted: true, reason: 'need proposalFile or proposalText' }
@@ -49,24 +50,38 @@ const agentType = a.agentType || undefined  // off = default workflow agent. NEV
 const marker = a.marker || '=== REVIEWER VERDICT END ==='
 const timeout = a.timeoutSec || 600
 // Second-model CLI is REQUIRED and neutral — NO built-in default. Launch flags come from the CLI's
-// own profile; EXTRA flags pass raw via a.launchEnv. charset guard blocks shell injection (cli is
-// interpolated into commands).
+// own profile (a.launchEnv is gone: put extra flags in a profile .conf and pass its name as cli).
+// charset guard blocks injection (cli and worker are interpolated into tool calls).
 if (!/^[a-z0-9][a-z0-9._-]*$/i.test(a.cli || '')) return { aborted: true, reason: "missing/invalid arg: cli ('codex' | 'claude' | any agent-tmux profile name)" }
 const cli = a.cli
-// e.g. a.launchEnv = "CODEX_TMUX_LAUNCH_FLAGS='--yolo -c model_reasoning_effort=high' " — caller-owned passthrough.
-const launchEnv = typeof a.launchEnv === 'string' ? a.launchEnv : ''
+if (a.launchEnv != null) return { aborted: true, reason: 'launchEnv is gone: put the flags in an agent-tmux profile .conf (launch_flags / effort_flags) and pass its name as cli' }
+if (a.worker != null && !/^[A-Za-z0-9_.-]{1,64}$/.test(a.worker)) return { aborted: true, reason: 'invalid arg: worker' }
 const round = a.round == null ? 1 : a.round
 if (!(Number.isInteger(round) && round >= 1)) return { aborted: true, reason: 'invalid arg: round must be an integer >= 1' }
 const layer = a.layer || 'L2'
 if (!['L1', 'L2', 'L3'].includes(layer)) return { aborted: true, reason: 'invalid arg: layer must be L1 | L2 | L3' }
 const freeze = a.freeze || (a.proposalFile ? [a.proposalFile] : [])
-// Paths and l0 are interpolated into shell commands: paths get a strict charset, l0 is caller-owned like launchEnv.
+// Paths and l0 are interpolated into shell commands: paths get a strict charset, l0 is caller-owned.
 if (!Array.isArray(freeze) || freeze.some(f => typeof f !== 'string' || !/^[A-Za-z0-9._\/~+@-]+$/.test(f))) return { aborted: true, reason: 'invalid arg: freeze must be an array of plain paths' }
 const l0 = typeof a.l0 === 'string' ? a.l0 : ''
 const MANIFEST = `{ git -C ${repo} rev-parse HEAD 2>/dev/null || echo no-git; git -C ${repo} diff HEAD 2>/dev/null; ${freeze.length ? `shasum -a 256 ${freeze.join(' ')}` : 'true'}; } | shasum -a 256`
 
 // _lib/worker-doctrine.md §7, kept byte-close (scripts cannot import).
 const REVIEWER_CONTRACT = 'ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise. Round 1: list EVERY finding now, in one pass; a finding held back for a later round counts as a miss. Each finding: stable id, file:line or command output, severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that proves the fix. A finding without evidence is dropped. Round 2+: you get the finding ledger and the before/after diff of the fix. Report (a) each ledger finding: resolved (with evidence) or still open (not_fixed | partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect fix_caused=true only when the diff shows the fix caused it; a new defect the fix did not cause is a round-1 miss. PASS only with 0 Critical and 0 Major open.'
+
+// One CLI worker driven through the tmux-agent mod tools (needs the mod at tmux-agent-tools >= a68ecd4:
+// assign/tell + await). Kept byte-close in consensus-gate, plan-pipeline and feature-plan-consensus (scripts
+// cannot import). worker = the name an earlier call returned; absent = start a new worker. Launch and effort
+// flags live in the agent-tmux profile `profile` names (launch_flags / effort_flags in its .conf).
+const modConduit = ({ profile, base, dir, worker, out, marker, timeout, task }) =>
+  `Drive a ${profile} worker ONLY with the tmux-agent mod tools: ToolSearch "select:mcp__tmux-agent__assign,mcp__tmux-agent__tell,mcp__tmux-agent__await". Never run agent-tmux through Bash.\n` +
+  `The worker's instruction: write the full response to ${out}, ending the file with a line exactly: ${marker}; the result.json summary is one line.\n` +
+  (worker
+    ? `1. mcp__tmux-agent__tell {name: "${worker}", text: the task below plus that instruction}. worker = "${worker}".\n`
+    : `1. mcp__tmux-agent__assign {profile: "${profile}", name: "${base}", dir: the absolute path of ${dir}, brief: "GOAL: " + the task below + that instruction + "\\nACCEPTANCE: ${out} ends with the marker line.\\nREPORT: a one-line summary."}. worker = the name the receipt returns (with its suffix).\n`) +
+  `2. Call mcp__tmux-agent__await {name: worker, max_seconds: ${Math.min(540, timeout)}} until it returns status success, failed or blocked; after ${Math.max(1, Math.ceil(timeout / 540))} pending calls, stop and report the timeout.\n` +
+  `3. Read ${out}; it must end with the marker line. Return worker in the worker field.\n\nTASK:\n${task}`
+const OUT = `/tmp/${cli}-consensus-${session}-r${round}.md`
 
 const SCHEMA = {
   type: 'object', additionalProperties: false,
@@ -80,24 +95,21 @@ const SCHEMA = {
     verdict: { type: 'string', description: 'reviewer verdict text, trimmed' },
     consensus: { type: 'string', enum: ['agree', 'agree_with_changes', 'disagree', 'unclear'] },
     notes: { type: 'string' },
+    worker: { type: 'string', description: 'the worker name (pass it as args.worker for the next round)' },
   },
 }
 
 phase('Consult')
 const r = await agent(
-  `Drive a ${cli} session via agent-tmux to get a high-effort architecture/decision consensus, then return its verdict.
-If the agent-tmux / ${cli}-tmux wrappers are not on PATH, run them from the tmux-agent-tools skill bundle (its scripts/ dir).
-Drive the session ONLY with the agent-tmux CLI through Bash, by the exact name ${session}. Never call the tmux-agent mod tools (assign, tell, peek, stop) for it: this session is not a mod dispatch, so the mod has no record of it and rejects the name.
+  `Get a high-effort architecture/decision consensus from a ${cli} reviewer, then return its verdict.
 Steps:
-1. Ensure the proposal text is available. ${a.proposalFile ? `Proposal file: ${a.proposalFile}.` : `Proposal text:\n<<<\n${a.proposalText}\n>>>\n(write it to a temp file to send via --from-file).`}
-   OUT = /tmp/${cli}-consensus-${session}-r${round}.md (one file per round; never delete an earlier round's file). Append to the proposal the reviewer contract below, plus an instruction so ${cli}, when done, WRITES its full verdict to OUT and ENDS that file with a line exactly: ${marker}
-   Reviewer contract: ${REVIEWER_CONTRACT}
-   L0: run \`${MANIFEST}\` → manifest_before. ${l0 ? `Then run \`${l0}\` in ${repo} → l0_rc (exit code) and l0_output (last 40 lines). If l0_rc is not 0, stop here: skip steps 2–4, verdict = "", consensus = unclear, and still fill manifest_after by re-running the manifest command.` : 'No l0 command: l0_rc = 0, l0_output = "no l0 command".'}
-2. ${launchEnv}agent-tmux ${cli} start --exact ${session} ${repo} "I will send a consensus request; read fully before replying." — if it exits 1 because the name is already live (round 2+), reuse that session.
-3. Send the proposal: agent-tmux ${cli} send --from-file <file> --enter-count 1 ${session}
-4. Wait for completion by POLLING the output file OUT, NOT by matching the marker in the tmux pane. The marker also appears in the prompt you just sent, so a pane/wait-text match would false-trigger on the echo (a bug hit repeatedly in practice). Poll: every few seconds check that OUT exists AND contains "${marker}", up to ${timeout}s. Only then read OUT. (agent-tmux ${cli} wait ${session} ${timeout} may be used as a secondary idle signal, but the file is the authoritative completion signal.)
-5. Run the manifest command again → manifest_after. Return: verdict = the verdict text read from OUT (trimmed, drop the trailing marker line); consensus = your classification (agree / agree_with_changes / disagree / unclear); notes = key objections or required changes.
-Keep raw tmux scrollback out of the final message; return only the structured fields.`,
+1. Ensure the proposal text is available. ${a.proposalFile ? `Proposal file: ${a.proposalFile}.` : `Proposal text:\n<<<\n${a.proposalText}\n>>>`}
+   OUT = ${OUT} (one file per round; never delete an earlier round's file).
+   L0: run \`${MANIFEST}\` → manifest_before. ${l0 ? `Then run \`${l0}\` in ${repo} → l0_rc (exit code) and l0_output (last 40 lines). If l0_rc is not 0, stop here: skip steps 2–3, verdict = "", consensus = unclear, and still fill manifest_after by re-running the manifest command.` : 'No l0 command: l0_rc = 0, l0_output = "no l0 command".'}
+2. Get the review (task = the proposal plus the reviewer contract below):
+${modConduit({ profile: cli, base: session, dir: repo, worker: a.worker, out: OUT, marker, timeout, task: `the proposal above, then this reviewer contract: ${REVIEWER_CONTRACT}` })}
+3. Run the manifest command again → manifest_after. Return: verdict = the verdict text read from OUT (trimmed, drop the trailing marker line); consensus = your classification (agree / agree_with_changes / disagree / unclear); notes = key objections or required changes; worker.
+Return only the structured fields.`,
   { label: `${cli}:${session}`, phase: 'Consult', model, effort, isolation, agentType, schema: SCHEMA }
 )
 // `passed` is a strict allow-list: only genuine consensus at a verdict layer (L2/L3), with L0 green
@@ -105,6 +117,6 @@ Keep raw tmux scrollback out of the final message; return only the structured fi
 const voided = !!r && r.manifest_before !== r.manifest_after
 const l0Failed = !!r && r.l0_rc !== 0
 return {
-  gate: r, consensus: r?.consensus, layer, round, voided, l0Failed, prefilter: layer === 'L1',
+  gate: r, consensus: r?.consensus, worker: r?.worker, layer, round, voided, l0Failed, prefilter: layer === 'L1',
   passed: layer !== 'L1' && r?.ok === true && r?.consensus === 'agree' && !voided && !l0Failed,
 }

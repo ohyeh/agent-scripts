@@ -11,14 +11,14 @@
 //      in parallel, findings merged into one ledger.
 //   L2 verdict, always runs: opus at reviewEffort, ≤maxReviewRounds (1–3, default 3).
 //   L3 final verdict: fable high, 1 round, only when L2 never reached 0 Critical / 0 Major.
-// The drafter (args.cli via agent-tmux, else opus) answers every round under the fixer contract;
+// The drafter (args.cli through the tmux-agent mod, else opus) answers every round under the fixer contract;
 // args.cli never reviews its own draft. agent() keeps no session, so each round's reviewer gets the
 // whole finding ledger and the before/after snapshot diff in place of kept context.
 // MODEL POLICY: drafter floor opus low; sonnet only as an L1 reviewer (user ruling 2026-10-09).
 //
 // NOTHING is hardcoded to a project: slug, brief, output paths, review settings all come from
-// `args`. When driving an external CLI via agent-tmux, completion is detected by POLLING an output file, never
-// by matching a marker in the tmux pane (the marker echoes in the sent prompt — a real bug).
+// `args`. An external CLI drafter runs through the tmux-agent mod tools: completion is the mod's await on
+// the worker's result.json, then the OUT file is read — never a marker matched in the tmux pane.
 //
 //   Workflow({ scriptPath: ".claude/workflows/plan-pipeline.workflow.js", args: {
 //     repoPath: "/abs/repo",
@@ -30,7 +30,7 @@
 //     maxReviewRounds: 3,                           // L2 rounds per artifact, integer 1–3 (L1 2 and L3 1 are fixed)
 //     l0: "scripts/check-docs",                     // OPTIONAL deterministic check run before every review round
 //     snapshotDir: "/tmp/plan-pipeline-<slug>",     // pre-fix copies for the reviewer's diff (default shown)
-//     cli: "codex",                                 // OPTIONAL drafter CLI via agent-tmux; absent → opus drafter
+//     cli: "codex",                                 // OPTIONAL drafter CLI (agent-tmux profile) via the tmux-agent mod; absent → opus drafter
 //     sessionName: "plan-<slug>", model: "opus", effort: "low", reviewEffort: "high", timeoutSec: 1200,
 //     skipDirection: false,                         // true → directionPath already exists, start at ②
 //     adrs: [{ slug: "external-idp", title: "..." }],// OPTIONAL: force these ADRs; else ② decides which are needed
@@ -49,7 +49,7 @@ export const meta = {
 }
 
 // NESTING: this is a mid-level stage — do NOT call workflow() here (1-level nesting cap). Drive
-// the optional external CLI (codex/claude/…) via inline agent() + agent-tmux, never via workflow() or a harness agent type.
+// the optional external CLI (codex/claude/…) via inline agent() + the tmux-agent mod tools, never via workflow() or a harness agent type.
 //
 // BUILTIN: arg-channel fallback. This env's Workflow tool drops `args` for scriptPath runs
 // (documented gotcha — see .claude handoffs). Keep this {} in the committed/generic copy; to run a
@@ -77,14 +77,13 @@ const model = a.model || 'opus'     // drafter never sonnet: this recipe is plan
 if (a.isolation != null) return { aborted: true, reason: 'isolation is not supported: the review ladder needs every agent on the same live tree' }
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)
 const timeout = a.timeoutSec || 1200
-const l0Cmd = typeof a.l0 === 'string' ? a.l0 : ''   // caller-owned, like launchEnv
+const l0Cmd = typeof a.l0 === 'string' ? a.l0 : ''   // caller-owned
 const snapDir = a.snapshotDir || `/tmp/plan-pipeline-${slug}`
 // Drafter CLI is OPTIONAL and neutral (never depend on codex). Each CLI's launch flags come from its own
-// agent-tmux profile; EXTRA flags pass raw via a.launchEnv. charset guard blocks shell injection (cli is interpolated into commands).
+// agent-tmux profile (a.launchEnv is gone: put extra flags in a profile .conf). charset guard blocks injection (cli is interpolated into tool calls).
 if (a.cli != null && !/^[a-z0-9][a-z0-9._-]*$/i.test(a.cli)) return { aborted: true, reason: "invalid arg: cli ('codex' | 'claude' | any agent-tmux profile name, or omit)" }
 const cli = a.cli || null
-// e.g. a.launchEnv = "CODEX_TMUX_LAUNCH_FLAGS='--yolo -c model_reasoning_effort=high' " — caller-owned passthrough.
-const launchEnv = typeof a.launchEnv === 'string' ? a.launchEnv : ''
+if (a.launchEnv != null) return { aborted: true, reason: 'launchEnv is gone: put the flags in an agent-tmux profile .conf (launch_flags / effort_flags) and pass its name as cli' }
 
 const STATUS = { type: 'object', additionalProperties: false,
   required: ['ok', 'summary'], properties: { ok: { type: 'boolean' }, summary: { type: 'string' }, detail: { type: 'string' } } }
@@ -92,6 +91,21 @@ const STATUS = { type: 'object', additionalProperties: false,
 // _lib/worker-doctrine.md §7/§8, kept byte-close (scripts cannot import).
 const REVIEWER_CONTRACT = 'ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise. Round 1: list EVERY finding now, in one pass; a finding held back for a later round counts as a miss. Each finding: stable id, file:line or command output, severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that proves the fix. A finding without evidence is dropped. Round 2+: you get the finding ledger and the before/after diff of the fix. Report (a) each ledger finding: resolved (with evidence) or still open (not_fixed | partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect fix_caused=true only when the diff shows the fix caused it; a new defect the fix did not cause is a round-1 miss. PASS only with 0 Critical and 0 Major open.'
 const FIXER_CONTRACT = 'Address EVERY finding in this pass, Minor included: fix it at the root cause, or reject it with evidence (file:line / command output). Never skip one silently. No surface bypass: no special case, disabled check, weakened test, or suppressed error to make a finding go away. Finish the whole task in scope, not the smallest patch: "surgical" limits WHERE you edit, never WHAT you finish. Before you hand back, run the L0 checks and quote their output. Report per finding: id, fixed | rejected, evidence.'
+
+// One CLI worker driven through the tmux-agent mod tools (needs the mod at tmux-agent-tools >= a68ecd4:
+// assign/tell + await). Kept byte-close in consensus-gate, plan-pipeline and feature-plan-consensus (scripts
+// cannot import). worker = the name an earlier call returned; absent = start a new worker. Launch and effort
+// flags live in the agent-tmux profile `profile` names (launch_flags / effort_flags in its .conf).
+const modConduit = ({ profile, base, dir, worker, out, marker, timeout, task }) =>
+  `Drive a ${profile} worker ONLY with the tmux-agent mod tools: ToolSearch "select:mcp__tmux-agent__assign,mcp__tmux-agent__tell,mcp__tmux-agent__await". Never run agent-tmux through Bash.\n` +
+  `The worker's instruction: write the full response to ${out}, ending the file with a line exactly: ${marker}; the result.json summary is one line.\n` +
+  (worker
+    ? `1. mcp__tmux-agent__tell {name: "${worker}", text: the task below plus that instruction}. worker = "${worker}".\n`
+    : `1. mcp__tmux-agent__assign {profile: "${profile}", name: "${base}", dir: the absolute path of ${dir}, brief: "GOAL: " + the task below + that instruction + "\\nACCEPTANCE: ${out} ends with the marker line.\\nREPORT: a one-line summary."}. worker = the name the receipt returns (with its suffix).\n`) +
+  `2. Call mcp__tmux-agent__await {name: worker, max_seconds: ${Math.min(540, timeout)}} until it returns status success, failed or blocked; after ${Math.max(1, Math.ceil(timeout / 540))} pending calls, stop and report the timeout.\n` +
+  `3. Read ${out}; it must end with the marker line. Return worker in the worker field.\n\nTASK:\n${task}`
+// The drafter worker, shared by every author call of this run (draft, fixes, every artifact): one context.
+let cliWorker = null
 
 const DRAFT = { type: 'object', additionalProperties: false,
   required: ['ok', 'path', 'summary', 'actions'],
@@ -102,6 +116,7 @@ const DRAFT = { type: 'object', additionalProperties: false,
       properties: { slug: { type: 'string' }, title: { type: 'string' }, brief: { type: 'string' } } },
       description: 'ADRs the plan says are needed (plan stage only)' },
     summary: { type: 'string' },
+    worker: { type: 'string', description: 'cli drafter only: the worker name' },
     actions: { type: 'array', description: 'fix rounds: one entry per finding id; [] for the first draft',
       items: { type: 'object', additionalProperties: false, required: ['id', 'action', 'evidence'],
         properties: { id: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'rejected'] }, evidence: { type: 'string' } } } },
@@ -140,17 +155,16 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
   const GROUND = 'Ground every claim in real code/files (rg/fd/Read) — do NOT trust memory or stale docs; unverifiable claims go under Open Questions.'
   const base = outPath.replace(/[^A-Za-z0-9._-]/g, '_')
   let calls = 0
-  // Drafter / fixer: args.cli through agent-tmux (one OUT per call; `start --exact` exiting 1 means
-  // the session is live and is reused), else opus in-script.
+  // Drafter / fixer: args.cli through the tmux-agent mod (one OUT per call; the first call assigns the
+  // worker, later calls tell it), else opus in-script.
   const author = (task, n) => {
     calls++
     const prompt = cli
-      ? `Drive ${cli} via agent-tmux in repo ${repo}. If agent-tmux/${cli}-tmux are not on PATH, run them from the tmux-agent-tools skill bundle scripts/ dir.\n` +
-        `1. ${launchEnv}agent-tmux ${cli} start --exact ${session} ${repo} "planning task incoming; read fully" — if it exits 1 because the name is live, reuse that session.\n` +
-        `2. Send ${cli} this task, and have it write its report to ${snapDir}/${base}-author-${n}.md ending with a line exactly: === AUTHOR END ===\n<<<\n${task}\n>>>\n` +
-        `3. Wait by POLLING that file for the marker (NOT the tmux pane — it echoes in the sent prompt), up to ${timeout}s. Return its report in the schema fields.`
+      ? modConduit({ profile: cli, base: session, dir: repo, worker: cliWorker, out: `${snapDir}/${base}-author-${n}.md`, marker: '=== AUTHOR END ===', timeout, task }) +
+        '\nReturn its report in the schema fields.'
       : task
     return agent(prompt, { label: `${label}:${n === 0 ? 'draft' : `fix#${n}`}`, phase: phaseName, model, effort, agentType, schema: DRAFT })
+      .then(res => { if (cli && res?.worker) cliWorker = res.worker; return res })
   }
   const runL0 = n => { calls++; return agent(
     `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. Run \`shasum -a 256 ${outPath}\`; sha256 = the hash.\n2. ${l0Cmd ? `Run \`${l0Cmd}\`; rc = its exit code; output = its last 40 lines verbatim.` : 'No L0 command was given: rc = 0, output = "no l0 command".'}`,

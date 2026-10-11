@@ -85,11 +85,14 @@ one that differs from the substantive author; discover the list live with
 Claude `opus` reviewer in an independent context. Never hard-code a name,
 never block a run on an external CLI that is not installed. `context` = one line (repo abs path + stack +
 scope). Prefer name invocation over scriptPath.
-A workflow agent can call `mcp__tmux-agent__assign`, but the collector delivers
-the result to the MAIN session (using-tmux-agent-tools §COLLECTOR), never into
-the script (measured 2026-10-01, worker `wfprobe`); a `runtime: tmux/<profile>`
-line inside `agent()` is not intercepted. Recipes that need a worker's result
-inside the script (`consensus-gate`, `cli` review gates) keep the conduit agent.
+A workflow agent drives a CLI worker with the mod tools: `mcp__tmux-agent__assign`
+(no worker yet) or `tell` (the worker an earlier call returned; consensus-gate
+round 2+ must pass it as `worker`, else a new worker starts), then `mcp__tmux-agent__await` until a terminal
+result, which comes back to that agent (live 2026-10-11, tmux-agent-tools ≥ a68ecd4).
+The collector still sends the main session one notice for the same result. A
+`runtime: tmux/<profile>` line inside `agent()` is not intercepted. The `cli`
+recipes (`consensus-gate`, `plan-pipeline`, `feature-plan-consensus`) work this
+way; launch or effort flags go in the agent-tmux profile `.conf` that `cli` names.
 
 ## MODEL FLOOR (user ruling 2026-09-02)
 
@@ -144,7 +147,7 @@ Runtime matrix (Claude Code = `NATIVE` for all 12; Codex column):
 | 3 audits, `findings-triage`, `project-direction-review`, `workflow-manifest` (6, no tmux inside) | `ADAPTED: claude-workflow-runner` |
 | `pr-review-triage-resolve` (no tmux; T3 rung = fresh Claude opus unless `externalAgentType` is set) | `UNTESTED` — only run natively on Claude so far; stop and report |
 | `consensus-gate` (simple verdict outcome only) | `ADAPTED: direct-claude-review` — `references/codex-adapter.md` |
-| `consensus-gate` (as recipe), lifecycle + its 3 stages when `cli` IS set (5, they launch agent-tmux inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise |
+| `consensus-gate` (as recipe), lifecycle + its 3 stages when `cli` IS set (5, they drive tmux-agent mod workers inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise |
 
 ## DEFER
 

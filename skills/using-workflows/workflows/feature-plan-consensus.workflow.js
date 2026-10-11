@@ -63,7 +63,7 @@ export const meta = {
 }
 
 // NESTING: this is a mid-level stage — do NOT call workflow() here (1-level nesting cap). Drive the
-// second model via inline agent() + agent-tmux, never via workflow() or a harness agent type.
+// second model via inline agent() + the tmux-agent mod tools, never via workflow() or a harness agent type.
 const a = typeof args === 'string' ? (() => { try { return JSON.parse(args) } catch { return {} } })() : (args || {})
 for (const k of ['repoPath', 'featureBrief']) if (!a[k]) return { aborted: true, reason: `missing arg: ${k}` }
 
@@ -91,8 +91,8 @@ const lenses = Array.isArray(a.internalLenses) && a.internalLenses.length
   : ['completeness (missing areas/tasks/edge cases)', 'sequencing & dependencies', 'risk & blast-radius', 'effort realism']
 const designRefs = a.designRefs ? `\nDesign refs / decisions (LEADS to verify, not truth):\n${a.designRefs}` : ''
 
-// The second-model reviewer, WHEN a.cli is given, is driven via tmux-agent-tools (agent-tmux <cli>),
-// NOT a harness agentType; completion is detected by POLLING an OUT file, never the tmux pane.
+// The second-model reviewer, WHEN a.cli is given, is a tmux-agent mod worker (assign/tell + await),
+// NOT a harness agentType; completion is the mod's await, then the OUT file is read — never the tmux pane.
 // cli is OPTIONAL and neutral (user ruling 2026-09-02: never depend on codex). Absent → the external
 // loop runs a fresh Claude opus reviewer (independent context, same adversarial prompt).
 // charset guard blocks shell injection (cli is interpolated into commands).
@@ -103,19 +103,26 @@ const escalateExternal = !!cli && a.escalateExternal !== false
 const cliTimeout = Number.isInteger(a.timeoutSec) ? a.timeoutSec : 900
 const cliSession = `fpc-${cli}-${slug}`
 const REVIEW_MARKER = '=== SECOND-MODEL REVIEW END ==='
-// Extra launch-flag env prefix — raw passthrough, caller-owned (profile already supplies each CLI's defaults).
-// e.g. a.launchEnv = "CODEX_TMUX_LAUNCH_FLAGS='--yolo -c model_reasoning_effort=high' "
-const launchEnv = typeof a.launchEnv === 'string' ? a.launchEnv : ''
-// POSIX-safe single-quote: wraps in '...' and renders embedded ' as '\'' so any repo path is safe.
-const shellQuote = (s) => "'" + String(s).replace(/'/g, "'\\''") + "'"
-const driveCli = (taskForCli, outHint) =>
-  `Get a genuine SECOND-MODEL (${cli}) verdict by driving a ${cli} session via tmux-agent-tools — do NOT use any harness agent type. ` +
-  `If agent-tmux/${cli}-tmux are not on PATH, run them from the tmux-agent-tools skill bundle scripts/ dir.\n` +
-  `1. Pick a unique OUT file (${outHint}); instruct ${cli} to WRITE its full response to OUT, ending the file with a final line exactly: ${REVIEW_MARKER}\n` +
-  `2. Start/reuse: ${launchEnv}agent-tmux ${cli} start --exact ${cliSession} ${shellQuote(repo)} "review task incoming; read fully before replying".\n` +
-  `3. Send via file: write the task below to a temp file, then agent-tmux ${cli} send --from-file <file> --enter-count 1 ${cliSession}.\n` +
-  `4. Wait by POLLING OUT (NOT the tmux pane — the marker echoes in the sent prompt), up to ${cliTimeout}s, until OUT exists AND contains "${REVIEW_MARKER}". Then read OUT.\n` +
-  `Base your answer STRICTLY on ${cli}'s OUT content (you are a conduit, not the reviewer). Keep raw tmux scrollback out.\n\nTASK FOR ${cli.toUpperCase()}:\n${taskForCli}`
+if (a.launchEnv != null) return { aborted: true, reason: 'launchEnv is gone: put the flags in an agent-tmux profile .conf (launch_flags / effort_flags) and pass its name as cli' }
+// One CLI worker driven through the tmux-agent mod tools (needs the mod at tmux-agent-tools >= a68ecd4:
+// assign/tell + await). Kept byte-close in consensus-gate, plan-pipeline and feature-plan-consensus (scripts
+// cannot import). worker = the name an earlier call returned; absent = start a new worker. Launch and effort
+// flags live in the agent-tmux profile `profile` names (launch_flags / effort_flags in its .conf).
+const modConduit = ({ profile, base, dir, worker, out, marker, timeout, task }) =>
+  `Drive a ${profile} worker ONLY with the tmux-agent mod tools: ToolSearch "select:mcp__tmux-agent__assign,mcp__tmux-agent__tell,mcp__tmux-agent__await". Never run agent-tmux through Bash.\n` +
+  `The worker's instruction: write the full response to ${out}, ending the file with a line exactly: ${marker}; the result.json summary is one line.\n` +
+  (worker
+    ? `1. mcp__tmux-agent__tell {name: "${worker}", text: the task below plus that instruction}. worker = "${worker}".\n`
+    : `1. mcp__tmux-agent__assign {profile: "${profile}", name: "${base}", dir: the absolute path of ${dir}, brief: "GOAL: " + the task below + that instruction + "\\nACCEPTANCE: ${out} ends with the marker line.\\nREPORT: a one-line summary."}. worker = the name the receipt returns (with its suffix).\n`) +
+  `2. Call mcp__tmux-agent__await {name: worker, max_seconds: ${Math.min(540, timeout)}} until it returns status success, failed or blocked; after ${Math.max(1, Math.ceil(timeout / 540))} pending calls, stop and report the timeout.\n` +
+  `3. Read ${out}; it must end with the marker line. Return worker in the worker field.\n\nTASK:\n${task}`
+// One cli worker for the run (escalation rung and external review alike): later calls tell it, so it keeps context.
+let cliWorker = null
+const withWorker = (schema) => ({ ...schema, properties: { ...schema.properties, worker: { type: 'string', description: 'the cli worker name' } } })
+const driveCli = (taskForCli, out) =>
+  `Get a genuine SECOND-MODEL (${cli}) verdict from a tmux-agent mod worker — do NOT use any harness agent type.\n` +
+  modConduit({ profile: cli, base: cliSession, dir: repo, worker: cliWorker, out, marker: REVIEW_MARKER, timeout: cliTimeout, task: taskForCli }) +
+  `\nBase your answer STRICTLY on ${cli}'s OUT content (you are a conduit, not the reviewer). Keep raw tmux scrollback out.`
 
 // Step 0 — the doctrine, injected into every worker/reviewer prompt.
 const EVIDENCE = `CORRECTNESS DOCTRINE (non-negotiable): truth = source code, logs, and real command output you observe THIS run. ` +
@@ -144,10 +151,11 @@ async function runEscalated(label, phaseName, makePrompt, opts = {}) {
     const r = rungs[i]
     const o = { label: `${label}:${r.tier}#${i + 1}`, phase: phaseName, isolation, agentType: r.agentType || agentType }
     if (!r.agentType) o.effort = effort   // a custom definition carries its own effort/model/maxTurns; do not override it here
-    if (schema) o.schema = schema
+    if (schema) o.schema = r.driveCli ? withWorker(schema) : schema
     if (r.model) o.model = r.model   // per-tier model (worker / self / cli-driven) — intentionally varies
     const p = makePrompt(feedback, r.tier)
     const res = await agent(r.driveCli ? driveCli(p, `/tmp/${cli}-${label.replace(/[^a-zA-Z0-9._-]/g, '_')}-${i + 1}.md`) : p, o)
+    if (r.driveCli && res?.worker) cliWorker = res.worker
     const v = verify ? await verify(res) : { ok: res != null, feedback: 'empty result' }
     if (v.ok) { log(`${label}: accepted via ${r.tier} (attempt ${i + 1})`); return { result: res, tier: r.tier, attempt: i + 1, ok: true, needsUser: false } }
     last = res
@@ -296,7 +304,7 @@ while (internalRound < maxInternal) {
 }
 
 // ───────────────────────── 5. External (second-brain) review loop ─────────────────────────
-// With a.cli: the counterpart CLI reviews via agent-tmux. Without: a FRESH Claude opus agent
+// With a.cli: the counterpart CLI reviews as a tmux-agent mod worker. Without: a FRESH Claude opus agent
 // (independent context — it never saw the critics or the revisions) runs the same adversarial prompt.
 phase('ExternalReview')
 let externalRound = 0, externalConsensus = false
@@ -308,8 +316,9 @@ while (externalRound < maxExternal) {
     `Set verified_against_code + default consensus=false unless genuinely sound. Each issue needs evidence (file:line/log) + fix.\n\nPLAN:\n${plan}`
   const review = await agent(
     cli ? driveCli(extPrompt, `/tmp/${cli}-extreview-${slug}-${externalRound}.md`) : extPrompt,
-    { label: `${externalTier}-review#${externalRound}`, phase: 'ExternalReview', model, effort: reviewEffort, isolation, agentType, schema: CRITIQUE_SCHEMA }
+    { label: `${externalTier}-review#${externalRound}`, phase: 'ExternalReview', model, effort: reviewEffort, isolation, agentType, schema: cli ? withWorker(CRITIQUE_SCHEMA) : CRITIQUE_SCHEMA }
   )
+  if (cli && review?.worker) cliWorker = review.worker
   if (!review) return { aborted: true, stage: 'external-review', needsUser: true, round: externalRound } // external reviewer (top automated tier) died -> escalate to user
   const blocking = (review.blocking_issues || []).filter(i => i.severity !== 'minor')
   if (review.consensus && review.verified_against_code === true && blocking.length === 0) {

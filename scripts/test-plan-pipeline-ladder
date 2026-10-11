@@ -19,7 +19,7 @@ const run = async (policy, args = { brief: 'b', skipDirection: true }, opts = {}
   const agent = async (prompt, o) => {
     const m = o.label.match(/:(draft|fix#\d+|L0#\d+|L[123](?:sonnet|luna)?#\d+)$/)
     const k = m ? m[1] : o.label
-    if (k === 'draft') return { ok: true, path: 'x', summary: 's', actions: [] }
+    if (k === 'draft') { st.draft = prompt; return { ok: true, path: 'x', summary: 's', actions: [], ...(opts.worker ? { worker: opts.worker } : {}) } }
     if (k.startsWith('fix')) { st.seq.push('fix'); st.fixes.push(prompt); return { ok: true, path: 'x', summary: 's', actions: opts.actions || [] } }
     if (k.startsWith('L0')) { st.l0++; return { sha256: SHA, rc: opts.l0rc ? opts.l0rc(st.l0) : 0, output: 'out' } }
     const [, seat, r] = k.match(/^(L[123](?:sonnet|luna)?)#(\d+)$/)
@@ -40,6 +40,10 @@ const clean = (s, r, p) => V([], { resolved: known(p) })
 const block = (id) => () => V([MAJOR(id)])
 const byTier = (map) => (seat, r, p, st) => (map[seat] || map[seat.slice(0, 2)])(seat, r, p, st)
 
+{ const pol = (seat, r, p) => seat === 'L2' && r === 1 ? V([MAJOR('a')]) : clean(seat, r, p)
+  const { st } = await run(pol, { brief: 'b', skipDirection: true, cli: 'codex', sessionName: 'pp' }, { worker: 'pp.ab12c' })
+  check('cli drafter: the draft assigns a mod worker, the fix tells the same worker', /mcp__tmux-agent__assign \{profile: "codex", name: "pp"/.test(st.draft || '') && /mcp__tmux-agent__tell \{name: "pp\.ab12c"/.test(st.fixes[0] || ''), (st.fixes[0] || st.draft || '').slice(0, 400)) }
+{ const { out } = await run(clean, { brief: 'b', skipDirection: true, cli: 'codex', launchEnv: 'X=1 ' }); check('rejects launchEnv', out.aborted === true, JSON.stringify(out)) }
 for (const [bad, val] of [['maxReviewRounds', -1], ['maxReviewRounds', 5], ['reviewEffort', 'low']]) {
   const { out } = await run(clean, { brief: 'b', skipDirection: true, [bad]: val })
   check(`rejects ${bad}=${val}`, out.aborted === true, JSON.stringify(out))

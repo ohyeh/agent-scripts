@@ -359,9 +359,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-workflows/SKILL.md",
-      "skillFolderHash": "e3288722405634bc77b93caa245186d8cece84d1",
+      "skillFolderHash": "ba8581ffc8cf7e209740e615239310897a6e2b34",
       "installedAt": "2026-07-18T20:48:21.473Z",
-      "updatedAt": "2026-10-08T19:11:14.000Z"
+      "updatedAt": "2026-10-11T08:10:00.000Z"
     },
     "verification-before-completion": {
       "source": "obra/superpowers",
