@@ -26,6 +26,16 @@ Chain these for planning and investigation work:
   opposite failure, per-step narration).
   During active work (not a wait), ten active minutes without a round recap means update the
   run dir state file with: finished, running now, still to do, next action.
+- Test cost: before adding or expanding a test, read the existing tests for that behavior. State
+  the regression it detects and the repository's test time budget. Add a case to the existing test
+  that owns the behavior. Add a test file only for a distinct integration boundary that no existing
+  test can cover. Use a fixture for data logic and one real run for each required process or device
+  boundary. Use fixed small waits; do not add test timeout knobs. Count all required test lanes once.
+  Do not move a slow test to another required command to hide its cost. If the change exceeds the
+  budget, cut duplicate work before adding tests. Keep data-loss, security, and public-contract
+  checks. Quote the executed wall time before claiming the budget is met; otherwise mark it
+  UNCONFIRMED. Do not add a gate script for this rule (2026-10-11: tmux-agent-tools smokes grew to
+  80 files / 5:32 one file per feature; cut to 33 / 1:08).
 
 ## Shape every output
 
