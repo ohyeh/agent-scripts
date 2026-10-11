@@ -112,8 +112,8 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 
 Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
 2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
-3.5 h): except for the worker, the L1/TK review roles and mechanical seats (the L0 runner, the Luna
-conduit: `sonnet` medium) below, every recipe agent runs at least `opus` effort
+3.5 h): except for the worker, the L1/TK review roles and mechanical seats (L0 runners and CLI
+conduits: `sonnet` medium) below, every recipe agent runs at least `opus` effort
 `low`; planning, synthesis, revision, and verdicts NEVER run on `sonnet` or `haiku`. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
 below (user ruling 2026-10-09); otherwise `sonnet`/`haiku` 5.5+ may run implementation or
 read-only data gathering in a recipe by commander's call (user ruling 2026-10-10). The second-model CLI

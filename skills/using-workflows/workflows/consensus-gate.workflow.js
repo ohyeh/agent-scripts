@@ -14,7 +14,7 @@
 //     layer: "L2",                      // L1 | L2 | L3 (model-dispatch.md §Review ladder); L1 can never pass the gate
 //     freeze: ["/abs/file.md"],         // files hashed into the round manifest (default: proposalFile)
 //     l0: "scripts/test-x",             // OPTIONAL deterministic check run before the review; non-zero = gate fails
-//     effort: "low",                    // low|medium|high: the conduit agent's effort (reviewer effort = profile effort_flags)
+//     effort: "medium",                 // low|medium|high: the conduit agent's effort (reviewer effort = profile effort_flags)
 //     marker: "=== REVIEWER VERDICT END ===",  // just a sentinel; pass "=== CODEX VERDICT END ===" for legacy byte-compat
 //     timeoutSec: 600
 //   }})
@@ -36,14 +36,14 @@ export const meta = {
   name: 'consensus-gate',
   description: 'Get a high-effort second-model consensus verdict on a proposal via any agent-tmux profile',
   whenToUse: 'When a decision, diff, or proposal needs an independent second-model verdict before acting — the reusable gate primitive other recipes call. args.cli is REQUIRED and picks the reviewer (codex / claude / agy / any agent-tmux profile — heterogeneous reviewers are a config concern, not a recipe concern). For push gates, see the multi-round preset in the header.',
-  phases: [{ title: 'Consult', detail: 'drive the reviewer CLI via the tmux-agent mod, capture verdict', model: 'opus' }],
+  phases: [{ title: 'Consult', detail: 'drive the reviewer CLI via the tmux-agent mod, capture verdict', model: 'sonnet' }],
 }
 const a = typeof args === 'string' ? (() => { try { return JSON.parse(args) } catch { return {} } })() : (args || {})
 if (!a.proposalFile && !a.proposalText) return { aborted: true, reason: 'need proposalFile or proposalText' }
 const repo = a.repoPath || '.'
 const session = a.sessionName || 'consensus'
-const effort = a.effort || 'low'    // the conduit agent only relays a file; the reviewer's effort comes from its profile (effort_flags)
-const model = a.model || 'opus'     // the driving Claude agent's model (floor opus — user ruling 2026-09-02)
+const effort = a.effort || 'medium' // the conduit agent only relays a file (sonnet floor: medium); the reviewer's effort comes from its profile (effort_flags)
+const model = a.model || 'sonnet'   // the driving Claude agent's model: a mechanical conduit, sonnet medium (model-dispatch.md model floor)
 // Official agent() opts, listed on every call so none reads as "unsupported". Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit (NOT false/'none')
 const agentType = a.agentType || undefined  // off = default workflow agent. NEVER hardcode a custom one — a missing agentType is a HARD error (#20931), breaks portability
