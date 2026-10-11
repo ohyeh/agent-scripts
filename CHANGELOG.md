@@ -1,5 +1,11 @@
 # Changelog
 
+## session-recall 0.9.13
+
+`tests/tui-smoke.sh` puts its tmux socket inside its own temp directory (`-S "$work/t.sock"`), so the EXIT trap removes it with the tree. Before, `-L sa-tui-$$` left one socket per run in the shared tmux directory: 58 of them were on this host. The mod itself does not change.
+
+- Not verified: the 58 existing `sa-tui-*` sockets are left in place (live or stale not checked).
+
 ## session-recall 0.9.12
 
 A subagent's MCP call keeps its link only when the tool's name has a making verb (`create`, `deploy`, `publish`, `upload`, `send`, `post`) as a word, in any case and split at `_ - . : /`, case changes and digits: `create_draft`, `createJiraIssue`, `CreateIssue`, `CREATE_ISSUE`, `drive.files.create`, `create2`. 0.9.11 matched the verb anywhere in the name, so `postmortem` or a read such as `getPostComments` kept the links a subagent's research printed. A name led by a read or a removal (`get`, `list`, `search`, `read`, `query`, `fetch`, `find`, `lookup`, `view`, `show`, `retrieve`, `describe`, `delete`, `remove`) does not count, unless it says `or`, `and` or `then` (`get_or_create_doc`). Checked against the 124 MCP tool names in this machine's transcripts: every creator among them (`createJiraIssue`, `createConfluencePage`, `create_draft`, `send_message`, `upload_image`) still counts. A verb run into another word (`createdraft`, `uploads`) is not seen.
