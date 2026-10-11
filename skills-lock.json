@@ -105,9 +105,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/delegation-templates/SKILL.md",
-      "skillFolderHash": "bc2bface9d596408e94d8eb63be0750005d83f3f",
+      "skillFolderHash": "7c48a15cf15fb246bdfd18ff21ebaccd2e7685f9",
       "installedAt": "2026-07-18T20:48:21.471Z",
-      "updatedAt": "2026-10-03T18:55:14.332Z"
+      "updatedAt": "2026-10-11T07:59:48.591Z"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -296,9 +296,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "747516d7107ea30bc8d2f7eb4e477be73d9bec4b",
+      "skillFolderHash": "e319a910648953bf553d034d743f1ace00e6c9d1",
       "installedAt": "2026-07-18T20:48:24.825Z",
-      "updatedAt": "2026-10-03T18:55:38.744Z"
+      "updatedAt": "2026-10-11T07:54:22.212Z"
     },
     "triage": {
       "source": "mattpocock/skills",
@@ -332,9 +332,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-grok-bot-app/SKILL.md",
-      "skillFolderHash": "69bdfa1a193aced67647883e9096a6dab1d47c92",
+      "skillFolderHash": "3f07f4bddc39a138290df953b1e92e01483ecdca",
       "installedAt": "2026-09-04T08:30:33.000Z",
-      "updatedAt": "2026-10-03T18:55:16.963Z"
+      "updatedAt": "2026-10-11T07:59:50.566Z"
     },
     "using-skills": {
       "source": "ohyeh/agent-scripts",
