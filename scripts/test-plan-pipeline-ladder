@@ -14,7 +14,7 @@ const MINOR = (id = 'm') => ({ id, severity: 'Minor', status: 'new', issue: `min
 const V = (open = [], extra = {}) => ({ sha256_start: SHA, sha256_end: SHA, open, resolved: [], summary: 's', ...extra })
 
 // policy(seat, round, prompt, state) → verdict for a reviewer seat ('L1sonnet', 'L1luna', 'L2', 'L3')
-const run = async (policy, args = { brief: 'b', skipDirection: true }, opts = {}) => {
+const run = async (policy, args = { brief: 'b', skipDirection: true, luna: true }, opts = {}) => {   // luna on: most checks cover the substitute seat too
   const st = { seq: [], prompts: {}, l0: 0, fixes: [] }
   const agent = async (prompt, o) => {
     const m = o.label.match(/:(draft|fix#\d+|L0#\d+|L[123](?:sonnet|luna)?#\d+)$/)
@@ -52,6 +52,8 @@ for (const [bad, val] of [['maxReviewRounds', -1], ['maxReviewRounds', 5], ['rev
   check(`rejects ${bad}=${val}`, out.aborted === true, JSON.stringify(out))
 }
 { const { out, seq } = await run(byTier({ L1: clean, L2: clean }))
+  { const { seq } = await run(clean, { brief: 'b', skipDirection: true })
+    check('L1 defaults to the Claude seat only (luna is opt-in)', seq === 'L1sonnet L2', seq) }
   check('L1 clean still runs L2 (sonnet+luna in L1); L2 clean freezes', seq === 'L1sonnet L1luna L2' && out.plan.frozen === true, seq) }
 { const { out, seq } = await run(byTier({ L1: clean, L2: block('a'), L3: clean }))
   check('L2 blocks 3 rounds, then L3 decides', seq === 'L1sonnet L1luna L2 fix L2 fix L2 fix L3' && out.plan.frozen === true, seq) }

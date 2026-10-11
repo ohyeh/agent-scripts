@@ -48,10 +48,11 @@ const check = (m, cond, got) => { if (cond) { console.log(`  ok   ${m}`); pass++
 const clean = (s, r, p) => V([], { resolved: known(p) })
 const seq = calls => calls.filter(c => /^L[123]/.test(c)).map(c => c.split('|')[0].replace(/#\d+$/, '')).join(' ')
 
-{ const { result } = await run((s, r, p) => s === 'L1:pr-test-analyzer' ? 'THROW' : clean(s, r, p))
+const TWO = { l1Lenses: ['silent-failure-hunter', 'pr-test-analyzer'], luna: true }
+{ const { result } = await run((s, r, p) => s === 'L1:pr-test-analyzer' ? 'THROW' : clean(s, r, p), TWO)
   check('an L1 seat that throws is a warning, not a silent skip', result.verified === true && result.warnings.some(w => /pr-test-analyzer: threw/.test(w)), JSON.stringify(result.warnings)) }
-{ const { seen } = await run((s, r, p) => s === 'L1:silent-failure-hunter' && r === 1 ? V([MAJOR]) : clean(s, r, p))
-  const p2 = seen['L1:luna#2'] || ''
+{ const { seen } = await run((s, r, p) => s === 'L1:code-reviewer' && r === 1 ? V([MAJOR]) : clean(s, r, p))
+  const p2 = seen['L1:code-reviewer#2'] || ''
   check('round 2 gets the fix diff by pipe, no shared file', /\| diff -u \S+r1\.prev\.diff -/.test(p2) && !/now\.diff/.test(p2), p2.slice(0, 200))
   const l2 = seen['L2#1'] || ''
   check('reviewers get the L0 output and must not run checks', l2.includes('L0-OUT-42') && /Read-only: do not edit files or run build, test, lint/.test(l2), l2.slice(0, 300))
@@ -65,20 +66,22 @@ const seq = calls => calls.filter(c => /^L[123]/.test(c)).map(c => c.split('|')[
   check('without verifyCommands, L0 still picks and runs the narrowest checks', /choose and run the narrowest relevant checks/.test(seen.l0), seen.l0) }
 { const { result } = await run(clean, { isolation: 'worktree' })
   check('rejects isolation (the ladder needs one live tree)', result.aborted === true && !result.stage, JSON.stringify(result)) }
-for (const [k, v] of [['cli', 'codex'], ['l1Lenses', ['code-reviewer']], ['maxReviewRounds', 0], ['reviewEffort', 'low']]) {
+for (const [k, v] of [['cli', 'codex'], ['l1Lenses', ['code-reviewer']], ['luna', 'yes'], ['maxReviewRounds', 0], ['reviewEffort', 'low']]) {
   const { result } = await run(clean, { [k]: v })
   check(`rejects ${k}=${JSON.stringify(v)}`, result.aborted === true && !result.stage, JSON.stringify(result))
 }
 { const { result, calls, seen } = await run(clean)
-  check('L1 = toolkit lenses on sonnet + luna; L2 = code-reviewer on opus', seq(calls) === 'L1:silent-failure-hunter L1:pr-test-analyzer L1:luna L2', seq(calls))
-  check('L1 lenses use their toolkit agent type on sonnet', calls.some(c => c.startsWith('L1:pr-test-analyzer#1|sonnet|pr-review-toolkit:pr-test-analyzer')), calls.join('\n'))
+  check('default L1 = sonnet code-reviewer only (no fixed lenses, no luna); L2 = code-reviewer on opus', seq(calls) === 'L1:code-reviewer L2' && calls.some(c => c.startsWith('L1:code-reviewer#1|sonnet|pr-review-toolkit:code-reviewer')), calls.join('\n'))
+  check('L0 runs on sonnet medium, not opus', calls.some(c => c.startsWith('L0#1|sonnet|')), calls.join('\n'))
   check('L2 uses pr-review-toolkit:code-reviewer on opus', calls.some(c => c.startsWith('L2#1|opus|pr-review-toolkit:code-reviewer')), calls.join('\n'))
   check('clean ladder reaches a no-edit finalizer and verifies', result.verified === true && /do NOT edit any file/.test(seen.finalize), JSON.stringify(result)) }
 { const { result } = await run((s, r, p) => s === 'L2' ? null : clean(s, r, p))
   check('L2 reviewer missing aborts at review (P2-A5)', result.aborted === true && result.stage === 'review', JSON.stringify(result)) }
 { const { result } = await run((s, r, p) => s.startsWith('L1') ? null : clean(s, r, p))
   check('every L1 seat missing aborts at review', result.aborted === true && result.stage === 'review', JSON.stringify(result)) }
-{ const { result } = await run((s, r, p) => s === 'L1:silent-failure-hunter' ? null : clean(s, r, p))
+{ const { calls } = await run(clean, TWO)
+  check('l1Lenses and luna add seats next to the Claude reviewer', seq(calls) === 'L1:code-reviewer L1:silent-failure-hunter L1:pr-test-analyzer L1:luna L2' && calls.some(c => c.startsWith('L1:pr-test-analyzer#1|sonnet|pr-review-toolkit:pr-test-analyzer')), calls.join('\n')) }
+{ const { result } = await run((s, r, p) => s === 'L1:silent-failure-hunter' ? null : clean(s, r, p), TWO)
   check('one L1 seat missing is a warning, review continues', result.verified === true && result.warnings.some(w => /silent-failure-hunter/.test(w)), JSON.stringify(result.warnings)) }
 { const { result, calls } = await run((s, r, p) => s === 'L3' ? clean(s, r, p) : s === 'L2' ? V([MAJOR]) : clean(s, r, p))
   check('L2 blocks 3 rounds, then L3 code-reviewer on fable decides', result.verified === true && calls.some(c => c.startsWith('L3#1|fable|pr-review-toolkit:code-reviewer')), seq(calls)) }

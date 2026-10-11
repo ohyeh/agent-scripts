@@ -21,16 +21,18 @@
 //     effort: "low",                               // optional, implementer effort (default medium)
 //     reviewEffort: "high",                        // optional, L2 effort: medium|high|xhigh|max (default high)
 //     maxReviewRounds: 3,                          // optional, L2 rounds, integer 1–3 (L1 2 and L3 1 are fixed)
-//     l1Lenses: ["silent-failure-hunter", "pr-test-analyzer"],  // optional pr-review-toolkit agents for L1
-//                                                  // (also: type-design-analyzer, comment-analyzer)
+//     luna: true,                                  // optional: add gpt-6-luna to L1 as a substitute seat (default off)
+//     l1Lenses: ["silent-failure-hunter"],         // optional pr-review-toolkit agents added to L1 when the change
+//                                                  // calls for one (default none; also pr-test-analyzer,
+//                                                  // type-design-analyzer, comment-analyzer)
 //     timeoutSec: 1200, slug: "c1",                // optional: Luna run timeout; snapshot dir name
 //   }})
 //
 // REVIEW LADDER (the Review phase):
 //   L0  verifyCommands + a manifest hash (HEAD, `git diff HEAD`, untracked files) before every round;
 //       a failing check goes to the fixer first; a manifest change during the round voids it.
-//   L1  pr-review-toolkit lenses (default silent-failure-hunter + pr-test-analyzer) on sonnet high,
-//       plus gpt-6-luna xhigh (codex exec, read-only), in parallel, ≤2 rounds; cannot pass the change.
+//   L1  pr-review-toolkit:code-reviewer on sonnet medium, plus any l1Lenses (same model, added by
+//       situation) and gpt-6-luna xhigh when args.luna; in parallel, ≤2 rounds; cannot pass the change.
 //   L2  pr-review-toolkit:code-reviewer on opus at reviewEffort, always runs, ≤maxReviewRounds.
 //   L3  pr-review-toolkit:code-reviewer on fable high, 1 round, only when L2 never reached
 //       0 Critical / 0 Major. One finding ledger runs through every round and layer; the
@@ -58,11 +60,11 @@
 
 export const meta = {
   name: 'spec-implement-dual-review-verify',
-  description: 'Implement a spec, review it through the ladder (L0 → pr-review-toolkit lenses + Luna → opus code-reviewer → fable), verify (param via args)',
+  description: 'Implement a spec, review it through the ladder (L0 → sonnet code-reviewer (+ optional lenses / Luna) → opus code-reviewer → fable), verify (param via args)',
   whenToUse: 'When a written spec must become code with laddered independent review and command-verified evidence — the main build pipeline. When a consensus-frozen plan.md already exists, pass a plan POINTER as the spec (see the frozen-plan preset in the header).',
   phases: [
     { title: 'Implement', detail: 'write/edit the target per spec', model: 'opus' },
-    { title: 'Review', detail: 'review ladder: L0 → toolkit lenses + Luna → opus code-reviewer → fable' },
+    { title: 'Review', detail: 'review ladder: L0 → sonnet code-reviewer (+ optional lenses / Luna) → opus code-reviewer → fable' },
     { title: 'Finalize', detail: 'run verify commands and classify deviations; no further edits' },
   ],
 }
@@ -73,8 +75,9 @@ if (a.cli != null) return { aborted: true, reason: 'cli is not a reviewer here a
 if (a.maxReviewRounds != null && !(Number.isInteger(a.maxReviewRounds) && a.maxReviewRounds >= 1 && a.maxReviewRounds <= 3)) return { aborted: true, reason: 'invalid arg: maxReviewRounds must be an integer 1–3 (L2 rounds)' }
 if (a.reviewEffort != null && !['medium', 'high', 'xhigh', 'max'].includes(a.reviewEffort)) return { aborted: true, reason: 'invalid arg: reviewEffort must be medium|high|xhigh|max (L2 is opus medium+)' }
 const LENS_OK = ['silent-failure-hunter', 'pr-test-analyzer', 'type-design-analyzer', 'comment-analyzer']
-const lenses = a.l1Lenses == null ? ['silent-failure-hunter', 'pr-test-analyzer'] : a.l1Lenses
-if (!Array.isArray(lenses) || !lenses.length || lenses.some(l => !LENS_OK.includes(l))) return { aborted: true, reason: `invalid arg: l1Lenses must be a non-empty subset of ${LENS_OK.join(', ')}` }
+const lenses = a.l1Lenses ?? []   // 2026-10-11: fixed lenses were 80% of toolkit spend; add one when the change calls for it
+if (a.luna != null && typeof a.luna !== 'boolean') return { aborted: true, reason: 'invalid arg: luna must be a boolean' }
+if (!Array.isArray(lenses) || lenses.some(l => !LENS_OK.includes(l))) return { aborted: true, reason: `invalid arg: l1Lenses must be a subset of ${LENS_OK.join(', ')}` }
 
 const repo = a.repoPath
 const model = a.model || 'opus'     // IMPLEMENTER / FIXER model only ('sonnet' permitted here)
@@ -151,7 +154,7 @@ const LADDER = [
 const BLOCKING = f => f.severity !== 'Minor'
 const runL0 = n => agent(
   `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. ${verifyCommands.length ? `Run each, in order, stopping at the first non-zero exit:\n${verifyCommands.map(c => `  - ${c}`).join('\n')}\nrc = the first non-zero exit code, or 0; output = the last 40 lines verbatim.` : 'No verifyCommands were given: choose and run the narrowest relevant checks for this change (syntax check, linter, a smoke invocation) that write nothing into the repo; rc = the first non-zero exit code, or 0; output = each command and the last 40 lines verbatim.'}\n2. Then run \`${MANIFEST}\`; manifest = its output.`,
-  { label: `L0#${n}`, phase: 'Review', model: 'opus', effort: 'low', agentType, schema: L0 })   // manifest AFTER verify: checks that rewrite files must not void the round
+  { label: `L0#${n}`, phase: 'Review', model: 'sonnet', effort: 'medium', agentType, schema: L0 })   // manifest AFTER verify: checks that rewrite files must not void the round
 // No isolation (rejected above), so the prompt is the only guard: a reviewer that runs a check writes into the tree under review.
 const reviewPrompt = (tier, r, max, ledger, prev, l0) =>
   `${tier} REVIEW, round ${r}/${max}, of the change just implemented (you did not write it). Repo ${repo}. First run \`${MANIFEST}\`; manifest_start = its output. ` +
@@ -173,13 +176,13 @@ const review = (tier, who, r, max, ledger, prev, l0) => {
       `2. Run: codex exec -m gpt-6-luna -c model_reasoning_effort=xhigh -s read-only -C ${R} -o ${f}.out - < ${f}.in   (timeout ${timeout}s)\n` +
       `3. ran=true and verdict = Luna's verdict mapped onto the schema fields exactly as Luna wrote them (do not add, drop or soften findings). If codex exits non-zero or writes no verdict: ran=false, error = the exit code and last stderr lines.\n` +
       `<<<\n${prompt}\nReturn the verdict as JSON with fields manifest_start, manifest_end, open[], resolved[], summary.\n>>>`,
-      { label, phase: 'Review', model: 'opus', effort: 'low', agentType, schema: LUNA }).then(x => {
+      { label, phase: 'Review', model: 'sonnet', effort: 'medium', agentType, schema: LUNA }).then(x => {
       if (x && x.ran && x.verdict) return x.verdict
       return seatFailed('luna', !x ? 'agent null' : x.ran ? 'ran=true, no verdict' : x.error)
     }, e => seatFailed('luna', `threw: ${e}`))
   }
   const opts = tier === 'L1'
-    ? { model: 'sonnet', effort: 'high', agentType: `pr-review-toolkit:${who}` }
+    ? { model: 'sonnet', effort: 'medium', agentType: `pr-review-toolkit:${who}` }
     : { model: tier === 'L2' ? 'opus' : 'fable', effort: tier === 'L2' ? reviewEffort : 'high', agentType: 'pr-review-toolkit:code-reviewer' }
   const v = agent(prompt, { label, phase: 'Review', schema: VERDICT, ...opts })
   // An L1 seat that fails (null, or a throw such as a missing toolkit agent type) is a logged warning;
@@ -213,7 +216,7 @@ ladder: for (const [li, L] of LADDER.entries()) {
     }
     l0Fails = 0; lastL0 = pre
     const known = [...ledger.values()]
-    const seats = L.tier === 'L1' ? [...lenses, 'luna'] : ['']
+    const seats = L.tier === 'L1' ? ['code-reviewer', ...lenses, ...(a.luna ? ['luna'] : [])] : ['']   // Claude by default; Luna is a substitute seat
     calls += seats.length
     const verdicts = await parallel(seats.map(w => () => review(L.tier, w, r + 1, L.max, known, prev, pre.output)))
     verdicts.filter(v => v && v.seatFailed).forEach(v => warnings.push(`${L.tier} ${v.seatFailed}`))

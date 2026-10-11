@@ -116,8 +116,8 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
 
 - **`spec-implement-dual-review-verify.workflow.js`** — the main feature-build
   pipeline: implement the spec → review the change through the ladder: L0
-  `verifyCommands` + manifest → L1 `pr-review-toolkit` lenses on sonnet
-  (default `silent-failure-hunter` + `pr-test-analyzer`) + Luna → L2
+  `verifyCommands` + manifest → L1 `pr-review-toolkit:code-reviewer` on sonnet
+  (+ lenses via `l1Lenses`, Luna via `luna: true`) → L2
   `pr-review-toolkit:code-reviewer` on opus (always, ≤3) → L3 the same agent on
   fable. The implementer model fixes every finding between rounds; the
   finalizer only runs the verify commands and the deviation gate, it never

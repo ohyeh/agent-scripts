@@ -59,7 +59,7 @@ if (!a.repoPath || !a.brief) {
     `If it is absent or unreadable, fall back to ${GLOBAL_JOB} (expand $HOME). ` +
     `Return the parsed object of whichever existed, with an added "_source":"project"|"global". ` +
     `If neither exists, return {}. Return ONLY the object — no prose.`,
-    { label: 'read-job', phase: 'Plan', model: 'opus', effort: 'low', isolation: undefined, agentType: undefined, schema: { type: 'object', properties: { repoPath: { type: 'string' }, brief: { type: 'string' }, slug: { type: 'string' }, mode: { type: 'string' }, _source: { type: 'string' } }, additionalProperties: true } }   // bootstrap: literal defaults (config not read yet); typed properties pin the shape (no `required` — {} is a valid "no job file" answer)
+    { label: 'read-job', phase: 'Plan', model: 'sonnet', effort: 'medium', isolation: undefined, agentType: undefined, schema: { type: 'object', properties: { repoPath: { type: 'string' }, brief: { type: 'string' }, slug: { type: 'string' }, mode: { type: 'string' }, _source: { type: 'string' } }, additionalProperties: true } }   // bootstrap: literal defaults (config not read yet); typed properties pin the shape (no `required` — {} is a valid "no job file" answer)
   )
   // Defense in depth: a loose structured output once wrapped the whole job as one
   // string property ({"input":"{...}"}), making every field read undefined.

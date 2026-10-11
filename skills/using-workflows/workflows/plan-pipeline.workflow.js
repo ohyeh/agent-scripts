@@ -7,8 +7,8 @@
 // Each artifact is drafted, then frozen only by the review ladder (model-dispatch.md §Review ladder):
 //   L0 deterministic: hash the artifact + run args.l0 before every review round; a hash change
 //      during the round voids it; an L0 failure goes to the fixer first.
-//   L1 pre-filter, ≤2 rounds, cannot freeze: sonnet high and gpt-6-luna xhigh (codex exec, read-only)
-//      in parallel, findings merged into one ledger.
+//   L1 pre-filter, ≤2 rounds, cannot freeze: sonnet medium, plus gpt-6-luna xhigh (codex exec, read-only)
+//      when args.luna (a substitute seat, default off), in parallel, findings merged into one ledger.
 //   L2 verdict, always runs: opus at reviewEffort, ≤maxReviewRounds (1–3, default 3).
 //   L3 final verdict: fable high, 1 round, only when L2 never reached 0 Critical / 0 Major.
 // The drafter (args.cli through the tmux-agent mod, else opus) answers every round under the fixer contract;
@@ -31,14 +31,14 @@
 //     l0: "scripts/check-docs",                     // OPTIONAL deterministic check run before every review round
 //     snapshotDir: "/tmp/plan-pipeline-<slug>",     // pre-fix copies for the reviewer's diff (default shown)
 //     cli: "codex",                                 // OPTIONAL drafter CLI (agent-tmux profile) via the tmux-agent mod; absent → opus drafter
-//     sessionName: "plan-<slug>", model: "opus", effort: "low", reviewEffort: "high", timeoutSec: 1200,
+//     sessionName: "plan-<slug>", model: "opus", effort: "low", reviewEffort: "high", timeoutSec: 1200, luna: false,
 //     skipDirection: false,                         // true → directionPath already exists, start at ②
 //     adrs: [{ slug: "external-idp", title: "..." }],// OPTIONAL: force these ADRs; else ② decides which are needed
 //     commitPush: true, commitMessage: "docs(plan): freeze <slug> planning artifacts"
 //   }})
 export const meta = {
   name: 'plan-pipeline',
-  description: 'Planning-only pipeline: direction → frozen plan → ADRs, each frozen by the review ladder (L0 → sonnet+luna → opus → fable) → commit/push docs. No build.',
+  description: 'Planning-only pipeline: direction → frozen plan → ADRs, each frozen by the review ladder (L0 → sonnet (+ optional luna) → opus → fable) → commit/push docs. No build.',
   whenToUse: 'When you need FROZEN planning artifacts (goal_doc → plan-<slug>.md → ADRs), each frozen by the review ladder (model-dispatch.md §Review ladder), committed but deliberately NOT built. Complements project-direction-review (that answers "where next"; this freezes "how"). Build afterwards via spec-implement-dual-review-verify.',
   phases: [
     { title: 'Direction', detail: '① draft/refine goal_doc; review ladder → FROZEN', model: 'opus' },
@@ -76,6 +76,7 @@ const model = a.model || 'opus'     // drafter never sonnet: this recipe is plan
 // see one another's edits. The ladder runs on one live tree.
 if (a.isolation != null) return { aborted: true, reason: 'isolation is not supported: the review ladder needs every agent on the same live tree' }
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)
+if (a.luna != null && typeof a.luna !== 'boolean') return { aborted: true, reason: 'invalid arg: luna must be a boolean' }
 const timeout = a.timeoutSec || 1200
 const l0Cmd = typeof a.l0 === 'string' ? a.l0 : ''   // caller-owned
 const snapDir = a.snapshotDir || `/tmp/plan-pipeline-${slug}`
@@ -170,7 +171,7 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
   }
   const runL0 = n => { calls++; return agent(
     `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. ${l0Cmd ? `Run \`${l0Cmd}\`; rc = its exit code; output = its last 40 lines verbatim.` : 'No L0 command was given: rc = 0, output = "no l0 command".'}\n2. Then run \`shasum -a 256 ${outPath}\`; sha256 = the hash.`,
-    { label: `${label}:L0#${n}`, phase: phaseName, model, effort: 'low', agentType, schema: L0 }) }   // hash AFTER l0: a check that rewrites the artifact must not void the round
+    { label: `${label}:L0#${n}`, phase: phaseName, model: 'sonnet', effort: 'medium', agentType, schema: L0 }) }   // hash AFTER l0: a check that rewrites the artifact must not void the round
   // No isolation, so the prompt is the only guard: a reviewer that runs a check writes into the tree under review.
   const reviewPrompt = (tier, r, max, ledger, prev, l0) =>
     `${tier} REVIEW, round ${r}/${max} (you did not write this). Repo ${repo}. First run \`shasum -a 256 ${outPath}\`; sha256_start = the hash field only. ` +
@@ -188,11 +189,11 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
       `2. Run: codex exec -m gpt-6-luna -c model_reasoning_effort=xhigh -s read-only -C ${repo} -o ${snapDir}/${base}-luna-r${calls}.out - < ${snapDir}/${base}-luna-r${calls}.in   (timeout ${timeout}s)\n` +
       `3. ran=true and verdict = Luna's verdict mapped onto the schema fields exactly as Luna wrote them (do not add, drop or soften findings). If codex exits non-zero or writes no verdict: ran=false, error = the exit code and last stderr lines.\n` +
       `<<<\n${prompt}\nReturn the verdict as JSON with fields sha256_start, sha256_end, open[], resolved[], summary.\n>>>`,
-      { ...opts, model, effort: 'low', schema: LUNA }).then(x => {
+      { ...opts, model: 'sonnet', effort: 'medium', schema: LUNA }).then(x => {
       if (x && x.ran && x.verdict) return x.verdict
       return seatFailed('luna', !x ? 'agent null' : x.ran ? 'ran=true, no verdict' : x.error)
     }, e => seatFailed('luna', `threw: ${e}`))
-    const m = tier === 'L1' ? ['sonnet', 'high'] : tier === 'L2' ? ['opus', reviewEffort] : ['fable', 'high']
+    const m = tier === 'L1' ? ['sonnet', 'medium'] : tier === 'L2' ? ['opus', reviewEffort] : ['fable', 'high']
     const v = agent(prompt, { ...opts, model: m[0], effort: m[1], schema: VERDICT })
     // An L1 seat that fails is a logged warning; an L2/L3 reviewer that fails stops the gate (null).
     return tier === 'L1' ? v.then(x => x || seatFailed(who, 'agent null'), e => seatFailed(who, `threw: ${e}`)) : v
@@ -224,7 +225,7 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
       }
       l0Fails = 0
       const known = [...ledger.values()]
-      const who = L.tier === 'L1' ? ['sonnet', 'luna'] : ['']
+      const who = L.tier === 'L1' ? ['sonnet', ...(a.luna ? ['luna'] : [])] : ['']   // Claude by default; Luna is a substitute seat
       const verdicts = await parallel(who.map(w => () => review(L.tier, w, r + 1, L.max, known, prev, pre.output)))
       const ran = verdicts.filter(v => v && !v.seatFailed)
       verdicts.filter(v => v && v.seatFailed).forEach(v => warnings.push(`${L.tier} ${v.seatFailed}`))

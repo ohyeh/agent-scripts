@@ -105,7 +105,7 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 | locate/inventory | `sonnet` medium for gathering; `opus`/`fable` for synthesis | Luna xhigh |
 | read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
 | implement/refactor/research | `opus` medium; `sonnet`/`haiku` 5.5+ by commander's call (§1) | Luna xhigh |
-| review/verification | review ladder (§Review ladder below): L1 `sonnet` high → L2 `opus` medium+ → L3 `fable` | review ladder: Luna xhigh at L1, Astra xhigh as the L3 fallback |
+| review/verification | review ladder (§Review ladder below): L1 `sonnet` medium → L2 `opus` medium+ → L3 `fable` | review ladder: Luna xhigh at L1 (opt-in), Astra xhigh as the L3 fallback |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` medium | Luna xhigh |
 | dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: proxy runs `assign --detach`, the parent owns the wait (`using-tmux-agent-tools` §ONE OWNER) | same |
@@ -130,7 +130,7 @@ Every other recipe keeps its own loop until the W43 retro decides, and does not 
 | Layer | Who | Job | Cap |
 |---|---|---|---|
 | L0 | deterministic | test/build/lint/scrub/grep/checksum before every round, then hash what is under review; a hash change during the round voids it | must PASS before the round |
-| L1 | `sonnet` 5.5+ high and `gpt-6-luna` xhigh/max, in parallel; code reviews run `sonnet` as `pr-review-toolkit` lenses (`silent-failure-hunter`, `pr-test-analyzer`, optional `type-design-analyzer`/`comment-analyzer`) | pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
+| L1 | `sonnet` 5.5+ medium (code: `pr-review-toolkit:code-reviewer`); `gpt-6-luna` xhigh/max is a substitute seat, added only on request; a code review adds a `sonnet` `pr-review-toolkit` lens (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) only when the change calls for it (2026-10-11: fixed lenses were 80% of toolkit spend; mechanical seats such as the L0 runner and the Luna conduit run `sonnet` medium, not `opus`) | pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
 | L2 | `opus` 5.5 medium+ (code: `pr-review-toolkit:code-reviewer`) | the verdict; always runs | 3 rounds |
 | L3 | `fable` 5.1 (`gpt-6-astra` xhigh fallback) | final verdict, only when L2 round 3 still blocks | 1 round |
 
