@@ -112,7 +112,8 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 
 Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
 2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
-3.5 h): except for the worker and L1 roles below, every recipe agent runs at least `opus` effort
+3.5 h): except for the worker, the L1/TK review roles and mechanical seats (the L0 runner, the Luna
+conduit: `sonnet` medium) below, every recipe agent runs at least `opus` effort
 `low`; planning, synthesis, revision, and verdicts NEVER run on `sonnet` or `haiku`. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
 below (user ruling 2026-10-09); otherwise `sonnet`/`haiku` 5.5+ may run implementation or
 read-only data gathering in a recipe by commander's call (user ruling 2026-10-10). The second-model CLI
@@ -130,7 +131,8 @@ Every other recipe keeps its own loop until the W43 retro decides, and does not 
 | Layer | Who | Job | Cap |
 |---|---|---|---|
 | L0 | deterministic | test/build/lint/scrub/grep/checksum before every round, then hash what is under review; a hash change during the round voids it | must PASS before the round |
-| L1 | `sonnet` 5.5+ medium (code: `pr-review-toolkit:code-reviewer`); `gpt-6-luna` xhigh/max is a substitute seat, added only on request; a code review adds a `sonnet` `pr-review-toolkit` lens (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) only when the change calls for it (2026-10-11: fixed lenses were 80% of toolkit spend; mechanical seats such as the L0 runner and the Luna conduit run `sonnet` medium, not `opus`) | pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
+| L1 | `sonnet` 5.5+ medium (code: `pr-review-toolkit:code-reviewer`); `gpt-6-luna` xhigh/max is a substitute seat, added only on request | adversarial pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
+| TK | code only: `pr-review-toolkit` agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) on `sonnet` medium, in parallel | a fixed-form full report of suggestions that sets a floor under L1's blind spots; findings join the ledger, the fixer answers them once; never passes the work | 1 round |
 | L2 | `opus` 5.5 medium+ (code: `pr-review-toolkit:code-reviewer`) | the verdict; always runs | 3 rounds |
 | L3 | `fable` 5.1 (`gpt-6-astra` xhigh fallback) | final verdict, only when L2 round 3 still blocks | 1 round |
 

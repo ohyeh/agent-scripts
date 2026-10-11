@@ -22,17 +22,20 @@
 //     reviewEffort: "high",                        // optional, L2 effort: medium|high|xhigh|max (default high)
 //     maxReviewRounds: 3,                          // optional, L2 rounds, integer 1–3 (L1 2 and L3 1 are fixed)
 //     luna: true,                                  // optional: add gpt-6-luna to L1 as a substitute seat (default off)
-//     l1Lenses: ["silent-failure-hunter"],         // optional pr-review-toolkit agents added to L1 when the change
-//                                                  // calls for one (default none; also pr-test-analyzer,
-//                                                  // type-design-analyzer, comment-analyzer)
+//     toolkit: ["silent-failure-hunter"],          // optional pr-review-toolkit agents for the TK step (default all
+//                                                  // four: + pr-test-analyzer, type-design-analyzer, comment-analyzer;
+//                                                  // [] skips the step)
 //     timeoutSec: 1200, slug: "c1",                // optional: Luna run timeout; snapshot dir name
 //   }})
 //
 // REVIEW LADDER (the Review phase):
 //   L0  verifyCommands + a manifest hash (HEAD, `git diff HEAD`, untracked files) before every round;
 //       a failing check goes to the fixer first; a manifest change during the round voids it.
-//   L1  pr-review-toolkit:code-reviewer on sonnet medium, plus any l1Lenses (same model, added by
-//       situation) and gpt-6-luna xhigh when args.luna; in parallel, ≤2 rounds; cannot pass the change.
+//   L1  pr-review-toolkit:code-reviewer on sonnet medium (+ gpt-6-luna xhigh when args.luna), adversarial,
+//       ≤2 rounds; cannot pass the change.
+//   TK  the pr-review-toolkit agents (args.toolkit) on sonnet medium, in parallel, ONE round: a full
+//       report of suggestions in each agent's area. Findings join the ledger, the fixer answers them
+//       once, then L2. Cannot pass the change.
 //   L2  pr-review-toolkit:code-reviewer on opus at reviewEffort, always runs, ≤maxReviewRounds.
 //   L3  pr-review-toolkit:code-reviewer on fable high, 1 round, only when L2 never reached
 //       0 Critical / 0 Major. One finding ledger runs through every round and layer; the
@@ -50,8 +53,8 @@
 // Restating the key invariants inline matters: it protects against the implementer skimming
 // the plan file, at ~10 lines' cost. Wrapper shape: an 18-line thin workflow that just calls
 // this recipe — no need to save those shells; write them ad hoc.
-// A review layer with no reviewer left (L2/L3 agent null, or every L1 seat failed) ABORTS at the
-// review stage — no silent degradation (P2-A5). A failed L1 seat is a logged warning.
+// A review layer with no reviewer left (L2/L3 agent null, or every L1 or TK seat failed) ABORTS at the
+// review stage — no silent degradation (P2-A5). A failed L1/TK seat is a logged warning.
 // MODEL POLICY: implementer/fixer = `model` (sonnet allowed here only); L1 sonnet is review-only
 // (user ruling 2026-10-09); L2/L3 and the finalizer never run below opus.
 //
@@ -60,11 +63,11 @@
 
 export const meta = {
   name: 'spec-implement-dual-review-verify',
-  description: 'Implement a spec, review it through the ladder (L0 → sonnet code-reviewer (+ optional lenses / Luna) → opus code-reviewer → fable), verify (param via args)',
+  description: 'Implement a spec, review it through the ladder (L0 → sonnet code-reviewer → pr-review-toolkit report → opus code-reviewer → fable), verify (param via args)',
   whenToUse: 'When a written spec must become code with laddered independent review and command-verified evidence — the main build pipeline. When a consensus-frozen plan.md already exists, pass a plan POINTER as the spec (see the frozen-plan preset in the header).',
   phases: [
     { title: 'Implement', detail: 'write/edit the target per spec', model: 'opus' },
-    { title: 'Review', detail: 'review ladder: L0 → sonnet code-reviewer (+ optional lenses / Luna) → opus code-reviewer → fable' },
+    { title: 'Review', detail: 'review ladder: L0 → sonnet code-reviewer → toolkit report → opus code-reviewer → fable' },
     { title: 'Finalize', detail: 'run verify commands and classify deviations; no further edits' },
   ],
 }
@@ -74,10 +77,12 @@ for (const k of ['repoPath', 'spec']) if (!a[k]) return { aborted: true, reason:
 if (a.cli != null) return { aborted: true, reason: 'cli is not a reviewer here any more: the review ladder picks the reviewers (model-dispatch.md §Review ladder); drop cli' }
 if (a.maxReviewRounds != null && !(Number.isInteger(a.maxReviewRounds) && a.maxReviewRounds >= 1 && a.maxReviewRounds <= 3)) return { aborted: true, reason: 'invalid arg: maxReviewRounds must be an integer 1–3 (L2 rounds)' }
 if (a.reviewEffort != null && !['medium', 'high', 'xhigh', 'max'].includes(a.reviewEffort)) return { aborted: true, reason: 'invalid arg: reviewEffort must be medium|high|xhigh|max (L2 is opus medium+)' }
-const LENS_OK = ['silent-failure-hunter', 'pr-test-analyzer', 'type-design-analyzer', 'comment-analyzer']
-const lenses = a.l1Lenses ?? []   // 2026-10-11: fixed lenses were 80% of toolkit spend; add one when the change calls for it
+if (a.l1Lenses != null) return { aborted: true, reason: 'l1Lenses is gone: the toolkit agents run once as the TK step; pass toolkit' }
+const TK_OK = ['silent-failure-hunter', 'pr-test-analyzer', 'type-design-analyzer', 'comment-analyzer']
+// 2026-10-11: toolkit lenses inside L1 reran every L1 round (80% of toolkit spend); one TK pass gives the full report
+const toolkit = a.toolkit ?? TK_OK
 if (a.luna != null && typeof a.luna !== 'boolean') return { aborted: true, reason: 'invalid arg: luna must be a boolean' }
-if (!Array.isArray(lenses) || lenses.some(l => !LENS_OK.includes(l))) return { aborted: true, reason: `invalid arg: l1Lenses must be a subset of ${LENS_OK.join(', ')}` }
+if (!Array.isArray(toolkit) || toolkit.some(l => !TK_OK.includes(l))) return { aborted: true, reason: `invalid arg: toolkit must be a subset of ${TK_OK.join(', ')}` }
 
 const repo = a.repoPath
 const model = a.model || 'opus'     // IMPLEMENTER / FIXER model only ('sonnet' permitted here)
@@ -148,6 +153,7 @@ log('implementation done, starting the review ladder')
 phase('Review')
 const LADDER = [
   { tier: 'L1', max: 2, freezes: false },   // pre-filter: 0 blockers here only admits the change to L2
+  ...(toolkit.length ? [{ tier: 'TK', max: 1, freezes: false }] : []),   // one-pass toolkit report; never passes the change
   { tier: 'L2', max: maxRounds, freezes: true },
   { tier: 'L3', max: 1, freezes: true },    // only reached when L2 never went to 0 Critical / 0 Major
 ]
@@ -159,13 +165,13 @@ const runL0 = n => agent(
 const reviewPrompt = (tier, r, max, ledger, prev, l0) =>
   `${tier} REVIEW, round ${r}/${max}, of the change just implemented (you did not write it). Repo ${repo}. First run \`${MANIFEST}\`; manifest_start = its output. ` +
   `L0 output for this tree (the check evidence; do not rerun checks):\n${l0}\n` +
-  `The change = the output of \`${CHANGE}\`. Review it against the spec below. Focus: ${focus}. Verify against the real code, not the implementer's claims. ` +
+  `The change = the output of \`${CHANGE}\`. Review it against the spec below. Focus: ${tier === 'TK' ? 'your own review area only; give the full report — every suggestion, each with its severity' : focus}. Verify against the real code, not the implementer's claims. ` +
   `Every new concept or abstraction (type, layer, option, config surface, helper used once) must name the spec line or reproduced failure that requires it; one that cannot is an issue. Never flag the change for covering the full requested scope.\n${REVIEWER_CONTRACT}\n` +
   (ledger.length ? `FINDING LEDGER (open findings from earlier rounds and layers, with fixer actions):\n${JSON.stringify(ledger, null, 2)}\n` : 'No earlier findings: this is round 1 for this change.\n') +
   (prev ? `Before/after diff of the last fix: run \`${CHANGE} | diff -u ${prev} -\` (writes nothing).\n` : '') +
   `Last step: run the manifest command again; manifest_end = its output. Do not edit any file.\n${SPEC}`
 let seat = 0
-const seatFailed = (who, why) => { log(`L1 ${who} reviewer did not run (${why})`); return { seatFailed: `${who}: ${why}` } }
+const seatFailed = (who, why) => { log(`${who} reviewer did not run (${why})`); return { seatFailed: `${who}: ${why}` } }
 const review = (tier, who, r, max, ledger, prev, l0) => {
   const prompt = reviewPrompt(tier, r, max, ledger, prev, l0)
   const label = `${tier}${who ? `:${who}` : ''}#${r}`
@@ -181,13 +187,13 @@ const review = (tier, who, r, max, ledger, prev, l0) => {
       return seatFailed('luna', !x ? 'agent null' : x.ran ? 'ran=true, no verdict' : x.error)
     }, e => seatFailed('luna', `threw: ${e}`))
   }
-  const opts = tier === 'L1'
+  const opts = tier === 'L1' || tier === 'TK'
     ? { model: 'sonnet', effort: 'medium', agentType: `pr-review-toolkit:${who}` }
     : { model: tier === 'L2' ? 'opus' : 'fable', effort: tier === 'L2' ? reviewEffort : 'high', agentType: 'pr-review-toolkit:code-reviewer' }
   const v = agent(prompt, { label, phase: 'Review', schema: VERDICT, ...opts })
-  // An L1 seat that fails (null, or a throw such as a missing toolkit agent type) is a logged warning;
+  // An L1/TK seat that fails (null, or a throw such as a missing toolkit agent type) is a logged warning;
   // an L2/L3 reviewer that fails stops the gate (null).
-  return tier === 'L1' ? v.then(x => x || seatFailed(who, 'agent null'), e => seatFailed(who, `threw: ${e}`)) : v
+  return tier === 'L1' || tier === 'TK' ? v.then(x => x || seatFailed(who, 'agent null'), e => seatFailed(who, `threw: ${e}`)) : v
 }
 let calls = 0, prev = null, nid = 0, rounds = 0, frozen = false, lastL0 = null
 const ledger = new Map()   // id → finding (+ tier, + fixer action); survives layer changes
@@ -216,12 +222,13 @@ ladder: for (const [li, L] of LADDER.entries()) {
     }
     l0Fails = 0; lastL0 = pre
     const known = [...ledger.values()]
-    const seats = L.tier === 'L1' ? ['code-reviewer', ...lenses, ...(a.luna ? ['luna'] : [])] : ['']   // Claude by default; Luna is a substitute seat
+    const seats = L.tier === 'L1' ? ['code-reviewer', ...(a.luna ? ['luna'] : [])] : L.tier === 'TK' ? toolkit : ['']   // Claude by default; Luna is a substitute seat
     calls += seats.length
     const verdicts = await parallel(seats.map(w => () => review(L.tier, w, r + 1, L.max, known, prev, pre.output)))
     verdicts.filter(v => v && v.seatFailed).forEach(v => warnings.push(`${L.tier} ${v.seatFailed}`))
     const ran = verdicts.filter(v => v && !v.seatFailed)
-    if (!ran.length || (L.tier !== 'L1' && ran.length !== seats.length)) return stop(`${L.tier} reviewer failed (returned null) — no silent degradation`, [])
+    // L1/TK tolerate a failed seat; L2/L3 do not
+    if (!ran.length || (L.freezes && ran.length !== seats.length)) return stop(`${L.tier} reviewer failed (returned null) — no silent degradation`, [])
     if (ran.some(v => hex(v.manifest_start) !== hex(pre.manifest) || hex(v.manifest_end) !== hex(pre.manifest))) {   // the change moved during the round
       if (++voids >= 2) return stop('the change moved during review twice', ['void round: manifest drifted during review'])
       log(`${L.tier} round ${r + 1} void (the change moved during review); rerun`)

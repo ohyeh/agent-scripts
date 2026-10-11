@@ -85,8 +85,8 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   **excludes build**): ① direction (`goal_doc`) → ② frozen plan
   (`plan-<slug>.md`) → ③ ADRs. Each artifact is drafted (by `args.cli` via
   agent-tmux, else opus) and frozen only by the review ladder
-  (`model-dispatch.md` §Review ladder): L0 hash + `args.l0` → L1 sonnet + Luna
-  (≤2 rounds, cannot freeze) → L2 opus (always, ≤3) → L3 fable (1 round, only
+  (`model-dispatch.md` §Review ladder): L0 hash + `args.l0` → L1 sonnet (+ Luna
+  on `luna: true`; ≤2 rounds, cannot freeze) → L2 opus (always, ≤3) → L3 fable (1 round, only
   if L2 never cleared). One finding ledger runs through every round; then the
   docs are committed/pushed. Complements `project-direction-review` (that one
   answers "which direction"; this one freezes "how"); the subsequent build is
@@ -117,7 +117,8 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
 - **`spec-implement-dual-review-verify.workflow.js`** — the main feature-build
   pipeline: implement the spec → review the change through the ladder: L0
   `verifyCommands` + manifest → L1 `pr-review-toolkit:code-reviewer` on sonnet
-  (+ lenses via `l1Lenses`, Luna via `luna: true`) → L2
+  (+ Luna via `luna: true`) → TK one-pass `pr-review-toolkit` report (`toolkit`,
+  default all four agents; findings fixed once) → L2
   `pr-review-toolkit:code-reviewer` on opus (always, ≤3) → L3 the same agent on
   fable. The implementer model fixes every finding between rounds; the
   finalizer only runs the verify commands and the deviation gate, it never

@@ -96,14 +96,15 @@ way; launch or effort flags go in the agent-tmux profile `.conf` that `cli` name
 
 ## MODEL FLOOR (user ruling 2026-09-02)
 
-Except for the worker and L1 roles below, every recipe agent runs at least
+Except for the worker, the L1/TK review roles and mechanical seats (the L0 runner,
+the Luna conduit: `sonnet` medium) below, every recipe agent runs at least
 `opus` effort `low`; the default worker is
 `opus` effort `medium`, reviewers `high`. Planning, synthesis,
 revision, and verdicts NEVER run on `sonnet` or `haiku` — a plan written by
 either is not a plan. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
 (`model-dispatch.md` §Review ladder, user ruling 2026-10-09; `plan-pipeline`
-and `spec-implement-dual-review-verify` do this in-script, the latter with
-optional `pr-review-toolkit` lenses); the verdict stays with `opus` (L2) or `fable` (L3).
+and `spec-implement-dual-review-verify` do this in-script, the latter plus a
+one-pass `pr-review-toolkit` TK step); the verdict stays with `opus` (L2) or `fable` (L3).
 Otherwise `sonnet`/`haiku` 5.5+ may run implementation and read-only data
 gathering by commander's call (user ruling 2026-10-10); recipe args carry the
 choice: `spec-implement…` `model`, `pr-review-triage-resolve` `fixModel`,
