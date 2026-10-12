@@ -77,7 +77,9 @@ User-named tool or path (W40-2, user ruling 2026-10-09): when the user names the
 host, or access path (Grok Bot, Chrome, SSH, a CLI), this session runs it itself. Do not hand
 it to a subagent or worker in the same turn; a subagent repeats the same calls, cannot ask the
 user, and adds a context. In session 9a3b40c3 a delegated Grok Bot read cost $90.32 and hit the
-subagent cap 71 times.
+subagent cap 71 times. Research is the exception (user ruling 2026-10-13): when the work is
+gathering facts, prices, or sources, the commander stays the commander even if the user names
+the tool, and routes it through `using-workflows` → `haiku-research-round`.
 
 ## §3 Assignment and report contract
 

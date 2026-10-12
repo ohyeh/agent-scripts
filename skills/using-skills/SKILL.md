@@ -26,7 +26,7 @@ inline or use its slash command · `via-router` = enter through the router named
 | Router | Enter it when | Mode |
 |---|---|---|
 | `using-design-skills` | Anything visual: web page, app screen, HTML deliverable, chart, artifact, motion, plus module and API interface design | Skill() |
-| `using-workflows` | Loop-shaped work: audit, consensus, triage, plan→build, lifecycle. Owns the recipes in `~/.claude/workflows/`; this file does not list them | Skill() |
+| `using-workflows` | Loop-shaped work: audit, consensus, triage, plan→build, lifecycle, research rounds. Owns the recipes in `~/.claude/workflows/`; this file does not list them | Skill() |
 | `using-tmux-agent-tools` | Running a CLI as a tmux worker, or deciding inline versus worker | Skill() |
 
 ## Flows: situation → handoff → artifact → loop

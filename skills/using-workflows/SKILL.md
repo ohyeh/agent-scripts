@@ -1,6 +1,6 @@
 ---
 name: using-workflows
-description: "Which workflow recipe runs this. Invoke BEFORE any of: audit (docs vs code, design vs code, root cause, project direction), review findings to triage or resolve, PR review comments, feature brief to plan, plan needs a second-model verdict, spec to implement, 「跑一輪審查」, 「幫我 plan」, 「把 findings 處理掉」. After any audit finishes, invoke again to route its findings to triage. Even a 1% chance means invoke it."
+description: "Which workflow recipe runs this. Invoke BEFORE any of: audit (docs vs code, design vs code, root cause, project direction), review findings to triage or resolve, PR review comments, feature brief to plan, plan needs a second-model verdict, spec to implement, research or price comparison that may take several rounds, 「跑一輪審查」, 「幫我找資料／比價」, 「幫我 plan」, 「把 findings 處理掉」. After any audit finishes, invoke again to route its findings to triage. Even a 1% chance means invoke it."
 ---
 
 # using-workflows
@@ -73,6 +73,9 @@ Entry points off the loop:
   irreversible/behavior-tier changes only; NOT a default station
 - "what should this project do next" → `project-direction-review`
 - recipe fleet inventory / machine drift → `workflow-manifest`
+- research (facts, prices, sources; often several rounds) → `haiku-research-round`
+  per round; you stay the commander: read each round, pick the next questions,
+  never browse the targets yourself (even when the user names the tool)
 
 Stage recipes (`feature-plan-consensus`, `plan-pipeline`,
 `spec-implement-dual-review-verify`) are normally reached THROUGH
