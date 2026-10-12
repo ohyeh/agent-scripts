@@ -9,18 +9,21 @@
 //     context: "TOPIC: ... KNOWN: ...", // REQUIRED: topic, settled facts (do not re-research),
 //                                       // out-of-scope areas, tool hints. Appended to every scout prompt.
 //     scouts: [                         // REQUIRED: one agent each, run in parallel; keep 3-5
-//       { key: "papers", prompt: "TASK: ..." },
+//       { key: "shop-a", prompt: "TASK: ..." },
 //     ],
 //     model: "haiku",                   // read-only data gathering (using-workflows MODEL FLOOR):
 //     effort: "medium",                 //   haiku/sonnet 5.5+ by commander's call; never synthesis
 //     fields: {                         // OPTIONAL extra per-finding fields, name -> description
-//       measured_gain: "metric + number + task from the source, or \"none reported\"",
+//       price: "NT$ per variant as shown on the page",   // e.g. a price survey
 //     },
+//     maxFindings: 12,                  // OPTIONAL cap per scout (default: no cap, e.g. a full price list)
 //     scratchDir: "/abs/scratch/scouts" // OPTIONAL: where scouts may write notes (default: none)
-//     tools: "codex-cu browser: ...",   // OPTIONAL: replaces the default TOOLS line. Use it when the
-//                                       // user named the tool (e.g. codex-cu): give the tool, the
-//                                       // commander's working recipe, and "read-only, own tab only".
-//                                       // A scout that cannot use it reports a blocker, never substitutes.
+//     tools: "codex-cu + Chrome: ...",  // OPTIONAL: replaces the default TOOLS line. Browser use is
+//                                       // allowed (user ruling 2026-10-09/10: haiku squad, codex-cu +
+//                                       // Chrome, one tab per scout). Give: select Chrome by
+//                                       // extensionInstanceId, open your own tab with a sessionName,
+//                                       // never touch other tabs, read-only, and the commander's
+//                                       // working recipe. A scout that cannot use it reports a blocker.
 //   }})
 //
 // Returns [{ key, findings: [{claim, source, status, implication, ...fields}], open_questions,
@@ -30,7 +33,7 @@ export const meta = {
   name: 'haiku-research-round',
   description: 'One research round: N read-only Haiku scouts answer the given questions with sourced findings',
   whenToUse: 'A research loop where the commander reads each round, consults advisor, and picks the next questions',
-  phases: [{ title: 'Research', detail: 'parallel read-only scouts, web + local docs' }],
+  phases: [{ title: 'Research', detail: 'parallel read-only scouts: web, browser (codex-cu + Chrome), local docs' }],
 }
 
 if (!args || !args.context || !Array.isArray(args.scouts) || !args.scouts.length) {
@@ -45,14 +48,15 @@ const findingProps = {
   claim: { type: 'string' },
   source: { type: 'string', description: 'URL or absolute file path:line' },
   status: { type: 'string', enum: ['documented', 'inferred', 'not_found'] },
-  implication: { type: 'string', description: 'what this means for the topic' },
+  implication: { type: 'string', description: 'OPTIONAL: what this means for the topic' },
 }
 for (const [k, d] of Object.entries(extra)) findingProps[k] = { type: 'string', description: d }
+const required = Object.keys(findingProps).filter(k => k !== 'implication')
 
 const OUT = {
   type: 'object',
   properties: {
-    findings: { type: 'array', items: { type: 'object', properties: findingProps, required: Object.keys(findingProps) } },
+    findings: { type: 'array', items: { type: 'object', properties: findingProps, required } },
     open_questions: { type: 'array', items: { type: 'string' } },
     blockers: { type: 'array', items: { type: 'string' } },
   },
@@ -64,7 +68,7 @@ const TOOLS = args.tools
   : 'WebSearch / WebFetch (load via ToolSearch "select:WebSearch,WebFetch"), local Read/Bash.'
 const RULES = `
 TOOLS: ${TOOLS}
-RULES: read-only — do not edit files${args.scratchDir ? `; scratch notes only under ${args.scratchDir}` : ''}. Every finding has a source (URL or absolute path:line); status "documented" only if the source says it; "not_found" must list the queries tried. Never invent URLs, numbers, product features, or paper results. Up to 12 high-value findings; stop when the question is answered. Return the structured result only.`
+RULES: read-only — do not edit files${args.scratchDir ? `; scratch notes only under ${args.scratchDir}` : ''}. Every finding has a source (URL or absolute path:line); status "documented" only if the source says it; "not_found" must list the queries tried. Never invent URLs, numbers, product features, or paper results.${args.maxFindings ? ` Up to ${args.maxFindings} high-value findings;` : ''} Stop when the question is answered. Return the structured result only.`
 
 phase('Research')
 const res = await parallel(args.scouts.map(s => () =>
