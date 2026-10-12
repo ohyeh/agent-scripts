@@ -80,7 +80,10 @@ Entry points off the loop:
   per round; you stay the commander: read each round, pick the next questions.
   When the user names the tool (e.g. codex-cu), run ONE target yourself to get a
   working recipe, then pass the tool + recipe in `args.tools`; do not browse the
-  other targets yourself
+  other targets yourself. A scout's blocker is a lead (judgment-rubrics §2).
+  Report a direct tool error at once. Before you report "the target cannot do
+  X", a scout checks one other path to X. When your tool steps cause the
+  error, fix them. Then re-run the scout.
 
 Stage recipes (`feature-plan-consensus`, `plan-pipeline`,
 `spec-implement-dual-review-verify`) are normally reached THROUGH

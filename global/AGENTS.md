@@ -168,6 +168,9 @@ replaces reading the touched code.
   `ctx_fetch_and_index` + `ctx_search`, never shell curl/wget; after
   compaction re-derive the goal from the re-injected prompts before asking
   the user. File writes never go through ctx or a shell — native edit tools only.
+  Some tools return bulk raw output on every call, such as a browser AX tree
+  or a page dump. Run such a tool in a worker. The commander uses it only to
+  find tool steps that work for one target.
   A ctx tool's own WHEN NOT clause binds: check it before calling the failure
   a blocker (`ctx_fetch_and_index` does not render SPA pages — use
   `ctx_execute`). `ctx purge` is irreversible — warn first.

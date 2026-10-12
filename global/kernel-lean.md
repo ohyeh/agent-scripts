@@ -107,6 +107,8 @@ edit with clear acceptance goes straight to code.
 ## Tools
 - Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, official CLIs; default to
   `ctx_*` for analysis, long output, web, recall — not writes.
+  A tool with bulk output on every call (browser AX tree) runs in a worker.
+  The commander uses it only to find tool steps that work for one target.
   `ctx purge` is irreversible — warn first.
 - A named access path (SSH/CLI/API) binds downward, not over ctx routing; UI
   automation only on explicit request (an open browser tool is not
