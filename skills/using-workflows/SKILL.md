@@ -13,6 +13,9 @@ the closed loop moving. You are not a recipe.
 One bounded task, single context, no stages, no convergence condition → do it
 directly (inline, or one worker via `using-tmux-agent-tools`). No recipe, no
 run dir. When in doubt, bypass — recipes exist for loops, not ceremony.
+Exception: research across several sources or rounds (find, compare prices,
+gather sources) is NOT bypassed — go to `haiku-research-round`. A
+one-tool-call fact stays inline.
 
 Red flags that have actually burned us (naming one and proceeding anyway
 requires a stated reason):
@@ -74,8 +77,10 @@ Entry points off the loop:
 - "what should this project do next" → `project-direction-review`
 - recipe fleet inventory / machine drift → `workflow-manifest`
 - research (facts, prices, sources; often several rounds) → `haiku-research-round`
-  per round; you stay the commander: read each round, pick the next questions,
-  never browse the targets yourself (even when the user names the tool)
+  per round; you stay the commander: read each round, pick the next questions.
+  When the user names the tool (e.g. codex-cu), run ONE target yourself to get a
+  working recipe, then pass the tool + recipe in `args.tools`; do not browse the
+  other targets yourself
 
 Stage recipes (`feature-plan-consensus`, `plan-pipeline`,
 `spec-implement-dual-review-verify`) are normally reached THROUGH
@@ -144,11 +149,12 @@ constraints (Codex-authored, gate-v2 2026-07-19):
 - Human gates MUST return `status: paused` plus `next_action`, preserve `recipe_result`, stop the runner, and resume only via a new explicitly approved invocation.
 - Evidence MUST say `recipe <name> executed natively on Claude runtime via runner (commanded by Codex)`; adapter or child failure is never recipe PASS.
 
-Runtime matrix (Claude Code = `NATIVE` for all 12; Codex column):
+Runtime matrix (Claude Code = `NATIVE` for all 13; Codex column):
 
 | Recipe | Codex |
 |---|---|
 | 3 audits, `findings-triage`, `project-direction-review`, `workflow-manifest` (6, no tmux inside) | `ADAPTED: claude-workflow-runner` |
+| `haiku-research-round` (no tmux) | `UNTESTED` — only run natively on Claude so far; stop and report |
 | `pr-review-triage-resolve` (no tmux; T3 rung = fresh Claude opus unless `externalAgentType` is set) | `UNTESTED` — only run natively on Claude so far; stop and report |
 | `consensus-gate` (simple verdict outcome only) | `ADAPTED: direct-claude-review` — `references/codex-adapter.md` |
 | `consensus-gate` (as recipe), lifecycle + its 3 stages when `cli` IS set (5, they drive tmux-agent mod workers inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise |

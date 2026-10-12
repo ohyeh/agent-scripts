@@ -17,6 +17,10 @@
 //       measured_gain: "metric + number + task from the source, or \"none reported\"",
 //     },
 //     scratchDir: "/abs/scratch/scouts" // OPTIONAL: where scouts may write notes (default: none)
+//     tools: "codex-cu browser: ...",   // OPTIONAL: replaces the default TOOLS line. Use it when the
+//                                       // user named the tool (e.g. codex-cu): give the tool, the
+//                                       // commander's working recipe, and "read-only, own tab only".
+//                                       // A scout that cannot use it reports a blocker, never substitutes.
 //   }})
 //
 // Returns [{ key, findings: [{claim, source, status, implication, ...fields}], open_questions,
@@ -55,8 +59,11 @@ const OUT = {
   required: ['findings', 'open_questions', 'blockers'],
 }
 
+const TOOLS = args.tools
+  ? `${args.tools}\nIf you cannot use these tools, report it under blockers; do not substitute another tool.`
+  : 'WebSearch / WebFetch (load via ToolSearch "select:WebSearch,WebFetch"), local Read/Bash.'
 const RULES = `
-TOOLS: WebSearch / WebFetch (load via ToolSearch "select:WebSearch,WebFetch"), local Read/Bash. No browser automation.
+TOOLS: ${TOOLS}
 RULES: read-only — do not edit files${args.scratchDir ? `; scratch notes only under ${args.scratchDir}` : ''}. Every finding has a source (URL or absolute path:line); status "documented" only if the source says it; "not_found" must list the queries tried. Never invent URLs, numbers, product features, or paper results. Up to 12 high-value findings; stop when the question is answered. Return the structured result only.`
 
 phase('Research')
