@@ -39,7 +39,8 @@ if [ -n "$cols" ] && [ "$cols" != "null" ]; then
   export COLUMNS="$cols"
 fi
 
-dir=$(ls -td ~/.claude/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null | head -1)
+# Highest version, not newest mtime: mtime order differs per host and picked stale 0.8.0/0.9.0 over 0.10.0.
+dir=$(ls -d ~/.claude/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null | sort -V | tail -1)
 
 hud=$(printf '%s' "$input" | "$HOME/.bun/bin/bun" "${dir}src/index.ts")
 printf '%s\n' "$hud"
