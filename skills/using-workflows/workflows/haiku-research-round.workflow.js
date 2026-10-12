@@ -17,7 +17,7 @@
 //       price: "NT$ per variant as shown on the page",   // e.g. a price survey
 //     },
 //     maxFindings: 12,                  // OPTIONAL cap per scout (default: no cap, e.g. a full price list)
-//     scratchDir: "/abs/scratch/scouts" // OPTIONAL: where scouts may write notes (default: none)
+//     scratchDir: "/abs/scratch/scouts", // OPTIONAL: where scouts may write notes (default: none)
 //     tools: "codex-cu + Chrome: ...",  // OPTIONAL: replaces the default TOOLS line. Browser use is
 //                                       // allowed (user ruling 2026-10-09/10: haiku squad, codex-cu +
 //                                       // Chrome, one tab per scout). Give: select Chrome by
