@@ -93,7 +93,15 @@ wait still fails, and the call can leave `about:blank`.
 
 ## Browser surface
 
-Use the Chrome instance from the parent check. One `js` call per step.
+Use the Chrome instance from the parent check. Keep related browser steps in
+one live `cua_repl` session. With `scripts/codex-cu-remote`, pass dependent JS
+files in one invocation; a new invocation cannot rely on the previous tab's
+browser tab ID alone.
+
+For a user-supplied `@Browser` tab mention, pass its complete `plugin://` URL
+to `cua.getTab({ mention: url })`. If the tab belongs to another browser
+session, use a new Chrome tab in the current session instead of retrying the
+same binding.
 
 1. `cua.getBrowser({ extensionInstanceId })`.
 2. `browser.nameSession` with a short name, before any new tab.
@@ -105,7 +113,13 @@ Use the Chrome instance from the parent check. One `js` call per step.
 
 A tab stays on the `session_id` that created it. A refused `createBrowserTab`
 can still leave `about:blank`. Close it in that same session. Set `CU_SID` on
-the proxy when you must reuse the session.
+the proxy when you must reuse the session, and verify that it actually reattaches
+before issuing page actions.
+
+A new SPA tab can initially expose only `AXWebArea`. Wait for a specific page
+element, then read `tab.playwright.domSnapshot()` and wait for data loading to
+finish before interpreting counts. `domSnapshot()` belongs to `tab.playwright`,
+not to `tab`.
 
 `document.cookie` is not available. `chrome://` URLs are not allowed. There is
 no hover method. Browser surface does not ask for per-app approval.
@@ -185,8 +199,8 @@ app in the current message.
 
 ## Not tested
 
-Logged-in Chrome pages, a Stop hook that sends `turn_ended`, many Chrome
-profiles, Arc and Chrome at the same time, Freeform drag, AppleScript JS
+A Stop hook that sends `turn_ended`, many Chrome profiles, Arc and Chrome at
+the same time, Freeform drag, AppleScript JS
 inside Arc, and `claude setup-token` over SSH. Computer surface through
 `codex-cu-remote` (2026-10-13: the remote screen was locked,
 `-10005: cgWindowNotFound`; browser surface passed on the same run).
