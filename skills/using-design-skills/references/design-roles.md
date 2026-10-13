@@ -27,8 +27,13 @@ Advisory only: any stage may QUERY it; it never owns direction.
 | Skill | Adds |
 |---|---|
 | `apple-design` | Springs, gestures, interruptible motion — any "make it feel fluid/physical" ask |
-| `data-report` | A CSV, Excel, or JSON file into a visual report page. For charts written into a page by hand, `skills-lock.json` has no chart specialist: apply charting best practice inline and say you did, never fake a stage |
+| `data-report` | A CSV, Excel, or JSON file into a visual report page |
+| `dataviz` *(bundled skill)* | Any chart, stat tile, or dashboard layout, including inside a `Dashboard` artifact. If it does not resolve, apply charting best practice inline and say so |
 | `artifact-design` *(bundled skill)* | MANDATORY before publishing any Artifact page (`artifact-capabilities` only if the page calls connectors) |
+
+Artifact types `Dashboard` and `Motion` (runtime, listed by Artifact
+`list scope:"types"`) are output owners, not add-ons: start them with
+`quickstart` and follow the type's instructions.
 
 ## Role 4 · Interface/domain design (code, not pixels)
 
@@ -67,7 +72,8 @@ at twice or show someone → trio + ONE authority visual layer (via DESIGN.md)
 **Rich explainer pages** (stat cards, SVG timelines, PR walkthroughs with risk
 maps, slide decks, data tables) have no dedicated owner in
 `skills-lock.json`. Build them with the HTML trio plus one Role-1 authority
-for the visual layer, and say that is what you did.
+for the visual layer, and say that is what you did. When the page is mostly
+numbers, statuses, or items to compare, use the `Dashboard` type instead.
 
 ## Persistence & probes
 

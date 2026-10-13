@@ -29,7 +29,11 @@ Q1 **Base deliverable — who owns the output?** Diagram → `diagram-design` fo
 house-style consistency / mermaid / draw.io / PNG-SVG export, else the HTML
 trio · report page → `html` · plan page → `html-plan` ·
 web/mobile → target stack ·
-Artifact → artifact file · data file → `data-report` · module/API/domain →
+Artifact → artifact file · metrics, KPIs, status or any large scan-and-compare
+content → Artifact type `Dashboard` · animation, explainer or demo video,
+walkthrough, motion graphic → Artifact type `Motion` (both: Artifact
+`quickstart`, then the type's instructions own structure) ·
+data file → `data-report` · module/API/domain →
 Pipeline D · token work → DESIGN.md itself · mockup-only → static HTML mockup, no build loop ·
 "would this work?" → `prototype`, alone, no loop.
 
@@ -37,11 +41,12 @@ Q2 **Variant.** Existing interface → audit-first (authority critiques the
 CURRENT render before rebuild). New → direct build.
 
 Q3 **Orthogonal specialists (additive).** Charts from a data file →
-`data-report`; charts inside a page → apply charting best practice inline, since
-`skills-lock.json` holds no dedicated chart skill. Artifact →
-`artifact-design`, a skill bundled with the runtime rather than the lock;
-mandatory before publishing, and skipped explicitly if it does not resolve this
-turn. Motion or gesture → `apple-design`. Constraint sets load inline.
+`data-report`; charts inside a page or a `Dashboard` → `dataviz`. Artifact →
+`artifact-design`. Both are bundled with the runtime rather than the lock;
+`artifact-design` is mandatory before publishing; skip either explicitly if it
+does not resolve this turn. UI motion or gesture → `apple-design` (it also
+constrains a `Motion` artifact; the type stays the owner). Constraint sets
+load inline.
 
 Q4 **Executor per stage** — the executor table in
 `references/design-roles.md`. Direction runs INLINE; non-trivial build → agent-tmux claude persistent
@@ -50,7 +55,7 @@ worker; every review → fresh one-shot, never the author (headed vs headless:
 judgment-rubrics §2).
 
 Q5 **Verifier.** Render in scope → the visual quality loop below (full Gate 0
-screenshot evidence). DESIGN.md-only → document-only evidence (file
+screenshot evidence; for `Motion`, frames at start, middle and end). DESIGN.md-only → document-only evidence (file
 hash/commit, token completeness, contrast math). Pipeline D → non-visual
 loop: design comparison judged against `codebase-design` depth criteria by a
 fresh reviewer, verdict still PASS/BLOCK. `prototype` → none.

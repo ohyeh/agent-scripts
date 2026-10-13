@@ -323,9 +323,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-design-skills/SKILL.md",
-      "skillFolderHash": "097dd70e9e33c114e2d215e0b9011550ffb4283e",
+      "skillFolderHash": "9e42b6a658ccc624d5d38e7547718fc89d384d6c",
       "installedAt": "2026-07-18T20:48:21.473Z",
-      "updatedAt": "2026-10-11T12:04:40.000Z"
+      "updatedAt": "2026-10-13T00:00:00.000Z"
     },
     "using-grok-bot-app": {
       "source": "ohyeh/agent-scripts",
@@ -404,9 +404,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/writing-artifacts/SKILL.md",
-      "skillFolderHash": "7664f08b9901987c6a70160d17e9b47bdcecfde0",
+      "skillFolderHash": "498f1387baa799148af857834d2497fac94117ee",
       "installedAt": "2026-08-01T11:44:27.233Z",
-      "updatedAt": "2026-10-03T18:55:23.622Z"
+      "updatedAt": "2026-10-13T00:00:00.000Z"
     },
     "writing-beats": {
       "source": "mattpocock/skills",

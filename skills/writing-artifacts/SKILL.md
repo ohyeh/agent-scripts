@@ -17,6 +17,18 @@ destination: quick share → `md` · something the user will look at twice or
 show someone → `html` page or Artifact · visual metaphor / hero image needed →
 add an image stage. If the user already said the format, don't ask.
 
+**Size first:** estimate the content before you pick the format. One thread a
+reader takes top to bottom → `md` or a page. Many items, numbers, or statuses
+the reader scans and compares (for example more than five rows of metrics, or
+several parallel sections) → Artifact type `Dashboard`. Motion is also a
+reading aid: when the order of steps or a change over time IS the point, a
+flow animated inside the page, or a whole Artifact type `Motion` when the
+reader should watch it, explains faster than text. Motion that does not carry
+order or change is decoration; leave it out. Relationships, structure, or flow
+that prose describes poorly → a diagram through `diagram-design`. A diagram
+must also pass the visual quality loop in `using-design-skills`: an ugly or
+generic chart is a BLOCK, not a finished stage.
+
 **Reader preset — ELI5:** "explain like I'm five", "dead simple", "完全外行"
 pins READER = knows nothing about the domain and FORMAT = Artifact carried by
 big pictures and few words. Simplify the language, never the facts: no jargon
