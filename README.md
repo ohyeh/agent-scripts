@@ -53,6 +53,10 @@ differs from the reference machine's is a defect, whichever side is newer. Two m
 items are deliberately excluded: `commit-commands` (a Claude Code plugin, not a skill) and
 `note` (hand-copied, no tool-resolvable source).
 
+After a local `npx skills upgrade -g` or `npx skills add -g`, run `scripts/sync-skills-lock.sh`
+in this repo and commit the lock. `deploy.sh` fails closed until you do, because restoring the
+older lock would silently downgrade or remove what you just installed.
+
 Any skill named in the global rules belongs in this lock — otherwise the rule points at
 something a freshly deployed machine does not have. `stop-slop` was that gap until
 2026-07-27: CLAUDE.md loads it for writing-heavy work, but it survived on the fleet only

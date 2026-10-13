@@ -219,6 +219,12 @@ if [ ! -f "$SRC/skills-lock.json" ]; then
   echo "FAIL [skills] no skills-lock.json in the downloaded repo tree" >&2
   exit 1
 fi
+# A local `npx skills upgrade -g` leaves installed skills newer than the lock;
+# restoring the lock would silently downgrade them. Stop and name the fix.
+if ! drift="$(bash "$SRC/scripts/sync-skills-lock.sh" --check)"; then
+  echo "FAIL [skills] $drift — run scripts/sync-skills-lock.sh in the agent-scripts repo, commit, push, then deploy" >&2
+  exit 1
+fi
 cp "$SRC/skills-lock.json" ~/skills-lock.json
 ( cd ~ && npx -y skills experimental_install )
 rm -f ~/skills-lock.json

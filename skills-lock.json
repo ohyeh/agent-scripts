@@ -123,9 +123,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "60ee9111199b446db81b85e0ba6c2d590f3207d0",
+      "skillFolderHash": "f337cf9f1e7e7f82da3f25a1644352ab4a7837c1",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-10-08T19:25:32.099Z"
+      "updatedAt": "2026-10-13T03:35:31.232Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -168,9 +168,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "da1e67257f54376a0a582543e307eb0b33468fc2",
+      "skillFolderHash": "9b3180f319bce2acfa18bdc12af5a9c4fbe966b5",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-10-08T19:25:36.458Z"
+      "updatedAt": "2026-10-13T03:35:34.683Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -260,9 +260,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "b20a1d7cabb887602d3c151cdab61a1845d8f015",
+      "skillFolderHash": "28109d362cba614f35bf07a6db675b597c4614a9",
       "installedAt": "2026-07-18T20:48:24.825Z",
-      "updatedAt": "2026-10-11T12:26:29.000Z"
+      "updatedAt": "2026-10-13T03:35:37.746Z"
     },
     "triage": {
       "source": "mattpocock/skills",
@@ -350,9 +350,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/wizard/SKILL.md",
-      "skillFolderHash": "47010ebd1f26c8263016f14cdba835355d278b9a",
+      "skillFolderHash": "e396d3ba97c723a78ffd350fb14a3c409137b306",
       "installedAt": "2026-08-08T03:30:00.000Z",
-      "updatedAt": "2026-10-08T19:25:21.806Z"
+      "updatedAt": "2026-10-13T03:35:24.778Z"
     },
     "writing-artifacts": {
       "source": "ohyeh/agent-scripts",
