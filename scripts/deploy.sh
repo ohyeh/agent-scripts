@@ -30,7 +30,8 @@
 #                 into the hash) against the downloaded tree.
 #   4. skills   - restores skills-lock.json via `npx skills experimental_install`,
 #                 run from $HOME per the CLI's cwd-relative install path
-#                 (see README.md "Fleet skill restore").
+#                 (see README.md "Fleet skill restore"); then links
+#                 ~/.claude/skills and (if agy) ~/.gemini/config/skills to it.
 #   5. hooks    - installs the kernel sentinel hooks (.agents/hooks/) into
 #                 ~/.agents/hooks/; registers them in ~/.claude/settings.json
 #                 (Claude events) and ~/.cursor/hooks.json (Cursor events via
@@ -268,6 +269,25 @@ else
   rm -rf "$CS"
   ln -s ../.agents/skills "$CS"
   echo "PASS [claude-skills] converged: $CS -> ../.agents/skills (replaced per-skill links)"
+fi
+
+# agy reads global skills from ~/.gemini/config/skills (binary string). Its 2026-10-09
+# config migration dropped the old hand-made ~/.gemini/antigravity-cli/skills link
+# silently, so deploy owns the link now and fails if a skill does not resolve.
+AS="$HOME/.gemini/config/skills"
+if [ ! -d "$HOME/.gemini/config" ]; then
+  echo "SKIP [agy-skills] ~/.gemini/config absent (agy not installed)"
+else
+  if ! { [ -L "$AS" ] && [ "$(cd "$AS" 2>/dev/null && pwd -P)" = "$(cd "$HOME/.agents/skills" && pwd -P)" ]; }; then
+    if [ -e "$AS" ] && [ ! -L "$AS" ]; then
+      echo "FAIL [agy-skills] $AS is a real directory, refusing to replace" >&2
+      exit 1
+    fi
+    rm -f "$AS"
+    ln -s ../../.agents/skills "$AS"
+  fi
+  [ -f "$AS/session-handoff/SKILL.md" ] || { echo "FAIL [agy-skills] $AS/session-handoff/SKILL.md does not resolve" >&2; exit 1; }
+  echo "PASS [agy-skills] $AS -> $(readlink "$AS")"
 fi
 
 # --- Layer 5: hooks ------------------------------------------------------------
