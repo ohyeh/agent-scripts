@@ -8,8 +8,10 @@
 # Usage: scripts/sync-skills-lock.sh           # rewrite skills-lock.json, print what moved
 #        scripts/sync-skills-lock.sh --check   # exit 1 and list them, change nothing
 # "Local" = an installed entry updated AFTER this host's last deploy, whose pin
-# differs from the repo or that the repo does not have (upgrade or add -g). An
-# older difference is the repo moving (a new pin, or a skill retired upstream):
+# differs from the repo or that the repo does not have (upgrade or add -g), and
+# that is newer than the repo's own entry (2026-10-13 mba: a 10-12 local upgrade
+# was superseded by a 10-13 repo pin). Any other difference is the repo moving
+# (a new pin, or a skill retired upstream):
 # deploy.sh installs or removes it, and this script leaves it alone.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -23,7 +25,8 @@ last="$(tail -n 1 "$LOG" 2>/dev/null | jq -r '.timestamp // empty' 2>/dev/null |
 newer="$(jq -r --slurpfile g "$G" --arg last "$last" '
   .skills as $r | $g[0].skills | to_entries[]
   | select((.value.updatedAt // "") > $last
-           and ($r[.key] == null or $r[.key].skillFolderHash != .value.skillFolderHash))
+           and ($r[.key] == null or ($r[.key].skillFolderHash != .value.skillFolderHash
+                                     and (.value.updatedAt // "") > ($r[.key].updatedAt // ""))))
   | .key' "$R")"
 
 if [ -z "$newer" ]; then echo "skills-lock: in sync with installed"; exit 0; fi
