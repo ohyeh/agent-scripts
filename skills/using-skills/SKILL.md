@@ -1,6 +1,6 @@
 ---
 name: using-skills
-description: "Which skill owns this task. Invoke BEFORE doing by hand any of: .pdf read or fill, test plan or QA cases, architecture improvement, second-model review, docs writing, greenfield page, prose cleanup, 「有沒有 skill」, 「用哪個」 — or any task not named in the kernel routing index. Even a 1% chance a skill covers it means invoke this first; it costs one read."
+description: "Which skill owns this task. Invoke BEFORE doing by hand any of: .pdf read or fill, test plan, architecture improvement, second-model review, docs writing, greenfield page, prose cleanup, 「有沒有 skill」, 「用哪個」 — or any task not named in the kernel routing index. Even a 1% chance a skill covers it means invoke this first; it costs one read."
 ---
 
 # using-skills

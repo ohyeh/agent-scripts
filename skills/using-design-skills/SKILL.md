@@ -36,6 +36,8 @@ walkthrough, motion graphic → Artifact type `Motion` (both: Artifact
 data file → `data-report` · module/API/domain →
 Pipeline D · token work → DESIGN.md itself · mockup-only → static HTML mockup, no build loop ·
 "would this work?" → `prototype`, alone, no loop.
+No Artifact tool (Codex, Cursor, agy) → each Artifact route above becomes one
+self-contained HTML file under `artifacts-rules`; say so in the report.
 
 Q2 **Variant.** Existing interface → audit-first (authority critiques the
 CURRENT render before rebuild). New → direct build.
