@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.10.0'
+const MOD_VERSION = '0.11.0'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -27,12 +27,54 @@ type $ = EngineInterface
 /** seen: last settled preview (null = no baseline yet); armed: a reply was seen in progress since the last settled read. */
 type Watch = {
   botUuid: string; gen: number; seen: string | null; armed?: boolean; lost?: number; wakes?: number; lastWake?: number
+  /** The open bot's last reply in its transcript ("<time>|<text>"); unset while the bot is not open in the app. */
+  last?: string
   /** Settled previews that woke us, oldest first; t is unset for the one already there at watch time. */
   recent?: Array<{ t?: number; text: string }>
 }
 
-/** The record after one read of the watched row, and whether that read is a new settled reply. */
-function step(w: Watch, row: Row): { next: Watch; wake: boolean } {
+/** A transcript message as one string: "<time>|<text>". */
+const ident = (m: Msg) => `${m.at}|${m.text}`
+
+/** The record after one read of the watched row, whether that read is a new settled reply, and (open bot) the reply.
+ *  convo: the transcript tail, when this bot is the one open in the app. */
+function step(w: Watch, row: Row, convo?: Msg[]): { next: Watch; wake: boolean; msg?: Msg } {
+  // The open bot: its transcript says whether a reply is new. The preview and busy cycles cannot: a bot running a
+  // routine goes busy -> idle every run with the same preview, and a tag-only preview hides new text (655a6fa1 and
+  // sandbox, 10/12-13: 16 of 28 wakes were repeats). The bot's message is any sender but You: the sidebar name can
+  // carry a subtitle ("NOVA, Main Bot") the transcript sender does not. A new reply is the newest message, so it is
+  // always inside the 5-message window; none there means nothing new. shortcut: the app gives no message id and the
+  // time has minutes only, so the same first 200 characters in one minute (or at the same time on another day) is
+  // one wake; switch to an id if the app ever exposes one. An email card ("<sender> · New email") is not a reply of
+  // its own: it rides on the message above it, so a card after a tagged reply keeps that reply's recipient.
+  const open = row.current && !!convo?.length
+  const msg = open ? convo!.findLast(m => m.who !== 'You' && !m.who.endsWith(' · New email')) : undefined
+  // Open, settled, and no bot message in the window: nothing new from the bot, whatever the preview did.
+  if (open && !msg && w.last === undefined) {
+    // Busy still arms: a reply that lands in this window then wakes at the baseline even with an old preview.
+    if (!settled(row)) return byPreview(w, row)
+    if (row.preview === w.seen && !w.armed) return { next: w, wake: false }
+    return { next: { ...w, seen: row.preview, armed: false }, wake: false }
+  }
+  if (open && w.last !== undefined) {
+    if (!settled(row)) return { next: w, wake: false }
+    const id = msg ? ident(msg) : w.last
+    if (id !== w.last) return { next: { ...w, seen: row.preview, armed: false, last: id }, wake: true, msg }
+    if (row.preview === w.seen && !w.armed) return { next: w, wake: false }
+    return { next: { ...w, seen: row.preview, armed: false }, wake: false }
+  }
+  const r = byPreview(w, row)
+  // First settled read with a bot message in view: the baseline. It wakes by the preview rules (at most once per
+  // opening), so a reply that settles as the bot is opened is not lost.
+  if (msg && settled(row)) return { next: { ...r.next, last: ident(msg) }, wake: r.wake, msg }
+  // Off screen, `last` stays through routine runs, so reopening compares instead of waking again. A wake by the
+  // preview rules drops it: that reply is handled, and the next opening starts a new baseline instead of waking twice.
+  if (w.last !== undefined && (r.wake || r.next.seen !== w.seen)) return { next: { ...r.next, last: undefined }, wake: r.wake }
+  return r
+}
+
+/** The preview rules: a bot not open in the app, or no transcript to read. */
+function byPreview(w: Watch, row: Row): { next: Watch; wake: boolean } {
   if (!settled(row)) {
     // After a baseline only streaming arms: a reply seen working wakes on settle even with the same text (NOVA "收到" twice, 0.2.0 live).
     const arm = !w.armed && (w.seen === null ? inProgress(row) : row.busy !== 'idle' && row.busy !== null)
@@ -119,7 +161,7 @@ type State = {
  * shortcut: one file per session read and rewritten per line (the engine has no append); fine at
  * a few lines a minute, switch to rotation if a session's file nears the 4 MiB read cap.
  */
-type Ev = { ev: 'watch' | 'armed' | 'wake' | 'lost' | 'unwatch'; bot: string; gen: number; h?: string; via?: string; prior?: boolean }
+type Ev = { ev: 'watch' | 'armed' | 'wake' | 'lost' | 'unwatch'; bot: string; gen: number; h?: string; via?: string; prior?: boolean; cur?: boolean; un?: boolean }
 function logEvent(s: State, $: $, rec: Ev): Promise<void> {
   const p = s.logs.then(async () => {
     const home = await $.env.get('HOME')
@@ -190,11 +232,13 @@ function readOnce(s: State, $: $): Promise<Read> {
 
 // Ack first (user decision Q-8): the record already says "seen" when this runs,
 // so a refused submit is a lost wake, never a duplicate. Not awaited by the tick.
-async function deliver(s: State, $: $, key: string, gen: number, row: Row, at: number) {
+/** id: the transcript identity of the reply when the open bot's transcript decided the wake; the log hashes it
+ *  instead of the preview, so a replay tells two replies with one preview apart. */
+async function deliver(s: State, $: $, key: string, gen: number, row: Row, at: number, id?: string) {
   let why: string
   try {
     const r = await $.prompt.submit({ text: wakeText(row, s.sid) })
-    void logEvent(s, $, { ev: r.drop === undefined ? 'wake' : 'lost', bot: row.id, gen, h: fnv(row.preview) })
+    void logEvent(s, $, { ev: r.drop === undefined ? 'wake' : 'lost', bot: row.id, gen, h: fnv(id ?? row.preview), cur: row.current, un: row.unread })
     if (r.drop === undefined) {
       // Counted only once the engine took it: a lost wake is not a wake.
       try {
@@ -208,7 +252,7 @@ async function deliver(s: State, $: $, key: string, gen: number, row: Row, at: n
     why = `dropped: ${r.drop}`
   } catch (err) {
     why = `threw: ${String(err)}`
-    void logEvent(s, $, { ev: 'lost', bot: row.id, gen, h: fnv(row.preview) })
+    void logEvent(s, $, { ev: 'lost', bot: row.id, gen, h: fnv(id ?? row.preview) })
   }
   $.ui.toast(`grok-bot-watch: a wake for ${clean(row.name, 40)} is lost (ack-first; ${clean(why, 120)})`)
   try {
@@ -293,13 +337,15 @@ async function tick(s: State, $: $) {
     if (!row) continue
     s.names.set(k, row.name)
     s.live.set(k, row)
-    const { next, wake: settledNew } = step(w, row)
+    const { next, wake: settledNew, msg } = step(w, row, res.convo)
     if (next === w) continue
-    const wake = settledNew && forMe(row.preview, s.sid)
-    const recent = (now: Watch) => (wake ? { recent: [...(now.recent ?? []), { t, text: row.preview.slice(0, 200) }].slice(-RECENT) } : {})
-    const wrote = await rewrite(s, $, k, now => (now.gen === w.gen ? { ...now, seen: next.seen, armed: next.armed, ...recent(now) } : undefined))
+    // Read from the transcript: the reply itself decides who it is for and what the wake shows, not the preview.
+    const said = msg ? { ...row, preview: msg.text } : row
+    const wake = settledNew && forMe(said.preview, s.sid)
+    const recent = (now: Watch) => (wake ? { recent: [...(now.recent ?? []), { t, text: said.preview.slice(0, 200) }].slice(-RECENT) } : {})
+    const wrote = await rewrite(s, $, k, now => (now.gen === w.gen ? { ...now, seen: next.seen, armed: next.armed, last: next.last, ...recent(now) } : undefined))
     if (wrote && next.armed && !w.armed) void logEvent(s, $, { ev: 'armed', bot: w.botUuid, gen: w.gen })
-    if (wrote && wake) void deliver(s, $, k, w.gen, row, t)
+    if (wrote && wake) void deliver(s, $, k, w.gen, said, t, msg && next.last)
   }
   $.ui.invalidate('ui.render')
 }
@@ -408,7 +454,7 @@ async function watchBot(s: State, $: $, raw: string, via: string): Promise<{ den
   const uuid = row?.id ?? want
   const key = `${PREFIX}${s.sid}.${uuid}`
   let w: Watch = { botUuid: uuid, gen: ++s.seq, seen: null }
-  if (row) w = step(w, row).next
+  if (row) w = step(w, row, res.convo).next
   if (w.seen !== null) w = { ...w, recent: [{ text: w.seen.slice(0, 200) }] }
   // Beat before the record: another session's prune reads a watch with no beat as a day old.
   await $.store.set(`${HB_PREFIX}${s.sid}`, await $.clock.now())

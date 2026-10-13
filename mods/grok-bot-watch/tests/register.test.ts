@@ -890,6 +890,129 @@ describe('conversation of the open bot 0.4.0', () => {
   })
 })
 
+describe('open bot reads its transcript 0.11.0', () => {
+  // The sidebar name carries a subtitle; the transcript sender does not (live 10/13: "NOVA, Main Bot").
+  const nova = (p: string, busy = 'idle', over: Partial<Row> = {}) => row(p, busy, { name: 'NOVA, Main Bot', ...over })
+  const you = (at: string) => ({ who: 'You', text: '[w:*] go', at })
+  const c1 = [you('9:00 PM'), { who: 'NOVA', text: '[w:*] done', at: '9:01 PM' }]
+  const c2 = [...c1, { who: 'NOVA', text: '[w:*] done', at: '9:40 PM' }]
+  const withC = (convo: unknown[], ...rows: Row[]) => JSON.stringify({ state: 'ok', rows, convo })
+
+  test('a routine run (busy -> idle, same preview, no new reply) wakes nobody (655a6fa1, 10/13)', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [withC(c1, nova('A')), withC(c1, nova('A', 'working')), withC(c1, nova('A')), withC(c1, nova('A', 'working')), withC(c1, nova('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 5)
+    expect(w.woken).toHaveLength(0)
+  })
+
+  test('a new reply with the same preview and no busy read in between wakes once (tag-only preview)', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [withC(c1, nova('A')), withC(c2, nova('A')), withC(c2, nova('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    expect(w.woken).toHaveLength(1)
+    expect(w.woken[0]).toContain('preview: [w:*] done')
+  })
+
+  test('five of your messages push the reply out of the window: a routine run still wakes nobody', async ($, on) => {
+    const clock = mock.clock(on)
+    const yours = ['9:02 PM', '9:03 PM', '9:04 PM', '9:05 PM', '9:06 PM'].map(you)
+    const w = world(on, [withC(c1, nova('A')), withC(yours, nova('A', 'working')), withC(yours, nova('A')), withC(yours, nova('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    expect(w.woken).toHaveLength(0)
+  })
+
+  test('another bot opened while this one ran a routine: opening it again wakes nobody', async ($, on) => {
+    const clock = mock.clock(on)
+    const off = { current: false }
+    // Seen working off screen, then idle only once it is open again: the old rules woke here (armed + open).
+    const w = world(on, [withC(c1, nova('A')), withC([], nova('A', 'working', off)), withC(c1, nova('A')), withC(c1, nova('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    expect(w.woken).toHaveLength(0)
+  })
+
+  test('a reply that woke us off screen does not wake again when the bot is opened', async ($, on) => {
+    const clock = mock.clock(on)
+    const off = { current: false }
+    const w = world(on, [withC(c1, nova('A')), withC([], nova('B', 'idle', off)), withC(c2, nova('B')), withC(c2, nova('B'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    expect(w.woken).toHaveLength(1)
+  })
+
+  test('the transcript reply decides who it is for: an untagged reply under an old tagged preview wakes nobody', async ($, on) => {
+    const clock = mock.clock(on)
+    const c3 = [...c1, { who: 'NOVA', text: 'for Paul', at: '9:40 PM' }]
+    const w = world(on, [withC(c1, nova('A')), withC(c3, nova('A')), withC(c3, nova('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 2)
+    expect(w.woken).toHaveLength(0)
+  })
+
+  test('watched with only your messages in view: a routine run wakes nobody, a reply then wakes once', async ($, on) => {
+    const clock = mock.clock(on)
+    const yours = ['9:02 PM', '9:03 PM', '9:04 PM', '9:05 PM', '9:06 PM'].map(you)
+    const reply = [...yours.slice(1), { who: 'NOVA', text: '[w:*] 收到', at: '9:30 PM' }]
+    const w = world(on, [withC(yours, nova('A')), withC(yours, nova('A', 'working')), withC(yours, nova('A')), withC(yours, nova('A', 'working')), withC(reply, nova('A')), withC(reply, nova('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 2)
+    expect(w.woken, 'routine run').toHaveLength(0)
+    await clock.advance(TICK * 3)
+    expect(w.woken, 'the reply, though its preview is old').toHaveLength(1)
+  })
+
+  test('first reading of an opened bot: an untagged reply under an old tagged preview wakes nobody', async ($, on) => {
+    const clock = mock.clock(on)
+    const c3 = [...c1, { who: 'NOVA', text: 'for Paul', at: '9:40 PM' }]
+    const w = world(on, [withC(c1, nova('A', 'working')), withC(c3, nova('A')), withC(c3, nova('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 2)
+    expect(w.woken).toHaveLength(0)
+  })
+
+  test('an email card after a tagged reply keeps the reply: one wake, with the reply text', async ($, on) => {
+    const clock = mock.clock(on)
+    const c3 = [...c1, { who: 'NOVA', text: '[w:*] sent it', at: '9:40 PM' }, { who: 'NOVA · New email', text: 'Ready to send', at: '9:40 PM' }]
+    const w = world(on, [withC(c1, nova('A')), withC(c3, nova('A')), withC(c3, nova('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 2)
+    expect(w.woken).toHaveLength(1)
+    expect(w.woken[0]).toContain('preview: [w:*] sent it')
+  })
+
+  test('the wake event records whether the bot was open and unread', async ($, on) => {
+    const clock = mock.clock(on)
+    const files = new Map<string, string>()
+    on('env.get', ($, e) => ({ value: e.name === 'HOME' ? '/h' : undefined }))
+    on('fs.exists', ($, e) => ({ value: files.has(e.path) }))
+    on('fs.read', ($, e) => ({ value: files.get(e.path)! }))
+    on('fs.write', ($, e) => {
+      files.set(e.path, e.text)
+      return { value: undefined }
+    })
+    const w = world(on, [withC(c1, row('A')), withC(c2, row('B'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 2)
+    await macrotask()
+    expect(w.woken).toHaveLength(1)
+    const wake = (files.get('/h/.claude/grok-bot-watch/events/sess-A.jsonl') ?? '').split('\n').filter(Boolean).map(l => JSON.parse(l)).find(e => e.ev === 'wake')
+    expect(wake).toMatchObject({ cur: true, un: false })
+  })
+})
+
 /** The bot-id field is drawn: an Input's placeholder is no Text, so look for its key. */
 const hasField = async ($: { ui: { render: (e: ReturnType<typeof band>) => Promise<unknown> } }) => JSON.stringify(await $.ui.render(band())).includes('"add-input"')
 

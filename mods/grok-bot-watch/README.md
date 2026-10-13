@@ -12,7 +12,8 @@ the bot finishes a new reply. The session no longer has to poll.
   `command -v node` through `/bin/sh -lc`, which on macOS can differ from your
   shell's node. An older one shows `node-too-old` in the panel.
 - Grok Bot started with `--remote-debugging-port=39231` and its window open (see
-  the `using-grok-bot-app` skill). The mod never starts, restarts or clicks the app.
+  the `using-grok-bot-app` skill). The mod never clicks the app; when the port
+  stays down it restarts the app through `bin/ensure.mjs`, at most once per two minutes.
 
 ## Install
 
@@ -86,9 +87,13 @@ from their rendered tree, a heuristic: a line that wraps counts as one.
 
 A read is *settled* when the row's `data-grok-state` is `idle` (or the row has
 none, like a pinned note) and its preview
-is non-empty and does not start with `Draft:`. A wake fires when a settled
-preview differs from the last settled one. A reply already streaming when you
-watch fires once it settles. Observed on Grok Bot 0.59.1.
+is non-empty and does not start with `Draft:`. For the bot open in the app, a
+wake fires when the transcript's last bot message (time and text) is new; a
+run that only goes busy and back (a routine) does not wake. For any other bot,
+a wake fires when a settled preview differs from the last settled one, or the
+same preview settles after the bot was seen working with the row marked unread.
+A reply already streaming when you watch fires once it settles. Observed on
+Grok Bot 0.59.1.
 
 ## Sharing a bot between sessions
 
@@ -127,13 +132,20 @@ It cuts noise; it is not isolation or delivery (review: Sol r1, NOVA 2026-10-03)
 
 ## Limits
 
-- **Once per preview, not per message.** Two replies inside one 10 s tick can
-  merge; two replies with the same preview text merge unless a read saw the
-  second one streaming.
-- **A turn with no reply wakes nobody, except on the open bot.** A bot not open
-  in the app that works and settles on its old preview with no unread mark
-  (e.g. on `不需回覆`) is not a new reply. The open bot gets no unread mark, so
-  there it still wakes once, with the old preview; a stopped reply does the same.
+- **Once per reply only for the open bot.** The app gives no message id. For the
+  open bot, two replies with the same first 200 characters in the same minute
+  (or at the same time on another day) are one wake. For a bot not open, two
+  replies with the same preview merge unless a read saw the second one working
+  and the row is unread; a routine run on such a bot with an unread row and an
+  unchanged preview (a tag-only preview) still wakes you again. Two replies
+  inside one 10 s tick can merge.
+- **A turn with no reply wakes nobody.** The open bot is judged by its
+  transcript, so a run that only goes busy and back (a routine, a stopped reply)
+  is not a new reply. A bot not open in the app that works and settles on its
+  old preview with no unread mark (e.g. on `不需回覆`) is not one either; with an
+  unread mark it still wakes once (see above). The one open-bot exception: the
+  first settled read after you open it, with no earlier transcript reading,
+  follows the preview rules once.
 - **Ack first.** The watch is marked seen before the prompt is submitted, so a
   wake is never duplicated; a submit the engine refuses is lost, counted in
   the panel and toasted, never retried.
