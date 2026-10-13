@@ -42,7 +42,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/ask-nova/SKILL.md",
-      "skillFolderHash": "14b55bde231f835461bfcf290dcbbcc3879bdcac",
+      "skillFolderHash": "01de00965c495f6c57f7ec731b63c8b5f38e794f",
       "installedAt": "2026-08-01T11:44:27.225Z",
       "updatedAt": "2026-09-27T13:47:31.434Z"
     },
@@ -227,15 +227,6 @@
       "installedAt": "2026-07-18T20:49:31.168Z",
       "updatedAt": "2026-08-20T01:52:38.168Z"
     },
-    "qa-test-planner": {
-      "source": "softaworks/agent-toolkit",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/softaworks/agent-toolkit.git",
-      "skillPath": "skills/qa-test-planner/SKILL.md",
-      "skillFolderHash": "0f6e2438f6037ae4a4e45410d26daca6d61141d2",
-      "installedAt": "2026-07-18T20:48:39.016Z",
-      "updatedAt": "2026-07-18T20:48:39.016Z"
-    },
     "research": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -341,7 +332,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-skills/SKILL.md",
-      "skillFolderHash": "84dadbc2a71a24313330dd8ada6c4cc8ab259106",
+      "skillFolderHash": "f08f47fca13163e448a12bf6a33e5a673a5edc7c",
       "installedAt": "2026-07-19T11:40:52.644Z",
       "updatedAt": "2026-10-12T16:47:25.000Z"
     },
@@ -362,15 +353,6 @@
       "skillFolderHash": "b34a920e1ba50deef0e8bc50bdb7c6be508ce090",
       "installedAt": "2026-07-18T20:48:21.473Z",
       "updatedAt": "2026-10-12T17:40:00.000Z"
-    },
-    "verification-before-completion": {
-      "source": "obra/superpowers",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/obra/superpowers.git",
-      "skillPath": "skills/verification-before-completion/SKILL.md",
-      "skillFolderHash": "a4cb0b69aaefeab540947a7f1642bdaad810e37a",
-      "installedAt": "2026-07-18T20:48:18.029Z",
-      "updatedAt": "2026-07-24T01:12:45.422Z"
     },
     "wayfinder": {
       "source": "mattpocock/skills",

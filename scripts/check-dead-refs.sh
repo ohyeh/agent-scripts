@@ -14,7 +14,7 @@ high-end-visual-design image-to-code imagegen-frontend-mobile
 imagegen-frontend-web karpathy-guidelines migrate-to-shoehorn pierre-guard
 refactor release-plannotator resolving-merge-conflicts review-renovate simplify
 update-deps wait-what edit-article tmux-delegate diagnose bro
-design-consensus'
+design-consensus qa-test-planner verification-before-completion'
 files=$(ls "$ROOT"/global/*.md "$ROOT"/.agents/rules/*.md "$ROOT"/skills/*/SKILL.md \
   "$ROOT"/skills/*/references/*.md 2>/dev/null)
 fail=0

@@ -39,9 +39,9 @@ skill is a link: tools, generators and constraint sets come from the map.
 
 | Situation | Handoff | Artifact per step | Loop closes when |
 |---|---|---|---|
-| New feature, acceptance unclear | `unknowns-discovery` (when its trigger holds) → `prototype` for a design question, or `wayfinder` when too big for one session → implement (`tdd` when the user wants test-first) → `verification-before-completion` before any done claim → `defect-first-review` when risk or the user asks | stated defaults → design answer or decision tickets → diff and tests → quoted check output → findings | findings fixed and re-verified; a repeated finding → a gate, or a backlog row that names the file |
-| Bug or regression | `diagnosing-bugs` (many competing hypotheses → enter `using-workflows` instead) → `verification-before-completion` → `defect-first-review` on the fix diff when risk warrants | repro and failing signal → fix and regression test → original scenario re-run → findings | regression test stays in the repo |
-| Test plan, skill named by the user | `qa-test-planner` → only when execution is authorized: `agent-browser` (web) or `agent-device` (app) → a bug → Bug row; tracker issues → `triage` | cases → execution evidence → bug report | a missed case goes back into the plan |
+| New feature, acceptance unclear | `unknowns-discovery` (when its trigger holds) → `prototype` for a design question, or `wayfinder` when too big for one session → implement (`tdd` when the user wants test-first) → a check executed and quoted before any done claim (kernel Done rule) → `defect-first-review` when risk or the user asks | stated defaults → design answer or decision tickets → diff and tests → quoted check output → findings | findings fixed and re-verified; a repeated finding → a gate, or a backlog row that names the file |
+| Bug or regression | `diagnosing-bugs` (many competing hypotheses → enter `using-workflows` instead) → re-run the original scenario → `defect-first-review` on the fix diff when risk warrants | repro and failing signal → fix and regression test → original scenario re-run → findings | regression test stays in the repo |
+| Test plan | write the cases inline → only when execution is authorized: `agent-browser` (web) or `agent-device` (app) → a bug → Bug row; tracker issues → `triage` | cases → execution evidence → bug report | a missed case goes back into the plan |
 | Pause or hand off | `session-handoff`; reusable knowledge for Codex → `shared-memory-intake` (inbox only) | handoff doc → inbox entry | the next session starts from the doc |
 
 Owner pointers (their chains stay with them): codebase-wide deepening →
@@ -70,7 +70,6 @@ before any install or deploy.
 | design a deep module interface | `codebase-design` | Skill() |
 | build or sharpen the domain model, CONTEXT.md, an ADR | `domain-modeling` | Skill() |
 | build features test-first | `tdd` | Skill() |
-| plan test coverage, manual cases, regression suites | `qa-test-planner` | Skill() |
 
 ## Diagnose and verify
 
@@ -78,7 +77,6 @@ before any install or deploy.
 |---|---|---|
 | diagnose a hard bug or performance regression inline | `diagnosing-bugs` | Skill() |
 | review a diff defect-first, read-only, every finding | `defect-first-review` | Skill() |
-| check that work is actually done before claiming it | `verification-before-completion` | Skill() |
 | review UI code against Web Interface Guidelines | `web-design-guidelines` | Skill() |
 
 ## Delegate and orchestrate

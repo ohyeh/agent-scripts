@@ -40,7 +40,7 @@ are the user's: ask and wait.
 
 Finish with exactly ONE flow, stated as named stations from the routers, in
 order — e.g. `grilling → using-workflows (plan-pipeline) →
-verification-before-completion` — plus, in one line each:
+defect-first-review` — plus, in one line each:
 what was deliberately skipped and why, and where the flow's first command
 starts. If two flows genuinely tie, say the tie-breaker question instead of
 hedging. If nothing fits, say so and route to the map's NOT-FOUND rule —

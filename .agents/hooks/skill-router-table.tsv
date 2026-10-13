@@ -2,7 +2,6 @@
 # kind: skill → ~/.agents/skills/<owner>/SKILL.md ; recipe → ~/.claude/workflows/<owner>.workflow.js
 # First match wins. Validated by scripts/check-skill-router-table.sh (invariants: skill-router-table).
 (讀|填|read|fill|parse)[^。]{0,10}\.?pdf\b	skill	pdf
-test ?plan|測試計畫|測試案例|qa plan	skill	qa-test-planner
 domain model|領域模型|glossary|術語表|名詞定義|\badr\b|決策紀錄|context\.md	skill	domain-modeling
 (架構|architecture)[^。]{0,6}(設計|審|評|review|design)	skill	codebase-design
 (csv|excel|xlsx|json)[^。]{0,16}(報告|報表|report|圖表|chart|視覺化|儀表板|dashboard)|(報告|報表|圖表|視覺化)[^。]{0,10}(csv|excel|xlsx)	skill	data-report
