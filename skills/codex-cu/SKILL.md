@@ -152,6 +152,26 @@ A refusal reads `Computer Use was not approved to use X`. Add the display name
 to the file; the next prompt reads it, no restart. The Chrome display name is
 `Google Chrome`.
 
+## Remote Mac (SSH)
+
+`scripts/codex-cu-remote` sends JS files to `cua_repl` in order, in one
+runtime, through `codex-cu-proxy`. Set `CU_HOST` to drive another Mac.
+
+    scripts/codex-cu-remote a.js b.js                  # this Mac
+    CU_HOST=<ssh host> scripts/codex-cu-remote a.js    # another Mac
+
+- The other Mac needs the setup above (check PASS there) and a logged-in GUI
+  user. SSH must work with `BatchMode=yes`: a key, no password prompt.
+- The other Mac's `~/.config/codex-cu/approve` decides app prompts. This
+  client cannot answer a prompt, so the proxy declines what the policy does
+  not accept.
+- Variables persist from one file to the next in one run. Each run is a new
+  runtime, so put dependent steps in the same run.
+- Pick the browser on that Mac: run the parent check over SSH. Instance ids
+  differ per Mac.
+- `CU_SID` reuses a browser session (to close a leaked tab). `CU_TIMEOUT_MS`
+  sets the per-call limit (default 90000). Exit 1 when a step fails.
+
 ## Do not
 
 WARNING: `getApp` returns the window text. Do not bind Notes, Mail, Messages,
@@ -167,4 +187,6 @@ app in the current message.
 
 Logged-in Chrome pages, a Stop hook that sends `turn_ended`, many Chrome
 profiles, Arc and Chrome at the same time, Freeform drag, AppleScript JS
-inside Arc, and `claude setup-token` over SSH.
+inside Arc, and `claude setup-token` over SSH. Computer surface through
+`codex-cu-remote` (2026-10-13: the remote screen was locked,
+`-10005: cgWindowNotFound`; browser surface passed on the same run).
