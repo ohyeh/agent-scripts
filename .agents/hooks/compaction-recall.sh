@@ -54,10 +54,12 @@ Compactions in this session: $compactions. Re-derive current goal and title stat
 # full summary back if the re-injected context above looks incomplete.
 CWD="$(printf '%s' "$IN" | jq -r '.cwd // empty')"
 SID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
-# This session's single overwritten file first (postcompact-handoff.sh since
-# 2026-09-18); the old per-compaction <ts>-compact-*.md names as fallback.
-latest_handoff="${CWD:-.}/.claude/handoffs/compact-${SID:0:8}.md"
-[ -f "$latest_handoff" ] || latest_handoff="$(ls -t "${CWD:-.}"/.claude/handoffs/*-compact*.md 2>/dev/null | head -n 1)"
+# This session's file only, at the git root where postcompact-handoff.sh writes it.
+# No newest-file fallback: it can name another session's handoff.
+project="$(git -C "${CWD:-.}" rev-parse --show-toplevel 2>/dev/null)"
+[ -n "$project" ] || project="${CWD:-.}"
+latest_handoff="$project/.claude/handoffs/compact-${SID:0:8}.md"
+[ -f "$latest_handoff" ] || latest_handoff=""
 if [ -n "$latest_handoff" ]; then
   out="$out
 Latest compact handoff: ${latest_handoff/#$HOME/\~}. Read it before acting if the summary above seems incomplete."

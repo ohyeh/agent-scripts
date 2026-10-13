@@ -49,7 +49,7 @@ ritual, no quoting; tooling enforces critical gates.
 - Retry, non-obvious trade-off, or user decision → judgment-rubrics §3/§4/§6.
 - Define or use judge outputs to choose an action, or report an event probability
   → judgment-rubrics §9.
-- Loop-shaped work (audit/consensus/triage/plan→build/research) → skill using-workflows.
+- Long loops → operator-defaults §Long loop; loop-shaped work (audit/consensus/triage/plan→build/research) → skill using-workflows.
 - Non-trivial session lifecycle → session-titles.
 - Any code change → state assumptions, success criteria first, every plan
   step has a verify check.

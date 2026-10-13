@@ -127,7 +127,7 @@ Before acting on the handoff:
 
 ### Step 5: Begin Work
 
-Start with "Immediate Next Steps" item #1 from the handoff document.
+Before "Immediate Next Steps" item #1, check the run's latest human corrections and authorization.
 
 Reference these sections as you work:
 - "Critical Files" for important locations

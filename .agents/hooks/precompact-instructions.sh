@@ -40,8 +40,8 @@ is blocked. Prefer the user's words over my own paraphrase.
 - Every claim still UNCONFIRMED (no run this session), labelled as such.
 
 ## Immediate Next Steps
-Numbered, concrete, in order. First item = what I was about to do when
-compaction fired.
+Numbered, concrete, in order. First item = compare the run's latest human
+corrections and authorization with this handoff; then what I was about to do.
 
 Drop first, in this order: tool output, file contents, my own explanations.
 Keep the user's words at the cost of my own.
