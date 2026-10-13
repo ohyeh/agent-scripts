@@ -74,3 +74,8 @@ Chain these for planning and investigation work:
   decision trees, retro/plan reports — proactively render it with
   `diagram-design` (HTML/SVG) instead of describing it in prose only; send the
   file. Skip only for trivial one-step answers or when the user asks for text.
+- Size first (user standing preference 2026-10-13): before you answer, estimate
+  the content. Many items, numbers, or statuses to scan and compare → a
+  dashboard; order or change over time is the point → motion. Do it without
+  being asked; the user wants as few manual triggers as possible. Formats and
+  rules: `artifacts-rules`.

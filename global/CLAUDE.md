@@ -55,7 +55,8 @@ ritual, no quoting; tooling enforces critical gates.
   step has a verify check.
 - Write procedural English (brief, rule, commit, skill text), or a
   simplify/re-explain request → simplified-english.
-- Plan/investigate or output → operator-defaults.
+- Plan/investigate or output → operator-defaults; many items/numbers to compare,
+  or any page, diagram, chart, motion, or Artifact → artifacts-rules, unasked.
 - Hard task, stalled progress, or final answer → judgment-rubrics §8 (persist within
   caps: same approach ≤3 rounds, each one tier up; every call counts).
 - Edit guidance, rules, or skills → maintenance §1: exact diff, then

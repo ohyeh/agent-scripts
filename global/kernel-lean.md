@@ -43,7 +43,8 @@ ritual or quoting.
 - Any code change → state assumptions, success criteria, verify step per
   plan step.
 - Write procedural English, or simplify/re-explain → simplified-english.
-  Plan/investigate or output → operator-defaults. Hard task, stalled, or final answer → judgment-rubrics §8.
+  Plan/investigate or output → operator-defaults; many items/numbers to compare,
+  or any page, diagram, chart, motion, or Artifact → artifacts-rules, unasked. Hard task, stalled, or final answer → judgment-rubrics §8.
 - Edit rules or skills → maintenance §1: exact diff, then approval.
 - Friction found → maintenance §2: a gate, or a backlog row naming the file;
   no free-text lesson list.

@@ -67,7 +67,6 @@ Shared statusline wrapper (Claude Code + Cursor CLI): `scripts/claude-hud-status
 | skill | role | status per `~/.agents/.skill-lock.json` (live-checked 2026-07-10) |
 | --- | --- | --- |
 | `codex-dynamic-workflows` | workflow orchestration (plan/state/approval gate) | `dannymac180/skills` ✓ installed |
-| `html` / `html-plan` / `html-diagram` | designed pages & interactive SVG | `plannotator/effective-html` ✓ installed |
 | `impeccable` | detail-quality gatekeeping | `pbakaus/impeccable` ✓ installed |
 
 > That task also used `design-taste-frontend`, `high-end-visual-design`, `minimalist-ui` and `brandkit`; none is in the lock now (removed 2026-09-27) — **no need** to restore them on rebuild.

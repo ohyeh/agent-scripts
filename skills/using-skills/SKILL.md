@@ -118,9 +118,6 @@ Listed so a name resolves, not as a bypass. The router picks the owner.
 | `impeccable` | Direction authority: product UI, landing and marketing pages, redesigns, polish, critique |
 | `apple-design` | Springs, gestures, interruptible motion |
 | `hallmark` | Anti-slop greenfield pages, audits, design extraction from a URL or screenshot |
-| `html` | Self-contained HTML reports, explainers, comparisons, decks |
-| `html-diagram` | One-off or interactive diagrams where motion carries meaning |
-| `html-plan` | Plan pages close to the user's own wording |
 | `diagram-design` | House-style typed diagrams, mermaid and draw.io, PNG/SVG export |
 | `data-report` | CSV, Excel, or JSON into a visual report page |
 

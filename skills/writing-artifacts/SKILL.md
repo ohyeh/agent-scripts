@@ -94,4 +94,5 @@ This report never enters the artifact.
   to Stage 2 for THAT section only, then re-render.
 - This skill owns written deliverables about a subject — prose AND in-repo
   software docs (the genre branch in Stage 0 picks the structure station).
-  A plan page from a discussion → `html-plan` directly.
+  A plan page from a discussion → build it directly under `artifacts-rules`
+  (Plan page).

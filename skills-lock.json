@@ -163,33 +163,6 @@
       "installedAt": "2026-08-21T07:50:52.145Z",
       "updatedAt": "2026-08-21T07:50:52.145Z"
     },
-    "html": {
-      "source": "plannotator/effective-html",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/plannotator/effective-html.git",
-      "skillPath": "skills/html/SKILL.md",
-      "skillFolderHash": "926c2a2bda2e983c51124c4232e8562ac281dc06",
-      "installedAt": "2026-07-18T20:48:35.737Z",
-      "updatedAt": "2026-08-09T03:31:01.223Z"
-    },
-    "html-diagram": {
-      "source": "plannotator/effective-html",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/plannotator/effective-html.git",
-      "skillPath": "skills/html-diagram/SKILL.md",
-      "skillFolderHash": "9d773f19558970f4074244f1dd6aa0e499209045",
-      "installedAt": "2026-07-18T20:48:35.740Z",
-      "updatedAt": "2026-08-09T03:31:04.474Z"
-    },
-    "html-plan": {
-      "source": "plannotator/effective-html",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/plannotator/effective-html.git",
-      "skillPath": "skills/html-plan/SKILL.md",
-      "skillFolderHash": "799c7fa971764c0110a6f3b5cf3f0bdf6aba5c03",
-      "installedAt": "2026-07-18T20:48:35.740Z",
-      "updatedAt": "2026-08-09T03:31:07.958Z"
-    },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
@@ -314,7 +287,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-design-skills/SKILL.md",
-      "skillFolderHash": "9e42b6a658ccc624d5d38e7547718fc89d384d6c",
+      "skillFolderHash": "2a2a1536496c1f0eeb5aa0284afb8daa94c6222a",
       "installedAt": "2026-07-18T20:48:21.473Z",
       "updatedAt": "2026-10-13T00:00:00.000Z"
     },
@@ -332,7 +305,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-skills/SKILL.md",
-      "skillFolderHash": "f08f47fca13163e448a12bf6a33e5a673a5edc7c",
+      "skillFolderHash": "94b446ab89ac36f728a10e1ef48b671aaecc607e",
       "installedAt": "2026-07-19T11:40:52.644Z",
       "updatedAt": "2026-10-12T16:47:25.000Z"
     },
@@ -386,7 +359,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/writing-artifacts/SKILL.md",
-      "skillFolderHash": "498f1387baa799148af857834d2497fac94117ee",
+      "skillFolderHash": "43e461d79f09ec18473d272dd514b08b6060056a",
       "installedAt": "2026-08-01T11:44:27.233Z",
       "updatedAt": "2026-10-13T00:00:00.000Z"
     },

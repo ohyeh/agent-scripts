@@ -44,36 +44,23 @@ compare N module shapes, dispatch parallel sub-agents with
 criteria; no dedicated interface-shaping skill is installed. No visual
 authority involved.
 
-## Role 5 · HTML deliverable owners (daily drivers)
+## Role 5 · Deliverable owners
 
-Self-contained HTML files in the effective-html style. They own page
-STRUCTURE; alone they run visually monotonous — by design: the trio provides
-the skeleton, a Role-1 authority layers visual character on top.
-
-| Skill | Owns |
+| Owner | Owns |
 |---|---|
-| `diagram-design` | House-style diagrams: 27 typed forms, semantic patterns, connector/spacing hard rules, mermaid + draw.io import, PNG/SVG export. Default when the diagram must match a consistent visual system |
-| `html-diagram` | One-off diagram forms outside that library, or when interaction/Canvas/WebGL carries the meaning. Keep its signature strengths: animated arrows (flow direction legible at a glance), light on prose |
-| `html` | Reports, explainers, comparisons, decks |
-| `html-plan` | Plan pages: pragmatic, close to the user's own wording |
+| `diagram-design` | Every diagram: typed forms, semantic patterns, connector/spacing hard rules, mermaid + draw.io import, PNG/SVG export |
+| You, under `~/.agents/rules/artifacts-rules.md` | Report, explainer, comparison, and plan pages as one self-contained HTML file (the html skills were retired 2026-10-13; their non-default rules moved there) |
+| Artifact types `Dashboard` / `Motion` | Pages that are mostly numbers, statuses, or items to compare / watchable animation (Claude Code only) |
 
-Arbitration: `diagram-design` and `html-diagram` are mutually exclusive per
-diagram — never load both. Select and invoke that owner here; do not enter
-through `html` and follow its sibling handoff to `html-diagram`. When the source is a data FILE the owner stays
-`data-report`; `diagram-design` may be loaded by it as the house-style layer,
-never instead of it. `diagram-design` self-triggers (plugin-shipped,
-trigger-rich description), so when this router picks another owner, say so
-explicitly in the plan.
+When the source is a data FILE the owner stays `data-report`;
+`diagram-design` may be loaded by it as the house-style layer, never instead
+of it. `diagram-design` self-triggers (plugin-shipped, trigger-rich
+description), so when this router picks another owner, say so explicitly in
+the plan.
 
-Pairing rule: quick internal note → trio alone. Anything the user will look
-at twice or show someone → trio + ONE authority visual layer (via DESIGN.md)
-+ quality loop.
-
-**Rich explainer pages** (stat cards, SVG timelines, PR walkthroughs with risk
-maps, slide decks, data tables) have no dedicated owner in
-`skills-lock.json`. Build them with the HTML trio plus one Role-1 authority
-for the visual layer, and say that is what you did. When the page is mostly
-numbers, statuses, or items to compare, use the `Dashboard` type instead.
+Pairing rule: quick internal note → the page alone. Anything the user will
+look at twice or show someone → the page + ONE authority visual layer (via
+DESIGN.md) + quality loop.
 
 ## Persistence & probes
 

@@ -26,8 +26,8 @@ module/API interface design.
 ## QUESTIONS — compose the pipeline (answer in order)
 
 Q1 **Base deliverable — who owns the output?** Diagram → `diagram-design` for
-house-style consistency / mermaid / draw.io / PNG-SVG export, else the HTML
-trio · report page → `html` · plan page → `html-plan` ·
+every diagram (house style, mermaid, draw.io, PNG-SVG export) · report or
+plan page → you build one self-contained HTML file under `artifacts-rules` ·
 web/mobile → target stack ·
 Artifact → artifact file · metrics, KPIs, status or any large scan-and-compare
 content → Artifact type `Dashboard` · animation, explainer or demo video,
