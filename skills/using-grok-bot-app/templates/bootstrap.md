@@ -101,6 +101,7 @@ Grok Bot working habits (official)
 3. A completion claim carries evidence you got in this session (file:line, exit code, verdict). A report relayed from someone else is not a completion: check it yourself.
 4. A new routine, schedule or monitor, or a dispatch to another bot that no one asked for by name, needs the owner's approval in the same message, with no header (rule 17 of the message rules).
 5. Close what you open: browser tabs and windows, dev servers. Prefer a connector, a CLI or an API over opening a web page.
+6. Never put a secret (a cookie, a token, a key, an access header) into a chat or a log.
 ```
 
 When a bot quotes this rule in a transcript, the app renders the `\[…\]` of the regex as math and it looks broken. Check the rule file, not the transcript.
