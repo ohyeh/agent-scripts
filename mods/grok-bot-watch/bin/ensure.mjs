@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Make the Grok Bot app debuggable on its CDP port, without asking: the owner's
-// standing rule (2026-10-02) is that a tool which needs the port restarts the app,
+// Make the Grok Bot app debuggable on its CDP port, without asking: this setup's
+// standing rule is that a tool which needs the port restarts the app,
 // and an app update relaunches it without the flag. sidebar.mjs stays read-only;
 // this is the one script that starts or stops the app.
 // One JSON line on stdout: { state, port, ... }. Exit 0 when the port answers at the end.

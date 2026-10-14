@@ -14,7 +14,7 @@
 //                was switched, or the app is slow): check the app before resending
 //   empty        no text on stdin
 //   bad-id       the id is not 8–36 chars of a UUID
-//   bad-header   the text does not start with `[w:<sid8>] ⟨<agent>⟩` (an unmarked message reads as Paul's)
+//   bad-header   the text does not start with `[w:<sid8>] ⟨<agent>⟩` (an unmarked message reads as the owner's)
 //   no-roles     the role file names no front (printed: missing, file); the default send is refused
 //   not-front    the bot is neither the front nor the sandbox of the role file
 //   no-basis     --direct without a basis, or the basis is not written in the message
@@ -34,8 +34,8 @@
 //   port:  $GROK_BOT_CDP_PORT, else 39231
 //   roles: $GROK_BOT_ROLES, else ~/.claude/grok-bot-watch/roles.json: {"front": "<uuid>", "sandbox": "<uuid>"}.
 //          Kept on this machine, not in the repo: bot UUIDs differ per account.
-// An agent sends to the front (or the sandbox) by default. --direct <basis> is for a send Paul told you to make to
-// another bot: it relaxes the recipient only, the header stays required, and the basis ("Paul 14:30 指示") must be
+// An agent sends to the front (or the sandbox) by default. --direct <basis> is for a send the owner told you to make to
+// another bot: it relaxes the recipient only, the header stays required, and the basis ("owner 14:30 instruction") must be
 // written in the message so the bot and the log can see which instruction it rests on.
 
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
@@ -52,7 +52,7 @@ const norm = s => s.replace(/\s+/g, ' ').trim()
 /**
  * What an agent's message starts with: its session's tag and its mark, or `[w:*]` for a broadcast. The `｜` and the rest
  * of the header are not checked: the grok-bot-watch panel sends `<tag> ⟨Claude⟩ <text>` without them. This still stops a
- * mistyped tag such as `[w:t254u]` from reading as one of Paul's untagged messages.
+ * mistyped tag such as `[w:t254u]` from reading as one of the owner's untagged messages.
  */
 export const HEADER_RE = /^\s*\[w:([0-9a-z]{8}|\*)\] ⟨[A-Za-z]+⟩/
 
@@ -90,7 +90,7 @@ export function gate({ roles, file, error }, id, text, direct) {
 
 /**
  * After a send, one small file per session and bot: grok-bot-watch reads it to tell "you messaged this bot and a reply came
- * back without your tag" (its answer may sit above an option card) from a chat between Paul and the bot. A broadcast
+ * back without your tag" (its answer may sit above an option card) from a chat between the owner and the bot. A broadcast
  * has no session to mark. The message already went, so the caller treats a failure here as a stderr line, not a state.
  */
 export function markSent(text, id, env = process.env, now = Date.now(), fs = { mkdirSync, writeFileSync }) {

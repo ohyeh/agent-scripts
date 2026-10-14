@@ -125,13 +125,17 @@ Fewer file rows in the 80-row list, so links and pictures are not pushed out. Me
 - The assets tab: every row numbered as the band, enter opens, `p` previews, `c` copies, `r` puts `#aN` in the prompt (the TUI sends the row's ref; the mod numbers it as the list stands).
 - The mod writes `~/.local/state/session-assets/<sid>.json` for the TUI after each change; the answers come back from the transcript after a reload. `permissions.txt` adds `$.fs.exists/list/read/write`, `$.clock.every` and the env read `TMUX`.
 
+## grok-bot-watch 0.12.1
+
+- The panel's reply line writes the basis `panel instruction` (it was a name and a Chinese phrase). The skill, its bootstrap template, scripts and tests are now in English with no account names, bot names or ids; the behavior is otherwise the same as 0.12.0.
+
 ## grok-bot-watch 0.12.0
 
-- A turn that ends on a card or a note with no tag no longer hides the tagged answer above it (NOVA's option card on 2026-10-14 never woke). For the bot open in the app, the newest message new since the last read that is tagged for this session (or `[w:*]`) wins over a later card; the same read spends the card. Without an anchor (the first read, or the last message scrolled out of the 5-message window) only the newest message counts, so an old tagged message never wakes as a new reply.
+- A turn that ends on a card or a note with no tag no longer hides the tagged answer above it (an option card never woke). For the bot open in the app, the newest message new since the last read that is tagged for this session (or `[w:*]`) wins over a later card; the same read spends the card. Without an anchor (the first read, or the last message scrolled out of the 5-message window) only the newest message counts, so an old tagged message never wakes as a new reply.
 - `bin/send.mjs` leaves a sent mark per session and bot, `~/.claude/grok-bot-watch/sent/<tag>-<bot8>.json` (`{at}`). An untagged reply that settles within 2 hours of it, with no wake since, wakes once with a caveat: its answer may sit above it. This covers a bot that is not open (its preview is the card) and an answer scrolled out of the window. A wake of any kind spends the mark.
-- The panel's reply line sends through the skill's new gate with `--direct` (basis `Paul 面板指示`, written after the sender mark): Paul types it himself. A tag typed on purpose is kept, never doubled, and the mark follows it.
+- The panel's reply line sends through the skill's new gate with `--direct` (basis `panel instruction`, written after the sender mark): the owner types it. A tag typed on purpose is kept, never doubled, and the mark follows it.
 - `send.mjs` (shared core) gates every send: the text must start with `[w:<sid8>] ⟨agent⟩` (`bad-header`); by default the bot must be the front or the sandbox of the role file `~/.claude/grok-bot-watch/roles.json` or `$GROK_BOT_ROLES` (`no-roles` names what is missing, `not-front`); `--direct <basis>` relaxes the recipient only, and the basis has to be in the message (`no-basis`). Roles are UUIDs from that local file, never names.
-- Limits: the window stays 5 messages, so a turn with more than four bot messages after the answer still hides it, and only the caveat wake can tell you. The caveat is a hint: a chat between Paul and the bot inside the 2 hours after your send can cost one extra wake. `permissions.txt` changes only in who calls the env and fs reads.
+- Limits: the window stays 5 messages, so a turn with more than four bot messages after the answer still hides it, and only the caveat wake can tell you. The caveat is a hint: a chat between the owner and the bot inside the 2 hours after your send can cost one extra wake. `permissions.txt` changes only in who calls the env and fs reads.
 
 ## grok-bot-watch 0.11.0
 

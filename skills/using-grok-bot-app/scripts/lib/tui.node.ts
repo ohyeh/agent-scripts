@@ -125,7 +125,7 @@ export function renderLines(v: View, cols: number, rows: number): string[] {
   return out.slice(0, rows)
 }
 
-/** Runs ensure.mjs: restarts or relaunches the app so the port answers (owner's standing rule, no asking). */
+/** Runs ensure.mjs: restarts or relaunches the app so the port answers (standing rule of this setup, no asking). */
 function ensureApp(port: number | undefined): Promise<Read> {
   return new Promise(res =>
     execFile(process.execPath, [ENSURE, ...(port ? [String(port)] : [])], { timeout: 90_000 }, (err, stdout) => {

@@ -41,10 +41,10 @@ watch is never shown: a wake belongs to the conversation that armed it.
 
 ```
 ▌grok bot watch v0.5.2 · 1 bot · read 4s ago [ + ] [ hide ]
-  ● NOVA 替身 w39 201040cc · waiting · woke 2× 5m ago [ ▾ ] [ unwatch ] 「第二次收到」
-    reply to NOVA 替身 w39, tagged [w:29a98092] — Enter sends          [ send ]
-      2:03 AM You · 「請再回一次「第二次收到」」
-      2:03 AM NOVA 替身 w39 · 「第二次收到」
+  ● ARIA front 3f6e9a21 · waiting · woke 2× 5m ago [ ▾ ] [ unwatch ] "got it, again"
+    reply to ARIA front, tagged [w:d5e81f37] — Enter sends          [ send ]
+      2:03 AM You · "please reply once more"
+      2:03 AM ARIA front · "got it, again"
 ```
 
 | Glyph | Means |
@@ -67,8 +67,8 @@ is the same path as the `watch` tool. Mobile has no text field: use the command.
 The open row starts with a reply line (the workers panel's tell line): type
 and Enter sends it to that bot, prefixed with this session's tag and the sender
 mark `⟨Claude⟩` so its answer wakes this session only (Sharing a bot between
-sessions); a tag you type is kept, never doubled, and the mark follows it. Paul types
-it himself, so it goes with `--direct` (basis `Paul 面板指示`, written after the mark):
+sessions); a tag you type is kept, never doubled, and the mark follows it. The owner types
+it, so it goes with `--direct` (basis `panel instruction`, written after the mark):
 the skill's gate would refuse any bot but the front and the sandbox otherwise. `bin/send.mjs`
 opens the bot in the app, sends it and opens the bot that was open before again; a toast says `sent`, `… check the app before resending` when it may
 have gone but was not seen (`unconfirmed`, `timeout`, `failed`, or the helper run
@@ -103,28 +103,28 @@ A primary bot serves many sessions, and every session watching it sees the same
 sidebar row. The watch receipt gives this session's tag, `[w:<sid8>]`. Start each
 message you send the bot with it and the sender mark (`[w:<sid8>] ⟨Claude⟩ …`), and
 have the bot start its reply with the same tag on the same line. Only two replies
-wake a session (0.9.0, NOVA consensus 2026-10-04):
+wake a session (0.9.0):
 
 | Reply starts with | Means | Wakes |
 |---|---|---|
 | `[w:<sid8>]` | an answer to that session | that session only |
-| `[w:*]` | a broadcast, e.g. a RULES announcement | every watcher |
-| no tag | an answer to Paul (his messages carry no tag) | nobody; recorded as seen |
+| `[w:*]` | a broadcast, e.g. a rules announcement | every watcher |
+| no tag | an answer to the owner (their messages carry no tag) | nobody; recorded as seen |
 | no tag, within 2 hours of your send | maybe a card or note on top of your answer (0.12.0) | you, once, with a caveat |
 
 A turn can end on an option card or a note with no tag, its tagged answer just
-above it (NOVA's card on 2026-10-14 never woke). For the open bot the newest
+above it (such a card once never woke). For the open bot the newest
 message new since the last read that is tagged for this session beats a later card.
 For the rest, `bin/send.mjs` leaves `~/.claude/grok-bot-watch/sent/<tag>-<bot8>.json`
 (`{at}`) when it sends: an untagged reply that settles within 2 hours of it, with no
 wake since, wakes you once with a caveat to read the conversation. Any wake spends the mark.
-A chat between Paul and the bot in those 2 hours can cost one extra wake.
+A chat between the owner and the bot in those 2 hours can cost one extra wake.
 
-The app shows Paul's messages and ours as `You`, so the tag and the mark are the
-only way the bot and Paul tell them apart. The tag is a UUID session id's first
+The app shows the owner's messages and ours as `You`, so the tag and the mark are the
+only way the bot and the owner tell them apart. The tag is a UUID session id's first
 8 characters, else an 8-character hash of the id.
 
-It cuts noise; it is not isolation or delivery (review: Sol r1, NOVA 2026-10-03):
+It cuts noise; it is not isolation or delivery (review round 1):
 
 - The bot's echo is best effort. A reply that drops the tag, or has it cut off
   the preview, wakes nobody: the session sees it only in the panel or the transcript.

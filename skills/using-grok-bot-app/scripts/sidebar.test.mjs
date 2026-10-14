@@ -63,9 +63,9 @@ test('convo: sender before the first blank line, body whole, badges and date lin
     querySelectorAll: () => [],
     querySelector: sel => (sel.includes('transcript') ? { innerText: text } : null),
   }).convo
-  assert.deepEqual(parse('x\n\n11:45 PM\nToday 1:33 AM\nYou\n\nmeet at 9:58 PM\n\n1:33 AM\nNEW\nNOVA 替身\n\n收到\nline 2\n\n1:34 AM\nNOVA 替身 is working'), [
+  assert.deepEqual(parse('x\n\n11:45 PM\nToday 1:33 AM\nYou\n\nmeet at 9:58 PM\n\n1:33 AM\nNEW\nARIA 前台\n\n收到\nline 2\n\n1:34 AM\nARIA 前台 is working'), [
     { who: 'You', text: 'meet at 9:58 PM', at: '1:33 AM' },
-    { who: 'NOVA 替身', text: '收到 line 2', at: '1:34 AM' },
+    { who: 'ARIA 前台', text: '收到 line 2', at: '1:34 AM' },
   ])
   assert.deepEqual(parse('x\n\n9:11 AM\nUS_STOCK\n\n我先核對\n\n9:11 AM\nNew email\nReady to send\nFrom\na@b.c\nTo\nCc\nSubject\n\nterrain 每日\n\n9:12 AM\n'), [
     { who: 'US_STOCK', text: '我先核對', at: '9:11 AM' },
@@ -75,8 +75,8 @@ test('convo: sender before the first blank line, body whole, badges and date lin
     { who: 'You', text: '長訊息', at: '1:09 AM' },
     { who: 'sandbox', text: '好', at: '1:10 AM' },
   ])
-  assert.deepEqual(parse('x\n\n1:11 AM\nNOVA\n\n結論\n- 一\n1:12 AM\nYou\n\n好\n\n1:12 AM'), [
-    { who: 'NOVA', text: '結論 - 一', at: '1:12 AM' },
+  assert.deepEqual(parse('x\n\n1:11 AM\nARIA\n\n結論\n- 一\n1:12 AM\nYou\n\n好\n\n1:12 AM'), [
+    { who: 'ARIA', text: '結論 - 一', at: '1:12 AM' },
     { who: 'You', text: '好', at: '1:12 AM' },
   ])
   assert.deepEqual(parse(''), [])

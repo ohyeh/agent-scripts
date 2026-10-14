@@ -2,16 +2,16 @@ import type { On } from 'claude-code'
 import { type TestBody, describe, expect, mock, test } from 'claude-code/testing'
 import { classify } from '../hooks/lib/replay.ts'
 
-const UUID = '201040cc-5be6-4d04-9f18-62f181a84677'
+const UUID = '3f6e9a21-7c1d-4b0e-8a52-9d4f0c6e1b37'
 const OTHER = '0e9cd37b-0000-4000-8000-000000000000'
 const WATCH = 'mcp__grok-bot-watch__watch' as const
 const UNWATCH = 'mcp__grok-bot-watch__unwatch' as const
 const TICK = 10_000
 
 type Row = { id: string; name: string; unread: boolean; preview: string; busy: string | null; current: boolean }
-/** A reply that should wake: tagged [w:*] unless it carries a tag, is empty or a draft. `over.preview` sets the raw text (an untagged answer to Paul). */
+/** A reply that should wake: tagged [w:*] unless it carries a tag, is empty or a draft. `over.preview` sets the raw text (an untagged answer to the owner). */
 const row = (preview: string, busy = 'idle', over: Partial<Row> = {}): Row =>
-  ({ id: UUID, name: 'NOVA', unread: false, preview: !preview || /^(\[w:|Draft: )/.test(preview) ? preview : `[w:*] ${preview}`, busy, current: true, ...over })
+  ({ id: UUID, name: 'ARIA', unread: false, preview: !preview || /^(\[w:|Draft: )/.test(preview) ? preview : `[w:*] ${preview}`, busy, current: true, ...over })
 const ok = (...rows: Row[]) => JSON.stringify({ state: 'ok', rows })
 const down = JSON.stringify({ state: 'port-down', error: 'fetch failed' })
 
@@ -122,10 +122,10 @@ describe('eligibility (S2)', () => {
     expect(w.woken[0]).toContain('preview: [w:*] B')
   })
 
-  test('only my tag and [w:*] wake; another session\'s tag and untagged (an answer to Paul) do not', async ($, on) => {
+  test('only my tag and [w:*] wake; another session\'s tag and untagged (an answer to the owner) do not', async ($, on) => {
     const clock = mock.clock(on)
     const sid = 'abcdef12-3456-4789-8abc-def012345678'
-    const w = world(on, [ok(row('A')), ok(row('[w:zzzzzzzz] for B')), ok(row('[w:abcdef12] for me')), ok(row('', 'idle', { preview: 'untagged, for Paul' })), ok(row('[w:*] to everyone'))], [], { sid })
+    const w = world(on, [ok(row('A')), ok(row('[w:zzzzzzzz] for B')), ok(row('[w:abcdef12] for me')), ok(row('', 'idle', { preview: 'untagged, for the owner' })), ok(row('[w:*] to everyone'))], [], { sid })
     await $.session.start(start)
     const r = await $.tool.call({ tool: WATCH, botUuid: UUID })
     expect(JSON.stringify(r), 'a UUID session id: the tag is its sid8').toContain('[w:abcdef12]')
@@ -208,7 +208,7 @@ describe('eligibility (S2)', () => {
     expect(w.woken).toHaveLength(1)
   })
 
-  test('a down port restarts the app through ensure.mjs, at most once per two minutes (owner rule)', async ($, on) => {
+  test('a down port restarts the app through ensure.mjs, at most once per two minutes (standing rule)', async ($, on) => {
     const clock = mock.clock(on)
     const w = world(on, [ok(row('A')), down])
     await $.session.start(start)
@@ -247,9 +247,9 @@ describe('tools', () => {
     mock.clock(on)
     world(on, [ok(row('A'))])
     await $.session.start(start)
-    expect(JSON.stringify(await $.tool.call({ tool: WATCH, botUuid: '201040cc' }))).toContain(UUID)
+    expect(JSON.stringify(await $.tool.call({ tool: WATCH, botUuid: '3f6e9a21' }))).toContain(UUID)
     expect(JSON.stringify(await $.tool.call({ tool: WATCH, botUuid: 'deadbeef' }))).toContain('matches 0 bots')
-    expect(JSON.stringify(await $.tool.call({ tool: WATCH, botUuid: 'NOVA; rm' }))).toContain('botUuid must be')
+    expect(JSON.stringify(await $.tool.call({ tool: WATCH, botUuid: 'ARIA; rm' }))).toContain('botUuid must be')
   })
 })
 
@@ -341,7 +341,7 @@ describe('panel (T7, T4)', () => {
     world(on, [ok(row('A')), ok(row('B'))], ['drop'])
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
-    expect(await flat($)).toContain('● NOVA 201040cc · waiting')
+    expect(await flat($)).toContain('● ARIA 3f6e9a21 · waiting')
     await clock.advance(TICK)
     expect(await flat($)).toContain('1 lost')
   })
@@ -430,7 +430,7 @@ describe('review fixes', () => {
     expect(JSON.stringify(await $.tool.call({ tool: WATCH, botUuid: UUID }))).toContain('helper-failed')
     await clock.advance(TICK)
     expect(w.lookups(), 'looked up again after the failure').toBe(2)
-    expect(await flat($)).toContain('NOVA 201040cc · waiting')
+    expect(await flat($)).toContain('ARIA 3f6e9a21 · waiting')
   })
 })
 
@@ -550,9 +550,9 @@ describe('review 0.1.1 fixes', () => {
   })
 
   test('a row id that is not a full UUID never becomes a watch', async ($, on) => {
-    const w = world(on, [ok(row('A', 'idle', { id: '201040cc-evil\u001b' }))])
+    const w = world(on, [ok(row('A', 'idle', { id: '3f6e9a21-evil\u001b' }))])
     await $.session.start(start)
-    const r = await $.tool.call({ tool: WATCH, botUuid: '201040cc' })
+    const r = await $.tool.call({ tool: WATCH, botUuid: '3f6e9a21' })
     expect(JSON.stringify(r)).toContain('matches 0 bots')
     expect([...w.kv.keys()].some(k => k.startsWith('grok-bot-watch.watch.'))).toBe(false)
   })
@@ -567,7 +567,7 @@ describe('panel 0.2.0', () => {
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     await clock.advance(TICK)
     const t = await flat($)
-    expect(t).toContain('◐ NOVA 201040cc · replying')
+    expect(t).toContain('◐ ARIA 3f6e9a21 · replying')
     expect(t).toContain('1 bot · 1 replying')
     expect(t).toContain('「[w:*] P」')
   })
@@ -581,9 +581,9 @@ describe('panel 0.2.0', () => {
     const rec = w.kv.get(key) as { wakes?: number; lastWake?: number }
     expect(rec.wakes).toBe(1)
     expect(rec.lastWake).toBe(clock.now())
-    expect(await flat($)).toContain('✦ NOVA 201040cc · new reply 0s ago · woke 1×')
+    expect(await flat($)).toContain('✦ ARIA 3f6e9a21 · new reply 0s ago · woke 1×')
     await clock.advance(180_000)
-    expect(await flat($)).toContain('● NOVA 201040cc · waiting · woke 1× 3m ago')
+    expect(await flat($)).toContain('● ARIA 3f6e9a21 · waiting · woke 1× 3m ago')
   })
 
   test('hide folds the band to its header line, show brings the rows back', async ($, on) => {
@@ -592,13 +592,13 @@ describe('panel 0.2.0', () => {
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     await clock.advance(TICK)
-    expect(await flat($)).toContain('NOVA')
+    expect(await flat($)).toContain('ARIA')
     await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above-prompt' })
     const folded = await flat($)
     expect(folded).toMatch(/▌grok bot watch v\d+\.\d+\.\d+ · 1 bot/)
-    expect(folded, 'folded: no bot row').not.toContain('NOVA')
+    expect(folded, 'folded: no bot row').not.toContain('ARIA')
     await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above-prompt' })
-    expect(await flat($)).toContain('NOVA')
+    expect(await flat($)).toContain('ARIA')
   })
 
   test('the unwatch button deletes the watch; the band stays with [ + ] until [ close ]', async ($, on) => {
@@ -611,7 +611,7 @@ describe('panel 0.2.0', () => {
     expect(w.kv.has(key)).toBe(false)
     const t = await flat($)
     expect(t, 'the header stays: the next watch is one [ + ] away').toContain('0 bots')
-    expect(t).not.toContain('NOVA')
+    expect(t).not.toContain('ARIA')
     await clock.advance(TICK)
     expect(w.woken, 'nothing is watched any more').toHaveLength(0)
     await $.ui.render(band())
@@ -625,7 +625,7 @@ describe('panel 0.2.0', () => {
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     await clock.advance(TICK)
-    expect(await flat($)).toContain('NOVA 201040cc · draft in composer')
+    expect(await flat($)).toContain('ARIA 3f6e9a21 · draft in composer')
   })
 })
 
@@ -652,7 +652,7 @@ describe('review 0.2.0 fixes', () => {
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     const one = textOf(await $.ui.render(band({ maxRows: 1 }))).replace(/\n/g, '')
     expect(one).toContain('▌grok bot watch')
-    expect(one).not.toContain('NOVA')
+    expect(one).not.toContain('ARIA')
     expect(textOf(await $.ui.render(band({ maxRows: 0 })))).not.toContain('grok bot watch')
   })
 
@@ -690,7 +690,7 @@ describe('review 0.2.0 fixes', () => {
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     // The floor draws none: header and row fit in 2.
-    expect(textOf(await $.ui.render(band({ maxRows: 2 }))).replace(/\n/g, '')).toContain('NOVA')
+    expect(textOf(await $.ui.render(band({ maxRows: 2 }))).replace(/\n/g, '')).toContain('ARIA')
   })
 
   test('a floor of 3 rows in a 4-row band leaves the header only', async ($, on) => {
@@ -701,7 +701,7 @@ describe('review 0.2.0 fixes', () => {
     const t = textOf(await $.ui.render(band({ maxRows: 4 }))).replace(/\n/g, '')
     expect(t).toContain('worker 2')
     expect(t).toContain('▌grok bot watch')
-    expect(t, 'no room for the row').not.toContain('NOVA')
+    expect(t, 'no room for the row').not.toContain('ARIA')
   })
 
   test('one row left for two bots shows the first bot, not a bare +N more', async ($, on) => {
@@ -711,7 +711,7 @@ describe('review 0.2.0 fixes', () => {
     await $.tool.call({ tool: WATCH, botUuid: UUID })
     await $.tool.call({ tool: WATCH, botUuid: OTHER })
     const t = textOf(await $.ui.render(band({ maxRows: 2 }))).replace(/\n/g, '')
-    expect(t).toContain('NOVA')
+    expect(t).toContain('ARIA')
     expect(t).not.toContain('more')
   })
 
@@ -845,7 +845,7 @@ describe('recent replies 0.3.0', () => {
 describe('conversation of the open bot 0.4.0', () => {
   const convo = [
     { who: 'You', text: '請回收到', at: '2:03 AM' },
-    { who: 'NOVA', text: '收到', at: '2:04 AM' },
+    { who: 'ARIA', text: '收到', at: '2:04 AM' },
   ]
   const withConvo = (...rows: Row[]) => JSON.stringify({ state: 'ok', rows, convo })
 
@@ -859,7 +859,7 @@ describe('conversation of the open bot 0.4.0', () => {
     await $.ui.press({ plugin: PLUGIN, key: `open-${key}`, requestId: 'above-prompt' })
     const t = await flat($)
     expect(t).toContain('2:03 AM You · 「請回收到」')
-    expect(t.indexOf('2:03 AM You')).toBeLessThan(t.indexOf('2:04 AM NOVA · 「收到」'))
+    expect(t.indexOf('2:03 AM You')).toBeLessThan(t.indexOf('2:04 AM ARIA · 「收到」'))
     expect(t).not.toContain('before watch')
   })
 
@@ -891,14 +891,14 @@ describe('conversation of the open bot 0.4.0', () => {
 })
 
 describe('open bot reads its transcript 0.11.0', () => {
-  // The sidebar name carries a subtitle; the transcript sender does not (live 10/13: "NOVA, Main Bot").
-  const nova = (p: string, busy = 'idle', over: Partial<Row> = {}) => row(p, busy, { name: 'NOVA, Main Bot', ...over })
+  // The sidebar name carries a subtitle; the transcript sender does not (live 10/13: "ARIA, Main Bot").
+  const nova = (p: string, busy = 'idle', over: Partial<Row> = {}) => row(p, busy, { name: 'ARIA, Main Bot', ...over })
   const you = (at: string) => ({ who: 'You', text: '[w:*] go', at })
-  const c1 = [you('9:00 PM'), { who: 'NOVA', text: '[w:*] done', at: '9:01 PM' }]
-  const c2 = [...c1, { who: 'NOVA', text: '[w:*] done', at: '9:40 PM' }]
+  const c1 = [you('9:00 PM'), { who: 'ARIA', text: '[w:*] done', at: '9:01 PM' }]
+  const c2 = [...c1, { who: 'ARIA', text: '[w:*] done', at: '9:40 PM' }]
   const withC = (convo: unknown[], ...rows: Row[]) => JSON.stringify({ state: 'ok', rows, convo })
 
-  test('a routine run (busy -> idle, same preview, no new reply) wakes nobody (655a6fa1, 10/13)', async ($, on) => {
+  test('a routine run (busy -> idle, same preview, no new reply) wakes nobody (9c2d7e40, 10/13)', async ($, on) => {
     const clock = mock.clock(on)
     const w = world(on, [withC(c1, nova('A')), withC(c1, nova('A', 'working')), withC(c1, nova('A')), withC(c1, nova('A', 'working')), withC(c1, nova('A'))])
     await $.session.start(start)
@@ -950,7 +950,7 @@ describe('open bot reads its transcript 0.11.0', () => {
 
   test('the transcript reply decides who it is for: an untagged reply under an old tagged preview wakes nobody', async ($, on) => {
     const clock = mock.clock(on)
-    const c3 = [...c1, { who: 'NOVA', text: 'for Paul', at: '9:40 PM' }]
+    const c3 = [...c1, { who: 'ARIA', text: 'for the owner', at: '9:40 PM' }]
     const w = world(on, [withC(c1, nova('A')), withC(c3, nova('A')), withC(c3, nova('A'))])
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
@@ -961,7 +961,7 @@ describe('open bot reads its transcript 0.11.0', () => {
   test('watched with only your messages in view: a routine run wakes nobody, a reply then wakes once', async ($, on) => {
     const clock = mock.clock(on)
     const yours = ['9:02 PM', '9:03 PM', '9:04 PM', '9:05 PM', '9:06 PM'].map(you)
-    const reply = [...yours.slice(1), { who: 'NOVA', text: '[w:*] 收到', at: '9:30 PM' }]
+    const reply = [...yours.slice(1), { who: 'ARIA', text: '[w:*] 收到', at: '9:30 PM' }]
     const w = world(on, [withC(yours, nova('A')), withC(yours, nova('A', 'working')), withC(yours, nova('A')), withC(yours, nova('A', 'working')), withC(reply, nova('A')), withC(reply, nova('A'))])
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
@@ -973,7 +973,7 @@ describe('open bot reads its transcript 0.11.0', () => {
 
   test('first reading of an opened bot: an untagged reply under an old tagged preview wakes nobody', async ($, on) => {
     const clock = mock.clock(on)
-    const c3 = [...c1, { who: 'NOVA', text: 'for Paul', at: '9:40 PM' }]
+    const c3 = [...c1, { who: 'ARIA', text: 'for the owner', at: '9:40 PM' }]
     const w = world(on, [withC(c1, nova('A', 'working')), withC(c3, nova('A')), withC(c3, nova('A'))])
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
@@ -983,7 +983,7 @@ describe('open bot reads its transcript 0.11.0', () => {
 
   test('an email card after a tagged reply keeps the reply: one wake, with the reply text', async ($, on) => {
     const clock = mock.clock(on)
-    const c3 = [...c1, { who: 'NOVA', text: '[w:*] sent it', at: '9:40 PM' }, { who: 'NOVA · New email', text: 'Ready to send', at: '9:40 PM' }]
+    const c3 = [...c1, { who: 'ARIA', text: '[w:*] sent it', at: '9:40 PM' }, { who: 'ARIA · New email', text: 'Ready to send', at: '9:40 PM' }]
     const w = world(on, [withC(c1, nova('A')), withC(c3, nova('A')), withC(c3, nova('A'))])
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
@@ -1013,9 +1013,9 @@ describe('open bot reads its transcript 0.11.0', () => {
   })
 
   // 0.12.0: a turn can end on a card or a note that carries no tag, its tagged answer just above it
-  // (NOVA's "W41 retro 下一步？" card, 10/14: the wake never came).
-  const answer = { who: 'NOVA', text: '[w:*] 三點意見如下', at: '9:40 PM' }
-  const card = { who: 'NOVA', text: 'W41 retro 下一步？', at: '9:41 PM' }
+  // (ARIA's "W41 retro 下一步？" card, 10/14: the wake never came).
+  const answer = { who: 'ARIA', text: '[w:*] 三點意見如下', at: '9:40 PM' }
+  const card = { who: 'ARIA', text: 'W41 retro 下一步？', at: '9:41 PM' }
   const cardRow = nova('', 'idle', { preview: 'W41 retro 下一步？' })
 
   test('a turn that ends on an untagged card keeps the tagged answer above it: one wake, with the answer', async ($, on) => {
@@ -1032,7 +1032,7 @@ describe('open bot reads its transcript 0.11.0', () => {
   test('the card does not wake again, and a later tagged reply does', async ($, on) => {
     const clock = mock.clock(on)
     const c3 = [...c1, answer, card]
-    const c4 = [...c3, { who: 'NOVA', text: '[w:*] 補一點', at: '9:50 PM' }]
+    const c4 = [...c3, { who: 'ARIA', text: '[w:*] 補一點', at: '9:50 PM' }]
     const w = world(on, [withC(c1, nova('A')), withC(c3, cardRow), withC(c3, cardRow), withC(c4, nova('A')), withC(c4, nova('A'))])
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
@@ -1043,7 +1043,7 @@ describe('open bot reads its transcript 0.11.0', () => {
 
   test("another session's reply below mine does not take my answer", async ($, on) => {
     const clock = mock.clock(on)
-    const other = { who: 'NOVA', text: '[w:0e9cd37b] 給別人', at: '9:41 PM' }
+    const other = { who: 'ARIA', text: '[w:0e9cd37b] 給別人', at: '9:41 PM' }
     const c3 = [...c1, answer, other]
     const w = world(on, [withC(c1, nova('A')), withC(c3, nova('', 'idle', { preview: '[w:0e9cd37b] 給別人' })), withC(c3, nova('', 'idle', { preview: '[w:0e9cd37b] 給別人' }))])
     await $.session.start(start)
@@ -1055,7 +1055,7 @@ describe('open bot reads its transcript 0.11.0', () => {
 
   // The sent mark bin/send.mjs writes: this session messaged the bot, then an untagged reply settled.
   const sentMark = (on: On, at?: number) => {
-    const isMark = (p: string) => /^\/h\/\.claude\/grok-bot-watch\/sent\/[0-9a-z]{8}-201040cc\.json$/.test(p)
+    const isMark = (p: string) => /^\/h\/\.claude\/grok-bot-watch\/sent\/[0-9a-z]{8}-3f6e9a21\.json$/.test(p)
     on('env.get', ($, e) => ({ value: e.name === 'HOME' ? '/h' : undefined }))
     on('fs.exists', ($, e) => ({ value: at !== undefined && isMark(e.path) }))
     on('fs.read', ($, e) => ({ value: at !== undefined && isMark(e.path) ? JSON.stringify({ at }) : '' }))
@@ -1100,7 +1100,7 @@ describe('open bot reads its transcript 0.11.0', () => {
   test('one sent mark buys one caveat wake: a second untagged note after it wakes nobody', async ($, on) => {
     const clock = mock.clock(on)
     sentMark(on, clock.now())
-    const c6 = [...c5, { who: 'NOVA', text: '再補一句', at: '9:45 PM' }]
+    const c6 = [...c5, { who: 'ARIA', text: '再補一句', at: '9:45 PM' }]
     const w = world(on, [withC(c1, nova('A')), withC(c5, cardRow), withC(c5, cardRow), withC(c6, nova('', 'idle', { preview: '再補一句' })), withC(c6, nova('', 'idle', { preview: '再補一句' }))])
     await $.session.start(start)
     await $.tool.call({ tool: WATCH, botUuid: UUID })
@@ -1124,10 +1124,10 @@ describe('watch from the panel 0.5.0', () => {
     expect(await flat($), 'no watch: no band').not.toContain('grok bot watch')
     await $.command.run(cmd(''))
     await $.ui.render(band())
-    await $.ui.input({ plugin: PLUGIN, key: 'add-input', text: '201040cc', requestId: 'above-prompt' })
+    await $.ui.input({ plugin: PLUGIN, key: 'add-input', text: '3f6e9a21', requestId: 'above-prompt' })
     expect(w.kv.has(key), 'the prefix resolved to the full UUID').toBe(true)
-    expect(w.toasts).toContain('grok-bot-watch: watching NOVA')
-    expect(await flat($)).toContain('● NOVA 201040cc · waiting')
+    expect(w.toasts).toContain('grok-bot-watch: watching ARIA')
+    expect(await flat($)).toContain('● ARIA 3f6e9a21 · waiting')
     expect(await hasField($), 'the field closed').toBe(false)
   })
 
@@ -1153,8 +1153,8 @@ describe('watch from the panel 0.5.0', () => {
     await $.ui.render(band())
     await $.ui.input({ plugin: PLUGIN, key: 'add-input', text: UUID, requestId: 'above-prompt' })
     const t = await flat($)
-    expect(t).toContain('▲ 201040cc port-down')
-    expect(t).not.toContain('201040cc 201040cc')
+    expect(t).toContain('▲ 3f6e9a21 port-down')
+    expect(t).not.toContain('3f6e9a21 3f6e9a21')
   })
 
   test('/grok-bot-watch <id> watches at once; [ + ] toggles the field', async ($, on) => {
@@ -1162,7 +1162,7 @@ describe('watch from the panel 0.5.0', () => {
     const w = world(on, [ok(row('A'))])
     await $.session.start(start)
     const r = await $.command.run(cmd(` ${UUID} `))
-    expect(r.text, 'the engine adds the plugin name').toBe('watching NOVA.')
+    expect(r.text, 'the engine adds the plugin name').toBe('watching ARIA.')
     expect(w.kv.has(key)).toBe(true)
     await $.ui.render(band())
     await $.ui.press({ plugin: PLUGIN, key: 'add', requestId: 'above-prompt' })
@@ -1191,10 +1191,10 @@ describe('reply from the panel 0.8.0', () => {
     await macrotask()
     expect(w.sends).toHaveLength(1)
     expect(w.sends[0]!.bot).toBe(UUID)
-    // Paul types it in the panel: send.mjs's --direct, with its basis written in the message (the gate needs both).
-    expect(w.sends[0]!.stdin).toMatch(/^\[w:[0-9a-z]{8}\] ⟨Claude⟩ （Paul 面板指示）hi there$/)
-    expect(w.sends[0]!.direct).toBe('Paul 面板指示')
-    expect(w.toasts).toContain('grok-bot-watch: sent to NOVA')
+    // The owner types it in the panel: send.mjs's --direct, with its basis written in the message (the gate needs both).
+    expect(w.sends[0]!.stdin).toMatch(/^\[w:[0-9a-z]{8}\] ⟨Claude⟩ （panel instruction）hi there$/)
+    expect(w.sends[0]!.direct).toBe('panel instruction')
+    expect(w.toasts).toContain('grok-bot-watch: sent to ARIA')
   })
 
   test('a closed row has no reply line; Enter on nothing sends nothing', async ($, on) => {
@@ -1213,21 +1213,21 @@ describe('reply from the panel 0.8.0', () => {
     const tag = w.sends[0]!.stdin.slice(0, 12)
     await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: `${tag} again`, requestId: 'above-prompt' })
     await macrotask()
-    expect(w.sends[1]!.stdin).toBe(`${tag} ⟨Claude⟩ （Paul 面板指示）again`)
+    expect(w.sends[1]!.stdin).toBe(`${tag} ⟨Claude⟩ （panel instruction）again`)
   })
 
   test('a send that may have gone says check the app, not sent and not refused', async ($, on) => {
     const w = await openRow($, on, { sendState: 'unconfirmed' })
     await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: 'hi', requestId: 'above-prompt' })
     await macrotask()
-    expect(w.toasts).toContain('grok-bot-watch: unconfirmed for NOVA: check the app before resending')
+    expect(w.toasts).toContain('grok-bot-watch: unconfirmed for ARIA: check the app before resending')
   })
 
   test('a helper run that throws may have sent: check the app, never "not sent" (Sol r2 P2)', async ($, on) => {
     const w = await openRow($, on, { sendState: 'THROW' })
     await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: 'hi', requestId: 'above-prompt' })
     await macrotask()
-    expect(w.toasts.some(t => t.startsWith('grok-bot-watch: unconfirmed for NOVA: check the app before resending'))).toBe(true)
+    expect(w.toasts.some(t => t.startsWith('grok-bot-watch: unconfirmed for ARIA: check the app before resending'))).toBe(true)
     expect(w.toasts.some(t => t.includes('not sent'))).toBe(false)
   })
 
@@ -1235,7 +1235,7 @@ describe('reply from the panel 0.8.0', () => {
     const w = await openRow($, on, { sendState: 'draft' })
     await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: 'hi', requestId: 'above-prompt' })
     await macrotask()
-    expect(w.toasts).toContain('grok-bot-watch: not sent to NOVA: draft')
+    expect(w.toasts).toContain('grok-bot-watch: not sent to ARIA: draft')
   })
 })
 
@@ -1249,14 +1249,14 @@ describe('after a reload 0.8.1', () => {
     await $.session.start(start)
     // The first read is still running: neutral, not the ▲ of a failed read.
     let t = await flat($)
-    expect(t).toContain('○ 201040cc reading the app…')
+    expect(t).toContain('○ 3f6e9a21 reading the app…')
     expect(t).not.toContain('▲')
     release()
     await macrotask()
     await macrotask()
     t = await flat($)
     expect(w.runs(), 'read at start, no poll waited for').toBe(1)
-    expect(t).toContain('● NOVA 201040cc · waiting')
+    expect(t).toContain('● ARIA 3f6e9a21 · waiting')
   })
 })
 

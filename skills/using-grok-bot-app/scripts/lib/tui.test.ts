@@ -4,15 +4,15 @@ import assert from 'node:assert/strict'
 import { renderLines, type View } from './tui.node.ts'
 import { cells } from './core.ts'
 
-const UUID = '201040cc-5be6-4d04-9f18-62f181a84677'
-const row = { id: UUID, name: 'NOVA 替身', unread: false, preview: '收到，處理中', busy: 'idle', current: true }
+const UUID = '3f6e9a21-7c1d-4b0e-8a52-9d4f0c6e1b37'
+const row = { id: UUID, name: 'ARIA 前台', unread: false, preview: '收到，處理中', busy: 'idle', current: true }
 const plain = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '')
 const view = (over: Partial<View> = {}): View => ({ now: 10_000, at: 8_000, detail: false, read: { state: 'ok', port: 39231, rows: [row] }, ...over })
 
 test('a row shows key, name, uuid8, state and preview', () => {
   const lines = renderLines(view(), 120, 40).map(plain)
   assert.match(lines[0]!, /1 bot · read 2s ago/)
-  assert.match(lines[3]!, /^1 ● NOVA 替身 201040cc idle · open\s+「收到，處理中」$/)
+  assert.match(lines[3]!, /^1 ● ARIA 前台 3f6e9a21 idle · open\s+「收到，處理中」$/)
 })
 
 test('draft, replying and unread come from the shared row model', () => {
@@ -31,9 +31,9 @@ test('a degraded read says which state, with no rows', () => {
 })
 
 test('detail of the open bot shows its conversation', () => {
-  const read = { state: 'ok', rows: [row], convo: [{ who: 'NOVA', text: '好', at: '9:58 PM' }] }
+  const read = { state: 'ok', rows: [row], convo: [{ who: 'ARIA', text: '好', at: '9:58 PM' }] }
   const lines = renderLines(view({ read, sel: 0, detail: true }), 80, 40).map(plain)
-  assert.ok(lines.some(l => l.includes('9:58 PM · NOVA')))
+  assert.ok(lines.some(l => l.includes('9:58 PM · ARIA')))
   assert.ok(lines.some(l => l.trim() === '好'))
 })
 
@@ -52,17 +52,17 @@ test('the list scrolls to keep the selection in view, with a more line', () => {
 })
 
 test('a long message wraps in detail instead of being cut', () => {
-  const read = { state: 'ok', rows: [row], convo: [{ who: 'NOVA', text: '字'.repeat(60), at: '9:58 PM' }] }
+  const read = { state: 'ok', rows: [row], convo: [{ who: 'ARIA', text: '字'.repeat(60), at: '9:58 PM' }] }
   const body = renderLines(view({ read, sel: 0, detail: true }), 40, 40).map(plain).filter(l => l.includes('字'))
   assert.ok(body.length >= 3)
   assert.equal(body.join('').replace(/\s/g, ''), '字'.repeat(60))
 })
 
 test('a detail taller than the terminal keeps the newest lines and says how many are hidden', () => {
-  const convo = Array.from({ length: 5 }, (_, i) => ({ who: 'NOVA', text: `msg${i}`, at: `9:5${i} PM` }))
+  const convo = Array.from({ length: 5 }, (_, i) => ({ who: 'ARIA', text: `msg${i}`, at: `9:5${i} PM` }))
   const lines = renderLines(view({ read: { state: 'ok', rows: [row], convo }, sel: 0, detail: true }), 80, 9).map(plain)
   assert.equal(lines.length, 9)
   assert.match(lines[4]!, /↑ 6 earlier lines/)
-  assert.match(lines[3]!, /NOVA 替身 · 201040cc/)
+  assert.match(lines[3]!, /ARIA 前台 · 3f6e9a21/)
   assert.equal(lines.at(-1)!.trim(), 'msg4')
 })

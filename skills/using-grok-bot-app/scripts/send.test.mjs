@@ -66,8 +66,8 @@ function app({ drafts = {}, stuck = false, lossy = false, deaf = false, settle =
 
 test('sends to the bot by prefix: open it, then one atomic paste-and-submit; the transcript shows it', async () => {
   const a = app()
-  assert.equal(await send(a.d, 'aaaaaaaa', '[w:29a98092] hi'), 'sent')
-  assert.deepEqual(a.log[A], ['[w:29a98092] hi'])
+  assert.equal(await send(a.d, 'aaaaaaaa', '[w:d5e81f37] hi'), 'sent')
+  assert.deepEqual(a.log[A], ['[w:d5e81f37] hi'])
   assert.deepEqual(a.events, ['click', 'paste', 'submit', 'click'])
   assert.equal(a.current, B, 'the bot open before the send is open again')
 })
@@ -377,7 +377,7 @@ test('real page script: B, whose transcript holds the text, is open after the se
 })
 
 test('real page script: a bot echoing the text, or quoting "You reply", is not a message from You: not-sent (Sol r3 P2)', async () => {
-  const p = page({ current: A, accepts: false, onSubmit: p => (p.log[A] = [{ who: 'NOVA', text: 'reply' }, { who: 'NOVA', text: 'You reply' }]) })
+  const p = page({ current: A, accepts: false, onSubmit: p => (p.log[A] = [{ who: 'ARIA', text: 'reply' }, { who: 'ARIA', text: 'You reply' }]) })
   assert.equal(await send(p.d, 'aaaaaaaa', 'reply'), 'not-sent')
 })
 
@@ -396,18 +396,18 @@ test('a long message folded behind "Show more" still counts as mine', () => {
   assert.equal(count('You\n\n長 訊息\n\nShow more\n1:09 AM\nsandbox\n\n好\n\n1:10 AM'), 1)
   assert.equal(count('You\n\n長 訊息\n\n1:09 AM'), 1)
   // A bot message that ends in a list has its time after one newline, not a blank line.
-  assert.equal(count('NOVA\n\n結論\n- 一\n- 二\n1:12 AM\nYou\n\n長 訊息\n\n1:12 AM\nNOVA is working'), 1)
+  assert.equal(count('ARIA\n\n結論\n- 一\n- 二\n1:12 AM\nYou\n\n長 訊息\n\n1:12 AM\nARIA is working'), 1)
 })
 
-// The gate (2026-10-14): an agent sends to the front by default; --direct is Paul's exception.
-const HEAD = '[w:61e54403] ⟨Claude⟩ #t 問｜hi'
+// The gate: an agent sends to the front by default; --direct is the owner's exception.
+const HEAD = '[w:b7c4e910] ⟨Claude⟩ #t 問｜hi'
 const ROLES = { file: '/r.json', roles: { front: A, sandbox: B } }
 
 test('gate: every send needs the tag and the mark, --direct too; a mistyped tag is refused', () => {
-  for (const bad of ['hi', '[w:t254u] ⟨Claude⟩ hi', '[w:61e54403] hi', '[W:61e54403] ⟨Claude⟩ hi', '⟨Claude⟩ [w:61e54403] hi'])
+  for (const bad of ['hi', '[w:t254u] ⟨Claude⟩ hi', '[w:b7c4e910] hi', '[W:b7c4e910] ⟨Claude⟩ hi', '⟨Claude⟩ [w:b7c4e910] hi'])
     assert.equal(gate(ROLES, 'aaaaaaaa', bad)?.state, 'bad-header', bad)
-  assert.equal(gate(ROLES, 'cccccccc', 'hi', 'Paul 14:30')?.state, 'bad-header')
-  for (const ok of [HEAD, '[w:*] ⟨agy⟩ hi', '[w:61e54403] ⟨Claude⟩ no bar, as the panel sends it'])
+  assert.equal(gate(ROLES, 'cccccccc', 'hi', 'owner 14:30')?.state, 'bad-header')
+  for (const ok of [HEAD, '[w:*] ⟨agy⟩ hi', '[w:b7c4e910] ⟨Claude⟩ no bar, as the panel sends it'])
     assert.equal(gate(ROLES, 'aaaaaaaa', ok), null, ok)
 })
 
@@ -423,15 +423,15 @@ test('gate: no front in the role file is refused and names what is missing', () 
 })
 
 test('gate: --direct relaxes the recipient only, and its basis has to be in the message', () => {
-  const text = '[w:61e54403] ⟨Claude⟩ #t 問｜（Paul 14:30 指示）hi'
-  assert.equal(gate({ file: '/r', roles: {} }, 'cccccccc', text, 'Paul 14:30 指示'), null, 'no role file needed')
-  assert.equal(gate(ROLES, 'cccccccc', HEAD, 'Paul 14:30 指示')?.state, 'no-basis', 'the basis is not in the text')
+  const text = '[w:b7c4e910] ⟨Claude⟩ #t 問｜（owner 14:30 instruction）hi'
+  assert.equal(gate({ file: '/r', roles: {} }, 'cccccccc', text, 'owner 14:30 instruction'), null, 'no role file needed')
+  assert.equal(gate(ROLES, 'cccccccc', HEAD, 'owner 14:30 instruction')?.state, 'no-basis', 'the basis is not in the text')
   assert.equal(gate(ROLES, 'cccccccc', text, '')?.state, 'no-basis')
   assert.equal(gate(ROLES, 'cccccccc', text, '  ')?.state, 'no-basis')
 })
 
 test('args: --direct takes the next word and leaves id and port where they were', () => {
-  assert.deepEqual(parseArgs(['AAAAAAAA', '4000', '--direct', 'Paul 14:30'], {}), { id: 'aaaaaaaa', port: 4000, direct: 'Paul 14:30' })
+  assert.deepEqual(parseArgs(['AAAAAAAA', '4000', '--direct', 'owner 14:30'], {}), { id: 'aaaaaaaa', port: 4000, direct: 'owner 14:30' })
   assert.deepEqual(parseArgs(['--direct', 'x', 'aaaaaaaa'], { GROK_BOT_CDP_PORT: '5000' }), { id: 'aaaaaaaa', port: 5000, direct: 'x' })
   assert.deepEqual(parseArgs(['aaaaaaaa', '--direct'], {}), { id: 'aaaaaaaa', port: 39231, direct: '' })
   assert.equal(parseArgs(['aaaaaaaa'], {}).direct, undefined)
@@ -452,8 +452,8 @@ test('roles: $GROK_BOT_ROLES wins, else the file under HOME; a missing or broken
 test('sent mark: one file per session and bot, none for a broadcast; a write failure reaches the caller', () => {
   const wrote = []
   const fs = { mkdirSync: (d, o) => wrote.push(['mkdir', d, o.recursive]), writeFileSync: (p, c) => wrote.push(['write', p, c]) }
-  markSent('[w:61e54403] ⟨Claude⟩ hi', 'aaaaaaaa-1111-4222', { HOME: '/h' }, 1234, fs)
-  assert.deepEqual(wrote, [['mkdir', '/h/.claude/grok-bot-watch/sent', true], ['write', '/h/.claude/grok-bot-watch/sent/61e54403-aaaaaaaa.json', '{"at":1234}']])
+  markSent('[w:b7c4e910] ⟨Claude⟩ hi', 'aaaaaaaa-1111-4222', { HOME: '/h' }, 1234, fs)
+  assert.deepEqual(wrote, [['mkdir', '/h/.claude/grok-bot-watch/sent', true], ['write', '/h/.claude/grok-bot-watch/sent/b7c4e910-aaaaaaaa.json', '{"at":1234}']])
   wrote.length = 0
   markSent('[w:*] ⟨Claude⟩ hi', 'aaaaaaaa', { HOME: '/h' }, 1, fs)
   assert.deepEqual(wrote, [])
@@ -463,7 +463,7 @@ test('sent mark: one file per session and bot, none for a broadcast; a write fai
     },
     writeFileSync() {},
   }
-  assert.throws(() => markSent('[w:61e54403] ⟨Claude⟩ hi', 'aaaaaaaa', { HOME: '/h' }, 1, broken), /EACCES/)
+  assert.throws(() => markSent('[w:b7c4e910] ⟨Claude⟩ hi', 'aaaaaaaa', { HOME: '/h' }, 1, broken), /EACCES/)
 })
 
 test('command line: a refusal prints its state and exits 2 before any connection; --direct gets past the gate', () => {
@@ -483,5 +483,5 @@ test('command line: a refusal prints its state and exits 2 before any connection
   const none = join(dir, 'none.json')
   assert.deepEqual(run(['aaaaaaaa'], HEAD, { GROK_BOT_ROLES: none }), [2, { state: 'no-roles', port: 1, missing: ['front'], file: none, error: 'ENOENT' }])
   // Past the gate the port is tried; port 1 answers nothing.
-  assert.deepEqual(run(['cccccccc', '--direct', 'Paul 14:30'], '[w:61e54403] ⟨Claude⟩ Paul 14:30 hi'), [2, { state: 'down', port: 1 }])
+  assert.deepEqual(run(['cccccccc', '--direct', 'owner 14:30'], '[w:b7c4e910] ⟨Claude⟩ owner 14:30 hi'), [2, { state: 'down', port: 1 }])
 })
