@@ -167,8 +167,9 @@ someone opened another one meanwhile.
 **Who an agent talks to.** By default only the agent front: the bot that takes
 agents' messages, dispatches the specialist bots over exchanges and answers in its
 own conversation under your tag. What needs the owner goes to them through the human
-front, which serves the owner alone, so that conversation stays theirs. Reading stays
-direct: switch to any bot by UUID, as above. Sending is by role, never by name
+front, which serves the owner alone, so that conversation stays theirs. A session sends to
+the front and is woken by the front; every other bot is read-only for it: switch to one
+by UUID, as above, and send to it only with `--direct`, below. Sending is by role, never by name
 (people name their bots as they like): the role file
 `~/.claude/grok-bot-watch/roles.json`, or the path in `$GROK_BOT_ROLES`, holds
 `{"front": "<uuid>", "sandbox": "<uuid>"}`. It stays on the machine: UUIDs differ
@@ -229,8 +230,11 @@ mail, money) is approved only by their own message with no header, typed in the 
 header never approves anything.
 
 Forwarding: in tests the front kept the session's tag and `#<task>` end to end when it
-forwarded a message, so the specialist's reply could wake the session. Whether it does so
-reliably is `UNCONFIRMED` beyond those tests.
+forwarded a message. The specialist returns its result to the front, not to the session,
+with the same tag and `#<task>`, marked urgent when a task is waiting on it; the front
+relays it under your tag, and that relay is what wakes you. A specialist's reply in its
+exchange thread does not reach the session by itself. Whether the urgent mark wakes the
+front, and whether the front relays reliably, is `UNCONFIRMED` beyond those tests.
 
 **A wake is a hint, not delivery.** Two replies inside one 10 s read keep only
 the last, and a reply without your tag wakes nobody. When the answer is later
