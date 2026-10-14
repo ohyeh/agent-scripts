@@ -196,8 +196,8 @@ the owner's and ours alike, so the first line carries a fixed header that a filt
 can read:
 
 ```
-[w:<sid8>] ⟨Claude⟩ #<task> <kind> @<recipient>｜<body>
-^\[w:([0-9a-z]{8}|\*)\](?: ⟨([A-Za-z]+)⟩)?(?: #([a-z0-9-]+))?(?: ([^\s｜@]+))?(?: @([^\s｜]+))?｜
+[w:<sid8>] ⟨Claude⟩ #<task> <kind>｜<body>
+^\[w:([0-9a-z]{8}|\*)\](?: ⟨([A-Za-z]+)⟩)?(?: #([a-z0-9-]+))?(?: ([^\s｜]+))?｜
 ```
 
 - `[w:<sid8>]`: who the reply is for; the bot echoes it on the same line, never
@@ -212,8 +212,9 @@ can read:
 - `<kind>`: optional, one short word from the types your rules define (a question,
   a result, a progress note, a notice, an assignment). No progress-only message,
   no ACK; report once, when done or stuck.
-- `@<recipient>`: optional, after the kind: the bot the message is for (the front may add it when it forwards).
 - A notice marked "no reply needed" (FYI) means no reply at all, not even an acknowledgement.
+- To name another bot inside a message, write `name (uuid8)` in the body: the account's own convention, not
+  a rule. The header has no recipient field, and the filter regex does not read one.
 
 The regex is for filters. A wake needs only the tag at the start: a reply that
 drops the `｜` still wakes, but the filter misses it. `send.mjs` checks only the tag and
