@@ -87,7 +87,8 @@ composer draft shows as a `Draft: …` preview. The sidebar has **no
 timestamps** (0.59.1); only the open transcript has `time[datetime]` (ISO UTC).
 Reach for the full transcript only when the preview is not enough.
 
-**Waiting for a reply?** Do not poll. The `grok-bot-watch` mod (plugin
+**Waiting for a reply?** Do not poll; the one exception is the time-boxed fallback
+monitor below, for a reply no wake covers. The `grok-bot-watch` mod (plugin
 `grok-bot-watch@agent-scripts`, from `ohyeh/agent-scripts`) watches a bot by UUID and wakes the session once
 when its reply settles. The wake carries the preview only; read the transcript
 below when that is not enough. One watch lasts the session and survives
@@ -238,6 +239,28 @@ with your tag. A turn can end on an option card or a note with no tag, its
 tagged answer just above it: the mod handles that for the open bot, and for
 the rest it wakes once, with a caveat, on an untagged reply within 2 hours of
 your send (`send.mjs` leaves the mark it reads). Treat that wake as "read the transcript".
+
+**Fallbacks.** A wake can still never come: a bot answers without your tag, or a bot
+behind the front answers in its own conversation, where neither your tag nor the sent
+mark (it exists only for the bot you sent to) applies. First, ask the agent front to
+relay the answer with your tag: that is its job under the message rules, and it keeps
+the protocol working. Second, as insurance for when even that does not come, arm a
+time-boxed monitor on the row of every bot that may answer. In Claude Code, give this
+script to the Monitor tool (a foreground `sleep` loop in Bash is blocked) with a
+`timeout_ms` near the time you expect plus a margin; elsewhere run it in the background
+and kill it at the same deadline. It prints one line when a row's state or preview
+changes, or when the row cannot be read. A line is a cue to read that bot's transcript,
+never an answer. Run it from this skill's folder:
+
+```sh
+id=<bot8>; last=
+while :; do
+  cur=$(node scripts/sidebar.mjs | jq -r --arg id "$id" '.rows[] | select(.id | startswith($id)) | "\(.busy) \(.preview)"' 2>/dev/null)
+  cur=${cur:-unreadable}
+  [ -n "$last" ] && [ "$cur" != "$last" ] && echo "$id: $cur"
+  last=$cur; sleep 30
+done
+```
 
 **First use in an environment.** The mechanism needs five bots, told apart by
 role. UUIDs differ per account, and names are the owner's choice and never matched:
