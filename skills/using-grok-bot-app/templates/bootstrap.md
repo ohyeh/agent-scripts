@@ -94,4 +94,4 @@ When a bot quotes this rule in a transcript, the app renders the `\[…\]` of th
 
 ## 3. Check
 
-Send `[w:<sid8>] ⟨Claude⟩ #setup question｜please reply "ok" and start the first line with my tag` with `scripts/send.mjs <sandbox UUID>` and watch `sandbox`. The setup works when the reply starts with `[w:<sid8>]` and wakes this session. Rule 19 relies on the urgent mark waking its receiver: test that once with the `sandbox` bot before you rely on it.
+Send `[w:<sid8>] ⟨Claude⟩ #setup question｜please reply "ok" and start the first line with my tag` with `scripts/send.mjs <sandbox UUID>` and watch `sandbox`. The setup works when the reply starts with `[w:<sid8>]` and wakes this session. Rule 19 relies on the urgent mark waking its receiver: test that once with the `sandbox` bot before you rely on it, and again after an app update.
