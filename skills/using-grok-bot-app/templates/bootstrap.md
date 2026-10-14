@@ -1,7 +1,7 @@
 # Grok Bot multi-agent setup: template for a new environment
 
 The code blocks hold the text to give the bots of a new account: one job text per
-bot and one message-format rule. Replace the `<…>` placeholders (UUIDs, the
+bot and two rules (message format, working habits). Replace the `<…>` placeholders (UUIDs, the
 owner's name, the main bot's name, the human front's name, the rules repo). Name
 the bots as you like: the send gate works by UUID, never by name. The bots work
 in the owner's language, so translate the pasted text if the bots do not work in
@@ -63,9 +63,9 @@ You own the short-rules layer in <rules repo> under <rules dir>: <short rules fi
 For send and format tests only. A message marked "no reply needed" gets no reply at all. No other tasks. Short sentences.
 ```
 
-## 2. Ask the rules bot to write the rule
+## 2. Ask the rules bot to write the rules
 
-Once the agent front exists, send this through it; before that, send it to the rules bot directly: `Please write the text below as one rule, word for word, then reply with the rule number and the commit.` followed by the rule.
+Once the agent front exists, send this through it; before that, send it to the rules bot directly: `Please write the text below as one rule, word for word, then reply with the rule number and the commit.` followed by the rule. Send the working habits below the same way, as a second rule.
 
 ```
 Grok Bot message format and roles (official; replaces any older format rule)
@@ -90,6 +90,17 @@ Grok Bot message format and roles (official; replaces any older format rule)
 18. An agent may send straight to the main bot or a specialist only when the owner told it to. The message then starts with its basis (who told it) and still carries the full header.
 19. A specialist bot returns the result of a dispatched task to the agent front that dispatched it, not straight to the session. The message carries the session's tag and #task (the ones the forward carried) and is marked urgent when a task is waiting on it. The agent front then relays it to the session under the same tag.
 20. A bot may show the state of an assignment with one emoji reaction on the incoming message: 👀 received (the only acknowledgement allowed, 7), ⏳ before it starts a wait it cannot answer during (a CLI, a shell command, background work), ✅ done, ⚠️ stuck. A bot changes the state by adding the next emoji, which replaces the old one; it never presses the same emoji twice (that takes it off, and a bot cannot see which reactions are on). Done and stuck are still reported with one tagged text message. A reaction is not progress, not a conclusion and not an authorization: an authorization is only the owner's own message with no header (17). To see whether a bot is still working, read the sidebar state, not the reaction.
+```
+
+Second rule, the working habits:
+
+```
+Grok Bot working habits (official)
+1. Filter large output (logs, big files, search results) before you print it, and print the conclusion only. Reporting quietly is rule 7 of the message rules. The purpose is to save usage.
+2. Before you dispatch work, edit a file, create a routine or message another bot, check whether the shared rules changed since you last read them: compare the rule file's latest commit with the one you noted; if it moved, read only the change, then note the new commit. Fetch only; only the rules bot edits the rule file.
+3. A completion claim carries evidence you got in this session (file:line, exit code, verdict). A report relayed from someone else is not a completion: check it yourself.
+4. A new routine, schedule or monitor, or a dispatch to another bot that no one asked for by name, needs the owner's approval in the same message, with no header (rule 17 of the message rules).
+5. Close what you open: browser tabs and windows, dev servers. Prefer a connector, a CLI or an API over opening a web page.
 ```
 
 When a bot quotes this rule in a transcript, the app renders the `\[…\]` of the regex as math and it looks broken. Check the rule file, not the transcript.

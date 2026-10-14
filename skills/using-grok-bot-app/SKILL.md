@@ -283,7 +283,7 @@ then write `front` and `sandbox` into the role file above.
 | sandbox | send and format tests; no reply to a notice marked "no reply needed" |
 
 Naming is the owner's choice and never matters to the gate. `templates/bootstrap.md` has the text to
-paste: one request per missing bot to the main bot, the full rule for RULES, and a
+paste: one request per missing bot to the main bot, the two rules for RULES, and a
 check on `sandbox`. For each missing one, ask the main bot to create it with that
 job, and wait for its UUID. No main bot means no
 account to build on: ask the owner. Then ask the rules bot to write
