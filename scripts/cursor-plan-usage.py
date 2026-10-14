@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Inject Cursor plan usage into a statusline JSON payload.
+"""Record Cursor plan usage for the claude-hud statusline.
 
 Claude Code already sends rate_limits on stdin; this is a no-op in that case.
-Cursor CLI does not, so we fill rate_limits.model_scoped from GetCurrentPeriodUsage:
-plan (totalPercentUsed), auto (autoPercentUsed), api (apiPercentUsed).
+Cursor CLI does not. claude-hud 0.11.2 reads model-scoped windows only from an
+external snapshot, not from stdin rate_limits.model_scoped, so we write
+~/.cursor/statusline-usage-snapshot.json (plan / auto / api). The statusline
+script points the HUD at that file for Cursor renders only.
 
 Cache (~/.cursor/statusline-usage-cache.json) stores percents + reset time only.
 The access token is read from the macOS keychain (or Cursor IDE state.vscdb)
@@ -23,6 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 CACHE_PATH = Path.home() / ".cursor" / "statusline-usage-cache.json"
+SNAPSHOT_PATH = Path.home() / ".cursor" / "statusline-usage-snapshot.json"
 CACHE_TTL_MS = 60_000
 CACHE_MAX_STALE_MS = 24 * 60 * 60 * 1000
 FETCH_TIMEOUT_S = 1.8
@@ -255,16 +258,25 @@ def scoped_window(name: str, percent: int, resets_at: str | None) -> dict:
     return window
 
 
-def inject(payload: dict, usage: dict) -> dict:
+def write_snapshot(usage: dict) -> None:
+    """HUD 0.11.2 shape. updated_at is this render, so a stale-but-served cache stays visible."""
     resets_at = usage.get("resets_at") if isinstance(usage.get("resets_at"), str) else None
-    payload["rate_limits"] = {
+    snapshot = {
+        "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model_scoped": [
             scoped_window("plan", usage["percent"], resets_at),
             scoped_window("auto", usage["auto"], resets_at),
             scoped_window("api", usage["api"], resets_at),
-        ]
+        ],
     }
-    return payload
+    try:
+        SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = SNAPSHOT_PATH.with_name(f".{SNAPSHOT_PATH.name}.{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(snapshot, separators=(",", ":")))
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, SNAPSHOT_PATH)
+    except OSError:
+        return
 
 
 def main() -> int:
@@ -285,7 +297,7 @@ def main() -> int:
         return 0
     usage = get_plan_usage()
     if usage is not None:
-        payload = inject(payload, usage)
+        write_snapshot(usage)
     json.dump(payload, sys.stdout, separators=(",", ":"))
     return 0
 

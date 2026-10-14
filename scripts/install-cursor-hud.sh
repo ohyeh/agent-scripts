@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Restore the shared Claude/Cursor statusline scripts and point both runtimes
 # at them. Never copies ~/.cursor/cli-config.json (auth). Merges statusLine
-# only when that file already exists.
+# only when that file already exists. Also sets claude-hud's externalUsagePath
+# placeholder when that key is missing, so Cursor plan usage can reach the HUD.
 #
 # Usage: scripts/install-cursor-hud.sh
 set -euo pipefail
@@ -62,6 +63,22 @@ if [ -f "$CLAUDE_SETTINGS" ]; then
   echo "PASS [cursor-hud] Claude settings.json statusLine command"
 else
   echo "WARN [cursor-hud] no ~/.claude/settings.json; Claude statusLine not wired" >&2
+fi
+
+HUD_OVERRIDE="${HOME}/.claude/claude-hud.json"
+usage_path_placeholder='${CURSOR_STATUSLINE_USAGE_SNAPSHOT}'
+if [ -f "$HUD_OVERRIDE" ] && jq -e '.display.externalUsagePath | type == "string" and length > 0' "$HUD_OVERRIDE" >/dev/null; then
+  echo "PASS [cursor-hud] claude-hud.json externalUsagePath already set"
+else
+  mkdir -p "${HOME}/.claude"
+  tmp="$(mktemp)"
+  if [ -f "$HUD_OVERRIDE" ]; then
+    jq --arg p "$usage_path_placeholder" '.display.externalUsagePath = $p' "$HUD_OVERRIDE" > "$tmp"
+  else
+    jq -n --arg p "$usage_path_placeholder" '{display:{externalUsagePath:$p}}' > "$tmp"
+  fi
+  mv "$tmp" "$HUD_OVERRIDE"
+  echo "PASS [cursor-hud] set claude-hud.json externalUsagePath"
 fi
 
 echo "PASS [cursor-hud] $HUD_DST (md5=$hud_src_md5) $USAGE_DST (md5=$usage_src_md5)"

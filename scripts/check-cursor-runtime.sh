@@ -36,6 +36,13 @@ fi
 
 [ -x "$HUD" ] || say_fail "missing executable \$HOME/.claude/claude-hud-statusline.sh"
 [ -x "$USAGE" ] || say_fail "missing executable \$HOME/.claude/cursor-plan-usage.py"
+HUD_OVERRIDE="${HOME}/.claude/claude-hud.json"
+usage_path_placeholder='${CURSOR_STATUSLINE_USAGE_SNAPSHOT}'
+if [ -f "$HUD_OVERRIDE" ] && jq -e --arg p "$usage_path_placeholder" '.display.externalUsagePath == $p' "$HUD_OVERRIDE" >/dev/null; then
+  say_pass "claude-hud.json externalUsagePath"
+else
+  say_fail "claude-hud.json externalUsagePath is not the Cursor snapshot placeholder"
+fi
 if [ -x "$HUD" ] && [ -x "$USAGE" ]; then
   say_pass "HUD scripts in ~/.claude/"
 fi
