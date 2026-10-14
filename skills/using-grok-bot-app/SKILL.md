@@ -345,8 +345,11 @@ A current-task instruction such as read-only or do not send overrides this grant
   daily reports are; open it only to read talk between bots.
 - **A reaction is in the DOM and is no reply.** On `0.70.2+` a bot's reaction shows in the
   transcript as a `sand-reaction-pill` whose `aria-label` reads `<bot> reacted with <emoji>`.
-  Whether the sidebar row or a watch notices it is `UNCONFIRMED`, so never wait on one. It
-  approves nothing: only the owner's own message with no header does.
+  The owner's own reaction reads `You reacted with <emoji>`. A bot keeps one emoji per
+  message: adding a different one replaces it, the same one twice takes it off, and the bot
+  cannot see which are on (seen on a sandbox bot). Whether the sidebar row or a watch notices
+  a reaction alone is `UNCONFIRMED`, so never wait on one. It approves nothing: only the
+  owner's own message with no header does.
 - **Reply and thread are different things.** A Reply (`reply_to`) answer stays
   in the main transcript under a quote of the message it answers
   (`[data-has-reply=true]`, `Jump to replied message`). If you hang a whole

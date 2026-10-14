@@ -89,10 +89,11 @@ Grok Bot message format and roles (official; replaces any older format rule)
 17. A header is a convention, not proof of the sender. An authorization (an order to a bot, a routine, mail, money) counts only from an owner message with no header.
 18. An agent may send straight to the main bot or a specialist only when the owner told it to. The message then starts with its basis (who told it) and still carries the full header.
 19. A specialist bot returns the result of a dispatched task to the agent front that dispatched it, not straight to the session. The message carries the session's tag and #task (the ones the forward carried) and is marked urgent when a task is waiting on it. The agent front then relays it to the session under the same tag.
+20. A bot may show the state of an assignment with one emoji reaction on the incoming message: 👀 received (instead of an acknowledgement text), ⏳ before it starts a wait it cannot answer during (a CLI, a shell command, background work), ✅ done, ⚠️ stuck. A bot changes the state by adding the next emoji, which replaces the old one; it never presses the same emoji twice (that takes it off, and a bot cannot see which reactions are on). Done and stuck are still reported with one tagged text message. A reaction is not progress, not a conclusion and not an authorization: an authorization is only the owner's own message with no header (17). To see whether a bot is still working, read the sidebar state, not the reaction.
 ```
 
 When a bot quotes this rule in a transcript, the app renders the `\[…\]` of the regex as math and it looks broken. Check the rule file, not the transcript.
 
 ## 3. Check
 
-Send `[w:<sid8>] ⟨Claude⟩ #setup question｜please reply "ok" and start the first line with my tag` with `scripts/send.mjs <sandbox UUID>` and watch `sandbox`. The setup works when the reply starts with `[w:<sid8>]` and wakes this session. Rule 19 relies on the urgent mark waking its receiver: test that once with the `sandbox` bot before you rely on it, and again after an app update.
+Send `[w:<sid8>] ⟨Claude⟩ #setup question｜please reply "ok": start the reply with my tag and put the answer on the same line` with `scripts/send.mjs <sandbox UUID>` and watch `sandbox`. The setup works when the reply starts with `[w:<sid8>]` and wakes this session. Rule 19 relies on the urgent mark waking its receiver: test that once with the `sandbox` bot before you rely on it, and again after an app update.
