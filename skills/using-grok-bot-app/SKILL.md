@@ -276,7 +276,7 @@ then write `front` and `sandbox` into the role file above.
 
 | Role | Job |
 |---|---|
-| main bot | the account's own bot: creates the others and takes no daily work; agents go through the agent front |
+| main bot | the account's own bot: creates the others and takes the escalations the fronts cannot decide; no daily work, agents go through the agent front |
 | human front | serves the owner only (the agent front hands it what needs the owner) |
 | agent front | the job above; escalates to the main bot directly (through the human front only if the owner chose that) |
 | rules | keeps the team's short rules (the message format above) and syncs shared memory |
