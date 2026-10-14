@@ -76,8 +76,8 @@ Grok Bot message format and roles (official; replaces any older format rule)
 4. #task uses lowercase letters, digits and hyphens; whoever opens the topic names it and everyone keeps it. kind is optional, one word of: question, result, progress, notice, assignment; no other kinds.
 5. A broadcast uses [w:*] only. No tag does not mean broadcast: a message with no tag is the owner's, and its reply carries no tag.
 6. Roles: <agent front> serves agents only and <human front> serves the owner only. Agents always go to <agent front>, never to a specialist bot or <human front>.
-7. No result, no message. No acknowledgement and no progress note, and a forwarder does not report the forward: report once, when done or stuck, with the conclusion and evidence.
-8. A notice marked "no reply needed" (noreply, FYI): no reply at all, not even an acknowledgement.
+7. No result, no message. No acknowledgement text and no progress note (rule 20 allows one reaction), and a forwarder does not report the forward: report once, when done or stuck, with the conclusion and evidence.
+8. A notice marked "no reply needed" (noreply, FYI): no reply at all, not even an acknowledgement, and no reaction.
 9. reply_to answers one older message only; never hang a whole task on one message.
 10. Send and format tests go to the sandbox bot only. The one exception is testing the agent front's forwarding: send to the agent front, ask it to forward to the sandbox bot, and say in the message that it is a test.
 11. watch is only a reminder. When a reply is late, read the agent front's conversation and look for your own tag plus #task; the task is not done until you find the conclusion.
