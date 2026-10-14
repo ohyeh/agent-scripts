@@ -14,6 +14,10 @@
 //                was switched, or the app is slow): check the app before resending
 //   empty        no text on stdin
 //   bad-id       the id is not 8–36 chars of a UUID
+//   bad-header   the text does not start with `[w:<sid8>] ⟨<agent>⟩` (an unmarked message reads as Paul's)
+//   no-roles     the role file names no front (printed: missing, file); the default send is refused
+//   not-front    the bot is neither the front nor the sandbox of the role file
+//   no-basis     --direct without a basis, or the basis is not written in the message
 //   down         the port does not answer (ensure.mjs brings it back)
 //   no-bot       no sidebar row for that id; ambiguous: more than one
 //   draft        the composer already holds text; nothing changed
@@ -26,9 +30,16 @@
 //   failed       a CDP call threw; timeout: the whole run took over 15 s (the
 //                message may or may not have gone: check the app)
 // When it opened the bot, it opens the bot that was open before again (unless another was opened meanwhile).
-// Usage: send.mjs <bot-uuid-or-prefix> [port] < message   (port: $GROK_BOT_CDP_PORT, else 39231)
+// Usage: send.mjs <bot-uuid-or-prefix> [port] [--direct <basis>] < message
+//   port:  $GROK_BOT_CDP_PORT, else 39231
+//   roles: $GROK_BOT_ROLES, else ~/.claude/grok-bot-watch/roles.json: {"front": "<uuid>", "sandbox": "<uuid>"}.
+//          Kept on this machine, not in the repo: bot UUIDs differ per account.
+// An agent sends to the front (or the sandbox) by default. --direct <basis> is for a send Paul told you to make to
+// another bot: it relaxes the recipient only, the header stays required, and the basis ("Paul 14:30 指示") must be
+// written in the message so the bot and the log can see which instruction it rests on.
 
-import { realpathSync } from 'node:fs'
+import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
 const RENDERER = /app\.asar\/dist\/renderer\/index\.html$/
@@ -37,6 +48,58 @@ const ID_RE = /^[0-9a-f-]{8,36}$/
 const WAIT_MS = 5000
 
 const norm = s => s.replace(/\s+/g, ' ').trim()
+
+/**
+ * What an agent's message starts with: its session's tag and its mark, or `[w:*]` for a broadcast. The `｜` and the rest
+ * of the header are not checked: the grok-bot-watch panel sends `<tag> ⟨Claude⟩ <text>` without them. This still stops a
+ * mistyped tag such as `[w:t254u]` from reading as one of Paul's untagged messages.
+ */
+export const HEADER_RE = /^\s*\[w:([0-9a-z]{8}|\*)\] ⟨[A-Za-z]+⟩/
+
+/** `<id> [port] [--direct <basis>]`: --direct takes the next word; with none its basis is ''. */
+export function parseArgs(argv, env = process.env) {
+  const a = [...argv]
+  const i = a.indexOf('--direct')
+  const direct = i < 0 ? undefined : (a.splice(i, 2)[1] ?? '')
+  return { id: (a[0] ?? '').toLowerCase(), port: Number(a[1] || env.GROK_BOT_CDP_PORT || 39231), direct }
+}
+
+/** The role file; a missing or unreadable one gives no roles and its error class, never a throw. */
+export function loadRoles(env = process.env, read = p => readFileSync(p, 'utf8')) {
+  const file = env.GROK_BOT_ROLES || `${env.HOME || homedir()}/.claude/grok-bot-watch/roles.json`
+  try {
+    const roles = JSON.parse(read(file))
+    return { file, roles: roles && typeof roles === 'object' ? roles : {} }
+  } catch (e) {
+    return { file, roles: {}, error: e?.code ?? e?.name }
+  }
+}
+
+/**
+ * Who an agent may send to: the front and the sandbox of the role file, by UUID and never by name (names are each
+ * account's own habit). The header is checked on every send; --direct relaxes the recipient only, and its basis has to
+ * be written in the message. Returns null to go on, else the state to print.
+ */
+export function gate({ roles, file, error }, id, text, direct) {
+  if (!HEADER_RE.test(text)) return { state: 'bad-header' }
+  if (direct !== undefined) return direct.trim() && text.includes(direct.trim()) ? null : { state: 'no-basis' }
+  if (typeof roles.front !== 'string' || !roles.front) return { state: 'no-roles', missing: ['front'], file, ...(error && { error }) }
+  const ok = [roles.front, roles.sandbox].some(u => typeof u === 'string' && u.toLowerCase().startsWith(id))
+  return ok ? null : { state: 'not-front', front: roles.front.slice(0, 8) }
+}
+
+/**
+ * After a send, one small file per session and bot: grok-bot-watch reads it to tell "you messaged this bot and a reply came
+ * back without your tag" (its answer may sit above an option card) from a chat between Paul and the bot. A broadcast
+ * has no session to mark. The message already went, so the caller treats a failure here as a stderr line, not a state.
+ */
+export function markSent(text, id, env = process.env, now = Date.now(), fs = { mkdirSync, writeFileSync }) {
+  const sid = HEADER_RE.exec(text)?.[1]
+  if (!sid || sid === '*') return
+  const dir = `${env.HOME || homedir()}/.claude/grok-bot-watch/sent`
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(`${dir}/${sid}-${id.slice(0, 8)}.json`, JSON.stringify({ at: now }))
+}
 
 /**
  * The send, over injected effects so the test drives it without an app. d: count(id) → rows matching,
@@ -181,7 +244,7 @@ export function effects(ev) {
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const port = Number(process.argv[3] || process.env.GROK_BOT_CDP_PORT || 39231)
+  const { id, port, direct } = parseArgs(process.argv.slice(2))
   let said = false
   const say = (state, extra = {}) => {
     if (said) return
@@ -191,13 +254,32 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
   setTimeout(() => say('timeout'), 3 * WAIT_MS).unref()
   let text = ''
   for await (const chunk of process.stdin) text += chunk
-  const id = (process.argv[2] ?? '').toLowerCase()
   // Validated before any connection: the id goes into page scripts.
   const early = !norm(text) ? 'empty' : !ID_RE.test(id) ? 'bad-id' : null
+  const refused = early ? null : gate(loadRoles(), id, text, direct)
   if (early) say(early)
-  else {
+  else if (refused) {
+    const { state, ...why } = refused
+    say(state, why)
+  } else {
     const c = await cdp(port).catch(() => null)
     if (!c) say('down')
-    else send(c.d, id, text).then(s => (c.close(), say(s, { bot: id })), e => (c.close(), say('failed', { error: String(e) })))
+    else {
+      send(c.d, id, text).then(
+        s => {
+          c.close()
+          // Marked on "unconfirmed" too: it may have gone, and a mark with no reply only means no caveat wake.
+          if (s === 'sent' || s === 'unconfirmed') {
+            try {
+              markSent(text, id)
+            } catch (e) {
+              process.stderr.write(`marker not written: ${e?.code ?? e?.name}\n`)
+            }
+          }
+          say(s, { bot: id, ...(direct !== undefined && { direct }) })
+        },
+        e => (c.close(), say('failed', { error: String(e) })),
+      )
+    }
   }
 }

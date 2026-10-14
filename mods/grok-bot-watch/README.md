@@ -67,7 +67,9 @@ is the same path as the `watch` tool. Mobile has no text field: use the command.
 The open row starts with a reply line (the workers panel's tell line): type
 and Enter sends it to that bot, prefixed with this session's tag and the sender
 mark `⟨Claude⟩` so its answer wakes this session only (Sharing a bot between
-sessions); text that already starts with a tag goes as typed. `bin/send.mjs`
+sessions); a tag you type is kept, never doubled, and the mark follows it. Paul types
+it himself, so it goes with `--direct` (basis `Paul 面板指示`, written after the mark):
+the skill's gate would refuse any bot but the front and the sandbox otherwise. `bin/send.mjs`
 opens the bot in the app, sends it and opens the bot that was open before again; a toast says `sent`, `… check the app before resending` when it may
 have gone but was not seen (`unconfirmed`, `timeout`, `failed`, or the helper run
 itself failing), or why not. A
@@ -108,6 +110,15 @@ wake a session (0.9.0, NOVA consensus 2026-10-04):
 | `[w:<sid8>]` | an answer to that session | that session only |
 | `[w:*]` | a broadcast, e.g. a RULES announcement | every watcher |
 | no tag | an answer to Paul (his messages carry no tag) | nobody; recorded as seen |
+| no tag, within 2 hours of your send | maybe a card or note on top of your answer (0.12.0) | you, once, with a caveat |
+
+A turn can end on an option card or a note with no tag, its tagged answer just
+above it (NOVA's card on 2026-10-14 never woke). For the open bot the newest
+message new since the last read that is tagged for this session beats a later card.
+For the rest, `bin/send.mjs` leaves `~/.claude/grok-bot-watch/sent/<tag>-<bot8>.json`
+(`{at}`) when it sends: an untagged reply that settles within 2 hours of it, with no
+wake since, wakes you once with a caveat to read the conversation. Any wake spends the mark.
+A chat between Paul and the bot in those 2 hours can cost one extra wake.
 
 The app shows Paul's messages and ours as `You`, so the tag and the mark are the
 only way the bot and Paul tell them apart. The tag is a UUID session id's first
@@ -166,7 +177,11 @@ within 2.5 s. The panel adds `no-process` (no `node`) and `helper-failed`
 (the run itself failed; the error is in the debug log). It sends no other CDP method.
 
 `bin/send.mjs` (the skill's `scripts/send.mjs`) is the only writer. It reads the
-message from stdin and clicks the bot's sidebar row unless it is already open.
+message from stdin and refuses before it touches the app: `bad-header` (the text does
+not start with `[w:<sid8>] ⟨agent⟩`), `no-roles` (no `front` in the role file
+`~/.claude/grok-bot-watch/roles.json` or `$GROK_BOT_ROLES`), `not-front` (a bot that is neither the front nor
+the sandbox of that file), `no-basis` (`--direct <basis>` with no basis, or one not written in
+the message; `--direct` relaxes the recipient only). Then it clicks the bot's sidebar row unless it is already open.
 The send is one `Runtime.evaluate`, so no click or keystroke lands between its
 checks and its actions: the bot is open and the composer empty, paste, the
 composer holds the text (whitespace-normalized); then 50 ms for the app's form

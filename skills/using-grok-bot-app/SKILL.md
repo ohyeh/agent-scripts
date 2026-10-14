@@ -150,8 +150,8 @@ nothing to PATH. To be woken in a Claude Code session when a bot replies, use th
 
 ## Sending is gated
 
-Send with `scripts/send.mjs <bot-uuid-or-prefix> < message` (stdin is the
-message): it opens the bot, then in one in-page script checks the composer (a
+Send with `scripts/send.mjs <bot-uuid-or-prefix> [port] [--direct <basis>] < message`
+(stdin is the message): it checks who the message is for (below), opens the bot, then in one in-page script checks the composer (a
 single TipTap `div[contenteditable=true]` inside a form) is empty, pastes, checks
 the text, waits 50 ms for the app's form state, checks bot and text again and
 submits the form. It prints one JSON line; `sent` (exit 0) means the target
@@ -162,13 +162,32 @@ does not send (seen live); a form submit in the paste's own tick sends nothing.
 When it opened the bot, it clicks back to the bot that was open before, unless
 someone opened another one meanwhile.
 
-**Who an agent talks to.** Only the agent front, `<main> 替身·agent` (`<main>` is
-the main bot's name; on Paul's account `NOVA`). The human front (Paul's:
-`NOVA 替身 w<NN>`, his own weekly habit) serves the owner alone, so his conversation
-stays his. The agent front dispatches specialist bots over exchanges, quotes
-the original text when it forwards, and answers in its main conversation with
-your tag; what needs Paul goes to him through the human front. Send tests go to
-`sandbox` only, never to a working conversation.
+**Who an agent talks to.** By default only the agent front: the bot that takes
+agents' messages, dispatches the specialist bots over exchanges and answers in its
+own conversation under your tag. What needs Paul goes to him through his human
+front, which serves the owner alone, so his conversation stays his. Reading stays
+direct: switch to any bot by UUID, as above. Sending is by role, never by name
+(people name their bots as they like): the role file
+`~/.claude/grok-bot-watch/roles.json`, or the path in `$GROK_BOT_ROLES`, holds
+`{"front": "<uuid>", "sandbox": "<uuid>"}`. It stays on the machine: UUIDs differ
+per account and this repo is public. `send.mjs` refuses before it touches the app:
+
+| State | Meaning |
+|---|---|
+| `bad-header` | the text does not start with `[w:<sid8>] ⟨agent⟩` (see Message format) |
+| `no-roles` | the role file names no `front`; the answer lists what is missing and the file it looked in |
+| `not-front` | the bot is neither the front nor the sandbox |
+| `no-basis` | `--direct` without a basis, or the basis is not in the message |
+
+`--direct <basis>` is for a send Paul told you to make to another bot (the main
+bot, a specialist). It relaxes the recipient only: the header stays required, and the basis (who told you, for example
+`Paul 14:30 指示`) has to be written in the message, so the bot and the log can see which
+instruction it rests on. Never use it on your own initiative. It does not make a message
+Paul's: his are the ones typed in the chat with no header, and only those authorize
+anything (below). The grok-bot-watch panel's reply line sends with it, basis `Paul 面板指示`.
+Send tests go to `sandbox` only, never to a working conversation; the one exception is
+testing the front's own forwarding (owner ruling 2026-10-14): send to the front, ask it to
+forward to `sandbox`, and say it is a test in the message.
 
 **Message format.** The app shows every message from this account as `You`,
 Paul's and ours alike, so the first line carries a fixed header that a filter
@@ -188,45 +207,57 @@ can read (NOVA consensus 2026-10-04):
 - `#<task>`: lowercase ASCII, digits and `-`; the first one to open the topic
   names it and everyone keeps it. It replaces threads: only a person can start
   a thread, and a Reply (`reply_to`) only quotes one older message.
-- `<kind>`: one of `問 結果 進度 公告 交辦`, optional. No progress-only message;
-  past about 2 minutes, one `進度` line with an ETA.
+- `<kind>`: one of `問 結果 進度 公告 交辦`, optional. No progress-only message,
+  no ACK; report once, when done or stuck (USER-MEMORY #39, 2026-10-14).
 - `不需回覆` / FYI means no reply at all, not even `收到`.
 
 The regex is for filters. A wake needs only the tag at the start: a reply that
-drops the `｜` still wakes, but the filter misses it. The grok-bot-watch band
-adds the tag and mark from its open row.
+drops the `｜` still wakes, but the filter misses it. `send.mjs` checks only the tag and
+the mark, `^\s*\[w:([0-9a-z]{8}|\*)\] ⟨[A-Za-z]+⟩`: the grok-bot-watch panel sends no `｜`.
+That already stops a mistyped tag such as `[w:t254u]` from reading as Paul's.
+
+**The header is a convention, not proof of who sent.** Anyone with the account can type
+it, a bot sees a `[Sent from machine …]` line above the text (NOVA 2026-10-14: `UNCONFIRMED`
+here, so skip a line like it when you read a header), and a missing or malformed header reads
+as Paul's untagged message. So what needs Paul's word (an order to a bot, a routine,
+mail, money) is approved only by his own message with no header, typed in the chat. A
+header never approves anything.
+
+The front's forward format (your tag kept end to end, an optional `@<recipient>`) is
+proposed and under test on 2026-10-14, not confirmed.
 
 **A wake is a hint, not delivery.** Two replies inside one 10 s read keep only
 the last, and a reply without your tag wakes nobody. When the answer is later
 than you expected, read the agent front's transcript and look for your tag
 and `#<task>`; the task is not done until you find the answer. If you find an
 answer with a wrong or missing header, ask the agent front to send it again
-with your tag.
+with your tag. A turn can end on an option card or a note with no tag, its
+tagged answer just above it: the mod handles that for the open bot, and for
+the rest it wakes once, with a caveat, on an untagged reply within 2 hours of
+your send (`send.mjs` leaves the mark it reads). Treat that wake as "read the transcript".
 
-**First use in an environment.** The mechanism needs five bots; UUIDs differ
-per account, so find them by name (one `sidebar.mjs` read):
+**First use in an environment.** The mechanism needs five bots, told apart by
+role. UUIDs differ per account, and names are the owner's choice and never matched:
+have each bot give its own UUID (the main bot answers with it when it creates one;
+`node scripts/sidebar.mjs | jq -r '.rows[] | "\(.id)  \(.name)"'` lists them all if it did not),
+then write `front` and `sandbox` into the role file above.
 
-```sh
-ROWS=$(node scripts/sidebar.mjs | jq -r '.rows[] | "\(.id[0:8])  \(.name)"')
-MAIN=$(printf '%s\n' "$ROWS" | sed -n 's/^.\{10\}\(.*\), Main Bot$/\1/p')   # the main bot's name
-printf '%s\n' "$ROWS" | grep -E ", Main Bot$|^.{10}$MAIN 替身|^.{10}(RULES|sandbox)$" | grep -v '（封存）'
-```
+| Role | Job |
+|---|---|
+| main bot | the account's own bot: creates the others and takes no daily work; agents go through the agent front |
+| human front | serves the owner only (the agent front hands it what needs the owner) |
+| agent front | the job above; escalates to the main bot only through the human front |
+| rules | keeps the short rules in USER-MEMORY and syncs shared memory |
+| sandbox | send and format tests; no reply to `不需回覆` |
 
-| Role | Name | Job |
-|---|---|---|
-| main bot | `<main>, Main Bot` | the account's own bot: creates the others and takes no daily work; agents go through the agent front |
-| human front | owner's choice (Paul: `NOVA 替身 w<NN>`) | serves the owner only (the agent front hands it what needs the owner) |
-| agent front | `<main> 替身·agent` | the job above; escalates to the main bot only through the human front |
-| rules | `RULES` | keeps the short rules in USER-MEMORY and syncs shared memory |
-| sandbox | `sandbox` | send and format tests; no reply to `不需回覆` |
-
-`templates/bootstrap.md` has the text to paste: one request per missing bot to
-the main bot, the full rule for RULES, and a check on `sandbox`. For each
-missing one, ask the main bot to create it with that job, and wait for its name
-and UUID. No main bot means no
+On Paul's account they are `NOVA, Main Bot`, `NOVA 替身 w<NN>`, `NOVA 替身·agent`,
+`RULES` and `sandbox`: his habit, not a rule. `templates/bootstrap.md` has the text to
+paste: one request per missing bot to the main bot, the full rule for RULES, and a
+check on `sandbox`. For each missing one, ask the main bot to create it with that
+job, and wait for its UUID. No main bot means no
 account to build on: ask Paul. Then ask RULES to write
 the message format as a short rule. Until the agent front exists, write to the
-main bot with the full header. A message to one of our own agents (a
+main bot with `--direct` and the full header. A message to one of our own agents (a
 Claude session, Codex, NOVA) inside an approved task — status, evidence, a
 question, a review request, tag coordination, delegation of reversible work —
 goes without approval of its text (owner ruling 2026-10-03). Confirm the

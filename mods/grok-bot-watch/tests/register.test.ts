@@ -33,8 +33,8 @@ function world(
   let lookups = 0
   let spawnErrors = 0
   const ensures: string[] = []
-  /** Every bin/send.mjs run: its bot argument and the message on its stdin. */
-  const sends: Array<{ bot: string; stdin: string }> = []
+  /** Every bin/send.mjs run: its bot argument, its --direct basis and the message on its stdin. */
+  const sends: Array<{ bot: string; direct?: string; stdin: string }> = []
   on('session.id', () => ({ value: opts.sid ?? 'sess-A' }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('tool.register', ($, e) => ({ value: { tool: e.name } }))
@@ -71,7 +71,7 @@ function world(
     }
     if (e.argv[0] !== '/n/node') throw new Error(`spawn ENOENT ${e.argv[0]}`)
     if (e.argv[1]?.endsWith('/bin/send.mjs')) {
-      sends.push({ bot: e.argv[2]!, stdin: String(e.init?.stdin) })
+      sends.push({ bot: e.argv[2]!, direct: e.argv[3] === '--direct' ? e.argv[4] : undefined, stdin: String(e.init?.stdin) })
       if (opts.sendState === 'THROW') throw new Error('process.run: timed out')
       return { value: { exitCode: 0, stdout: JSON.stringify({ state: opts.sendState ?? 'sent', port: 39231 }), stderr: '' } }
     }
@@ -1011,6 +1011,103 @@ describe('open bot reads its transcript 0.11.0', () => {
     const wake = (files.get('/h/.claude/grok-bot-watch/events/sess-A.jsonl') ?? '').split('\n').filter(Boolean).map(l => JSON.parse(l)).find(e => e.ev === 'wake')
     expect(wake).toMatchObject({ cur: true, un: false })
   })
+
+  // 0.12.0: a turn can end on a card or a note that carries no tag, its tagged answer just above it
+  // (NOVA's "W41 retro 下一步？" card, 10/14: the wake never came).
+  const answer = { who: 'NOVA', text: '[w:*] 三點意見如下', at: '9:40 PM' }
+  const card = { who: 'NOVA', text: 'W41 retro 下一步？', at: '9:41 PM' }
+  const cardRow = nova('', 'idle', { preview: 'W41 retro 下一步？' })
+
+  test('a turn that ends on an untagged card keeps the tagged answer above it: one wake, with the answer', async ($, on) => {
+    const clock = mock.clock(on)
+    const c3 = [...c1, answer, card]
+    const w = world(on, [withC(c1, nova('A')), withC(c3, cardRow), withC(c3, cardRow)])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    expect(w.woken).toHaveLength(1)
+    expect(w.woken[0]).toContain('preview: [w:*] 三點意見如下')
+  })
+
+  test('the card does not wake again, and a later tagged reply does', async ($, on) => {
+    const clock = mock.clock(on)
+    const c3 = [...c1, answer, card]
+    const c4 = [...c3, { who: 'NOVA', text: '[w:*] 補一點', at: '9:50 PM' }]
+    const w = world(on, [withC(c1, nova('A')), withC(c3, cardRow), withC(c3, cardRow), withC(c4, nova('A')), withC(c4, nova('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 5)
+    expect(w.woken).toHaveLength(2)
+    expect(w.woken[1]).toContain('補一點')
+  })
+
+  test("another session's reply below mine does not take my answer", async ($, on) => {
+    const clock = mock.clock(on)
+    const other = { who: 'NOVA', text: '[w:0e9cd37b] 給別人', at: '9:41 PM' }
+    const c3 = [...c1, answer, other]
+    const w = world(on, [withC(c1, nova('A')), withC(c3, nova('', 'idle', { preview: '[w:0e9cd37b] 給別人' })), withC(c3, nova('', 'idle', { preview: '[w:0e9cd37b] 給別人' }))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    expect(w.woken).toHaveLength(1)
+    expect(w.woken[0]).toContain('三點意見如下')
+  })
+
+  // The sent mark bin/send.mjs writes: this session messaged the bot, then an untagged reply settled.
+  const sentMark = (on: On, at?: number) => {
+    const isMark = (p: string) => /^\/h\/\.claude\/grok-bot-watch\/sent\/[0-9a-z]{8}-201040cc\.json$/.test(p)
+    on('env.get', ($, e) => ({ value: e.name === 'HOME' ? '/h' : undefined }))
+    on('fs.exists', ($, e) => ({ value: at !== undefined && isMark(e.path) }))
+    on('fs.read', ($, e) => ({ value: at !== undefined && isMark(e.path) ? JSON.stringify({ at }) : '' }))
+    on('fs.write', () => ({ value: undefined }))
+  }
+  const c5 = [...c1, card]
+
+  test('an untagged reply right after this session sent to the bot wakes once, saying its answer may sit above', async ($, on) => {
+    const clock = mock.clock(on)
+    sentMark(on, clock.now())
+    const w = world(on, [withC(c1, nova('A')), withC(c5, cardRow), withC(c5, cardRow)])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    expect(w.woken).toHaveLength(1)
+    expect(w.woken[0]).toContain('this session messaged this bot')
+    expect(w.woken[0]).toContain('preview: W41 retro 下一步？')
+  })
+
+  test('the same on a bot that is not open: its preview is the card', async ($, on) => {
+    const clock = mock.clock(on)
+    sentMark(on, clock.now())
+    const off = { current: false }
+    const w = world(on, [ok(row('A', 'idle', off)), ok(row('', 'idle', { preview: 'W41 retro 下一步？', ...off })), ok(row('', 'idle', { preview: 'W41 retro 下一步？', ...off }))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    expect(w.woken).toHaveLength(1)
+    expect(w.woken[0]).toContain('this session messaged this bot')
+  })
+
+  test('no sent mark, or one older than two hours: an untagged reply wakes nobody', async ($, on) => {
+    const clock = mock.clock(on)
+    sentMark(on, clock.now() - 3 * 3600_000)
+    const w = world(on, [withC(c1, nova('A')), withC(c5, cardRow), withC(c5, cardRow)])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 3)
+    expect(w.woken).toHaveLength(0)
+  })
+
+  test('one sent mark buys one caveat wake: a second untagged note after it wakes nobody', async ($, on) => {
+    const clock = mock.clock(on)
+    sentMark(on, clock.now())
+    const c6 = [...c5, { who: 'NOVA', text: '再補一句', at: '9:45 PM' }]
+    const w = world(on, [withC(c1, nova('A')), withC(c5, cardRow), withC(c5, cardRow), withC(c6, nova('', 'idle', { preview: '再補一句' })), withC(c6, nova('', 'idle', { preview: '再補一句' }))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await clock.advance(TICK * 5)
+    await macrotask()
+    expect(w.woken).toHaveLength(1)
+  })
 })
 
 /** The bot-id field is drawn: an Input's placeholder is no Text, so look for its key. */
@@ -1094,7 +1191,9 @@ describe('reply from the panel 0.8.0', () => {
     await macrotask()
     expect(w.sends).toHaveLength(1)
     expect(w.sends[0]!.bot).toBe(UUID)
-    expect(w.sends[0]!.stdin).toMatch(/^\[w:[0-9a-z]{8}\] ⟨Claude⟩ hi there$/)
+    // Paul types it in the panel: send.mjs's --direct, with its basis written in the message (the gate needs both).
+    expect(w.sends[0]!.stdin).toMatch(/^\[w:[0-9a-z]{8}\] ⟨Claude⟩ （Paul 面板指示）hi there$/)
+    expect(w.sends[0]!.direct).toBe('Paul 面板指示')
     expect(w.toasts).toContain('grok-bot-watch: sent to NOVA')
   })
 
@@ -1114,7 +1213,7 @@ describe('reply from the panel 0.8.0', () => {
     const tag = w.sends[0]!.stdin.slice(0, 12)
     await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: `${tag} again`, requestId: 'above-prompt' })
     await macrotask()
-    expect(w.sends[1]!.stdin).toBe(`${tag} again`)
+    expect(w.sends[1]!.stdin).toBe(`${tag} ⟨Claude⟩ （Paul 面板指示）again`)
   })
 
   test('a send that may have gone says check the app, not sent and not refused', async ($, on) => {
