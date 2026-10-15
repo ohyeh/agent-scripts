@@ -55,8 +55,13 @@ watch is never shown: a wake belongs to the conversation that armed it.
 | `✦` new reply | woke this session in the last 2 minutes |
 | `▲` a state | the read failed (`port-down`, …); fixes: `using-grok-bot-app` skill |
 
-The row also counts wakes (`woke 2× 5m ago`) and lost wakes, and ends with the
-bot's last preview. `[ hide ]` (`f` with the band focused) folds the band to its
+The row also counts wakes (`woke 2× 5m ago`) and lost wakes, says how long this
+session has watched (`watching 2h`), and ends with the bot's last preview. Only
+replies that wake this session count: a reply for another session or the owner
+is noise here. Each wake prompt says which reply it is and since when (`reply 3
+from this bot to this session since the watch began at <ISO time>`), so after a
+compaction the session can tell what it already has. A re-watch keeps the count
+and the start; `[ unwatch ]` ends them. `[ hide ]` (`f` with the band focused) folds the band to its
 header line; it never disappears while a watch is armed. After the
 last `[ unwatch ]` the band stays as `0 bots [ + ] [ close ]`, so the next watch
 is one key away; `[ close ]` hides it until the next watch. `[ unwatch ]` (`u`,

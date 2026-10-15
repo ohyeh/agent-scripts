@@ -122,6 +122,25 @@ describe('eligibility (S2)', () => {
     expect(w.woken[0]).toContain('preview: [w:*] B')
   })
 
+  test('a wake says where the reading stands; a re-watch keeps the count and start, an unwatch ends them', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A')), ok(row('B')), ok(row('B')), ok(row('C')), ok(row('C')), ok(row('D'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    const since = (w.kv.get(key) as { since: number }).since
+    await clock.advance(TICK)
+    expect(w.woken[0]).toContain(`reply 1 from this bot to this session since the watch began at ${new Date(since).toISOString()}`)
+    const again = await $.tool.call({ tool: WATCH, botUuid: UUID })
+    expect(JSON.stringify(again)).toContain('Re-watch: 1 reply already woke this session')
+    await clock.advance(TICK)
+    expect(w.woken).toHaveLength(2)
+    expect(w.woken[1], 'the count goes on from the first watch').toContain(`reply 2 from this bot to this session since the watch began at ${new Date(since).toISOString()}`)
+    await $.tool.call({ tool: UNWATCH, botUuid: UUID })
+    await clock.advance(TICK)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    expect((w.kv.get(key) as { wakes?: number }).wakes, 'a watch after an unwatch starts over').toBeUndefined()
+  })
+
   test('only my tag and [w:*] wake; another session\'s tag and untagged (an answer to the owner) do not', async ($, on) => {
     const clock = mock.clock(on)
     const sid = 'abcdef12-3456-4789-8abc-def012345678'

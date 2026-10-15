@@ -1,5 +1,12 @@
 # Changelog
 
+## grok-bot-watch 0.14.0
+
+The mod keeps where this session's reading of a bot stands. A watch records when it began (`since`). Each wake prompt says which reply it is and since when: `It is reply 3 from this bot to this session since the watch began at <ISO time>`. After a compaction, the session can tell what it already has. The band row adds `watching 2h`. Only replies that wake this session count. A reply for another session or for the owner is noise to this session, so it is not counted.
+
+- A re-watch without an unwatch takes a new baseline, as before. It now keeps `since`, the wake and lost counts and the recent replies, and its tool reply says how many replies already woke the session. An unwatch ends them: a later watch starts at 1.
+- Limits: a watch made before 0.14.0 has no `since`, so its wakes carry no position until it is watched again after an unwatch. The number is read before the submit: two wakes of one bot submitted before the first one is counted would both say the same number (wakes are 10 s apart, so this was not seen).
+
 ## session-recall 0.9.13
 
 `tests/tui-smoke.sh` puts its tmux socket inside its own temp directory (`-S "$work/t.sock"`), so the EXIT trap removes it with the tree. Before, `-L sa-tui-$$` left one socket per run in the shared tmux directory: 58 of them were on this host. The mod itself does not change.
