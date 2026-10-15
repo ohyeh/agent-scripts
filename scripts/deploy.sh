@@ -580,6 +580,11 @@ bash "$SRC/scripts/install-cursor-hud.sh"
 bash "$SRC/scripts/check-cursor-runtime.sh"
 echo "PASS [cursor] kernel + HUD + ponytail wiring"
 
+# --- Layer 7b: Antigravity runtime (statusline) --------------------------------
+echo "==> [agy] statusline script + settings.json"
+bash "$SRC/scripts/install-antigravity-statusline.sh"
+
+
 # --- Layer 8: agent definitions ----------------------------------------------
 echo "==> [agents] global/agents/<runtime>/ -> runtime agent dirs"
 agents_report=""
