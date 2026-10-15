@@ -61,10 +61,9 @@ replies that wake this session count: a reply for another session or the owner
 is noise here. Each wake prompt says which reply it is and since when (`reply 3
 from this bot to this session since the watch began at <ISO time>`), so after a
 compaction the session can tell what it already has. A re-watch keeps the count
-and the start; `[ unwatch ]` ends them. `[ ▾ fold ]` (`f` with the band focused) folds the band to its
-header line (`[ ▸ open ]` brings it back); it never disappears while a watch is armed. After the
-last `[ unwatch ]` the band stays as `0 bots [ + ] [ close ]`, so the next watch
-is one key away; `[ close ]` hides it until the next watch. `[ unwatch ]` (`u`,
+and the start; `[ unwatch ]` ends them. The band is there from the session start, as its header line
+(`0 bots` before any watch), folded until you press `[ ▸ open ]` (`f` with the band focused);
+`[ ▾ fold ]` folds it again. The choice is kept for the next sessions. `[ unwatch ]` (`u`,
 one watch only) stops that watch. `[ + ]` (`w`) opens a field above the rows:
 type a UUID or an 8+ char prefix and Enter watches it; a refused id stays in
 the field with a toast saying why, and Enter on nothing closes it. The field

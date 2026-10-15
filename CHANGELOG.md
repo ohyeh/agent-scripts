@@ -1,5 +1,13 @@
 # Changelog
 
+## session-recall 0.14.0 · grok-bot-watch 0.16.0
+
+Both bands are there from the session start, folded to their header line until opened.
+
+- session-recall: the header shows from the start (`· nothing made yet` before the first asset). It starts folded; `[ ▸ open ]` shows the rows, and the choice is kept for the next sessions (`session-recall.fold` in the store). A folded band still lists the quotes in the prompt, since their `[ × ]` is how a quote leaves it. Unfolded with nothing made, one line says what will show there.
+- session-recall: the quote rows put a space before `[ × ]` (before: `no such quote[ × ]`, and a long quote ran into the button).
+- grok-bot-watch: the header shows from the start (`0 bots`), folded until opened, the choice kept (`grok-bot-watch.fold`). `[ close ]` is gone: the band no longer goes away.
+
 ## grok-bot-watch 0.15.0
 
 The band follows the TUI design rules.

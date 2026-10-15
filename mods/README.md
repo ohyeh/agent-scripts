@@ -27,7 +27,7 @@ collaborators (Claude, sol, agy, advisor). Where a rule cites a fixed standard, 
 | 11 | Both | The title is `▌name vX`, then dim status (` · 7 assets`). Every band and every TUI shows its version, at every width: when room runs short the status gives way, never the name and version. The version comes from the plugin manifest, or for a skill's TUI from `metadata.version` in its SKILL.md. A row you can point at shows its token as you type it (`#a5`, not `a5`). |
 | 12 | TUI | Show the selection in reverse video. q, Ctrl-C and Esc all quit (Esc goes back first when a sub-view is open). Turn bracketed paste on (`\e[?2004h`) and never read pasted text as keys. |
 | 13 | TUI | Width ladder: wide (120 or more columns) = list and detail side by side; standard (80 to 119) = list with a detail line; narrow (under 80) = one pane, Enter opens the detail, Esc comes back. Below the floor (about 40 x 10), show one line that says to make the pane bigger. |
-| 14 | Band | Every band can fold to its title bar: `[ ▾ fold ]`, then `[ ▸ open ]` (icons only when narrow). Fold is not hide: a folded band stays, its counts and warnings still change. Hide takes the band away until its command shows it again. |
+| 14 | Band | Every band can fold to its title bar: `[ ▾ fold ]`, then `[ ▸ open ]` (icons only when narrow). Fold is not hide: a folded band stays, its counts and warnings still change. Hide takes the band away until its command shows it again. A band is there from the session start, folded until the person opens it; the fold choice is kept across sessions. |
 
 ## How to check a surface
 

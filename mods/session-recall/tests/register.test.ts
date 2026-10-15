@@ -427,10 +427,30 @@ describe('band', () => {
     expect(w.kv.get('session-recall.s.sess-A')).toBeUndefined()
   })
 
-  test('no asset this session: the band is left alone', async ($, on) => {
+  test('from the session start: the header shows, folded for a person who never opened it; opened, it stays open next session', async ($, on) => {
+    const w = world(on, { folded: true })
+    await $.session.start(start)
+    let text = textOf(await $.ui.render(band()))
+    expect(text).toContain('session recall v')
+    expect(text).toContain('nothing made yet')
+    expect(text).toContain('▸ open')
+    expect(text, 'folded: no help line').not.toContain('show here')
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    expect(textOf(await $.ui.render(band())), 'folded: no rows').not.toContain('#a1')
+    await $.ui.press({ plugin: 'session-recall', key: 'fold' } as never)
+    expect(textOf(await $.ui.render(band()))).toContain('#a1')
+    for (let i = 0; i < 5; i += 1) await Promise.resolve()
+    expect(w.kv.get('session-recall.fold')).toBe('open')
+    await $.session.start(start)
+    expect(textOf(await $.ui.render(band())), 'the choice is kept').toContain('#a1')
+  })
+
+  test('nothing made yet, unfolded: one line says what shows here', async ($, on) => {
     world(on)
     await $.session.start(start)
-    expect(textOf(await $.ui.render(band()))).not.toContain('session recall')
+    const text = textOf(await $.ui.render(band()))
+    expect(text).toContain('nothing made yet')
+    expect(text).toContain('show here')
   })
 
   test('never more rows than maxRows leaves', async ($, on) => {
@@ -899,7 +919,7 @@ const band = (props: { maxRows?: number; hasSurvey?: boolean; bodyColumns?: numb
 })
 
 /** The engine under the mod: an in-memory store (or one whose writes fail), tools that print a dev-server URL, a recorded `open`. */
-function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[]; transcript?: unknown[]; tmux?: string; term?: string; clip?: { text: string } } = {}) {
+function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[]; transcript?: unknown[]; tmux?: string; term?: string; clip?: { text: string }; folded?: boolean } = {}) {
   const clock = mock.clock(on)
   const files = new Map<string, { text: string; mtimeMs: number }>()
   /** Paths whose writes fail, as a disk error would. */
@@ -922,7 +942,8 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
     if (!f) throw new Error(`ENOENT: ${e.path}`)
     return { value: { kind: 'file', size: f.text.length, mtimeMs: f.mtimeMs, isLink: false } } as never
   })
-  const kv = new Map<string, unknown>()
+  // Unfolded, as most tests read rows; `folded: true` starts as a person who never opened it does.
+  const kv = new Map<string, unknown>(opts.folded ? [] : [['session-recall.fold', 'open']])
   const runs: string[][] = []
   const contexts: (string[] | undefined)[] = []
   const copied: string[] = []
@@ -1142,6 +1163,7 @@ describe('the TUI', () => {
     expect(text, 'quotes alone show the band').toContain('2 quotes')
     expect(text).toContain('↩ #q1')
     expect(text).toContain('L3')
+    expect(text, 'a space before [ × ]').toMatch(/」\n \n×/)
     await $.ui.press({ plugin: 'session-recall', key: 'drop-q1' } as never)
     expect(w.draft.text).not.toContain('#q1')
     expect(w.draft.text).not.toContain('into the inbox')

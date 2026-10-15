@@ -5,7 +5,9 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.15.0'
+const MOD_VERSION = '0.16.0'
+/** 'open' once the person unfolded the band; absent or 'folded': it starts as its header line. */
+const FOLD_KEY = 'grok-bot-watch.fold'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -164,7 +166,6 @@ type State = {
   /** The panel's bot-id field is drawn: `[ + ]` or `/grok-bot-watch` opened it. */
   adding?: boolean
   /** This session has watched a bot: the band stays up with `0 bots [ + ]` after the last unwatch, until `[ close ]`. */
-  used?: boolean
   /** The last messages of the bot open in the app, from the last read; never persisted. */
   convo?: { id: string; msgs: Msg[] }
   /** Every read-modify-write of this session's records, in call order: a tick and a wake count never write over each other. */
@@ -520,7 +521,6 @@ async function watchBot(s: State, $: $, raw: string, via: string): Promise<{ den
     s.live.set(key, row)
   }
   s.status.set(key, row ? 'ok' : res.state === 'ok' ? 'bot-not-found' : res.state)
-  s.used = true
   return {
     label: row ? clean(row.name, 40) : uuid.slice(0, 8),
     result:
@@ -534,10 +534,11 @@ async function watchBot(s: State, $: $, raw: string, via: string): Promise<{ den
 }
 
 export const register: Register = on => {
-  const s: State = { sid: '', seq: 0, status: new Map(), names: new Map(), live: new Map(), folded: false, writes: Promise.resolve(), logs: Promise.resolve() }
+  const s: State = { sid: '', seq: 0, status: new Map(), names: new Map(), live: new Map(), folded: true, writes: Promise.resolve(), logs: Promise.resolve() }
 
   on('session.start', async ($, e, next) => {
     s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
+    s.folded = (await $.store.get(FOLD_KEY).catch(() => undefined)) !== 'open'
     await $.tool.register({
       name: 'watch',
       description:
@@ -604,7 +605,7 @@ export const register: Register = on => {
     if (e.props.hasSurvey) return next(e)
     const below = await next(e)
     const rows = await panelData(s, $)
-    if (!rows.length && !s.adding && !s.used) return below
+    // From the session's start, folded until opened: the header says the mod is there before any watch.
     const budget = Math.min(PANEL_ROWS + (s.open ? RECENT : 0), e.props.maxRows - rowsOf(below))
     if (budget < 1) return below
     const els = $.ui.resolve(e)
@@ -621,7 +622,7 @@ export const register: Register = on => {
     const tail = `· ${summary} `
     // Buttons are a glyph and a word when the whole header fits with the words, else the glyph only
     // (the workers band's rule); ' [-]' is the engine's collapse control drawn over the band's last cells.
-    const btns = (w: boolean) => (w ? '[ + watch ][ ✕ close ]' : '[ + ][ ✕ ]') + ' [-]'
+    const btns = (w: boolean) => (w ? '[ + watch ][ ▸ open ]' : '[ + ][ ▸ ]') + ' [-]'
     const words = cells(title + tail + btns(true)) <= width
     const label = (glyph: string, word: string) => (words ? `${glyph} ${word}` : glyph)
     const header = Box({
@@ -635,17 +636,11 @@ export const register: Register = on => {
           s.folded = false
           $.ui.invalidate('ui.render')
         } }),
-        // No watch left: nothing to fold, so the same slot closes the band until the next watch.
-        rows.length
-          ? Button({ key: 'fold', label: label(folded ? '▸' : '▾', folded ? 'open' : 'fold'), hotkey: 'f', onPress: () => {
-            s.folded = !folded
-            $.ui.invalidate('ui.render')
-          } })
-          : Button({ key: 'close', label: label('✕', 'close'), hotkey: 'f', onPress: () => {
-            s.used = false
-            s.adding = false
-            $.ui.invalidate('ui.render')
-          } }),
+        Button({ key: 'fold', label: label(folded ? '▸' : '▾', folded ? 'open' : 'fold'), hotkey: 'f', onPress: () => {
+          s.folded = !folded
+          $.ui.invalidate('ui.render')
+          void $.store.set(FOLD_KEY, s.folded ? 'folded' : 'open').catch(() => undefined) // a lost choice only refolds next session
+        } }),
       ],
     })
     // Folded is one line, not gone: a wake can still arrive, and nothing else says so.

@@ -23,7 +23,8 @@ per-session state, slash commands that work in every terminal, and a tool for th
 
 ## Band
 
-Above the prompt, once this session has an asset or the prompt holds a `#qN`. Other sessions' assets are
+Above the prompt from the session start, folded to its header line until you press `[ ▸ open ]` (the choice is
+kept for the next sessions; a folded band still lists the quotes in the prompt). Other sessions' assets are
 folded into one line. It follows the band rules in [`../README.md`](../README.md): no help text, buttons say what
 they do (`[ ⧉ tui ][ ▾ fold ][ hide ]`, `[ ⧉ ][ ▾ ][ ✕ ]` when narrow; fold keeps the header, hide takes the band away), each row shows the token you type.
 

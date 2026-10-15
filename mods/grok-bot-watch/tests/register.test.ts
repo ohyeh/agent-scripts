@@ -25,7 +25,7 @@ function world(
   reads: string[],
   answers: Array<'accept' | 'drop' | 'undef' | Promise<'accept' | 'drop'>> = [],
   /** node: what `command -v node` prints; hold: every helper run waits on it; beforeGet: runs inside a store.get, after the value is captured. */
-  opts: { sid?: string; node?: string; hold?: Promise<void>; spawnFails?: number; beforeGet?: (key: string) => Promise<void>; floorRows?: number; sendState?: string } = {},
+  opts: { sid?: string; node?: string; hold?: Promise<void>; spawnFails?: number; beforeGet?: (key: string) => Promise<void>; floorRows?: number; sendState?: string; folded?: boolean } = {},
 ) {
   const woken: string[] = []
   const toasts: string[] = []
@@ -49,7 +49,8 @@ function world(
     toasts.push(String((e as unknown as { text: string }).text))
     return { value: undefined }
   })
-  const kv = new Map<string, unknown>()
+  // Unfolded, as most tests read rows; `folded: true` starts as a person who never opened the band.
+  const kv = new Map<string, unknown>(opts.folded ? [] : [['grok-bot-watch.fold', 'open']])
   on('store.get', async ($, e) => {
     const value = kv.get(e.key)
     if (opts.beforeGet) await opts.beforeGet(e.key)
@@ -373,7 +374,8 @@ describe('panel (T7, T4)', () => {
     w.kv.set(`grok-bot-watch.watch.sess-C.${OTHER}`, { botUuid: OTHER, gen: 1, seen: 'x' })
     w.kv.set('grok-bot-watch.hb.sess-C', 99_000)
     await $.session.start(start)
-    expect(textOf(await $.ui.render(band())), 'no row, no header: nothing of ours').not.toContain('grok bot watch')
+    const mine = textOf(await $.ui.render(band()))
+    expect(mine, 'only our header: none of their rows').toContain('0 bots')
     expect(w.runs(), "nobody polls another session's watch").toBe(0)
     w.kv.set('grok-bot-watch.hb.sess-B', clock.now() - 24 * 3600_000)
     await clock.advance(TICK)
@@ -620,7 +622,7 @@ describe('panel 0.2.0', () => {
     expect(await flat($)).toContain('ARIA')
   })
 
-  test('the unwatch button deletes the watch; the band stays with [ + ] until [ close ]', async ($, on) => {
+  test('the unwatch button deletes the watch; the band stays as its header with [ + ]', async ($, on) => {
     const clock = mock.clock(on)
     const w = world(on, [ok(row('A')), ok(row('B'))])
     await $.session.start(start)
@@ -633,9 +635,24 @@ describe('panel 0.2.0', () => {
     expect(t).not.toContain('ARIA')
     await clock.advance(TICK)
     expect(w.woken, 'nothing is watched any more').toHaveLength(0)
-    await $.ui.render(band())
-    await $.ui.press({ plugin: PLUGIN, key: 'close', requestId: 'above-prompt' })
-    expect(await flat($)).not.toContain('grok bot watch')
+    expect(await flat($), 'no close: the band is there from the session start').toContain('grok bot watch v')
+  })
+
+  test('from the session start: the header shows, folded for a person who never opened it; opened, it stays open', async ($, on) => {
+    mock.clock(on)
+    const w = world(on, [ok(row('A')), ok(row('B'))], [], { folded: true })
+    await $.session.start(start)
+    let t = await flat($)
+    expect(t).toContain('grok bot watch v')
+    expect(t).toContain('0 bots')
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    t = await flat($)
+    expect(t).toContain('1 bot')
+    expect(t, 'folded: no rows').not.toContain('ARIA')
+    await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above-prompt' })
+    expect(await flat($)).toContain('ARIA')
+    for (let i = 0; i < 5; i += 1) await Promise.resolve()
+    expect(w.kv.get('grok-bot-watch.fold')).toBe('open')
   })
 
   test('a composer draft is shown as a draft, not as the reply', async ($, on) => {
@@ -1154,7 +1171,7 @@ describe('watch from the panel 0.5.0', () => {
     mock.clock(on)
     const w = world(on, [ok(row('A'))])
     await $.session.start(start)
-    expect(await flat($), 'no watch: no band').not.toContain('grok bot watch')
+    expect(await flat($), 'no watch: the header only').toContain('0 bots')
     await $.command.run(cmd(''))
     await $.ui.render(band())
     await $.ui.input({ plugin: PLUGIN, key: 'add-input', text: '3f6e9a21', requestId: 'above-prompt' })
@@ -1175,7 +1192,8 @@ describe('watch from the panel 0.5.0', () => {
     expect([...w.kv.keys()].some(k => k.startsWith('grok-bot-watch.watch.')), 'nothing watched').toBe(false)
     expect(await hasField($), 'still open for another try').toBe(true)
     await $.ui.input({ plugin: PLUGIN, key: 'add-input', text: '', requestId: 'above-prompt' })
-    expect(await flat($)).not.toContain('grok bot watch')
+    expect(await hasField($), 'Enter on nothing closes the field').toBe(false)
+    expect(await flat($), 'the header stays').toContain('0 bots')
   })
 
   test('app down: a full UUID still watches, and the row draws the uuid8 once (0.5.0 live)', async ($, on) => {

@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir, subagentMade } from './lib/assets.ts'
 import { answerId, findExcerpt, itemsOf, locate, plain, quoteOf, quoteRefsIn } from './lib/items.ts'
 
-const MOD_VERSION = '0.13.0'
+const MOD_VERSION = '0.14.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -11,6 +11,8 @@ const MAX_CHECKS = 10
 /** One store key per session: a shared list would be a read-modify-write race between sessions. */
 const PREFIX = 'session-recall.s.'
 const PANEL_KEY = 'session-recall.panel'
+/** 'open' once the person unfolded the band; absent or 'folded': the band starts as its header line. */
+const FOLD_KEY = 'session-recall.fold'
 /** Quotes put in a prompt (a reply's `↩`, or lines pasted from a reply), one key per session, numbered #qN from 1 for the session's life. */
 const QPREFIX = 'session-recall.q.'
 const MAX_KEPT_QUOTES = 50
@@ -48,7 +50,7 @@ type State = {
   unacked: Map<string, string>
   /** Local URLs test runs printed this turn: the turn's reply that repeats one adds no row. */
   muted: Set<string>
-  /** The band folded to its header line (`[ ▾ fold ]`): still there, unlike hidden. This load only. */
+  /** The band folded to its header line (`[ ▾ fold ]`): still there, unlike hidden. Folded until the person opens it; kept. */
   folded: boolean
   /** The #qN in the prompt box as it stands: the band shows each one's source above the prompt. */
   draftQ: number[]
@@ -626,6 +628,7 @@ export const register: Register = on => {
     s.project = e.cwd.split('/').filter(Boolean).pop() ?? ''
     s.home = (await $.env.get('HOME').catch(() => undefined)) ?? ''
     s.hidden = (await $.store.get(PANEL_KEY)) === 'hidden'
+    s.folded = (await $.store.get(FOLD_KEY)) !== 'open'
     await $.tool.register({
       name: 'recall',
       description:
@@ -847,9 +850,8 @@ export const register: Register = on => {
     if (e.props.hasSurvey) return next(e)
     const below = await next(e)
     if (s.hidden) return below
+    // From the session's start: the header, folded until opened, says the mod is there before anything is made.
     const list = await mine(s, $)
-    // The band shows for quotes in the draft too: a session with no asset yet can still quote a reply.
-    if (!list.length && !s.draftQ.length) return below
     const { list: rest, sessions } = await others(s, $)
     const open = s.open !== undefined ? list[s.open] : undefined
     const quotes = s.draftQ.length ? quotesOf(await $.store.get(`${QPREFIX}${s.sid}`)) : []
@@ -862,7 +864,7 @@ export const register: Register = on => {
     const now = await $.clock.now()
     const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
     const title = `▌session recall v${MOD_VERSION}`
-    const status = ` · ${[plural(list.length, 'asset'), ...(s.draftQ.length ? [plural(s.draftQ.length, 'quote')] : [])].join(' · ')} `
+    const status = ` · ${[list.length ? plural(list.length, 'asset') : 'nothing made yet', ...(s.draftQ.length ? [plural(s.draftQ.length, 'quote')] : [])].join(' · ')} `
     // Buttons say what they do when the header has room for it, else their icon (the workers band's rule).
     // ' [-]' is the engine's collapse control, drawn over the band's last cells: kept clear, as the workers band does.
     const words = cells(title) + cells(status) + cells('[ ⧉ tui ][ ▾ fold ][ hide ] [-]') <= width
@@ -877,18 +879,19 @@ export const register: Register = on => {
         Button({ key: 'fold', label: words ? (s.folded ? '▸ open' : '▾ fold') : s.folded ? '▸' : '▾', onPress: () => {
           s.folded = !s.folded
           $.ui.invalidate('ui.render')
+          void $.store.set(FOLD_KEY, s.folded ? 'folded' : 'open').catch(err => $.ui.log(`session-recall: fold not saved (${errText(err)})`, { to: 'debug' }))
         } }),
         Button({ key: 'hide', label: words ? 'hide' : '✕', onPress: () => void setHidden(s, $, true) }),
       ],
     })
-    if (s.folded) return Box({ flexDirection: 'column', children: [below, header] })
     // The quotes in the draft, as a messenger's reply bar: where each came from, and [×] to take it out of the prompt.
     const qrow = (n: number) => {
       const q = quotes.find(x => x.n === n)
       const head = `  ↩ #q${n} `
       const src = q ? ` ${q.at ? `reply ${ago(now - q.at)} ago` : 'an earlier reply'}${q.lines ? ` · L${spanOf(q.lines)}` : ''} · ` : ' no such quote'
       const body = q ? `「${clean(q.text.join(' '), 200)}」` : ''
-      const room = Math.max(0, width - cells(head) - cells(src) - 6)
+      // 6 cells for [ × ], 1 for the space before it (a cut body ends in …, so the space is its own Text).
+      const room = Math.max(0, width - cells(head) - cells(src) - 7)
       return Box({
         key: `q${n}`,
         flexDirection: 'row',
@@ -896,6 +899,7 @@ export const register: Register = on => {
           Text({ bold: true, color: ACCENT, children: head }),
           Text({ dimColor: true, children: fit(src, Math.max(0, width - cells(head) - 6)) }),
           Text({ children: fit(body, room) }),
+          Text({ children: ' ' }),
           Button({ key: `drop-q${n}`, label: '×', onPress: () => void dropQuote(s, $, n).catch(err => $.ui.toast(`not taken out: ${errText(err)}`)) }),
         ],
       })
@@ -966,6 +970,10 @@ export const register: Register = on => {
       ]
       : []
     const qKept = quoteLines.slice(0, Math.max(0, budget - 1))
+    // Folded keeps the quotes in the draft: each one's [×] is how it leaves the prompt.
+    if (s.folded) return Box({ flexDirection: 'column', children: [below, header, ...qKept] })
+    // Help in words only when there is nothing yet (rule 8).
+    if (!list.length) qKept.push(Text({ dimColor: true, children: fit('  URLs, files, images and commits it makes show here; #aN in a prompt points Claude at row N', width) }))
     const room = budget - 1 - qKept.length
     // Other sessions keep their one line when there is room; this session's rows give way first.
     const keep = otherLines.length && room > 1 ? otherLines.slice(0, Math.max(1, room - 1)) : []
