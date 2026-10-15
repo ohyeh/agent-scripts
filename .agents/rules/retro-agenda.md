@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+Version: 1.13.0（2026-10-16 W42：§Layer1 加分項與忙碌度三支 collector 與 advisor 補算；§8 儀表板固定區塊不得默默拿掉）；1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
 ＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
 1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
@@ -82,6 +82,13 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
   同 `{value, method, tier}` 契約。逐週數字落成 `evals/retro-metrics/<ISO-week>.json`
   （2026-10-01 起不版控，`24e4e70`；只存在執行機，腳本才版控），
   USD 以 `evals/retro-metrics/cost.py` 換算，並註明那是 API 費率當量而非實付帳單。
+- **分項與忙碌度（每輪必收，2026-10-16 W42 起）**：三支 collector 都吃同一個 `--since/--until`，
+  各附 `--self-test`：`evals/retro-metrics/codeburn-breakdown.py`（每台 `codeburn export` →
+  活動／模型／CLI／專案 USD 與工具／MCP／shell 次數；CodeBurn 單價和 cost.py 的 Opus 5.5 當量是兩種口徑）、
+  `codex-walk.py`（每台 Codex ctx 走路率，code-mode 依呼叫點計）、`grok-bot-busy.py`（grok-bot-vm
+  經 stdin 唯讀跑，各 bot 訊息量本週＋前 3 週與 coding-cli LOG 檔數；不是 USD）。Grok Bot 官方用量：
+  Grok Bot app 帳號選單的「Weekly usage N% used」（using-grok-bot-app 唯讀讀取，讀完關選單），每週記一次。
+  usage-dedupe 的 `reqkey_advisor` 是 advisor（fable）用量，cost.py 以外另算，不得漏。
 - **使用者糾正事件粗篩**：collector 加輕量關鍵詞欄（「不對」「不是」「我說的是」
   「你改壞」等改口/糾正訊號），只出候選名單餵 Layer 2，不建大系統、不判定語意。
 
@@ -168,7 +175,10 @@ retro 開跑時以 SSH 收齊每台在編機器的 `pending/`（可達性同 §5
 裁決落地後、報告收尾前，用當輪活資料重生唯一狀態頁
 「[agent-scripts] 艦隊與 Retro」（Dashboard 型別，同 URL 原地更新：資料寫 datasets、頁面寫
 files/index.html；URL 以 Artifact list 現場查，標題固定；不再另開每週 Retro 頁）。
-資料一律現場重測，禁止沿用上輪數字。資料源 repo 與各自量測層：
+資料一律現場重測，禁止沿用上輪數字。儀表板固定區塊：各機器 USD 當量、CodeBurn 分項、其他分析
+（context-mode 走路率含 Codex、真人訊號、常駐偏好、改動配對、advisor 補算、Grok Bot 忙碌度）、backlog；
+少一區要在報告寫明原因，不得默默拿掉（W42 使用者：「值錢的圖表數據砍去哪了」）。樣本太小的值灰掉並標分母。
+資料源 repo 與各自量測層：
 
 | Repo | 量測層 |
 |---|---|
