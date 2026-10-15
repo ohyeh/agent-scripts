@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.17.0'
+const MOD_VERSION = '0.17.1'
 /** 'open' once the person unfolded the band; absent or 'folded': it starts as its header line. */
 const FOLD_KEY = 'grok-bot-watch.fold'
 const POLL_MS = 10_000
@@ -727,6 +727,8 @@ export const register: Register = on => {
       })().catch(err => $.ui.log(`grok-bot-watch: watch failed: ${String(err)}`, { to: 'debug' })),
     })
     const lines = [...(s.adding && field ? [field] : []), ...rows.flatMap(r => [rowOf(r), ...reply(r), ...history(r)])]
+    // Opened with no watch: one line says what goes here, so open never looks like it did nothing (session-recall's rule).
+    if (!lines.length) lines.push(Text({ dimColor: true, children: fit('  watched bots show here: [ + watch ] (w) or /grok-bot-watch <uuid>; a reply wakes this session', width) }))
     const room = budget - 1
     // One row left: the first bot, not a bare "+N more"; the header still counts them all.
     const shown = lines.length <= room ? lines : room === 1 ? lines.slice(0, 1) : [...lines.slice(0, room - 1), Text({ dimColor: true, children: `  +${lines.length - room + 1} more` })]

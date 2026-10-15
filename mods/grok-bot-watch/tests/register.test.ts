@@ -349,11 +349,13 @@ function textOf(node: unknown): string {
 const flat = async ($: { ui: { render: (e: ReturnType<typeof band>) => Promise<unknown> } }) => textOf(await $.ui.render(band())).replace(/\n/g, '')
 
 describe('panel (T7, T4)', () => {
-  test('no watch of ours: the band is left alone', async ($, on) => {
+  test('no watch of ours: no bot row, only the header and the hint', async ($, on) => {
     mock.clock(on)
     world(on, [ok(row('A'))])
     await $.session.start(start)
-    expect(textOf(await $.ui.render(band()))).not.toContain('grok-bot-watch')
+    const t = await flat($)
+    expect(t).toContain('0 bots')
+    expect(t, 'the app has ARIA, but nothing is watched').not.toContain('ARIA')
   })
 
   test('a watch shows name, uuid8 and state, then a lost wake', async ($, on) => {
@@ -659,6 +661,23 @@ describe('panel 0.2.0', () => {
     expect(await flat($)).not.toContain('grok bot watch v')
     await $.session.start(start)
     expect(await flat($), 'close is for this session only').toContain('grok bot watch v')
+  })
+
+  test('open with no watch says what goes there; fold takes that line away again', async ($, on) => {
+    mock.clock(on)
+    const w = world(on, [ok(row('A'))], [], { folded: true })
+    await $.session.start(start)
+    expect(await flat($), 'folded: header only').not.toContain('watched bots show here')
+    await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above-prompt' })
+    expect(await flat($), 'open, no watch: the hint line').toContain('watched bots show here')
+    for (let i = 0; i < 5; i += 1) await Promise.resolve()
+    expect(w.kv.get('grok-bot-watch.fold')).toBe('open')
+    await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above-prompt' })
+    expect(await flat($), 'folded again: header only').not.toContain('watched bots show here')
+    for (let i = 0; i < 5; i += 1) await Promise.resolve()
+    expect(w.kv.get('grok-bot-watch.fold')).toBe('folded')
+    await $.session.start(start)
+    expect(await flat($), 'a new session keeps the folded choice').not.toContain('watched bots show here')
   })
 
   test('from the session start: the header shows, folded for a person who never opened it; opened, it stays open', async ($, on) => {

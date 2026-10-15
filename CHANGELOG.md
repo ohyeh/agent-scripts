@@ -1,5 +1,9 @@
 # Changelog
 
+## grok-bot-watch 0.17.1
+
+- `[ ▸ open ]` with no watch drew the same header as folded, so open looked like it did nothing (0.16.0). Open now adds one dim line that says what shows there and how to watch, as session-recall does; fold takes it away. Tested both ways, with the stored choice each time.
+
 ## grok-bot-watch 0.17.0
 
 - `[ ✕ close ]` is back on the header when no watch is armed (`x`): it hides the band for this session only. The next watch or a bare `/grok-bot-watch` brings it back, and a new session shows it again. With a watch armed there is no close: an armed watch never leaves the screen. Fold (`f`) is unchanged and is not hide (rule 14). 0.16.0 removed close without being asked; the owner asked for it back.
