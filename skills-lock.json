@@ -123,9 +123,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "d7d66b45810294ae98e8a2c1de72d4ce9af80616",
+      "skillFolderHash": "ee9e6703aa7a9946e4ac2b22ad3587e44dbde3fe",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-10-14T02:45:55.918Z"
+      "updatedAt": "2026-10-15T01:22:09.859Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -296,9 +296,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-grok-bot-app/SKILL.md",
-      "skillFolderHash": "5f84aadc7db30d818863adf530fa08a2b9001c47",
+      "skillFolderHash": "8f8aa8906e4b269cd81d49435817de01a48adf52",
       "installedAt": "2026-09-04T08:30:33.000Z",
-      "updatedAt": "2026-10-14T07:10:36.300Z"
+      "updatedAt": "2026-10-14T09:35:50.336Z"
     },
     "using-skills": {
       "source": "ohyeh/agent-scripts",
