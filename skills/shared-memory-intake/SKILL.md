@@ -34,6 +34,8 @@ runtime.
 
 ## Claude: submit
 
+Use `python3 scripts/read_memory.py keyword [keyword ...]` from this skill directory to find any keyword, without case differences. The script reads Codex memory, the summary, ad_hoc notes, and pending, processed, and rejected submissions. Use `--status` to show file counts, newest mtimes, and notes newer than `MEMORY.md`; this time flag does not prove consolidation. Normal modes write nothing; `--self-test` creates a temporary tree and checks the reader. All agents may use this reader; it needs no actor flag because it cannot change memory.
+
 1. Read `MEMORY.md`; do not restate an existing current claim as a new submission.
 2. Create one uniquely named Markdown file under `~/.agents/shared-memory-inbox/pending/` with YAML frontmatter:
 
