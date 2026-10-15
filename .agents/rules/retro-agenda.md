@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+Version: 1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
 ＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
 1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
@@ -101,8 +101,9 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 
 ### 5. 循環工具與記憶盤點 — 自家 repo 之外的回饋迴路，每台機器都有、都要看
 這些檔案多為 per-machine，不會出現在 GitHub 對帳裡，漏看就斷循環：
-- `~/.agents/shared-memory-inbox/pending/`：未消化的 submissions 數量與積齡；
-  積壓 = finding，消化走 shared-memory-intake（Codex 才能 promote）。
+- `~/.agents/shared-memory-inbox/pending/`：未消化的筆記 submissions 數量與積齡；
+  積壓 = finding，消化走 shared-memory-intake（Codex 寫 ad_hoc note 交給 Codex 本體整合）。
+- `~/.agents/retro-inbox/pending/`：未倒的反省數量與積齡（§6.5 會倒空；只在這裡記數量）。
 - `~/.codex/memories/`（MEMORY.md、rollout_summaries/）：本週新增的官方摘要，
   對照 retro findings 有無矛盾。
 - hook stats（bol-prompt-stats.jsonl、context ledger）已由漏斗 Layer 1 收，勿重算。
@@ -124,11 +125,14 @@ skill 提及次數；`--agent codex|claude` 可分側）。**零用量 skill ＝
 （W32 教訓：單週快照會誤殺；該案 recipe 已於 2026-10-01 退役，見 git log）。
 
 ### 6.5 臨時動議與使用者訴求
-常設收件匣：`agent-scripts/evals/retro-metrics/inbox.md`（兩節：待討論議題＋本週隨手記；
-與 run dir 同層、gitignored、跨週存活不倒空檔案；不存在就在 retro 開跑時建立）。
+常設收件匣：每台機器的 `~/.agents/retro-inbox/`（不在任何 repo 裡，deploy 不碰；
+不存在就建立 `pending/`、`done/`）。只收反省：做錯什麼、要改哪個檔、驗收與一個必須 FAIL 的反例
+（格式見 maintenance §3）；可重用的事實或做法是筆記，投 `~/.agents/shared-memory-inbox/`，
+同一件事不兩邊抄，handoff 只寫檔名。一件一檔：`pending/<UTC>-<slug>.md`（沒有 `pending/` 就 `mkdir -p`），
+`kind: proposal`（議題）或 `kind: note`（隨手記：collector 撈不到的人為觀察）。
+retro 開跑時以 SSH 收齊每台在編機器的 `pending/`（可達性同 §5），逐件處理後移到 `done/`
+（只搬檔，不改內容；去向記在 `motions.md` 與 backlog 列號）；議題逐條討論、隨手記餵給 §2–4 當 Layer 2 線索。
 本輪 session 中使用者的動議、提醒、糾正，同步記在 run dir `motions.md`。
-平常隨時追加一行；隨手記收 collector 撈不到的人為觀察（糾正時刻、體驗峰谷、環境異動），
-retro 時倒空 inbox：議題逐條討論、隨手記餵給 §2–4 當 Layer 2 線索。
 再問一次「還有沒有臨時動議或訴求？」使用者隨時可插入，
 不受固定清單限制：
 - **臨時動議**：本週想討論但議程沒排的題目（新工具評估、方向調整、某次體驗特別糟/好）。
@@ -171,7 +175,7 @@ files/index.html；URL 以 Artifact list 現場查，標題固定；不再另開
 | ohyeh/agent-scripts | kernel（global/）、routed rules（.agents/rules/）、hooks（.agents/hooks/＋settings.json 掛載）、skills-lock.json、workflows（skills/using-workflows/workflows/ 套組 hash） |
 | ohyeh/tmux-agent-tools | agent-tmux script 指紋、dispatch-gate plugin ×4 位置、smoke 狀態 |
 | ohyeh/context-mode-local-insight | agent-sessions --fleet（雙機 session 量測，schema 版本） |
-| 機器層（非 repo） | shared-memory-inbox pending、codex --version、部署層 .skill-lock.json hash |
+| 機器層（非 repo） | shared-memory-inbox pending、retro-inbox pending、codex --version、部署層 .skill-lock.json hash |
 
 儀表板「相關報告」表每一頁，本輪 findings 若讓它的某句話變假、過時或已完成，就同 URL 原地更新：
 改掉那句、標完成，再加一個短的「W(n) 後續」段；不另開新頁寫心得。沒受影響的頁在表上寫「無變化」。

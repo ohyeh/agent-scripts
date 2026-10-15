@@ -56,10 +56,11 @@ availability change. In the same turn, pick exactly one outcome:
   already covered — cite the covering `file:line` and stop.
 
 ## §3 Backlog row format
-One line in `evals/retro-metrics/inbox.md` under 待討論議題:
+One file in `~/.agents/retro-inbox/pending/` (`mkdir -p` it if absent), named
+`<UTC>-<slug>.md`, with `kind: proposal` in its YAML frontmatter and this body line:
 `YYYY-MM-DD | friction (evidence) | file to change | acceptance + one negative case`.
 A row with no file name, or with no case that must FAIL before the fix, is not a row.
-Retro §6.5 drains the inbox into `next-week-backlog.md`; a row closes as a gate or a
+Retro §6.5 collects every host's `pending/` over SSH, moves each file to `done/`, and drains it into `next-week-backlog.md`; a row closes as a gate or a
 rule fix (commit sha), or as dropped (user approval, §1).
 
 ## §4 Size limits and pruning

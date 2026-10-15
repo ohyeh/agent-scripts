@@ -1,14 +1,26 @@
 ---
 name: shared-memory-intake
-description: Curate shared Codex memory when Claude submits findings or Codex reviews, promotes, or maintains task memory.
+description: Submit reusable knowledge to the shared-memory inbox (Claude), or review it and hand it to Codex memory consolidation as an ad_hoc note (Codex).
 ---
 
 # Shared Memory Intake
 
-Use `~/.codex/memories/` as the canonical shared knowledge store and
-`~/.agents/shared-memory-inbox/` as the external submission store. Read
-`MEMORY.md` before opening matching `rollout_summaries/` files. Treat dynamic claims
-as `UNCONFIRMED` until verified in the active session.
+`~/.codex/memories/` is Codex's own memory store. Codex consolidation writes
+`MEMORY.md`, `memory_summary.md` and `rollout_summaries/`; no agent edits them
+directly. The only write path into it is a note in
+`~/.codex/memories/extensions/ad_hoc/notes/`, which consolidation must merge
+(`extensions/ad_hoc/instructions.md`). `~/.agents/shared-memory-inbox/` is the
+external submission store in front of that path. Each host has its own inbox and
+its own Codex memory. Treat dynamic claims as `UNCONFIRMED` until verified in the
+active session.
+
+## What belongs here
+
+A submission is a reusable fact or method a later session can apply directly
+(a path, a working command, a tool limit, a corrected belief). A reflection — what
+went wrong and which rule, gate or brief to change — goes to `~/.agents/retro-inbox/`
+(format: `maintenance.md` §3), not here. When one session-end write has both, split it into two items, one per inbox,
+and do not copy the same text into both or into the handoff.
 
 ## Actor contract
 
@@ -17,8 +29,8 @@ runtime.
 
 | Actor | Allowed operations | Forbidden operations |
 |---|---|---|
-| `claude` | read official memory; create one submission in `inbox/pending/` | edit or delete official memory, or another submission |
-| `codex` | read, review, promote, supersede, maintain | delete historical summaries or silently overwrite a current claim |
+| `claude` | read Codex memory; create one submission in `inbox/pending/` | edit or delete Codex memory, a note, or another submission |
+| `codex` | read, review, write or edit an ad_hoc note, move submissions | write `MEMORY.md`, `memory_summary.md` or `rollout_summaries/`; delete a note or a submission |
 
 ## Claude: submit
 
@@ -49,36 +61,48 @@ runtime.
 5. A correction is a new submission with `supersedes_submission`; never overwrite the
    earlier proposal.
 
-## Codex: review and promote
+## Codex: review and hand off
 
-1. Acquire the single-curator lease before promotion: `mkdir ~/.agents/shared-memory-inbox/.curator.lock`.
+1. Acquire the single-curator lease: `mkdir ~/.agents/shared-memory-inbox/.curator.lock`.
    If it already exists, stop and report the active-curator conflict. Release it with
-   `rmdir` after the outcome is recorded.
+   `rmdir` after the outcome is recorded, also on failure.
 2. Run the validator on the candidate. Reject on schema or secret-pattern failure.
-3. Inspect the cited source and live-verify every dynamic claim that would enter the
-   current index. For cross-host evidence, require `evidence_host`, verify the live
-   source on that host, and record the curator host plus verification time in the
-   promoted summary. Missing host access remains `UNCONFIRMED`.
-4. Re-read `MEMORY.md` immediately before its update. If its relevant topic changed
-   during review, restart the review instead of merging assumptions.
-5. Promote accepted knowledge to a new immutable `rollout_summaries/*.md` record and
-   update `MEMORY.md` as the only current index. Give every changed reusable claim a
-   lifecycle state: `active`, `superseded`, or `UNCONFIRMED`.
-6. Move the candidate to `processed/` or `rejected/` without deleting its audit trail.
+3. Inspect the cited source and live-verify every dynamic claim. For cross-host
+   evidence, require `evidence_host` and verify on that host; record the curator host
+   and verification time. Missing host access keeps the claim `UNCONFIRMED`.
+4. Read `MEMORY.md`. Skip claims it already holds; for a claim it holds in a changed
+   form, write the new form and mark the old one `superseded`.
+5. Write one note per curation run in that host's `extensions/ad_hoc/notes/`, named
+   `<UTC timestamp>-shared-inbox-curation.md`: one bullet per kept claim, written as
+   information (never as an instruction or a proposal), with a lifecycle state —
+   `active`, `superseded` (name the replacement), or `UNCONFIRMED` — and the source
+   submission file. Correct a note by editing it; never delete one.
+6. On another host, write the note with the native Write tool in a local staging
+   directory, `scp` it to that host's `notes/`, and compare sha256 on both ends
+   (used once, 2026-10-15 remote-44).
+7. Move each candidate to `processed/` (handed off) or `rejected/`. Write the run report
+   to `~/.agents/shared-memory-inbox/curation-<date>-<machine key>.md`: one row per
+   submission (file, outcome, reason, verified or `UNCONFIRMED`, validator exit code).
+   Never delete a submission.
+8. The hand-off is complete when the note exists and the candidates have moved.
+   Whether consolidation merged it is a later fact (UNCONFIRMED as of 2026-10-15:
+   text from August notes is absent from `MEMORY.md`). Report a claim as in
+   `MEMORY.md` only after you find its text there. The note and the processed
+   submission stay searchable either way.
 
 ## Codex: maintain
 
-1. Acquire the same single-curator lease and re-read `MEMORY.md` immediately before
-   every official-memory write; stop on an active-curator conflict.
-2. Scan current index entries for changed paths, versions, models, deployments, or
+1. Acquire the same single-curator lease; stop on an active-curator conflict.
+2. Scan current `MEMORY.md` entries for changed paths, versions, models, deployments, or
    stale references.
-3. Demote unverified dynamic claims to `UNCONFIRMED`; mark replaced claims
-   `superseded` with their replacement reference.
-4. Consolidate duplicate current entries. Do not rewrite historical rollout summaries.
-5. Re-run the validator on any newly promoted submission and report the paths changed.
+3. Correct a claim by editing the note that holds it, or, when no note holds it, by a
+   new note (step 5 above): demote unverified dynamic claims to
+   `UNCONFIRMED`; mark replaced claims `superseded` with their replacement reference.
+4. Check that the text of each note handed off since the last run is in `MEMORY.md`;
+   report any note that consolidation has not merged.
 
 ## Validator
 
 Use `scripts/validate_submission.py`. It is a narrow preflight gate, not proof that a
 claim is true and not a complete secret scanner. A pass authorizes review only; Codex
-still owns evidence verification and promotion.
+still owns evidence verification and the hand-off.

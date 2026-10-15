@@ -55,6 +55,7 @@ out = {"host": socket.gethostname(), "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", t
  "collector": {"cmli_bin": sh("command -v context-mode-local-insight"), "schema": (grep1("~/git/context-mode-local-insight/bin/agent-sessions.mjs", r'AGENT_SESSIONS_SCHEMA = "([^"]+)"') if os.path.isdir(H("~/git/context-mode-local-insight")) else None),
                "head": sh("git -C ~/git/context-mode-local-insight log -1 --format=%h 2>/dev/null") or None, "method": "grep AGENT_SESSIONS_SCHEMA in clone; git log -1"},
  "shared_memory_pending": pending("~/.agents/shared-memory-inbox/pending"),
+ "retro_inbox_pending": pending("~/.agents/retro-inbox/pending"),
  "hook_stats_7d": {k: jsonl_window(f"~/.local/share/agent-hooks/{k}.jsonl") for k in ("claim-evidence-stats", "bol-prompt-stats", "deny-replay-stats", "skill-router-stats")},
  "claim_evidence_blocked_7d": (lambda p: (sum(1 for l in open(H(p)) if '"blocked":true' in l and l[14:24] >= time.strftime("%Y-%m-%d", time.gmtime(cut))) if os.path.exists(H(p)) else None))("~/.local/share/agent-hooks/claim-evidence-stats.jsonl"),
  "context_mode_sessions_7d": {"db_files": len([f for f in glob.glob(H("~/.claude/context-mode/sessions/**/*.db"), recursive=True) if os.path.getmtime(f) >= cut]),
