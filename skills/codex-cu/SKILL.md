@@ -1,7 +1,7 @@
 ---
 name: codex-cu
 description: Drive macOS apps and Chrome through the local Codex cua_repl MCP (server name codex-cu). Use this whenever the user says computer use, browser use, cua, codex-cu, or asks to click a native app or a Chrome page through the ChatGPT extension. Not for a normal web page that agent-browser can read, not for the Cursor built-in browser harness, and not for hover or document.cookie (those go to Claude in Chrome or agent-browser).
-allowed-tools: Bash(ps:*), Bash(pgrep:*), Bash(open:*)
+allowed-tools: Bash(ps:*), Bash(pgrep:*), Bash(open:*), Bash(osascript:*)
 ---
 
 # Codex computer use
@@ -11,7 +11,7 @@ Claude Code, Cursor, and agy call it under the name `codex-cu`. Clicks go into
 the target app. They do not move the user's pointer, but the computer surface
 brings the target window to the front, so the user sees it take the screen.
 
-The long write-up is the Claude artifact `codex-cu 接線手冊`. Open it in Arc
+The long write-up is the Claude artifact `codex-cu 接線手冊`. Open it in a browser
 when this file does not answer a case.
 
 https://claude.ai/artifact/VQQdp75aeC1PzqRwK581PU?sk=Usf3jftJdhrPrHUCB76Nuw
@@ -21,21 +21,34 @@ https://claude.ai/artifact/VQQdp75aeC1PzqRwK581PU?sk=Usf3jftJdhrPrHUCB76Nuw
 Setup not done (no check PASS on this Mac)? Do [Setup](#setup-once-per-machine) first.
 
 1. First call: `await cua.getState()` and nothing else (no `{ emit: false }`: the
-   browser list must print). Pick the browser by `metadata.extensionInstanceId`
-   after the parent check in [Pick Chrome, not Arc](#pick-chrome-not-arc), then use
-   its `id` (2026-10-16 on the main Mac: Chrome `"2"`, Arc `"1"`; ids can change,
-   so check each time).
+   browser list must print). Every Chromium browser with the ChatGPT extension
+   (Arc, Brave, Edge, …) is listed as `name: "Chrome"`, and how many there are
+   differs per Mac. Find the real Google Chrome by its open tabs:
+
+       osascript -e 'tell application "Google Chrome" to get URL of every tab of every window'
+
+   Pick the entry with the most URLs in common with that list. The lists need
+   not be equal, and a URL that is open in two browsers does not decide. If
+   nothing decides (Chrome has no tabs, or each URL is also open elsewhere), open
+   a probe: `open -a "Google Chrome" "https://example.com/#cu-<random>"`, call
+   `getState` again, pick the entry that shows it, then close that tab. The
+   `osascript` call starts Google Chrome if it is not running, and its first run
+   can ask for Automation permission (a headless worker cannot grant it). Do this
+   on every run: ids and the number of browsers differ per Mac and can change
+   within a day.
 2. Never pass the name `"chrome"` to `createBrowserTab`, even though the tool
-   description shows it: it can select Arc. 2026-10-16: `createBrowserTab("chrome", …)`
-   and `getTab(…, { browser: "1" })` then `close()` both hung until the timeout;
-   Arc then showed two `about:blank` tabs.
+   description shows it: it can select another Chromium browser. Example: on one
+   Mac it selected Arc, where `createBrowserTab` and `close` hung until the
+   timeout and left `about:blank` tabs.
 3. To read a web page, use the browser surface: `cua.getTab(tabId, { browser: id })`
-   (verified 2026-10-16) or `cua.createBrowserTab(id, url, { sessionName })`
-   (untested with an id), then `getAXState()`,
+   or `cua.createBrowserTab(id, url, { sessionName })` with the `id` from step 1
+   (both verified 2026-10-16; Statsig `NetworkError` lines in the output are noise;
+   the first call also returns the full API docs, with your result at the end), then
+   `getAXState()`,
    `tab.playwright.frameLocator(...).locator(...).innerText({})`, or
    `nodeRepl.emitImage(await tab.screenshot({}))`. Never use `cua.getApp` or
    coordinate clicks for a web page: they drive the app window on the user's screen
-   (2026-10-16: a Grok Bot worker took the user's screen this way).
+   (seen 2026-10-16: an agent took the user's screen this way).
 4. One step per call. Read each result before the next step. Use only the APIs that
    the returned documentation lists. Print with `nodeRepl.write`; the REPL cannot
    write files (`EPERM`).
@@ -94,31 +107,26 @@ but its app approvals also go through the proxy (see below).
 `cua.getState()` can return a full `apps` list and a `browsers` error together.
 A metadata error on `browsers` does not mean the computer surface failed.
 
-## Pick Chrome, not Arc
+## Pick the real Google Chrome
 
-Arc and Chrome both report `name: "Chrome"`. The numeric `id` is not stable.
-`profileName` can be absent. Do not use either as the only test.
+Every Chromium browser with the ChatGPT extension reports `name: "Chrome"`.
+The numeric `id` and `metadata.extensionInstanceId` differ per Mac and the `id`
+is not stable. `profileName` can be absent. Do not use any of them as a fixed
+value: find the entry by its tabs ([Quickstart](#quickstart-read-first) step 1).
 
-1. Call `cua.listBrowsers()`.
-2. Read `metadata.extensionInstanceId`.
-3. Confirm the host parent before a long call.
+Before a long call you can also confirm which app hosts the extension:
 
 ```sh
 ps -o ppid= -p $(pgrep -f "ChatGPT for Chrome")
 ```
 
-The parent path is Arc or Google Chrome. Sample from 2026-10-05. Re-check
-after a reload. Do not reuse these values once the parent check disagrees.
-
-- Arc: `33f909be-429f-479e-b1c2-20bba462cbf3`
-- Chrome: `75ef88d3-a921-455b-b39e-b40ed5ec2771`
-
-`createBrowserTab` and `nameSession` on the Arc instance do not return. A 120s
-wait still fails, and the call can leave `about:blank`.
+The parent path must be Google Chrome. On an instance of another Chromium
+browser (example: Arc), `createBrowserTab` and `nameSession` may never return;
+a 120s wait still fails, and the call can leave `about:blank`.
 
 ## Browser surface
 
-Use the Chrome instance from the parent check. Keep related browser steps in
+Use the Google Chrome instance from Quickstart step 1. Keep related browser steps in
 one live `cua_repl` session. With `scripts/codex-cu-remote`, pass dependent JS
 files in one invocation; a new invocation cannot rely on the previous tab's
 browser tab ID alone.
@@ -149,13 +157,14 @@ not to `tab`.
 `document.cookie` is not available. `chrome://` URLs are not allowed. There is
 no hover method. Browser surface does not ask for per-app approval.
 
-Rehearsal that passed 2026-10-05: select `75ef88d3-…`, `nameSession` returns
+Rehearsal that passed 2026-10-05: select that Mac's Chrome, `nameSession` returns
 at once, `URL=https://example.com/`, `learnMoreVisible=true`, the new tab is
 closed, the prior tab ids are unchanged.
 
 ## Computer surface
 
-Arc on this surface is an app, not a browser target.
+On this surface a browser is an app, not a browser target. The steps use Arc as
+the example app; use the display name of the app you target.
 
 1. Open a URL with `open -a Arc "<url>"`. Command-T is less stable.
 2. `cua.getApp("Arc")`. Use the display name. Do not use a bundle id.
@@ -219,13 +228,14 @@ app in the current message.
 
 - Do not treat a metadata error as a dead computer surface.
 - Do not pick a browser by numeric id.
-- Do not call `nameSession` or `createBrowserTab` on the Arc instance.
+- Do not call `nameSession` or `createBrowserTab` on an instance that is not
+  Google Chrome.
 - Do not close tabs that were already open.
 
 ## Not tested
 
-A Stop hook that sends `turn_ended`, many Chrome profiles, Arc and Chrome at
+A Stop hook that sends `turn_ended`, many Chrome profiles, two Chromium browsers at
 the same time, Freeform drag, AppleScript JS
-inside Arc, and `claude setup-token` over SSH. Computer surface through
+inside a browser app, and `claude setup-token` over SSH. Computer surface through
 `codex-cu-remote` (2026-10-13: the remote screen was locked,
 `-10005: cgWindowNotFound`; browser surface passed on the same run).
