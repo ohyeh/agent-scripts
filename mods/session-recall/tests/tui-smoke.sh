@@ -74,7 +74,14 @@ tmux -S "$sock" send-keys -t t:v r
 tmux -S "$sock" send-keys -t t r
 for _ in $(seq 50); do [ "$(asks | wc -l | tr -d ' ')" = 2 ] && break; sleep 0.1; done
 [ "$(asks | wc -l | tr -d ' ')" = 2 ] || fail "two TUIs left $(asks | wc -l) requests, not 2"
-tmux -S "$sock" send-keys -t t:v q
+# A paste is not keys: a pasted q does not quit (bracketed paste); Esc does.
+tmux -S "$sock" set-buffer 'qqq'
+tmux -S "$sock" paste-buffer -p -t t:v
+sleep 0.3
+tmux -S "$sock" list-windows -t t -F '#W' | grep -qx v || fail 'a pasted q quit the TUI'
+tmux -S "$sock" send-keys -t t:v Escape
+sleep 0.3
+tmux -S "$sock" list-windows -t t -F '#W' | grep -qx v && fail 'Esc did not quit'
 tmux -S "$sock" send-keys -t t q
 sleep 0.3
 tmux -S "$sock" has-session -t t 2>/dev/null && fail 'q did not quit'

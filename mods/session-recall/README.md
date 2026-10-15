@@ -23,20 +23,25 @@ per-session state, slash commands that work in every terminal, and a tool for th
 
 ## Band
 
-Above the prompt, only after this session has an asset. Other sessions' assets are
-folded into one line.
+Above the prompt, once this session has an asset or the prompt holds a `#qN`. Other sessions' assets are
+folded into one line. It follows the band rules in [`../README.md`](../README.md): no help text, buttons say what
+they do (`[ ⧉ tui ][ ▾ fold ][ hide ]`, `[ ⧉ ][ ▾ ][ ✕ ]` when narrow; fold keeps the header, hide takes the band away), each row shows the token you type.
 
 ```
-▌session recall v<version> 2 url · 1 artifact · 1 image · 1 video · 2 file · 1 commit · #aN in a prompt · /recall list   [ ⧉ ][ hide ]
-   a1 ● localhost:5173          2m ago · Start dev server
+▌session recall v<version> · 9 assets · 1 quote        [ ⧉ tui ][ ▾ fold ][ hide ]
+  ↩ #q4  reply 3m ago · L2-3 · 「move every retro proposal into…」 [ × ]
+   #a1 ● localhost:5173          2m ago · Start dev server
        [ open ][ copy ][ reply ]  http://localhost:5173/
-   a2 ◆ x.dev/docs              5m ago · reply: Docs
-   a3 ▣ IMG 2026-10-08 at 20.40.56.png  6m ago · ~/Desktop
-   a4 ◈ Retro W41               10m ago · claude.ai
-   a5 ▶ demo.mp4                12m ago · ./web
+   #a2 ◆ x.dev/docs              5m ago · reply: Docs
+   #a3 ▣ IMG 2026-10-08 at 20.40.56.png  6m ago · ~/Desktop
+   #a4 ◈ Retro W41               10m ago · claude.ai
   +3 more — /recall N
   ▸ other sessions: 3 · 12 assets
 ```
+
+- The quote rows: each `#qN` in the prompt as it stands, with the reply and lines it came from, as a messenger's
+  reply bar (3 at most, then a count). `[ × ]` takes `#qN` out of the prompt, with its `>` lines when it stands on a
+  line of its own. Typing the token away removes its row; sending the prompt clears them.
 
 | Glyph | Kind | Comes from | `/recall open N` |
 |---|---|---|---|
@@ -54,7 +59,7 @@ folded into one line.
   it went in a toast. Preview is for a file, picture or video; a commit has copy and reply only.
   A second click closes the row.
 - The band's rows are for what you look at or open: links, Artifacts, pictures, videos. Files,
-  commits, pushes and sources are counted in its header and listed by `/recall list`; one of
+  commits, pushes and sources are counted in its header's total and listed by `/recall list`; one of
   theirs shows as a row only while it is open (`/recall N`).
 - A picture or video path with spaces counts when it is quoted (a file dragged into the prompt)
   or its spaces are escaped (`demo\ run.mov`).
@@ -127,12 +132,14 @@ there the keyboard way is the commands.
 
 ## Quoting a reply: `#qN`
 
-- Select in place, then `↩`: drag over part of a reply (fullscreen copies it when the button is released; otherwise
-  copy it), then click the `[ ↩ ]` that shows at the block's top right while the pointer is over it. The mod reads
-  the clipboard once (`pbpaste`). If the text is in that block and in its answer, it goes in the prompt under
-  `#qN` at once, as `> line` blocks, with the lines it covers (part of a line too). The terminal's gutter and the
-  reply bullet are dropped. A clipboard that is not from that block is never inserted: a toast says to select and
-  copy first. A mod cannot read a selection that was not copied.
+- Select in place, then `↩ quote`: drag over part of a reply (fullscreen copies it when the button is released;
+  otherwise copy it), then click the `[ ↩ quote ]` that shows at the block's top right while the pointer is over it.
+  The mod reads the clipboard once (`pbpaste`). If the text is in that block and in its answer, it goes in the prompt
+  under `#qN` at once, as `> line` blocks, with the lines it covers (part of a line too). The terminal's gutter and
+  the reply bullet are dropped. A selection that runs past the reply (into a tool row or the next reply) is read line
+  by line: each run of lines this reply holds is a `#qN`, the other lines go in as plain `>` lines with no place, and
+  the toast names each `#qN` and its lines. A clipboard with no line of that reply is never inserted. A mod cannot
+  read a selection that was not copied, so the button cannot say what it will quote before the press.
 - Paste: lines copied from a reply and pasted into the prompt are recognized when you send it. Words typed before or
   after the paste on the same line, cut at a space, are left out. Each run of pasted lines from one answer is kept
   as a `#qN`, and the model is told where the lines came from. A line under 12 characters (with marks and spaces
@@ -156,8 +163,8 @@ splits no pane from a command. Elsewhere (iTerm), or when that fails, the comman
 new pane. Needs `node` (22 or later) on the PATH; it has no dependencies.
 
 ```
-▌session recall v0.12.0 · agent-scripts
-2 assets, numbered as the band: #aN in a prompt refers to row N
+▌session recall v0.13.0 · agent-scripts · 2 assets
+
 #a1  ● localhost:5173              2m ago · localhost:5173
 #a2  ▣ shot.png                    5m ago · /tmp
 ────────────────────────────────────────────
@@ -167,7 +174,8 @@ enter open · p preview · c copy · r #aN into the prompt · q quit
 
 - Every row, numbered as the band. Enter opens, `p` previews (Quick Look), `c` copies, `r` puts `#aN` in the prompt:
   the TUI sends the row's URL or path, and the mod numbers it as its list stands then. Quoting a reply is not done
-  here (see above).
+  here (see above). The key hints at the foot show each key in bold. `q`, Ctrl-C and Esc quit; the terminal is put
+  back on every way out (a signal or a crash too). Paste is bracketed, so pasted text is never read as keys.
 - How it talks to the session: the mod writes `~/.local/state/session-recall/<sid>.json` (the list) after each change,
   and the TUI redraws when it changes. A process outside Claude Code cannot type into its prompt box, so the TUI
   writes a request and the mod puts its text in the prompt (it looks twice a second). Each request is a file of its

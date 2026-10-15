@@ -40,8 +40,8 @@ Above the prompt, only while this session has a watch. Another session's
 watch is never shown: a wake belongs to the conversation that armed it.
 
 ```
-▌grok bot watch v0.5.2 · 1 bot · read 4s ago [ + ] [ hide ]
-  ● ARIA front 3f6e9a21 · waiting · woke 2× 5m ago [ ▾ ] [ unwatch ] "got it, again"
+▌grok bot watch v0.15.0 · 1 bot · read 4s ago [ + watch ] [ ▾ fold ]
+  ● ARIA front 3f6e9a21 · waiting · woke 2× 5m ago [ ▾ ] [ ✕ unwatch ] "got it, again"
     reply to ARIA front, tagged [w:d5e81f37] — Enter sends          [ send ]
       2:03 AM You · "please reply once more"
       2:03 AM ARIA front · "got it, again"
@@ -61,14 +61,16 @@ replies that wake this session count: a reply for another session or the owner
 is noise here. Each wake prompt says which reply it is and since when (`reply 3
 from this bot to this session since the watch began at <ISO time>`), so after a
 compaction the session can tell what it already has. A re-watch keeps the count
-and the start; `[ unwatch ]` ends them. `[ hide ]` (`f` with the band focused) folds the band to its
-header line; it never disappears while a watch is armed. After the
+and the start; `[ unwatch ]` ends them. `[ ▾ fold ]` (`f` with the band focused) folds the band to its
+header line (`[ ▸ open ]` brings it back); it never disappears while a watch is armed. After the
 last `[ unwatch ]` the band stays as `0 bots [ + ] [ close ]`, so the next watch
 is one key away; `[ close ]` hides it until the next watch. `[ unwatch ]` (`u`,
 one watch only) stops that watch. `[ + ]` (`w`) opens a field above the rows:
 type a UUID or an 8+ char prefix and Enter watches it; a refused id stays in
 the field with a toast saying why, and Enter on nothing closes it. The field
 is the same path as the `watch` tool. Mobile has no text field: use the command. `[ ▸ ]` (`o`, one watch only) opens the row.
+Buttons are a glyph and a word (`[ + watch ]`, `[ ▾ fold ]`, `[ ✕ unwatch ]`) when the
+whole header fits them, the glyph only when the band is narrow.
 The open row starts with a reply line (the workers panel's tell line): type
 and Enter sends it to that bot, prefixed with this session's tag and the sender
 mark `⟨Claude⟩` so its answer wakes this session only (Sharing a bot between

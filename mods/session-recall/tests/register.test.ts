@@ -389,7 +389,7 @@ describe('band', () => {
 
     const text = textOf(await $.ui.render(band()))
     expect(text).toContain('session recall')
-    expect(text).toContain('1 url · 1 file')
+    expect(text).toContain('· 2 assets')
     expect(text).toContain('Start dev server')
     expect(text, 'a file is counted, not a band row').not.toContain('plan.md')
     expect(text).toContain('other sessions: 1 · 1 asset')
@@ -456,6 +456,26 @@ describe('band', () => {
     expect(textOf(await $.ui.render(band()))).not.toContain('session recall')
     await $.command.run(cmd(''))
     expect(textOf(await $.ui.render(band()))).toContain('session recall')
+  })
+
+  test('[ ▾ fold ] keeps only the header (not hidden), [ ▸ open ] brings the rows back; buttons say what they do, icons when narrow', async ($, on) => {
+    world(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
+    let text = textOf(await $.ui.render(band()))
+    expect(text).toContain('▾ fold')
+    expect(text).toContain('#a1')
+    await $.ui.press({ plugin: 'session-recall', key: 'fold' } as never)
+    text = textOf(await $.ui.render(band()))
+    expect(text, 'folded is not hidden').toContain('session recall v')
+    expect(text).toContain('· 1 asset')
+    expect(text).toContain('▸ open')
+    expect(text).not.toContain('#a1')
+    await $.ui.press({ plugin: 'session-recall', key: 'fold' } as never)
+    expect(textOf(await $.ui.render(band()))).toContain('#a1')
+    const narrow = textOf(await $.ui.render(band({ bodyColumns: 40 })))
+    expect(narrow).not.toContain('▾ fold')
+    expect(narrow).toContain('▾')
   })
 
   test('/recall N opens the row; /recall open N runs open with the URL or path as argv; a commit opens nothing', async ($, on) => {
@@ -700,7 +720,7 @@ describe('band', () => {
     await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/plan.md', content: 'x' })
     await $.tool.call({ tool: 'WebFetch', url: 'https://2140.tw/api/token-target/', prompt: 'token target spec' } as never)
     const band1 = textOf(await $.ui.render(band()))
-    expect(band1).toContain('1 file · 1 source')
+    expect(band1).toContain('· 2 assets')
     expect(band1).not.toContain('token target spec')
     expect(band1, 'a file is counted, not a band row').not.toContain('plan.md')
     const text = JSON.stringify(await $.command.run(cmd('list')))
@@ -807,7 +827,7 @@ describe('band', () => {
     await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/demo.mp4', content: 'x' })
     await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/shot.png', content: 'x' })
     const text = textOf(await $.ui.render(band()))
-    expect(text).toContain('1 image · 1 video · 1 file')
+    expect(text).toContain('· 3 assets')
     expect(text).toContain('▶')
     expect(text).toContain('demo.mp4')
     expect(text).toContain('shot.png')
@@ -870,7 +890,7 @@ describe('band', () => {
 const turn = { answer: '', durationMs: 1, isAborted: false, turnId: 't1' }
 const start = { cwd: '/work/retro-w41', surface: 'terminal' as const, isInteractive: true }
 const cmd = (args: string) => ({ command: 'recall', args, origin: { kind: 'composer' as const }, presentation: { isFullscreen: false, columns: 120 } })
-const band = (props: { maxRows?: number; hasSurvey?: boolean } = {}) => ({
+const band = (props: { maxRows?: number; hasSurvey?: boolean; bodyColumns?: number } = {}) => ({
   surface: 'terminal' as const,
   component: 'AbovePrompt' as const,
   requestId: 'above-prompt',
@@ -919,10 +939,18 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   })
   /** `box.open = false`: no prompt box takes text (a dialog is open). */
   const box: { open: boolean; failWrite?: (path: string, text: string) => boolean } = { open: true }
+  // The box as the person sees it: fills land in it, edits splice it, `$.prompt.read()` reads it.
+  const draft = { text: '' }
   on('prompt.fill', ($, e) => {
     if (!box.open) return { isFilled: false, text: '', cursor: 0 } as never
     filled.push({ text: e.text, mode: e.mode })
-    return { isFilled: true, text: e.text, cursor: e.text.length } as never
+    draft.text = e.mode === 'replace' ? e.text : draft.text + e.text
+    return { isFilled: true, text: draft.text, cursor: draft.text.length } as never
+  })
+  on('prompt.read', () => ({ value: { text: draft.text, cursor: draft.text.length } }) as never)
+  on('prompt.edit', ($, e) => {
+    draft.text = e.text.slice(0, e.start) + e.inputText + e.text.slice(e.end)
+    return { text: draft.text, cursor: e.start + e.inputText.length } as never
   })
   on('process.spawn', async function* (_$: unknown, e: { argv: string[] }) {
     spawned.push([...e.argv])
@@ -986,7 +1014,7 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
     return Object.assign(done, { at: `${HOME}/.local/state/session-recall/sess-A.done/${name}` })
   }
   const snap = () => JSON.parse(files.get(`${HOME}/.local/state/session-recall/sess-A.json`)?.text ?? 'null')
-  return { kv, runs, contexts, copied, filled, spawned, toasts, files, ask, snap, clock, box, failing }
+  return { kv, runs, contexts, copied, filled, spawned, toasts, files, ask, snap, clock, box, failing, draft }
 }
 
 function textOf(node: unknown): string {
@@ -1087,14 +1115,47 @@ describe('the TUI', () => {
     clip.text = 'D1: 這次 retro 提案現在只\n  放在一個地方\n  - keep #aN'
     await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
     expect(w.filled.at(-1), 'the terminal gutter is gone').toEqual({ text: '#q1\n> D1: 這次 retro 提案現在只\n> 放在一個地方\n> - keep #aN\n\n', mode: 'insert' })
-    expect(w.toasts.at(-1)).toContain('#q1: the selection is in the prompt')
+    expect(w.toasts.at(-1)).toContain('#q1 (lines 1-2) in the prompt')
     await $.prompt.submit({ text: '#q1 why', wait: false, origin: { kind: 'composer' } } as never)
     expect(w.contexts.at(-1)?.join('\n')).toContain('#q1 = lines 1, 2 of your reply of ')
     clip.text = 'something copied in another app'
     await $.ui.render(msg)
     await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
     expect(w.filled, 'a clipboard not from this block is never inserted').toHaveLength(1)
-    expect(w.toasts.at(-1)).toContain('select the part of this reply')
+    expect(w.toasts.at(-1)).toContain('not from this reply')
+  })
+
+  test('↩ on a selection that runs past the reply: each run of its lines is a #qN, the rest plain >; the band lists the quotes, [×] takes one out', async ($, on) => {
+    const clip = { text: '' }
+    const w = world(on, { clip })
+    await $.session.start(start)
+    await w.clock.advance(1_000)
+    const answer = '- move every retro proposal into the inbox\n- the handoff stops copying proposals\n- tag each proposal with its owner'
+    await $.turn.complete({ ...turn, answer } as never)
+    const msg = { surface: 'terminal', component: 'AssistantMessage', requestId: 'm1', viewport: { columns: 100, rows: 50 }, props: { text: answer, isFirstOfReply: true } } as never
+    await $.ui.render(msg)
+    clip.text = 'move every retro proposal into the inbox\nBash(npm test) exited 0 after a while\ntag each proposal with its owner'
+    await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
+    expect(w.draft.text).toBe('#q1\n> move every retro proposal into the inbox\n\n> Bash(npm test) exited 0 after a while\n#q2\n> tag each proposal with its owner\n\n')
+    expect(w.toasts.at(-1)).toContain('#q1 (line 1), #q2 (line 3) in the prompt; 1 line not from this reply went in as plain >')
+    let text = textOf(await $.ui.render(band()))
+    expect(text, 'quotes alone show the band').toContain('2 quotes')
+    expect(text).toContain('↩ #q1')
+    expect(text).toContain('L3')
+    await $.ui.press({ plugin: 'session-recall', key: 'drop-q1' } as never)
+    expect(w.draft.text).not.toContain('#q1')
+    expect(w.draft.text).not.toContain('into the inbox')
+    expect(w.draft.text).toContain('#q2')
+    text = textOf(await $.ui.render(band()))
+    expect(text).not.toContain('↩ #q1')
+    expect(text).toContain('1 quote ')
+    // Typing #q2 away by hand (a person's edit) takes it off the band too.
+    await ($.prompt as unknown as { edit: (e: never) => Promise<unknown> }).edit({ origin: { kind: 'composer' }, text: w.draft.text, cursor: 0, start: 0, end: w.draft.text.length, inputText: 'fresh start' } as never)
+    expect(textOf(await $.ui.render(band()))).not.toContain('↩ #q2')
+    await ($.prompt as unknown as { edit: (e: never) => Promise<unknown> }).edit({ origin: { kind: 'composer' }, text: w.draft.text, cursor: 0, start: 0, end: 0, inputText: '#q2 ' } as never)
+    expect(textOf(await $.ui.render(band()))).toContain('↩ #q2')
+    await $.prompt.submit({ text: w.draft.text, wait: false, origin: { kind: 'composer' } } as never)
+    expect(textOf(await $.ui.render(band())), 'a sent prompt leaves no quote bar').not.toContain('↩ #q2')
   })
 
   test('lines pasted from a reply are told to the model as a quote of it; typed text is not', async ($, on) => {

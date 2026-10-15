@@ -1,5 +1,24 @@
 # Changelog
 
+## grok-bot-watch 0.15.0
+
+The band follows the TUI design rules.
+
+- The title carries the version: `▌grok bot watch v0.15.0`. The dim summary after it no longer repeats it.
+- Buttons are a glyph and a word when the whole header fits them with the words (the workers band's rule): `[ + watch ]`, `[ ▾ fold ]` / `[ ▸ open ]` (it folds the band to its header, it does not hide it, so the word is now fold), `[ ✕ close ]`, `[ ✕ unwatch ]`. A narrow band shows the glyph only. Buttons are no longer dim; the uuid8, the preview and the history lines stay dim.
+- `grok-bot-tui` (skill `using-grok-bot-app`, now `metadata.version: "1.0.0"` in its SKILL.md): the title shows `▌grok bot tui v1.0.0`, read from that field; a SKILL.md without it is an error, and a test ties the title to it. The terminal is restored on exit, SIGINT, SIGTERM and a crash; bracketed paste is on and a paste is never read as keys; Esc goes back from the detail and quits from the list; key names in the hints are bold.
+- `grok-bot-tui` stops the `ensure.mjs` it started when it quits, so the app is never restarted after the TUI is gone (before: it ran on and could restart Grok Bot). Checked with a stand-in ensure on a private tmux server: one running before `q`, none after, and it never finished.
+- Not changed: a failed read already shows `▲` in yellow, not dim text alone. Rows get no 1-based number: no command takes one, and the uuid8 on the row is what `unwatch` and `/grok-bot-watch` take.
+
+## session-recall 0.13.0
+
+The band and the TUI follow the shared TUI rules (`mods/README.md`). Quoting shows what is in the prompt.
+
+- Quote rows in the band: each `#qN` in the prompt shows above it with the reply and lines it came from (3 at most, then a count), and `[ × ]` takes it out of the prompt with its `>` lines. The mod reads the box on each edit (`prompt.edit`, observe only, nothing is rewritten). The band shows for quotes even before the session has an asset; sending clears the rows.
+- `↩` is now `↩ quote`, not dim. A selection that runs past the reply is read line by line: each run of lines from this reply is a `#qN`, the other lines go in as plain `>`. The toast names each `#qN` and its lines.
+- Band header: `▌session recall vX · N assets · M quotes`, no help text. Buttons `[ ⧉ tui ][ ▾ fold ][ hide ]`, `[ ⧉ ][ ▾ ][ ✕ ]` when narrow, not dim. `[ ▾ fold ]` keeps the header only (its counts still change) and `[ ▸ open ]` brings the rows back; `[ hide ]` still takes the band away until `/recall show`. Rows show `#aN`, the token you type. The per-kind counts are gone from the header (`/recall list` has them).
+- TUI: the title carries the version and the count; the help line shows only when the list is empty. Key hints in bold. Esc quits as q and Ctrl-C do. The terminal is restored on SIGINT, SIGTERM, SIGHUP, a crash and exit. Bracketed paste is on, so a paste is not read as keys (smoke: a pasted `q` does not quit, Esc does).
+
 ## session-recall 0.12.0
 
 The TUI shows assets only. Quoting a reply is done in place: select, copy, then the reply's `[ ↩ ]`, or paste into the prompt.

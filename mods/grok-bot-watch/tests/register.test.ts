@@ -699,8 +699,22 @@ describe('review 0.2.0 fixes', () => {
     const at = kids.findIndex(n => n.type === 'Button')
     expect(at, 'the button is drawn').toBeGreaterThan(0)
     const before = kids.slice(0, at).map(n => kidsOf(n).join('')).join('')
-    expect(cellsOf(before) + 12, 'glyph, name, id and state fit beside [ unwatch ]').toBeLessThanOrEqual(40)
+    const buttons = kids.filter(n => n.type === 'Button').map(n => `[ ${n.props?.label} ]`).join('')
+    expect(buttons, 'narrow: the glyph only').toBe('[ ▸ ][ ✕ ]')
+    expect(cellsOf(before) + cellsOf(buttons), 'glyph, name, id and state fit beside the buttons').toBeLessThanOrEqual(40)
     expect(before, 'the state survives the cut').toContain('waiting')
+  })
+
+  test('a wide band: version in the title, buttons with a word, none of them dim', async ($, on) => {
+    mock.clock(on)
+    world(on, [ok(row('A'))])
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    const tree = await $.ui.render(band({ bodyColumns: 120 }))
+    expect(textOf(tree).replace(/\n/g, '')).toMatch(/▌grok bot watch v\d+\.\d+\.\d+ · 1 bot/)
+    const buttons = nodes(tree).filter(n => n.type === 'Button')
+    expect(buttons.map(b => b.props?.label)).toEqual(['+ watch', '▾ fold', '▸', '✕ unwatch'])
+    expect(buttons.some(b => b.props?.dimColor), 'actionable, so not dim').toBe(false)
   })
 
   test('rows a plugin below already drew come off the budget', async ($, on) => {

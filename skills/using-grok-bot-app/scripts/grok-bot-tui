@@ -23,7 +23,8 @@ Usage:
   --port <n>   The app's CDP port. Default: $GROK_BOT_CDP_PORT, else 39231
                (see the skill's Connect).
 
-Keys: j/k or 1-9 select, Enter detail, Esc back, r read now, q quit.
+Keys: j/k or 1-9 select, Enter detail, Esc back (in the list: quit), r read now,
+q or Ctrl-C quit. A paste is ignored.
 EOF
   exit 0
 fi

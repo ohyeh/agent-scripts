@@ -57,11 +57,12 @@ const OFF = '\x1b[0m'
 
 /** The screen as lines, from the snapshot `data` and the view `v` ({ cur, msg }). Pure: the tests call it with a fixed `now`. */
 export function frame(data, v, cols, rows, now) {
-  const lines = [`${BOLD}▌session recall${OFF} ${DIM}${fit(`v${data.version ?? '?'} · ${data.project ?? ''}`, Math.max(0, cols - 16))}${OFF}`]
-  const body = Math.max(1, rows - 6)
   const xs = data.assets ?? []
-  lines.push(`${DIM}${fit(`${xs.length} assets, numbered as the band: #aN in a prompt refers to row N`, cols)}${OFF}`)
-  if (!xs.length) lines.push(`${DIM}no assets yet.${OFF}`)
+  const title = `▌session recall v${data.version ?? '?'}`
+  const lines = [`${BOLD}${fit(title, cols)}${OFF}${DIM}${fit(` · ${data.project ?? ''} · ${xs.length} asset${xs.length === 1 ? '' : 's'}`, Math.max(0, cols - cells(title)))}${OFF}`, '']
+  const body = Math.max(1, rows - 6)
+  // Help in words only when there is nothing to show: then it says what will.
+  if (!xs.length) lines.push(`${DIM}${fit('nothing made yet: URLs, files, images and commits show here; #aN in a prompt points Claude at row N', cols)}${OFF}`)
   const top = Math.max(0, Math.min(v.cur - Math.floor(body / 2), xs.length - body))
   for (let i = top; i < Math.min(xs.length, top + body); i++) {
     const x = xs[i]
@@ -70,8 +71,11 @@ export function frame(data, v, cols, rows, now) {
   }
   lines.length = 2 + body
   for (let i = 0; i < lines.length; i++) lines[i] ??= ''
-  const keys = 'enter open · p preview · c copy · r #aN into the prompt · q quit'
-  lines.push(`${DIM}${'─'.repeat(cols)}${OFF}`, ...wrap(xs[v.cur]?.ref ?? '', cols, 2).concat(['', '']).slice(0, 2), `${DIM}${fit(v.msg || keys, cols)}${OFF}`)
+  // The key hints: each key bold, what it does plain; a message or a narrow pane gets the line as plain text.
+  const keys = [['enter', 'open'], ['p', 'preview'], ['c', 'copy'], ['r', '#aN into the prompt'], ['q', 'quit']]
+  const hint = keys.map(([k, d]) => `${k} ${d}`).join(' · ')
+  const foot = v.msg ? `${DIM}${fit(v.msg, cols)}${OFF}` : cells(hint) <= cols ? keys.map(([k, d]) => `${BOLD}${k}${OFF} ${d}`).join(` ${DIM}·${OFF} `) : `${DIM}${fit(hint, cols)}${OFF}`
+  lines.push(`${DIM}${'─'.repeat(cols)}${OFF}`, ...wrap(xs[v.cur]?.ref ?? '', cols, 2).concat(['', '']).slice(0, 2), foot)
   return lines
 }
 
@@ -184,28 +188,51 @@ function main() {
     if (input !== undefined) p.stdin.end(input)
     else p.unref()
   }
+  // The terminal goes back as it was on every way out: q, a signal, a crash.
+  let restored = false
+  const restore = () => {
+    if (restored) return
+    restored = true
+    out.write('\x1b[?2004l\x1b[?25h\x1b[?1049l')
+    try {
+      process.stdin.setRawMode(false)
+    } catch {} // stdin already closed: nothing to put back
+  }
   const quit = () => {
-    out.write('\x1b[?25h\x1b[?1049l')
-    process.stdin.setRawMode(false)
+    restore()
     process.exit(0)
   }
-  out.write('\x1b[?1049h\x1b[?25l\x1b[2J')
+  process.on('exit', restore)
+  process.on('SIGTERM', quit)
+  process.on('SIGINT', quit)
+  process.on('SIGHUP', quit)
+  process.on('uncaughtException', err => {
+    restore()
+    console.error(err)
+    process.exit(1)
+  })
+  // Bracketed paste: a paste comes marked, so its text is never read as keys.
+  out.write('\x1b[?1049h\x1b[?25l\x1b[2J\x1b[?2004h')
   process.stdin.setRawMode(true)
   process.stdin.resume()
-  process.on('SIGTERM', quit)
   out.on('resize', draw)
   setInterval(() => (load() | answered()) && draw(), 300)
   load()
   draw()
   // One chunk can hold several keys (typed fast, a paste, tmux send-keys): one at a time.
+  let pasting = false
   process.stdin.on('data', buf => {
-    for (const k of keysOf(buf.toString())) onKey(k)
+    for (const k of keysOf(buf.toString())) {
+      if (k === '\x1b[200~') pasting = true
+      else if (k === '\x1b[201~') pasting = false
+      else if (!pasting) onKey(k)
+    }
     draw()
   })
   const onKey = k => {
     const x = data.assets?.[v.cur]
     v.msg = ''
-    if (k === 'q' || k === '\x03') quit()
+    if (k === 'q' || k === '\x03' || k === '\x1b') quit()
     if (k === '\x1b[A' || k === 'k') v.cur--
     else if (k === '\x1b[B' || k === 'j') v.cur++
     else if (k === '\x1b[5~') v.cur -= 10

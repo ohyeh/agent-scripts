@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Function-hook mods that ship beside the agent-scripts skills.",
-    "version": "0.14.0"
+    "version": "0.15.0"
   },
   "plugins": [
     {
       "name": "grok-bot-watch",
       "source": "./mods/grok-bot-watch",
       "description": "Function-hook mod: watches a Grok Bot bot by UUID over a read-only CDP sidebar read and wakes this session when a new reply lands. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.14.0",
+      "version": "0.15.0",
       "author": {
         "name": "PaulYeh"
       },
@@ -24,7 +24,7 @@
       "name": "session-recall",
       "source": "./mods/session-recall",
       "description": "Function-hook mod: a numbered list of what a session made (URLs, artifacts, files, images, commits). Write #aN in a prompt to hand Claude the exact ref and whether it is still up; Claude looks them up with its assets tool, even after compaction. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.12.0",
+      "version": "0.13.0",
       "author": {
         "name": "PaulYeh"
       },

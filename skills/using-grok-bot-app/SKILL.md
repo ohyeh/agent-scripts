@@ -2,6 +2,8 @@
 name: using-grok-bot-app
 description: Read and drive the "Grok Bot" macOS desktop app (an Electron app) over CDP with agent-browser — list its bots and folders, read a conversation transcript, or check what a bot last said. Use this whenever the user mentions Grok Bot, "the bot app", or a bot named in that app's sidebar, asks what one of those bots replied or is working on, or wants a message read from or drafted into that app — even when they only say "the bot app" without naming it. Not for an SSH deploy host that happens to be named grok-bot, and not for xAI's Grok API.
 allowed-tools: Bash(agent-browser:*), Bash(pgrep:*), Bash(lsof:*)
+metadata:
+  version: "1.0.0"
 ---
 
 # Using the Grok Bot app

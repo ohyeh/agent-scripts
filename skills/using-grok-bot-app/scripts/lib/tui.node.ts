@@ -7,11 +7,13 @@
 // Usage: node tui.node.ts [--port <n>]   (default: the sidebar helper's, $GROK_BOT_CDP_PORT or 39231)
 // Keys: j / k, Up / Down, 1-9  select a bot
 //       Enter                  detail: the conversation when that bot is open in the app
-//       Esc                    close the detail, or deselect
+//       Esc                    close the detail; in the list, quit
 //       r                      read now
-//       q, Ctrl-C              quit (the terminal is restored)
+//       q, Ctrl-C              quit (the terminal is restored on every exit path)
+// A paste (bracketed paste) is dropped, never read as keys.
 
-import { execFile } from 'node:child_process'
+import { type ChildProcess, execFile } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { type Read, ago, cells, clean, fit, liveState } from './core.ts'
@@ -21,8 +23,10 @@ const SIDEBAR = fileURLToPath(new URL('../sidebar.mjs', import.meta.url))
 const ENSURE = fileURLToPath(new URL('../ensure.mjs', import.meta.url))
 /** A port that stays down is fixed again after this long, not on every read. */
 const ENSURE_EVERY_MS = 60_000
-const ENTER_ALT = '\x1b[?1049h\x1b[?25l'
-const LEAVE_ALT = '\x1b[?25h\x1b[?1049l'
+const ENTER_ALT = '\x1b[?1049h\x1b[?25l\x1b[?2004h'
+const LEAVE_ALT = '\x1b[?25h\x1b[?2004l\x1b[?1049l'
+const PASTE_ON = '\x1b[200~'
+const PASTE_OFF = '\x1b[201~'
 const COLOR: Record<string, string> = { green: '32', cyan: '36', magenta: '35', yellow: '33' }
 
 /** fix: what ensure.mjs is doing or last did about a down port, shown under the header. */
@@ -30,6 +34,35 @@ export type View = { read?: Read; at?: number; now: number; sel?: number; detail
 
 const paint = (code: string | undefined, t: string) => (code ? `\x1b[${code}m${t}\x1b[0m` : t)
 const pad = (t: string, w: number) => t + ' '.repeat(Math.max(0, w - cells(t)))
+
+/** s with its bracketed pastes cut out; pasting carries a paste that a chunk boundary split. Pure: the test runs it. */
+export function stripPaste(s: string, pasting: boolean): { keys: string; pasting: boolean } {
+  let keys = ''
+  while (s) {
+    if (pasting) {
+      const end = s.indexOf(PASTE_OFF)
+      if (end < 0) return { keys, pasting }
+      s = s.slice(end + PASTE_OFF.length)
+      pasting = false
+    }
+    const start = s.indexOf(PASTE_ON)
+    if (start < 0) return { keys: keys + s, pasting }
+    keys += s.slice(0, start)
+    s = s.slice(start + PASTE_ON.length)
+    pasting = true
+  }
+  return { keys, pasting }
+}
+
+/** The key hints: whole pieces that fit in cols, the key names bold. */
+function keyHints(pieces: Array<[string, string]>, cols: number): string {
+  const kept: Array<[string, string]> = []
+  for (const p of pieces) {
+    if (cells([...kept, p].map(([k, d]) => (k ? `${k} ${d}` : d)).join(' · ')) > cols) break
+    kept.push(p)
+  }
+  return kept.map(([k, d]) => (k ? `\x1b[1m${k}\x1b[22m ${d}` : d)).join(' · ')
+}
 
 /** What to do about a degraded read, from the skill's Connect section. */
 function hint(state: string, port: number | string): string {
@@ -63,6 +96,14 @@ function wrap(t: string, w: number): string[] {
   return line ? [...out, line] : out
 }
 
+/** The skill's version (SKILL.md `metadata.version`), shown in the title. A skill without one is an error, not a blank. */
+export const VERSION = (() => {
+  const md = readFileSync(fileURLToPath(new URL('../../SKILL.md', import.meta.url)), 'utf8')
+  const v = /^---\n[\s\S]*?^metadata:\n(?:[ \t]+.*\n)*?[ \t]+version:[ \t]*"?([0-9][\w.-]*)"?[ \t]*$/m.exec(md)?.[1]
+  if (!v) throw new Error('using-grok-bot-app/SKILL.md has no metadata.version')
+  return v
+})()
+
 /** The screen as lines, each at most cols cells. Pure: the test draws with it. */
 export function renderLines(v: View, cols: number, rows: number): string[] {
   const r = v.read
@@ -74,14 +115,16 @@ export function renderLines(v: View, cols: number, rows: number): string[] {
   })
   const count = (s: string) => states.filter(x => x.state === s).length
   const head =
-    `▌grok bot tui · port ${port} · ` +
+    `▌grok bot tui v${VERSION} · port ${port} · ` +
     (!r ? 'reading…'
       : r.state === 'ok'
         ? [`${bots.length} bot${bots.length === 1 ? '' : 's'}`, count('replying') && `${count('replying')} replying`, count('unread') && `${count('unread')} unread`].filter(Boolean).join(' · ')
         : `▲ ${r.state}`) +
     (v.at !== undefined ? ` · read ${ago(v.now - v.at)} ago` : '')
-  const keys = v.detail ? 'Esc back · r read · q quit · read-only' : 'j/k 1-9 select · Enter detail · Esc clear · r read · q quit · read-only'
-  const out = [paint('1;35', fit(head, cols)), paint('2', fit(keys, cols)), '']
+  const keys: Array<[string, string]> = v.detail
+    ? [['Esc', 'back'], ['r', 'read'], ['q', 'quit'], ['', 'read-only']]
+    : [['j/k 1-9', 'select'], ['Enter', 'detail'], ['r', 'read'], ['q Esc', 'quit'], ['', 'read-only']]
+  const out = [paint('1;35', fit(head, cols)), keyHints(keys, cols), '']
   if (v.fix) out.splice(2, 0, paint('33', fit(`  ${v.fix}`, cols)))
   if (r && r.state !== 'ok') {
     for (const l of wrap(`▲ ${hint(r.state, port)}`, cols - 2)) out.push(paint('33', `  ${l}`))
@@ -125,16 +168,21 @@ export function renderLines(v: View, cols: number, rows: number): string[] {
   return out.slice(0, rows)
 }
 
+/** The ensure.mjs run in flight: quitting the TUI stops it, so it never restarts the app after the TUI is gone. */
+let ensuring: ChildProcess | undefined
+
 /** Runs ensure.mjs: restarts or relaunches the app so the port answers (standing rule of this setup, no asking). */
 function ensureApp(port: number | undefined): Promise<Read> {
-  return new Promise(res =>
-    execFile(process.execPath, [ENSURE, ...(port ? [String(port)] : [])], { timeout: 90_000 }, (err, stdout) => {
+  return new Promise(res => {
+    ensuring = execFile(process.execPath, [ENSURE, ...(port ? [String(port)] : [])], { timeout: 90_000 }, (err, stdout) => {
+      ensuring = undefined
       try {
         res(JSON.parse(stdout) as Read)
       } catch {
         res({ state: 'failed', error: String(err ?? 'no output') })
       }
-    }))
+    })
+  })
 }
 
 function readSidebar(port: number | undefined): Promise<Read> {
@@ -181,24 +229,34 @@ async function main() {
     if (v.sel !== undefined && v.sel >= n) v.sel = n ? n - 1 : undefined
     draw()
   }
-  const quit = (code = 0) => {
+  // Every way out restores the terminal once: 'exit' runs after process.exit and a normal end.
+  let restored = false
+  const restore = () => {
+    if (restored) return
+    restored = true
+    ensuring?.kill('SIGTERM')
     stdin.setRawMode(false)
     stdout.write(LEAVE_ALT)
-    process.exit(code)
   }
+  const quit = (code = 0) => process.exit(code)
+  process.on('exit', restore)
+  process.on('SIGINT', () => quit())
   process.on('SIGTERM', () => quit())
   process.on('uncaughtException', err => {
-    stdin.setRawMode(false)
-    stdout.write(LEAVE_ALT)
+    restore()
     console.error(err)
     process.exit(1)
   })
   stdin.setRawMode(true)
   stdout.write(ENTER_ALT)
   stdout.on('resize', draw)
-  // A paste or a fast typist sends several keys in one chunk ("1\r"); an escape sequence is one key.
+  // A fast typist sends several keys in one chunk ("1\r"); an escape sequence is one key. A paste is dropped.
+  let pasting = false
   stdin.on('data', (buf: Buffer) => {
-    const s = buf.toString()
+    const cut = stripPaste(buf.toString(), pasting)
+    pasting = cut.pasting
+    const s = cut.keys
+    if (!s) return
     for (const k of s.startsWith('\x1b') ? [s] : [...s]) onKey(k)
     draw()
   })
@@ -210,7 +268,7 @@ async function main() {
     else if ((k === 'k' || k === '\x1b[A') && n) v.sel = v.sel === undefined ? 0 : Math.max(0, v.sel - 1)
     else if (/^[1-9]$/.test(k) && Number(k) <= n) v.sel = Number(k) - 1
     else if (k === '\r' && v.sel !== undefined) v.detail = true
-    else if (k === '\x1b') v.detail ? (v.detail = false) : (v.sel = undefined)
+    else if (k === '\x1b') v.detail ? (v.detail = false) : quit()
   }
   draw()
   await poll()

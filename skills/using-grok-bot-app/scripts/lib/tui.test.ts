@@ -1,7 +1,8 @@
 // node --test skills/using-grok-bot-app/scripts/lib/tui.test.ts — the TUI's drawing, no terminal.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { renderLines, type View } from './tui.node.ts'
+import { readFileSync } from 'node:fs'
+import { VERSION, renderLines, stripPaste, type View } from './tui.node.ts'
 import { cells } from './core.ts'
 
 const UUID = '3f6e9a21-7c1d-4b0e-8a52-9d4f0c6e1b37'
@@ -65,4 +66,25 @@ test('a detail taller than the terminal keeps the newest lines and says how many
   assert.match(lines[4]!, /↑ 6 earlier lines/)
   assert.match(lines[3]!, /ARIA 前台 · 3f6e9a21/)
   assert.equal(lines.at(-1)!.trim(), 'msg4')
+})
+
+test('key hints: key names bold, whole pieces dropped from the right when narrow', () => {
+  const wide = renderLines(view(), 120, 40)[1]!
+  assert.match(wide, /\x1b\[1mq Esc\x1b\[22m quit/)
+  assert.equal(plain(wide.replace(/\x1b\[22m/g, '')), 'j/k 1-9 select · Enter detail · r read · q Esc quit · read-only')
+  assert.equal(plain(renderLines(view(), 30, 40)[1]!.replace(/\x1b\[22m/g, '')), 'j/k 1-9 select · Enter detail')
+})
+
+test('a bracketed paste is dropped, also when a chunk boundary splits it', () => {
+  assert.deepEqual(stripPaste('j\x1b[200~qqq\x1b[201~k', false), { keys: 'jk', pasting: false })
+  assert.deepEqual(stripPaste('j\x1b[200~qq', false), { keys: 'j', pasting: true })
+  assert.deepEqual(stripPaste('qq\x1b[201~r', true), { keys: 'r', pasting: false })
+  assert.deepEqual(stripPaste('\x1b[A', false), { keys: '\x1b[A', pasting: false })
+})
+
+test('the title carries the version SKILL.md declares (metadata.version)', () => {
+  const md = readFileSync(new URL('../../SKILL.md', import.meta.url), 'utf8')
+  assert.match(md, new RegExp(`^metadata:\\n\\s+version: "${VERSION.replace(/\./g, '\\.')}"$`, 'm'))
+  const head = renderLines({ now: 0 } as View, 120, 20)[0]!
+  assert.match(head, new RegExp(`▌grok bot tui v${VERSION.replace(/\./g, '\\.')} `))
 })

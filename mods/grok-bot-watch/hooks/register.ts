@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.14.0'
+const MOD_VERSION = '0.15.0'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -617,25 +617,31 @@ export const register: Register = on => {
       (replying ? ` · ${replying} replying` : '') +
       (s.lastRead !== undefined ? ` · read ${ago(now - s.lastRead)} ago` : '')
     const folded = s.folded || budget === 1
-    const title = '▌grok bot watch '
+    const title = `▌grok bot watch v${MOD_VERSION} `
+    const tail = `· ${summary} `
+    // Buttons are a glyph and a word when the whole header fits with the words, else the glyph only
+    // (the workers band's rule); ' [-]' is the engine's collapse control drawn over the band's last cells.
+    const btns = (w: boolean) => (w ? '[ + watch ][ ✕ close ]' : '[ + ][ ✕ ]') + ' [-]'
+    const words = cells(title + tail + btns(true)) <= width
+    const label = (glyph: string, word: string) => (words ? `${glyph} ${word}` : glyph)
     const header = Box({
       flexDirection: 'row',
       children: [
         Text({ bold: true, color: ACCENT, children: title }),
-        // Room for the title, `[ + ]` and `[ show ]`/`[ hide ]`: the summary is what gets cut.
-        Text({ dimColor: true, children: fit(`v${MOD_VERSION} · ${summary} `, width - cells(title) - 15) }),
-        Button({ key: 'add', label: '+', hotkey: 'w', dimColor: true, onPress: () => {
+        // Room for the title and the buttons: the summary is what gets cut.
+        Text({ dimColor: true, children: fit(tail, width - cells(title + btns(words))) }),
+        Button({ key: 'add', label: label('+', 'watch'), hotkey: 'w', onPress: () => {
           s.adding = !s.adding
           s.folded = false
           $.ui.invalidate('ui.render')
         } }),
         // No watch left: nothing to fold, so the same slot closes the band until the next watch.
         rows.length
-          ? Button({ key: 'fold', label: folded ? 'show' : 'hide', hotkey: 'f', dimColor: true, onPress: () => {
+          ? Button({ key: 'fold', label: label(folded ? '▸' : '▾', folded ? 'open' : 'fold'), hotkey: 'f', onPress: () => {
             s.folded = !folded
             $.ui.invalidate('ui.render')
           } })
-          : Button({ key: 'close', label: 'close', hotkey: 'f', dimColor: true, onPress: () => {
+          : Button({ key: 'close', label: label('✕', 'close'), hotkey: 'f', onPress: () => {
             s.used = false
             s.adding = false
             $.ui.invalidate('ui.render')
@@ -644,10 +650,10 @@ export const register: Register = on => {
     })
     // Folded is one line, not gone: a wake can still arrive, and nothing else says so.
     if (folded) return Box({ flexDirection: 'column', children: [below, header] })
-    // A row: glyph, then name, uuid8 and state cut to fit beside `[ unwatch ]`, then the preview in what is left.
+    // A row: glyph, then name, uuid8 and state cut to fit beside `[ ▸ ][ ✕ unwatch ]`, then the preview in what is left.
     const rowOf = (r: Bot) => {
       // What is cut first: the uuid8, then the name (kept to 8 cells), and the state last; it is why the row is there.
-      let room = width - 4 - 12 - 6
+      let room = width - 4 - cells(`[ ▸ ][ ${label('✕', 'unwatch')} ]`)
       const state = fit(`${r.state} `, Math.max(0, room - 9))
       room -= cells(state)
       const name = fit(r.name, Math.min(24, room - 1))
@@ -662,12 +668,12 @@ export const register: Register = on => {
           Text({ bold: true, children: `${name} ` }),
           Text({ dimColor: true, children: id }),
           Text({ color: r.color, children: state }),
-          Button({ key: `open-${r.key}`, label: s.open === r.key ? '▾' : '▸', dimColor: true, ...(rows.length === 1 ? { hotkey: 'o' } : {}),
+          Button({ key: `open-${r.key}`, label: s.open === r.key ? '▾' : '▸', ...(rows.length === 1 ? { hotkey: 'o' } : {}),
             onPress: () => {
               s.open = s.open === r.key ? undefined : r.key
               $.ui.invalidate('ui.render')
             } }),
-          Button({ key: `unwatch-${r.key}`, label: 'unwatch', dimColor: true, ...(rows.length === 1 ? { hotkey: 'u' } : {}),
+          Button({ key: `unwatch-${r.key}`, label: label('✕', 'unwatch'), ...(rows.length === 1 ? { hotkey: 'u' } : {}),
             onPress: () => void unwatchKey(s, $, r.key, 'panel').catch(err => $.ui.log(`grok-bot-watch: unwatch failed: ${String(err)}`, { to: 'debug' })) }),
           Text({ dimColor: true, wrap: 'truncate-end', children: r.preview ? ` 「${r.preview}」` : '' }),
         ],

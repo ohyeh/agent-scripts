@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir, subagentMade } from './lib/assets.ts'
 import { answerId, findExcerpt, itemsOf, locate, plain, quoteOf, quoteRefsIn } from './lib/items.ts'
 
-const MOD_VERSION = '0.12.0'
+const MOD_VERSION = '0.13.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -19,6 +19,8 @@ const MAX_PASTE_LINES = 100
 const PRUNE_MS = 30 * 86_400_000
 /** Rows the band takes at most: header + this many entries; an open row and the other sessions add their own. */
 const PANEL_ROWS = 4
+/** Quotes the band lists above the prompt; past that, one row counts the rest. */
+const QUOTE_ROWS = 3
 const OTHER_ROWS = 4
 const ACCENT = 'blue'
 /** Answers a quote is looked for in: 31% of quoted lines came from an older answer, the furthest 15 back. */
@@ -46,6 +48,10 @@ type State = {
   unacked: Map<string, string>
   /** Local URLs test runs printed this turn: the turn's reply that repeats one adds no row. */
   muted: Set<string>
+  /** The band folded to its header line (`[ ▾ fold ]`): still there, unlike hidden. This load only. */
+  folded: boolean
+  /** The #qN in the prompt box as it stands: the band shows each one's source above the prompt. */
+  draftQ: number[]
 }
 
 /** A quote, where it came from (absent: not found, or an older version), kept so `#qN` finds it after a compaction. */
@@ -204,17 +210,77 @@ function pastedPart(answers: { id: string; items: string[]; flat: string }[], li
 /**
  * A reply block's `↩`: what the person selected in that reply and copied (fullscreen copies on release) goes into the
  * prompt as #qN, with the reply and lines it came from. Read once, on this press; anything else on the clipboard is
- * left alone, and nothing is quoted.
+ * left alone, and nothing is quoted. A selection that runs past the reply (into a tool row or the next reply) is read
+ * line by line: each run of lines this reply holds becomes a #qN, the other lines go in as plain `>` lines.
  */
 async function focusBlock(s: State, $: $, text: string) {
   const at = locate(s.answers, text)
   // The terminal copies its gutter too: each line's indent and the reply bullet go.
   const clip = (await clipboard($))?.split('\n').map(l => l.replace(/^[\s⏺]+/, '')).join('\n').trim()
-  const hit = at && clip && plain(text).includes(plain(clip)) ? findExcerpt(s.answers, clip, at.answer) : undefined
-  if (!hit) return $.ui.toast(at ? 'select the part of this reply to quote and copy it, then press ↩ again' : 'that reply is not among the answers kept (a reply still being written is added when it ends)')
-  const q = await recordQuote(s, $, [clip!], await $.clock.now(), hit)
-  const f = await $.prompt.fill({ text: `#q${q.n}\n${quoteOf([clip!])}`, mode: 'insert' }).catch(() => ({ isFilled: false }))
-  $.ui.toast(f.isFilled ? `#q${q.n}: the selection is in the prompt, write under it` : 'no prompt box took it (a dialog open?)')
+  if (!at || !clip) return $.ui.toast(at ? 'select the part of this reply to quote and copy it, then press ↩ quote again' : 'that reply is not among the answers kept (a reply still being written is added when it ends)')
+  const whole = plain(text).includes(plain(clip)) ? findExcerpt(s.answers, clip, at.answer) : undefined
+  type Part = { quote: string[]; hit: { answer: string; lines: number[] } } | { other: string }
+  const parts: Part[] = []
+  if (whole) parts.push({ quote: [clip], hit: whole })
+  else {
+    const mine = s.answers.filter(a => a.id === at.answer).map(a => ({ ...a, flat: plain(a.items.join('')) }))
+    for (const line of clip.split('\n')) {
+      if (!line.trim()) continue
+      const p = pastedPart(mine, line)
+      const last = parts.at(-1)
+      if (p && last && 'quote' in last) {
+        last.quote.push(p.text)
+        last.hit.lines = [...new Set([...last.hit.lines, ...p.hit.lines])]
+      } else parts.push(p ? { quote: [p.text], hit: p.hit } : { other: line })
+    }
+  }
+  if (!parts.some(p => 'quote' in p)) return $.ui.toast('the copied text is not from this reply: select a part of it, copy, then press ↩ quote again')
+  const now = await $.clock.now()
+  const out: string[] = []
+  const made: string[] = []
+  // One after another: each quote takes the next number.
+  for (const p of parts) {
+    if (!('quote' in p)) { out.push(`> ${p.other}`); continue }
+    const q = await recordQuote(s, $, [p.quote.join('\n')], now, p.hit)
+    out.push(`#q${q.n}\n${quoteOf([p.quote.join('\n')]).trimEnd()}\n`)
+    made.push(`#q${q.n} (line${p.hit.lines.length > 1 ? 's' : ''} ${spanOf(p.hit.lines)})`)
+  }
+  const joined = out.join('\n')
+  const f = await $.prompt.fill({ text: joined.endsWith('\n\n') ? joined : `${joined}\n`, mode: 'insert' }).catch(() => ({ isFilled: false }))
+  if (f.isFilled) await syncDraft(s, $)
+  const rest = parts.filter(p => !('quote' in p)).length
+  $.ui.toast(f.isFilled ? `${made.join(', ')} in the prompt${rest ? `; ${rest} line${rest > 1 ? 's' : ''} not from this reply went in as plain >` : ''}: write under it` : 'no prompt box took it (a dialog open?)')
+}
+
+/** 0-based line numbers as the person reads them: `3-5`, `2, 7`. */
+const spanOf = (lines: number[]) => {
+  const n = [...lines].sort((a, b) => a - b).map(i => i + 1)
+  return n.length > 1 && n.at(-1)! - n[0]! === n.length - 1 ? `${n[0]}-${n.at(-1)}` : n.join(', ')
+}
+
+/** Reads which #qN the prompt box holds now and redraws the band when that changed. */
+async function syncDraft(s: State, $: $, text?: string) {
+  const t = text ?? (await $.prompt.read().catch(() => undefined))?.text
+  if (t === undefined) return
+  const q = quoteRefsIn(t)
+  if (q.join() === s.draftQ.join()) return
+  s.draftQ = q
+  $.ui.invalidate('ui.render')
+}
+
+/** The band's [×] on a quote: takes `#qN` out of the prompt, and its `>` lines with it when it stands on its own line. */
+async function dropQuote(s: State, $: $, n: number) {
+  const box = await $.prompt.read()
+  const lines = box.text.split('\n')
+  const at = lines.findIndex(l => l.trim() === `#q${n}`)
+  let text: string
+  if (at >= 0) {
+    let end = at + 1
+    while (end < lines.length && lines[end]!.startsWith('>')) end++
+    text = [...lines.slice(0, at), ...lines.slice(end)].join('\n')
+  } else text = box.text.replace(new RegExp(`(^|[\\s(（,，])#q${n}\\b`, 'g'), '$1')
+  await $.prompt.fill({ text, mode: 'replace' })
+  await syncDraft(s, $, text)
 }
 
 /** A shell word: the TUI command runs in a shell (tmux's split, or a paste). */
@@ -549,7 +615,7 @@ async function openAsset($: $, e: Entry): Promise<string> {
 }
 
 export const register: Register = on => {
-  const s: State = { sid: '', project: '', cwd: '', home: '', hidden: false, others: false, writes: Promise.resolve(), answers: [], handled: new Set(), unacked: new Map(), muted: new Set() }
+  const s: State = { sid: '', project: '', cwd: '', home: '', hidden: false, others: false, writes: Promise.resolve(), answers: [], handled: new Set(), unacked: new Map(), muted: new Set(), draftQ: [], folded: false }
 
   on('session.start', async ($, e, next) => {
     s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
@@ -689,6 +755,14 @@ export const register: Register = on => {
     return done
   })
 
+  // The #qN in the box as the person edits it: the band lists their sources above the prompt. Observes only, never
+  // rewrites: what the box shows is core's.
+  on('prompt.edit', async ($, e, next) => {
+    const box = await next(e)
+    await syncDraft(s, $, box.text)
+    return box
+  })
+
   // A link or picture path the person pasted. Only their own prompts: a notification or a peer's message is not theirs.
   on('prompt.submit', async ($, e, next) => {
     const mineToo = e.origin.kind === 'composer' || e.origin.kind === 'bridge'
@@ -729,6 +803,10 @@ export const register: Register = on => {
     }
     // The rest after `next`: the prompt reaches the model first; a slow store never sits between Enter and the model.
     const sent = await next(down)
+    if (s.draftQ.length) {
+      s.draftQ = []
+      $.ui.invalidate('ui.render')
+    }
     // A dropped prompt never entered; an entered one is read as it entered (a hook may have rewritten it).
     if (typeof sent.text === 'string' && mineToo) {
       try {
@@ -755,7 +833,7 @@ export const register: Register = on => {
         drawn,
         Box({
           position: 'absolute', top: 0, right: 0, display: 'none', hover: { display: 'flex' },
-          children: Button({ key: 'quote', label: '↩', dimColor: true, onPress: () => void focusBlock(s, $, text).catch(err => $.ui.log(`session-recall: ↩ failed (${errText(err)})`, { to: 'debug' })) }),
+          children: Button({ key: 'quote', label: '↩ quote', onPress: () => void focusBlock(s, $, text).catch(err => $.ui.log(`session-recall: ↩ failed (${errText(err)})`, { to: 'debug' })) }),
         }),
       ],
     })
@@ -770,30 +848,61 @@ export const register: Register = on => {
     const below = await next(e)
     if (s.hidden) return below
     const list = await mine(s, $)
-    if (!list.length) return below
+    // The band shows for quotes in the draft too: a session with no asset yet can still quote a reply.
+    if (!list.length && !s.draftQ.length) return below
     const { list: rest, sessions } = await others(s, $)
     const open = s.open !== undefined ? list[s.open] : undefined
-    const budget = Math.min(1 + PANEL_ROWS + (open ? 1 : 0) + (rest.length ? 1 : 0) + (s.others ? OTHER_ROWS : 0), e.props.maxRows - rowsOf(below))
+    const quotes = s.draftQ.length ? quotesOf(await $.store.get(`${QPREFIX}${s.sid}`)) : []
+    const qShown = s.draftQ.length > QUOTE_ROWS ? QUOTE_ROWS - 1 : s.draftQ.length
+    const qRows = qShown + (s.draftQ.length > qShown ? 1 : 0)
+    const budget = Math.min(1 + qRows + PANEL_ROWS + (open ? 1 : 0) + (rest.length ? 1 : 0) + (s.others ? OTHER_ROWS : 0), e.props.maxRows - rowsOf(below))
     if (budget < 1) return below
     const { Box, Text, Button, Link } = $.ui.resolve(e)
     const width = e.props.bodyColumns
     const now = await $.clock.now()
-    const counts = (['url', 'artifact', 'image', 'video', 'file', 'commit', 'source'] as const)
-      .map(k => [k, list.filter(x => x.kind === k).length] as const)
-      .filter(([, n]) => n)
-      .map(([k, n]) => `${n} ${k}`)
-      .join(' · ')
-    const title = `▌session recall v${MOD_VERSION} `
+    const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
+    const title = `▌session recall v${MOD_VERSION}`
+    const status = ` · ${[plural(list.length, 'asset'), ...(s.draftQ.length ? [plural(s.draftQ.length, 'quote')] : [])].join(' · ')} `
+    // Buttons say what they do when the header has room for it, else their icon (the workers band's rule).
+    const words = cells(title) + cells(status) + cells('[ ⧉ tui ][ ▾ fold ][ hide ]') <= width
     const header = Box({
       flexDirection: 'row',
       children: [
         Text({ bold: true, color: ACCENT, children: title }),
-        Text({ dimColor: true, children: fit(`${counts} · #aN in a prompt · /recall list `, width - title.length - 15) }),
+        Text({ dimColor: true, children: fit(status, Math.max(0, width - cells(title) - (words ? 27 : 15))) }),
         // The TUI: every row, to open, preview or copy.
-        Button({ key: 'tui', label: '⧉', dimColor: true, onPress: () => void launch(s, $).then(t => $.ui.toast(t), err => $.ui.toast(`tui failed: ${errText(err)}`)).catch(err => $.ui.log(`session-recall: tui toast failed (${errText(err)})`, { to: 'debug' })) }),
-        Button({ key: 'hide', label: 'hide', dimColor: true, onPress: () => void setHidden(s, $, true) }),
+        Button({ key: 'tui', label: words ? '⧉ tui' : '⧉', onPress: () => void launch(s, $).then(t => $.ui.toast(t), err => $.ui.toast(`tui failed: ${errText(err)}`)).catch(err => $.ui.log(`session-recall: tui toast failed (${errText(err)})`, { to: 'debug' })) }),
+        // Fold keeps the header (the counts still change); hide takes the band away until /recall show.
+        Button({ key: 'fold', label: words ? (s.folded ? '▸ open' : '▾ fold') : s.folded ? '▸' : '▾', onPress: () => {
+          s.folded = !s.folded
+          $.ui.invalidate('ui.render')
+        } }),
+        Button({ key: 'hide', label: words ? 'hide' : '✕', onPress: () => void setHidden(s, $, true) }),
       ],
     })
+    if (s.folded) return Box({ flexDirection: 'column', children: [below, header] })
+    // The quotes in the draft, as a messenger's reply bar: where each came from, and [×] to take it out of the prompt.
+    const qrow = (n: number) => {
+      const q = quotes.find(x => x.n === n)
+      const head = `  ↩ #q${n} `
+      const src = q ? ` ${q.at ? `reply ${ago(now - q.at)} ago` : 'an earlier reply'}${q.lines ? ` · L${spanOf(q.lines)}` : ''} · ` : ' no such quote'
+      const body = q ? `「${clean(q.text.join(' '), 200)}」` : ''
+      const room = Math.max(0, width - cells(head) - cells(src) - 6)
+      return Box({
+        key: `q${n}`,
+        flexDirection: 'row',
+        children: [
+          Text({ bold: true, color: ACCENT, children: head }),
+          Text({ dimColor: true, children: fit(src, Math.max(0, width - cells(head) - 6)) }),
+          Text({ children: fit(body, room) }),
+          Button({ key: `drop-q${n}`, label: '×', onPress: () => void dropQuote(s, $, n).catch(err => $.ui.toast(`not taken out: ${errText(err)}`)) }),
+        ],
+      })
+    }
+    const quoteLines = [
+      ...s.draftQ.slice(0, qShown).map(qrow),
+      ...(s.draftQ.length > qShown ? [Text({ dimColor: true, children: `  ↩ +${s.draftQ.length - qShown} more quotes in the prompt` })] : []),
+    ]
     // Each part is cut to fit by hand (grok-bot-watch's rule): a Text that flex shrinks wraps instead, and a wrapped row breaks the budget.
     // The age comes before the place, so a long folder is what gets cut.
     // Labels share one column, as wide as the longest one drawn, at most 40 cells or half the band, so the ages line up.
@@ -845,7 +954,7 @@ export const register: Register = on => {
     }
     // One group per asset, the open row's detail inside its group: `+N more` counts assets, never a detail line.
     // The rest are counted in the header and listed by `/recall list`; an open row still shows.
-    const groups = list.flatMap((x, i) => (!onBand(x) && i !== s.open ? [] : [[row(x, `a${i + 1}`.padStart(3), '', i), ...(i === s.open ? [detail(x, i)] : [])]]))
+    const groups = list.flatMap((x, i) => (!onBand(x) && i !== s.open ? [] : [[row(x, `#a${i + 1}`.padStart(4), '', i), ...(i === s.open ? [detail(x, i)] : [])]]))
     const otherLines = rest.length
       ? [
         Button({ key: 'others', label: `${s.others ? '▾' : '▸'} other sessions: ${sessions} · ${rest.length} asset${rest.length === 1 ? '' : 's'}`, dimColor: true, onPress: () => {
@@ -855,11 +964,12 @@ export const register: Register = on => {
         ...(s.others ? rest.filter(onBand).slice(0, OTHER_ROWS).map(x => row(x, ' ·', ` @${clean(x.project, 40)}`)) : []),
       ]
       : []
-    const room = budget - 1
+    const qKept = quoteLines.slice(0, Math.max(0, budget - 1))
+    const room = budget - 1 - qKept.length
     // Other sessions keep their one line when there is room; this session's rows give way first.
     const keep = otherLines.length && room > 1 ? otherLines.slice(0, Math.max(1, room - 1)) : []
     const left = room - keep.length
     const shown = cut(groups, left, n => Text({ dimColor: true, children: `  +${n} more — /recall N` }))
-    return Box({ flexDirection: 'column', children: [below, header, ...shown, ...keep] })
+    return Box({ flexDirection: 'column', children: [below, header, ...qKept, ...shown, ...keep] })
   })
 }
