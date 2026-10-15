@@ -46,8 +46,18 @@ def collect(sources, S, U):
         for u in d.values():
             for k in F: o[k] += u.get(k, 0) or 0
         return o
+    def adv(d):
+        # advisor calls live in usage.iterations[type=advisor_message]; the top-level fields sum only type=message.
+        o = z(); n = 0
+        for u in d.values():
+            for it in u.get("iterations") or []:
+                if isinstance(it, dict) and it.get("type") == "advisor_message":
+                    n += 1
+                    for k in F: o[k] += it.get(k, 0) or 0
+        return {"n": n, **o}
     return {"usage_rows": rows, "rows_without_requestId": noreq, "partial_rows(no cache_read,no output)": partial,
-            "naive": naive, "reqkey": {"n": len(req), **tot(req)}, "midkey": {"n": len(mid), **tot(mid)}}
+            "naive": naive, "reqkey": {"n": len(req), **tot(req)}, "midkey": {"n": len(mid), **tot(mid)},
+            "reqkey_advisor": adv(req)}
 
 def self_test():
     S, U = window("2026-10-01T12:00:00Z", "2026-10-08T09:30:00Z")
@@ -61,6 +71,13 @@ def self_test():
     o = collect([("f", lines)], S, U)
     assert o["usage_rows"] == 2 and o["naive"]["output_tokens"] == 4, o
     assert o["reqkey"] == {"n": 1, "input_tokens": 1, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "output_tokens": 3}, o
+    assert o["reqkey_advisor"]["n"] == 0, o
+    adv_row = json.dumps({"timestamp": "2026-10-02T00:00:00Z", "requestId": "d", "message": {"id": "msg_0ddd", "usage": {
+        "input_tokens": 2, "output_tokens": 9, "iterations": [
+            {"type": "message", "input_tokens": 2, "output_tokens": 9},
+            {"type": "advisor_message", "model": "claude-fable-5-1", "input_tokens": 100, "output_tokens": 10}]}}})
+    o = collect([("f", [adv_row, adv_row])], S, U)  # duplicate row: advisor counted once per request
+    assert o["reqkey"]["output_tokens"] == 9 and o["reqkey_advisor"] == {"n": 1, "input_tokens": 100, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0, "output_tokens": 10}, o
     print("self-test ok")
 
 if __name__ == "__main__":
