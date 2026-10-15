@@ -63,7 +63,7 @@ from this bot to this session since the watch began at <ISO time>`), so after a
 compaction the session can tell what it already has. A re-watch keeps the count
 and the start; `[ unwatch ]` ends them. The band is there from the session start, as its header line
 (`0 bots` before any watch), folded until you press `[ ▸ open ]` (`f` with the band focused);
-`[ ▾ fold ]` folds it again. The choice is kept for the next sessions. `[ unwatch ]` (`u`,
+`[ ▾ fold ]` folds it again. The choice is kept for the next sessions. With no watch armed, `[ ✕ close ]` (`x`) hides the band for this session; the next watch or a bare `/grok-bot-watch` shows it again. `[ unwatch ]` (`u`,
 one watch only) stops that watch. `[ + ]` (`w`) opens a field above the rows:
 type a UUID or an 8+ char prefix and Enter watches it; a refused id stays in
 the field with a toast saying why, and Enter on nothing closes it. The field

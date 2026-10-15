@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.16.0'
+const MOD_VERSION = '0.17.0'
 /** 'open' once the person unfolded the band; absent or 'folded': it starts as its header line. */
 const FOLD_KEY = 'grok-bot-watch.fold'
 const POLL_MS = 10_000
@@ -165,7 +165,8 @@ type State = {
   open?: string
   /** The panel's bot-id field is drawn: `[ + ]` or `/grok-bot-watch` opened it. */
   adding?: boolean
-  /** This session has watched a bot: the band stays up with `0 bots [ + ]` after the last unwatch, until `[ close ]`. */
+  /** `[ ✕ close ]` took the band away for this session; the next watch or a bare `/grok-bot-watch` brings it back. */
+  hidden?: boolean
   /** The last messages of the bot open in the app, from the last read; never persisted. */
   convo?: { id: string; msgs: Msg[] }
   /** Every read-modify-write of this session's records, in call order: a tick and a wake count never write over each other. */
@@ -521,6 +522,7 @@ async function watchBot(s: State, $: $, raw: string, via: string): Promise<{ den
     s.live.set(key, row)
   }
   s.status.set(key, row ? 'ok' : res.state === 'ok' ? 'bot-not-found' : res.state)
+  s.hidden = false
   return {
     label: row ? clean(row.name, 40) : uuid.slice(0, 8),
     result:
@@ -539,6 +541,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     s.sid = (await $.session.id().catch(() => undefined)) || `local-${Math.random().toString(36).slice(2, 10)}`
     s.folded = (await $.store.get(FOLD_KEY).catch(() => undefined)) !== 'open'
+    s.hidden = false
     await $.tool.register({
       name: 'watch',
       description:
@@ -574,7 +577,7 @@ export const register: Register = on => {
     return 'deny' in r ? r : { result: r.result }
   }).catch(($, e, next) => ({ deny: `grok-bot-watch: watch failed: ${String(next.error)}` }))
 
-  // `/grok-bot-watch <id>` watches at once; bare, it opens the panel's field (the band is hidden with no watch).
+  // `/grok-bot-watch <id>` watches at once; bare, it opens the panel's field (and brings back a closed band).
   on('command.run', { command: 'grok-bot-watch' }, async ($, e) => {
     if (!e.args.trim()) {
       s.adding = true
@@ -606,6 +609,8 @@ export const register: Register = on => {
     const below = await next(e)
     const rows = await panelData(s, $)
     // From the session's start, folded until opened: the header says the mod is there before any watch.
+    // Closed (only possible with no watch): gone until the next watch or a bare command opens the field.
+    if (s.hidden && !rows.length && !s.adding) return below
     const budget = Math.min(PANEL_ROWS + (s.open ? RECENT : 0), e.props.maxRows - rowsOf(below))
     if (budget < 1) return below
     const els = $.ui.resolve(e)
@@ -622,7 +627,9 @@ export const register: Register = on => {
     const tail = `· ${summary} `
     // Buttons are a glyph and a word when the whole header fits with the words, else the glyph only
     // (the workers band's rule); ' [-]' is the engine's collapse control drawn over the band's last cells.
-    const btns = (w: boolean) => (w ? '[ + watch ][ ▸ open ]' : '[ + ][ ▸ ]') + ' [-]'
+    // `[ ✕ close ]` only with no watch: an armed watch never leaves the screen.
+    const closable = !rows.length
+    const btns = (w: boolean) => (w ? '[ + watch ][ ▸ open ]' : '[ + ][ ▸ ]') + (closable ? (w ? '[ ✕ close ]' : '[ ✕ ]') : '') + ' [-]'
     const words = cells(title + tail + btns(true)) <= width
     const label = (glyph: string, word: string) => (words ? `${glyph} ${word}` : glyph)
     const header = Box({
@@ -641,6 +648,11 @@ export const register: Register = on => {
           $.ui.invalidate('ui.render')
           void $.store.set(FOLD_KEY, s.folded ? 'folded' : 'open').catch(() => undefined) // a lost choice only refolds next session
         } }),
+        ...(closable ? [Button({ key: 'close', label: label('✕', 'close'), hotkey: 'x', onPress: () => {
+          s.hidden = true
+          s.adding = false
+          $.ui.invalidate('ui.render')
+        } })] : []),
       ],
     })
     // Folded is one line, not gone: a wake can still arrive, and nothing else says so.
