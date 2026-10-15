@@ -8,12 +8,37 @@ allowed-tools: Bash(ps:*), Bash(pgrep:*), Bash(open:*)
 
 `cua_repl` is the MCP server inside the ChatGPT Mac app's Computer Use plugin.
 Claude Code, Cursor, and agy call it under the name `codex-cu`. Clicks go into
-the target app. They do not move the user's pointer.
+the target app. They do not move the user's pointer, but the computer surface
+brings the target window to the front, so the user sees it take the screen.
 
 The long write-up is the Claude artifact `codex-cu 接線手冊`. Open it in Arc
 when this file does not answer a case.
 
 https://claude.ai/artifact/VQQdp75aeC1PzqRwK581PU?sk=Usf3jftJdhrPrHUCB76Nuw
+
+## Quickstart (read first)
+
+Setup not done (no check PASS on this Mac)? Do [Setup](#setup-once-per-machine) first.
+
+1. First call: `await cua.getState()` and nothing else (no `{ emit: false }`: the
+   browser list must print). Pick the browser by `metadata.extensionInstanceId`
+   after the parent check in [Pick Chrome, not Arc](#pick-chrome-not-arc), then use
+   its `id` (2026-10-16 on the main Mac: Chrome `"2"`, Arc `"1"`; ids can change,
+   so check each time).
+2. Never pass the name `"chrome"` to `createBrowserTab`, even though the tool
+   description shows it: it can select Arc. 2026-10-16: `createBrowserTab("chrome", …)`
+   and `getTab(…, { browser: "1" })` then `close()` both hung until the timeout;
+   Arc then showed two `about:blank` tabs.
+3. To read a web page, use the browser surface: `cua.getTab(tabId, { browser: id })`
+   (verified 2026-10-16) or `cua.createBrowserTab(id, url, { sessionName })`
+   (untested with an id), then `getAXState()`,
+   `tab.playwright.frameLocator(...).locator(...).innerText({})`, or
+   `nodeRepl.emitImage(await tab.screenshot({}))`. Never use `cua.getApp` or
+   coordinate clicks for a web page: they drive the app window on the user's screen
+   (2026-10-16: a Grok Bot worker took the user's screen this way).
+4. One step per call. Read each result before the next step. Use only the APIs that
+   the returned documentation lists. Print with `nodeRepl.write`; the REPL cannot
+   write files (`EPERM`).
 
 ## Setup (once per machine)
 
