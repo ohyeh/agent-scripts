@@ -108,6 +108,10 @@ export function frame(data, v, cols, rows, now) {
  * An answer gone from the list (older than the last 16) takes its marks with it, and says so.
  */
 export function follow(prev, next, v) {
+  // A reply block's `↩` in the session: that answer, its lines marked, the cursor on the first. A new ask only (`at`).
+  const f = next.focus
+  const fi = f && f.at !== prev.focus?.at ? (next.answers?.findIndex(a => a.id === f.answer) ?? -1) : -1
+  if (fi >= 0) return { tab: 'answers', answer: fi, answerId: f.answer, cur: Math.min(...f.lines), marks: new Set(f.lines), msg: 'marked from the reply: enter quotes, space changes the marks' }
   const newest = next.answers?.[0]?.id
   // The answers cursor only: on the assets tab its cursor is the assets', and stays (a tab switch starts at the top).
   const top = v.tab === 'answers' ? { cur: 0 } : {}
@@ -278,7 +282,9 @@ function main() {
           // Only the lines sent: one marked while waiting is for the next quote.
           const id = a.id
           const sent = v.marks.size ? [...v.marks] : []
-          v.msg = send({ quote }, () => v.answerId === id && sent.forEach(i => v.marks.delete(i)), `${quote.length} quote(s)`)
+          // Where the lines came from: the mod keeps it, so the model finds the quote (#qN) after a compaction.
+          const lines = v.marks.size ? [...v.marks].sort((p, q) => p - q) : [v.cur]
+          v.msg = send({ quote, from: { answer: id, lines } }, () => v.answerId === id && sent.forEach(i => v.marks.delete(i)), `${quote.length} quote(s)`)
         }
       }
     } else if (x) {

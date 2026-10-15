@@ -1,5 +1,14 @@
 # Changelog
 
+## session-recall 0.10.0
+
+Quoting a part of a reply now works from the transcript, and the model can find what was quoted.
+
+- `#qN`: each quote the TUI puts in the prompt comes under a `#qN` line. The mod keeps, per session (up to 50), which reply each quote came from (its time and first line), which of its lines, and the text. A prompt with `#q3` gives the model that place and the lines beside the prompt, as `#aN` gives a row. The `recall` tool takes `kind: "quote"` (this session only). After a compaction, or after the `>` text was edited, the quote can still be found.
+- `↩` on a reply block: with the pointer over a block of a reply (terminal only), a `↩` shows at its top right, over the text, so nothing moves. A click opens the TUI on that answer with the block's lines marked. A TUI already open in tmux jumps there. Enter quotes the block; space narrows it to a range. A mod cannot read the terminal's own text selection, so the range is picked in the TUI.
+- The TUI's quote request carries `from: { answer, lines }`. A request without it (an older TUI) still works and gets a `#qN` with no place.
+- Limits: a block of a reply still being written is not yet among the TUI's answers, and `↩` says so. Outside tmux the mod cannot tell whether a TUI is open, so `↩` launches as `/recall tui` does (in Warp: a new window; elsewhere: the command on the clipboard). A block made only of code or headings gets no `↩`. Quotes of other sessions are not listed. The hover reveal was checked against the engine types only, not drawn live.
+
 ## grok-bot-watch 0.14.0
 
 The mod keeps where this session's reading of a bot stands. A watch records when it began (`since`). Each wake prompt says which reply it is and since when: `It is reply 3 from this bot to this session since the watch began at <ISO time>`. After a compaction, the session can tell what it already has. The band row adds `watching 2h`. Only replies that wake this session count. A reply for another session or for the owner is noise to this session, so it is not counted.

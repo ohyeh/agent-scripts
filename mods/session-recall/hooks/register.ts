@@ -1,9 +1,9 @@
 import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir, subagentMade } from './lib/assets.ts'
-import { answerId, itemsOf, quoteOf } from './lib/items.ts'
+import { answerId, itemsOf, locate, quoteOf, quoteRefsIn } from './lib/items.ts'
 
-const MOD_VERSION = '0.9.13'
+const MOD_VERSION = '0.10.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -11,6 +11,9 @@ const MAX_CHECKS = 10
 /** One store key per session: a shared list would be a read-modify-write race between sessions. */
 const PREFIX = 'session-recall.s.'
 const PANEL_KEY = 'session-recall.panel'
+/** Quotes the TUI put in a prompt, one key per session, numbered #qN from 1 for the session's life. */
+const QPREFIX = 'session-recall.q.'
+const MAX_KEPT_QUOTES = 50
 const PRUNE_MS = 30 * 86_400_000
 /** Rows the band takes at most: header + this many entries; an open row and the other sessions add their own. */
 const PANEL_ROWS = 4
@@ -43,7 +46,13 @@ type State = {
   unacked: Map<string, string>
   /** Local URLs test runs printed this turn: the turn's reply that repeats one adds no row. */
   muted: Set<string>
+  /** A reply block's `↩` asked the TUI to show these lines of that answer, marked; `at` tells a new ask from an old one. */
+  focus?: { answer: string; lines: number[]; at: number }
 }
+
+/** A quote as the TUI sent it, where it came from (absent: an older TUI), kept so `#qN` finds it after a compaction. */
+type Quote = { n: number; made: number; text: string[]; answer?: string; at?: number; head?: string; lines?: number[] }
+const quotesOf = (v: unknown): Quote[] => (Array.isArray(v) ? (v as Quote[]) : [])
 
 /** Where the mod and its TUI meet: the TUI reads `<sid>.json` and writes `<sid>.ask.json`; the store is the host's. */
 const dirOf = (s: State) => `${s.home}/.local/state/session-recall`
@@ -62,7 +71,7 @@ const MAX_ASK_AGE_MS = 30_000
 async function snapshot(s: State, $: $, list?: Entry[]) {
   try {
     const assets = list ?? (await mine(s, $))
-    await $.fs.write(snapPath(s), JSON.stringify({ v: 1, version: MOD_VERSION, sid: s.sid, project: s.project, cwd: s.cwd, assets, answers: s.answers }))
+    await $.fs.write(snapPath(s), JSON.stringify({ v: 1, version: MOD_VERSION, sid: s.sid, project: s.project, cwd: s.cwd, assets, answers: s.answers, focus: s.focus }))
   } catch (err) {
     $.ui.log(`session-recall: TUI snapshot not written (${errText(err)})`, { to: 'debug' })
   }
@@ -108,7 +117,7 @@ async function poll(s: State, $: $) {
 /** One request: what to tell its TUI. */
 async function take(s: State, $: $, path: string, out: string, size: number, made: number, now: number): Promise<{ ok: boolean; text: string }> {
   if (now - made > MAX_ASK_AGE_MS) return { ok: false, text: 'too old (the session was not listening): check the prompt, then send again' }
-  let ask: { quote?: unknown; ref?: unknown }
+  let ask: { quote?: unknown; ref?: unknown; from?: unknown }
   try {
     if (size > MAX_ASK_BYTES) throw new Error(`${size} bytes`)
     const got: unknown = JSON.parse(String(await $.fs.read(path)))
@@ -122,8 +131,18 @@ async function take(s: State, $: $, path: string, out: string, size: number, mad
   const quote = ask.quote
   if (Array.isArray(quote)) {
     if (!quote.length || quote.length > MAX_QUOTES || !quote.every(x => typeof x === 'string' && x.length > 0 && x.length <= MAX_QUOTE)) return { ok: false, text: `refused: 1 to ${MAX_QUOTES} quotes of at most ${MAX_QUOTE} characters` }
-    text = quoteOf(quote)
-    said = `${quote.length} quote(s) in the prompt: write under each one.`
+    // Where the lines came from, when the TUI says: checked like the rest, but a bad one only loses the place, not the quote.
+    const f = ask.from as { answer?: unknown; lines?: unknown } | undefined
+    const a = f && typeof f.answer === 'string' ? s.answers.find(x => x.id === f.answer) : undefined
+    const lines = a && Array.isArray(f!.lines) && f!.lines.every(i => Number.isInteger(i) && i >= 0 && i < a.items.length) ? (f!.lines as number[]) : undefined
+    const n = await enqueue(s, async () => {
+      const kept = quotesOf(await $.store.get(`${QPREFIX}${s.sid}`))
+      const q: Quote = { n: (kept.at(-1)?.n ?? 0) + 1, made: now, text: quote as string[], ...(a ? { answer: a.id, at: a.at, head: clean(a.items[0] ?? '', 80) } : {}), ...(lines ? { lines } : {}) }
+      await $.store.set(`${QPREFIX}${s.sid}`, [...kept, q].slice(-MAX_KEPT_QUOTES))
+      return q.n
+    })
+    text = `#q${n}\n${quoteOf(quote)}`
+    said = `#q${n}: ${quote.length} quote(s) in the prompt: write under each one.`
   } else if (typeof ask.ref === 'string') {
     // The row by what it is, not by its number on the TUI's screen: a new asset since then moved the numbers.
     const n = (await mine(s, $)).findIndex(x => x.ref === ask.ref) + 1
@@ -142,6 +161,25 @@ async function take(s: State, $: $, path: string, out: string, size: number, mad
   if (!f.isFilled) return { ok: false, text: 'no prompt box took it (a dialog open?): send it again' }
   $.ui.toast(said)
   return { ok: true, text: said }
+}
+
+/** A TUI of this session runs in a tmux pane (its split's start command names it). Outside tmux nothing can tell: false. */
+async function tuiShown(s: State, $: $): Promise<boolean> {
+  if (!(await $.env.get('TMUX').catch(() => undefined))) return false
+  const r = await $.process.run(['tmux', 'list-panes', '-a', '-F', '#{pane_start_command}'], { timeoutMs: 3000 }).catch(() => undefined)
+  return !!r && r.exitCode === 0 && r.stdout.split('\n').some(l => l.includes('/bin/tui.mjs') && l.includes(s.sid))
+}
+
+/**
+ * A reply block's `↩`: the TUI shows that answer with the block's lines marked, so enter quotes the block and space
+ * narrows it to a range. The terminal's own selection cannot be read; the TUI is where lines are picked.
+ */
+async function focusBlock(s: State, $: $, text: string) {
+  const at = locate(s.answers, text)
+  if (!at) return $.ui.toast('that part is not among the answers the TUI offers (a reply still being written is added when it ends)')
+  s.focus = { ...at, at: await $.clock.now() }
+  await enqueue(s, () => snapshot(s, $))
+  $.ui.toast((await tuiShown(s, $)) ? `${at.lines.length} line(s) marked in the TUI: enter quotes them, space changes the marks` : await launch(s, $))
 }
 
 /** A shell word: the TUI command runs in a shell (tmux's split, or a paste). */
@@ -321,9 +359,22 @@ async function known(s: State, $: $, text: string, now: number): Promise<string[
   return lines
 }
 
+/** One quote as the model reads it: which reply, which of its lines, and the lines themselves. */
+function describeQuote(q: Quote, now: number): string {
+  const from = q.answer === undefined ? 'a reply of yours (which one the TUI did not say)'
+    : `${q.lines ? `line${q.lines.length > 1 ? 's' : ''} ${q.lines.map(i => i + 1).join(', ')} of ` : ''}your reply ${q.at ? `of ${new Date(q.at).toISOString()}` : 'from before the last reload'} (it begins "${q.head}")`
+  return `#q${q.n} = ${from}, quoted ${ago(now - q.made)} ago:\n${q.text.map(t => t.split('\n').map(l => `  > ${clean(l, 2000)}`).join('\n')).join('\n')}`
+}
+
 /** The model's tool: what this session (or every session) made, filtered, with live checks. */
 async function answerTool(s: State, $: $, input: Record<string, unknown>): Promise<string> {
   const now = await $.clock.now()
+  if (input.kind === 'quote') {
+    // shortcut: this session's quotes only (all_sessions is not read here); widen if quotes across sessions are wanted.
+    const words = typeof input.query === 'string' ? input.query.toLowerCase().split(/\s+/).filter(Boolean) : []
+    const got = quotesOf(await $.store.get(`${QPREFIX}${s.sid}`)).filter(q => words.every(w => `${q.text.join(' ')} ${q.head ?? ''}`.toLowerCase().includes(w)))
+    return got.length ? got.slice(-10).reverse().map(q => describeQuote(q, now)).join('\n') : 'no quote matches (the TUI has put none in a prompt this session, or the query is too narrow).'
+  }
   const q = { query: typeof input.query === 'string' ? input.query : undefined, kind: typeof input.kind === 'string' ? input.kind : undefined }
   const list = await mine(s, $)
   const here = findAssets(list, q).map(x => ({ x, n: `#a${list.indexOf(x) + 1}`, project: '' }))
@@ -481,12 +532,13 @@ export const register: Register = on => {
         'published Artifacts, files written, pictures (screenshots), videos, commits, sources consulted. Use it to get back an exact URL, port, ' +
         'path or hash instead of guessing, above all after the context was compacted, and to answer "which server is ' +
         'on :5173 / is it still up / where does that link come from". Local URLs are checked: the listening process ' +
-        'and its folder, or down. Rows are numbered #aN as the user sees them; the user may write #aN in a prompt.',
+        'and its folder, or down. Rows are numbered #aN as the user sees them; the user may write #aN in a prompt. ' +
+        'kind "quote" lists the lines of your replies the user quoted back (#qN): which reply, which lines, and the text.',
       inputSchema: {
         type: 'object',
         properties: {
           query: { type: 'string', description: 'words that must all appear in the label, URL/path, host/folder or project' },
-          kind: { type: 'string', enum: ['url', 'artifact', 'file', 'image', 'video', 'commit', 'source'] },
+          kind: { type: 'string', enum: ['url', 'artifact', 'file', 'image', 'video', 'commit', 'source', 'quote'], description: 'quote: the lines of your replies the user quoted back (#qN), newest first' },
           all_sessions: { type: 'boolean', description: "also search other sessions' assets (default false)" },
           check: { type: 'boolean', description: 'check local URLs and paths (default true)' },
         },
@@ -515,6 +567,9 @@ export const register: Register = on => {
       for (const k of (await $.store.keys()).filter(k => k.startsWith(PREFIX) && k !== `${PREFIX}${s.sid}`)) {
         const newest = Math.max(0, ...asList(await $.store.get(k)).map(x => x.at))
         if (now - newest > PRUNE_MS) await $.store.delete(k)
+      }
+      for (const k of (await $.store.keys()).filter(k => k.startsWith(QPREFIX) && k !== `${QPREFIX}${s.sid}`)) {
+        if (now - Math.max(0, ...quotesOf(await $.store.get(k)).map(q => q.made)) > PRUNE_MS) await $.store.delete(k)
       }
     } catch (err) {
       $.ui.log(`session-recall: prune failed (${errText(err)})`, { to: 'debug' })
@@ -605,10 +660,11 @@ export const register: Register = on => {
     // `#a3` in the prompt: the model gets row 3's exact ref and its live status beside the prompt (context must go
     // down with `next`; one added after is not attached). A prompt without a token reads nothing before `next`.
     const refs = mineToo ? refsIn(e.text) : []
+    const qrefs = mineToo ? quoteRefsIn(e.text) : []
     // A pasted commit hash or session id: what the store knows of it. Cheap test first: no hex, no store read.
     const pasted = mineToo && /[0-9a-f]{7}/.test(e.text)
     let down = e
-    if (refs.length || pasted) {
+    if (refs.length || qrefs.length || pasted) {
       try {
         const now = await $.clock.now()
         const notes: string[] = []
@@ -618,6 +674,11 @@ export const register: Register = on => {
           const status = await checks(s, $, picked.flatMap(([, x]) => (x ? [x] : [])))
           const lines = picked.map(([n, x]) => (x ? describe(x, `#a${n}`, now, status.get(x)) : `#a${n}: no such row (this session has ${list.length})`))
           notes.push(`${FROM}the user's #aN refer to these rows of the session's asset list:\n${lines.join('\n')}`)
+        }
+        if (qrefs.length) {
+          const kept = quotesOf(await $.store.get(`${QPREFIX}${s.sid}`))
+          const lines = qrefs.map(n => kept.find(q => q.n === n)).map((q, i) => (q ? describeQuote(q, now) : `#q${qrefs[i]}: no such quote (this session has ${kept.length})`))
+          notes.push(`${FROM}the user's #qN point at lines of your own earlier replies:\n${lines.join('\n')}`)
         }
         const kn = pasted ? await known(s, $, e.text, now) : []
         if (kn.length) notes.push(`${FROM}what is known of the commit hashes and session ids in the prompt:\n${kn.join('\n')}`)
@@ -639,6 +700,26 @@ export const register: Register = on => {
     }
     return sent
   }).catch(($, e, next) => next(e)) // A prompt is never held back by bookkeeping.
+
+  // `↩` on a reply block, shown only while the pointer is over it, top right, over the text (no reflow): the TUI opens
+  // on that block, its lines marked. Terminal only (the TUI is a terminal program). Nothing read here: it runs per block.
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    const drawn = await next(e)
+    if (e.surface !== 'terminal' || !itemsOf(e.props.text, 1).length) return drawn
+    const { Box, Button } = $.ui.resolve(e)
+    const text = e.props.text
+    return Box({
+      key: `quote-${e.requestId}`,
+      flexDirection: 'column',
+      children: [
+        drawn,
+        Box({
+          position: 'absolute', top: 0, right: 0, display: 'none', hover: { display: 'flex' },
+          children: Button({ key: 'quote', label: '↩', dimColor: true, onPress: () => void focusBlock(s, $, text).catch(err => $.ui.log(`session-recall: ↩ failed (${errText(err)})`, { to: 'debug' })) }),
+        }),
+      ],
+    })
+  })
 
   // The band is shared with every plugin below (the workers panel, grok-bot-watch): this
   // draws in what is left of maxRows, header first, and nothing when even that does not

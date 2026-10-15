@@ -43,6 +43,27 @@ export function itemsOf(text: string, max = 60): string[] {
 export const quoteOf = (items: readonly string[]) =>
   items.map(x => `${x.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').split('\n').map(l => `> ${l}`).join('\n')}\n\n`).join('')
 
+/**
+ * Where one block of a reply (the transcript draws a reply as blocks) sits among the answers the TUI offers: the answer
+ * holding most of its lines, and their places in it. None when under half of the block's lines are in any one answer:
+ * a lone common line (`OK`) must not mark another reply. Newest answer first, as the list is.
+ */
+export function locate(answers: readonly { id: string; items: readonly string[] }[], text: string): { answer: string; lines: number[] } | undefined {
+  const block = itemsOf(text)
+  for (const a of answers) {
+    const lines = block.map(x => a.items.indexOf(x)).filter(i => i >= 0)
+    if (block.length && lines.length * 2 >= block.length) return { answer: a.id, lines: [...new Set(lines)] }
+  }
+  return undefined
+}
+
+/** `#q3` in a prompt: quote 3 the TUI put there. */
+export function quoteRefsIn(text: string): number[] {
+  const out: number[] = []
+  for (const m of text.matchAll(/(?:^|[\s(（,，])#q(\d{1,3})\b/g)) if (!out.includes(Number(m[1]))) out.push(Number(m[1]))
+  return out
+}
+
 /** An answer's identity across snapshots: its lines (FNV-1a), so a selection stays on the answer it was made in. */
 export function answerId(items: readonly string[]): string {
   let h = 0x811c9dc5

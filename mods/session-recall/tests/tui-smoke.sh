@@ -91,6 +91,9 @@ ok(follow(prev, next, { answerId: 'n', answer: 0, marks: new Set() }).answerId =
 ok(follow(prev, next, { answerId: 'n', answer: 0, marks: new Set([1]) }).answer === 1, 'marked on the newest stays on it')
 ok(follow(prev, { answers: [A('m')] }, { answerId: 't', answer: 2, marks: new Set([0]) }).marks.size === 0, 'a dropped answer clears its marks')
 ok(!('cur' in follow(prev, next, { tab: 'assets', answerId: 'n', answer: 0, cur: 3, marks: new Set() })), 'a new answer leaves the assets cursor')
+const fo = follow(prev, { ...next, focus: { answer: 'o', lines: [2, 1], at: 5 } }, { tab: 'assets', answerId: 'n', answer: 0, cur: 0, marks: new Set() })
+ok(fo.tab === 'answers' && fo.answer === 2 && fo.cur === 1 && fo.marks.size === 2, 'a reply block ↩ opens that answer with its lines marked')
+ok(follow({ ...next, focus: { answer: 'o', lines: [0], at: 5 } }, { ...next, focus: { answer: 'o', lines: [0], at: 5 } }, { answerId: 'm', answer: 0, marks: new Set([0]) }).marks === undefined, 'the same ↩ again leaves the marks as they are')
 import { pick } from '$here/bin/tui.mjs'
 import { mkdirSync, writeFileSync, utimesSync } from 'node:fs'
 const dd = '$work/pick'; mkdirSync(dd)

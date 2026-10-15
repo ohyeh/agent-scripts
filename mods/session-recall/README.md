@@ -153,6 +153,14 @@ space mark · enter quote into the prompt · c copy · a all · esc unmark · ta
   and 31% quoted an answer older than the last one. Space marks, `a` marks all, enter puts the marked lines (or the
   one under the cursor) in the prompt at the cursor as `> line` blocks with an empty line under each (every line of a
   quote gets its `>`); `c` copies them. The marks stay until the session says the quotes are in.
+- `#qN`: each quote sent goes in under a `#qN` line, numbered for the session's life. The mod keeps which reply it
+  came from, the time of that reply, its first line, and which lines were quoted. A prompt with `#q3` gives the model
+  that place and those lines beside the prompt. If the `>` text was cut, or the context was compacted, the model can
+  still find them. The model's tool lists them with `kind: "quote"`.
+- `↩` on a reply: the pointer over a block of a reply in the transcript shows `↩` at its top right. A click opens
+  the TUI on that answer with the block's lines marked (one already open in tmux jumps there). Enter quotes the block,
+  and space narrows the marks to a range. The terminal's own text selection cannot be read by a mod, so the TUI is
+  where a range is picked. With no pointer, `/recall tui` is the keyboard path.
 - Assets (`2`): every row, numbered as the band. Enter opens, `p` previews (Quick Look), `c` copies, `r` puts `#aN`
   in the prompt: the TUI sends the row's URL or path, and the mod numbers it as its list stands then.
 - How it talks to the session: the mod writes `~/.local/state/session-recall/<sid>.json` (the list and the answers'

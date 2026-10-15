@@ -2,7 +2,7 @@ import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
 import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, githubRepoOf, pushedOf, pushRemoteOf, isLocalNoise, localPort, sessionIdsIn, shasIn, parseCwd, parseListen, refsIn, isLocalHost, merge, nameOf, rowsOf, shortDir, subagentMade } from '../hooks/lib/assets.ts'
-import { answerId, itemsOf, quoteOf } from '../hooks/lib/items.ts'
+import { answerId, itemsOf, locate, quoteOf, quoteRefsIn } from '../hooks/lib/items.ts'
 
 const HOME = '/h/me'
 const call = (tool: string, input: Record<string, unknown>, text = '', readOnly = false) => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w', readOnly })
@@ -1028,6 +1028,56 @@ describe('the TUI', () => {
     expect(snap.answers[1].at).toBe(0)
   })
 
+  test('#qN: the model finds which reply and which lines the user quoted, in the prompt and through the tool', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await w.clock.advance(1_000)
+    await $.turn.complete({ ...turn, answer: '1. fix it\n2. ship it\n3. tell them' } as never)
+    const id = w.snap().answers[0].id
+    w.ask({ quote: ['ship it', 'tell them'], from: { answer: id, lines: [1, 2] } })
+    w.ask({ quote: ['no place'], from: { answer: 'gone', lines: [0] } })
+    await w.clock.advance(600)
+    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['#q1\n> ship it\n\n> tell them\n\n', '#q2\n> no place\n\n'])
+    await $.prompt.submit({ text: '#q1 這兩行改掉，#q2 呢，#q7', wait: false, origin: { kind: 'composer' } } as never)
+    const ctx = w.contexts.at(-1)?.join('\n') ?? ''
+    expect(ctx).toContain('#q1 = lines 2, 3 of your reply of ')
+    expect(ctx).toContain('(it begins "fix it")')
+    expect(ctx).toContain('  > ship it\n  > tell them')
+    expect(ctx, 'a quote whose answer is gone keeps its text, not a place').toContain('#q2 = a reply of yours (which one the TUI did not say)')
+    expect(ctx).toContain('#q7: no such quote (this session has 2)')
+    const listed = JSON.stringify(await $.tool.call({ tool: 'mcp__session-recall__recall', kind: 'quote', query: 'ship' } as never))
+    expect(listed).toContain('#q1 = lines 2, 3')
+    expect(listed).not.toContain('#q2')
+  })
+
+  test('↩ on a reply block opens the TUI on that answer, the block marked; code and other surfaces are left as drawn', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await w.clock.advance(1_000)
+    await $.turn.complete({ ...turn, answer: '- fix it\n- ship it' } as never)
+    const msg = (text: string, surface = 'terminal', requestId = 'm1') =>
+      ({ surface, component: 'AssistantMessage', requestId, viewport: { columns: 100, rows: 50 }, props: { text, isFirstOfReply: false } }) as never
+    const tree = JSON.stringify(await $.ui.render(msg('- ship it')))
+    expect(tree, 'the engine drawing is kept').toContain('"type":"engine"')
+    expect(tree).toContain('↩')
+    await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
+    expect(w.snap().focus).toMatchObject({ answer: answerId(['fix it', 'ship it']), lines: [1] })
+    expect(w.toasts.at(-1), 'no TUI open outside tmux: it launches as /recall tui').toContain('not in tmux')
+    expect(await $.ui.render(msg('```\ncode\n```', 'terminal', 'm2'))).toEqual({ type: 'engine', ref: 0 })
+    expect(await $.ui.render(msg('- ship it', 'desktop', 'm3'))).toEqual({ type: 'engine', ref: 0 })
+    await $.ui.render(msg('- not in any answer', 'terminal', 'm4'))
+    await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm4' } as never)
+    expect(w.toasts.at(-1)).toContain('not among the answers the TUI offers')
+  })
+
+  test('locate: a reply block finds its answer and lines; a lone common line does not', async () => {
+    const answers = [{ id: 'new', items: ['OK', 'other'] }, { id: 'old', items: ['fix it', 'ship it', 'OK'] }]
+    expect(locate(answers, '- ship it\n- fix it')).toEqual({ answer: 'old', lines: [1, 0] })
+    expect(locate(answers, 'OK\nnot anywhere\nnor this')).toBeUndefined()
+    expect(locate(answers, '```\ncode\n```')).toBeUndefined()
+    expect(quoteRefsIn('#q3 看 (#q12)，#q3；x#q4 #qa')).toEqual([3, 12])
+  })
+
   test('each request is done once and answered; a bad one is refused whole, not cut; an old one is not done', async ($, on) => {
     const w = world(on)
     await $.session.start(start)
@@ -1038,10 +1088,10 @@ describe('the TUI', () => {
     await w.clock.advance(600)
     expect(old()).toMatchObject({ ok: false })
     expect(w.filled, 'two requests made together are both done, in order').toEqual([
-      { text: '> a\n\n> two\n> lines\n\n', mode: 'insert' },
-      { text: '> b\n\n', mode: 'insert' },
+      { text: '#q1\n> a\n\n> two\n> lines\n\n', mode: 'insert' },
+      { text: '#q2\n> b\n\n', mode: 'insert' },
     ])
-    expect(a()).toEqual({ ok: true, text: '2 quote(s) in the prompt: write under each one.' })
+    expect(a()).toEqual({ ok: true, text: '#q1: 2 quote(s) in the prompt: write under each one.' })
     expect(b()).toMatchObject({ ok: true })
     await w.clock.advance(600)
     expect(w.filled, 'done once').toHaveLength(2)
@@ -1080,7 +1130,7 @@ describe('the TUI', () => {
     w.ask({ quote: ['tenth'] }, 0, 10)
     w.ask({ quote: ['ninth'] }, 0, 9)
     await w.clock.advance(600)
-    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['> ninth\n\n', '> tenth\n\n'])
+    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['#q1\n> ninth\n\n', '#q2\n> tenth\n\n'])
   })
 
   test('an answer that could not be written is written at the next look; the request is filled once, also after a reload', async ($, on) => {
@@ -1107,7 +1157,7 @@ describe('the TUI', () => {
     await w.clock.advance(600)
     await w.clock.advance(600)
     expect(next()).toMatchObject({ ok: true })
-    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['> stuck\n\n', '> next\n\n'])
+    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['#q1\n> stuck\n\n', '#q2\n> next\n\n'])
   })
 
   test('a request marked taken by the last load is not filled again after a reload', async ($, on) => {
