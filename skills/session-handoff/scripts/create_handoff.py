@@ -299,7 +299,7 @@ def generate_handoff(
 
 ### Deferred Items
 
-- [TODO: Items deferred and why]
+- [TODO: file or backlog row that holds each deferred item, and why. Name where it lives; do not copy a proposal's text here]
 
 ## Context for Resuming Agent
 

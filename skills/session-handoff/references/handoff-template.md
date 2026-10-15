@@ -97,7 +97,7 @@ Required when any Blocker is listed. The successor must not re-verify these unle
 
 ### Deferred Items
 
-- Item 1 (deferred because: [reason, e.g., out of scope, needs user input])
+- [file or backlog row that holds it] (deferred because: [reason]). Name where it lives; do not copy a proposal's text here.
 
 ## Context for Resuming Agent
 

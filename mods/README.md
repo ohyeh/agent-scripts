@@ -35,3 +35,11 @@ collaborators (Claude, sol, agy, advisor). Where a rule cites a fixed standard, 
   header; assert that no row is dim where rule 4 says it must not be.
 - TUI: a tmux smoke on a private socket. Paste a `q` with `paste-buffer -p`: the TUI must still run. Send Escape:
   it must quit. Kill it with SIGTERM: the pane must show the shell again, not raw mode.
+- Toggles: test both directions, with the button or command that reverses each action. Assert the render after each action.
+  For a saved choice, wait for the write and assert the stored value after each action.
+  Run a fresh `session.start` with the same store after each saved choice. Assert the render and stored value again.
+  For other state, assert the reset that the code specifies. A render check after one press is not enough.
+- Mod changes: run `MOD=mods/<m> scripts/test-mod-permissions-smoke` and require exit 0, plus the surface checks above.
+  `claude plugin test` alone does not check types; its `N pass` is not enough.
+- Review: compare buttons, hotkeys and commands with the previous version. List each removal against the request.
+  Apply the kernel's Surgical diffs rule and deletion approval rule to that list.
