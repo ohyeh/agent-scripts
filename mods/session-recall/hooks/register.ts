@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir, subagentMade } from './lib/assets.ts'
 import { answerId, findExcerpt, itemsOf, locate, plain, quoteOf, quoteRefsIn } from './lib/items.ts'
 
-const MOD_VERSION = '0.11.0'
+const MOD_VERSION = '0.12.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -11,7 +11,7 @@ const MAX_CHECKS = 10
 /** One store key per session: a shared list would be a read-modify-write race between sessions. */
 const PREFIX = 'session-recall.s.'
 const PANEL_KEY = 'session-recall.panel'
-/** Quotes the TUI put in a prompt, one key per session, numbered #qN from 1 for the session's life. */
+/** Quotes put in a prompt (a reply's `↩`, or lines pasted from a reply), one key per session, numbered #qN from 1 for the session's life. */
 const QPREFIX = 'session-recall.q.'
 const MAX_KEPT_QUOTES = 50
 /** A prompt longer than this is not scanned for lines pasted from a reply. */
@@ -21,11 +21,9 @@ const PRUNE_MS = 30 * 86_400_000
 const PANEL_ROWS = 4
 const OTHER_ROWS = 4
 const ACCENT = 'blue'
-/** Answers the TUI offers to quote from: 31% of quoted lines came from an older answer, the furthest 15 back. */
+/** Answers a quote is looked for in: 31% of quoted lines came from an older answer, the furthest 15 back. */
 const MAX_ANSWERS = 16
-/** A request's bounds: quotes are lines of an answer; one past these is refused, never cut (a cut quote says less). */
-const MAX_QUOTES = 60
-const MAX_QUOTE = 4000
+/** A request's bound: one past it is refused, never cut. */
 const MAX_ASK_BYTES = 300_000
 /** How often the mod looks for a request from the TUI (a stat, a read only when it changed). */
 const POLL_MS = 500
@@ -48,11 +46,9 @@ type State = {
   unacked: Map<string, string>
   /** Local URLs test runs printed this turn: the turn's reply that repeats one adds no row. */
   muted: Set<string>
-  /** A reply block's `↩` asked the TUI to show these lines of that answer, marked; `at` tells a new ask from an old one. */
-  focus?: { answer: string; lines: number[]; at: number }
 }
 
-/** A quote as the TUI sent it, where it came from (absent: an older TUI), kept so `#qN` finds it after a compaction. */
+/** A quote, where it came from (absent: not found, or an older version), kept so `#qN` finds it after a compaction. */
 type Quote = { n: number; made: number; text: string[]; answer?: string; at?: number; head?: string; lines?: number[] }
 const quotesOf = (v: unknown): Quote[] => (Array.isArray(v) ? (v as Quote[]) : [])
 
@@ -69,11 +65,11 @@ const ASK_NAME = /^(\d{13})-(\d+)-(\d+)\.json$/
 /** A request older than this is refused, not done: one left from before a reload must not fill the prompt now. */
 const MAX_ASK_AGE_MS = 30_000
 
-/** What the TUI shows: this session's list, numbered as the band numbers it, and the lines of its last answers. */
+/** What the TUI shows: this session's list, numbered as the band numbers it. */
 async function snapshot(s: State, $: $, list?: Entry[]) {
   try {
     const assets = list ?? (await mine(s, $))
-    await $.fs.write(snapPath(s), JSON.stringify({ v: 1, version: MOD_VERSION, sid: s.sid, project: s.project, cwd: s.cwd, assets, answers: s.answers, focus: s.focus }))
+    await $.fs.write(snapPath(s), JSON.stringify({ v: 1, version: MOD_VERSION, sid: s.sid, project: s.project, cwd: s.cwd, assets }))
   } catch (err) {
     $.ui.log(`session-recall: TUI snapshot not written (${errText(err)})`, { to: 'debug' })
   }
@@ -85,10 +81,9 @@ function addAnswer(s: State, text: string, at: number) {
 }
 
 /**
- * The TUI's requests: quotes, or a row by its exact ref, into the prompt, where only the mod can put text (a paste of
- * several lines folds into `[Pasted text]` and loses the room to answer each one). Each one is the TUI's input, checked
+ * The TUI's requests: a row by its exact ref, into the prompt, where only the mod can put text. Each one is the TUI's input, checked
  * here, the one place it enters: a bad one is refused whole, never cut. Each is answered, failed ones too, so the TUI
- * keeps the selection to send again; one with an answer already is not done again.
+ * can say what to do; one with an answer already is not done again.
  */
 async function poll(s: State, $: $) {
   // An answer whose write failed: written again, the request never done again.
@@ -130,7 +125,7 @@ async function recordQuote(s: State, $: $, text: string[], now: number, from?: {
 /** One request: what to tell its TUI. */
 async function take(s: State, $: $, path: string, out: string, size: number, made: number, now: number): Promise<{ ok: boolean; text: string }> {
   if (now - made > MAX_ASK_AGE_MS) return { ok: false, text: 'too old (the session was not listening): check the prompt, then send again' }
-  let ask: { quote?: unknown; ref?: unknown; from?: unknown }
+  let ask: { ref?: unknown }
   try {
     if (size > MAX_ASK_BYTES) throw new Error(`${size} bytes`)
     const got: unknown = JSON.parse(String(await $.fs.read(path)))
@@ -139,25 +134,12 @@ async function take(s: State, $: $, path: string, out: string, size: number, mad
   } catch (err) {
     return { ok: false, text: `refused: not a request (${errText(err)})` }
   }
-  let text = ''
-  let said = ''
-  const quote = ask.quote
-  if (Array.isArray(quote)) {
-    if (!quote.length || quote.length > MAX_QUOTES || !quote.every(x => typeof x === 'string' && x.length > 0 && x.length <= MAX_QUOTE)) return { ok: false, text: `refused: 1 to ${MAX_QUOTES} quotes of at most ${MAX_QUOTE} characters` }
-    // Where the lines came from, when the TUI says: checked like the rest, but a bad one only loses the place, not the quote.
-    const f = ask.from as { answer?: unknown; lines?: unknown } | undefined
-    const a = f && typeof f.answer === 'string' ? s.answers.find(x => x.id === f.answer) : undefined
-    const lines = a && Array.isArray(f!.lines) && f!.lines.every(i => Number.isInteger(i) && i >= 0 && i < a.items.length) ? (f!.lines as number[]) : undefined
-    const n = (await recordQuote(s, $, quote as string[], now, a && { answer: a.id, lines })).n
-    text = `#q${n}\n${quoteOf(quote)}`
-    said = `#q${n}: ${quote.length} quote(s) in the prompt: write under each one.`
-  } else if (typeof ask.ref === 'string') {
-    // The row by what it is, not by its number on the TUI's screen: a new asset since then moved the numbers.
-    const n = (await mine(s, $)).findIndex(x => x.ref === ask.ref) + 1
-    if (!n) return { ok: false, text: 'that row is gone from the list' }
-    text = `#a${n} `
-    said = `#a${n} is in the prompt: write the rest.`
-  } else return { ok: false, text: 'refused: no quote or ref' }
+  if (typeof ask.ref !== 'string') return { ok: false, text: 'refused: no ref' }
+  // The row by what it is, not by its number on the TUI's screen: a new asset since then moved the numbers.
+  const n = (await mine(s, $)).findIndex(x => x.ref === ask.ref) + 1
+  if (!n) return { ok: false, text: 'that row is gone from the list' }
+  const text = `#a${n} `
+  const said = `#a${n} is in the prompt: write the rest.`
   // Marked taken before the fill: a load that stops between the fill and its answer leaves the mark, and the next load
   // does not fill it again. No mark, no fill.
   try {
@@ -219,33 +201,20 @@ function pastedPart(answers: { id: string; items: string[]; flat: string }[], li
   return undefined
 }
 
-/** A TUI of this session runs in a tmux pane (its split's start command names it). Outside tmux nothing can tell: false. */
-async function tuiShown(s: State, $: $): Promise<boolean> {
-  if (!(await $.env.get('TMUX').catch(() => undefined))) return false
-  const r = await $.process.run(['tmux', 'list-panes', '-a', '-F', '#{pane_start_command}'], { timeoutMs: 3000 }).catch(() => undefined)
-  return !!r && r.exitCode === 0 && r.stdout.split('\n').some(l => l.includes('/bin/tui.mjs') && l.includes(s.sid))
-}
-
 /**
- * A reply block's `↩`: the TUI shows that answer with the block's lines marked, so enter quotes the block and space
- * narrows it to a range. The terminal's own selection cannot be read; the TUI is where lines are picked.
+ * A reply block's `↩`: what the person selected in that reply and copied (fullscreen copies on release) goes into the
+ * prompt as #qN, with the reply and lines it came from. Read once, on this press; anything else on the clipboard is
+ * left alone, and nothing is quoted.
  */
 async function focusBlock(s: State, $: $, text: string) {
   const at = locate(s.answers, text)
-  // What the person selected in the reply and copied (fullscreen copies on release): quoted at once, when it is in
-  // this block and its answer. Read once, on this press; anything else on the clipboard is left alone.
   // The terminal copies its gutter too: each line's indent and the reply bullet go.
   const clip = (await clipboard($))?.split('\n').map(l => l.replace(/^[\s⏺]+/, '')).join('\n').trim()
   const hit = at && clip && plain(text).includes(plain(clip)) ? findExcerpt(s.answers, clip, at.answer) : undefined
-  if (hit) {
-    const q = await recordQuote(s, $, [clip!], await $.clock.now(), hit)
-    const f = await $.prompt.fill({ text: `#q${q.n}\n${quoteOf([clip!])}`, mode: 'insert' }).catch(() => ({ isFilled: false }))
-    return $.ui.toast(f.isFilled ? `#q${q.n}: the selection is in the prompt, write under it` : 'no prompt box took it (a dialog open?)')
-  }
-  if (!at) return $.ui.toast('that part is not among the answers the TUI offers (a reply still being written is added when it ends)')
-  s.focus = { ...at, at: await $.clock.now() }
-  await enqueue(s, () => snapshot(s, $))
-  $.ui.toast((await tuiShown(s, $)) ? `${at.lines.length} line(s) marked in the TUI: enter quotes them, space changes the marks` : await launch(s, $))
+  if (!hit) return $.ui.toast(at ? 'select the part of this reply to quote and copy it, then press ↩ again' : 'that reply is not among the answers kept (a reply still being written is added when it ends)')
+  const q = await recordQuote(s, $, [clip!], await $.clock.now(), hit)
+  const f = await $.prompt.fill({ text: `#q${q.n}\n${quoteOf([clip!])}`, mode: 'insert' }).catch(() => ({ isFilled: false }))
+  $.ui.toast(f.isFilled ? `#q${q.n}: the selection is in the prompt, write under it` : 'no prompt box took it (a dialog open?)')
 }
 
 /** A shell word: the TUI command runs in a shell (tmux's split, or a paste). */
@@ -427,7 +396,7 @@ async function known(s: State, $: $, text: string, now: number): Promise<string[
 
 /** One quote as the model reads it: which reply, which of its lines, and the lines themselves. */
 function describeQuote(q: Quote, now: number): string {
-  const from = q.answer === undefined ? 'a reply of yours (which one the TUI did not say)'
+  const from = q.answer === undefined ? 'a reply of yours (which one is not known)'
     : `${q.lines ? `line${q.lines.length > 1 ? 's' : ''} ${q.lines.map(i => i + 1).join(', ')} of ` : ''}your reply ${q.at ? `of ${new Date(q.at).toISOString()}` : 'from before the last reload'} (it begins "${q.head}")`
   return `#q${q.n} = ${from}, quoted ${ago(now - q.made)} ago:\n${q.text.map(t => t.split('\n').map(l => `  > ${clean(l, 2000)}`).join('\n')).join('\n')}`
 }
@@ -439,7 +408,7 @@ async function answerTool(s: State, $: $, input: Record<string, unknown>): Promi
     // shortcut: this session's quotes only (all_sessions is not read here); widen if quotes across sessions are wanted.
     const words = typeof input.query === 'string' ? input.query.toLowerCase().split(/\s+/).filter(Boolean) : []
     const got = quotesOf(await $.store.get(`${QPREFIX}${s.sid}`)).filter(q => words.every(w => `${q.text.join(' ')} ${q.head ?? ''}`.toLowerCase().includes(w)))
-    return got.length ? got.slice(-10).reverse().map(q => describeQuote(q, now)).join('\n') : 'no quote matches (the TUI has put none in a prompt this session, or the query is too narrow).'
+    return got.length ? got.slice(-10).reverse().map(q => describeQuote(q, now)).join('\n') : 'no quote matches (none was put in a prompt this session, or the query is too narrow).'
   }
   const q = { query: typeof input.query === 'string' ? input.query : undefined, kind: typeof input.kind === 'string' ? input.kind : undefined }
   const list = await mine(s, $)
@@ -617,7 +586,7 @@ export const register: Register = on => {
     s.muted = new Set()
     const have = await mine(s, $).catch(() => undefined)
     if (have) await replay(s, $, have.length > 0)
-    // The TUI's lines to quote: the last answers, from the transcript (the module's own memory starts over on a reload).
+    // The answers a quote is looked for in: the last ones, from the transcript (the module's own memory starts over on a reload).
     s.answers = []
     try {
       for (const m of await $.session.messages()) if (m.role === 'assistant' && m.text) addAnswer(s, m.text, 0)
@@ -772,8 +741,8 @@ export const register: Register = on => {
     return sent
   }).catch(($, e, next) => next(e)) // A prompt is never held back by bookkeeping.
 
-  // `↩` on a reply block, shown only while the pointer is over it, top right, over the text (no reflow): the TUI opens
-  // on that block, its lines marked. Terminal only (the TUI is a terminal program). Nothing read here: it runs per block.
+  // `↩` on a reply block, shown only while the pointer is over it, top right, over the text (no reflow): what was
+  // selected in that block and copied goes into the prompt as #qN. Terminal only. Nothing read here: it runs per block.
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const drawn = await next(e)
     if (e.surface !== 'terminal' || !itemsOf(e.props.text, 1).length) return drawn
@@ -820,7 +789,7 @@ export const register: Register = on => {
       children: [
         Text({ bold: true, color: ACCENT, children: title }),
         Text({ dimColor: true, children: fit(`${counts} · #aN in a prompt · /recall list `, width - title.length - 15) }),
-        // The TUI: every row, the last answers' lines to quote.
+        // The TUI: every row, to open, preview or copy.
         Button({ key: 'tui', label: '⧉', dimColor: true, onPress: () => void launch(s, $).then(t => $.ui.toast(t), err => $.ui.toast(`tui failed: ${errText(err)}`)).catch(err => $.ui.log(`session-recall: tui toast failed (${errText(err)})`, { to: 'debug' })) }),
         Button({ key: 'hide', label: 'hide', dimColor: true, onPress: () => void setHidden(s, $, true) }),
       ],

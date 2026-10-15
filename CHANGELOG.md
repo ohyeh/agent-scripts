@@ -1,5 +1,14 @@
 # Changelog
 
+## session-recall 0.12.0
+
+The TUI shows assets only. Quoting a reply is done in place: select, copy, then the reply's `[ ↩ ]`, or paste into the prompt.
+
+- Removed from the TUI: the answers tab, line marks and quote sending. It keeps open, preview (Quick Look), copy and `r` (`#aN` into the prompt). The snapshot no longer carries the answers' lines.
+- `[ ↩ ]` with no copied text from that block no longer opens the TUI. A toast says to select and copy first. A block not among the kept answers says so.
+- The mod refuses a TUI request without a `ref`. The mod still keeps the last 16 answers to find quotes in.
+- Limit: `pbpaste` is macOS only. Elsewhere `↩` has nothing to read, and pasting into the prompt is the way to quote.
+
 ## session-recall 0.11.0
 
 You can select in place in the transcript and quote the selection. A mod cannot read a selection until it is copied. Fullscreen copies a drag over a reply when the mouse button is released. The mod reads that copy at the moment you act.

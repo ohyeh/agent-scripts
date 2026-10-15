@@ -1017,61 +1017,64 @@ describe('itemsOf', () => {
 })
 
 describe('the TUI', () => {
-  test('the snapshot has the list and the last answers\' lines, newest first, from the transcript too', async ($, on) => {
-    const w = world(on, { messages: [{ role: 'assistant', text: '- old one\n- old two' }, { role: 'user', text: '- not mine' }] })
+  test('the snapshot has the list only; the answers quotes are found in come from the transcript too', async ($, on) => {
+    const w = world(on, { messages: [{ role: 'assistant', text: '- an older answer, read back from the transcript' }, { role: 'user', text: '- not mine at all, a prompt' }] })
     await $.session.start(start)
     await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
     await $.turn.complete({ ...turn, answer: '1. fix it\n2. ship it' } as never)
     const snap = w.snap()
     expect(snap.assets.map((x: { ref: string }) => x.ref)).toEqual(['http://localhost:5173/'])
-    expect(snap.answers.map((a: { items: string[] }) => a.items)).toEqual([['fix it', 'ship it'], ['old one', 'old two']])
-    expect(snap.answers[0].id).toBe(answerId(['fix it', 'ship it']))
-    expect(snap.answers[1].at).toBe(0)
+    expect(snap.answers).toBeUndefined()
+    await $.prompt.submit({ text: 'an older answer, read back from the transcript', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)?.join('\n')).toContain('#q1 = line 1 of your reply from before the last reload')
+    await $.prompt.submit({ text: 'not mine at all, a prompt', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1), 'a prompt is not a reply').toBeUndefined()
   })
 
+  const reply = (text: string, requestId = 'm1', surface = 'terminal') =>
+    ({ surface, component: 'AssistantMessage', requestId, viewport: { columns: 100, rows: 50 }, props: { text, isFirstOfReply: false } }) as never
+
   test('#qN: the model finds which reply and which lines the user quoted, in the prompt and through the tool', async ($, on) => {
-    const w = world(on)
+    const clip = { text: 'ship it\n3. tell them' }
+    const w = world(on, { clip })
     await $.session.start(start)
     await w.clock.advance(1_000)
-    await $.turn.complete({ ...turn, answer: '1. fix it\n2. ship it\n3. tell them' } as never)
-    const id = w.snap().answers[0].id
-    w.ask({ quote: ['ship it', 'tell them'], from: { answer: id, lines: [1, 2] } })
-    w.ask({ quote: ['no place'], from: { answer: 'gone', lines: [0] } })
-    await w.clock.advance(600)
-    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['#q1\n> ship it\n\n> tell them\n\n', '#q2\n> no place\n\n'])
-    await $.prompt.submit({ text: '#q1 這兩行改掉，#q2 呢，#q7', wait: false, origin: { kind: 'composer' } } as never)
+    const answer = '1. fix it\n2. ship it\n3. tell them'
+    await $.turn.complete({ ...turn, answer } as never)
+    await $.ui.render(reply(answer))
+    await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
+    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['#q1\n> ship it\n> 3. tell them\n\n'])
+    await $.prompt.submit({ text: '#q1 這兩行改掉，#q7', wait: false, origin: { kind: 'composer' } } as never)
     const ctx = w.contexts.at(-1)?.join('\n') ?? ''
     expect(ctx).toContain('#q1 = lines 2, 3 of your reply of ')
     expect(ctx).toContain('(it begins "fix it")')
-    expect(ctx).toContain('  > ship it\n  > tell them')
-    expect(ctx, 'a quote whose answer is gone keeps its text, not a place').toContain('#q2 = a reply of yours (which one the TUI did not say)')
-    expect(ctx).toContain('#q7: no such quote (this session has 2)')
+    expect(ctx).toContain('  > ship it\n  > 3. tell them')
+    expect(ctx).toContain('#q7: no such quote (this session has 1)')
     const listed = JSON.stringify(await $.tool.call({ tool: 'mcp__session-recall__recall', kind: 'quote', query: 'ship' } as never))
     expect(listed).toContain('#q1 = lines 2, 3')
-    expect(listed).not.toContain('#q2')
+    expect(JSON.stringify(await $.tool.call({ tool: 'mcp__session-recall__recall', kind: 'quote', query: 'nowhere' } as never))).toContain('no quote matches')
   })
 
-  test('↩ on a reply block opens the TUI on that answer, the block marked; code and other surfaces are left as drawn', async ($, on) => {
-    const w = world(on)
+  test('↩ on a reply block with nothing of it copied says to select and copy; code and other surfaces are left as drawn', async ($, on) => {
+    const w = world(on, { clip: { text: '' } })
     await $.session.start(start)
     await w.clock.advance(1_000)
     await $.turn.complete({ ...turn, answer: '- fix it\n- ship it' } as never)
-    const msg = (text: string, surface = 'terminal', requestId = 'm1') =>
-      ({ surface, component: 'AssistantMessage', requestId, viewport: { columns: 100, rows: 50 }, props: { text, isFirstOfReply: false } }) as never
-    const tree = JSON.stringify(await $.ui.render(msg('- ship it')))
+    const tree = JSON.stringify(await $.ui.render(reply('- ship it')))
     expect(tree, 'the engine drawing is kept').toContain('"type":"engine"')
     expect(tree).toContain('↩')
     await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
-    expect(w.snap().focus).toMatchObject({ answer: answerId(['fix it', 'ship it']), lines: [1] })
-    expect(w.toasts.at(-1), 'no TUI open outside tmux: it launches as /recall tui').toContain('not in tmux')
-    expect(await $.ui.render(msg('```\ncode\n```', 'terminal', 'm2'))).toEqual({ type: 'engine', ref: 0 })
-    expect(await $.ui.render(msg('- ship it', 'desktop', 'm3'))).toEqual({ type: 'engine', ref: 0 })
-    await $.ui.render(msg('- not in any answer', 'terminal', 'm4'))
+    expect(w.toasts.at(-1)).toContain('select the part of this reply to quote and copy it')
+    expect(w.filled).toEqual([])
+    expect(w.runs.some(a => a[0] === 'tmux' || a[0] === 'open'), 'no TUI is opened').toBe(false)
+    expect(await $.ui.render(reply('```\ncode\n```', 'm2'))).toEqual({ type: 'engine', ref: 0 })
+    expect(await $.ui.render(reply('- ship it', 'm3', 'desktop'))).toEqual({ type: 'engine', ref: 0 })
+    await $.ui.render(reply('- not in any answer', 'm4'))
     await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm4' } as never)
-    expect(w.toasts.at(-1)).toContain('not among the answers the TUI offers')
+    expect(w.toasts.at(-1)).toContain('not among the answers kept')
   })
 
-  test('↩ with a selection copied from that block quotes it at once; one from elsewhere opens the TUI', async ($, on) => {
+  test('↩ with a selection copied from that block quotes it at once; one from elsewhere is never inserted', async ($, on) => {
     const clip = { text: '' }
     const w = world(on, { clip })
     await $.session.start(start)
@@ -1091,7 +1094,7 @@ describe('the TUI', () => {
     await $.ui.render(msg)
     await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
     expect(w.filled, 'a clipboard not from this block is never inserted').toHaveLength(1)
-    expect(w.snap().focus, 'it opens the TUI on the block instead').toMatchObject({ lines: [0, 1, 2] })
+    expect(w.toasts.at(-1)).toContain('select the part of this reply')
   })
 
   test('lines pasted from a reply are told to the model as a quote of it; typed text is not', async ($, on) => {
@@ -1133,65 +1136,71 @@ describe('the TUI', () => {
     expect(quoteRefsIn('#q3 看 (#q12)，#q3；x#q4 #qa')).toEqual([3, 12])
   })
 
-  test('each request is done once and answered; a bad one is refused whole, not cut; an old one is not done', async ($, on) => {
+  // Two rows for the TUI to ask for: the dev server (#a2) and the plan (#a1), newest first.
+  const two = async ($: { tool: { call: (c: never) => Promise<unknown> } }) => {
+    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' } as never)
+    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/plan.md', content: 'x' } as never)
+  }
+  const DEV = 'http://localhost:5173/'
+  const PLAN = '/work/retro-w41/plan.md'
+
+  test('each request is done once and answered; a bad one is refused whole; an old one is not done', async ($, on) => {
     const w = world(on)
     await $.session.start(start)
+    await two($)
     await w.clock.advance(100_000)
-    const old = w.ask({ quote: ['from before a reload'] }, 60_000)
-    const a = w.ask({ quote: ['a', 'two\nlines'] })
-    const b = w.ask({ quote: ['b'] })
+    const old = w.ask({ ref: DEV }, 60_000)
+    const a = w.ask({ ref: DEV })
+    const b = w.ask({ ref: PLAN })
     await w.clock.advance(600)
     expect(old()).toMatchObject({ ok: false })
-    expect(w.filled, 'two requests made together are both done, in order').toEqual([
-      { text: '#q1\n> a\n\n> two\n> lines\n\n', mode: 'insert' },
-      { text: '#q2\n> b\n\n', mode: 'insert' },
+    expect(w.filled, 'two requests made together are both done, in order; the row by its ref').toEqual([
+      { text: '#a2 ', mode: 'insert' },
+      { text: '#a1 ', mode: 'insert' },
     ])
-    expect(a()).toEqual({ ok: true, text: '#q1: 2 quote(s) in the prompt: write under each one.' })
+    expect(a()).toEqual({ ok: true, text: '#a2 is in the prompt: write the rest.' })
     expect(b()).toMatchObject({ ok: true })
     await w.clock.advance(600)
     expect(w.filled, 'done once').toHaveLength(2)
-    // The row by its ref: a new asset since the TUI drew moved it to #a2.
-    await $.tool.call({ tool: 'Bash', command: 'npm run dev', description: 'Start dev server' })
-    await $.tool.call({ tool: 'Write', file_path: '/work/retro-w41/plan.md', content: 'x' })
-    w.ask({ ref: 'http://localhost:5173/' })
-    await w.clock.advance(600)
-    expect(w.filled.at(-1)).toEqual({ text: '#a2 ', mode: 'insert' })
-    for (const bad of [null, [1], { quote: ['x', 7] }, { quote: ['x'.repeat(4001)] }, { quote: [] }, { ref: 'https://gone.dev' }, { ref: 2 }, '{"quote":']) {
+    for (const bad of [null, [1], { quote: ['a quote is no longer asked for'] }, { ref: 'https://gone.dev' }, { ref: 2 }, '{"ref":']) {
       const done = w.ask(bad)
       await w.clock.advance(600)
       expect(done()?.ok, JSON.stringify(bad)).toBe(false)
     }
-    expect(w.filled).toHaveLength(3)
+    expect(w.filled).toHaveLength(2)
   })
 
   test('a request answered before a reload is not done again; a fill no box took is answered as not done', async ($, on) => {
     const w = world(on)
-    const done = w.ask({ quote: ['already filled'] })
+    const done = w.ask({ ref: DEV })
     const name = [...w.files.keys()].find(k => k.includes('.ask/'))!.split('/').pop()
     w.files.set(`${HOME}/.local/state/session-recall/sess-A.done/${name}`, { text: '{"ok":true,"text":"filled"}', mtimeMs: 1 })
     await $.session.start(start)
+    await two($)
     await w.clock.advance(600)
     expect(done()).toEqual({ ok: true, text: 'filled' })
     expect(w.filled).toEqual([])
     w.box.open = false
-    const later = w.ask({ quote: ['z'] })
+    const later = w.ask({ ref: DEV })
     await w.clock.advance(600)
-    expect(later()).toMatchObject({ ok: false })
+    expect(later()).toMatchObject({ ok: false, text: expect.stringContaining('no prompt box') })
   })
 
   test('one TUI\'s requests made in one millisecond go in its order: the 10th after the 9th', async ($, on) => {
     const w = world(on)
     await $.session.start(start)
-    w.ask({ quote: ['tenth'] }, 0, 10)
-    w.ask({ quote: ['ninth'] }, 0, 9)
+    await two($)
+    w.ask({ ref: DEV }, 0, 10)
+    w.ask({ ref: PLAN }, 0, 9)
     await w.clock.advance(600)
-    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['#q1\n> ninth\n\n', '#q2\n> tenth\n\n'])
+    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['#a1 ', '#a2 '])
   })
 
   test('an answer that could not be written is written at the next look; the request is filled once, also after a reload', async ($, on) => {
     const w = world(on)
     await $.session.start(start)
-    const once = w.ask({ quote: ['once'] })
+    await two($)
+    const once = w.ask({ ref: DEV })
     // The mark goes down, then the answer write fails.
     let fails = 1
     w.box.failWrite = (path, text) => path === once.at && text.includes('"ok"') && fails-- > 0
@@ -1205,21 +1214,23 @@ describe('the TUI', () => {
   test('an answer that keeps failing to be written does not hold up the next request', async ($, on) => {
     const w = world(on)
     await $.session.start(start)
-    const stuck = w.ask({ quote: ['stuck'] })
+    await two($)
+    const stuck = w.ask({ ref: DEV })
     w.box.failWrite = (path, text) => path === stuck.at && text.includes('"ok"')
     await w.clock.advance(600)
-    const next = w.ask({ quote: ['next'] })
+    const next = w.ask({ ref: PLAN })
     await w.clock.advance(600)
     await w.clock.advance(600)
     expect(next()).toMatchObject({ ok: true })
-    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['#q1\n> stuck\n\n', '#q2\n> next\n\n'])
+    expect(w.filled.map(f => (f as { text: string }).text)).toEqual(['#a2 ', '#a1 '])
   })
 
   test('a request marked taken by the last load is not filled again after a reload', async ($, on) => {
     const w = world(on)
-    const taken = w.ask({ quote: ['taken'] })
+    const taken = w.ask({ ref: DEV })
     w.files.set(taken.at, { text: '{"taking":true}', mtimeMs: 1 })
     await $.session.start(start)
+    await two($)
     await w.clock.advance(600)
     expect(w.filled).toEqual([])
     expect(taken()).toEqual({ taking: true })

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# The real TUI in a detached tmux pane: it draws a snapshot, marks two lines and writes the request the mod reads;
-# the smoke answers as the mod would, one file per request. On the assets tab `r` asks for row 2 by its ref; a
-# refusal keeps the TUI usable; two TUIs send without replacing each other's request. Then `follow` keeps a
-# selection on its answer when a new one comes in. Needs node and tmux. Prints VERDICT: PASS or FAIL.
+# The real TUI in a detached tmux pane: it draws a snapshot's assets, `r` asks for row 2 by its ref and writes the
+# request the mod reads; the smoke answers as the mod would, one file per request. A refusal keeps the TUI usable;
+# two TUIs send without replacing each other's request; enter opens a row, c copies it. Needs node and tmux.
+# Prints VERDICT: PASS or FAIL.
 set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 work="$(mktemp -d -t sa-tui.XXXXXX)"
@@ -11,7 +11,7 @@ trap 'tmux -S "$sock" kill-server 2>/dev/null || true; chmod -R u+w "$work" 2>/d
 d="$work/.local/state/session-recall"
 mkdir -p "$d"
 cat > "$d/sid-1.json" <<'J'
-{"v":1,"version":"9.9.9","sid":"sid-1","project":"demo","assets":[{"kind":"url","ref":"http://localhost:5173/","label":"Start dev","where":"localhost:5173","at":0},{"kind":"image","ref":"/tmp/shot.png","label":"shot.png","where":"/tmp","at":0}],"answers":[{"id":"x1","at":0,"items":["first line","第二行 寫死","third"]}]}
+{"v":1,"version":"9.9.9","sid":"sid-1","project":"demo","assets":[{"kind":"url","ref":"http://localhost:5173/","label":"Start dev","where":"localhost:5173","at":0},{"kind":"image","ref":"/tmp/shot.png","label":"shot.png","where":"/tmp","at":0}]}
 J
 # open, pbcopy and qlmanage are stand-ins: the smoke never opens a browser or touches the clipboard.
 mkdir -p "$work/bin"
@@ -19,44 +19,34 @@ for c in open pbcopy qlmanage; do printf '#!/bin/sh\necho %s "$@" >> "%s/ran"\nc
 fail() { echo "FAIL: $1"; tmux -S "$sock" capture-pane -p -t t 2>/dev/null | sed 's/^/  | /'; echo "VERDICT: FAIL"; exit 1; }
 tmux -S "$sock" new-session -d -s t -x 100 -y 20 "HOME='$work' PATH='$work/bin':\$PATH node '$here/bin/tui.mjs' --sid sid-1"
 wait_for() { for _ in $(seq 50); do tmux -S "$sock" capture-pane -p -t t | grep -q -- "$1" && return 0; sleep 0.1; done; fail "no '$1' on screen"; }
-wait_for 'answer 1/1 · 3 lines'
-wait_for '第二行 寫死'
+wait_for '2 assets'
+wait_for '#a2'
 # The smoke is the mod: each request is a file of its own in sid-1.ask/, answered under its name in sid-1.done/.
 asks() { ls "$d/sid-1.ask" 2>/dev/null | grep -E '^[0-9]{13}-[0-9]+-[0-9]+\.json$' || true; }
 field() { node -e 'console.log(JSON.stringify(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"))[process.argv[2]]))' "$d/sid-1.ask/$1" "$2"; }
 answer() { mkdir -p "$d/sid-1.done"; echo "$2" > "$d/sid-1.done/$1"; }
 newest() { for _ in $(seq 50); do n="$(asks | sort | tail -1)"; [ -n "$n" ] && [ "$n" != "${1:-}" ] && { echo "$n"; return; }; sleep 0.1; done; fail 'no new request'; }
-tmux -S "$sock" send-keys -t t Space Down Space Enter
+tmux -S "$sock" capture-pane -p -t t | grep -qE 'answer|quote' && fail 'the TUI still shows answers to quote'
+tmux -S "$sock" send-keys -t t Down r
 n1="$(newest)"
-[ "$(field "$n1" quote)" = '["first line","第二行 寫死"]' ] || fail "quote request was $(field "$n1" quote)"
-wait_for 'sending'
-tmux -S "$sock" capture-pane -p -t t | grep -q '\[x\]' || fail 'marks went before the mod answered'
-tmux -S "$sock" send-keys -t t Down Space
-sleep 0.3
-answer "$n1" '{"ok":true,"text":"2 quote(s) in the prompt"}'
-wait_for '2 quote(s) in the prompt'
-[ "$(tmux -S "$sock" capture-pane -p -t t | grep -c '\[x\]')" = 1 ] || fail 'ok cleared more or less than the lines it sent'
-tmux -S "$sock" capture-pane -p -t t | grep -q '\[x\] third' || fail 'the line marked while waiting was cleared'
+[ "$(field "$n1" ref)" = '"/tmp/shot.png"' ] || fail "ref request was $(field "$n1" ref)"
+answer "$n1" '{"ok":true,"text":"#a2 is in the prompt"}'
+wait_for '#a2 is in the prompt'
 sleep 0.4
 [ -e "$d/sid-1.ask/$n1" ] || [ -e "$d/sid-1.done/$n1" ] && fail 'an answered request and its answer were not removed'
-tmux -S "$sock" send-keys -t t Escape Tab
-wait_for '#a1'
-tmux -S "$sock" send-keys -t t Down r
+tmux -S "$sock" send-keys -t t r
 n2="$(newest "$n1")"
-[ "$(field "$n2" ref)" = '"/tmp/shot.png"' ] || fail "ref request was $(field "$n2" ref)"
 answer "$n2" '{"ok":false,"text":"that row is gone from the list"}'
 wait_for 'not done: that row is gone'
 # Marked taken and never answered (the session stopped between): after 5 s the TUI says to check the prompt.
-tmux -S "$sock" send-keys -t t Tab
-sleep 0.2
-tmux -S "$sock" send-keys -t t Enter
+tmux -S "$sock" send-keys -t t r
 n3="$(newest "$n2")"
 answer "$n3" '{"taking":true}'
 for _ in $(seq 80); do tmux -S "$sock" capture-pane -p -t t | grep -q 'took it but did not say' && break; sleep 0.1; done
 tmux -S "$sock" capture-pane -p -t t | grep -q 'took it but did not say' || fail 'a taken, unanswered request was not reported'
 # A request that cannot be removed keeps its answer: the answer is what keeps it from being done again.
 answer "$n3" '{"ok":true,"text":"late ok"}'
-tmux -S "$sock" send-keys -t t Enter
+tmux -S "$sock" send-keys -t t r
 n4="$(newest "$n3")"
 chmod a-w "$d/sid-1.ask"
 answer "$n4" '{"ok":true,"text":"kept answer"}'
@@ -67,14 +57,21 @@ chmod u+w "$d/sid-1.ask"
 rm -f "$d/sid-1.ask/"* "$d/sid-1.done/"*
 # A request the TUI cannot write is said, and the TUI goes on.
 chmod a-w "$d/sid-1.ask"
-tmux -S "$sock" send-keys -t t Enter
+tmux -S "$sock" send-keys -t t r
 wait_for 'not sent: EACCES'
 chmod u+w "$d/sid-1.ask"
+# enter opens the row, c copies its ref: no request either way.
+tmux -S "$sock" send-keys -t t Enter
+wait_for 'opened /tmp/shot.png'
+tmux -S "$sock" send-keys -t t c
+wait_for 'copied /tmp/shot.png'
+grep -q 'open /tmp/shot.png' "$work/ran" || fail 'enter did not run open'
+[ "$(asks | wc -l | tr -d ' ')" = 0 ] || fail 'enter or c wrote a request'
 # Two TUIs on one session both send: each request is its own file, neither replaces the other.
 tmux -S "$sock" new-window -d -t t -n v "HOME='$work' PATH='$work/bin':\$PATH node '$here/bin/tui.mjs' --sid sid-1"
-for _ in $(seq 50); do tmux -S "$sock" capture-pane -p -t t:v | grep -q 'first line' && break; sleep 0.1; done
-tmux -S "$sock" send-keys -t t:v Enter
-tmux -S "$sock" send-keys -t t Enter
+for _ in $(seq 50); do tmux -S "$sock" capture-pane -p -t t:v | grep -q '#a1' && break; sleep 0.1; done
+tmux -S "$sock" send-keys -t t:v r
+tmux -S "$sock" send-keys -t t r
 for _ in $(seq 50); do [ "$(asks | wc -l | tr -d ' ')" = 2 ] && break; sleep 0.1; done
 [ "$(asks | wc -l | tr -d ' ')" = 2 ] || fail "two TUIs left $(asks | wc -l) requests, not 2"
 tmux -S "$sock" send-keys -t t:v q
@@ -82,18 +79,7 @@ tmux -S "$sock" send-keys -t t q
 sleep 0.3
 tmux -S "$sock" has-session -t t 2>/dev/null && fail 'q did not quit'
 node --input-type=module -e "
-import { follow } from '$here/bin/tui.mjs'
-const A = id => ({ id, items: ['l'] })
 const ok = (c, m) => { if (!c) { console.log('FAIL: ' + m); process.exit(1) } }
-const prev = { answers: [A('n'), A('o'), A('t')] }, next = { answers: [A('m'), A('n'), A('o'), A('t')] }
-ok(follow(prev, next, { answerId: 't', answer: 2, marks: new Set([0]) }).answer === 3, 'marks on an older answer follow it, not its old place')
-ok(follow(prev, next, { answerId: 'n', answer: 0, marks: new Set() }).answerId === 'm', 'unmarked on the newest follows the newest')
-ok(follow(prev, next, { answerId: 'n', answer: 0, marks: new Set([1]) }).answer === 1, 'marked on the newest stays on it')
-ok(follow(prev, { answers: [A('m')] }, { answerId: 't', answer: 2, marks: new Set([0]) }).marks.size === 0, 'a dropped answer clears its marks')
-ok(!('cur' in follow(prev, next, { tab: 'assets', answerId: 'n', answer: 0, cur: 3, marks: new Set() })), 'a new answer leaves the assets cursor')
-const fo = follow(prev, { ...next, focus: { answer: 'o', lines: [2, 1], at: 5 } }, { tab: 'assets', answerId: 'n', answer: 0, cur: 0, marks: new Set() })
-ok(fo.tab === 'answers' && fo.answer === 2 && fo.cur === 1 && fo.marks.size === 2, 'a reply block ↩ opens that answer with its lines marked')
-ok(follow({ ...next, focus: { answer: 'o', lines: [0], at: 5 } }, { ...next, focus: { answer: 'o', lines: [0], at: 5 } }, { answerId: 'm', answer: 0, marks: new Set([0]) }).marks === undefined, 'the same ↩ again leaves the marks as they are')
 import { pick } from '$here/bin/tui.mjs'
 import { mkdirSync, writeFileSync, utimesSync } from 'node:fs'
 const dd = '$work/pick'; mkdirSync(dd)
@@ -101,7 +87,6 @@ writeFileSync(dd + '/s.json', '{}'); utimesSync(dd + '/s.json', 1, 1)
 for (const f of ['.s.json.tmp', 's.json.bak']) writeFileSync(dd + '/' + f, '1')
 mkdirSync(dd + '/s.ask'); mkdirSync(dd + '/s.done')
 ok(pick(dd).endsWith('/s.json'), 'no --sid picks the snapshot, not a request folder or another file')
-
 " || { echo "VERDICT: FAIL"; exit 1; }
 # bin/transcript.mjs: the whole file, main loop only, cut to the lines the replay reads; a prompt's link lines (not a meta line).
 mkdir -p "$work/cfg/projects/-w"

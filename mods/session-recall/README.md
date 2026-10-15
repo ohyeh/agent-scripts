@@ -11,7 +11,7 @@ them per session, and puts it where both of you can use it:
 | You | write `#a1` in a prompt: `#a1 掛了，修一下` | Claude gets row 1 beside your prompt: its exact URL or path, what made it, and its state now (`up: vite (pid 4242) in ./web`, `down: nothing listens on :5173`, `exists`, `missing`). No copying URLs, no guessing which server you meant. |
 | Claude | calls its `assets` tool: "the preview URL from before", "is :5173 still up", "which session runs :3000" | It gets the rows that match, with the same live state, from this session or from all of them. This is how it gets an exact port, path or hash back after the context was compacted. |
 | You | click a row in the band, or run `/recall list`, `/recall open N` | You see what was made, by what, and when; open, preview or copy one, or put `#aN` in the prompt. |
-| You | open the TUI (`/recall tui`, `[ ⧉ ]`), mark lines of an answer, press enter | They go into the prompt as `> line` blocks, each with room under it for what you say about it. No copying lines out of the reply. |
+| You | select part of a reply, copy it, click the reply's `[ ↩ ]` (or paste it into the prompt) | It goes into the prompt as a `#qN` quote, and Claude is told which reply and which lines it came from. |
 
 The live state is what answers "who is who" for local URLs: the process listening on
 the port, and the folder it runs in. It is checked on demand (a `#aN`, the tool,
@@ -125,9 +125,30 @@ The `[ ⧉ ]`, `[ hide ]` and `▸ other sessions` buttons and a row's buttons d
 click reaches them (checked 2026-10-09), but `ctrl+x tab` does not (see the tmux-agent README):
 there the keyboard way is the commands.
 
+## Quoting a reply: `#qN`
+
+- Select in place, then `↩`: drag over part of a reply (fullscreen copies it when the button is released; otherwise
+  copy it), then click the `[ ↩ ]` that shows at the block's top right while the pointer is over it. The mod reads
+  the clipboard once (`pbpaste`). If the text is in that block and in its answer, it goes in the prompt under
+  `#qN` at once, as `> line` blocks, with the lines it covers (part of a line too). The terminal's gutter and the
+  reply bullet are dropped. A clipboard that is not from that block is never inserted: a toast says to select and
+  copy first. A mod cannot read a selection that was not copied.
+- Paste: lines copied from a reply and pasted into the prompt are recognized when you send it. Words typed before or
+  after the paste on the same line, cut at a space, are left out. Each run of pasted lines from one answer is kept
+  as a `#qN`, and the model is told where the lines came from. A line under 12 characters (with marks and spaces
+  removed), a line starting with `>`, and text that two answers both hold are not read as a paste.
+- `#qN` is numbered for the session's life. The mod keeps which reply the quote came from, the time of that reply,
+  its first line, and which lines were quoted. A prompt with `#q3` gives the model that place and those lines beside
+  the prompt. If the `>` text was cut, or the context was compacted, the model can still find them. The model's tool
+  lists them with `kind: "quote"`.
+- Where a quote is looked for: the last 16 answers of the main loop (the newest and 15 before it; 31% of quotes in
+  past sessions came from an answer older than the last one), read back from the transcript after a reload. Matching
+  ignores markdown marks, bullets, list numbers and all whitespace, so a soft wrap inside CJK text still matches.
+  Code blocks and headings are not among an answer's lines, so text copied from them names no place.
+
 ## TUI
 
-`bin/tui.mjs`, full screen, in a pane of its own: the band has a few rows, the TUI has every row and the last answers.
+`bin/tui.mjs`, full screen, in a pane of its own: the band has a few rows, the TUI has every row.
 `/recall tui` or the band's `[ ⧉ ]` opens it in a tmux split (full window height) when the session runs in tmux. In Warp
 it writes the launch configuration (a feature Warp calls legacy, replaced by Tab Configs) `~/.warp/launch_configurations/session-recall.yaml` (named `session-recall TUI`, one
 for all sessions, rewritten each time) and opens it with `warp://launch/`, a new Warp window running the TUI: Warp
@@ -135,59 +156,33 @@ splits no pane from a command. Elsewhere (iTerm), or when that fails, the comman
 new pane. Needs `node` (22 or later) on the PATH; it has no dependencies.
 
 ```
-▌session recall v0.8.0 · agent-scripts    1 answers  2 assets
-answer 1/16 · 12 lines · 2m ago · 2 marked   ← → older/newer
-[x] **D1**: rename the band
-[ ] keep `#aN`
-[x] q4 | 寫死 timeout
+▌session recall v0.12.0 · agent-scripts
+2 assets, numbered as the band: #aN in a prompt refers to row N
+#a1  ● localhost:5173              2m ago · localhost:5173
+#a2  ▣ shot.png                    5m ago · /tmp
 ────────────────────────────────────────────
-q4 | 寫死 timeout
-space mark · enter quote into the prompt · c copy · a all · esc unmark · tab assets · q quit
+/tmp/shot.png
+enter open · p preview · c copy · r #aN into the prompt · q quit
 ```
 
-- Answers (`1`): the lines of the last 16 answers of the main loop (the newest and 15 before it), newest first (← → or
-  `[ ]` for older and newer): list items without their marker, table rows as written (not the header), prose lines;
-  not headings or code. Marks stay on the answer they were made in when a new one comes in; on the newest with nothing
-  marked, the view follows the newest. Past sessions show
-  why: 204 follow-ups pasted one line of an answer back with a short comment, 61 pasted several, each with its own,
-  and 31% quoted an answer older than the last one. Space marks, `a` marks all, enter puts the marked lines (or the
-  one under the cursor) in the prompt at the cursor as `> line` blocks with an empty line under each (every line of a
-  quote gets its `>`); `c` copies them. The marks stay until the session says the quotes are in.
-- `#qN`: each quote sent goes in under a `#qN` line, numbered for the session's life. The mod keeps which reply it
-  came from, the time of that reply, its first line, and which lines were quoted. A prompt with `#q3` gives the model
-  that place and those lines beside the prompt. If the `>` text was cut, or the context was compacted, the model can
-  still find them. The model's tool lists them with `kind: "quote"`.
-- Select in place, then `↩`: drag over part of a reply (fullscreen copies it when the button is released; otherwise
-  copy it), then click the `[ ↩ ]` that shows at the block's top right while the pointer is over it. The mod reads
-  the clipboard once (`pbpaste`). If the text is in that block and in its answer, it goes in the prompt under
-  `#qN` at once, with the lines it covers (part of a line too). The terminal's gutter and the reply bullet are
-  dropped. A clipboard that is not from that block is never inserted: the click opens the TUI on the block, with its
-  lines marked, instead. A mod cannot read a selection that was not copied.
-- Paste: lines copied from a reply and pasted into the prompt are recognized when you send it. Words typed before or
-  after the paste on the same line, cut at a space, are left out. Each run of pasted lines from one answer is kept
-  as a `#qN`, and the model is told where the lines came from. A line under 12 characters (with marks and spaces
-  removed), a line starting with `>`, and text that two answers both hold are not read as a paste.
-- Matching ignores markdown marks, bullets, list numbers and all whitespace, so a soft wrap inside CJK text still
-  matches. Code blocks and headings are not among an answer's lines, so text copied from them names no place.
-- Assets (`2`): every row, numbered as the band. Enter opens, `p` previews (Quick Look), `c` copies, `r` puts `#aN`
-  in the prompt: the TUI sends the row's URL or path, and the mod numbers it as its list stands then.
-- How it talks to the session: the mod writes `~/.local/state/session-recall/<sid>.json` (the list and the answers'
-  lines) after each change, and the TUI redraws when it changes. A process outside Claude Code cannot type into its
-  prompt box, and a paste of several lines folds into `[Pasted text]`, so the TUI writes a request and the mod puts
-  its text in the prompt (it looks twice a second). Each request is a file of its own, `<sid>.ask/<time>-<pid>-<n>.json`,
-  so no TUI writes over another's, and two TUIs on one session both send; they are done in the order made. The mod
-  does each one once and answers it under the same name in `<sid>.done/`, `ok` or why not. Before it fills the prompt
-  it puts down the mark of one taken there, so a reload in between never fills it again (the TUI then says to check
-  the prompt), and an answer it could not write it writes at its next look. The TUI says done only on `ok`, removes the
-  request, and then the answer (never the answer while the request stays). A refused one keeps its marks, to send
-  again. The mod checks what it reads: 1 to 60 quotes of at most 4000
-  characters, or a ref in the list; anything else is refused whole, never cut. A request older than 30 s (made while
-  the session was not listening) is answered as not done. No answer in 5 s: the TUI says so, and keeps waiting.
+- Every row, numbered as the band. Enter opens, `p` previews (Quick Look), `c` copies, `r` puts `#aN` in the prompt:
+  the TUI sends the row's URL or path, and the mod numbers it as its list stands then. Quoting a reply is not done
+  here (see above).
+- How it talks to the session: the mod writes `~/.local/state/session-recall/<sid>.json` (the list) after each change,
+  and the TUI redraws when it changes. A process outside Claude Code cannot type into its prompt box, so the TUI
+  writes a request and the mod puts its text in the prompt (it looks twice a second). Each request is a file of its
+  own, `<sid>.ask/<time>-<pid>-<n>.json`, so no TUI writes over another's, and two TUIs on one session both send;
+  they are done in the order made. The mod does each one once and answers it under the same name in `<sid>.done/`,
+  `ok` or why not. Before it fills the prompt it puts down the mark of one taken there, so a reload in between never
+  fills it again (the TUI then says to check the prompt), and an answer it could not write it writes at its next look.
+  The TUI says done only on `ok`, removes the request, and then the answer (never the answer while the request stays).
+  The mod checks what it reads: a ref in the list; anything else is refused whole. A request older than 30 s (made
+  while the session was not listening) is answered as not done. No answer in 5 s: the TUI says so, and keeps waiting.
 - Without `--sid` the TUI shows the session whose snapshot (`<sid>.json`) changed last.
-- `tests/tui-smoke.sh` runs the real TUI in a detached tmux pane: it draws, marks two lines, sends them, and the smoke
-  answers as the mod would; then a row by its ref, refused; one taken and never answered; one it cannot remove; one it
-  cannot write; then two TUIs on one session, two requests. It also checks that marks stay on their answer. `open`,
-  `pbcopy` and `qlmanage` are stand-ins there.
+- `tests/tui-smoke.sh` runs the real TUI in a detached tmux pane: it draws, sends a row by its ref, and the smoke
+  answers as the mod would; then one refused; one taken and never answered; one it cannot remove; one it cannot
+  write; enter and `c`; then two TUIs on one session, two requests. `open`, `pbcopy` and `qlmanage` are stand-ins
+  there.
 
 ## Pointing at a row: `#aN`
 
@@ -245,7 +240,7 @@ During development: `claude --plugin-dir mods/session-recall`.
   the live hook keeps it.
 - A picture or video path with a space in it is read only when quoted or escaped.
 - A remote URL is never checked.
-- After the TUI puts quotes in the prompt, the cursor is on the empty line under the last one: the engine moves it to
+- After `↩` puts a quote in the prompt, the cursor is on the empty line under it: the engine moves it to
   the end of each fill, and no hook can place it (tried 2026-10-09: an insert then an append still ends at the end).
   Move up to comment on the others.
 - The replay reads what `$.session.messages()` gives: at most the newest 4096 messages.

@@ -44,7 +44,7 @@ export const quoteOf = (items: readonly string[]) =>
   items.map(x => `${x.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').split('\n').map(l => `> ${l}`).join('\n')}\n\n`).join('')
 
 /**
- * Where one block of a reply (the transcript draws a reply as blocks) sits among the answers the TUI offers: the answer
+ * Where one block of a reply (the transcript draws a reply as blocks) sits among the kept answers: the answer
  * holding most of its lines, and their places in it. None when under half of the block's lines are in any one answer:
  * a lone common line (`OK`) must not mark another reply. Newest answer first, as the list is.
  */
@@ -97,7 +97,7 @@ export function quoteRefsIn(text: string): number[] {
   return out
 }
 
-/** An answer's identity across snapshots: its lines (FNV-1a), so a selection stays on the answer it was made in. */
+/** An answer's identity across snapshots: its lines (FNV-1a), so a quote names the answer it was made in. */
 export function answerId(items: readonly string[]): string {
   let h = 0x811c9dc5
   for (const ch of items.join('\n')) h = Math.imul(h ^ ch.codePointAt(0)!, 0x01000193) >>> 0
