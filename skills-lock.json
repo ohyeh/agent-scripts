@@ -60,9 +60,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/codex-cu/SKILL.md",
-      "skillFolderHash": "97e9b85d04444cac11c747f797d14e1da6923d18",
+      "skillFolderHash": "edfbc86dbf41dafcb654c25802c958cb8a547c91",
       "installedAt": "2026-10-08T17:59:00.705Z",
-      "updatedAt": "2026-10-14T02:45:46.814Z"
+      "updatedAt": "2026-10-15T17:40:17.126Z"
     },
     "codex-dynamic-workflows": {
       "source": "dannymac180/skills",
@@ -123,9 +123,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "ee9e6703aa7a9946e4ac2b22ad3587e44dbde3fe",
+      "skillFolderHash": "13b5f07a6b09399af23173f01867204ef98ff202",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-10-15T01:22:09.859Z"
+      "updatedAt": "2026-10-15T17:40:26.174Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -168,9 +168,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "51aacfac75e507cd94690cd3c03347945f1ce7bd",
+      "skillFolderHash": "e997703b4a26c24df20f853cc465251dba8078f6",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-10-15T11:19:04.382Z"
+      "updatedAt": "2026-10-15T17:40:29.787Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -223,9 +223,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/shared-memory-intake/SKILL.md",
-      "skillFolderHash": "c2a7f33be24088e03cb1e3f733fd65360ed569f1",
+      "skillFolderHash": "6562dbb221c3c6a556453585a192f2e9d1130e0c",
       "installedAt": "2026-07-26T11:03:52.880Z",
-      "updatedAt": "2026-10-15T15:27:03.000Z"
+      "updatedAt": "2026-10-15T17:40:19.474Z"
     },
     "skill-creator": {
       "source": "anthropics/skills",
