@@ -2,7 +2,7 @@ import type { On } from 'claude-code'
 import { describe, expect, mock, test } from 'claude-code/testing'
 
 import { assetsOf, assetsOfText, assetsOfTranscript, cut, extractUrls, githubRepoOf, pushedOf, pushRemoteOf, isLocalNoise, localPort, sessionIdsIn, shasIn, parseCwd, parseListen, refsIn, isLocalHost, merge, nameOf, rowsOf, shortDir, subagentMade } from '../hooks/lib/assets.ts'
-import { answerId, itemsOf, locate, quoteOf, quoteRefsIn } from '../hooks/lib/items.ts'
+import { answerId, findExcerpt, itemsOf, locate, quoteOf, quoteRefsIn } from '../hooks/lib/items.ts'
 
 const HOME = '/h/me'
 const call = (tool: string, input: Record<string, unknown>, text = '', readOnly = false) => assetsOf({ tool, input, text, home: HOME, cwd: '/private/var/w', readOnly })
@@ -879,7 +879,7 @@ const band = (props: { maxRows?: number; hasSurvey?: boolean } = {}) => ({
 })
 
 /** The engine under the mod: an in-memory store (or one whose writes fail), tools that print a dev-server URL, a recorded `open`. */
-function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[]; transcript?: unknown[]; tmux?: string; term?: string } = {}) {
+function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: boolean; messages?: unknown[]; transcript?: unknown[]; tmux?: string; term?: string; clip?: { text: string } } = {}) {
   const clock = mock.clock(on)
   const files = new Map<string, { text: string; mtimeMs: number }>()
   /** Paths whose writes fail, as a disk error would. */
@@ -954,6 +954,7 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   // lsof: vite listens on :5173 from the session's folder; nothing else listens.
   on('process.run', ($, e) => {
     const argv = [...e.argv]
+    if (argv[0] === 'pbpaste') return { value: { exitCode: 0, stdout: opts.clip?.text ?? '', stderr: '' } }
     if (argv[0] === 'lsof') {
       const stdout = argv.includes('-iTCP:5173') ? 'p4242\ncvite\n' : argv.includes('4242') ? 'p4242\nfcwd\nn/work/retro-w41\n' : ''
       return { value: { exitCode: stdout ? 0 : 1, stdout, stderr: '' } }
@@ -1068,6 +1069,60 @@ describe('the TUI', () => {
     await $.ui.render(msg('- not in any answer', 'terminal', 'm4'))
     await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm4' } as never)
     expect(w.toasts.at(-1)).toContain('not among the answers the TUI offers')
+  })
+
+  test('↩ with a selection copied from that block quotes it at once; one from elsewhere opens the TUI', async ($, on) => {
+    const clip = { text: '' }
+    const w = world(on, { clip })
+    await $.session.start(start)
+    await w.clock.advance(1_000)
+    const answer = '- **D1**: 這次 retro 提案現在只放在一個地方\n- keep `#aN` as it is\n- 第三行'
+    await $.turn.complete({ ...turn, answer } as never)
+    const msg = { surface: 'terminal', component: 'AssistantMessage', requestId: 'm1', viewport: { columns: 100, rows: 50 }, props: { text: answer, isFirstOfReply: true } } as never
+    await $.ui.render(msg)
+    // As the terminal shows it: no markdown marks, a soft wrap and its indent inside the CJK text, the next line in part.
+    clip.text = 'D1: 這次 retro 提案現在只\n  放在一個地方\n  - keep #aN'
+    await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
+    expect(w.filled.at(-1), 'the terminal gutter is gone').toEqual({ text: '#q1\n> D1: 這次 retro 提案現在只\n> 放在一個地方\n> - keep #aN\n\n', mode: 'insert' })
+    expect(w.toasts.at(-1)).toContain('#q1: the selection is in the prompt')
+    await $.prompt.submit({ text: '#q1 why', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)?.join('\n')).toContain('#q1 = lines 1, 2 of your reply of ')
+    clip.text = 'something copied in another app'
+    await $.ui.render(msg)
+    await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
+    expect(w.filled, 'a clipboard not from this block is never inserted').toHaveLength(1)
+    expect(w.snap().focus, 'it opens the TUI on the block instead').toMatchObject({ lines: [0, 1, 2] })
+  })
+
+  test('lines pasted from a reply are told to the model as a quote of it; typed text is not', async ($, on) => {
+    const w = world(on)
+    await $.session.start(start)
+    await w.clock.advance(1_000)
+    await $.turn.complete({ ...turn, answer: '1. 把 retro 提案集中到 inbox 一個地方\n2. handoff 不再重抄提案內容\n3. other' } as never)
+    await $.prompt.submit({ text: '這兩點：\n把 retro 提案集中到 inbox 一個地方\nhandoff 不再重抄提案內容\n我覺得第二點要改', wait: false, origin: { kind: 'composer' } } as never)
+    const ctx = w.contexts.at(-1)?.join('\n') ?? ''
+    expect(ctx).toContain('the user pasted lines of your own earlier replies')
+    expect(ctx).toContain('#q1 = lines 1, 2 of your reply of ')
+    expect(ctx).not.toContain('#q2')
+    await $.prompt.submit({ text: 'where is this from?   2. handoff 不再重抄提案內容', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)?.join('\n'), 'typed words before a paste on one line').toContain('#q2 = line 2 of your reply of ')
+    expect(w.contexts.at(-1)?.join('\n')).toContain('  > 2. handoff 不再重抄提案內容')
+    const doc = Array.from({ length: 300 }, (_, i) => `log line ${i}: 把 retro 提案集中到 inbox 一個地方`).join('\n')
+    const t0 = Date.now()
+    await $.prompt.submit({ text: doc, wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1), 'a 300-line paste is a document: not scanned').toBeUndefined()
+    expect(Date.now() - t0).toBeLessThan(500)
+    await $.prompt.submit({ text: 'just a typed question about the plan', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)).toBeUndefined()
+  })
+
+  test('findExcerpt: one answer holds it; two holding it, or too short, name no place', async () => {
+    const answers = [{ id: 'new', items: ['ship it now', 'x'] }, { id: 'old', items: ['fix it', 'ship it now'] }]
+    expect(findExcerpt(answers, 'fix it ship')).toEqual({ answer: 'old', lines: [0, 1] })
+    expect(findExcerpt(answers, 'ship it now'), 'in two answers: no place').toBeUndefined()
+    expect(findExcerpt(answers, 'ship it now', 'old')).toEqual({ answer: 'old', lines: [1] })
+    expect(findExcerpt(answers, 'it')).toBeUndefined()
+    expect(findExcerpt([{ id: 'n', items: ['把 retro 提案集中', 'handoff 不再重抄'] }], '⏺ 1. 把 retro 提案集中\n  2. handoff 不再'), 'the list numbers the terminal shows are not text').toEqual({ answer: 'n', lines: [0, 1] })
   })
 
   test('locate: a reply block finds its answer and lines; a lone common line does not', async () => {

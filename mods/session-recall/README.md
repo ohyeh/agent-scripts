@@ -157,10 +157,18 @@ space mark · enter quote into the prompt · c copy · a all · esc unmark · ta
   came from, the time of that reply, its first line, and which lines were quoted. A prompt with `#q3` gives the model
   that place and those lines beside the prompt. If the `>` text was cut, or the context was compacted, the model can
   still find them. The model's tool lists them with `kind: "quote"`.
-- `↩` on a reply: the pointer over a block of a reply in the transcript shows `↩` at its top right. A click opens
-  the TUI on that answer with the block's lines marked (one already open in tmux jumps there). Enter quotes the block,
-  and space narrows the marks to a range. The terminal's own text selection cannot be read by a mod, so the TUI is
-  where a range is picked. With no pointer, `/recall tui` is the keyboard path.
+- Select in place, then `↩`: drag over part of a reply (fullscreen copies it when the button is released; otherwise
+  copy it), then click the `[ ↩ ]` that shows at the block's top right while the pointer is over it. The mod reads
+  the clipboard once (`pbpaste`). If the text is in that block and in its answer, it goes in the prompt under
+  `#qN` at once, with the lines it covers (part of a line too). The terminal's gutter and the reply bullet are
+  dropped. A clipboard that is not from that block is never inserted: the click opens the TUI on the block, with its
+  lines marked, instead. A mod cannot read a selection that was not copied.
+- Paste: lines copied from a reply and pasted into the prompt are recognized when you send it. Words typed before or
+  after the paste on the same line, cut at a space, are left out. Each run of pasted lines from one answer is kept
+  as a `#qN`, and the model is told where the lines came from. A line under 12 characters (with marks and spaces
+  removed), a line starting with `>`, and text that two answers both hold are not read as a paste.
+- Matching ignores markdown marks, bullets, list numbers and all whitespace, so a soft wrap inside CJK text still
+  matches. Code blocks and headings are not among an answer's lines, so text copied from them names no place.
 - Assets (`2`): every row, numbered as the band. Enter opens, `p` previews (Quick Look), `c` copies, `r` puts `#aN`
   in the prompt: the TUI sends the row's URL or path, and the mod numbers it as its list stands then.
 - How it talks to the session: the mod writes `~/.local/state/session-recall/<sid>.json` (the list and the answers'

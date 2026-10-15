@@ -1,9 +1,9 @@
 import type { EngineInterface, Register } from 'claude-code'
 
 import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir, subagentMade } from './lib/assets.ts'
-import { answerId, itemsOf, locate, quoteOf, quoteRefsIn } from './lib/items.ts'
+import { answerId, findExcerpt, itemsOf, locate, plain, quoteOf, quoteRefsIn } from './lib/items.ts'
 
-const MOD_VERSION = '0.10.0'
+const MOD_VERSION = '0.11.0'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -14,6 +14,8 @@ const PANEL_KEY = 'session-recall.panel'
 /** Quotes the TUI put in a prompt, one key per session, numbered #qN from 1 for the session's life. */
 const QPREFIX = 'session-recall.q.'
 const MAX_KEPT_QUOTES = 50
+/** A prompt longer than this is not scanned for lines pasted from a reply. */
+const MAX_PASTE_LINES = 100
 const PRUNE_MS = 30 * 86_400_000
 /** Rows the band takes at most: header + this many entries; an open row and the other sessions add their own. */
 const PANEL_ROWS = 4
@@ -114,6 +116,17 @@ async function poll(s: State, $: $) {
   }
 }
 
+/** Keeps a quote under the next #qN: its text, and the answer and lines it came from when known. */
+async function recordQuote(s: State, $: $, text: string[], now: number, from?: { answer: string; lines?: number[] }): Promise<Quote> {
+  const a = from && s.answers.find(x => x.id === from.answer)
+  return enqueue(s, async () => {
+    const kept = quotesOf(await $.store.get(`${QPREFIX}${s.sid}`))
+    const q: Quote = { n: (kept.at(-1)?.n ?? 0) + 1, made: now, text, ...(a ? { answer: a.id, at: a.at, head: clean(a.items[0] ?? '', 80) } : {}), ...(a && from!.lines ? { lines: from!.lines } : {}) }
+    await $.store.set(`${QPREFIX}${s.sid}`, [...kept, q].slice(-MAX_KEPT_QUOTES))
+    return q
+  })
+}
+
 /** One request: what to tell its TUI. */
 async function take(s: State, $: $, path: string, out: string, size: number, made: number, now: number): Promise<{ ok: boolean; text: string }> {
   if (now - made > MAX_ASK_AGE_MS) return { ok: false, text: 'too old (the session was not listening): check the prompt, then send again' }
@@ -135,12 +148,7 @@ async function take(s: State, $: $, path: string, out: string, size: number, mad
     const f = ask.from as { answer?: unknown; lines?: unknown } | undefined
     const a = f && typeof f.answer === 'string' ? s.answers.find(x => x.id === f.answer) : undefined
     const lines = a && Array.isArray(f!.lines) && f!.lines.every(i => Number.isInteger(i) && i >= 0 && i < a.items.length) ? (f!.lines as number[]) : undefined
-    const n = await enqueue(s, async () => {
-      const kept = quotesOf(await $.store.get(`${QPREFIX}${s.sid}`))
-      const q: Quote = { n: (kept.at(-1)?.n ?? 0) + 1, made: now, text: quote as string[], ...(a ? { answer: a.id, at: a.at, head: clean(a.items[0] ?? '', 80) } : {}), ...(lines ? { lines } : {}) }
-      await $.store.set(`${QPREFIX}${s.sid}`, [...kept, q].slice(-MAX_KEPT_QUOTES))
-      return q.n
-    })
+    const n = (await recordQuote(s, $, quote as string[], now, a && { answer: a.id, lines })).n
     text = `#q${n}\n${quoteOf(quote)}`
     said = `#q${n}: ${quote.length} quote(s) in the prompt: write under each one.`
   } else if (typeof ask.ref === 'string') {
@@ -163,6 +171,54 @@ async function take(s: State, $: $, path: string, out: string, size: number, mad
   return { ok: true, text: said }
 }
 
+/** The clipboard's text (macOS `pbpaste`), or undefined: none, not macOS, or empty. */
+async function clipboard($: $): Promise<string | undefined> {
+  const r = await $.process.run(['pbpaste'], { timeoutMs: 2000 }).catch(() => undefined)
+  return r && r.exitCode === 0 && r.stdout.trim() ? r.stdout : undefined
+}
+
+/**
+ * Lines of the prompt pasted from one of the replies: each run of lines that one answer holds becomes a quote, so the
+ * model is told where they came from as with #qN. A line under 12 characters, or one already quoted (`>`), is not read.
+ */
+function pastedRuns(s: State, text: string): { lines: string[]; from: { answer: string; lines: number[] } }[] {
+  const out: { lines: string[]; from: { answer: string; lines: number[] } }[] = []
+  const all = text.split('\n')
+  // shortcut: a prompt this long is a pasted document or log, not lines of a reply; it sits between Enter and the
+  // model, so it is not scanned. Raise it only with a faster match (an index of the answers' text).
+  if (all.length > MAX_PASTE_LINES) return out
+  const answers = s.answers.map(a => ({ ...a, flat: plain(a.items.join('')) }))
+  // A run is unbroken: a typed line between two pasted ones starts a new quote.
+  let open = false
+  for (const line of all) {
+    const part = /^\s*(>|#q\d)/.test(line) ? undefined : pastedPart(answers, line)
+    const hit = part?.hit
+    const last = out.at(-1)
+    if (part && hit && open && last!.from.answer === hit.answer) {
+      last!.lines.push(part.text)
+      last!.from.lines = [...new Set([...last!.from.lines, ...hit.lines])]
+    } else if (part && hit) out.push({ lines: [part.text], from: hit })
+    open = !!hit
+  }
+  return out
+}
+
+/**
+ * The part of a prompt line pasted from a reply: the whole line, else its longest end or start that a reply holds,
+ * cut at a space (typed words before or after a paste on one line). shortcut: a paste glued to typed CJK text with no
+ * space between is not split; it is read only when the whole line matches.
+ */
+function pastedPart(answers: { id: string; items: string[]; flat: string }[], line: string): { text: string; hit: { answer: string; lines: number[] } } | undefined {
+  const cuts = [...line.matchAll(/\s+/g)].map(m => m.index! + m[0].length)
+  const tries = [line, ...cuts.map(i => line.slice(i)), ...cuts.reverse().map(i => line.slice(0, i))]
+  for (const t of tries) {
+    if (plain(t).length < 12) continue
+    const hit = findExcerpt(answers, t)
+    if (hit) return { text: t.trim(), hit }
+  }
+  return undefined
+}
+
 /** A TUI of this session runs in a tmux pane (its split's start command names it). Outside tmux nothing can tell: false. */
 async function tuiShown(s: State, $: $): Promise<boolean> {
   if (!(await $.env.get('TMUX').catch(() => undefined))) return false
@@ -176,6 +232,16 @@ async function tuiShown(s: State, $: $): Promise<boolean> {
  */
 async function focusBlock(s: State, $: $, text: string) {
   const at = locate(s.answers, text)
+  // What the person selected in the reply and copied (fullscreen copies on release): quoted at once, when it is in
+  // this block and its answer. Read once, on this press; anything else on the clipboard is left alone.
+  // The terminal copies its gutter too: each line's indent and the reply bullet go.
+  const clip = (await clipboard($))?.split('\n').map(l => l.replace(/^[\s⏺]+/, '')).join('\n').trim()
+  const hit = at && clip && plain(text).includes(plain(clip)) ? findExcerpt(s.answers, clip, at.answer) : undefined
+  if (hit) {
+    const q = await recordQuote(s, $, [clip!], await $.clock.now(), hit)
+    const f = await $.prompt.fill({ text: `#q${q.n}\n${quoteOf([clip!])}`, mode: 'insert' }).catch(() => ({ isFilled: false }))
+    return $.ui.toast(f.isFilled ? `#q${q.n}: the selection is in the prompt, write under it` : 'no prompt box took it (a dialog open?)')
+  }
   if (!at) return $.ui.toast('that part is not among the answers the TUI offers (a reply still being written is added when it ends)')
   s.focus = { ...at, at: await $.clock.now() }
   await enqueue(s, () => snapshot(s, $))
@@ -661,10 +727,11 @@ export const register: Register = on => {
     // down with `next`; one added after is not attached). A prompt without a token reads nothing before `next`.
     const refs = mineToo ? refsIn(e.text) : []
     const qrefs = mineToo ? quoteRefsIn(e.text) : []
+    const runs = mineToo && s.answers.length ? pastedRuns(s, e.text) : []
     // A pasted commit hash or session id: what the store knows of it. Cheap test first: no hex, no store read.
     const pasted = mineToo && /[0-9a-f]{7}/.test(e.text)
     let down = e
-    if (refs.length || qrefs.length || pasted) {
+    if (refs.length || qrefs.length || runs.length || pasted) {
       try {
         const now = await $.clock.now()
         const notes: string[] = []
@@ -679,6 +746,10 @@ export const register: Register = on => {
           const kept = quotesOf(await $.store.get(`${QPREFIX}${s.sid}`))
           const lines = qrefs.map(n => kept.find(q => q.n === n)).map((q, i) => (q ? describeQuote(q, now) : `#q${qrefs[i]}: no such quote (this session has ${kept.length})`))
           notes.push(`${FROM}the user's #qN point at lines of your own earlier replies:\n${lines.join('\n')}`)
+        }
+        if (runs.length) {
+          const quotes = await Promise.all(runs.map(r => recordQuote(s, $, [r.lines.join('\n').trim()], now, r.from)))
+          notes.push(`${FROM}the user pasted lines of your own earlier replies into the prompt (kept as #qN):\n${quotes.map(q => describeQuote(q, now)).join('\n')}`)
         }
         const kn = pasted ? await known(s, $, e.text, now) : []
         if (kn.length) notes.push(`${FROM}what is known of the commit hashes and session ids in the prompt:\n${kn.join('\n')}`)

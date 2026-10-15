@@ -57,6 +57,39 @@ export function locate(answers: readonly { id: string; items: readonly string[] 
   return undefined
 }
 
+/**
+ * Text as the terminal shows it and as the reply was written, made comparable: markdown marks, bullets and all
+ * whitespace go (a soft wrap puts a break, and an indent, between two CJK characters that had none).
+ */
+export const plain = (t: string) => t.replace(/^[\s⏺•]*(?:\d{1,3}[.)]\s+)?/gm, '').replace(/[*_`#>|•⏺\-\s]/g, '')
+
+/** A copied excerpt this short matches too much to name a place. */
+const MIN_EXCERPT = 4
+
+/**
+ * Where a copied excerpt of a reply comes from: the one answer whose lines hold it, and which of its lines it covers
+ * (the first and last may be covered in part). Two answers holding it name no place: the newest is not proof.
+ * `only`: the answer the excerpt must be in (the reply block whose `↩` was pressed).
+ */
+export function findExcerpt(answers: readonly { id: string; items: readonly string[]; flat?: string }[], excerpt: string, only?: string): { answer: string; lines: number[] } | undefined {
+  const want = plain(excerpt)
+  if (want.length < MIN_EXCERPT) return undefined
+  // flat: the answer's plain text, when the caller made it once for many excerpts.
+  const hits = answers.filter(a => (only === undefined || a.id === only) && (a.flat ?? plain(a.items.join(''))).includes(want))
+  if (hits.length !== 1) return undefined
+  const a = hits[0]!
+  const from = (a.flat ?? plain(a.items.join(''))).indexOf(want)
+  const to = from + want.length
+  const lines: number[] = []
+  let at = 0
+  a.items.forEach((x, i) => {
+    const end = at + plain(x).length
+    if (end > from && at < to) lines.push(i)
+    at = end
+  })
+  return { answer: a.id, lines }
+}
+
 /** `#q3` in a prompt: quote 3 the TUI put there. */
 export function quoteRefsIn(text: string): number[] {
   const out: number[] = []

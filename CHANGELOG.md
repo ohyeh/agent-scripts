@@ -1,5 +1,15 @@
 # Changelog
 
+## session-recall 0.11.0
+
+You can select in place in the transcript and quote the selection. A mod cannot read a selection until it is copied. Fullscreen copies a drag over a reply when the mouse button is released. The mod reads that copy at the moment you act.
+
+- `[ ↩ ]` on a reply block reads the clipboard once (`pbpaste`). If the copied text is in that block and in its answer, it goes in the prompt under `#qN` at once. The mod keeps the lines it covers, part of a line included. The terminal's gutter and the reply bullet are dropped. A clipboard that is not from that block is never inserted: the click opens the TUI on the block, as in 0.10.0. Tested live with an SGR mouse hover and click in a scratch session: `#q2` with the selected text in the prompt. The model then said the quote was part of lines 1 and 2 of that reply.
+- Pasting lines of a reply into the prompt makes a quote when the prompt is sent. Words typed before or after the paste on the same line are cut off at a space. The model is told which reply and which lines the paste came from, and the quote is kept as `#qN`. Tested live with a bracketed paste after typed words on the same line. The model named lines 2 and 3 of the reply.
+- Matching ignores markdown marks, bullets, list numbers and all whitespace. A soft wrap that puts a break and an indent inside CJK text still matches. Text that two answers both hold names no place: the newest answer is not taken as proof.
+- A prompt over 100 lines is taken as a pasted document and not scanned, so a long log never waits on the match. The answers' text is made comparable once per prompt.
+- Limits: `pbpaste` is macOS only. Elsewhere `↩` opens the TUI as before. Text copied from a code block or a heading names no place, because those are not among an answer's lines. A paste glued to typed CJK text with no space between is read only when the whole line matches. An old clipboard that happens to come from the same block is taken as the selection. The quote's line numbers count the answer's quotable lines, not raw markdown lines.
+
 ## session-recall 0.10.0
 
 Quoting a part of a reply now works from the transcript, and the model can find what was quoted.
