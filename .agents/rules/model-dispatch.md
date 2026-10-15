@@ -21,6 +21,8 @@ situational tier (row above). Where the commander does not pick it, former haiku
 `model` and `effort` (CC 2.1.292+; omitted effort inherits the session's); effort also exists in
 agent frontmatter and Workflow `agent(prompt, {effort})`.
 
+For phone or device UI work, the commander relays only secrets and hard-stop steps.
+
 | Codex role | Model | Start effort | Ceiling/contract |
 |---|---|---|---|
 | commander | `gpt-6.1-sol` | `medium` | `xhigh` only for materially large/hard work |
@@ -143,6 +145,8 @@ Every other recipe keeps its own loop until the W43 retro decides, and does not 
   the L0 agent runs checks: reviewers read the L0 output, the fixer runs the narrowest check for
   its edit, and Finalize reuses the last L0 (2026-10-11: reviewer-run tests rewrote the tree and
   voided rounds; 5 aborted runs cost 65.6M weighted tokens with no result).
+- Before you send a worker's change to a second-model gate, read the diff for the reviewed commit.
+  Cite the checked file:line. Then call `advisor` and assign the gate.
 - Reviewer and fixer contracts: `skills/using-workflows/workflows/_lib/worker-doctrine.md` §7–§9.
   One finding ledger runs through every round and layer: a reviewer resolves or keeps each known
   finding and adjudicates each fixer rejection; when two L1 reviewers disagree, the finding stays

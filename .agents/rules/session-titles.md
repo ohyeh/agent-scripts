@@ -115,7 +115,7 @@ status, or outcome change, keep the existing title.
 
 ## Runtime control
 
-Codex uses its native title control. Claude Code renames via Bash, reproducing
+Codex uses its native title control. Claude Code renames through `ctx_execute`, with language `shell`, to reproduce
 what `/rename` does internally (verified against CLI 2.1.237):
 
 1. Cloud title (what the claude.ai app shows). Resolve the `cse_…` id with the
@@ -126,7 +126,8 @@ what `/rename` does internally (verified against CLI 2.1.237):
    and the write lands on it and still returns 200 (2026-08-20: an 8/14
    archived session was overwritten this way, its original title
    unrecoverable). If the query returns no row or more than one, stop and
-   report — never guess from a session list. Then:
+   report — never guess from a session list. Then run the command below through `ctx_execute` with language `shell`.
+   The context-mode hook redirects `curl` commands from Bash:
 
    ```bash
    TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w \
@@ -149,7 +150,7 @@ above — the version header is required on both verbs — reading
 `.response_shape.title` — NOT
 `.title` or `.session.title`, which read `null` and turn a successful rename
 into a reported failure. So a mismatch means the write missed OR the read path
-is wrong; check the path first. If a hook intercepts `curl`, use another HTTP
-client; never skip the read-back. On a missing credential, a non-200, or a
+is wrong; check the path first. Run the read-back through `ctx_execute` too; never skip it.
+On a missing credential, a non-200, or a
 confirmed mismatch, report the failure, state the exact `/rename <title>` once
 for the user, and leave the title unchanged.

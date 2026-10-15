@@ -1,5 +1,15 @@
 # Changelog
 
+## W43-6 / W43-9 / W43-10 rules 2026-10-16
+
+Agreed by sol (round 2 `VERDICT: PASS`) and advisor; kernel unchanged (4.36.0).
+
+- operator-defaults: tool lookup order (bundled or execution-location copy first, then `PATH`, report which); action checkpoint (unexpected result reported before diagnosis); a new ask during a review runs as its own round.
+- judgment-rubrics: §4 cap also counts the same unmet expected result twice; §5 labels numbers measured or proxy, and a cause in a named app needs a probe there.
+- session-titles: the rename and read-back run through `ctx_execute` (the context-mode hook redirects `curl` from Bash).
+- model-dispatch: the commander reads the worker's diff before a second-model gate; for device UI work the commander relays only secrets and hard-stop steps.
+- delegation-templates: IMPLEMENT gets device test-run matrix and prerequisites; REVIEW / VERIFY gets scope contract, callers, HARD, OWNER-ACCEPTED and a report file written as findings arrive.
+
 ## W42 close 2026-10-16
 
 - Kernel 4.36.0-ironlaws, §Live truth: if something worked before but now fails, look up the method (skills, shared memory, run dirs, handoffs, past sessions) before you call it blocked or ask; treat it as a lead and, within approved scope, run it live and quote the result. Owner, W42: skills that worked keep "being forgotten".

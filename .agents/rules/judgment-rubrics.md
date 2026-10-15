@@ -140,8 +140,8 @@ same goal counts as a round (retry ladder in `rules/model-dispatch.md` §5):
 - [ ] Fresh evidence already proves the path dead (missing external dependency, a measured
       ceiling) and you have not refuted that evidence — rerunning it is forbidden; report the
       gap as BLOCK, the missing piece is not compute.
-- [ ] The same command with materially identical inputs returns the same failure
-      twice — hard signal: do not run it a third time; change hypothesis. Repeated
+- [ ] The same command or action with materially identical inputs gives the same failure
+      or unmet expected result twice — hard signal: do not run it a third time; change hypothesis. Repeated
       condition checks within one wait that meets the pre-call terminal-condition
       and deadline rule in `rules/model-dispatch.md` §4 count as one wait, not
       retries. After expiry, starting the same wait again with materially identical
@@ -177,6 +177,11 @@ Apply: before handing over any artifact (code, doc, config, report).
 - [ ] Complex explanations: use the smallest visual only when it materially clarifies mappings, branches, sequence, or hierarchy; otherwise use concise prose.
 - [ ] Research: prefer primary/official sources, then authoritative specs; distinguish documented facts from inference and mark unsupported claims `UNCONFIRMED`.
 - [ ] Reports: conclusions first; every claim has evidence or `file:line`; inferred vs verified separated; most likely failure point named.
+- [ ] Analysis: label each number used for a conclusion as measured or proxy.
+      Before you use a proxy for a conclusion, use a known case to show it can reject a bad result.
+      A proxy that holds by construction, such as a certain 100% overlap, proves nothing.
+- [ ] Before you state a cause in a named app or terminal, run a probe there. Quote the output.
+      Without that probe, label the cause `UNCONFIRMED`.
 - [ ] Everything: the deliverable answers the ORIGINAL request, not the sub-problem you got absorbed in.
 - [ ] Measurement/inventory (logs, usage, counts): script-full-coverage only — sampling is forbidden at the measurement layer; LLM deep-read covers the COMPLETE script-flagged set (triage, not sampling); every reported number carries its producing command; two conflicting "full" sweeps are adjudicated by the commander re-running one shared method — never by picking a report.
 - Positive: a migration script delivered with `--dry-run` output attached showing 42 rows would change, plus one assert-based self-check. Meets floor.

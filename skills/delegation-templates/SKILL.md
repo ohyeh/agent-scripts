@@ -59,6 +59,9 @@ NON-GOALS: Do not review quality, do not propose fixes.
 ```
 GOAL: Implement {feature/change} in {files/module}. Motivation: {why}.
 CONTEXT: {key constraints, existing helpers to reuse, style notes}. Read {files} first.
+TEST RUN (device tests only): {coverage matrix path: commit → check}.
+PREREQUISITES: {build proof for required stub, automation, and dev console; scripts; test materials}.
+Do not dispatch until the matrix and required prerequisites exist.
 ACCEPTANCE:
 - {objective condition, e.g. "`{test command}` exits 0"}.
 - {behavioral condition, e.g. "endpoint returns 403 for expired tokens"}.
@@ -97,6 +100,13 @@ OUTPUT: findings to {artifact_path}; return path + a ≤10-bullet summary.
 ```
 GOAL: Adversarially review {diff/files/claim}. Assume it is broken until proven otherwise.
 REVIEWED INPUT: {commit sha | file list + sha256} — the verdict binds to this (judgment-rubrics §2).
+SCOPE CONTRACT: {what the change supports; what it detects and refuses}.
+Restate the contract in each round after a scope change.
+CALLERS: {each changed export → its callers and how each uses the value}.
+For an export with no callers, write "none" and give the search evidence.
+HARD (may BLOCK): {requirements the change must meet}.
+OWNER-ACCEPTED (must not BLOCK): {each risk the owner accepted, with the owner's quote}.
+REPORT FILE: create {path} before you read the reviewed input. Add each finding as you find it.
 CHECK:
 - Claims vs reality: for each stated behavior, find the code or run the command that proves it.
 - {task-specific checks: edge cases, error paths, security, contradictions between docs}.

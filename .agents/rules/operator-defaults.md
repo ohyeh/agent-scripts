@@ -36,6 +36,14 @@ Chain these for planning and investigation work:
   checks. Quote the executed wall time before claiming the budget is met; otherwise mark it
   UNCONFIRMED. Do not add a gate script for this rule (2026-10-11: tmux-agent-tools smokes grew to
   80 files / 5:32 one file per feature; cut to 33 / 1:08).
+- Tool lookup: first, use the tool copy bundled with the skill or script, or the copy at the execution location.
+  Use `PATH` only if that copy is absent. Report which copy you use.
+  Do not hardcode a single tool path.
+- Action checkpoint: if the core test action gives an unexpected result, report that result before you diagnose it.
+  Name the diagnostic phase as a separate step. Follow judgment-rubrics §4 for retries.
+  Use the kernel's Loop cadence for other progress reports.
+- New ask during a review: finish the open round on its current scope.
+  Then handle the new ask in a separate scope and round. State that sequence in one line.
 
 ## Long loop
 
