@@ -399,14 +399,13 @@ test('a long message folded behind "Show more" still counts as mine', () => {
   assert.equal(count('ARIA\n\n結論\n- 一\n- 二\n1:12 AM\nYou\n\n長 訊息\n\n1:12 AM\nARIA is working'), 1)
 })
 
-// The gate: an agent sends to the front by default; --direct is the owner's exception.
+// The gate: an agent sends to the front or the sandbox only.
 const HEAD = '[w:b7c4e910] ⟨Claude⟩ #t 問｜hi'
 const ROLES = { file: '/r.json', roles: { front: A, sandbox: B } }
 
-test('gate: every send needs the tag and the mark, --direct too; a mistyped tag is refused', () => {
+test('gate: every send needs the tag and the mark; a mistyped tag is refused', () => {
   for (const bad of ['hi', '[w:t254u] ⟨Claude⟩ hi', '[w:b7c4e910] hi', '[W:b7c4e910] ⟨Claude⟩ hi', '⟨Claude⟩ [w:b7c4e910] hi'])
     assert.equal(gate(ROLES, 'aaaaaaaa', bad)?.state, 'bad-header', bad)
-  assert.equal(gate(ROLES, 'cccccccc', 'hi', 'owner 14:30')?.state, 'bad-header')
   for (const ok of [HEAD, '[w:*] ⟨agy⟩ hi', '[w:b7c4e910] ⟨Claude⟩ no bar, as the panel sends it'])
     assert.equal(gate(ROLES, 'aaaaaaaa', ok), null, ok)
 })
@@ -422,19 +421,53 @@ test('gate: no front in the role file is refused and names what is missing', () 
   assert.deepEqual(gate({ file: '/r.json', roles: { sandbox: B } }, 'bbbbbbbb', HEAD), { state: 'no-roles', missing: ['front'], file: '/r.json' })
 })
 
-test('gate: --direct relaxes the recipient only, and its basis has to be in the message', () => {
-  const text = '[w:b7c4e910] ⟨Claude⟩ #t 問｜（owner 14:30 instruction）hi'
-  assert.equal(gate({ file: '/r', roles: {} }, 'cccccccc', text, 'owner 14:30 instruction'), null, 'no role file needed')
-  assert.equal(gate(ROLES, 'cccccccc', HEAD, 'owner 14:30 instruction')?.state, 'no-basis', 'the basis is not in the text')
-  assert.equal(gate(ROLES, 'cccccccc', text, '')?.state, 'no-basis')
-  assert.equal(gate(ROLES, 'cccccccc', text, '  ')?.state, 'no-basis')
+test('args: id and port, then $GROK_BOT_CDP_PORT, then 39231', () => {
+  assert.deepEqual(parseArgs(['AAAAAAAA', '4000'], {}), { id: 'aaaaaaaa', port: 4000 })
+  assert.deepEqual(parseArgs(['aaaaaaaa'], { GROK_BOT_CDP_PORT: '5000' }), { id: 'aaaaaaaa', port: 5000 })
+  assert.deepEqual(parseArgs(['aaaaaaaa'], {}), { id: 'aaaaaaaa', port: 39231 })
 })
 
-test('args: --direct takes the next word and leaves id and port where they were', () => {
-  assert.deepEqual(parseArgs(['AAAAAAAA', '4000', '--direct', 'owner 14:30'], {}), { id: 'aaaaaaaa', port: 4000, direct: 'owner 14:30' })
-  assert.deepEqual(parseArgs(['--direct', 'x', 'aaaaaaaa'], { GROK_BOT_CDP_PORT: '5000' }), { id: 'aaaaaaaa', port: 5000, direct: 'x' })
-  assert.deepEqual(parseArgs(['aaaaaaaa', '--direct'], {}), { id: 'aaaaaaaa', port: 39231, direct: '' })
-  assert.equal(parseArgs(['aaaaaaaa'], {}).direct, undefined)
+/**
+ * main() in a child process (it prints one line and exits, as the CLI does), over a fake connect whose bot A is
+ * already open and takes the send. `call` is the line that runs main; `fake`, `std` (the CLI's own role gate) and the
+ * role file (front: B) are in scope. stderr ends with CONN=1 when main connected.
+ */
+function runMain(call, input) {
+  const dir = mkdtempSync(join(tmpdir(), 'send-main-'))
+  writeFileSync(join(dir, 'roles.json'), JSON.stringify({ front: B }))
+  const runner = join(dir, 'run.mjs')
+  writeFileSync(runner, `import { main, gate, loadRoles } from ${JSON.stringify(new URL('./send.mjs', import.meta.url).href)}
+let conn = 0
+const fake = async () => { conn = 1; return { close() {}, d: {
+  count: async () => 1, composer: async () => '', current: async () => ${JSON.stringify(A)}, click: async () => {},
+  sleep: async () => {}, submit: async () => ({ state: 'submitted', before: 0 }), sent: async () => 1, unsend: async () => false } } }
+process.on('exit', () => process.stderr.write('CONN=' + conn))
+const std = (id, text) => gate(loadRoles(), id, text)
+${call}
+`)
+  const r = spawnSync(process.execPath, [runner], { input, encoding: 'utf8', env: { ...process.env, HOME: dir, GROK_BOT_ROLES: join(dir, 'roles.json') } })
+  const lines = r.stdout.trim().split('\n')
+  return { status: r.status, lines, out: JSON.parse(lines[0]), connected: r.stderr.endsWith('CONN=1') }
+}
+
+test('main: a send merges extra into its one result line and exits 0', () => {
+  const r = runMain(`main({ id: 'aaaaaaaa', port: 1, extra: { direct: 'owner 14:30' } }, () => null, fake)`, '[w:b7c4e910] ⟨Claude⟩ owner 14:30 hi')
+  assert.equal(r.status, 0)
+  assert.equal(r.lines.length, 1)
+  assert.deepEqual(r.out, { state: 'sent', port: 1, bot: 'aaaaaaaa', direct: 'owner 14:30' })
+  assert.equal(r.connected, true)
+})
+
+test('main: the role gate refuses a headerless text before connecting; a check that passes reaches the send', () => {
+  const refused = runMain(`main({ id: 'aaaaaaaa', port: 1 }, std, fake)`, 'hi')
+  assert.deepEqual([refused.status, refused.out, refused.connected], [2, { state: 'bad-header', port: 1 }, false])
+  const passed = runMain(`main({ id: 'aaaaaaaa', port: 1 }, () => null, fake)`, 'hi')
+  assert.deepEqual([passed.status, passed.out, passed.connected], [0, { state: 'sent', port: 1, bot: 'aaaaaaaa' }, true])
+})
+
+test('main: no check refuses (no-gate) and never connects', () => {
+  const r = runMain(`main({ id: 'aaaaaaaa', port: 1 }, undefined, fake)`, '[w:b7c4e910] ⟨Claude⟩ hi')
+  assert.deepEqual([r.status, r.lines.length, r.out, r.connected], [2, 1, { state: 'no-gate', port: 1 }, false])
 })
 
 test('roles: $GROK_BOT_ROLES wins, else the file under HOME; a missing or broken file is no roles with its error class', () => {
@@ -466,7 +499,7 @@ test('sent mark: one file per session and bot, none for a broadcast; a write fai
   assert.throws(() => markSent('[w:b7c4e910] ⟨Claude⟩ hi', 'aaaaaaaa', { HOME: '/h' }, 1, broken), /EACCES/)
 })
 
-test('command line: a refusal prints its state and exits 2 before any connection; --direct gets past the gate', () => {
+test('command line: a refusal prints its state and exits 2 before any connection; an old --direct flag is refused', () => {
   const dir = mkdtempSync(join(tmpdir(), 'send-test-'))
   const roles = join(dir, 'roles.json')
   writeFileSync(roles, JSON.stringify({ front: A }))
@@ -483,5 +516,8 @@ test('command line: a refusal prints its state and exits 2 before any connection
   const none = join(dir, 'none.json')
   assert.deepEqual(run(['aaaaaaaa'], HEAD, { GROK_BOT_ROLES: none }), [2, { state: 'no-roles', port: 1, missing: ['front'], file: none, error: 'ENOENT' }])
   // Past the gate the port is tried; port 1 answers nothing.
-  assert.deepEqual(run(['cccccccc', '--direct', 'owner 14:30'], '[w:b7c4e910] ⟨Claude⟩ owner 14:30 hi'), [2, { state: 'down', port: 1 }])
+  assert.deepEqual(run(['aaaaaaaa'], HEAD), [2, { state: 'down', port: 1 }])
+  // The flag is gone: after the id it lands in the port slot, before it in the id slot. Neither reaches the gate.
+  assert.deepEqual(run(['cccccccc', '--direct', 'owner 14:30'], HEAD), [2, { state: 'bad-port', port: null }])
+  assert.deepEqual(run(['--direct', 'x', 'cccccccc'], HEAD), [2, { state: 'bad-id', port: null }])
 })

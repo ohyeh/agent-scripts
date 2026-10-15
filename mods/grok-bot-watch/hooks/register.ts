@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.12.1'
+const MOD_VERSION = '0.13.0'
 const POLL_MS = 10_000
 const WATCH_TOOL = 'mcp__grok-bot-watch__watch'
 const UNWATCH_TOOL = 'mcp__grok-bot-watch__unwatch'
@@ -317,9 +317,6 @@ async function ensureApp(s: State, $: $, now: number) {
   }
 }
 
-/** What a panel send rests on, for send.mjs's --direct: the owner types the text in this panel. */
-const BASIS = 'panel instruction'
-
 /**
  * A reply typed under the open row (the workers panel's tell line): tagged with this session's tag so the
  * bot's answer wakes this session only, then sent by bin/send.mjs. The toast says what happened.
@@ -332,12 +329,12 @@ async function sendTo(s: State, $: $, w: Watch, name: string, text: string) {
   s.sending = w.botUuid
   $.ui.invalidate('ui.render')
   try {
-    // Tagged once: a tag already typed (this session's, or one typed on purpose) is kept, never doubled (Sol P2). The mark and the
-    // basis follow it: the owner types this themself, so it goes with send.mjs's --direct, and the gate wants the basis in the message.
+    // Tagged once: a tag already typed (this session's, or one typed on purpose) is kept, never doubled (Sol P2). The mark
+    // follows it. Only the front and the sandbox take it: send.mjs's gate refuses any other bot (not-front).
     const tag = TAG_RE.exec(text)?.[0].trim() ?? tagOf(s.sid)
     const body = text.replace(TAG_RE, '').replace(/^\s*⟨[A-Za-z]+⟩/, '').trim()
-    const stdin = `${tag} ⟨Claude⟩ （${BASIS}）${body}`
-    const r = await $.process.run([s.node, `${$.plugin.root}/bin/send.mjs`, w.botUuid, '--direct', BASIS], { stdin, timeoutMs: 20_000 })
+    const stdin = `${tag} ⟨Claude⟩ ${body}`
+    const r = await $.process.run([s.node, `${$.plugin.root}/bin/send.mjs`, w.botUuid], { stdin, timeoutMs: 20_000 })
     const out = JSON.parse(r.stdout) as { state: string }
     $.ui.toast(
       out.state === 'sent' ? `grok-bot-watch: sent to ${name}`

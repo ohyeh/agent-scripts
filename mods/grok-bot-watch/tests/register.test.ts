@@ -33,8 +33,8 @@ function world(
   let lookups = 0
   let spawnErrors = 0
   const ensures: string[] = []
-  /** Every bin/send.mjs run: its bot argument, its --direct basis and the message on its stdin. */
-  const sends: Array<{ bot: string; direct?: string; stdin: string }> = []
+  /** Every bin/send.mjs run: its bot argument, any arguments after it and the message on its stdin. */
+  const sends: Array<{ bot: string; rest: string[]; stdin: string }> = []
   on('session.id', () => ({ value: opts.sid ?? 'sess-A' }))
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('tool.register', ($, e) => ({ value: { tool: e.name } }))
@@ -71,7 +71,7 @@ function world(
     }
     if (e.argv[0] !== '/n/node') throw new Error(`spawn ENOENT ${e.argv[0]}`)
     if (e.argv[1]?.endsWith('/bin/send.mjs')) {
-      sends.push({ bot: e.argv[2]!, direct: e.argv[3] === '--direct' ? e.argv[4] : undefined, stdin: String(e.init?.stdin) })
+      sends.push({ bot: e.argv[2]!, rest: e.argv.slice(3), stdin: String(e.init?.stdin) })
       if (opts.sendState === 'THROW') throw new Error('process.run: timed out')
       return { value: { exitCode: 0, stdout: JSON.stringify({ state: opts.sendState ?? 'sent', port: 39231 }), stderr: '' } }
     }
@@ -1191,9 +1191,9 @@ describe('reply from the panel 0.8.0', () => {
     await macrotask()
     expect(w.sends).toHaveLength(1)
     expect(w.sends[0]!.bot).toBe(UUID)
-    // The owner types it in the panel: send.mjs's --direct, with its basis written in the message (the gate needs both).
-    expect(w.sends[0]!.stdin).toMatch(/^\[w:[0-9a-z]{8}\] ⟨Claude⟩ （panel instruction）hi there$/)
-    expect(w.sends[0]!.direct).toBe('panel instruction')
+    // Through send.mjs's own gate, with nothing after the bot: the front and the sandbox take it, any other bot is not-front.
+    expect(w.sends[0]!.stdin).toMatch(/^\[w:[0-9a-z]{8}\] ⟨Claude⟩ hi there$/)
+    expect(w.sends[0]!.rest).toEqual([])
     expect(w.toasts).toContain('grok-bot-watch: sent to ARIA')
   })
 
@@ -1213,7 +1213,7 @@ describe('reply from the panel 0.8.0', () => {
     const tag = w.sends[0]!.stdin.slice(0, 12)
     await $.ui.input({ plugin: PLUGIN, key: `send-${key}`, text: `${tag} again`, requestId: 'above-prompt' })
     await macrotask()
-    expect(w.sends[1]!.stdin).toBe(`${tag} ⟨Claude⟩ （panel instruction）again`)
+    expect(w.sends[1]!.stdin).toBe(`${tag} ⟨Claude⟩ again`)
   })
 
   test('a send that may have gone says check the app, not sent and not refused', async ($, on) => {

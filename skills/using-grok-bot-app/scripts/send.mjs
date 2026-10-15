@@ -14,10 +14,10 @@
 //                was switched, or the app is slow): check the app before resending
 //   empty        no text on stdin
 //   bad-id       the id is not 8–36 chars of a UUID
+//   bad-port     the port is not a positive integer (an unknown flag in the port slot lands here)
 //   bad-header   the text does not start with `[w:<sid8>] ⟨<agent>⟩` (an unmarked message reads as the owner's)
 //   no-roles     the role file names no front (printed: missing, file); the default send is refused
 //   not-front    the bot is neither the front nor the sandbox of the role file
-//   no-basis     --direct without a basis, or the basis is not written in the message
 //   down         the port does not answer (ensure.mjs brings it back)
 //   no-bot       no sidebar row for that id; ambiguous: more than one
 //   draft        the composer already holds text; nothing changed
@@ -30,13 +30,11 @@
 //   failed       a CDP call threw; timeout: the whole run took over 15 s (the
 //                message may or may not have gone: check the app)
 // When it opened the bot, it opens the bot that was open before again (unless another was opened meanwhile).
-// Usage: send.mjs <bot-uuid-or-prefix> [port] [--direct <basis>] < message
+// Usage: send.mjs <bot-uuid-or-prefix> [port] < message
 //   port:  $GROK_BOT_CDP_PORT, else 39231
 //   roles: $GROK_BOT_ROLES, else ~/.claude/grok-bot-watch/roles.json: {"front": "<uuid>", "sandbox": "<uuid>"}.
 //          Kept on this machine, not in the repo: bot UUIDs differ per account.
-// An agent sends to the front (or the sandbox) by default. --direct <basis> is for a send the owner told you to make to
-// another bot: it relaxes the recipient only, the header stays required, and the basis ("owner 14:30 instruction") must be
-// written in the message so the bot and the log can see which instruction it rests on.
+// An agent sends to the front or the sandbox only.
 
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -56,12 +54,9 @@ const norm = s => s.replace(/\s+/g, ' ').trim()
  */
 export const HEADER_RE = /^\s*\[w:([0-9a-z]{8}|\*)\] ⟨[A-Za-z]+⟩/
 
-/** `<id> [port] [--direct <basis>]`: --direct takes the next word; with none its basis is ''. */
+/** `<id> [port]` */
 export function parseArgs(argv, env = process.env) {
-  const a = [...argv]
-  const i = a.indexOf('--direct')
-  const direct = i < 0 ? undefined : (a.splice(i, 2)[1] ?? '')
-  return { id: (a[0] ?? '').toLowerCase(), port: Number(a[1] || env.GROK_BOT_CDP_PORT || 39231), direct }
+  return { id: (argv[0] ?? '').toLowerCase(), port: Number(argv[1] || env.GROK_BOT_CDP_PORT || 39231) }
 }
 
 /** The role file; a missing or unreadable one gives no roles and its error class, never a throw. */
@@ -77,12 +72,10 @@ export function loadRoles(env = process.env, read = p => readFileSync(p, 'utf8')
 
 /**
  * Who an agent may send to: the front and the sandbox of the role file, by UUID and never by name (names are each
- * account's own habit). The header is checked on every send; --direct relaxes the recipient only, and its basis has to
- * be written in the message. Returns null to go on, else the state to print.
+ * account's own habit). The header is checked on every send. Returns null to go on, else the state to print.
  */
-export function gate({ roles, file, error }, id, text, direct) {
+export function gate({ roles, file, error }, id, text) {
   if (!HEADER_RE.test(text)) return { state: 'bad-header' }
-  if (direct !== undefined) return direct.trim() && text.includes(direct.trim()) ? null : { state: 'no-basis' }
   if (typeof roles.front !== 'string' || !roles.front) return { state: 'no-roles', missing: ['front'], file, ...(error && { error }) }
   const ok = [roles.front, roles.sandbox].some(u => typeof u === 'string' && u.toLowerCase().startsWith(id))
   return ok ? null : { state: 'not-front', front: roles.front.slice(0, 8) }
@@ -243,26 +236,31 @@ export function effects(ev) {
   }
 }
 
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const { id, port, direct } = parseArgs(process.argv.slice(2))
+/**
+ * One CLI run: read stdin, refuse early (empty, bad-id, bad-port) or by check(id, text), connect, send, then print one
+ * JSON line and exit (0 only for "sent"). check(id, text) → null to go on, else { state, ... }; a missing check refuses
+ * (no-gate). extra is merged into the result of a send. connect(port) → { d, close }: the app's CDP port by default,
+ * a fake in tests. This file's own CLI always passes the role gate.
+ */
+export async function main({ id, port, extra = {} }, check, connect = cdp) {
   let said = false
-  const say = (state, extra = {}) => {
+  const say = (state, more = {}) => {
     if (said) return
     said = true
-    process.stdout.write(JSON.stringify({ state, port, ...extra }) + '\n', () => process.exit(state === 'sent' ? 0 : 2))
+    process.stdout.write(JSON.stringify({ state, port, ...more }) + '\n', () => process.exit(state === 'sent' ? 0 : 2))
   }
   setTimeout(() => say('timeout'), 3 * WAIT_MS).unref()
   let text = ''
   for await (const chunk of process.stdin) text += chunk
   // Validated before any connection: the id goes into page scripts.
-  const early = !norm(text) ? 'empty' : !ID_RE.test(id) ? 'bad-id' : null
-  const refused = early ? null : gate(loadRoles(), id, text, direct)
+  const early = !norm(text) ? 'empty' : !ID_RE.test(id) ? 'bad-id' : !Number.isInteger(port) || port < 1 ? 'bad-port' : null
+  const refused = early ? null : typeof check !== 'function' ? { state: 'no-gate' } : check(id, text)
   if (early) say(early)
   else if (refused) {
     const { state, ...why } = refused
     say(state, why)
   } else {
-    const c = await cdp(port).catch(() => null)
+    const c = await connect(port).catch(() => null)
     if (!c) say('down')
     else {
       send(c.d, id, text).then(
@@ -276,10 +274,13 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
               process.stderr.write(`marker not written: ${e?.code ?? e?.name}\n`)
             }
           }
-          say(s, { bot: id, ...(direct !== undefined && { direct }) })
+          say(s, { bot: id, ...extra })
         },
         e => (c.close(), say('failed', { error: String(e) })),
       )
     }
   }
 }
+
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url))
+  main(parseArgs(process.argv.slice(2)), (id, text) => gate(loadRoles(), id, text))

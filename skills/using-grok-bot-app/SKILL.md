@@ -152,7 +152,7 @@ nothing to PATH. To be woken in a Claude Code session when a bot replies, use th
 
 ## Sending is gated
 
-Send with `scripts/send.mjs <bot-uuid-or-prefix> [port] [--direct <basis>] < message`
+Send with `scripts/send.mjs <bot-uuid-or-prefix> [port] < message`
 (stdin is the message): it checks who the message is for (below), opens the bot, then in one in-page script checks the composer (a
 single TipTap `div[contenteditable=true]` inside a form) is empty, pastes, checks
 the text, waits 50 ms for the app's form state, checks bot and text again and
@@ -169,7 +169,7 @@ agents' messages, dispatches the specialist bots over exchanges and answers in i
 own conversation under your tag. What needs the owner goes to them through the human
 front, which serves the owner alone, so that conversation stays theirs. A session sends to
 the front and is woken by the front; every other bot is read-only for it: switch to one
-by UUID, as above, and send to it only with `--direct`, below. Sending is by role, never by name
+by UUID, as above, to read it. What has to reach another bot goes through the front. Sending is by role, never by name
 (people name their bots as they like): the role file
 `~/.claude/grok-bot-watch/roles.json`, or the path in `$GROK_BOT_ROLES`, holds
 `{"front": "<uuid>", "sandbox": "<uuid>"}`. It stays on the machine: UUIDs differ
@@ -180,14 +180,9 @@ per account and this repo is public. `send.mjs` refuses before it touches the ap
 | `bad-header` | the text does not start with `[w:<sid8>] ⟨agent⟩` (see Message format) |
 | `no-roles` | the role file names no `front`; the answer lists what is missing and the file it looked in |
 | `not-front` | the bot is neither the front nor the sandbox |
-| `no-basis` | `--direct` without a basis, or the basis is not in the message |
 
-`--direct <basis>` is for a send the owner told you to make to another bot (the main
-bot, a specialist). It relaxes the recipient only: the header stays required, and the basis (who told you, for example
-`owner 14:30 instruction`) has to be written in the message, so the bot and the log can see which
-instruction it rests on. Never use it on your own initiative. It does not make a message
-the owner's: theirs are the ones typed in the chat with no header, and only those authorize
-anything (below). The grok-bot-watch panel's reply line sends with it, basis `panel instruction`.
+`bad-id` and `bad-port` (the arguments are wrong) are refused before the gate. The grok-bot-watch
+panel's reply line goes through the same gate, so it reaches the front and the sandbox only.
 Send tests go to `sandbox` only, never to a working conversation; the one exception is
 testing the front's own forwarding: send to the front, ask it to
 forward to `sandbox`, and say it is a test in the message.
@@ -286,11 +281,14 @@ Naming is the owner's choice and never matters to the gate. `templates/bootstrap
 paste: one request per missing bot to the main bot, the two rules for RULES, and a
 check on `sandbox`. For each missing one, ask the main bot to create it with that
 job, and wait for its UUID. No main bot means no
-account to build on: ask the owner. Then ask the rules bot to write
+account to build on: ask the owner. The gate takes only the role file's `front` and `sandbox`,
+so the setup runs in this order: until the agent front exists, put the main bot's UUID in `front`
+and send the creation requests to it, with the full header; once the agent front answers with its UUID, put
+that UUID in `front` (and the sandbox's in `sandbox`), so the main bot is no longer a recipient.
+Then ask the rules bot, through the front, to write
 the message format as a short rule: the skill carries only short rule text, and the bots
 publish it themselves in their own circle. It lists no bot tools; a bot may decline to
-name its tools, so test a behavior in the sandbox before you build a flow on it. Until the agent front exists, write to the
-main bot with `--direct` and the full header. A message to one of the owner's own agents (a
+name its tools, so test a behavior in the sandbox before you build a flow on it. A message to one of the owner's own agents (a
 session, another coding agent, the main bot) inside an approved task — status, evidence, a
 question, a review request, tag coordination, delegation of reversible work —
 goes without approval of its text, when the owner has granted that. Confirm the

@@ -125,6 +125,14 @@ Fewer file rows in the 80-row list, so links and pictures are not pushed out. Me
 - The assets tab: every row numbered as the band, enter opens, `p` previews, `c` copies, `r` puts `#aN` in the prompt (the TUI sends the row's ref; the mod numbers it as the list stands).
 - The mod writes `~/.local/state/session-assets/<sid>.json` for the TUI after each change; the answers come back from the transcript after a reload. `permissions.txt` adds `$.fs.exists/list/read/write`, `$.clock.every` and the env read `TMUX`.
 
+## grok-bot-watch 0.13.0
+
+Breaking: `send.mjs` (shared core) has no `--direct` any more, so an agent sends to the front or the sandbox of the role file only, and so does the panel.
+- The panel's reply line sends `<tag> ⟨Claude⟩ <text>` with no basis and no flag. A bot that is neither the front nor the sandbox now gets the toast `not sent to <name>: not-front`; before, the panel reached any bot.
+- `send.mjs`: the CLI body is `main({ id, port, extra }, check, connect)`. Its own CLI always passes the role gate; a missing check refuses (`no-gate`); `extra` goes into the result line of a send. A port that is not a positive integer is `bad-port` before any connection, so an old `<id> --direct x` call says so instead of `down`.
+- Setup without an agent front: the main bot's UUID goes in `front` until the agent front exists, then the agent front's (`SKILL.md`, `templates/bootstrap.md`); the rules bot is asked through the front, and rule 18 now says agents send to the agent front only.
+- The override sender `ops/grok-bot/send-nogate.mjs` (not part of the skill or the mod) is a few lines over the same `main` with no gate; only it takes `--direct <basis>`. It runs from an agent-scripts checkout.
+
 ## grok-bot-watch 0.12.1
 
 - The panel's reply line writes the basis `panel instruction` (it was a name and a Chinese phrase). The skill, its bootstrap template, scripts and tests are now in English with no account names, bot names or ids; the behavior is otherwise the same as 0.12.0.

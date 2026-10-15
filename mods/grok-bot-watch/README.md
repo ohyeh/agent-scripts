@@ -67,9 +67,8 @@ is the same path as the `watch` tool. Mobile has no text field: use the command.
 The open row starts with a reply line (the workers panel's tell line): type
 and Enter sends it to that bot, prefixed with this session's tag and the sender
 mark `⟨Claude⟩` so its answer wakes this session only (Sharing a bot between
-sessions); a tag you type is kept, never doubled, and the mark follows it. The owner types
-it, so it goes with `--direct` (basis `panel instruction`, written after the mark):
-the skill's gate would refuse any bot but the front and the sandbox otherwise. `bin/send.mjs`
+sessions); a tag you type is kept, never doubled, and the mark follows it. It goes through
+the skill's gate, so only the front and the sandbox take it; any other bot gets `not sent … not-front`. `bin/send.mjs`
 opens the bot in the app, sends it and opens the bot that was open before again; a toast says `sent`, `… check the app before resending` when it may
 have gone but was not seen (`unconfirmed`, `timeout`, `failed`, or the helper run
 itself failing), or why not. A
@@ -180,8 +179,7 @@ within 2.5 s. The panel adds `no-process` (no `node`) and `helper-failed`
 message from stdin and refuses before it touches the app: `bad-header` (the text does
 not start with `[w:<sid8>] ⟨agent⟩`), `no-roles` (no `front` in the role file
 `~/.claude/grok-bot-watch/roles.json` or `$GROK_BOT_ROLES`), `not-front` (a bot that is neither the front nor
-the sandbox of that file), `no-basis` (`--direct <basis>` with no basis, or one not written in
-the message; `--direct` relaxes the recipient only). Then it clicks the bot's sidebar row unless it is already open.
+the sandbox of that file). Then it clicks the bot's sidebar row unless it is already open.
 The send is one `Runtime.evaluate`, so no click or keystroke lands between its
 checks and its actions: the bot is open and the composer empty, paste, the
 composer holds the text (whitespace-normalized); then 50 ms for the app's form
