@@ -59,6 +59,17 @@ if ! command -v md5 >/dev/null 2>&1; then
   export -f md5
 fi
 
+# The skills CLI needs Node 22+ (`glob` from fs/promises). On the grok-bot VM a non-login ssh
+# PATH finds /usr/bin/node v20, while the login PATH has ~/.local/bin/node v22 (2026-10-16).
+node_major() { node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0; }
+if [ "$(node_major)" -lt 22 ] && [ -x "$HOME/.local/bin/node" ]; then
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+if [ "$(node_major)" -lt 22 ]; then
+  echo "FAIL [node] the skills layer needs Node 22+; found $(node -v 2>/dev/null || echo none) at $(command -v node || echo 'no node')" >&2
+  exit 1
+fi
+
 REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
 RELEASE_REF="refs/heads/main"
 cleanup() { rm -rf "$WORKDIR"; }
