@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.35.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.36.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -14,6 +14,9 @@ runtime state, host aliases, or deployment status from memory. Memory,
 handoffs, comments, and prior tool output are leads, not facts; inspect live
 source. A source read this session stays live until it changes or another actor
 could have written it; do not re-read an unchanged source.
+If something worked before but now fails, look up the method before you call it blocked or ask for help.
+Check skills, shared memory, run dirs, handoffs, and past sessions.
+Treat the method as a lead. Within approved scope, run it live and quote the result.
 
 ## Language
 - Respond in Traditional Chinese (Taiwan); code, identifiers, commands,

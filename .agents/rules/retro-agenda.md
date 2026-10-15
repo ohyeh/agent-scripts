@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.13.0（2026-10-16 W42：§Layer1 加分項與忙碌度三支 collector 與 advisor 補算；§8 儀表板固定區塊不得默默拿掉）；1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+Version: 1.14.0（2026-10-16 W42 收尾：§6.5 收尾前再收一次 inbox；§8 `updated.at` 記錄寫入當下的 UTC、backlog 狀態收尾重查）；1.13.0（2026-10-16 W42：§Layer1 加分項與忙碌度三支 collector 與 advisor 補算；§8 儀表板固定區塊不得默默拿掉）；1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
 ＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
 1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
@@ -137,7 +137,7 @@ skill 提及次數；`--agent codex|claude` 可分側）。**零用量 skill ＝
 （格式見 maintenance §3）；可重用的事實或做法是筆記，投 `~/.agents/shared-memory-inbox/`，
 同一件事不兩邊抄，handoff 只寫檔名。一件一檔：`pending/<UTC>-<slug>.md`（沒有 `pending/` 就 `mkdir -p`），
 `kind: proposal`（議題）或 `kind: note`（隨手記：collector 撈不到的人為觀察）。
-retro 開跑時以 SSH 收齊每台在編機器的 `pending/`（可達性同 §5），逐件處理後移到 `done/`
+retro 開跑時與報告收尾前各一次，以 SSH 收齊每台在編機器的 `pending/`（W42：peer session 的 3 件在開跑後才投）（可達性同 §5），逐件處理後移到 `done/`
 （只搬檔，不改內容；去向記在 `motions.md` 與 backlog 列號）；議題逐條討論、隨手記餵給 §2–4 當 Layer 2 線索。
 本輪 session 中使用者的動議、提醒、糾正，同步記在 run dir `motions.md`。
 再問一次「還有沒有臨時動議或訴求？」使用者隨時可插入，
@@ -178,6 +178,8 @@ files/index.html；URL 以 Artifact list 現場查，標題固定；不再另開
 資料一律現場重測，禁止沿用上輪數字。儀表板固定區塊：各機器 USD 當量、CodeBurn 分項、其他分析
 （context-mode 走路率含 Codex、真人訊號、常駐偏好、改動配對、advisor 補算、Grok Bot 忙碌度）、backlog；
 少一區要在報告寫明原因，不得默默拿掉（W42 使用者：「值錢的圖表數據砍去哪了」）。樣本太小的值灰掉並標分母。
+dataset 的 `updated.at` 填寫入當下的 UTC（W42 兩次把台灣時間當 UTC，寫成未來時間）。
+收尾前依 judgment-rubrics §2／§5 重查本輪 backlog 狀態，再更新報告；未查證的項目保留並標 `UNCONFIRMED`，不得列為「還沒做」（W42 使用者：「你也不查證做了沒 只會一直複誦」）。
 資料源 repo 與各自量測層：
 
 | Repo | 量測層 |

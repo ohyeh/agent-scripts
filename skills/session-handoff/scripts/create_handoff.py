@@ -41,6 +41,18 @@ def run_cmd(cmd: list[str], cwd: str = None) -> tuple[bool, str]:
         return False, ""
 
 
+def writer() -> str:
+    """Read the writer identity when exactly one CLI supplies it."""
+    writers = [
+        f"{cli} session {os.environ[var]}"
+        for cli, var in (("claude-code", "CLAUDE_CODE_SESSION_ID"), ("codex", "CODEX_THREAD_ID"))
+        if os.environ.get(var)
+    ]
+    if len(writers) == 1:
+        return writers[0]
+    return "UNCONFIRMED (expected exactly one of CLAUDE_CODE_SESSION_ID or CODEX_THREAD_ID)"
+
+
 def get_git_info(project_path: str) -> dict:
     """Gather git information from the project."""
     info = {
@@ -233,6 +245,7 @@ def generate_handoff(
 ## Session Metadata
 - Created: {timestamp}
 - Project: {project_path.replace(str(Path.home()), "~")}
+- Written by: {writer()}
 - Branch: {branch_line}
 - Session duration: [estimate how long you worked]
 
@@ -286,6 +299,10 @@ def generate_handoff(
 1. [TODO: Most critical next action]
 2. [TODO: Second priority]
 3. [TODO: Third priority]
+
+### Mistakes and Corrections
+
+- [TODO: each wrong turn or user correction this session: what happened, its evidence, the fix. A rule proposal goes to ~/.agents/retro-inbox/pending/ (maintenance §3); name that file here. Write "none" if there were none]
 
 ### Blockers/Open Questions
 

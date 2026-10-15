@@ -16,6 +16,7 @@ Use this template structure when creating handoff documents. The smart scaffold 
   - [Decisions Made](#decisions-made)
 - [Pending Work](#pending-work)
   - [Immediate Next Steps](#immediate-next-steps)
+  - [Mistakes and Corrections](#mistakes-and-corrections)
   - [Blockers/Open Questions](#blockersopen-questions)
   - [Deferred Items](#deferred-items)
 - [Context for Resuming Agent](#context-for-resuming-agent)
@@ -32,6 +33,7 @@ Use this template structure when creating handoff documents. The smart scaffold 
 
 ## Session Metadata
 - Created: [TIMESTAMP]
+- Written by: [CLI] session [SESSION_ID] (filled by the script from CLAUDE_CODE_SESSION_ID or CODEX_THREAD_ID)
 - Project: [PROJECT_PATH]
 - Branch: [GIT_BRANCH]
 - Session duration: [APPROX_DURATION]
@@ -82,6 +84,10 @@ Use this template structure when creating handoff documents. The smart scaffold 
 1. [Most critical next action - what to do first]
 2. [Second priority]
 3. [Third priority]
+
+### Mistakes and Corrections
+
+- [What went wrong or what the user corrected] - Evidence: [quote or file:line] - Fix: [what changed]. A rule proposal goes to `~/.agents/retro-inbox/pending/` (maintenance §3); name that file here. "none" if there were none.
 
 ### Blockers/Open Questions
 

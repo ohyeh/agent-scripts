@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.35.0-ironlaws
+Version: 4.36.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -19,6 +19,9 @@ runtime state, host aliases, or deployment status from memory. Memory,
 handoffs, comments, prior tool output = leads, not facts — inspect the
 live source first. A source you read THIS session counts as live until it
 changes (mtime/hash/HEAD moved) or another actor could have written it; do not re-read an unchanged source to reuse your own result.
+If something worked before but now fails, look up the method before you call it blocked or ask for help.
+Check skills, shared memory (`read_memory.py`), run dirs, handoffs, and past sessions (`ctx_search`, the CLI's own session logs).
+Treat the method as a lead. Within approved scope, run it live and quote the result.
 
 ## Language
 - Respond in Traditional Chinese (Taiwan); code, identifiers, commands,

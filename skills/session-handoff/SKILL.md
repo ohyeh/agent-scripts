@@ -55,6 +55,7 @@ Open the generated file and fill in all `[TODO: ...]` sections. Prioritize these
 2. **Important Context** - Critical info the next agent MUST know
 3. **Immediate Next Steps** - Clear, actionable first steps
 4. **Decisions Made** - Choices with rationale (not just outcomes)
+5. **Mistakes and Corrections** - Wrong turns and user corrections, with evidence; a rule proposal goes to `~/.agents/retro-inbox/pending/` and only its file name goes here
 
 Use the template structure in [references/handoff-template.md](references/handoff-template.md) for guidance.
 
@@ -86,13 +87,22 @@ Report to user:
 
 ## RESUME Workflow
 
-### Step 1: Find Available Handoffs
+### Step 1: Find Recent Handoffs
+
+Several sessions can work in one repo at the same time, so the newest file may belong to another
+session. List the recent ones, not only the newest:
 
 ```bash
-ls -t .claude/handoffs/*.md
+ls -lt .claude/handoffs/*.md | head -10              # newest first
+grep -H -E '^- (Written by|Session|CLI):' .claude/handoffs/*.md   # writer: manual and compact handoffs
 ```
 
-Newest first. The filename carries the date and the task slug.
+Read every handoff from the last two days whose task or files overlap yours.
+Also read the handoff named by the user or linked by the task's handoff chain, even if it is older.
+Select the handoff for your task by its task, files, and chain links.
+`Written by:` and `compact-<session id>.md` identify the writer, which may be a previous session.
+Do not treat a different writer as proof of concurrent work.
+A missing or `UNCONFIRMED` writer means the writer is unknown.
 
 ### Step 2: Check Staleness
 

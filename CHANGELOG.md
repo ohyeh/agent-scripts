@@ -1,5 +1,11 @@
 # Changelog
 
+## W42 close 2026-10-16
+
+- Kernel 4.36.0-ironlaws, §Live truth: if something worked before but now fails, look up the method (skills, shared memory, run dirs, handoffs, past sessions) before you call it blocked or ask; treat it as a lead and, within approved scope, run it live and quote the result. Owner, W42: skills that worked keep "being forgotten".
+- retro-agenda 1.14.0: §6.5 collects `retro-inbox/pending/` again before the report closes; §8 `updated.at` is the UTC at write time, and backlog states are checked again at close (unchecked ones stay, marked `UNCONFIRMED`).
+- session-handoff: record the CLI and session ID when exactly one writer variable is present; otherwise mark the writer UNCONFIRMED. Record mistakes and corrections with evidence. Keep rule proposals in the retro inbox and name their files in the handoff. Resume reads recent relevant handoffs and the task's handoff chain, even when a previous session wrote them.
+
 ## grok-bot-watch 0.17.1
 
 - `[ ▸ open ]` with no watch drew the same header as folded, so open looked like it did nothing (0.16.0). Open now adds one dim line that says what shows there and how to watch, as session-recall does; fold takes it away. Tested both ways, with the stored choice each time.
