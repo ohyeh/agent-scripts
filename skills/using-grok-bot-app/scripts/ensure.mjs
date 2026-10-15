@@ -100,6 +100,8 @@ export async function recover(d) {
     }
     const was = d.running()
     if (!fits(was ? RECOVER_MS : LAUNCH_MS)) return 'busy'
+    // From the quit to the relaunch a stop is held off (a TUI that quits stops its ensure): never leave it quit.
+    d.hold?.(true)
     if (was) {
       // --remote-debugging-port only takes effect at launch: a running app must quit first.
       // A quit that hangs is forced, so the relaunch still fits: never leave it quit, not relaunched.
@@ -110,8 +112,10 @@ export async function recover(d) {
       }
     }
     d.open(true)
+    d.hold?.(false)
     return (await waitOk(end - d.now())) ? (was ? 'restarted' : 'launched') : 'failed:launch'
   } finally {
+    d.hold?.(false)
     await release()
   }
 }
@@ -128,7 +132,15 @@ const appPids = () => sh('pgrep', ['-x', APP]).split('\n').filter(Boolean)
 const SIDEBAR = fileURLToPath(new URL('./sidebar.mjs', import.meta.url))
 const LOCK_PORT = PORT + 1
 
+// SIGTERM (the TUI quitting) ends this run at once, except between a quit and its relaunch: then it ends after the relaunch.
+let held = false
+let stopAsked = false
+
 const real = {
+  hold: on => {
+    held = on
+    if (!on && stopAsked) process.exit(143)
+  },
   now: () => Date.now(),
   sleep: ms => new Promise(r => setTimeout(r, ms)),
   pages: async () => {
@@ -167,6 +179,7 @@ const say = (out, extra = {}) => {
 }
 
 if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.on('SIGTERM', () => (held ? (stopAsked = true) : process.exit(143)))
   if (process.platform !== 'darwin') say('unsupported', { platform: process.platform })
   else recover(real).then(s => say(s), e => say('failed', { error: String(e) }))
 }

@@ -52,6 +52,7 @@ function world(app, { foreign = false, slow = false, stuck = false, quitTakes = 
       else if (w.app === 'no-window' && !stuck) w.app = 'up'
       else if (w.app === 'off') w.app = 'no-port'
     },
+    hold: on => (w.holds ??= []).push(on ? `hold<${w.events.join(',')}>` : `free<${w.events.join(',')}>`),
     quit: force => {
       cost(T.sh)
       w.events.push(slow ? `${force ? 'kill' : 'quit'}@${w.t}` : force ? 'kill' : 'quit')
@@ -73,6 +74,13 @@ test('the app runs without the port: one quit, one launch', async () => {
   const w = world('no-port')
   assert.equal(await recover(w.d()), 'restarted')
   assert.deepEqual(w.events, ['quit', 'launch'])
+})
+
+test('a stop is held off from the quit until the relaunch, never longer', async () => {
+  const w = world('no-port')
+  assert.equal(await recover(w.d()), 'restarted')
+  assert.deepEqual(w.holds.slice(0, 2), ['hold<>', 'free<quit,launch>'])
+  assert.equal(w.holds.at(-1), 'free<quit,launch>')
 })
 
 test('not running: launch only', async () => {

@@ -864,12 +864,13 @@ export const register: Register = on => {
     const title = `▌session recall v${MOD_VERSION}`
     const status = ` · ${[plural(list.length, 'asset'), ...(s.draftQ.length ? [plural(s.draftQ.length, 'quote')] : [])].join(' · ')} `
     // Buttons say what they do when the header has room for it, else their icon (the workers band's rule).
-    const words = cells(title) + cells(status) + cells('[ ⧉ tui ][ ▾ fold ][ hide ]') <= width
+    // ' [-]' is the engine's collapse control, drawn over the band's last cells: kept clear, as the workers band does.
+    const words = cells(title) + cells(status) + cells('[ ⧉ tui ][ ▾ fold ][ hide ] [-]') <= width
     const header = Box({
       flexDirection: 'row',
       children: [
         Text({ bold: true, color: ACCENT, children: title }),
-        Text({ dimColor: true, children: fit(status, Math.max(0, width - cells(title) - (words ? 27 : 15))) }),
+        Text({ dimColor: true, children: fit(status, Math.max(0, width - cells(title) - (words ? 31 : 19))) }),
         // The TUI: every row, to open, preview or copy.
         Button({ key: 'tui', label: words ? '⧉ tui' : '⧉', onPress: () => void launch(s, $).then(t => $.ui.toast(t), err => $.ui.toast(`tui failed: ${errText(err)}`)).catch(err => $.ui.log(`session-recall: tui toast failed (${errText(err)})`, { to: 'debug' })) }),
         // Fold keeps the header (the counts still change); hide takes the band away until /recall show.
