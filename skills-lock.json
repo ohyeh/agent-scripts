@@ -60,9 +60,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/codex-cu/SKILL.md",
-      "skillFolderHash": "0bb6f9957f8073776fdd9e52044d7c6ca5624ebb",
+      "skillFolderHash": "97e9b85d04444cac11c747f797d14e1da6923d18",
       "installedAt": "2026-10-08T17:59:00.705Z",
-      "updatedAt": "2026-10-08T17:59:00.705Z"
+      "updatedAt": "2026-10-14T02:45:46.814Z"
     },
     "codex-dynamic-workflows": {
       "source": "dannymac180/skills",
@@ -123,9 +123,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "a69f8176f262ab3e2c932663e5cf8b20c25e89ea",
+      "skillFolderHash": "d7d66b45810294ae98e8a2c1de72d4ce9af80616",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-10-13T08:42:50.219Z"
+      "updatedAt": "2026-10-14T02:45:55.918Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -296,9 +296,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-grok-bot-app/SKILL.md",
-      "skillFolderHash": "8f8aa8906e4b269cd81d49435817de01a48adf52",
+      "skillFolderHash": "5f84aadc7db30d818863adf530fa08a2b9001c47",
       "installedAt": "2026-09-04T08:30:33.000Z",
-      "updatedAt": "2026-10-11T07:59:50.566Z"
+      "updatedAt": "2026-10-14T07:10:36.300Z"
     },
     "using-skills": {
       "source": "ohyeh/agent-scripts",
