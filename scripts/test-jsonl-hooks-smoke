@@ -182,6 +182,13 @@ ledger_for n6 "$TWO" "$READ"; [[ -z "$(run_claim n6 '重設計還在進行，頁
 ledger_for n7 "$TWO";         [[ "$(run_claim n7 '重設計還在進行，頁面還沒更新' "$TRT")" == block ]] || { echo "FAIL: keyless line passed on 1 call" >&2; exit 1; }
 FAILRUN='{"timestamp":"2026-01-01T00:00:03Z","tool":"Bash","evidence":["exit=1"]}'
 ledger_for n8 "$FAILRUN";     [[ -z "$(run_claim n8 'the suite still fails: npm test exit=1' "$TRT")" ]] || { echo "FAIL: a line quoting a printed exit=1 blocked" >&2; exit 1; }
+# sol W43 review F3: a background completion or plugin notice mid-turn does not start a new human turn
+for k in task-notification plugin legacy; do
+  TRN="$WORK/transcript-notice-$k.jsonl"; cp "$TRT" "$TRN"
+  case $k in legacy) printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:05.000Z","message":{"content":"<task-notification><task-id>a1</task-id></task-notification>"}}';;
+    *) printf '{"type":"user","timestamp":"2026-01-01T00:00:05.000Z","origin":{"kind":"%s"},"message":{"content":"worker finished"}}\n' "$k";; esac >> "$TRN"
+  ledger_for "n9$k" "$TWO" "$READ"; [[ -z "$(run_claim "n9$k" '`deploy.sh` 的 W43-3 還沒 push' "$TRN")" ]] || { echo "FAIL: a $k row reset the human turn" >&2; exit 1; }
+done
 ledger_for c6 "$BEFORE";           [[ -z "$(run_claim c6 '改了設定，attempted, unverified')" ]]        || { echo "FAIL: self-labelled reply blocked" >&2; exit 1; }
 ledger_for c7 "$BEFORE";           [[ -z "$(run_claim c7 'The claim-evidence-gate blocks a `done` claim; 「完成宣告 gate」 is discussed here, and Completion claim text is quoted')" ]] || { echo "FAIL: discussing the gate treated as a claim" >&2; exit 1; }
 ledger_for c8 "$BEFORE" "$RUN0";   [[ "$(run_claim c8 'the worker is stuck, no reply for 30 min')" == block ]] || { echo "FAIL: negative claim on one call not blocked" >&2; exit 1; }

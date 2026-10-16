@@ -78,7 +78,11 @@ MARKER="$STATE_DIR/claim-checked-$csha"
 : > "$MARKER"
 
 # Window: everything after the last human prompt (transcript ISO ms → seconds; ledger ISO s; both UTC).
-since="$(grep -E '"type":"(user|UserMessage)"' "$TRANSCRIPT" 2>/dev/null | grep -v 'tool_result' | grep -o '"timestamp":"[^"]*"' | tail -1 | cut -d'"' -f4 | cut -c1-19)"
+# Background completions, plugin and peer messages and skill bodies are user rows too, but no
+# human turn starts there: Claude tags them origin.kind / isMeta; older rows only by their text.
+since="$(jq -rR 'fromjson? | select(.type == "user" or (tostring | contains("\"type\":\"UserMessage\""))) | select(.isMeta != true)
+  | select((.origin.kind // "human") == "human") | select(tostring | (contains("tool_result") or contains("<task-notification>")) | not)
+  | .timestamp // empty' "$TRANSCRIPT" 2>/dev/null | tail -1 | cut -c1-19)"
 [ -n "$since" ] || exit 0
 window="$(jq -c --arg s "$since" 'select(.timestamp[0:19] >= $s)' "$LEDGER" 2>/dev/null)"
 calls="$(printf '%s\n' "$window" | grep -c '"tool"')"
