@@ -1,5 +1,19 @@
 # Changelog
 
+## W43-3 deploy.sh --check and the deferred W43 rows 2026-10-16
+
+Owner 10-16: 「所有你們討論後能做的就要做掉」 — the rows the W42 retro had deferred go in with W43-3.
+
+- **W43-3** `scripts/deploy.sh --check`: the same layer checks with no write to `~`; exit 1 at the first layer that differs from the release. Rewritten files (settings.json, codex hooks.json / config.toml, agy plugin) are checked as fixpoints. Skips Layer 0 and the layers with no read-only check (agy statusline, codex-cu). Deploy and `--check` both end with `check-deploy-drift.sh`, which had no caller. `scripts/test-deploy-check.sh`: zero writes over 2,295 entries; one drifted pin → `[skills]` exit 1.
+- **W43-7 root cause**: context-mode `hooks/pretooluse.mjs` self-heal rewrites `<config dir>/plugins/installed_plugins.json` (`lastUpdated = now`) whenever `$TMPDIR/context-mode-healed-<ver>` is absent — macmini had never run the hook (10-15). The drift probe now runs under `env -i` with a throwaway HOME and TMPDIR. Not covered: the same self-heal copies a cache dir by absolute path when its name differs from the version.
+- **Lock direction** `sync-skills-lock.sh`: for this repo's skills the git tree hash decides; installed = tree ≠ lock reports "lock is stale" (was "installed is newer").
+- **W43-3b** skills CLI pinned to `skills@1.7.2` (deploy.sh, README); invariant `skills-cli-pinned`.
+- **W43-3c** `scripts/sync-mods.sh [--check]`, deploy Layer 8b: an installed mod behind the release marketplace is updated, then re-read; a mod never installed is reported, not installed.
+- **W43-4** `evals/retro-metrics/layer1-gaps.py`, `grok-bot-classes.py` (W42 scratch) in the repo; tmux dispatch briefs split from human (W42 window: 31 turns, $77.85 moved out of human). `recipe-usage-stats.sh` counts only inside `RECIPE_SINCE`; `ctx-usage-report.py` prints every row by default.
+- **W43-5** grok-bot-watch replay keeps the last reply hash across a re-watch (one reply sent 3 times now counts resent 2). Offline tool only.
+- **W43-18** claim gate: 還沒/尚未/未完成/not done are negative claims checked line by line; a label exempts its own line; a line naming a subject must find it in this turn's tool traffic. Replay on 57 real replies: 7 blocks (old 6).
+- **W43-22** review-dispatch-gate covers Agent tool reviewers (W42: 71, 27 shopping): previous Agent reviewer BLOCK / no verdict in the same cwd → deny; the re-check is `SendMessage`. deploy moves the hook's matcher in place.
+
 ## W43-1 workflow agent cap 2026-10-16
 
 New hook `.agents/hooks/workflow-agent-cap.sh`: at most 25 subagents per workflow run (owner 10-16: 「控制別太氾濫我沒意見」). W42 L2-2: one unattended night ran `design-vs-code-audit` with 33, 42 and 46 agents.
