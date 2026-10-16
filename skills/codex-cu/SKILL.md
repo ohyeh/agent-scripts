@@ -9,12 +9,37 @@ allowed-tools: Bash(ps:*), Bash(pgrep:*), Bash(open:*), Bash(osascript:*)
 `cua_repl` is the MCP server inside the ChatGPT Mac app's Computer Use plugin.
 Claude Code, Cursor, and agy call it under the name `codex-cu`. Clicks go into
 the target app. They do not move the user's pointer, but the computer surface
-brings the target window to the front, so the user sees it take the screen.
+brings the target window to the front, so the user sees it take the screen. See
+[Background first](#background-first-hard-rule).
 
 The long write-up is the Claude artifact `codex-cu 接線手冊`. Open it in a browser
 when this file does not answer a case.
 
 https://claude.ai/artifact/VQQdp75aeC1PzqRwK581PU?sk=Usf3jftJdhrPrHUCB76Nuw
+
+## Background first (hard rule)
+
+The user keeps the screen. Take the first rung that works; go down only when it
+fails, and say why.
+
+1. Background, no window: a CLI, an API, or a read of the data.
+2. Background tab: the browser surface (`createBrowserTab`, `getTab`), or an
+   osascript tab in Google Chrome. These keep the front app as it was.
+3. Foreground: the computer surface (`cua.getApp`, coordinate clicks) or
+   `open -a`. Only when rungs 1–2 cannot do the step. Say so before you do it.
+
+Tab mechanics (each checked 2026-10-16 with `lsappinfo front` before and after):
+
+- Open: `osascript -e 'tell application "Google Chrome" to make new tab at end of tabs of window 1 with properties {URL:"<url>"}'`.
+  Never `activate`. `open -a` and also `open -g -a` brought Chrome to the front
+  (and the `open -g` tab did not appear).
+- Close a tab this run opened with `createBrowserTab`: `await tab.close()`.
+- Close any other tab: `osascript -e 'tell application "Google Chrome" to close (every tab of every window whose URL contains "<marker>")'`.
+  `cua.getTab({url}) … close()` on a tab the run did not create hung until the
+  timeout and reset the runtime.
+- After a click that changes data (delete, submit), check the result with rung 1,
+  not the page: `getAXState` timed out on `DOMSnapshot.captureSnapshot` right
+  after a delete.
 
 ## Quickstart (read first)
 
@@ -30,8 +55,9 @@ Setup not done (no check PASS on this Mac)? Do [Setup](#setup-once-per-machine) 
    Pick the entry with the most URLs in common with that list. The lists need
    not be equal, and a URL that is open in two browsers does not decide. If
    nothing decides (Chrome has no tabs, or each URL is also open elsewhere), open
-   a probe: `open -a "Google Chrome" "https://example.com/#cu-<random>"`, call
-   `getState` again, pick the entry that shows it, then close that tab. The
+   a probe tab `https://example.com/#cu-<random>` with the osascript line in
+   [Background first](#background-first-hard-rule), call `getState` again, pick
+   the entry that shows it, then close that tab with osascript. The
    `osascript` call starts Google Chrome if it is not running, and its first run
    can ask for Automation permission (a headless worker cannot grant it). Do this
    on every run: ids and the number of browsers differ per Mac and can change
