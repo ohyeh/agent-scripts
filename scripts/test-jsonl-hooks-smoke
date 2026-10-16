@@ -177,6 +177,11 @@ ledger_for n3 "$TWO" "$READ"; [[ -z "$(run_claim n3 'W43-18 還沒做（UNCONFIR
 ledger_for n4 "$TWO" "$READ"; [[ "$(run_claim n4 'foo.sh:12 還沒修' "$TRT")" == block ]]        || { echo "FAIL: a file:line the tools never touched counted as evidence" >&2; exit 1; }
 ledger_for n5 "$TWO" "$READ"; [[ "$(run_claim n5 'W43-3 done in 2ad6a5a
 W43-22 未開始' "$TRT")" == block ]] || { echo "FAIL: unbound negative line passed next to a positive claim" >&2; exit 1; }
+# a line that names no subject keeps the old bar (>= 2 calls); a printed evidence token binds a line
+ledger_for n6 "$TWO" "$READ"; [[ -z "$(run_claim n6 '重設計還在進行，頁面還沒更新' "$TRT")" ]] || { echo "FAIL: keyless line blocked on 2 calls" >&2; exit 1; }
+ledger_for n7 "$TWO";         [[ "$(run_claim n7 '重設計還在進行，頁面還沒更新' "$TRT")" == block ]] || { echo "FAIL: keyless line passed on 1 call" >&2; exit 1; }
+FAILRUN='{"timestamp":"2026-01-01T00:00:03Z","tool":"Bash","evidence":["exit=1"]}'
+ledger_for n8 "$FAILRUN";     [[ -z "$(run_claim n8 'the suite still fails: npm test exit=1' "$TRT")" ]] || { echo "FAIL: a line quoting a printed exit=1 blocked" >&2; exit 1; }
 ledger_for c6 "$BEFORE";           [[ -z "$(run_claim c6 '改了設定，attempted, unverified')" ]]        || { echo "FAIL: self-labelled reply blocked" >&2; exit 1; }
 ledger_for c7 "$BEFORE";           [[ -z "$(run_claim c7 'The claim-evidence-gate blocks a `done` claim; 「完成宣告 gate」 is discussed here, and Completion claim text is quoted')" ]] || { echo "FAIL: discussing the gate treated as a claim" >&2; exit 1; }
 ledger_for c8 "$BEFORE" "$RUN0";   [[ "$(run_claim c8 'the worker is stuck, no reply for 30 min')" == block ]] || { echo "FAIL: negative claim on one call not blocked" >&2; exit 1; }

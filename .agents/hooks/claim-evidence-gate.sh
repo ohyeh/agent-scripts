@@ -53,19 +53,16 @@ speech="$(printf '%s' "$last" \
   | sed -E 's/`[^`]*`//g; s/「[^」]*」//g' \
   | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告' )"
 
-# A self-label exempts its own line only (W43-18: one 「還沒」 or UNCONFIRMED used to exempt the
-# whole reply, so a reply could list "not done" items it never checked).
-LABEL_RE='unverified|UNCONFIRMED|attempted|not observed|未驗證|未觀測'
-speech="$(printf '%s\n' "$speech" | grep -Eiv "$LABEL_RE")"
-
 claim=""
 # Under LC_ALL=C grep is byte-wise: never put ?/*/+ right after a CJK char (it binds to its last byte); group it.
 case "$title" in ✅*) claim="positive";; esac
-# "not done" / 未完成 are not completion claims: drop them before matching (未完成 contains 完成).
-if [ -z "$claim" ] && printf '%s' "$speech" | sed -E 's/not (yet )?(done|fixed|verified)//g; s/(尚未|還沒|未)(完成|修好|驗證|通過)//g' \
-   | grep -Eqi '(^|[^a-z])(done|fixed|verified|shipped|completed?|resolved|all green|tests? pass(ed|ing)?)([^a-z]|$)|(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|✅|VERDICT: *PASS'; then
+if [ -z "$claim" ] && printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(done|fixed|verified|shipped|completed?|resolved|all green|tests? pass(ed|ing)?)([^a-z]|$)|(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|✅|VERDICT: *PASS'; then
   claim="positive"
 fi
+# Completion claims keep the whole-reply exemption (unchanged). Negative lines do not: a label
+# exempts its own line only (W43-18: one 「還沒」 let a reply list "not done" items it never checked).
+printf '%s' "$speech" | grep -Eqi 'unverified|UNCONFIRMED|attempted|not observed|not (yet )?(done|fixed|verified)|未驗證|未觀測|尚未|還沒|未完成' && claim=""
+LABEL_RE='unverified|UNCONFIRMED|attempted|not observed|not checked|未驗證|未觀測|未查|沒(有)?查|不確定'
 # A "not done" state is a negative claim too (W43-18): 還沒/尚未/未完成 assert what is not there.
 NEG_RE='(^|[^a-z])(stuck|failed|missing|not implemented|not (yet )?(done|fixed|started)|no (reply|response)|never (reported|responded)|hung|dead)([^a-z]|$)|卡住|受阻|失敗|缺少|不存在|尚未|還沒|未完成|未開始|沒(有)?回(覆|應)|掛了'
 # Kept raw (code spans intact): a line's `code`, file, W-id or sha is the subject it must be bound to.
@@ -133,12 +130,19 @@ if [ -n "$negative_lines" ]; then
     [ "$claim" = negative ] && [ "${calls:-0}" -lt 2 ] && neg_reason="it rests on ${calls:-0} tool call(s) since the last user prompt at ${since}Z; one miss is not absence"
   else
     unbound=""
+    observed="$(printf '%s\n' "$window" | jq -r '.evidence[]? // empty' 2>/dev/null | sort -u)"
     while IFS= read -r line; do
       [ -n "$line" ] || continue
+      keys="$(printf '%s' "$line" | grep -oE '`[^`]+`|[A-Za-z0-9_-]{2,}\.[A-Za-z]{1,5}|W[0-9]{2}-[0-9]+[a-z]?|Q-[0-9]+|#[0-9]+|[0-9a-f]{7,40}' | tr -d '`')"
       hit=""
       while IFS= read -r k; do
         [ -n "$k" ] && grep -qF -- "$k" <<<"$traffic" && { hit=1; break; }
-      done < <(printf '%s' "$line" | grep -oE '`[^`]+`|[A-Za-z0-9_-]{2,}\.[A-Za-z]{1,5}|W[0-9]{2}-[0-9]+[a-z]?|Q-[0-9]+|#[0-9]+|[0-9a-f]{7,40}' | tr -d '`')
+      done <<<"$keys"
+      # an evidence token a tool printed this turn (exit=1, N failed) binds the line too
+      [ -n "$hit" ] || { [ -x "$TOKENIZER" ] && [ -n "$observed" ] \
+        && [ -n "$(comm -12 <(printf '%s\n' "$observed") <(printf '%s' "$line" | bash "$TOKENIZER" | sort -u))" ] && hit=1; }
+      # a line that names no subject keeps the old bar: corroborated by >= 2 tool calls
+      [ -n "$hit" ] || { [ -z "$keys" ] && [ "${calls:-0}" -ge 2 ] && hit=1; }
       [ -n "$hit" ] || unbound="$unbound | $(printf '%s' "$line" | cut -c1-100)"
     done <<<"$negative_lines"
     [ -z "$unbound" ] || neg_reason="these lines name no subject a tool touched this turn:$unbound"
