@@ -86,4 +86,14 @@ gate s7; ledger SubagentStart s7 d1; gate s7
 ss s7 compact; [ "$(count s7 subagents)" = 1 ] && [ "$(count s7 pending)" = 1 ] && ok "compact keeps live and pending" || bad "compact cleared the ledger"
 ss s7 resume; [ "$(count s7 subagents)" = 0 ] && [ "$(count s7 pending)" = 0 ] && ok "resume clears live and pending" || bad "resume left live=$(count s7 subagents) pending=$(count s7 pending)"
 
+# 12. ckpt-a F1: a SubagentStart between the gate's two directory reads is never missed.
+# Uses the gate's own find order; the start runs while find visits its first entry
+# (each directory's listing is read before its entries are visited).
+ST8="$XDG_STATE_HOME/agent-hooks/s8"; mkdir -p "$ST8/subagents" "$ST8/pending"
+for i in 1 2 3 4; do echo "x t" > "$ST8/subagents/l$i"; done; echo "$(date +%s) x" > "$ST8/pending/p1"
+ORDER="$(sed -n 's/^live="\$(find \(.*\) -type f .*/\1/p' "$H/subagent-concurrency-gate.sh")"
+PENDING="$ST8/pending" LEDGER="$ST8/subagents"
+seen="$(eval "find $ORDER -type f -exec sh -c '[ -e \"\$0\" ] || exit 0; [ -e \"$T/fired\" ] || { : > \"$T/fired\"; printf \"{\\\"hook_event_name\\\":\\\"SubagentStart\\\",\\\"session_id\\\":\\\"s8\\\",\\\"agent_id\\\":\\\"l5\\\",\\\"agent_type\\\":\\\"x\\\"}\" | bash \"$H/subagent-ledger.sh\"; }; echo \"\$0\"' {} \\;" | wc -l | tr -d ' ')"
+[ -n "$ORDER" ] && [ "$seen" -ge 5 ] && ok "start during the count: observed $seen >= 5 occupied" || bad "start during the count: observed $seen < 5 occupied (order: $ORDER)"
+
 [ "$fail" = 0 ] && echo "PASS subagent-gate-smoke" || { echo "FAIL subagent-gate-smoke"; exit 1; }

@@ -56,7 +56,9 @@ for p in "$PENDING"/*; do
   t=0; read -r t _ < "$p" 2>/dev/null
   [ $(( now - ${t:-0} )) -lt "$PENDING_TTL" ] || rm -f "$p"
 done
-live="$(find "$LEDGER" "$PENDING" -type f | wc -l | tr -d ' ')"
+# pending BEFORE live (W43-2 ckpt-a F1): the ledger writes live first, then removes the
+# pending, so a reader that saw no pending is sure to see the live marker
+live="$(find "$PENDING" "$LEDGER" -type f | wc -l | tr -d ' ')"
 [ "$live" -ge "$HARD_CAP" ] || printf '%s %s%s\n' "$now" "$ST" "$NESTED_OK" > "$PENDING/$now-$$-$RANDOM"
 ledger_unlock "$STATE"
 

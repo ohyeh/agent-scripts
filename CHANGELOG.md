@@ -19,6 +19,7 @@ Three faults in the live-subagent count behind the concurrency cap (W42-1 showed
 - ② `subagent-ledger.sh` no longer takes the lock. When the lock was busy, SubagentStart wrote the live marker but left its pending in place, so one subagent counted twice. It now writes the live marker first, then claims one pending by an atomic `mv` out of `pending/`: the count is briefly one high, never one low.
 - ③ Leftover markers (14 on this host) belong to subagents of a process that died without SubagentStop. The ledger now also runs on SessionStart and clears `subagents/` and `pending/` on `startup|resume|clear`; `compact` keeps them (background subagents survive compaction).
 - `scripts/test-subagent-gate-smoke`: new cases for each fault plus 6 concurrent calls x100 (`SMOKE_REPEAT`). Before the fix 5 cases failed (3 of 100 runs not exactly one blocked); after: `PASS subagent-gate-smoke`.
+- Review fix (sol ckpt-a F1): with no lock in the ledger, the gate's `find "$LEDGER" "$PENDING"` could read live before a start and pending after it, and count one low (`observed=4 actual=5`). The gate now reads pending first; the smoke runs a start during the count in the gate's own order (`observed 6 >= 5`; the old order gives 4).
 - Known, not changed: a waiter gives up after 5 s but takeover needs age > 10 s, so a dead lock with a `ts` makes gates skip the count for 5–10 s.
 
 ## scrub.sh default evidence dir 2026-10-16
