@@ -4,8 +4,12 @@
 # clone, no working copy left behind on the target machine — the repo is
 # canonical, machines are deployed copies only.
 #
-# Usage: scripts/deploy.sh   (no flags; always runs every layer, per
-# YAGNI -- this script has exactly one job)
+# Usage: scripts/deploy.sh           deploy every layer
+#        scripts/deploy.sh --check   same layer checks, read-only: no write to ~, exit 1 at the
+#                                    first layer that differs from the release. Skips Layer 0
+#                                    (it tests the release tree, not this host) and the layers
+#                                    that have no read-only check (agy statusline, codex-cu).
+#                                    "Deployed / in sync" claims quote this exit 0 (W43-3).
 #
 # Clone-tracked layout (grok-bot VM): when ~/.agents/rules is a symlink into
 # a working clone of this repo, the clone IS the source: `git pull --ff-only`
@@ -73,6 +77,25 @@ fi
 REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
 RELEASE_REF="refs/heads/main"
 cleanup() { rm -rf "$WORKDIR"; }
+CHECK=0
+w() { [ "$CHECK" = 1 ] || "$@"; }   # a write to ~: runs on deploy only
+# Missing runtime file: deploy seeds it, --check reports it.
+seed() {
+  [ -f "$1" ] && return
+  [ "$CHECK" = 0 ] || { echo "FAIL [$3] $1 missing" >&2; exit 1; }
+  printf '%s' "$2" > "$1"
+}
+# A rewritten runtime file: deploy moves it into place; --check needs the rewrite to be a no-op.
+apply() {
+  if [ "$CHECK" = 0 ]; then mv "$1" "$2"; return; fi
+  local n=cat; case "$2" in *.json) n='jq -S .';; esac
+  if ! cmp -s <($n "$1") <($n "$2" 2>/dev/null); then
+    echo "FAIL [$3] $2 differs from what deploy writes (< live, > deploy):" >&2
+    diff <($n "$2" 2>/dev/null) <($n "$1") >&2 || true
+    rm -f "$1"; exit 1
+  fi
+  rm -f "$1"
+}
 
 resolve_release() {
   echo "==> Resolving agent-scripts $RELEASE_REF..."
@@ -122,12 +145,17 @@ detect_clone_tracked() {
   fi
   CLONE_TRACKED=1; SRC="$target"
   echo "==> [resolve] clone-tracked layout: ~/.agents/rules -> $target; pulling $RELEASE_REF"
-  git -C "$SRC" pull -q --ff-only origin "${RELEASE_REF#refs/heads/}"
+  w git -C "$SRC" pull -q --ff-only origin "${RELEASE_REF#refs/heads/}"
   DEPLOYED_SHA="$(git -C "$SRC" rev-parse HEAD)"
   echo "PASS [resolve] clone @ $DEPLOYED_SHA (git pull --ff-only; tarball skipped)"
 }
 
 main() {
+case "${1:-}" in
+  "") ;;
+  --check) CHECK=1 ;;
+  *) echo "usage: scripts/deploy.sh [--check]" >&2; exit 2 ;;
+esac
 WORKDIR="$(mktemp -d)"
 trap cleanup EXIT
 detect_clone_tracked
@@ -138,6 +166,9 @@ fi
 
 # --- Layer 0: rules invariants (the only caller of this check; a red here
 # means main is not deployable — abort before any layer mutates ~) -----------
+if [ "$CHECK" = 1 ]; then
+echo "SKIP [invariants+tests] --check verifies this host, not the release tree"
+else
 echo "==> [invariants] node scripts/check-rules-invariants.mjs @ $DEPLOYED_SHA"
 if ! (cd "$SRC" && node scripts/check-rules-invariants.mjs); then
   echo "FAIL [invariants] check-rules-invariants exited non-zero; refusing to deploy" >&2
@@ -154,7 +185,7 @@ layer0_tests=(
   test-review-dispatch-gate.sh test-workflow-agent-cap.sh
   test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate
-  test-context-mode-dir.sh test-docs-audit-ownership test-behavior-runner
+  test-context-mode-dir.sh test-sync-skills-lock.sh test-docs-audit-ownership test-behavior-runner
   test-consensus-gate-ladder test-plan-pipeline-ladder
   test-feature-plan-consensus-ladder test-review-gate-smoke.mjs
 )
@@ -170,6 +201,7 @@ for t in "${layer0_tests[@]}"; do
   fi
 done
 echo "PASS [tests] ${#layer0_tests[@]} hook/recipe regressions"
+fi
 
 # --- Layer 1: global runtime files -----------------------------------------
 # Same kernel to every present runtime: Claude, Codex, and Gemini/agy (GEMINI.md
@@ -185,7 +217,8 @@ fi
 global_report=""
 for pair in "${global_targets[@]}"; do
   src="${pair%%:*}"; dst="${pair#*:}"
-  cp "$src" "$dst"
+  w cp "$src" "$dst"
+  [ -f "$dst" ] || { echo "FAIL [global] $dst missing" >&2; exit 1; }
   src_md5="$(md5 -q "$src")"; dst_md5="$(md5 -q "$dst")"
   if [ "$src_md5" != "$dst_md5" ]; then
     echo "FAIL [global] md5 mismatch: $dst $src_md5 vs $dst_md5" >&2
@@ -200,9 +233,10 @@ echo "==> [rules] rsync canonical .agents/rules/ -> ~/.agents/rules/"
 if [ "$CLONE_TRACKED" = 1 ]; then
   echo "     (clone-tracked: symlink already points at the pulled clone; rsync skipped, diff still verified)"
 else
-  mkdir -p ~/.agents/rules
-  rsync -a --delete "$SRC/.agents/rules/" ~/.agents/rules/
+  w mkdir -p ~/.agents/rules
+  w rsync -a --delete "$SRC/.agents/rules/" ~/.agents/rules/
 fi
+[ -d ~/.agents/rules ] || { echo "FAIL [rules] ~/.agents/rules missing" >&2; exit 1; }
 rules_diff="$(diff -rq ~/.agents/rules/ "$SRC/.agents/rules/" || true)"
 if [ -n "$rules_diff" ]; then
   echo "FAIL [rules] diff found after rsync:" >&2
@@ -213,10 +247,11 @@ echo "PASS [rules] 0 diff"
 
 # --- Layer 3: workflows -------------------------------------------------------
 echo "==> [workflows] install.sh --force -> ~/.claude/workflows/"
-mkdir -p ~/.claude/workflows
+w mkdir -p ~/.claude/workflows
 manifest=~/.claude/workflows/.using-workflows-managed-files
-[ -f "$manifest" ] || : > "$manifest"   # bootstrap: empty manifest on a fresh machine
-bash "$SRC/skills/using-workflows/scripts/install.sh" --previous-manifest "$manifest" --force
+seed "$manifest" "" workflows   # bootstrap: empty manifest on a fresh machine
+w bash "$SRC/skills/using-workflows/scripts/install.sh" --previous-manifest "$manifest" --force
+[ -d ~/.claude/workflows ] || { echo "FAIL [workflows] ~/.claude/workflows missing" >&2; exit 1; }
 deployed_hash="$(cd ~/.claude/workflows && shasum -a 256 *.workflow.js | shasum -a 256)"
 repo_hash="$(cd "$SRC/skills/using-workflows/workflows" && shasum -a 256 *.workflow.js | shasum -a 256)"
 if [ "$deployed_hash" != "$repo_hash" ]; then
@@ -237,13 +272,22 @@ if ! drift="$(bash "$SRC/scripts/sync-skills-lock.sh" --check)"; then
   echo "FAIL [skills] $drift — run scripts/sync-skills-lock.sh in the agent-scripts repo, commit, push, then deploy" >&2
   exit 1
 fi
+if [ "$CHECK" = 0 ]; then
 cp "$SRC/skills-lock.json" ~/skills-lock.json
 ( cd ~ && npx -y skills experimental_install )
 rm -f ~/skills-lock.json
+fi
 # experimental_install installs the folders but leaves ~/.agents/.skill-lock.json
 # untouched (2026-09-04: local 67 / .44 69 vs repo 70). The README contract is
 # "byte-identical copy", so converge the machine-global lock to the repo lock.
-cp "$SRC/skills-lock.json" ~/.agents/.skill-lock.json
+G="${SKILLS_GLOBAL_LOCK:-$HOME/.agents/.skill-lock.json}"
+w cp "$SRC/skills-lock.json" "$G"
+if ! cmp -s "$SRC/skills-lock.json" "$G"; then
+  echo "FAIL [skills] $G is not the release lock; deploy restores it. Pins that differ: $(jq -r -n \
+    --slurpfile r "$SRC/skills-lock.json" --slurpfile g "$G" '[($r[0].skills + $g[0].skills | keys[])
+    | select($r[0].skills[.] != $g[0].skills[.])] | join(" ")' 2>/dev/null || echo '(unreadable)')" >&2
+  exit 1
+fi
 if [ ! -d ~/.agents/skills ]; then
   echo "FAIL [skills] ~/.agents/skills does not exist after restore" >&2
   exit 1
@@ -253,7 +297,7 @@ fi
 # skills. Reconcile the managed directory so every deployment converges.
 allowed_skills="$(jq -r '.skills | keys[]' "$SRC/skills-lock.json")"
 removed_skills=0
-while IFS= read -r installed_skill; do
+[ "$CHECK" = 1 ] || while IFS= read -r installed_skill; do
   [ "$installed_skill" = synced ] && continue  # owned by Claude Code account-skill sync, not the lock
   if ! grep -Fqx "$installed_skill" <<<"$allowed_skills"; then
     rm -rf "$HOME/.agents/skills/$installed_skill"
@@ -269,7 +313,7 @@ if [ -n "$unexpected_skills" ]; then
   echo "FAIL [skills] stale managed skills remain: $unexpected_skills" >&2
   exit 1
 fi
-echo "PASS [skills] experimental_install completed; removed $removed_skills stale skill(s)"
+echo "PASS [skills] installed lock = release lock; removed $removed_skills stale skill(s)"
 
 # Claude Code reads ~/.claude/skills. Fleet layout: ONE directory symlink
 # ~/.claude/skills -> ../.agents/skills (no per-skill links). Issue #5 came from a
@@ -280,6 +324,7 @@ CS="$HOME/.claude/skills"
 if [ -L "$CS" ] && [ "$(cd "$CS" 2>/dev/null && pwd -P)" = "$(cd "$HOME/.agents/skills" && pwd -P)" ]; then
   echo "PASS [claude-skills] $CS -> $(readlink "$CS")"
 else
+  [ "$CHECK" = 0 ] || { echo "FAIL [claude-skills] $CS is not the ../.agents/skills link" >&2; exit 1; }
   if [ -e "$CS" ] && [ -n "$(find "$CS" -mindepth 1 -maxdepth 1 ! -type l ! -name .DS_Store 2>/dev/null)" ]; then
     echo "FAIL [claude-skills] $CS holds real entries, refusing to replace: $(find "$CS" -mindepth 1 -maxdepth 1 ! -type l ! -name .DS_Store | xargs -n1 basename | tr '\n' ' ')" >&2
     exit 1
@@ -297,6 +342,7 @@ if [ ! -d "$HOME/.gemini/config" ]; then
   echo "SKIP [agy-skills] ~/.gemini/config absent (agy not installed)"
 else
   if ! { [ -L "$AS" ] && [ "$(cd "$AS" 2>/dev/null && pwd -P)" = "$(cd "$HOME/.agents/skills" && pwd -P)" ]; }; then
+    [ "$CHECK" = 0 ] || { echo "FAIL [agy-skills] $AS is not the ../../.agents/skills link" >&2; exit 1; }
     if [ -e "$AS" ] && [ ! -L "$AS" ]; then
       echo "FAIL [agy-skills] $AS is a real directory, refusing to replace" >&2
       exit 1
@@ -313,20 +359,27 @@ fi
 # repo-managed: installed to ~/.agents/hooks/ and registered idempotently in
 # ~/.claude/settings.json. Workflow-gate hooks stay with their owning plugins.
 echo "==> [hooks] installing sentinel hooks + registering in ~/.claude/settings.json"
-rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent-tools plugin
-rm -f ~/.agents/hooks/bol-prompt-warn.sh      # retired 2026-08-25; replaced by bol-prompt-gate.sh (blocking)
-mkdir -p ~/.agents/hooks
+w rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent-tools plugin
+w rm -f ~/.agents/hooks/bol-prompt-warn.sh      # retired 2026-08-25; replaced by bol-prompt-gate.sh (blocking)
+w mkdir -p ~/.agents/hooks
 # same-file guard: on the clone-tracked layout ~/.agents/hooks IS $SRC/.agents/hooks
-hook_install() { [ "$1" -ef ~/.agents/hooks/"$(basename "$1")" ] || install -m 0755 "$1" ~/.agents/hooks/; }
+hook_install() {
+  local dst=~/.agents/hooks/"$(basename "$1")"
+  if [ "$CHECK" = 1 ]; then
+    cmp -s "$1" "$dst" || { echo "FAIL [hooks] $dst missing or differs from the release" >&2; exit 1; }
+  else
+    [ "$1" -ef "$dst" ] || install -m "${2:-0755}" "$1" ~/.agents/hooks/
+  fi
+}
 hook_install "$SRC/.agents/hooks/claude-version-sentinel.sh"
 hook_install "$SRC/.agents/hooks/session-title-sentinel.sh"
 hook_install "$SRC/.agents/hooks/bol-prompt-gate.sh"
 hook_install "$SRC/.agents/hooks/subagent-ledger.sh"
 hook_install "$SRC/.agents/hooks/subagent-lock.sh"     # sourced by the concurrency gate
-install -m 0755 "$SRC/scripts/check-bol-prompt.sh" ~/.agents/hooks/
+hook_install "$SRC/scripts/check-bol-prompt.sh"
 hook_install "$SRC/.agents/hooks/context-ledger.sh"
 hook_install "$SRC/.agents/hooks/skill-router-nudge.sh"
-[ "$SRC/.agents/hooks/skill-router-table.tsv" -ef ~/.agents/hooks/skill-router-table.tsv ] || install -m 0644 "$SRC/.agents/hooks/skill-router-table.tsv" ~/.agents/hooks/
+hook_install "$SRC/.agents/hooks/skill-router-table.tsv" 0644
 hook_install "$SRC/.agents/hooks/bash-read-audit.sh"
 hook_install "$SRC/.agents/hooks/artifact-title-gate.sh"
 hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/agents/claude/*.md frontmatter, not settings.json
@@ -351,7 +404,7 @@ hook_install "$SRC/.agents/hooks/compaction-cap-gate.sh"
 hook_install "$SRC/.agents/hooks/wakeup-idle-gate.sh"
 
 SETTINGS=~/.claude/settings.json
-[ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
+seed "$SETTINGS" '{}' hooks
 tmp_settings="$(mktemp)"
 # Every settings.json hook runs behind claude-only.sh: Cursor's Third-Party Imports would
 # otherwise run it a second time next to its ~/.cursor/hooks.json copy.
@@ -445,12 +498,12 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "Write|Edit|NotebookEdit|Bash|ScheduleWakeup"; $compcap)
   | ensureMatched("PreToolUse"; "ScheduleWakeup"; $idle)
 ' "$SETTINGS" > "$tmp_settings" || { echo "FAIL [hooks] settings.json rewrite (jq) failed" >&2; exit 1; }
-mv "$tmp_settings" "$SETTINGS"
+apply "$tmp_settings" "$SETTINGS" hooks
 
 # Codex sends Claude-shaped hook payloads (live dump 2026-09-26), so the tool/stop gates run as-is.
 if [ -d ~/.codex ]; then
   CODEX_HOOKS=~/.codex/hooks.json
-  [ -f "$CODEX_HOOKS" ] || echo '{}' > "$CODEX_HOOKS"
+  seed "$CODEX_HOOKS" '{}' hooks
   tmp_codex="$(mktemp)"
   jq --arg router "\"\$HOME/.agents/hooks/skill-router-nudge.sh\"" \
      --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
@@ -497,15 +550,17 @@ if [ -d ~/.codex ]; then
     | ensureMatched("PostToolUse"; "*"; $ledger)
     | ensureMatched("Stop"; ""; $claim)
   ' "$CODEX_HOOKS" > "$tmp_codex" || { echo "FAIL [hooks] codex hooks.json rewrite (jq) failed" >&2; exit 1; }
-  mv "$tmp_codex" "$CODEX_HOOKS"
+  apply "$tmp_codex" "$CODEX_HOOKS" hooks
   # Codex skips a hooks.json entry until config.toml holds its trusted_hash (live:
   # host-load-gate never ran, 2026-10-03). Trust only the fleet hooks this block
   # wrote. Hash = codex-rs hooks/src/engine/discovery.rs hook_hash (rust-v0.160.0):
   # sha256 of canonical JSON {event_name, matcher, hooks:[normalized handler]};
   # it reproduced every hash the Codex TUI had stored for these entries.
   CODEX_CFG=~/.codex/config.toml
-  [ -f "$CODEX_CFG" ] || : > "$CODEX_CFG"
-  python3 - "$CODEX_HOOKS" "$CODEX_CFG" <<'PY'
+  seed "$CODEX_CFG" "" hooks
+  # the state keys embed the live hooks.json path, so only the config file is redirected
+  cfg_out="$CODEX_CFG"; if [ "$CHECK" = 1 ]; then cfg_out="$(mktemp)"; cp "$CODEX_CFG" "$cfg_out"; fi
+  python3 - "$CODEX_HOOKS" "$cfg_out" <<'PY'
 import hashlib, json, re, sys
 hooks_path, cfg_path = sys.argv[1], sys.argv[2]
 label = {"PreToolUse": "pre_tool_use", "PostToolUse": "post_tool_use",
@@ -543,14 +598,16 @@ for event, groups in json.load(open(hooks_path)).get("hooks", {}).items():
             cfg = cfg[:m.start(1)] + body + cfg[m.end(1):]
 open(cfg_path, "w").write(cfg)
 PY
+  [ "$CHECK" = 0 ] || apply "$cfg_out" "$CODEX_CFG" hooks
 fi
 
 # agy rejects ~/.gemini/config/hooks.json whole when any key is not agy-format, so the
 # fleet owns its own plugin dir instead (whole-file, idempotent overwrite).
 if [ -d ~/.gemini/config ]; then
   AGY_PLUGIN=~/.gemini/config/plugins/agent-scripts
-  mkdir -p "$AGY_PLUGIN"
-  printf '{"name":"agent-scripts"}\n' > "$AGY_PLUGIN/plugin.json"
+  w mkdir -p "$AGY_PLUGIN"
+  t="$(mktemp)"; printf '{"name":"agent-scripts"}\n' > "$t"; apply "$t" "$AGY_PLUGIN/plugin.json" hooks
+  t="$(mktemp)"
   jq -n --arg a "bash \$HOME/.agents/hooks/agy-adapt.sh" '{"agent-scripts":{
     PreToolUse:[{matcher:"run_command",hooks:[
       {type:"command",command:($a+" PreToolUse tmux-assign-host-gate")},
@@ -558,7 +615,8 @@ if [ -d ~/.gemini/config ]; then
       {type:"command",command:($a+" PreToolUse host-load-gate")}]},
       {matcher:"invoke_subagent",hooks:[
       {type:"command",command:($a+" PreToolUse host-load-gate")}]}],
-    Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$AGY_PLUGIN/hooks.json"
+    Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$t"
+  apply "$t" "$AGY_PLUGIN/hooks.json" hooks
 fi
 
 for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate; do
@@ -582,27 +640,29 @@ jq -e . "$SETTINGS" >/dev/null || { echo "FAIL [hooks] settings.json is no longe
 echo "PASS [hooks] sentinel hooks installed + registered, retired dispatch/warn hooks absent"
 
 echo "==> [hooks] registering portable sentinels in ~/.cursor/hooks.json"
-bash "$SRC/scripts/install-cursor-hooks.sh"
+w bash "$SRC/scripts/install-cursor-hooks.sh"
 bash "$SRC/scripts/check-cursor-hooks.sh"
 echo "PASS [hooks] Cursor adapter registry"
 
 # --- Layer 6: context-mode storage pin ---------------------------------------
 # Machine-local. Layer 0 cannot see ~/. Plugin upgrades drop CONTEXT_MODE_DIR.
 echo "==> [context-mode] pin storage to ~/.claude/context-mode"
-bash "$SRC/scripts/install-context-mode-dir.sh"
+if [ "$CHECK" = 1 ]; then bash "$SRC/scripts/check-context-mode-dir.sh"   # the installer's own last step
+else bash "$SRC/scripts/install-context-mode-dir.sh"; fi
 echo "PASS [context-mode] canonical store ~/.claude/context-mode"
 
 # --- Layer 7: Cursor runtime (kernel / ponytail rule / HUD) -------------------
 echo "==> [cursor] kernel.mdc + ponytail rule + HUD statusLine"
-bash "$SRC/scripts/install-cursor-kernel.sh"
-bash "$SRC/scripts/install-cursor-ponytail.sh"
-bash "$SRC/scripts/install-cursor-hud.sh"
+w bash "$SRC/scripts/install-cursor-kernel.sh"
+w bash "$SRC/scripts/install-cursor-ponytail.sh"
+w bash "$SRC/scripts/install-cursor-hud.sh"
 bash "$SRC/scripts/check-cursor-runtime.sh"
 echo "PASS [cursor] kernel + HUD + ponytail wiring"
 
 # --- Layer 7b: Antigravity runtime (statusline) --------------------------------
 echo "==> [agy] statusline script + settings.json"
-bash "$SRC/scripts/install-antigravity-statusline.sh"
+if [ "$CHECK" = 1 ]; then echo "SKIP [agy] no read-only check"
+else bash "$SRC/scripts/install-antigravity-statusline.sh"; fi
 
 
 # --- Layer 8: agent definitions ----------------------------------------------
@@ -622,8 +682,9 @@ for rt in claude codex; do
       exit 1
     fi
   done < <(grep -h -E '^[[:space:]]*command:[[:space:]]*' "$src"/*.md 2>/dev/null | sed -E 's/^[[:space:]]*command:[[:space:]]*//; s/^bash[[:space:]]+//; s/^"//; s/"$//')
-  mkdir -p "$dst"
-  rsync -a --delete "$src/" "$dst/"
+  w mkdir -p "$dst"
+  w rsync -a --delete "$src/" "$dst/"
+  [ -d "$dst" ] || { echo "FAIL [agents] $dst missing" >&2; exit 1; }
   agents_diff="$(diff -rq "$dst/" "$src/" || true)"
   if [ -n "$agents_diff" ]; then
     echo "FAIL [agents] $rt diff found after rsync:" >&2
@@ -636,18 +697,26 @@ echo "PASS [agents] 0 diff (${agents_report# })"
 
 # W35 retro F2: a per-host deploy record, so a retro can window "after both
 # hosts ran version X" instead of comparing hosts on different gate versions.
-mkdir -p ~/.local/state/agent-scripts
 deploy_method=tarball; [ "$CLONE_TRACKED" = 1 ] && deploy_method=clone-tracked
 # --- Layer 9: codex-cu (Codex computer use as a user-scope MCP server) -------
 # SKIPs on a host with no Computer Use plugin; that is not a failure.
 echo "==> [codex-cu] install proxy + register at user scope"
-bash "$SRC/skills/codex-cu/scripts/install-codex-cu.sh"
+if [ "$CHECK" = 1 ]; then echo "SKIP [codex-cu] no read-only check"
+else bash "$SRC/skills/codex-cu/scripts/install-codex-cu.sh"; fi
 
+if [ "$CHECK" = 0 ]; then
+mkdir -p ~/.local/state/agent-scripts
 # Stable name: macOS `hostname` follows DHCP/network; LocalHostName does not.
 host_id="$(scutil --get LocalHostName 2>/dev/null || hostname -s)"
 printf '{"timestamp":"%s","host":"%s","sha":"%s","method":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$host_id" "$DEPLOYED_SHA" "$deploy_method" >> ~/.local/state/agent-scripts/deploy-log.jsonl
 echo "PASS [deploy-log] appended $host_id @ ${DEPLOYED_SHA:0:7} -> ~/.local/state/agent-scripts/deploy-log.jsonl"
-echo "==> DEPLOY OK — all layers PASS"
+fi
+
+# Provenance (deploy log = release) + one isolated run of the context-mode hook: a mounted
+# hook is not a working hook (W41 F2). Deploy and --check both end here (W43-3).
+bash "$SRC/scripts/check-deploy-drift.sh"
+if [ "$CHECK" = 1 ]; then echo "==> CHECK OK — this host matches $RELEASE_REF @ $DEPLOYED_SHA"
+else echo "==> DEPLOY OK — all layers PASS"; fi
 }
 
 # :- so piping the script in (ssh host 'bash -s' < deploy.sh) works under set -u,

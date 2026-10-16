@@ -32,10 +32,16 @@ if [ -z "$root" ]; then
 else
   cmd="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$root/hooks/hooks.json")"
   probe='{"hook_event_name":"PreToolUse","session_id":"deploy-drift-probe","tool_name":"Read","tool_input":{"file_path":"/dev/null"}}'
+  # Throwaway HOME + TMPDIR, env -i: the hook's self-heal rewrites <HOME>/.claude/plugins/
+  # installed_plugins.json whenever $TMPDIR/context-mode-healed-<ver> is absent (W43-7, macmini
+  # 10-15), and an exported CONTEXT_MODE_DIR would point its session store at the real one.
+  iso="$(mktemp -d)"; mkdir -p "$iso/tmp"
   set +e
-  printf '%s' "$probe" | CLAUDE_PLUGIN_ROOT="$root" perl -e 'alarm 30; exec @ARGV' bash -c "$cmd" >/dev/null 2>&1
+  printf '%s' "$probe" | env -i PATH="$PATH" HOME="$iso" TMPDIR="$iso/tmp" CLAUDE_PLUGIN_ROOT="$root" \
+    perl -e 'alarm 30; exec @ARGV' bash -c "$cmd" >/dev/null 2>&1
   rc=$?
   set -e
+  rm -rf "$iso"
   if [ "$rc" -ne 0 ]; then
     echo "FAIL [hook] context-mode PreToolUse exit=$rc on $(hostname): $cmd" >&2
     exit 1

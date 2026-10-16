@@ -29,9 +29,32 @@ newer="$(jq -r --slurpfile g "$G" --arg last "$last" '
                                      and (.value.updatedAt // "") > ($r[.key].updatedAt // ""))))
   | .key' "$R")"
 
+# A skill from this repo has skillFolderHash = git tree hash of its folder, so the tree tells
+# which side moved, whatever the timestamps say: installed = tree ≠ lock is a stale lock
+# (2026-10-15: using-grok-bot-app reported as "installed newer", nearly fixed the wrong way).
+tree_hash() {
+  git -C "$ROOT" rev-parse -q --verify "HEAD:$1" 2>/dev/null && return
+  local g; g="$(mktemp -d)"   # release tarball: no .git, hash the extracted folder
+  git init -q "$g"
+  git --git-dir="$g/.git" --work-tree="$ROOT" add -- "$1" 2>/dev/null \
+    && git --git-dir="$g/.git" write-tree --prefix="$1/"
+  rm -rf "$g"
+}
+stale=""
+while IFS=$'\t' read -r k dir hash; do
+  [ -n "$k" ] && [ "$(tree_hash "$dir" || true)" = "$hash" ] && stale="$stale $k"
+done < <(jq -r --slurpfile g "$G" '
+  .skills as $r | $g[0].skills | to_entries[]
+  | select(.value.source == "ohyeh/agent-scripts" and $r[.key] != null
+           and $r[.key].skillFolderHash != .value.skillFolderHash)
+  | [.key, (.value.skillPath | sub("/SKILL.md$"; "")), .value.skillFolderHash] | @tsv' "$R")
+newer="$(printf '%s\n' $newer $stale | sort -u)"
+local_only="$(comm -23 <(printf '%s\n' $newer) <(printf '%s\n' $stale | sort -u))"
+
 if [ -z "$newer" ]; then echo "skills-lock: in sync with installed"; exit 0; fi
 if [ "${1:-}" = --check ]; then
-  echo "skills-lock: installed is newer than the lock for: $(echo $newer)"
+  [ -z "$stale" ] || echo "skills-lock: lock is stale (installed = repo tree) for:$stale"
+  [ -z "$local_only" ] || echo "skills-lock: installed is newer than the lock for: $(echo $local_only)"
   exit 1
 fi
 
