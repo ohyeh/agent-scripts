@@ -175,7 +175,8 @@ def main():
         action="append",
         help="Context-mode sessions directory. Can be passed multiple times.",
     )
-    parser.add_argument("--limit", type=int, default=20)
+    # Default: every row. A retro read the top 20 as the whole list (W42 TL;DR 7, W43-4).
+    parser.add_argument("--limit", type=int, default=None, help="Rows per table (default: all)")
     parser.add_argument("--project", help="Substring filter for project_dir")
     parser.add_argument("--agent", choices=["all", "codex", "claude", "unknown"], default="all")
     parser.add_argument("--sessions", action="store_true", help="Print per-session rows")

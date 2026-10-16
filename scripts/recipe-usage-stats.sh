@@ -8,6 +8,8 @@
 # Usage: scripts/recipe-usage-stats.sh <recipe-name> [workflow-dir] [stats-file]
 #   workflow-dir default: .workflow
 #   stats-file   default: evals/recipe-usage-stats.json
+#   RECIPE_SINCE=YYYY-MM-DD  window start (default: 7 days ago); only run-dir files
+#                changed since then count, so an old run never hides a zero week (W43-4)
 set -euo pipefail
 
 recipe="${1:?usage: recipe-usage-stats.sh <recipe-name> [workflow-dir] [stats-file]}"
@@ -17,9 +19,10 @@ stats_file="${3:-evals/recipe-usage-stats.json}"
 command -v jq >/dev/null 2>&1 || { echo "FAIL [recipe-usage-stats] jq required" >&2; exit 1; }
 
 week="$(date -u '+%G-W%V')"
+since="${RECIPE_SINCE:-$(date -u -v-7d +%F 2>/dev/null || date -u -d '7 days ago' +%F)}"
 uses=0
 if [ -d "$workflow_dir" ]; then
-  uses="$( (grep -rl -F -- "$recipe" "$workflow_dir" 2>/dev/null || true) | wc -l | tr -d ' ')"
+  uses="$( (find "$workflow_dir" -type f -newermt "$since" -exec grep -l -F -- "$recipe" {} + 2>/dev/null || true) | wc -l | tr -d ' ')"
 fi
 
 [ -f "$stats_file" ] || echo '{}' > "$stats_file"

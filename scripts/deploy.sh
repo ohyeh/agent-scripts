@@ -187,7 +187,7 @@ layer0_tests=(
   test-review-dispatch-gate.sh test-workflow-agent-cap.sh
   test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate
-  test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-docs-audit-ownership test-behavior-runner
+  test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-recipe-usage-stats.sh test-docs-audit-ownership test-behavior-runner
   test-consensus-gate-ladder test-plan-pipeline-ladder
   test-feature-plan-consensus-ladder test-review-gate-smoke.mjs
 )
