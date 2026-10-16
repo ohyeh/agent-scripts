@@ -50,6 +50,8 @@
 #   8. agents   - global/agents/<runtime>/ -> that runtime's agent dir
 #                 (claude -> ~/.claude/agents, codex -> ~/.codex/agents),
 #                 rsync --delete + diff, only for sub-dirs present in the repo.
+#   8b. mods    - scripts/sync-mods.sh: an installed mod of this repo behind the
+#                 release marketplace version is updated (never newly installed).
 #   9. codex-cu - installs codex-cu-mcp + codex-cu-proxy into ~/.local/bin and
 #                 registers "codex-cu" at USER scope (Claude/Cursor/agy), so
 #                 Codex computer use works in every project with no per-repo
@@ -185,7 +187,7 @@ layer0_tests=(
   test-review-dispatch-gate.sh test-workflow-agent-cap.sh
   test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate
-  test-context-mode-dir.sh test-sync-skills-lock.sh test-docs-audit-ownership test-behavior-runner
+  test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-docs-audit-ownership test-behavior-runner
   test-consensus-gate-ladder test-plan-pipeline-ladder
   test-feature-plan-consensus-ladder test-review-gate-smoke.mjs
 )
@@ -694,6 +696,11 @@ for rt in claude codex; do
   agents_report="$agents_report $rt=$(find "$src" -type f | wc -l | tr -d ' ')"
 done
 echo "PASS [agents] 0 diff (${agents_report# })"
+
+# --- Layer 8b: mods (this repo's Claude Code plugins at the release version) ----
+echo "==> [mods] installed agent-scripts plugins vs the release marketplace"
+if [ "$CHECK" = 1 ]; then bash "$SRC/scripts/sync-mods.sh" --check
+else bash "$SRC/scripts/sync-mods.sh"; fi
 
 # W35 retro F2: a per-host deploy record, so a retro can window "after both
 # hosts ran version X" instead of comparing hosts on different gate versions.
