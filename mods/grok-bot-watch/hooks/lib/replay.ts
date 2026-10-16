@@ -8,8 +8,8 @@ export function classify(events: Event[]) {
   const gone = new Set<string>() // `${bot}#${gen}` unwatched
   for (const e of events) {
     if (e.ev === 'watch') {
+      // keep the last hash: a re-watch is not work, so the same reply after it is still re-sent (W43-5)
       if (e.prior) out.rewatch[e.via ?? '?'] = (out.rewatch[e.via ?? '?'] ?? 0) + 1
-      last.delete(e.bot)
     } else if (e.ev === 'armed') {
       const l = last.get(e.bot)
       if (l) l.armed = true

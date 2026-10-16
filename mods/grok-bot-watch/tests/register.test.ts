@@ -1388,6 +1388,10 @@ describe('event log (W42-8)', () => {
     // The defect the replay exists to catch: the same hash twice with no work between.
     const resent = [...log.slice(0, 3), log[2]]
     expect(classify(resent).resent).toBe(1)
+    // A re-watch is not work: the same reply woken again across two re-watches is re-sent twice (W43-5).
+    const wake = log[2]
+    const rewatched = [log[0], log[1], wake, log[5], wake, log[5], wake]
+    expect(classify(rewatched).resent).toBe(2)
   })
 
   test('a log that cannot be written never stops a wake', async ($, on) => {
