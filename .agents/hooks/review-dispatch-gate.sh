@@ -15,13 +15,14 @@
 #   assign, previous reviewer PASS, commits still unpushed, no `BATCH:`  -> deny (batch question)
 #   tell to a review worker with >= 3 rounds and no PASS                 -> deny (round cap)
 # Every deny is a question the agent answers; the answer line is what lets the call through.
-# Not covered: in-process Agent reviewers, reviewers across sessions, whether a review is needed.
+#   Agent, previous Agent reviewer (same cwd, this transcript) BLOCK / no verdict -> deny, same answers (W43-22)
+# Not covered: reviewers across sessions, whether a review is needed.
 set -u
 
 IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
 TOOL="$(printf '%s' "$IN" | jq -r '.tool_name // empty')"
-case "$TOOL" in mcp__tmux-agent__assign|mcp__tmux-agent__tell) ;; *) exit 0;; esac
+case "$TOOL" in mcp__tmux-agent__assign|mcp__tmux-agent__tell|Agent) ;; *) exit 0;; esac
 SESSION_ID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
 [ -n "$SESSION_ID" ] || exit 0
 
@@ -61,6 +62,44 @@ log() {
     '{timestamp:$ts, tool:$tool, result:$result, dir:$dir, worker:$worker, round:$round, answer:$answer}' >> "$STATS_FILE"
 }
 line() { printf '%s' "$BRIEF" | grep -E -m1 "^[[:space:]]*$1:[[:space:]]*[^[:space:]]" | sed -E "s/^[[:space:]]*$1:[[:space:]]*//"; }
+
+# W43-22: in-process Agent reviewers (W42: 71, 27 shopping). State is this session's transcript: the
+# previous Agent review brief from the same cwd, and its verdict in the tool_result (foreground) or
+# the task-notification that names its tool-use id (background). A fix re-check is `SendMessage`
+# to that agent, which this gate never sees. Same answers as the tmux path; no batch question.
+if [ "$TOOL" = Agent ]; then
+  BRIEF="$(printf '%s' "$IN" | jq -r '.tool_input.prompt // empty')"
+  printf '%s' "$BRIEF" | is_review || exit 0
+  TR="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
+  CWD="$(printf '%s' "$IN" | jq -r '.cwd // empty')"; CWD="${CWD%/}"
+  [ -f "$TR" ] || { log allow "$CWD" "" 0; exit 0; }
+  PID="$(jq -r --arg cwd "$CWD" 'select(.type == "assistant" and ((.cwd // "") | rtrimstr("/")) == $cwd)
+    | .message.content[]? | select(.type == "tool_use" and .name == "Agent")
+    | select((.input.prompt // "") | test("VERDICT:\\s*`?PASS") and test("VERDICT:\\s*`?BLOCK")) | .id' "$TR" 2>/dev/null | tail -1)"
+  [ -n "$PID" ] || { log allow "$CWD" "" 0; exit 0; }
+  PV="$(grep -F "$PID" "$TR" | grep -v '"type":"assistant"' | grep -oE 'VERDICT:[[:space:]]*`?(PASS|BLOCK)' | tail -1 | grep -oE 'PASS|BLOCK')"
+  PV="${PV:-NONE}"; PN="agent ${PID: -8}"
+  if [ "$PV" = NONE ]; then
+    ANS="$(line REDISPATCH)"; [ -n "$ANS" ] || ANS="$(line PARALLEL)"
+    [ -n "$ANS" ] || ANS="$(line LAYER)"; [ -n "$ANS" ] || ANS="$(line 'NEW SCOPE')"
+    if [ -z "$ANS" ]; then
+      log no-verdict "$CWD" "$PN" 1
+      echo "BLOCKED (reviewer without a verdict): the previous Agent reviewer here ($PN) has no verdict yet. Ask yourself: is it still running? Then wait for its notification. Did it end without a verdict? Then add a line \`REDISPATCH: <why it did not finish>\`. A planned parallel seat takes \`PARALLEL: <layer or role>\`; an unrelated scope \`NEW SCOPE: <what>\`." >&2
+      exit 2
+    fi
+    log allow-answered "$CWD" "$PN" 1 "$ANS"; exit 0
+  fi
+  if [ "$PV" = BLOCK ]; then
+    ANS="$(line LAYER)"; [ -n "$ANS" ] || ANS="$(line 'NEW SCOPE')"
+    if [ -z "$ANS" ]; then
+      log shopping "$CWD" "$PN" 1
+      echo "BLOCKED (reviewer shopping): the previous Agent reviewer here ($PN) returned VERDICT: BLOCK. Ask yourself: why a new reviewer? A fix re-check goes back to the same reviewer: \`SendMessage\` to that agent (judgment-rubrics §4). If you escalate a layer, add a line \`LAYER: <L2|L3> — <reason>\`; if this is a new, unrelated scope, add \`NEW SCOPE: <what>\`." >&2
+      exit 2
+    fi
+    log allow-answered "$CWD" "$PN" 1 "$ANS"; exit 0
+  fi
+  log allow "$CWD" "$PN" 0; exit 0
+fi
 
 if [ "$TOOL" = "mcp__tmux-agent__tell" ]; then
   NAME="$(printf '%s' "$IN" | jq -r '.tool_input.name // empty')"

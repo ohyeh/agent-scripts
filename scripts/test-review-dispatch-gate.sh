@@ -123,9 +123,35 @@ t "pending round 3, root BLOCK: no verdict" 2 "$(assign "$T/pushed" "$REV")"
 grep -q 'reviewer without a verdict' "$T/err" && echo "ok   pending round reads as no verdict (BLOCK root)" || { echo "FAIL pending round reads as no verdict (BLOCK root)"; fail=1; }
 t "pending round 3: tell hits the cap"  2 "$(tell r1.aaaaa)"
 
+# W43-22: Agent tool reviewers, state from the session transcript
+TR="$T/tr.jsonl"
+agent() { jq -cn --arg s "$S" --arg t "$TR" --arg c "${2:-/w}" --arg p "$1" '{tool_name:"Agent",session_id:$s,transcript_path:$t,cwd:$c,tool_input:{description:"r",prompt:$p}}'; }
+use() { jq -cn --arg id "$1" --arg c "${3:-/w}" --arg p "${2:-$REV}" '{type:"assistant",cwd:$c,message:{content:[{type:"tool_use",id:$id,name:"Agent",input:{prompt:$p}}]}}'; }
+res() { jq -cn --arg id "$1" --arg x "$2" '{type:"user",message:{content:[{type:"tool_result",tool_use_id:$id,content:$x}]}}'; }
+note() { jq -cn --arg x "<task-notification><tool-use-id>$1</tool-use-id><result>$2</result></task-notification>" '{type:"user",message:{content:$x}}'; }
+: > "$TR"
+t "agent: first review"                 0 "$(agent "$REV")"
+{ use toolu_A; res toolu_A 'findings… VERDICT: BLOCK'; } > "$TR"
+t "agent: BLOCK then new reviewer"      2 "$(agent "$REV")"
+grep -q 'SendMessage' "$T/err" && echo "ok   agent shopping names SendMessage" || { echo "FAIL agent shopping names SendMessage"; fail=1; }
+t "agent: BLOCK + LAYER line"           0 "$(agent "$REV
+LAYER: L3 — sol and fable disagree")"
+t "agent: BLOCK + NEW SCOPE line"       0 "$(agent "$REV
+NEW SCOPE: the docs, not the hook")"
+t "agent: BLOCK, other cwd"             0 "$(agent "$REV" /other)"
+t "agent: BLOCK, builder brief"         0 "$(agent 'GOAL: implement the fix')"
+{ use toolu_B; res toolu_B 'Async agent launched successfully.'; note toolu_B 'all good VERDICT: PASS'; } > "$TR"
+t "agent: background PASS (notification)" 0 "$(agent "$REV")"
+{ use toolu_C; res toolu_C 'Async agent launched successfully.'; } > "$TR"
+t "agent: no verdict yet"               2 "$(agent "$REV")"
+t "agent: no verdict + REDISPATCH"      0 "$(agent "$REV
+REDISPATCH: it hit the turn limit")"
+{ use toolu_D; res toolu_D 'VERDICT: BLOCK'; use toolu_E; res toolu_E 'VERDICT: PASS'; } > "$TR"
+t "agent: latest reviewer PASS"         0 "$(agent "$REV")"
+
 n="$(jq -r 'select(.result=="shopping")' "$T/data/agent-hooks/review-dispatch-stats.jsonl" | grep -c timestamp)"
 [ "$n" -ge 1 ] && echo "ok   stats records shopping ($n)" || { echo "FAIL stats records shopping"; fail=1; }
-jq -e 'select(.result=="allow-answered") | .answer | test("D1-D3")' "$T/data/agent-hooks/review-dispatch-stats.jsonl" >/dev/null \
+jq -se '[.[] | select(.result=="allow-answered") | .answer | test("D1-D3")] | any' "$T/data/agent-hooks/review-dispatch-stats.jsonl" >/dev/null \
   && echo "ok   stats keeps the BATCH answer" || { echo "FAIL stats keeps the BATCH answer"; fail=1; }
 bash -n "$H" && echo "ok   bash -n"
 exit $fail

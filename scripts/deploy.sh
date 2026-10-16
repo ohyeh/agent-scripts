@@ -482,7 +482,10 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "Bash"; $audit)
   | ensureMatched("PreToolUse"; "Bash"; $device)
   | ensureMatched("PreToolUse"; "Bash"; $assignhost)
-  | ensureMatched("PreToolUse"; "mcp__tmux-agent__assign|mcp__tmux-agent__tell"; $review)
+  | ensureMatched("PreToolUse"; "mcp__tmux-agent__assign|mcp__tmux-agent__tell|Agent"; $review)
+  # W43-22 widened the matcher; ensureMatched keeps an existing entry as is, so move it in place
+  | .hooks.PreToolUse |= map(if any(.hooks[]?; .command == ($only + " " + $review))
+      then .matcher = "mcp__tmux-agent__assign|mcp__tmux-agent__tell|Agent" else . end)
   | ensureMatched("PreToolUse"; "Workflow"; $wfcap)
   | ensureMatched("SubagentStart"; "workflow-subagent"; $wfcap)
   | ensureMatched("PreToolUse"; "Bash"; $rmhome)
