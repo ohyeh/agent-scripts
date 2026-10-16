@@ -10,17 +10,22 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MP="$ROOT/.claude-plugin/marketplace.json"
 IP="$HOME/.claude/plugins/installed_plugins.json"
-have() { jq -r --arg k "$1@agent-scripts" '.plugins[$k][0].version // empty' "$IP" 2>/dev/null || true; }
+have() { jq -r --arg k "$1@agent-scripts" '.plugins[$k][0].version // empty' "$IP"; }
+# A registered version is not an install: the files must be at installPath.
+files() { [ -f "$(jq -r --arg k "$1@agent-scripts" '.plugins[$k][0].installPath // empty' "$IP")/.claude-plugin/plugin.json" ]; }
 
 [ -f "$IP" ] || { echo "SKIP [mods] no Claude plugin registry at $IP"; exit 0; }
-report="" behind=""
+jq empty "$IP" 2>/dev/null || { echo "FAIL [mods] $IP is not valid JSON" >&2; exit 1; }
+report="" behind="" broken=""
 while IFS=$'\t' read -r name want; do
   h="$(have "$name")"
   if [ -z "$h" ]; then report="$report $name=not-installed"
-  elif [ "$h" = "$want" ]; then report="$report $name=$h"
-  else behind="$behind $name($h->$want)"; fi
+  elif [ "$h" != "$want" ]; then behind="$behind $name($h->$want)"
+  elif files "$name"; then report="$report $name=$h"
+  else broken="$broken $name"; fi
 done < <(jq -r '.plugins[] | [.name, .version] | @tsv' "$MP")
 
+[ -z "$broken" ] || { echo "FAIL [mods] registered but no plugin.json at installPath:$broken — reinstall: claude plugin install <name>@agent-scripts" >&2; exit 1; }
 if [ -z "$behind" ]; then echo "PASS [mods]$report"; exit 0; fi
 if [ "${1:-}" = --check ]; then echo "FAIL [mods] behind the release:$behind; deploy updates them" >&2; exit 1; fi
 command -v claude >/dev/null || { echo "FAIL [mods] behind:$behind and no claude CLI to update them" >&2; exit 1; }
@@ -32,7 +37,7 @@ done
 # re-read: the update must have landed at the release version (restart loads it)
 still=""
 while IFS=$'\t' read -r name want; do
-  h="$(have "$name")"; [ -z "$h" ] || [ "$h" = "$want" ] || still="$still $name($h->$want)"
+  h="$(have "$name")"; [ -z "$h" ] || { [ "$h" = "$want" ] && files "$name"; } || still="$still $name($h->$want)"
 done < <(jq -r '.plugins[] | [.name, .version] | @tsv' "$MP")
 [ -z "$still" ] || { echo "FAIL [mods] still behind after update:$still" >&2; exit 1; }
 echo "PASS [mods] updated:$behind (a new session loads them)"

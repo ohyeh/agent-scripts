@@ -254,13 +254,20 @@ manifest=~/.claude/workflows/.using-workflows-managed-files
 seed "$manifest" "" workflows   # bootstrap: empty manifest on a fresh machine
 w bash "$SRC/skills/using-workflows/scripts/install.sh" --previous-manifest "$manifest" --force
 [ -d ~/.claude/workflows ] || { echo "FAIL [workflows] ~/.claude/workflows missing" >&2; exit 1; }
-deployed_hash="$(cd ~/.claude/workflows && shasum -a 256 *.workflow.js | shasum -a 256)"
-repo_hash="$(cd "$SRC/skills/using-workflows/workflows" && shasum -a 256 *.workflow.js | shasum -a 256)"
-if [ "$deployed_hash" != "$repo_hash" ]; then
-  echo "FAIL [workflows] aggregate hash mismatch: deployed=$deployed_hash repo=$repo_hash" >&2
+# The installer's fixpoint: manifest = the shipped file set, and each shipped file byte-equal.
+# User files outside the manifest are not ours to check.
+wsrc="$SRC/skills/using-workflows/workflows"
+shipped="$(cd "$wsrc" && find . -type f | sed 's#^\./##' | LC_ALL=C sort -u)"
+if [ "$shipped" != "$(LC_ALL=C sort -u "$manifest")" ]; then
+  echo "FAIL [workflows] $manifest is not the shipped file set; deploy rewrites it" >&2
   exit 1
 fi
-echo "PASS [workflows] aggregate hash match ($deployed_hash)"
+wf_diff="$(while IFS= read -r rel; do cmp -s "$wsrc/$rel" ~/.claude/workflows/"$rel" || printf ' %s' "$rel"; done <<<"$shipped")"
+if [ -n "$wf_diff" ]; then
+  echo "FAIL [workflows] missing or different from the release:$wf_diff" >&2
+  exit 1
+fi
+echo "PASS [workflows] $(wc -l <<<"$shipped" | tr -d ' ') managed files match the release"
 
 # --- Layer 4: skills -----------------------------------------------------------
 echo "==> [skills] restoring skills-lock.json via npx skills experimental_install"
@@ -294,6 +301,22 @@ if [ ! -d ~/.agents/skills ]; then
   echo "FAIL [skills] ~/.agents/skills does not exist after restore" >&2
   exit 1
 fi
+# The lock says what must be installed; check each payload, not only the registry.
+# skillFolderHash is the upstream git tree of the skill folder. A root-level skill
+# (skillPath SKILL.md) hashes the whole upstream repo, which the CLI does not copy
+# in full: for those only SKILL.md is checked.
+folder_tree() { local g; g="$(mktemp -d)"; git init -q "$g"; printf '__pycache__/\n*.pyc\n.DS_Store\n' > "$g/ex"  # run-time litter
+  git --git-dir="$g/.git" --work-tree="$1" -c core.excludesFile="$g/ex" add -A . && git --git-dir="$g/.git" write-tree; rm -rf "$g"; }
+skills_missing="" skills_differ=""
+while IFS=$'\t' read -r k sp h; do
+  d="$HOME/.agents/skills/$k"
+  if [ ! -f "$d/SKILL.md" ]; then skills_missing="$skills_missing $k"; continue; fi
+  case "$sp" in */*) [ "$(folder_tree "$d")" = "$h" ] || skills_differ="$skills_differ $k";; esac
+done < <(jq -r '.skills | to_entries[] | [.key, .value.skillPath, .value.skillFolderHash] | @tsv' "$SRC/skills-lock.json")
+if [ -n "$skills_missing$skills_differ" ]; then
+  echo "FAIL [skills] not installed:${skills_missing:- none}; content differs from the pin:${skills_differ:- none} — deploy runs the installer; if a folder stays, remove it and deploy again" >&2
+  exit 1
+fi
 
 # `experimental_install` adds/updates the lock roster but retains removed
 # skills. Reconcile the managed directory so every deployment converges.
@@ -315,7 +338,7 @@ if [ -n "$unexpected_skills" ]; then
   echo "FAIL [skills] stale managed skills remain: $unexpected_skills" >&2
   exit 1
 fi
-echo "PASS [skills] installed lock = release lock; removed $removed_skills stale skill(s)"
+echo "PASS [skills] installed lock = release lock; every locked skill installed at its pin; removed $removed_skills stale skill(s)"
 
 # Claude Code reads ~/.claude/skills. Fleet layout: ONE directory symlink
 # ~/.claude/skills -> ../.agents/skills (no per-skill links). Issue #5 came from a

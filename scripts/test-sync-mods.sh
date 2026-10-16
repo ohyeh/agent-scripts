@@ -12,13 +12,16 @@ mkdir -p "$T/tree/scripts" "$T/tree/.claude-plugin" "$T/hm/.claude/plugins" "$T/
 cp scripts/sync-mods.sh "$T/tree/scripts/"
 echo '{"plugins":[{"name":"m1","version":"0.13.0"},{"name":"m2","version":"1.0.0"}]}' > "$T/tree/.claude-plugin/marketplace.json"
 IP="$T/hm/.claude/plugins/installed_plugins.json"
-reg() { printf '{"plugins":{"m1@agent-scripts":[{"version":"%s"}]}}' "$1" > "$IP"; }
+# a registered install: the version plus plugin.json at its installPath
+reg() { mkdir -p "$T/hm/cache/m1/$1/.claude-plugin"; : > "$T/hm/cache/m1/$1/.claude-plugin/plugin.json"
+  printf '{"plugins":{"m1@agent-scripts":[{"version":"%s","installPath":"%s"}]}}' "$1" "$T/hm/cache/m1/$1" > "$IP"; }
 # fake CLI: `plugin update m1@agent-scripts` moves m1 to $LANDS (the release, or not)
 cat > "$T/bin/claude" <<'SH'
 #!/usr/bin/env bash
 echo "$*" >> "$CALLS"
 if [ "$2" = update ] && [ "$3" = m1@agent-scripts ]; then
-  printf '{"plugins":{"m1@agent-scripts":[{"version":"%s"}]}}' "$LANDS" > "$HOME/.claude/plugins/installed_plugins.json"
+  d="$HOME/cache/m1/$LANDS"; mkdir -p "$d/.claude-plugin"; : > "$d/.claude-plugin/plugin.json"
+  printf '{"plugins":{"m1@agent-scripts":[{"version":"%s","installPath":"%s"}]}}' "$LANDS" "$d" > "$HOME/.claude/plugins/installed_plugins.json"
 fi
 SH
 chmod +x "$T/bin/claude"
@@ -41,5 +44,16 @@ reg 0.12.1
 if out="$(LANDS=0.12.1 run)"; then bad "update that does not land: exit 0 ($out)"
 elif grep -q 'still behind after update: m1' <<<"$out"; then ok "update that does not land: exit 1"
 else bad "no-land: $out"; fi
+
+# sol W43 review F5: a broken registry or a registered install with no files must not PASS
+echo '{"plugins":' > "$IP"
+if out="$(run --check)"; then bad "malformed registry: exit 0 ($out)"
+elif grep -q 'not valid JSON' <<<"$out"; then ok "malformed registry: exit 1"
+else bad "malformed registry: $out"; fi
+
+reg 0.13.0; rm -rf "$T/hm/cache/m1/0.13.0"
+if out="$(run --check)"; then bad "installPath gone: exit 0 ($out)"
+elif grep -q 'no plugin.json at installPath: m1' <<<"$out"; then ok "installPath gone: exit 1, names it"
+else bad "installPath gone: $out"; fi
 
 exit "$fail"

@@ -35,10 +35,13 @@ else
   # Throwaway HOME + TMPDIR, env -i: the hook's self-heal rewrites <HOME>/.claude/plugins/
   # installed_plugins.json whenever $TMPDIR/context-mode-healed-<ver> is absent (W43-7, macmini
   # 10-15), and an exported CONTEXT_MODE_DIR would point its session store at the real one.
-  iso="$(mktemp -d)"; mkdir -p "$iso/tmp"
+  # The self-heal also copies its own folder to a sibling found from the script's real path
+  # (sol W43 review F1), so the probe runs a throwaway copy of the plugin, same folder name.
+  iso="$(mktemp -d)"; mkdir -p "$iso/tmp" "$iso/cache"
+  copy="$iso/cache/$(basename "$root")"
   set +e
-  printf '%s' "$probe" | env -i PATH="$PATH" HOME="$iso" TMPDIR="$iso/tmp" CLAUDE_PLUGIN_ROOT="$root" \
-    perl -e 'alarm 30; exec @ARGV' bash -c "$cmd" >/dev/null 2>&1
+  cp -R "$root" "$copy" && printf '%s' "$probe" | env -i PATH="$PATH" HOME="$iso" TMPDIR="$iso/tmp" CLAUDE_PLUGIN_ROOT="$copy" \
+    perl -e 'alarm 30; exec @ARGV' bash -c "${cmd//"$root"/$copy}" >/dev/null 2>&1
   rc=$?
   set -e
   rm -rf "$iso"
