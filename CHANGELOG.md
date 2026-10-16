@@ -1,5 +1,9 @@
 # Changelog
 
+## scrub.sh default evidence dir 2026-10-16
+
+`scripts/scrub.sh` with no `EVIDENCE_DIR` now makes a fresh `mktemp -d` outside the repo and prints `EVIDENCE_DIR=<path>` on stderr, instead of exit 1 before any scan. The same omission happened in two sessions (W42, W43). An evidence dir inside the repo still BLOCKs. Checked in a fresh clone: no args → `VERDICT: PASS` exit 0; `./ev-in` → exit 1.
+
 ## review-dispatch-gate 2026-10-16
 
 New PreToolUse hook on `mcp__tmux-agent__assign` and `mcp__tmux-agent__tell` (owner: 「目前的確有審查氾濫＋reviewer shopping」; 「是否可以累積多一點有效率一起審 … 讓他們反問自己」). It enforces rules that already exist (judgment-rubrics §4 no reviewer shopping; model-dispatch §Review ladder: L2 cap 3 rounds, one full ladder per push checkpoint). Each deny is a question; one answer line lets the call through.
