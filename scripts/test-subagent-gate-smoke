@@ -48,4 +48,42 @@ NESTED: allowed"; [ $? = 2 ] && ok "a subagent cannot authorize itself" || bad "
 nest s4 cursor-x "GOAL: g" SubagentStart; [ $? = 0 ] && ok "SubagentStart with agent_id (Cursor) is not nested" || bad "Cursor start blocked as nested"
 grep -c '"result":"nested"' "$XDG_DATA_HOME/agent-hooks/bol-prompt-stats.jsonl" | grep -qx 2 && ok "nested denies logged as result=nested" || bad "nested stat count wrong"
 
+unset BOL_CONCURRENCY_PENDING_TTL
+
+# 7. W43-2 ①: an empty ts (holder between mkdir and write) is waited on, not taken over
+L="$T/lk"; mkdir -p "$L/.lock"; : > "$L/.lock/ts"
+( . "$H/subagent-lock.sh"; ledger_lock "$L" ) & p=$!; sleep 1
+if kill -0 "$p" 2>/dev/null; then ok "empty ts: second locker waits"; kill "$p" 2>/dev/null; else bad "empty ts: second locker took the lock at once"; fi
+wait "$p" 2>/dev/null
+
+# 8. W43-2 ② (evidence-w42-1): a start that cannot get the lock still consumes its pending
+for i in 1 2 3; do gate s5; done
+mkdir -p "$XDG_STATE_HOME/agent-hooks/s5/.lock"; date +%s > "$XDG_STATE_HOME/agent-hooks/s5/.lock/ts"   # live holder
+for i in 1 2 3; do ledger SubagentStart s5 b$i 2>/dev/null & done; wait
+rm -rf "$XDG_STATE_HOME/agent-hooks/s5/.lock"
+[ "$(count s5 pending)" = 0 ] && [ "$(count s5 subagents)" = 3 ] && ok "lock busy at start: pending 0, live 3" || bad "lock busy at start: pending=$(count s5 pending) live=$(count s5 subagents)"
+gate s5; [ $? = 0 ] && ok "4th call in one message (cap 5) passes" || bad "4th call in one message blocked"
+
+# 9. four dispatched, four started, four stopped -> nothing left
+for i in 1 2 3 4; do gate s6; done
+for i in 1 2 3 4; do ledger SubagentStart s6 c$i; done
+gate s6; [ $? = 0 ] && ok "5th call with 4 live passes" || bad "5th call with 4 live blocked"
+ledger SubagentStart s6 c5
+for i in 1 2 3 4 5; do ledger SubagentStop s6 c$i; done
+[ "$(count s6 pending)" = 0 ] && [ "$(count s6 subagents)" = 0 ] && ok "all stopped: live 0, pending 0" || bad "all stopped: live=$(count s6 subagents) pending=$(count s6 pending)"
+
+# 10. six concurrent calls, repeated: exactly one blocked every time
+n="${SMOKE_REPEAT:-100}"; badrun=0
+for r in $(seq "$n"); do
+  for i in 1 2 3 4 5 6; do ( gate "r$r"; echo $? > "$T/rr$i" ) & done; wait
+  [ "$(cat "$T"/rr* | grep -c '^2$')" = 1 ] || badrun=$((badrun + 1))
+done
+[ "$badrun" = 0 ] && ok "6 concurrent x$n: exactly 1 blocked each time" || bad "6 concurrent x$n: $badrun runs not exactly 1 blocked"
+
+# 11. a new process (startup/resume/clear) clears the dead process's markers; compact keeps them
+ss() { printf '{"hook_event_name":"SessionStart","session_id":"%s","source":"%s"}' "$1" "$2" | bash "$H/subagent-ledger.sh"; }
+gate s7; ledger SubagentStart s7 d1; gate s7
+ss s7 compact; [ "$(count s7 subagents)" = 1 ] && [ "$(count s7 pending)" = 1 ] && ok "compact keeps live and pending" || bad "compact cleared the ledger"
+ss s7 resume; [ "$(count s7 subagents)" = 0 ] && [ "$(count s7 pending)" = 0 ] && ok "resume clears live and pending" || bad "resume left live=$(count s7 subagents) pending=$(count s7 pending)"
+
 [ "$fail" = 0 ] && echo "PASS subagent-gate-smoke" || { echo "FAIL subagent-gate-smoke"; exit 1; }
