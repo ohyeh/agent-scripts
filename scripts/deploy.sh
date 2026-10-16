@@ -274,7 +274,7 @@ if ! drift="$(bash "$SRC/scripts/sync-skills-lock.sh" --check)"; then
 fi
 if [ "$CHECK" = 0 ]; then
 cp "$SRC/skills-lock.json" ~/skills-lock.json
-( cd ~ && npx -y skills experimental_install )
+( cd ~ && npx -y skills@1.7.2 experimental_install )   # pinned CLI (AGENTS.md); bump on purpose
 rm -f ~/skills-lock.json
 fi
 # experimental_install installs the folders but leaves ~/.agents/.skill-lock.json

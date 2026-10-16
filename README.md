@@ -68,7 +68,7 @@ to the cwd**, so run it from `$HOME` for a global install:
 ```sh
 cd ~
 curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/skills-lock.json -o skills-lock.json
-npx -y skills experimental_install
+npx -y skills@1.7.2 experimental_install
 rm skills-lock.json
 ```
 

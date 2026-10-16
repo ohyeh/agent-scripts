@@ -70,6 +70,14 @@ const shimHits = readdirSync(join(ROOT, '.agents/hooks')).filter((f) => f.endsWi
   .map(([f, n]) => `${f}:${n}`);
 check('hooks-no-shim-exec', shimHits.length === 0, shimHits.join(', ') || 'clean');
 
+// 4d. the skills CLI is pinned (AGENTS.md "pinned CLI version"): an unpinned `npx skills`
+// installs whatever upstream shipped today on every host (motions 2026-10-15 #12).
+const unpinned = ['scripts/deploy.sh', 'README.md']
+  .flatMap((f) => read(f).split('\n').map((l, i) => [f, i + 1, l]))
+  .filter(([, , l]) => /npx\s+(-y|--yes)\s+skills(?!@\d)\b/.test(l))   // the run form; prose says `npx skills`
+  .map(([f, n]) => `${f}:${n}`);
+check('skills-cli-pinned', unpinned.length === 0, unpinned.join(', ') || 'pinned');
+
 // 5. deploy content is pinned to the SHA resolved before download
 const deploy = read('scripts/deploy.sh');
 const resolveAt = deploy.indexOf('DEPLOYED_SHA="$(git ls-remote');
