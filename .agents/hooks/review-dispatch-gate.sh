@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# PreToolUse gate for review dispatch through the tmux-agent mod (W43, owner 2026-10-16:
+# 「目前的確有審查氾濫＋reviewer shopping」, 「能多檢查一個 是否可以累積多一點有效率一起審 … 讓他們反問自己」).
+# Rules it enforces already exist: judgment-rubrics §4 (no reviewer shopping: a fix re-check
+# goes back to the same reviewer) and model-dispatch §Review ladder (L2 cap 3 rounds; the full
+# ladder runs once per push checkpoint on the accumulated diff). W42 local data (review = brief names
+# both verdicts): 45 review workers, 35 ran one round; replayed in dispatch order, 16 of 45
+# dispatches followed a BLOCK reviewer with a fresh one and 5 followed a reviewer with no verdict (one target went astra → sol → fable → astra → fable).
+# Known limit: every tell counts as a round, a clarifying tell included.
+#
+# A review brief = a brief that names both `VERDICT: PASS` and `VERDICT: BLOCK` (delegation-templates §5).
+# Scope: workers this session dispatched (worker.json .owner == session_id) into the same dir.
+#   assign, previous reviewer BLOCK, no `LAYER:` / `NEW SCOPE:` line     -> deny (shopping)
+#   assign, previous reviewer has no verdict, no `REDISPATCH:` / `PARALLEL:` (or the two above) -> deny
+#   assign, previous reviewer PASS, commits still unpushed, no `BATCH:`  -> deny (batch question)
+#   tell to a review worker with >= 3 rounds and no PASS                 -> deny (round cap)
+# Every deny is a question the agent answers; the answer line is what lets the call through.
+# Not covered: in-process Agent reviewers, reviewers across sessions, whether a review is needed.
+set -u
+
+IN="$(cat)"
+command -v jq >/dev/null 2>&1 || exit 0
+TOOL="$(printf '%s' "$IN" | jq -r '.tool_name // empty')"
+case "$TOOL" in mcp__tmux-agent__assign|mcp__tmux-agent__tell) ;; *) exit 0;; esac
+SESSION_ID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
+[ -n "$SESSION_ID" ] || exit 0
+
+V3="${TMUX_AGENT_STATE_V3:-$HOME/.local/state/tmux-agent-tools/.v3}"
+CAP="${REVIEW_ROUND_CAP:-3}"
+DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"
+mkdir -p "$DATA_DIR"
+STATS_FILE="$DATA_DIR/review-dispatch-stats.jsonl"
+
+# both outcomes named: a builder brief that only relays "the review returned VERDICT: BLOCK" is not
+# a review (W42 replay: two builders matched a one-word pattern)
+is_review() { local b; b="$(cat)"; printf '%s' "$b" | grep -Eq 'VERDICT:[[:space:]]*`?PASS' && printf '%s' "$b" | grep -Eq 'VERDICT:[[:space:]]*`?BLOCK'; }
+# rounds = highest episode number; episode 1 keeps its result at the worker root
+rounds() {
+  local n=1 e
+  for e in "$1"/episodes/*; do
+    e="${e##*/}"; case "$e" in ''|*[!0-9]*) continue;; esac
+    [ "$e" -gt "$n" ] && n="$e"
+  done
+  echo "$n"
+}
+# verdict of the CURRENT round: PASS | BLOCK | NONE (round still running or no verdict) | ERR (unreadable)
+verdict() {
+  local n r out; n="$(rounds "$1")"; r="$1/episodes/$n/result.json"
+  # only round 1 may fall back to the root result; a later round without a result is still running
+  [ -f "$r" ] || { [ "$n" = 1 ] && r="$1/result.json"; }
+  [ -f "$r" ] || { echo NONE; return; }
+  # capture first: jq can print a verdict for a valid prefix and then fail on a truncated tail
+  out="$(jq -r '(.verdict // "" | tostring | ascii_upcase) as $v
+    | if $v == "PASS" or $v == "BLOCK" then $v
+      else ((.summary // "" | tostring) | capture("VERDICT:\\s*(?<v>PASS|BLOCK)").v // "NONE") end' "$r" 2>/dev/null)" || { echo ERR; return; }
+  case "$out" in PASS|BLOCK|NONE) echo "$out";; *) echo ERR;; esac   # several JSON values = not one result
+}
+log() {
+  jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg tool "$TOOL" --arg result "$1" \
+    --arg dir "$2" --arg worker "$3" --argjson round "${4:-0}" --arg answer "${5:-}" \
+    '{timestamp:$ts, tool:$tool, result:$result, dir:$dir, worker:$worker, round:$round, answer:$answer}' >> "$STATS_FILE"
+}
+line() { printf '%s' "$BRIEF" | grep -E -m1 "^[[:space:]]*$1:[[:space:]]*[^[:space:]]" | sed -E "s/^[[:space:]]*$1:[[:space:]]*//"; }
+
+if [ "$TOOL" = "mcp__tmux-agent__tell" ]; then
+  NAME="$(printf '%s' "$IN" | jq -r '.tool_input.name // empty')"
+  W="$V3/$NAME"
+  [ -n "$NAME" ] && [ -f "$W/brief.md" ] && is_review < "$W/brief.md" || exit 0
+  [ "$(jq -r '.owner // empty' "$W/worker.json" 2>/dev/null)" = "$SESSION_ID" ] || exit 0
+  D="$(jq -r '.dir // empty' "$W/worker.json" 2>/dev/null)"; D="${D%/}"
+  CWD="$(printf '%s' "$IN" | jq -r '.cwd // empty')"; CWD="${CWD%/}"
+  [ -z "$CWD" ] || [ "$CWD" = "$D" ] || exit 0   # same dir only
+  R="$(rounds "$W")"; V="$(verdict "$W")"
+  [ "$V" = ERR ] && { log error "$D" "$NAME" "$R"; exit 0; }   # unreadable result: never deny on it
+  if [ "$R" -ge "$CAP" ] && [ "$V" != "PASS" ]; then
+    log round-cap "$D" "$NAME" "$R"
+    echo "BLOCKED (review round cap): $NAME has run $R review rounds without PASS; the cap is $CAP (model-dispatch.md §Review ladder). Ask yourself: why does this not converge? Is the brief missing the owner-accepted risk or the scope contract? Call advisor, then either escalate with a new assign whose brief has \`LAYER: L3\`, or stop and report the open disagreement." >&2
+    exit 2
+  fi
+  log allow "$D" "$NAME" "$R"
+  exit 0
+fi
+
+BRIEF="$(printf '%s' "$IN" | jq -r '.tool_input.brief // empty')"
+DIR="$(printf '%s' "$IN" | jq -r '.tool_input.dir // empty')"; DIR="${DIR%/}"
+printf '%s' "$BRIEF" | is_review || exit 0
+
+# latest review worker this session sent into the same dir
+PREV="" PSINCE=0
+for wj in $(grep -lF "$SESSION_ID" "$V3"/*/worker.json 2>/dev/null); do
+  w="${wj%/worker.json}"
+  jq -e --arg s "$SESSION_ID" --arg d "$DIR" '.owner == $s and ((.dir // "") | rtrimstr("/")) == $d' "$wj" >/dev/null 2>&1 || continue
+  [ -f "$w/brief.md" ] && is_review < "$w/brief.md" || continue
+  t="$(jq -r '.since // 0' "$wj")"
+  [ "$t" -gt "$PSINCE" ] && { PSINCE="$t"; PREV="$w"; }
+done
+[ -n "$PREV" ] || { log allow "$DIR" "" 0; exit 0; }
+PN="${PREV##*/}"; PV="$(verdict "$PREV")"
+[ "$PV" = ERR ] && { log error "$DIR" "$PN" 0; exit 0; }   # unreadable result: never deny on it
+
+if [ "$PV" = "NONE" ]; then
+  # no verdict: still running, or exited without a report (2026-10-15: Sol r3 worker vanished)
+  ANS="$(line REDISPATCH)"; [ -n "$ANS" ] || ANS="$(line PARALLEL)"
+  [ -n "$ANS" ] || ANS="$(line LAYER)"; [ -n "$ANS" ] || ANS="$(line 'NEW SCOPE')"
+  if [ -z "$ANS" ]; then
+    log no-verdict "$DIR" "$PN" "$(rounds "$PREV")"
+    echo "BLOCKED (reviewer without a verdict): $PN reviewed this dir and has no verdict yet. Ask yourself: is it still working? Then wait for it or \`peek $PN\`. Did it exit without a report? Then add a line \`REDISPATCH: <why $PN did not finish>\`. Is this a planned parallel seat? Then add \`PARALLEL: <layer or role>\`. An unrelated scope takes \`NEW SCOPE: <what>\`." >&2
+    exit 2
+  fi
+  log allow-answered "$DIR" "$PN" "$(rounds "$PREV")" "$ANS"
+  exit 0
+fi
+if [ "$PV" != "PASS" ]; then
+  ANS="$(line LAYER)"; [ -n "$ANS" ] || ANS="$(line 'NEW SCOPE')"
+  if [ -z "$ANS" ]; then
+    log shopping "$DIR" "$PN" "$(rounds "$PREV")"
+    echo "BLOCKED (reviewer shopping): $PN reviewed this dir and has not returned PASS (last verdict: $PV). Ask yourself: why a new reviewer? A fix re-check goes back to the same reviewer: \`tell $PN\` (judgment-rubrics §4). If you escalate a layer, add a line \`LAYER: <L2|L3> — <reason>\`; if this is a new, unrelated scope, add \`NEW SCOPE: <what>\`." >&2
+    exit 2
+  fi
+  log allow-answered "$DIR" "$PN" "$(rounds "$PREV")" "$ANS"
+  exit 0
+fi
+
+# previous reviewer passed: could this wait and go with the next checkpoint?
+UNPUSHED="$(git -C "$DIR" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)"
+if [ "${UNPUSHED:-0}" -gt 0 ]; then
+  ANS="$(line BATCH)"
+  if [ -z "$ANS" ]; then
+    log batch-question "$DIR" "$PN" 0
+    echo "BLOCKED (batch question): $PN already passed work in this dir and $UNPUSHED commit(s) are not pushed yet. The ladder runs once per push checkpoint on the accumulated diff (model-dispatch.md §Review ladder). Ask yourself: can this change wait and be reviewed with the next checkpoint? Which similar unreviewed changes can go in the same review? If it cannot wait, why? Answer in one brief line \`BATCH: <what this review includes | why it cannot wait>\`." >&2
+    exit 2
+  fi
+  log allow-answered "$DIR" "$PN" 0 "$ANS"
+  exit 0
+fi
+log allow "$DIR" "$PN" 0
+exit 0

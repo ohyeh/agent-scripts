@@ -1,5 +1,16 @@
 # Changelog
 
+## review-dispatch-gate 2026-10-16
+
+New PreToolUse hook on `mcp__tmux-agent__assign` and `mcp__tmux-agent__tell` (owner: 「目前的確有審查氾濫＋reviewer shopping」; 「是否可以累積多一點有效率一起審 … 讓他們反問自己」). It enforces rules that already exist (judgment-rubrics §4 no reviewer shopping; model-dispatch §Review ladder: L2 cap 3 rounds, one full ladder per push checkpoint). Each deny is a question; one answer line lets the call through.
+
+- Shopping: a new reviewer in the same session and dir while the previous reviewer has not returned PASS (a stopped one counts) → `tell` it, or add `LAYER:` (escalation) or `NEW SCOPE:`.
+- Round cap: a `tell` to a reviewer that ran 3 rounds without PASS → advisor, then escalate with `LAYER: L3`, or stop and report.
+- Batch question: the previous reviewer passed and commits are still unpushed → answer `BATCH: <what this review includes | why it cannot wait>`.
+- A review brief names both `VERDICT: PASS` and `VERDICT: BLOCK`. Stats: `~/.local/share/agent-hooks/review-dispatch-stats.jsonl` (answers kept).
+- No verdict: the previous reviewer is still running or exited without a report → wait or `peek`, or add `REDISPATCH: <why>` or `PARALLEL: <seat>`.
+- Replay of this host's W42 workers in dispatch order: of 45 review dispatches, 16 followed a BLOCK reviewer with a fresh one (e.g. astra → sol → fable → astra → fable on one target) and 5 followed a reviewer with no verdict. Not covered: in-process Agent reviewers, other sessions, whether a review is needed. Known limit: every `tell` counts as a round.
+
 ## W43-6 / W43-9 / W43-10 rules 2026-10-16
 
 Agreed by sol (round 2 `VERDICT: PASS`) and advisor; kernel unchanged (4.36.0).

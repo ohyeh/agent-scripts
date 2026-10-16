@@ -151,6 +151,7 @@ echo "PASS [invariants] all checks green"
 # Budget: ~30s total on the operator host.
 layer0_tests=(
   test-rm-home-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
+  test-review-dispatch-gate.sh
   test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate
   test-context-mode-dir.sh test-docs-audit-ownership test-behavior-runner
@@ -331,6 +332,7 @@ hook_install "$SRC/.agents/hooks/artifact-title-gate.sh"
 hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/agents/claude/*.md frontmatter, not settings.json
 hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
 hook_install "$SRC/.agents/hooks/tmux-assign-host-gate.sh"
+hook_install "$SRC/.agents/hooks/review-dispatch-gate.sh"
 hook_install "$SRC/.agents/hooks/pr-create-gate.sh"
 hook_install "$SRC/.agents/hooks/rm-home-gate.sh"
 hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
@@ -362,6 +364,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
    --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
    --arg device "\"\$HOME/.agents/hooks/agent-device-target-gate.sh\"" \
    --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
+   --arg review "\"\$HOME/.agents/hooks/review-dispatch-gate.sh\"" \
    --arg rmhome "\"\$HOME/.agents/hooks/rm-home-gate.sh\"" \
    --arg prcreate "\"\$HOME/.agents/hooks/pr-create-gate.sh\"" \
    --arg recall "\"\$HOME/.agents/hooks/compaction-recall.sh\"" \
@@ -421,6 +424,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "Bash"; $audit)
   | ensureMatched("PreToolUse"; "Bash"; $device)
   | ensureMatched("PreToolUse"; "Bash"; $assignhost)
+  | ensureMatched("PreToolUse"; "mcp__tmux-agent__assign|mcp__tmux-agent__tell"; $review)
   | ensureMatched("PreToolUse"; "Bash"; $rmhome)
   | ensureMatched("PreToolUse"; "Bash"; $prcreate)
   | ensureMatched("PostToolUse"; "*"; $ledger)
@@ -552,7 +556,7 @@ if [ -d ~/.gemini/config ]; then
     Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$AGY_PLUGIN/hooks.json"
 fi
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate rm-home-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate rm-home-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1
