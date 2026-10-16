@@ -77,6 +77,10 @@ Pending fallback, not active until a §8 sweep passes: `opus` high / xhigh for b
 xhigh / max for better.
 
 - Pick an exec seat by the quota left (Claude Code, Codex, Cursor; agy is backup quota only).
+- Best tier (`fable`, `gpt-6-astra`, `gemini-4-argon`) needs the user's approval in the current
+  task, the review-ladder L2 seat included: ask once, then L2 runs as normal. A profile file on
+  disk is not approval; a best-tier seat never takes implementation (2026-10-16: astra ran
+  implement and used up the Codex quota that sol shares).
 - Sol, Luna, grok: one-shot output is suspect, 2–3 rounds may fix it; grok opinions carry low weight.
 
 ## §2 Delegate only when it buys leverage
@@ -176,7 +180,8 @@ user. There is no further layer, so a stuck gate cannot keep burning usage.
   2026-10-09 Codex step-up is withdrawn (user ruling 2026-10-16).
 - The user approved this roster on 2026-10-16. It answers the tmux-agent-tools §Safety
   "tool+model+effort per worker" question for ladder workers; a model or effort outside the
-  roster still asks.
+  roster still asks. Best-tier seats (`fable` / `gpt-6-astra` / `gemini-4-argon`) still ask
+  once per task (§1 Tiers), before the gate or recipe starts.
 - Measure per gate type: cost of the whole accepted task (every layer, fixer, L0, void round,
   advisor), latency, L2 rounds, and findings that escape the gate. Compare L1 on vs off under the
   same contracts and L0; W39–W41 (other models, no contracts) give direction only. When L1 does

@@ -1,5 +1,11 @@
 # Changelog
 
+## model-dispatch best tier needs approval 2026-10-16
+
+Owner 10-16: 「astra 濫用、亂用 害我 sol 用不了」; 「用 astra | fable | argon 要經過同意」; 「先問了 l2 也能正常用」.
+
+- **Best tier asks first**: `fable` / `gpt-6-astra` / `gemini-4-argon` need the user's approval once per task, the L2 seat included; ask before the gate or recipe starts. A profile file on disk is not approval. A best-tier seat never takes implementation. Cause: an implement run on astra used up the Codex quota that sol shares, and the next sol review hit `quota_exhausted`.
+
 ## model-dispatch tiers and review ladder 2026-10-16
 
 Owner 10-16: tiers decided on the hub model-tiers page, then 「可以 更新上去」.
