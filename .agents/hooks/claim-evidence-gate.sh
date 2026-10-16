@@ -12,13 +12,15 @@
 #       token (exit=N, N passed, N/M passed, PASS, DEPLOY OK, VERDICT: …)
 #       that a tool actually printed AFTER the last human prompt, as recorded
 #       by context-ledger.sh. A typed-from-memory "exit 0" matches nothing.
-#   negative claim  — stuck/failed/missing/no reply/卡住/失敗/缺少/沒有回覆/…
-#       Bound by corroboration: ≥2 tool calls after the last human prompt.
-#       One zero-hit search is the failure the absence rule exists to stop
-#       (lesson 2026-08-25). ponytail: counts calls, cannot prove the two
-#       channels differed; raise to channel-diversity if this gets gamed.
-#   not a claim     — reply labels itself unverified / UNCONFIRMED / attempted /
-#       not observed, or negates (not done yet / 尚未 / 還沒).
+#   negative claim  — stuck/failed/missing/no reply/not done/卡住/失敗/缺少/還沒/尚未/未完成/…
+#       Checked line by line, next to a positive claim too (W43-18). Each such
+#       line must name a subject (`code`, file name, W/Q id, #n, commit sha) that
+#       appears in a tool call or result after the last human prompt — two
+#       unrelated calls no longer carry a "not done" list. A transcript whose
+#       tool traffic is unreadable here (Codex, adapters) keeps the old bar:
+#       ≥2 tool calls (lesson 2026-08-25: one zero-hit search is not absence).
+#   not a claim     — a LINE labelled unverified / UNCONFIRMED / attempted /
+#       not observed; the label covers that line only, never the whole reply.
 #
 # Self-reference is stripped before matching (inline code, fenced blocks, 「」
 # quotes, and this gate's own reason text), so discussing the gate is not a
@@ -51,17 +53,27 @@ speech="$(printf '%s' "$last" \
   | sed -E 's/`[^`]*`//g; s/「[^」]*」//g' \
   | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告' )"
 
+# A self-label exempts its own line only (W43-18: one 「還沒」 or UNCONFIRMED used to exempt the
+# whole reply, so a reply could list "not done" items it never checked).
+LABEL_RE='unverified|UNCONFIRMED|attempted|not observed|未驗證|未觀測'
+speech="$(printf '%s\n' "$speech" | grep -Eiv "$LABEL_RE")"
+
 claim=""
 # Under LC_ALL=C grep is byte-wise: never put ?/*/+ right after a CJK char (it binds to its last byte); group it.
 case "$title" in ✅*) claim="positive";; esac
-if [ -z "$claim" ] && printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(done|fixed|verified|shipped|completed?|resolved|all green|tests? pass(ed|ing)?)([^a-z]|$)|(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|✅|VERDICT: *PASS'; then
+# "not done" / 未完成 are not completion claims: drop them before matching (未完成 contains 完成).
+if [ -z "$claim" ] && printf '%s' "$speech" | sed -E 's/not (yet )?(done|fixed|verified)//g; s/(尚未|還沒|未)(完成|修好|驗證|通過)//g' \
+   | grep -Eqi '(^|[^a-z])(done|fixed|verified|shipped|completed?|resolved|all green|tests? pass(ed|ing)?)([^a-z]|$)|(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|✅|VERDICT: *PASS'; then
   claim="positive"
 fi
-if [ -z "$claim" ] && printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(stuck|failed|missing|not implemented|no (reply|response)|never (reported|responded)|hung|dead)([^a-z]|$)|卡住|受阻|失敗|缺少|不存在|尚未實作|沒(有)?回(覆|應)|掛了'; then
-  claim="negative"
-fi
+# A "not done" state is a negative claim too (W43-18): 還沒/尚未/未完成 assert what is not there.
+NEG_RE='(^|[^a-z])(stuck|failed|missing|not implemented|not (yet )?(done|fixed|started)|no (reply|response)|never (reported|responded)|hung|dead)([^a-z]|$)|卡住|受阻|失敗|缺少|不存在|尚未|還沒|未完成|未開始|沒(有)?回(覆|應)|掛了'
+# Kept raw (code spans intact): a line's `code`, file, W-id or sha is the subject it must be bound to.
+negative_lines="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' \
+  | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告' | grep -Eiv "$LABEL_RE" \
+  | while IFS= read -r l; do printf '%s' "$l" | sed -E 's/`[^`]*`//g; s/「[^」]*」//g' | grep -Eqi "$NEG_RE" && printf '%s\n' "$l"; done)"
+[ -n "$claim" ] || [ -z "$negative_lines" ] || claim="negative"
 [ -n "$claim" ] || exit 0
-printf '%s' "$speech" | grep -Eqi 'unverified|UNCONFIRMED|attempted|not observed|not (yet )?(done|fixed|verified)|未驗證|未觀測|尚未|還沒|未完成' && exit 0
 
 csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
 MARKER="$STATE_DIR/claim-checked-$csha"
@@ -83,8 +95,8 @@ if [ "$claim" = "positive" ]; then
   mutating="$(printf '%s\n' "$window" | jq -r '.tool // empty' 2>/dev/null | grep -cE '^(Bash|Edit|Write|MultiEdit|NotebookEdit|apply_patch)$')"
   if [ "${mutating:-0}" -eq 0 ]; then
     jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "${SESSION_ID:-}" '{timestamp:$ts, claim:"positive", session:$sid, blocked:false, skipped:"no-mutating-tool"}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
-    exit 0
-  fi
+    [ -n "$negative_lines" ] || exit 0
+  else
   observed="$(printf '%s\n' "$window" | jq -r '.evidence[]? // empty' 2>/dev/null | sort -u)"
   quoted="$([ -x "$TOKENIZER" ] && printf '%s' "$last" | bash "$TOKENIZER")"
   if [ -z "$observed" ]; then
@@ -105,10 +117,33 @@ if [ "$claim" = "positive" ]; then
     done <<< "$stale"
   fi
   [ -n "$reason" ] && reason="Completion claim fails judgment-rubrics §2: $reason. Run the verification and quote its output verbatim, or downgrade to \"attempted, unverified\" (title ⏳)."
-else
-  if [ "${calls:-0}" -lt 2 ]; then
-    reason="Negative claim (stuck/failed/missing/no reply) rests on ${calls:-0} tool call(s) since the last user prompt at ${since}Z; the absence rule (judgment-rubrics §2) needs corroboration from a second channel before asserting absence — one miss is not absence. Check another channel (git diff --stat, mtimes, pane capture, varied pattern+tool) or say \"not observed\" and name the unchecked channel."
   fi
+fi
+
+if [ -n "$negative_lines" ]; then
+  # W43-18: each negative line is bound to its subject — a `code` span, file name, W/Q id, #n or
+  # commit sha in that line must appear in a tool call or result after the last human prompt.
+  # Counting calls let two unrelated calls carry any "not done" list. A transcript whose tool
+  # traffic this cannot read (Codex rollouts, adapter transcripts) keeps the call count.
+  traffic="$(jq -r --arg s "$since" 'select((.timestamp // "")[0:19] >= $s) | .message.content? | arrays | .[]
+    | select(.type == "tool_use" or .type == "tool_result")
+    | if .type == "tool_use" then (.input | tostring) else (.content | if type == "string" then . else tostring end) end' "$TRANSCRIPT" 2>/dev/null)"
+  neg_reason=""
+  if [ -z "$traffic" ]; then
+    [ "$claim" = negative ] && [ "${calls:-0}" -lt 2 ] && neg_reason="it rests on ${calls:-0} tool call(s) since the last user prompt at ${since}Z; one miss is not absence"
+  else
+    unbound=""
+    while IFS= read -r line; do
+      [ -n "$line" ] || continue
+      hit=""
+      while IFS= read -r k; do
+        [ -n "$k" ] && grep -qF -- "$k" <<<"$traffic" && { hit=1; break; }
+      done < <(printf '%s' "$line" | grep -oE '`[^`]+`|[A-Za-z0-9_-]{2,}\.[A-Za-z]{1,5}|W[0-9]{2}-[0-9]+[a-z]?|Q-[0-9]+|#[0-9]+|[0-9a-f]{7,40}' | tr -d '`')
+      [ -n "$hit" ] || unbound="$unbound | $(printf '%s' "$line" | cut -c1-100)"
+    done <<<"$negative_lines"
+    [ -z "$unbound" ] || neg_reason="these lines name no subject a tool touched this turn:$unbound"
+  fi
+  [ -n "$neg_reason" ] && reason="${reason:+$reason }Negative claim (not done/stuck/failed/missing) fails the absence rule (judgment-rubrics §2): $neg_reason. Check that item now and name it (\`file\`, W-id, sha) in the line, or mark the line UNCONFIRMED and name the unchecked channel."
 fi
 
 # W35 retro F8: the gate had no stats file, so its hit rate was unmeasurable.

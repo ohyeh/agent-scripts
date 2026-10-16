@@ -162,7 +162,21 @@ ledger_for c4s "$BEFORE" "$RUN0" "$EDITX"; [[ "$(run_claim c4s 'Fixed client.ts.
 ledger_for c4r "$BEFORE" "$EDITX" "$RUN0"; [[ -z "$(run_claim c4r 'Fixed client.ts. `npm test` → 18/18 passed')" ]]     || { echo "FAIL: edit before the run blocked" >&2; exit 1; }
 ledger_for c4u "$BEFORE" "$RUN0" "$EDITY"; [[ -z "$(run_claim c4u 'Fixed client.ts. `npm test` → 18/18 passed')" ]]     || { echo "FAIL: edit of an uncited file blocked" >&2; exit 1; }
 ledger_for c4x "$BEFORE" "$RUN0" "$EDITX" "$RUN0"; [[ -z "$(run_claim c4x 'Fixed client.ts. `npm test` → 18/18 passed')" ]] || { echo "FAIL: re-run after the edit blocked" >&2; exit 1; }
-ledger_for c5 "$BEFORE";           [[ -z "$(run_claim c5 'not done yet, still tracing')" ]]           || { echo "FAIL: negated claim blocked" >&2; exit 1; }
+ledger_for c5 "$BEFORE";           [[ "$(run_claim c5 'not done yet, still tracing')" == block ]]     || { echo "FAIL: unchecked 'not done' passed (W43-18: it is a negative claim)" >&2; exit 1; }
+ledger_for c5b "$BEFORE" "$EDIT0"; [[ "$(run_claim c5b '修好了，應該沒問題
+另一項還沒做')" == block ]] || { echo "FAIL: one 還沒 line exempted a whole claim" >&2; exit 1; }
+# W43-18: with tool traffic in the transcript, each negative line must name a subject a tool touched
+TRT="$WORK/transcript-traffic.jsonl"
+printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"還剩哪些"}}' \
+  '{"type":"assistant","timestamp":"2026-01-01T00:00:03.000Z","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"git log --oneline -- scripts/deploy.sh"}}]}}' \
+  '{"type":"user","timestamp":"2026-01-01T00:00:04.000Z","message":{"content":[{"type":"tool_result","content":"2ad6a5a feat(deploy): W43-3 --check"}]}}' > "$TRT"
+TWO='{"timestamp":"2026-01-01T00:00:03Z","tool":"Bash","evidence":[]}'
+ledger_for n1 "$TWO" "$READ"; [[ "$(run_claim n1 'W43-18 還沒做' "$TRT")" == block ]]          || { echo "FAIL: 'not done' on a subject no tool touched passed on 2 calls" >&2; exit 1; }
+ledger_for n2 "$TWO" "$READ"; [[ -z "$(run_claim n2 '`deploy.sh` 的 W43-3 還沒 push' "$TRT")" ]] || { echo "FAIL: 'not done' bound to a checked subject blocked" >&2; exit 1; }
+ledger_for n3 "$TWO" "$READ"; [[ -z "$(run_claim n3 'W43-18 還沒做（UNCONFIRMED：沒查 backlog）' "$TRT")" ]] || { echo "FAIL: self-labelled line blocked" >&2; exit 1; }
+ledger_for n4 "$TWO" "$READ"; [[ "$(run_claim n4 'foo.sh:12 還沒修' "$TRT")" == block ]]        || { echo "FAIL: a file:line the tools never touched counted as evidence" >&2; exit 1; }
+ledger_for n5 "$TWO" "$READ"; [[ "$(run_claim n5 'W43-3 done in 2ad6a5a
+W43-22 未開始' "$TRT")" == block ]] || { echo "FAIL: unbound negative line passed next to a positive claim" >&2; exit 1; }
 ledger_for c6 "$BEFORE";           [[ -z "$(run_claim c6 '改了設定，attempted, unverified')" ]]        || { echo "FAIL: self-labelled reply blocked" >&2; exit 1; }
 ledger_for c7 "$BEFORE";           [[ -z "$(run_claim c7 'The claim-evidence-gate blocks a `done` claim; 「完成宣告 gate」 is discussed here, and Completion claim text is quoted')" ]] || { echo "FAIL: discussing the gate treated as a claim" >&2; exit 1; }
 ledger_for c8 "$BEFORE" "$RUN0";   [[ "$(run_claim c8 'the worker is stuck, no reply for 30 min')" == block ]] || { echo "FAIL: negative claim on one call not blocked" >&2; exit 1; }
