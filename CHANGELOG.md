@@ -1,5 +1,16 @@
 # Changelog
 
+## W43-1 workflow agent cap 2026-10-16
+
+New hook `.agents/hooks/workflow-agent-cap.sh`: at most 25 subagents per workflow run (owner 10-16: 「控制別太氾濫我沒意見」). W42 L2-2: one unattended night ran `design-vs-code-audit` with 33, 42 and 46 agents.
+
+- Workflow agents never reach PreToolUse(Agent): the bol gate logged no row during the 10-10 runs, while SubagentStart wrote `workflow-subagent` markers. Claude Code 2.1.301 has no total cap; `CLAUDE_CODE_WORKFLOW_SIZE_WARNING_AGENTS` only warns (the `small` guideline, deployed 2026-10-09T16:31Z, stopped none of the 10-10/11 runs).
+- PreToolUse(Workflow) starts a run key; SubagentStart with matcher `workflow-subagent` counts distinct `agent_id` under it. Above 25 it logs and exits 2.
+- SubagentStart cannot cancel a launch: exit 2 puts the message into the new subagent's context, so agents 26+ each run one short turn and reply `CAPPED: W43-1 <run> agent <n>/25`. The run itself goes on.
+- No run on record → count nothing, never deny. Two runs live at once in one session share the newer key (count runs high).
+- One W42 `spec-implement-dual-review-verify` run had `agentCount` 26 (the report counted 22 transcript files), so the cap would have capped one of its agents.
+- Stats: `~/.local/share/agent-hooks/workflow-agent-cap-stats.jsonl` (`start`, `counted`, `capped`, `no-run`; `agents` = count so far). Self-test `scripts/test-workflow-agent-cap.sh` (layer 0).
+
 ## W43-2 subagent count 2026-10-16
 
 Three faults in the live-subagent count behind the concurrency cap (W42-1 showed 4 Agent calls in one message under a cap of 5 blocking the 4th; `evals/retro-metrics/2026-W42/evidence-w42-1/`).
