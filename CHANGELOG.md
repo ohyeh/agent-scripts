@@ -1,5 +1,14 @@
 # Changelog
 
+## model-dispatch tiers and review ladder 2026-10-16
+
+Owner 10-16: tiers decided on the hub model-tiers page, then 「可以 更新上去」.
+
+- **IDs are floors**: §1 writes each model as "`<id>` or later" with a per-runtime column (Claude Code alias / Cursor / agy); a "—" cell means pick another runtime or a same-tier family.
+- **Tiers** replace the cross-family table and Role tiers: best (fable / astra / argon, low/medium), better (opus / sol, medium+), exec, basic, cheap. Opus high/xhigh → best and sonnet xhigh/max → better stay a pending fallback until a §8 sweep passes. agy is backup only.
+- **Review ladder**: L1 and TK run `sonnet` high (was medium); L1 adds agy flash 3.8 medium and Cursor grok 4.7 xhigh; L2 runs fable medium, else opus at `reviewEffort`. **No L3**: still blocking after L2 round 3 → stop and ask the user. The 2026-10-09 Codex step-up is withdrawn.
+- Recipes: `plan-pipeline`, `spec-implement-dual-review-verify` (L2 fable → opus fallback, no L3); `consensus-gate` rejects `layer: 'L3'`. Tests: `test-plan-pipeline-ladder`, `test-review-gate-smoke.mjs`, `test-consensus-gate-ladder`.
+
 ## W43-3 deploy.sh --check and the deferred W43 rows 2026-10-16
 
 Owner 10-16: 「所有你們討論後能做的就要做掉」 — the rows the W42 retro had deferred go in with W43-3.

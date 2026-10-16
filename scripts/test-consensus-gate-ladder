@@ -26,7 +26,7 @@ const check = (name, ok, got) => { if (!ok) fail = 1; console.log(`${ok ? 'ok  '
 { const { prompt } = await run({ ...base, l0: 'scripts/x' }, {}); check('the reviewer task carries the L0 result', /then the L0 result from step 1 \(l0_rc and l0_output, verbatim\)/.test(prompt), prompt.slice(0, 600)) }
 { const { prompt } = await run(base, {}); check('round 1 assigns a mod worker and awaits it, never agent-tmux through Bash', /mcp__tmux-agent__assign \{profile: "codex", name: "g1"/.test(prompt) && /mcp__tmux-agent__await/.test(prompt) && /Never run agent-tmux through Bash/.test(prompt) && !/mcp__tmux-agent__tell \{/.test(prompt), prompt.slice(0, 600)) }
 { const { prompt, out } = await run({ ...base, round: 2, worker: 'g1.k3x9a' }, { worker: 'g1.k3x9a' }); check('round 2 tells the returned worker and returns it', /mcp__tmux-agent__tell \{name: "g1\.k3x9a"/.test(prompt) && !/mcp__tmux-agent__assign \{/.test(prompt) && out.worker === 'g1.k3x9a', prompt.slice(0, 600)) }
-for (const [k, v] of [['layer', 'L4'], ['round', 0], ['freeze', ['a b; rm']], ['worker', 'a b'], ['launchEnv', 'X=1 ']]) {
+for (const [k, v] of [['layer', 'L4'], ['layer', 'L3'], ['round', 0], ['freeze', ['a b; rm']], ['worker', 'a b'], ['launchEnv', 'X=1 ']]) {
   const { out } = await run({ ...base, [k]: v }, {}); check(`rejects ${k}=${JSON.stringify(v)}`, out.aborted === true, JSON.stringify(out))
 }
 console.log(fail ? 'FAIL consensus-gate-ladder' : 'PASS consensus-gate-ladder')

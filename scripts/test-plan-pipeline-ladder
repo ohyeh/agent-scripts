@@ -13,7 +13,7 @@ const MAJOR = (id = 'x') => ({ id, severity: 'Major', status: 'new', issue: `maj
 const MINOR = (id = 'm') => ({ id, severity: 'Minor', status: 'new', issue: `minor ${id}`, evidence: 'f:2', fix: 'f', check: 'c' })
 const V = (open = [], extra = {}) => ({ sha256_start: SHA, sha256_end: SHA, open, resolved: [], summary: 's', ...extra })
 
-// policy(seat, round, prompt, state) → verdict for a reviewer seat ('L1sonnet', 'L1luna', 'L2', 'L3')
+// policy(seat, round, prompt, state) → verdict for a reviewer seat ('L1sonnet', 'L1luna', 'L2'); state.model = the seat's model
 const run = async (policy, args = { brief: 'b', skipDirection: true, luna: true }, opts = {}) => {   // luna on: most checks cover the substitute seat too
   const st = { seq: [], prompts: {}, l0: 0, fixes: [] }
   const agent = async (prompt, o) => {
@@ -24,6 +24,7 @@ const run = async (policy, args = { brief: 'b', skipDirection: true, luna: true 
     if (k.startsWith('L0')) { st.l0++; st.l0p = prompt; return { sha256: SHA, rc: opts.l0rc ? opts.l0rc(st.l0) : 0, output: 'out' } }
     const [, seat, r] = k.match(/^(L[123](?:sonnet|luna)?)#(\d+)$/)
     st.seq.push(seat); st.prompts[`${seat}#${r}`] = prompt
+    st.model = o.model; (st.seats ||= []).push(`${seat}|${o.model}|${o.effort}`)
     const v = policy(seat, +r, prompt, st)
     if (v === 'THROW') throw new Error('agent failed')
     return seat === 'L1luna' ? (v && v.lunaError ? { ran: false, error: v.lunaError } : v && v.ranNoVerdict ? { ran: true, error: '' } : { ran: true, error: '', verdict: v }) : v
@@ -55,10 +56,16 @@ for (const [bad, val] of [['maxReviewRounds', -1], ['maxReviewRounds', 5], ['rev
   { const { seq } = await run(clean, { brief: 'b', skipDirection: true })
     check('L1 defaults to the Claude seat only (luna is opt-in)', seq === 'L1sonnet L2', seq) }
   check('L1 clean still runs L2 (sonnet+luna in L1); L2 clean freezes', seq === 'L1sonnet L1luna L2' && out.plan.frozen === true, seq) }
-{ const { out, seq } = await run(byTier({ L1: clean, L2: block('a'), L3: clean }))
-  check('L2 blocks 3 rounds, then L3 decides', seq === 'L1sonnet L1luna L2 fix L2 fix L2 fix L3' && out.plan.frozen === true, seq) }
-{ const { out, seq } = await run(byTier({ L1: block('a'), L2: block('a'), L3: block('a') }))
-  check('all layers block: not frozen, blockers listed', seq.endsWith('L2 fix L3') && out.plan.frozen === false && out.plan.blockers.length > 0, seq) }
+{ const { out, seq } = await run(byTier({ L1: clean, L2: block('a') }))
+  check('L2 blocks 3 rounds: no L3, not frozen, asks the user', seq === 'L1sonnet L1luna L2 fix L2 fix L2' && out.plan.frozen === false && /ask the user/.test(out.plan.summary), `${seq} | ${out.plan.summary}`) }
+{ const { out, seq } = await run(byTier({ L1: block('a'), L2: block('a') }))
+  check('all layers block: not frozen, blockers listed', seq.endsWith('fix L2') && !seq.includes('L3') && out.plan.frozen === false && out.plan.blockers.length > 0, seq) }
+{ const { st } = await run(clean)
+  check('seats: L1 sonnet high, L2 fable medium (best tier)', st.seats.includes('L1sonnet|sonnet|high') && st.seats.includes('L2|fable|medium') && !st.seats.some(s => s.startsWith('L2|opus')), st.seats.join(' ')) }
+{ const { out, st } = await run((seat, r, p, s) => seat === 'L2' && s.model === 'fable' ? null : clean(seat, r, p))
+  check('L2 fable gives no verdict → opus at reviewEffort reviews, plan freezes', st.seats.includes('L2|opus|high') && out.plan.frozen === true, st.seats.join(' ')) }
+{ const { out } = await run((seat, r, p) => seat === 'L2' ? null : clean(seat, r, p))
+  check('L2 fable and opus both fail → the gate stops', out.plan.frozen === false && /reviewer failed/.test(out.plan.summary), out.plan.summary) }
 { const { out } = await run(byTier({ L1: clean, L2: clean }), { brief: 'b', skipDirection: false })
   check('direction + plan clean: passed', out.passed === true, JSON.stringify(out.stage)) }
 { let calls = 0

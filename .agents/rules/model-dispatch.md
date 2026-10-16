@@ -5,8 +5,20 @@ same role, rubric, and acceptance needs no re-read.
 
 ## §1 Live model contract
 
-Tier aliases are the policy contract; IDs below are a dated snapshot. A later same-tier
-successor is valid only after live verification per §8.
+Tier aliases are the policy contract. Each ID below is a floor: "`<id>` or later" accepts any
+later version of the same model line without a table edit (user ruling 2026-10-16: the table
+cannot always be updated in time). Before dispatch, confirm the runtime's ID is at or above the
+floor; never dispatch an older version.
+
+| Alias | Floor | Claude Code | Cursor | agy |
+|---|---|---|---|---|
+| `opus` | `claude-opus-5-5` or later | `opus` | `claude-opus-5-5-<effort>` or later | `claude-opus-5-5-<low\|medium\|high>` or later, backup quota only |
+| `sonnet` | `claude-sonnet-5-5` or later | `sonnet` | — (only `claude-sonnet-5`) | `claude-sonnet-5-5-<low\|medium\|high>` or later, backup quota only |
+| `fable` | `claude-fable-5-1` or later | `fable` | — (only `claude-fable-5`, NO ZDR) | — |
+| `haiku` | `claude-haiku-5-5` or later | `haiku` | — | — |
+
+Resolve the alias through this table for the target runtime. A "—" cell means no qualifying
+version there: pick another runtime or a same-tier model of another family.
 
 | Claude tier | Current ID | Role |
 |---|---|---|
@@ -27,7 +39,7 @@ For phone or device UI work, the commander relays only secrets and hard-stop ste
 |---|---|---|---|
 | commander | `gpt-6.1-sol` | `medium` | `xhigh` only for materially large/hard work |
 | plan | `gpt-6-astra` | `medium` | `high`; `xhigh` only for major architecture/security/ambiguity |
-| review/judgment | review ladder (§4 Review ladder): `gpt-6-luna` at L1, `gpt-6-astra` as the L3 fallback | `xhigh` | reviewer is not the author; a Codex seat runs one effort step above its Claude peer |
+| review/judgment | review ladder (§4 Review ladder): `gpt-6-luna` xhigh/max at L1 on request; `gpt-6-astra` low/medium or `gpt-6.1-sol` medium+ at L2 | per seat | reviewer is not the author; each seat runs its tier row's effort, no step-up |
 | execution | `gpt-6-luna`; explicit Sol; or external | Luna `xhigh`/`max`; Sol low/medium | Sol workers stop at `medium` |
 
 Codex models: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna` — no others. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
@@ -47,22 +59,24 @@ A tmux worker is NOT a v2 child: `agent-tmux <cli> …` launches a fresh CLI roo
 machine's own config, so `fork_turns` does not apply and per-run `-c` overrides are for
 deliberately departing from that config, never for restating it.
 
-### Cross-family equivalence (user ruling 2026-09-11)
+### Tiers (user ruling 2026-10-16; replaces the 2026-09-11 equivalence table and 2026-09-25 role tiers)
 
-Use when a recipe or brief names one family and the runtime only has the other.
-Same row = interchangeable at the stated effort; do not cross rows to "save" cost.
+Use when a recipe or brief names one family and the runtime only has another.
+Same row = interchangeable at the stated effort; do not cross rows to "save" cost. A model may
+sit on several rows at different efforts. `medium+` = that effort or higher.
 
-| Codex | Claude | Tier word |
-|---|---|---|
-| `gpt-6-astra` low / medium | `fable` low / medium | best |
-| `gpt-6.1-sol` medium+ | `opus` medium+ | better |
-| `gpt-6.1-sol` low · `gpt-6-luna` xhigh / max | `sonnet` high / xhigh / max | basic |
-| — | `sonnet` medium | cheap |
+| Tier | Job | Claude | Codex | Gemini (agy) | Grok (Cursor) |
+|---|---|---|---|---|---|
+| best | plan, verdict (preferred) | `fable` low / medium | `gpt-6-astra` low / medium | `gemini-4-argon-low` / `-medium` or later | — |
+| better | plan, verdict | `opus` medium+ | `gpt-6.1-sol` medium+ | — | — |
+| exec | implementation | `opus` low / medium; `sonnet` high+ | `gpt-6.1-sol` low / medium; `gpt-6-luna` xhigh / max | `gemini-3.8-flash-medium` or later | `grok-4.7-xhigh-fast` or later |
+| basic | gathering, mechanical | `sonnet` medium; `haiku` high+ | `gpt-6.1-sol` low; `gpt-6-luna` xhigh / max | — | — |
+| cheap | gathering, mechanical | `haiku` medium | — | — | — |
 
-### Role tiers (user ruling 2026-09-25)
+Pending fallback, not active until a §8 sweep passes: `opus` high / xhigh for best; `sonnet`
+xhigh / max for better.
 
-- Advisor: only `fable` 5.1, `gpt-6-astra`, `opus` 5.5 medium+; prefer them for planning and review.
-- Execution: `grok-4.7-xhigh-fast` (Cursor quota) or `opus` 5.5 low/medium (Claude Code or Cursor quota); pick by the quota left.
+- Pick an exec seat by the quota left (Claude Code, Codex, Cursor; agy is backup quota only).
 - Sol, Luna, grok: one-shot output is suspect, 2–3 rounds may fix it; grok opinions carry low weight.
 
 ## §2 Delegate only when it buys leverage
@@ -109,7 +123,7 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 | locate/inventory | `sonnet` medium for gathering; `opus`/`fable` for synthesis | Luna xhigh |
 | read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
 | implement/refactor/research | `opus` medium; `sonnet`/`haiku` 5.5+ by commander's call (§1) | Luna xhigh |
-| review/verification | review ladder (§Review ladder below): L1 `sonnet` medium → L2 `opus` medium+ → L3 `fable` | review ladder: Luna xhigh at L1 (opt-in), Astra xhigh as the L3 fallback |
+| review/verification | review ladder (§Review ladder below): L1 `sonnet` high → L2 best tier, else `opus` medium+ → stop and ask the user | review ladder: Luna xhigh/max at L1 (opt-in); Astra low/medium or Sol medium+ at L2 |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` medium | Luna xhigh |
 | dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: proxy runs `assign --detach`, the parent owns the wait (`using-tmux-agent-tools` §ONE OWNER) | same |
@@ -117,7 +131,7 @@ Subagents cannot delegate further unless the task explicitly authorizes it.
 Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
 2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
 3.5 h): except for the worker, the L1/TK review roles and mechanical seats (L0 runners and CLI
-conduits: `sonnet` medium) below, every recipe agent runs at least `opus` effort
+conduits: `sonnet` medium; L1/TK `sonnet` high) below, every recipe agent runs at least `opus` effort
 `low`; planning, synthesis, revision, and verdicts NEVER run on `sonnet` or `haiku`. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
 below (user ruling 2026-10-09); otherwise `sonnet`/`haiku` 5.5+ may run implementation or
 read-only data gathering in a recipe by commander's call (user ruling 2026-10-10). The second-model CLI
@@ -135,10 +149,12 @@ Every other recipe keeps its own loop until the W43 retro decides, and does not 
 | Layer | Who | Job | Cap |
 |---|---|---|---|
 | L0 | deterministic | test/build/lint/scrub/grep/checksum before every round, then hash what is under review; a hash change during the round voids it | must PASS before the round |
-| L1 | `sonnet` 5.5+ medium (code: `pr-review-toolkit:code-reviewer`); `gpt-6-luna` xhigh/max is a substitute seat, added only on request | adversarial pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
-| TK | code only: `pr-review-toolkit` agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) on `sonnet` medium, in parallel | a fixed-form full report of suggestions that sets a floor under L1's blind spots; findings join the ledger, the fixer answers them once; never passes the work | 1 round |
-| L2 | `opus` 5.5 medium+ (code: `pr-review-toolkit:code-reviewer`) | the verdict; always runs | 3 rounds |
-| L3 | `fable` 5.1 (`gpt-6-astra` xhigh fallback) | final verdict, only when L2 round 3 still blocks | 1 round |
+| L1 | `sonnet` high (code: `pr-review-toolkit:code-reviewer`); `gemini-3.8-flash-medium` or later (agy); `grok-4.7-xhigh` or later (Cursor); `gpt-6-luna` xhigh/max only on request | adversarial pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
+| TK | code only: `pr-review-toolkit` agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) on `sonnet` high, in parallel | a fixed-form full report of suggestions that sets a floor under L1's blind spots; findings join the ledger, the fixer answers them once; never passes the work | 1 round |
+| L2 | commander-driven gate: `advisor` (as above). In-script seat: best tier (`fable` / `gpt-6-astra` / `gemini-4-argon`, low / medium), else better tier (`opus` or `gpt-6.1-sol`, medium+) (code: `pr-review-toolkit:code-reviewer`) | the final verdict; always runs | 3 rounds |
+
+No L3 (user ruling 2026-10-16): still blocking after L2 round 3 → stop the gate and ask the
+user. There is no further layer, so a stuck gate cannot keep burning usage.
 
 - When: a code change runs the full ladder once per PR or push checkpoint, on the accumulated
   diff; between slices only L0 runs (kernel: CI at the checkpoint, local checks between). Only
@@ -156,10 +172,9 @@ Every other recipe keeps its own loop until the W43 retro decides, and does not 
   rounds on a revised artifact are not retries of one approach (§5 three-round rule).
 - A void round reruns once; a second void in a row, or L0 failing twice in a row, stops the gate
   with the cause. Void rounds and L0 fixes count toward the task's calls and tokens.
-- Sol is not on the ladder. Claude currently leads Codex by about half a tier (user 2026-10-09),
-  so the Codex seats run higher effort: Luna xhigh/max at L1, Astra xhigh as the L3 fallback.
-  The cross-family table above stays unchanged.
-- The user approved this roster once (2026-10-09). It answers the tmux-agent-tools §Safety
+- Sol sits on L2 only as a better-tier seat. Every seat runs its tier row's effort; the
+  2026-10-09 Codex step-up is withdrawn (user ruling 2026-10-16).
+- The user approved this roster on 2026-10-16. It answers the tmux-agent-tools §Safety
   "tool+model+effort per worker" question for ladder workers; a model or effort outside the
   roster still asks.
 - Measure per gate type: cost of the whole accepted task (every layer, fixer, L0, void round,

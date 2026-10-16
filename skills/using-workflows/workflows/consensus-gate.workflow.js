@@ -11,7 +11,7 @@
 //     sessionName: "arch1",             // worker base name for round 1 (the mod adds a suffix)
 //     worker: "arch1.k3x9a",            // round 2+: the `worker` the previous round returned (same reviewer context)
 //     round: 1,                         // round number inside the layer (names OUT; earlier OUT files are kept)
-//     layer: "L2",                      // L1 | L2 | L3 (model-dispatch.md §Review ladder); L1 can never pass the gate
+//     layer: "L2",                      // L1 | L2 (model-dispatch.md §Review ladder); L1 can never pass the gate
 //     freeze: ["/abs/file.md"],         // files hashed into the round manifest (default: proposalFile)
 //     l0: "scripts/test-x",             // OPTIONAL deterministic check run before the review; non-zero = gate fails
 //     effort: "medium",                 // low|medium|high: the conduit agent's effort (reviewer effort = profile effort_flags)
@@ -31,7 +31,7 @@
 //   - round 2+: pass the returned `worker`, round+1 (the reviewer keeps its context); send the fix diff and
 //     the fixer's per-finding report; the reviewer resolves or keeps each finding and adds new defects.
 //   - close with the stake: "only agree if you would be comfortable with this being pushed with
-//     no further changes". L2 caps at 3 rounds, then one L3 round with a new cli and no worker.
+//     no further changes". L2 caps at 3 rounds; still blocking after round 3 → stop and ask the user (no L3).
 export const meta = {
   name: 'consensus-gate',
   description: 'Get a high-effort second-model consensus verdict on a proposal via any agent-tmux profile',
@@ -59,7 +59,7 @@ if (a.worker != null && !/^[A-Za-z0-9_.-]{1,64}$/.test(a.worker)) return { abort
 const round = a.round == null ? 1 : a.round
 if (!(Number.isInteger(round) && round >= 1)) return { aborted: true, reason: 'invalid arg: round must be an integer >= 1' }
 const layer = a.layer || 'L2'
-if (!['L1', 'L2', 'L3'].includes(layer)) return { aborted: true, reason: 'invalid arg: layer must be L1 | L2 | L3' }
+if (!['L1', 'L2'].includes(layer)) return { aborted: true, reason: 'invalid arg: layer must be L1 | L2 (no L3: after L2 round 3, ask the user)' }
 const freeze = a.freeze || (a.proposalFile ? [a.proposalFile] : [])
 // Paths and l0 are interpolated into shell commands: paths get a strict charset, l0 is caller-owned.
 if (!Array.isArray(freeze) || freeze.some(f => typeof f !== 'string' || !/^[A-Za-z0-9._\/~+@-]+$/.test(f))) return { aborted: true, reason: 'invalid arg: freeze must be an array of plain paths' }
@@ -112,7 +112,7 @@ ${modConduit({ profile: cli, base: session, dir: repo, worker: a.worker, out: OU
 Return only the structured fields.`,
   { label: `${cli}:${session}`, phase: 'Consult', model, effort, isolation, agentType, schema: SCHEMA }
 )
-// `passed` is a strict allow-list: only genuine consensus at a verdict layer (L2/L3), with L0 green
+// `passed` is a strict allow-list: only genuine consensus at the verdict layer (L2), with L0 green
 // and the manifest unchanged, clears the gate. An L1 agree is a pre-filter result, never a pass.
 const voided = !!r && r.manifest_before !== r.manifest_after
 const l0Failed = !!r && r.l0_rc !== 0

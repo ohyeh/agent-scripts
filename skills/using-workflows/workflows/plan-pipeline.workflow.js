@@ -7,10 +7,10 @@
 // Each artifact is drafted, then frozen only by the review ladder (model-dispatch.md §Review ladder):
 //   L0 deterministic: hash the artifact + run args.l0 before every review round; a hash change
 //      during the round voids it; an L0 failure goes to the fixer first.
-//   L1 pre-filter, ≤2 rounds, cannot freeze: sonnet medium, plus gpt-6-luna xhigh (codex exec, read-only)
+//   L1 pre-filter, ≤2 rounds, cannot freeze: sonnet high, plus gpt-6-luna xhigh (codex exec, read-only)
 //      when args.luna (a substitute seat, default off), in parallel, findings merged into one ledger.
-//   L2 verdict, always runs: opus at reviewEffort, ≤maxReviewRounds (1–3, default 3).
-//   L3 final verdict: fable high, 1 round, only when L2 never reached 0 Critical / 0 Major.
+//   L2 verdict, always runs: fable medium (best tier), opus at reviewEffort if fable fails, ≤maxReviewRounds (1–3, default 3).
+//   No L3: still blocking after the last L2 round → the result says stop and ask the user.
 // The drafter (args.cli through the tmux-agent mod, else opus) answers every round under the fixer contract;
 // args.cli never reviews its own draft. agent() keeps no session, so each round's reviewer gets the
 // whole finding ledger and the before/after snapshot diff in place of kept context.
@@ -27,7 +27,7 @@
 //     directionPath: ".workflow/<YYYYMMDDHHMM>-<slug>/direction.md",  // ① output (default .workflow/next-direction/<slug>-direction.md)
 //     planPath: ".workflow/<YYYYMMDDHHMM>-<slug>/plan.md",            // ② output (default .workflow/next-direction/plan-<slug>.md)
 //     adrDir: "docs/adr",                           // ③ output dir (default "docs/adr")
-//     maxReviewRounds: 3,                           // L2 rounds per artifact, integer 1–3 (L1 2 and L3 1 are fixed)
+//     maxReviewRounds: 3,                           // L2 rounds per artifact, integer 1–3 (L1 2 is fixed)
 //     l0: "scripts/check-docs",                     // OPTIONAL deterministic check run before every review round
 //     snapshotDir: "/tmp/plan-pipeline-<slug>",     // pre-fix copies for the reviewer's diff (default shown)
 //     cli: "codex",                                 // OPTIONAL drafter CLI (agent-tmux profile) via the tmux-agent mod; absent → opus drafter
@@ -38,7 +38,7 @@
 //   }})
 export const meta = {
   name: 'plan-pipeline',
-  description: 'Planning-only pipeline: direction → frozen plan → ADRs, each frozen by the review ladder (L0 → sonnet (+ optional luna) → opus → fable) → commit/push docs. No build.',
+  description: 'Planning-only pipeline: direction → frozen plan → ADRs, each frozen by the review ladder (L0 → sonnet (+ optional luna) → fable/opus; still blocking → ask the user) → commit/push docs. No build.',
   whenToUse: 'When you need FROZEN planning artifacts (goal_doc → plan-<slug>.md → ADRs), each frozen by the review ladder (model-dispatch.md §Review ladder), committed but deliberately NOT built. Complements project-direction-review (that answers "where next"; this freezes "how"). Build afterwards via spec-implement-dual-review-verify.',
   phases: [
     { title: 'Direction', detail: '① draft/refine goal_doc; review ladder → FROZEN', model: 'opus' },
@@ -148,8 +148,7 @@ const LUNA = { type: 'object', additionalProperties: false, required: ['ran', 'e
 
 const LADDER = [
   { tier: 'L1', max: 2, freezes: false },   // pre-filter: 0 blockers here only admits the artifact to L2
-  { tier: 'L2', max: maxRounds, freezes: true },
-  { tier: 'L3', max: 1, freezes: true },    // only reached when L2 never went to 0 Critical / 0 Major
+  { tier: 'L2', max: maxRounds, freezes: true },   // last layer: no L3 (user ruling 2026-10-16)
 ]
 const BLOCKING = f => f.severity !== 'Minor'
 
@@ -193,10 +192,12 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
       if (x && x.ran && x.verdict) return x.verdict
       return seatFailed('luna', !x ? 'agent null' : x.ran ? 'ran=true, no verdict' : x.error)
     }, e => seatFailed('luna', `threw: ${e}`))
-    const m = tier === 'L1' ? ['sonnet', 'medium'] : tier === 'L2' ? ['opus', reviewEffort] : ['fable', 'high']
-    const v = agent(prompt, { ...opts, model: m[0], effort: m[1], schema: VERDICT })
-    // An L1 seat that fails is a logged warning; an L2/L3 reviewer that fails stops the gate (null).
-    return tier === 'L1' ? v.then(x => x || seatFailed(who, 'agent null'), e => seatFailed(who, `threw: ${e}`)) : v
+    if (tier === 'L1') return agent(prompt, { ...opts, model: 'sonnet', effort: 'high', schema: VERDICT })
+      .then(x => x || seatFailed(who, 'agent null'), e => seatFailed(who, `threw: ${e}`))   // an L1 seat that fails is a logged warning
+    // L2: best tier first (fable medium); better tier (opus) only when fable returns nothing. If opus fails too, the gate stops (null).
+    return agent(prompt, { ...opts, model: 'fable', effort: 'medium', schema: VERDICT })
+      .catch(e => { log(`${label}: L2 fable threw (${e}); falling back to opus`); return null })
+      .then(x => x || (log(`${label}: L2 fable gave no verdict; opus ${reviewEffort} reviews`), agent(prompt, { ...opts, model: 'opus', effort: reviewEffort, schema: VERDICT })))
   }
 
   const draft = await author(`In repo ${repo}: DRAFT ${what}. Write the artifact to ${outPath} (create parent dirs). ${GROUND}${extra || ''}\nReturn ok=true once the file is written; path=${outPath}; summary; actions=[].`, 0)
@@ -257,7 +258,7 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
     }
   }
   const open = [...ledger.values()].filter(BLOCKING)
-  return { ok: true, frozen: false, path: outPath, rounds, calls, summary: `ladder exhausted (L3 verdict still blocks) with ${open.length} Critical/Major open`, blockers: open.map(f => `${f.id} ${f.severity}: ${f.issue}`), requiredAdrs, warnings }
+  return { ok: true, frozen: false, path: outPath, rounds, calls, summary: `ladder exhausted (L2 still blocks after ${maxRounds} rounds) with ${open.length} Critical/Major open — stop and ask the user`, blockers: open.map(f => `${f.id} ${f.severity}: ${f.issue}`), requiredAdrs, warnings }
 }
 
 const artifacts = []

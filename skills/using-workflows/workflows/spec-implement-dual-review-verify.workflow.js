@@ -20,7 +20,7 @@
 //     model: "opus",                               // optional, implementer/fixer model (default opus; 'sonnet' allowed HERE only — implementation)
 //     effort: "low",                               // optional, implementer effort (default medium)
 //     reviewEffort: "high",                        // optional, L2 effort: medium|high|xhigh|max (default high)
-//     maxReviewRounds: 3,                          // optional, L2 rounds, integer 1–3 (L1 2 and L3 1 are fixed)
+//     maxReviewRounds: 3,                          // optional, L2 rounds, integer 1–3 (L1 2 is fixed)
 //     luna: true,                                  // optional: add gpt-6-luna to L1 as a substitute seat (default off)
 //     toolkit: ["silent-failure-hunter"],          // optional pr-review-toolkit agents for the TK step (default all
 //                                                  // four: + pr-test-analyzer, type-design-analyzer, comment-analyzer;
@@ -31,14 +31,14 @@
 // REVIEW LADDER (the Review phase):
 //   L0  verifyCommands + a manifest hash (HEAD, `git diff HEAD`, untracked files) before every round;
 //       a failing check goes to the fixer first; a manifest change during the round voids it.
-//   L1  pr-review-toolkit:code-reviewer on sonnet medium (+ gpt-6-luna xhigh when args.luna), adversarial,
+//   L1  pr-review-toolkit:code-reviewer on sonnet high (+ gpt-6-luna xhigh when args.luna), adversarial,
 //       ≤2 rounds; cannot pass the change.
-//   TK  the pr-review-toolkit agents (args.toolkit) on sonnet medium, in parallel, ONE round: a full
+//   TK  the pr-review-toolkit agents (args.toolkit) on sonnet high, in parallel, ONE round: a full
 //       report of suggestions in each agent's area. Findings join the ledger, the fixer answers them
 //       once, then L2. Cannot pass the change.
-//   L2  pr-review-toolkit:code-reviewer on opus at reviewEffort, always runs, ≤maxReviewRounds.
-//   L3  pr-review-toolkit:code-reviewer on fable high, 1 round, only when L2 never reached
-//       0 Critical / 0 Major. One finding ledger runs through every round and layer; the
+//   L2  pr-review-toolkit:code-reviewer on fable medium (best tier), opus at reviewEffort if fable
+//       fails; always runs, ≤maxReviewRounds. No L3: still blocking after the last L2 round → stop,
+//       needsUser. One finding ledger runs through every round and layer; the
 //       implementer model fixes under the fixer contract (_lib/worker-doctrine.md §7–§9).
 //
 // PRESET — build from a frozen consensus plan (proven: build-smcs1498-from-frozen-plan).
@@ -53,21 +53,21 @@
 // Restating the key invariants inline matters: it protects against the implementer skimming
 // the plan file, at ~10 lines' cost. Wrapper shape: an 18-line thin workflow that just calls
 // this recipe — no need to save those shells; write them ad hoc.
-// A review layer with no reviewer left (L2/L3 agent null, or every L1 or TK seat failed) ABORTS at the
+// A review layer with no reviewer left (L2 agent null, or every L1 or TK seat failed) ABORTS at the
 // review stage — no silent degradation (P2-A5). A failed L1/TK seat is a logged warning.
 // MODEL POLICY: implementer/fixer = `model` (sonnet allowed here only); L1 sonnet is review-only
-// (user ruling 2026-10-09); L2/L3 and the finalizer never run below opus.
+// (user ruling 2026-10-09); L2 (fable, else opus) and the finalizer never run below opus tier.
 //
 // NOTE: workflow scripts have no FS/shell — only agents do. All file work happens inside agent() prompts.
 // NESTING: this is a mid-level stage — do NOT call workflow() here (1-level nesting cap).
 
 export const meta = {
   name: 'spec-implement-dual-review-verify',
-  description: 'Implement a spec, review it through the ladder (L0 → sonnet code-reviewer → pr-review-toolkit report → opus code-reviewer → fable), verify (param via args)',
+  description: 'Implement a spec, review it through the ladder (L0 → sonnet code-reviewer → pr-review-toolkit report → fable/opus code-reviewer; still blocking → ask the user), verify (param via args)',
   whenToUse: 'When a written spec must become code with laddered independent review and command-verified evidence — the main build pipeline. When a consensus-frozen plan.md already exists, pass a plan POINTER as the spec (see the frozen-plan preset in the header).',
   phases: [
     { title: 'Implement', detail: 'write/edit the target per spec', model: 'opus' },
-    { title: 'Review', detail: 'review ladder: L0 → sonnet code-reviewer → toolkit report → opus code-reviewer → fable' },
+    { title: 'Review', detail: 'review ladder: L0 → sonnet code-reviewer → toolkit report → fable/opus code-reviewer' },
     { title: 'Finalize', detail: 'run verify commands and classify deviations; no further edits' },
   ],
 }
@@ -154,8 +154,7 @@ phase('Review')
 const LADDER = [
   { tier: 'L1', max: 2, freezes: false },   // pre-filter: 0 blockers here only admits the change to L2
   ...(toolkit.length ? [{ tier: 'TK', max: 1, freezes: false }] : []),   // one-pass toolkit report; never passes the change
-  { tier: 'L2', max: maxRounds, freezes: true },
-  { tier: 'L3', max: 1, freezes: true },    // only reached when L2 never went to 0 Critical / 0 Major
+  { tier: 'L2', max: maxRounds, freezes: true },   // last layer: no L3 (user ruling 2026-10-16)
 ]
 const BLOCKING = f => f.severity !== 'Minor'
 const runL0 = n => agent(
@@ -187,13 +186,14 @@ const review = (tier, who, r, max, ledger, prev, l0) => {
       return seatFailed('luna', !x ? 'agent null' : x.ran ? 'ran=true, no verdict' : x.error)
     }, e => seatFailed('luna', `threw: ${e}`))
   }
-  const opts = tier === 'L1' || tier === 'TK'
-    ? { model: 'sonnet', effort: 'medium', agentType: `pr-review-toolkit:${who}` }
-    : { model: tier === 'L2' ? 'opus' : 'fable', effort: tier === 'L2' ? reviewEffort : 'high', agentType: 'pr-review-toolkit:code-reviewer' }
-  const v = agent(prompt, { label, phase: 'Review', schema: VERDICT, ...opts })
-  // An L1/TK seat that fails (null, or a throw such as a missing toolkit agent type) is a logged warning;
-  // an L2/L3 reviewer that fails stops the gate (null).
-  return tier === 'L1' || tier === 'TK' ? v.then(x => x || seatFailed(who, 'agent null'), e => seatFailed(who, `threw: ${e}`)) : v
+  // An L1/TK seat that fails (null, or a throw such as a missing toolkit agent type) is a logged warning.
+  if (tier === 'L1' || tier === 'TK') return agent(prompt, { label, phase: 'Review', schema: VERDICT, model: 'sonnet', effort: 'high', agentType: `pr-review-toolkit:${who}` })
+    .then(x => x || seatFailed(who, 'agent null'), e => seatFailed(who, `threw: ${e}`))
+  // L2: best tier first (fable medium); better tier (opus) only when fable returns nothing. If opus fails too, the gate stops (null).
+  const l2 = (model, effort) => agent(prompt, { label, phase: 'Review', schema: VERDICT, model, effort, agentType: 'pr-review-toolkit:code-reviewer' })
+  return l2('fable', 'medium')
+    .catch(e => { log(`L2 fable threw (${e}); falling back to opus`); return null })
+    .then(x => x || (log(`L2 fable gave no verdict; opus ${reviewEffort} reviews`), l2('opus', reviewEffort)))
 }
 let calls = 0, prev = null, nid = 0, rounds = 0, frozen = false, lastL0 = null
 const ledger = new Map()   // id → finding (+ tier, + fixer action); survives layer changes
@@ -227,7 +227,7 @@ ladder: for (const [li, L] of LADDER.entries()) {
     const verdicts = await parallel(seats.map(w => () => review(L.tier, w, r + 1, L.max, known, prev, pre.output)))
     verdicts.filter(v => v && v.seatFailed).forEach(v => warnings.push(`${L.tier} ${v.seatFailed}`))
     const ran = verdicts.filter(v => v && !v.seatFailed)
-    // L1/TK tolerate a failed seat; L2/L3 do not
+    // L1/TK tolerate a failed seat; L2 does not
     if (!ran.length || (L.freezes && ran.length !== seats.length)) return stop(`${L.tier} reviewer failed (returned null) — no silent degradation`, [])
     if (ran.some(v => hex(v.manifest_start) !== hex(pre.manifest) || hex(v.manifest_end) !== hex(pre.manifest))) {   // the change moved during the round
       if (++voids >= 2) return stop('the change moved during review twice', ['void round: manifest drifted during review'])
@@ -257,7 +257,7 @@ ladder: for (const [li, L] of LADDER.entries()) {
 }
 if (!frozen) {
   const open = [...ledger.values()].filter(BLOCKING)
-  return { ...stop(`review ladder exhausted (L3 verdict still blocks) with ${open.length} Critical/Major open`, open.map(f => `${f.id} ${f.severity}: ${f.issue}`)), needsUser: true }
+  return { ...stop(`review ladder exhausted (L2 still blocks after ${maxRounds} rounds) with ${open.length} Critical/Major open — stop and ask the user`, open.map(f => `${f.id} ${f.severity}: ${f.issue}`)), needsUser: true }
 }
 const minors = [...ledger.values()].map(f => `${f.id}: ${f.issue}`)
 

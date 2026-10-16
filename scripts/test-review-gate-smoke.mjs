@@ -21,7 +21,7 @@ const V = (open = [], extra = {}) => ({ manifest_start: M, manifest_end: M, open
 const MAJOR = { id: 'x', severity: 'Major', status: 'new', issue: 'major', evidence: 'f:1', fix: 'f', check: 'c' }
 const known = p => [...new Set([...p.matchAll(/"id": "((?:L\d|TK)-\d+)"/g)].map(m => m[1]))].map(id => ({ id, evidence: 'verified' }))
 
-// policy(seat, round, prompt) → verdict; seat is 'L1:code-reviewer', 'L1:luna', 'TK:<agent>', 'L2', 'L3'
+// policy(seat, round, prompt, model) → verdict; seat is 'L1:code-reviewer', 'L1:luna', 'TK:<agent>', 'L2'
 async function run(policy, extraArgs = {}, opts = {}) {
   const calls = [], seen = {}
   const agent = async (prompt, o = {}) => {
@@ -32,7 +32,7 @@ async function run(policy, extraArgs = {}, opts = {}) {
     if (o.label === 'verify-and-classify') { seen.finalize = prompt; return { summary: 'ok', manifest: opts.finalManifest ?? M, verified: opts.verified ?? true, amendment_needed: false, deviations: opts.deviations || [] } }
     const [, seat, r] = o.label.match(/^((?:L[123]|TK)(?::[a-z-]+)?)#(\d+)$/)
     seen[`${seat}#${r}`] = prompt
-    const v = policy(seat, +r, prompt)
+    const v = policy(seat, +r, prompt, o.model)
     if (v === 'THROW') throw new Error('agent type not found')
     if (seat === 'L1:luna') return v === null ? { ran: false, error: 'exit 1' } : { ran: true, error: '', verdict: v }
     return v
@@ -72,10 +72,10 @@ for (const [k, v] of [['cli', 'codex'], ['l1Lenses', []], ['toolkit', ['code-rev
   check(`rejects ${k}=${JSON.stringify(v)}`, result.aborted === true && !result.stage, JSON.stringify(result))
 }
 { const { result, calls, seen } = await run(clean)
-  check('default: L1 sonnet code-reviewer → TK all four toolkit agents once → L2 opus code-reviewer', seq(calls) === `L1:code-reviewer ${TK4} L2` && calls.some(c => c.startsWith('L1:code-reviewer#1|sonnet|pr-review-toolkit:code-reviewer|medium')) && calls.some(c => c.startsWith('TK:comment-analyzer#1|sonnet|pr-review-toolkit:comment-analyzer|medium')), calls.join('\n'))
+  check('default: L1 sonnet high code-reviewer → TK all four toolkit agents once (sonnet high) → L2 code-reviewer', seq(calls) === `L1:code-reviewer ${TK4} L2` && calls.some(c => c.startsWith('L1:code-reviewer#1|sonnet|pr-review-toolkit:code-reviewer|high')) && calls.some(c => c.startsWith('TK:comment-analyzer#1|sonnet|pr-review-toolkit:comment-analyzer|high')), calls.join('\n'))
   check('L0 runs on sonnet medium, not opus', calls.some(c => /^L0#1\|sonnet\|[^|]*\|medium$/.test(c)), calls.join('\n'))
   check('TK reviewers are asked for the full report in their own area', /full report/.test(seen['TK:pr-test-analyzer#1'] || '') && !/full report/.test(seen['L2#1'] || ''), (seen['TK:pr-test-analyzer#1'] || '').slice(0, 300))
-  check('L2 uses pr-review-toolkit:code-reviewer on opus', calls.some(c => c.startsWith('L2#1|opus|pr-review-toolkit:code-reviewer')), calls.join('\n'))
+  check('L2 uses pr-review-toolkit:code-reviewer on fable medium (best tier), no opus when fable answers', calls.some(c => c === 'L2#1|fable|pr-review-toolkit:code-reviewer|medium') && !calls.some(c => c.startsWith('L2#1|opus')), calls.join('\n'))
   check('clean ladder reaches a no-edit finalizer and verifies', result.verified === true && /do NOT edit any file/.test(seen.finalize), JSON.stringify(result)) }
 { const { result } = await run((s, r, p) => s === 'L2' ? null : clean(s, r, p))
   check('L2 reviewer missing aborts at review (P2-A5)', result.aborted === true && result.stage === 'review', JSON.stringify(result)) }
@@ -92,8 +92,10 @@ for (const [k, v] of [['cli', 'codex'], ['l1Lenses', []], ['toolkit', ['code-rev
   check('luna joins L1 and toolkit picks the TK agents', seq(calls) === 'L1:code-reviewer L1:luna TK:silent-failure-hunter TK:pr-test-analyzer L2' && calls.some(c => c.startsWith('TK:pr-test-analyzer#1|sonnet|pr-review-toolkit:pr-test-analyzer')), calls.join('\n')) }
 { const { result } = await run((s, r, p) => s === 'L1:luna' ? null : clean(s, r, p), TWO)
   check('one L1 seat missing is a warning, review continues', result.verified === true && result.warnings.some(w => /luna/.test(w)), JSON.stringify(result.warnings)) }
-{ const { result, calls } = await run((s, r, p) => s === 'L3' ? clean(s, r, p) : s === 'L2' ? V([MAJOR]) : clean(s, r, p))
-  check('L2 blocks 3 rounds, then L3 code-reviewer on fable decides', result.verified === true && calls.some(c => c.startsWith('L3#1|fable|pr-review-toolkit:code-reviewer')), seq(calls)) }
+{ const { result, calls } = await run((s, r, p, m) => s === 'L2' && m === 'fable' ? null : clean(s, r, p))
+  check('L2 fable gives no verdict → opus at reviewEffort reviews', result.verified === true && calls.some(c => c.startsWith('L2#1|opus|pr-review-toolkit:code-reviewer|high')), calls.join('\n')) }
+{ const { result, calls } = await run((s, r, p) => s === 'L2' ? V([MAJOR]) : clean(s, r, p))
+  check('L2 blocks 3 rounds: no L3, stops and needs the user', result.aborted === true && result.needsUser === true && /ask the user/.test(result.reason || result.summary || JSON.stringify(result)) && !calls.some(c => c.startsWith('L3')), JSON.stringify(result)) }
 { const { result } = await run((s) => V([MAJOR]))
   check('every layer blocks: aborted at review, needs the user', result.aborted === true && result.stage === 'review' && result.needsUser === true && result.blockers.length > 0, JSON.stringify(result)) }
 { const { result } = await run(clean, {}, { verified: false })

@@ -115,7 +115,8 @@ revision, and verdicts NEVER run on `sonnet` or `haiku` — a plan written by
 either is not a plan. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
 (`model-dispatch.md` §Review ladder, user ruling 2026-10-09; `plan-pipeline`
 and `spec-implement-dual-review-verify` do this in-script, the latter plus a
-one-pass `pr-review-toolkit` TK step); the verdict stays with `opus` (L2) or `fable` (L3).
+one-pass `pr-review-toolkit` TK step); the verdict stays with L2 (`fable`, else `opus`); no L3 —
+still blocking after L2 round 3, stop and ask the user.
 Otherwise `sonnet`/`haiku` 5.5+ may run implementation and read-only data
 gathering by commander's call (user ruling 2026-10-10); recipe args carry the
 choice: `spec-implement…` `model`, `pr-review-triage-resolve` `fixModel`,

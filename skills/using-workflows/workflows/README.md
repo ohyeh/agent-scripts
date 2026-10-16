@@ -86,8 +86,8 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   (`plan-<slug>.md`) → ③ ADRs. Each artifact is drafted (by `args.cli` via
   agent-tmux, else opus) and frozen only by the review ladder
   (`model-dispatch.md` §Review ladder): L0 hash + `args.l0` → L1 sonnet (+ Luna
-  on `luna: true`; ≤2 rounds, cannot freeze) → L2 opus (always, ≤3) → L3 fable (1 round, only
-  if L2 never cleared). One finding ledger runs through every round; then the
+  on `luna: true`; ≤2 rounds, cannot freeze) → L2 fable, opus if fable fails (always, ≤3);
+  still blocking after L2 → stop and ask the user (no L3). One finding ledger runs through every round; then the
   docs are committed/pushed. Complements `project-direction-review` (that one
   answers "which direction"; this one freezes "how"); the subsequent build is
   handed off to `spec-implement-dual-review-verify`. Smoke:
@@ -104,12 +104,12 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   **See the file header for args examples.**
 
 - **`consensus-gate.workflow.js`** — the minimal reusable primitive: one call
-  is one round of one ladder layer (`args.layer` L1|L2|L3, `args.round`). The
+  is one round of one ladder layer (`args.layer` L1|L2, `args.round`). The
   reviewer is `args.cli` (any agent-tmux profile), driven via agent-tmux; the
   call hashes a manifest (HEAD, `git diff HEAD`, `args.freeze` files) before and
   after the review and runs `args.l0` first. It returns `{ ok, verdict,
   consensus, notes, manifest_*, l0_* }` plus `passed`, which is true only for an
-  L2/L3 `agree` with L0 green and the manifest unchanged — an L1 agree is a
+  L2 `agree` with L0 green and the manifest unchanged — an L1 agree is a
   pre-filter result. **Completion is signaled by polling an output file (one
   per round), never by pattern-matching the pane.** Smoke:
   `scripts/test-consensus-gate-ladder`. **See the file header for args examples.**
@@ -119,8 +119,8 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   `verifyCommands` + manifest → L1 `pr-review-toolkit:code-reviewer` on sonnet
   (+ Luna via `luna: true`) → TK one-pass `pr-review-toolkit` report (`toolkit`,
   default all four agents; findings fixed once) → L2
-  `pr-review-toolkit:code-reviewer` on opus (always, ≤3) → L3 the same agent on
-  fable. The implementer model fixes every finding between rounds; the
+  `pr-review-toolkit:code-reviewer` on fable, opus if fable fails (always, ≤3);
+  still blocking → stop and ask the user (no L3). The implementer model fixes every finding between rounds; the
   finalizer only runs the verify commands and the deviation gate, it never
   edits. A layer with no reviewer left aborts at review (P2-A5); a failed L1
   seat is a logged warning. Smoke: `scripts/test-review-gate-smoke.mjs`.
