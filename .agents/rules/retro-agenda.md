@@ -62,6 +62,11 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
   collector 目前只出 rate 不出名單者，列為 collector backlog。
 - 手排只補 collector 未覆蓋的面（tmux worker result.json、bol-stats），
   不得重算 collector 已覆蓋的數字。
+- 補缺面 collector（2026-10-16 起）：`evals/retro-metrics/layer1-gaps.py SINCE UNTIL`
+  （UTC ISO；trigger 分類、可疑名單、store coverage）與
+  `evals/retro-metrics/grok-bot-classes.py SINCE_MS UNTIL_MS`（只在有
+  `search-index.db` 的 host 跑）。兩支都是位置參數，不是 `--since/--until`；
+  報告寫明執行 host、實際窗口與未量測面。token 總量仍以 usage-dedupe 為準。
 - **token／成本面（每輪必收，2026-08-21 起）**：Claude 側跑
   `session-report@claude-plugins-official` 的 analyzer
   （`node <skill-dir>/analyze-sessions.mjs --json --since 7d`），取 `overall`
