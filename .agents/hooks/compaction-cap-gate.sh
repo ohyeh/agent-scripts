@@ -25,6 +25,10 @@ MAX_COMPACTIONS="${AGENT_HOOKS_MAX_COMPACTIONS:-20}"
 IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
 TRANSCRIPT="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
+# In a subagent (stdin agent_id) transcript_path is the parent's: count the
+# worker's own compactions, never the parent's (same path rule as compaction-recall.sh).
+AGENT_ID="$(printf '%s' "$IN" | jq -r '.agent_id // empty')"
+[ -z "$AGENT_ID" ] || TRANSCRIPT="${TRANSCRIPT%.jsonl}/subagents/agent-${AGENT_ID}.jsonl"
 [ -f "$TRANSCRIPT" ] || exit 0
 TOOL="$(printf '%s' "$IN" | jq -r '.tool_name // empty')"
 [ -n "$TOOL" ] || exit 0

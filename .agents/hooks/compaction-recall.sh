@@ -28,6 +28,18 @@ HEADER="[compaction-recall] verbatim user prompts before this compaction, newest
 IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
 TRANSCRIPT="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
+# Inside a subagent (stdin agent_id) transcript_path names the PARENT's file:
+# 2026-10-16 session 86a74915, worker a70f788e got the owner's prompts and
+# tmux notices as its own after each of 6 compactions. Recall the worker's own
+# brief and coordinator messages from <parent>/subagents/agent-<id>.jsonl;
+# with no such file, inject nothing rather than the parent's prompts.
+AGENT_ID="$(printf '%s' "$IN" | jq -r '.agent_id // empty')"
+if [ -n "$AGENT_ID" ]; then
+  TRANSCRIPT="${TRANSCRIPT%.jsonl}/subagents/agent-${AGENT_ID}.jsonl"
+  DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"; mkdir -p "$DATA_DIR"
+  jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg aid "$AGENT_ID" --argjson found "$([ -f "$TRANSCRIPT" ] && echo true || echo false)" \
+    '{timestamp: $ts, agent_id: $aid, own_transcript_found: $found}' >> "$DATA_DIR/compaction-recall-subagent.jsonl"
+fi
 [ -f "$TRANSCRIPT" ] || exit 0
 
 # grep -c prints "0" AND exits 1 on no match, so `|| echo 0` would yield "0\n0".
@@ -59,7 +71,8 @@ SID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
 project="$(git -C "${CWD:-.}" rev-parse --show-toplevel 2>/dev/null)"
 [ -n "$project" ] || project="${CWD:-.}"
 latest_handoff="$project/.claude/handoffs/compact-${SID:0:8}.md"
-[ -f "$latest_handoff" ] || latest_handoff=""
+# a worker's summary is already in its context; compact-<sid8>.md is the parent's
+[ -f "$latest_handoff" ] && [ -z "$AGENT_ID" ] || latest_handoff=""
 if [ -n "$latest_handoff" ]; then
   out="$out
 Latest compact handoff: ${latest_handoff/#$HOME/\~}. Read it before acting if the summary above seems incomplete."

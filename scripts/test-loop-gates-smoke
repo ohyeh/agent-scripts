@@ -95,5 +95,24 @@ out="$(printf '%s' "$(jq -cn --arg c "$repo" --arg t "$at" '{session_id:"abcdef1
 printf '%s' "$out" | grep -q 'compact-abcdef12.md' && ok "recall names compact-<sid8>.md" || fail "recall pointer wrong: $(printf '%s' "$out" | grep -i handoff)"
 printf '%s' "$out" | grep -q 'BLOCKED by compaction-cap-gate' && ok "recall ESCALATION names the gate" || fail "ESCALATION text stale"
 
+# --- subagent: own transcript, never the parent's (86a74915 worker got the owner's prompts)
+echo "case: subagent compaction hooks"
+parent="$WORK/parent.jsonl"; sub="$WORK/parent/subagents/agent-a1b2c3.jsonl"; mkdir -p "$(dirname "$sub")"
+printf '%s\n' '{"type":"user","message":{"content":"owner prompt for the commander"}}' > "$parent"
+for _ in $(seq 20); do echo '{"type":"user","isCompactSummary":true}'; done >> "$parent"
+printf '%s\n' '{"type":"user","message":{"content":"GOAL: worker brief"}}' '{"type":"user","isCompactSummary":true}' > "$sub"
+rin() { printf '%s' "$(jq -cn --arg c "$repo" --arg t "$parent" --arg a "$1" '{session_id:"abcdef1234567890",cwd:$c,transcript_path:$t,agent_id:$a}')" | bash "$ROOT/.agents/hooks/compaction-recall.sh"; }
+out="$(rin a1b2c3)"
+printf '%s' "$out" | grep -q 'GOAL: worker brief' && ok "worker recall = its own brief" || fail "worker brief missing: $out"
+printf '%s' "$out" | grep -q 'owner prompt' && fail "worker got the parent's prompt" || ok "parent prompt not injected"
+printf '%s' "$out" | grep -q 'compact-abcdef12.md' && fail "worker pointed at the parent's handoff" || ok "no parent handoff pointer"
+out="$(rin zzz999)"; [ -z "$out" ] && ok "no own transcript → inject nothing" || fail "missing worker file injected: $out"
+grep -q '"own_transcript_found":false' "$XDG_DATA_HOME/agent-hooks/compaction-recall-subagent.jsonl" && ok "subagent branch logged" || fail "subagent branch not logged"
+before="$(cat "$repo/.claude/handoffs/compact-abcdef12.md")"
+printf '%s' "$(jq -cn --arg c "$repo" --arg t "$parent" '{session_id:"abcdef1234567890",agent_id:"a1b2c3",cwd:$c,trigger:"auto",transcript_path:$t,compact_summary:"WORKER SUMMARY"}')" | bash "$ROOT/.agents/hooks/postcompact-handoff.sh" >/dev/null
+[ "$(cat "$repo/.claude/handoffs/compact-abcdef12.md")" = "$before" ] && ok "worker compaction leaves the parent handoff untouched" || fail "parent handoff overwritten"
+capsub() { printf '%s' "$(jq -cn --arg t "$parent" --arg a "$1" '{session_id:"cap-smoke",transcript_path:$t,agent_id:$a,tool_name:"Edit",tool_input:{file_path:"/repo/src/a.ts"}}')" | bash "$ROOT/.agents/hooks/compaction-cap-gate.sh"; }
+expect_exit "parent at cap, worker at 1: worker Edit allowed" 0 capsub a1b2c3
+
 echo "summary: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]
