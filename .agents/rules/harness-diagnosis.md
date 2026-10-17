@@ -30,6 +30,10 @@ re-verify must be treated as UNCONFIRMED, not repeated as fact.
 ### §1 Token leak: raw bytes read into the main conversation
 Symptom: `Read` on large files, full `git log`/grep dumps, raw web pages. Every byte
 permanently occupies the context window and degrades all later reasoning.
+Second cost, separate from bytes: every tool round re-reads the whole context.
+Measured 2026-10-17 (8 opus main sessions, 10/15–10/16): 57% of weighted usage
+followed a Bash result; 85–93% of tool rounds carried a single call; exact
+repeated calls were 1.9%, so rounds, not duplicates, are the lever.
 Fix — mechanical routing, no judgment needed:
 - Command output expected > 20 lines, or unpredictable → `ctx_batch_execute` /
   `ctx_execute`; print only the derived answer.

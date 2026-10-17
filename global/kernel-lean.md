@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.36.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.37.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -106,7 +106,10 @@ edit with clear acceptance goes straight to code.
 - No new branch/worktree unless asked or target protected. Show `git
   diff` after edits; commit freely, push only when authorized. Rebase then
   ff-merge, stacks bottom-up; rewrite only your own unmerged branches.
-  Batch independent tool calls. Scratch files → scratchpad, never repo root.
+  Batch independent tool calls: cost = rounds × context size, not output
+  bytes; every round adds information or changes state (no re-run, re-read,
+  or poll without a new signal); after 2 single-read rounds → batch or
+  `explore-bounded`. Scratch files → scratchpad, never repo root.
 
 ## Tools
 - Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, official CLIs; default to

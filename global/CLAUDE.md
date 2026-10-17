@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.36.0-ironlaws
+Version: 4.37.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -188,7 +188,13 @@ replaces reading the touched code.
   not authorization. Diagnose the NAMED system first; do not inspect or mutate
   an adjacent tool merely because it could plausibly cause the symptom.
 - List what you need next, then issue every independent tool call in one
-  response; serialize only true dependencies.
+  response; serialize only true dependencies. Cost = rounds × context size,
+  not output bytes: at 300K context a 5-line `sed` costs one full re-read.
+  Every round must add information or change state: no re-run of an
+  unchanged check, no re-read of an unchanged source (Live truth), no poll
+  without a new signal. Bundle reads into one call (`&&`, `ctx_batch_execute`);
+  after 2 single-read rounds in a row, batch the rest or hand off to
+  `explore-bounded` (>3 files or unknown location; harness-diagnosis §1).
 - Read SKILL.md before use; domain router first, max two meta-router hops.
 
 ## Continuity
