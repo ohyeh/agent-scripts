@@ -13,6 +13,28 @@
 # with skills/session-handoff/scripts/validate_handoff.py.
 set -u
 
+# Mark which thread is compacting, for compaction-recall.sh and
+# postcompact-handoff.sh. Inside a subagent the compaction hooks carry no
+# agent_id and name the parent's transcript and session (probe 2026-10-17,
+# CLI 2.1.302: PreCompact/PostCompact/SessionStart stdin had no agent_id;
+# PreToolUse had it). Auto-compaction fires right after the compacting
+# thread's tool result, so the newest context-ledger.sh row (PostToolUse,
+# which carries agent_id) names that thread. Manual /compact is the main thread.
+IN="$(cat)"
+if command -v jq >/dev/null 2>&1; then
+  SID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
+  RUN_DIR="${HOME}/.local/state/agent-hooks/${SID:-pid-$PPID}"
+  mkdir -p "$RUN_DIR"
+  thread=main
+  if [ "$(printf '%s' "$IN" | jq -r '.trigger // ""')" != "manual" ]; then
+    last="$(tail -n 1 "$RUN_DIR/ledger.jsonl" 2>/dev/null)"
+    aid="$(printf '%s' "$last" | jq -r '.agent_id // empty' 2>/dev/null)"
+    ts="$(printf '%s' "$last" | jq -r '.timestamp | fromdateiso8601' 2>/dev/null)"
+    if [ -n "$aid" ] && [ -n "$ts" ] && [ $(( $(date -u +%s) - ts )) -le 30 ]; then thread="$aid"; fi
+  fi
+  printf '%s\n' "$thread" > "$RUN_DIR/compacting-thread"
+fi
+
 # Hook stdout limit is 10,000 characters; stay well under it and keep the
 # payload plain prose so nothing downstream mistakes it for JSON.
 MAX_BYTES=6000

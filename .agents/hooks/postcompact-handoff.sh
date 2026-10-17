@@ -21,10 +21,13 @@ command -v jq >/dev/null 2>&1 || exit 0
 
 summary="$(printf '%s' "$IN" | jq -r '.compact_summary // empty')"
 [ -n "$summary" ] || exit 0
-# A subagent (stdin agent_id) shares the parent's session_id, so its summary
-# would overwrite the parent's compact-<sid8>.md. Its summary is already in its
-# own context, and compaction-recall.sh re-injects its brief.
+# A subagent shares the parent's session_id, so its summary would overwrite
+# the parent's compact-<sid8>.md. Its summary is already in its own context,
+# and compaction-recall.sh re-injects its brief. PostCompact stdin carries no
+# agent_id inside a subagent: use the mark precompact-instructions.sh wrote.
 [ "$(printf '%s' "$IN" | jq -r 'has("agent_id")')" = "false" ] || exit 0
+thread="$(cat "${HOME}/.local/state/agent-hooks/$(printf '%s' "$IN" | jq -r '.session_id // empty')/compacting-thread" 2>/dev/null)"
+[ -z "$thread" ] || [ "$thread" = main ] || exit 0
 
 cwd="$(printf '%s' "$IN" | jq -r '.cwd // empty')"
 [ -d "$cwd" ] || cwd="$PWD"

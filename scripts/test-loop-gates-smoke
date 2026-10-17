@@ -114,5 +114,30 @@ printf '%s' "$(jq -cn --arg c "$repo" --arg t "$parent" '{session_id:"abcdef1234
 capsub() { printf '%s' "$(jq -cn --arg t "$parent" --arg a "$1" '{session_id:"cap-smoke",transcript_path:$t,agent_id:$a,tool_name:"Edit",tool_input:{file_path:"/repo/src/a.ts"}}')" | bash "$ROOT/.agents/hooks/compaction-cap-gate.sh"; }
 expect_exit "parent at cap, worker at 1: worker Edit allowed" 0 capsub a1b2c3
 
+# --- compaction hooks get no agent_id inside a subagent (probe 2026-10-17): the
+# PreCompact mark from the newest ledger row decides the thread
+echo "case: compacting-thread mark"
+rundir="$HOME/.local/state/agent-hooks/abcdef1234567890"; mkdir -p "$rundir"
+ledger_row() { jq -cn --arg ts "$1" --arg a "$2" '{timestamp:$ts,tool:"Read",agent_id:(if $a == "" then null else $a end)}' > "$rundir/ledger.jsonl"; }
+precompact() { jq -cn --arg tr "$1" '{session_id:"abcdef1234567890",trigger:$tr}' | bash "$ROOT/.agents/hooks/precompact-instructions.sh" >/dev/null; }
+rmark() { printf '%s' "$(jq -cn --arg c "$repo" --arg t "$parent" '{session_id:"abcdef1234567890",cwd:$c,transcript_path:$t,source:"compact"}')" | bash "$ROOT/.agents/hooks/compaction-recall.sh"; }
+now="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+ledger_row "$now" a1b2c3; precompact auto
+[ "$(cat "$rundir/compacting-thread")" = a1b2c3 ] && ok "fresh worker row → mark names the worker" || fail "mark: $(cat "$rundir/compacting-thread")"
+out="$(rmark)"
+printf '%s' "$out" | grep -q 'GOAL: worker brief' && ! printf '%s' "$out" | grep -q 'owner prompt' && ok "no agent_id in stdin: recall follows the mark" || fail "mark-driven recall wrong: $out"
+printf '%s' "$(jq -cn --arg c "$repo" --arg t "$parent" '{session_id:"abcdef1234567890",cwd:$c,trigger:"auto",transcript_path:$t,compact_summary:"WORKER SUMMARY 2"}')" | bash "$ROOT/.agents/hooks/postcompact-handoff.sh" >/dev/null
+[ "$(cat "$repo/.claude/handoffs/compact-abcdef12.md")" = "$before" ] && ok "mark-driven PostCompact leaves the parent handoff" || fail "parent handoff overwritten via mark path"
+ledger_row "$now" ""; precompact auto
+[ "$(cat "$rundir/compacting-thread")" = main ] && ok "main-thread row → mark main" || fail "main row mark: $(cat "$rundir/compacting-thread")"
+rmark | grep -q 'owner prompt' && ok "main compaction recalls the parent's prompts" || fail "main recall lost"
+ledger_row "$now" a1b2c3; precompact manual
+[ "$(cat "$rundir/compacting-thread")" = main ] && ok "manual /compact → main" || fail "manual not main"
+ledger_row "2026-01-01T00:00:00Z" a1b2c3; precompact auto
+[ "$(cat "$rundir/compacting-thread")" = main ] && ok "stale worker row (>30s) → main" || fail "stale row named the worker"
+rm -f "$rundir/ledger.jsonl"
+err="$(jq -cn '{session_id:"abcdef1234567890",trigger:"auto"}' | bash "$ROOT/.agents/hooks/precompact-instructions.sh" 2>&1 >/dev/null)"
+[ "$(cat "$rundir/compacting-thread")" = main ] && [ -z "$err" ] && ok "no ledger → mark main, no stderr" || fail "no-ledger path: mark=$(cat "$rundir/compacting-thread") err=$err"
+
 echo "summary: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]

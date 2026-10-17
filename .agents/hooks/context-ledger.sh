@@ -51,6 +51,10 @@ if [ -x "$TOKENIZER" ]; then
               | grep -v '^$' | jq -R . | jq -s -c .)"
 fi
 
-jq -cn --arg ts "$ts" --arg tool "$TOOL_NAME" --arg file "$FILE_PATH" --arg sha "$sha" --argjson ev "${evidence:-[]}" \
-  '{timestamp: $ts, tool: $tool, file: (if $file == "" then null else $file end), input_sha256: $sha, evidence: $ev}' >> "$LEDGER"
+# agent_id: set when a subagent made the call. precompact-instructions.sh reads
+# the newest row to tell which thread is compacting (compaction hooks carry no
+# agent_id of their own).
+AGENT_ID="$(printf '%s' "$IN" | jq -r '.agent_id // empty')"
+jq -cn --arg ts "$ts" --arg tool "$TOOL_NAME" --arg file "$FILE_PATH" --arg sha "$sha" --argjson ev "${evidence:-[]}" --arg aid "$AGENT_ID" \
+  '{timestamp: $ts, tool: $tool, file: (if $file == "" then null else $file end), input_sha256: $sha, evidence: $ev, agent_id: (if $aid == "" then null else $aid end)}' >> "$LEDGER"
 exit 0

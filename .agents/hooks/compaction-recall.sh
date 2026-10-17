@@ -28,12 +28,19 @@ HEADER="[compaction-recall] verbatim user prompts before this compaction, newest
 IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
 TRANSCRIPT="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
-# Inside a subagent (stdin agent_id) transcript_path names the PARENT's file:
-# 2026-10-16 session 86a74915, worker a70f788e got the owner's prompts and
-# tmux notices as its own after each of 6 compactions. Recall the worker's own
-# brief and coordinator messages from <parent>/subagents/agent-<id>.jsonl;
-# with no such file, inject nothing rather than the parent's prompts.
+# Inside a subagent transcript_path names the PARENT's file: 2026-10-16
+# session 86a74915, worker a70f788e got the owner's prompts and tmux notices
+# as its own after each of 6 compactions. This hook's stdin carries no
+# agent_id there, so the compacting thread comes from the mark that
+# precompact-instructions.sh wrote. Recall the worker's own brief and
+# coordinator messages from <parent>/subagents/agent-<id>.jsonl; with no such
+# file, inject nothing rather than the parent's prompts.
 AGENT_ID="$(printf '%s' "$IN" | jq -r '.agent_id // empty')"
+if [ -z "$AGENT_ID" ]; then
+  mark="${HOME}/.local/state/agent-hooks/$(printf '%s' "$IN" | jq -r '.session_id // empty')/compacting-thread"
+  thread="$(cat "$mark" 2>/dev/null)"
+  [ -z "$thread" ] || [ "$thread" = main ] || AGENT_ID="$thread"
+fi
 if [ -n "$AGENT_ID" ]; then
   TRANSCRIPT="${TRANSCRIPT%.jsonl}/subagents/agent-${AGENT_ID}.jsonl"
   DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"; mkdir -p "$DATA_DIR"
