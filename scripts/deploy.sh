@@ -186,7 +186,7 @@ layer0_tests=(
   test-rm-home-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
   test-review-dispatch-gate.sh test-workflow-agent-cap.sh
   test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke
-  test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate test-round-cost-gate.sh
+  test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate test-round-cost-gate.sh test-worker-followup-gate.sh
   test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-recipe-usage-stats.sh test-docs-audit-ownership test-behavior-runner
   test-consensus-gate-ladder test-plan-pipeline-ladder
   test-feature-plan-consensus-ladder test-review-gate-smoke.mjs
@@ -428,6 +428,7 @@ hook_install "$SRC/.agents/hooks/deny-replay-gate.sh"
 hook_install "$SRC/.agents/hooks/compaction-cap-gate.sh"
 hook_install "$SRC/.agents/hooks/wakeup-idle-gate.sh"
 hook_install "$SRC/.agents/hooks/round-cost-gate.sh"
+hook_install "$SRC/.agents/hooks/worker-followup-gate.sh"
 
 SETTINGS=~/.claude/settings.json
 seed "$SETTINGS" '{}' hooks
@@ -459,7 +460,8 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
    --arg router "\"\$HOME/.agents/hooks/skill-router-nudge.sh\"" \
    --arg compcap "\"\$HOME/.agents/hooks/compaction-cap-gate.sh\"" \
    --arg idle "\"\$HOME/.agents/hooks/wakeup-idle-gate.sh\"" \
-   --arg roundcost "\"\$HOME/.agents/hooks/round-cost-gate.sh\"" '
+   --arg roundcost "\"\$HOME/.agents/hooks/round-cost-gate.sh\"" \
+   --arg followup "\"\$HOME/.agents/hooks/worker-followup-gate.sh\"" '
   def ensure(ev; bare): ($only + " " + bare) as $cmd |
     .hooks[ev] = ((.hooks[ev] // [])
       | if any(.[]; any(.hooks[]?; .command == $cmd))
@@ -528,6 +530,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "Write|Edit|NotebookEdit|Bash|ScheduleWakeup"; $compcap)
   | ensureMatched("PreToolUse"; "ScheduleWakeup"; $idle)
   | ensureMatched("PreToolUse"; "Bash|Read|Grep|Glob|mcp__plugin_context-mode_context-mode__ctx_execute|mcp__plugin_context-mode_context-mode__ctx_execute_file"; $roundcost)
+  | ensureMatched("PreToolUse"; "SendMessage"; $followup)
 ' "$SETTINGS" > "$tmp_settings" || { echo "FAIL [hooks] settings.json rewrite (jq) failed" >&2; exit 1; }
 apply "$tmp_settings" "$SETTINGS" hooks
 
@@ -650,7 +653,7 @@ if [ -d ~/.gemini/config ]; then
   apply "$t" "$AGY_PLUGIN/hooks.json" hooks
 fi
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1

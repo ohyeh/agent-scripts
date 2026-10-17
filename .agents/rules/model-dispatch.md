@@ -120,6 +120,19 @@ Two packet-shape hard rules (each learned from a real delegation failure):
 
 Subagents cannot delegate further unless the task explicitly authorizes it.
 
+Worker lifespan (Agent-tool subagents; user ruling 2026-10-17). Measured 10/15–10/16: workers
+were 37% of weighted usage, and 70% of that was spent in turns above 200K context; one
+implementer got 26 `SendMessage` follow-ups and grew to about 450K (session 86a74915).
+- One worker, one round: commit at the round end, then start a new Agent whose brief carries
+  only the previous REPORT and the commit sha.
+- `SendMessage` to a running worker is for a correction inside the same round. The 3rd
+  follow-up to one agent means: stop and start a new worker (`worker-followup-gate.sh` nudges
+  there). Exception: a fix re-check goes back to the same reviewer (§Review ladder).
+- A worker that reports context above 200K is not continued after its current round.
+- A visual or end-to-end verifier is new per round, never reused.
+The §4 tmux rule (persistent session teammates fed by `send-wait`) is a different mechanism and
+stays.
+
 ## §4 Role-first selection
 
 | Task | Claude | Codex |

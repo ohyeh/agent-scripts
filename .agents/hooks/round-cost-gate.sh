@@ -14,8 +14,9 @@
 # never blocks. Every round at or past NUDGE_AT is logged to
 # round-cost-stats.jsonl — that log is the evidence for any later deny tier.
 # Not counted as a single read: a Bash that bundles several reads,
-# ctx_batch_execute, any Agent. Subagents (stdin agent_type present, see
-# harness-diagnosis §Probed) pass: reading is their job.
+# ctx_batch_execute, any Agent. Subagents (stdin agent_id present; the CLI's
+# hook types say agent_type also appears on a --agent main thread) pass:
+# reading is their job.
 # FP: a true dependency chain (read a, then know to read b) — costs one line.
 # FN: reads through python/node scripts are not read-shaped.
 set -u
@@ -23,7 +24,7 @@ NUDGE_AT=3
 
 IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
-[ "$(printf '%s' "$IN" | jq -r 'has("agent_type")')" = "false" ] || exit 0
+[ "$(printf '%s' "$IN" | jq -r 'has("agent_id")')" = "false" ] || exit 0
 TRANSCRIPT="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
 [ -f "$TRANSCRIPT" ] || exit 0
 

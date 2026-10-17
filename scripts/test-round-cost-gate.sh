@@ -45,7 +45,8 @@ out="$(run_hook "$T" Bash 'cat a.md && cat b.md')"; [ -z "$out" ] && ok || fail 
 out="$(run_hook "$T" Bash 'cd /repo && cat a.md')"; nudged "$out" && ok || fail "cd prefix must not hide a single read"
 out="$(run_hook "$T" Bash 'npm test')"; [ -z "$out" ] && ok || fail "non-read call must pass silently"
 out="$(run_hook "$T" Read '' )"; nudged "$out" && ok || fail "Read tool counts as a single read"
-out="$(run_hook "$T" Bash 'cat f3.md' '{"agent_type":"explorer"}')"; [ -z "$out" ] && ok || fail "subagent call must pass"
+out="$(run_hook "$T" Bash 'cat f3.md' '{"agent_id":"sub1","agent_type":"explorer"}')"; [ -z "$out" ] && ok || fail "subagent call must pass"
+out="$(run_hook "$T" Bash 'cat f3.md' '{"agent_type":"main-agent"}')"; nudged "$out" && ok || fail "--agent main thread (agent_type, no agent_id) must still be checked"
 
 { read_round 1; user_msg; read_round 2; } > "$T"
 out="$(run_hook "$T" Bash 'cat f3.md')"; [ -z "$out" ] && ok || fail "a user message must end the run"
