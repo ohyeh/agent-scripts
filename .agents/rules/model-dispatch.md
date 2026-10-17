@@ -139,7 +139,7 @@ stays.
 |---|---|---|
 | locate/inventory | `sonnet` medium for gathering; `opus`/`fable` for synthesis | Luna xhigh |
 | read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
-| implement/refactor/research | `opus` medium; `sonnet`/`haiku` 5.5+ by commander's call (§1) | Luna xhigh |
+| implement/refactor/research | `opus` medium; `sonnet`/`haiku` 5.5+ by commander's call (§1). An implement/refactor round expected to run many turns: `impl-bounded` (opus medium, compacts at 200K, not 450K; 70% of worker cost 10/15–10/16 was above 200K). Pass `model` only to change tier. | Luna xhigh |
 | review/verification | review ladder (§Review ladder below): L1 `sonnet` high → L2 best tier, else `opus` medium+ → stop and ask the user | review ladder: Luna xhigh/max at L1 (opt-in); Astra low/medium or Sol medium+ at L2 |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` medium | Luna xhigh |

@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.37.0-ironlaws
+Version: 4.38.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -66,6 +66,7 @@ ritual, no quoting; tooling enforces critical gates.
   approval.
 - Friction found (user correction, same friction twice) → maintenance §2:
   a gate, or a backlog row that names the file; no free-text lesson list.
+- Usage, cost, or quota analysis → harness-diagnosis §Usage analysis.
 - Task type not named above (PDFs, test plans, architecture) → skill
   using-skills before doing it by hand.
 

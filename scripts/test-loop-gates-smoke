@@ -135,6 +135,12 @@ ledger_row "$now" a1b2c3; precompact manual
 [ "$(cat "$rundir/compacting-thread")" = main ] && ok "manual /compact → main" || fail "manual not main"
 ledger_row "2026-01-01T00:00:00Z" a1b2c3; precompact auto
 [ "$(cat "$rundir/compacting-thread")" = main ] && ok "stale worker row (>30s) → main" || fail "stale row named the worker"
+long_brief="GOAL: worker brief $(printf 'x%.0s' $(seq 600)) ACCEPTANCE: 中文驗收條件 all green"
+printf '%s\n' "$(jq -cn --arg c "$long_brief" '{type:"user",message:{content:$c}}')" '{"type":"user","message":{"content":"coordinator follow-up"}}' > "$sub"
+out="$(rin a1b2c3)"
+printf '%s' "$out" | grep -q 'ACCEPTANCE: 中文驗收條件 all green' && ok "worker brief keeps ACCEPTANCE past 200 chars" || fail "brief cut: $(printf '%s' "$out" | head -c 300)"
+[ "$(printf '%s' "$out" | grep -c 'GOAL: worker brief')" = 1 ] && ok "brief not repeated in the prompt list" || fail "brief listed twice"
+printf '%s' "$out" | grep -q '^- coordinator follow-up' && ok "follow-ups still listed" || fail "follow-up missing"
 rm -f "$rundir/ledger.jsonl"
 err="$(jq -cn '{session_id:"abcdef1234567890",trigger:"auto"}' | bash "$ROOT/.agents/hooks/precompact-instructions.sh" 2>&1 >/dev/null)"
 [ "$(cat "$rundir/compacting-thread")" = main ] && [ -z "$err" ] && ok "no ledger → mark main, no stderr" || fail "no-ledger path: mark=$(cat "$rundir/compacting-thread") err=$err"

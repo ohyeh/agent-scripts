@@ -107,15 +107,31 @@ publish fleet topology in this public repository.
   `tool_input.command`, which is what makes hook gates trustworthy.
 
 ### Probed (undocumented, version-pinned)
-- Hook stdin `agent_type`: present only when the Bash call runs inside a
-  subagent context; absent in the parent session. The VALUE is the agent's
-  NAME, not its type (a `general-purpose` agent named `agenttype-probe`
-  reports `agenttype-probe`) — presence is the signal, never the value.
-  Basis of the tmux-dispatch-gate subagent pass-through and of
-  `.agents/hooks/tmux-assign-host-gate.sh`. Probe: tmux-agent-tools
-  `.workflow/202607261830-dispatch-gate-enforcement/`, CLI 2.1.220;
-  re-probed CLI 2.1.229 on 2026-08-13
-  (`~/.local/state/agent-scripts/tmux-assign-host-probe.jsonl`).
+- Subagent detection in tool hooks: a non-empty stdin `agent_id`. `agent_type`
+  is also present inside a subagent (its VALUE is the agent's name), but the CLI
+  hook types (2.1.301 `BaseHookInput`) say it also appears on a `--agent` main
+  thread, so presence of `agent_type` alone is not the signal. Basis of
+  `.agents/hooks/tmux-assign-host-gate.sh`, `round-cost-gate.sh`,
+  `worker-followup-gate.sh`. First probes: tmux-agent-tools
+  `.workflow/202607261830-dispatch-gate-enforcement/` (CLI 2.1.220, 2.1.229).
+- Compaction hooks inside a subagent (live probe 2026-10-17, CLI 2.1.302,
+  headless haiku worker with `autoCompactWindow: 100000`): PreCompact,
+  PostCompact and SessionStart:compact stdin carry NO `agent_id`/`agent_type`,
+  and `transcript_path`/`session_id` are the PARENT's — the hook types claim
+  otherwise. PreToolUse/PostToolUse do carry `agent_id`. The new
+  `compact_boundary` is not on disk yet when these hooks run. The worker's own
+  transcript is `<parent transcript minus .jsonl>/subagents/agent-<agent_id>.jsonl`.
+  `precompact-instructions.sh` therefore marks the compacting thread from the
+  newest `context-ledger.sh` row (f805dbd).
+- A hook change whose behavior depends on a stdin field that is undocumented or
+  documented only in the hook types is verified by a headless probe before
+  deploy: `claude -p --setting-sources project,local --settings <repo hooks>`
+  loads only the hooks under test. Fixture tests prove the logic, not the field
+  (63af245 passed 39 fixtures and never matched live).
+- The Bash tool runs zsh: an unmatched glob aborts the whole command
+  (`no matches found`, so `rg x docs/*.md` without `docs/` is not "no match"),
+  a word starting with `=` expands (`echo ===` fails), and an unquoted `$var`
+  does not word-split. Loop over lists or maybe-empty globs in a `bash` script file.
 - Session rename endpoint: `PUT https://api.anthropic.com/v1/code/sessions/
   <cse_id>` with subscription OAuth bearer from Keychain
   (`Claude Code-credentials`) + `anthropic-beta: oauth-2025-04-20`; body
@@ -123,6 +139,17 @@ publish fleet topology in this public repository.
   `session-titles.md` §Runtime control says (owner; disk registry only).
 - Local title record: `claude-agent-sdk` (pip) `rename_session(uuid, title,
   cwd)` writes the rename into the local jsonl; offline, no cloud effect.
+
+## Usage analysis (2026-10-17: session bb562785 blamed the wrong bucket from raw cache-read)
+- Start from the plan meter: `~/.claude/cache-keeper/*.jsonl` `limitsBefore`/`limitsAfter`
+  (`five_hour`, `seven_day` percentUsed) is the only on-disk record of plan usage.
+- Dedupe transcript messages by `message.id`, then weight by token class:
+  `input + 1.25×write_5m + 2×write_1h + 0.1×cache_read + 5×output`. Raw cache-read alone
+  overstates long-context workers.
+- Split main / Agent worker / tmux worker / probe before counting sessions or concurrency
+  (tmux workers start "Write final JSON to … tmux-agent-tool"; probes "Reply with exactly").
+- Never recommend a settings change (compact window, model) from a cost formula alone; the
+  owner's recorded rationale outranks it (`autoCompactWindow` 450000 is an owner ruling).
 
 ## Honorable mention (not top-3, still real)
 - `~/.claude` accumulates junk (5MB `history.jsonl`, paste-cache, session-env).

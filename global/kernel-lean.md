@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.37.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.38.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -51,6 +51,7 @@ ritual or quoting.
 - Edit rules or skills → maintenance §1: exact diff, then approval.
 - Friction found → maintenance §2: a gate, or a backlog row naming the file;
   no free-text lesson list.
+- Usage, cost, or quota analysis → harness-diagnosis §Usage analysis.
 - Task not named above → skill using-skills first.
 
 Binds for multi-phase, irreversible, or delegated work; a single reversible

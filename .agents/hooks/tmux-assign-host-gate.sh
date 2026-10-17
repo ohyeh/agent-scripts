@@ -12,9 +12,11 @@
 # grantable), and must not poll workers with status/capture/probe/result
 # (the retired W32 per-worker polling proxy).
 #
-# MODE: DENY. Keyed on hook-stdin `agent_type`: ABSENT in the parent session,
-# present inside a subagent. run_in_background=true is the documented logged
-# FALLBACK and stays allowed.
+# MODE: DENY. Keyed on a non-empty hook-stdin `agent_id`: present inside a
+# subagent, absent in the parent. `agent_type` alone is not the signal: Claude
+# Code sets it on a `--agent` main thread too (CLI hook types, 2.1.301), and the
+# Cursor adapter sends agent_id "" for a parent Shell. run_in_background=true
+# is the documented logged FALLBACK and stays allowed.
 set -u
 
 IN="$(cat)"
@@ -38,6 +40,7 @@ seg_match "assign" && HIT="assign"
 [ -n "$HIT" ] || exit 0
 
 AGENT_TYPE="$(printf '%s' "$IN" | jq -r '.agent_type // "ABSENT"')"
+AGENT_ID="$(printf '%s' "$IN" | jq -r '.agent_id // ""')"
 BACKGROUND="$(printf '%s' "$IN" | jq -r '.tool_input.run_in_background // false | tostring')"
 
 LOG="${HOME}/.local/state/agent-scripts/tmux-assign-host-probe.jsonl"
@@ -45,13 +48,14 @@ mkdir -p "$(dirname "$LOG")" 2>/dev/null && jq -cn \
   --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --arg hit "$HIT" \
   --arg agent_type "$AGENT_TYPE" \
+  --arg agent_id "$AGENT_ID" \
   --arg background "$BACKGROUND" \
   --arg session "$(printf '%s' "$IN" | jq -r '.session_id // empty')" \
-  '{ts: $ts, hit: $hit, agent_type: $agent_type, background: $background, session: $session}' \
+  '{ts: $ts, hit: $hit, agent_type: $agent_type, agent_id: $agent_id, background: $background, session: $session}' \
   >> "$LOG" 2>/dev/null
 
 # Hosted correctly: inside a subagent, or dispatched as a background task.
-[ "$AGENT_TYPE" = "ABSENT" ] || exit 0
+[ -z "$AGENT_ID" ] || exit 0
 [ "$BACKGROUND" != "true" ] || exit 0
 
 # Codex has no subagent host or run_in_background; its supported host is the

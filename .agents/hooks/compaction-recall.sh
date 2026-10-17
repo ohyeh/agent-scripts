@@ -22,6 +22,10 @@ set -u
 MAX_COMPACTIONS="${AGENT_HOOKS_MAX_COMPACTIONS:-20}"
 MAX_PROMPTS=20
 MAX_PROMPT_CHARS=200
+# A worker's first record is its brief; at 200 chars the replay of a70f788e
+# kept the GOAL and lost ACCEPTANCE. 1500 chars keeps a CJK brief (3 bytes per
+# char) inside MAX_TOTAL_BYTES.
+MAX_BRIEF_CHARS=1500
 MAX_TOTAL_BYTES=6000
 HEADER="[compaction-recall] verbatim user prompts before this compaction, newest last:"
 
@@ -63,10 +67,27 @@ prompts="$(jq -r --arg max "$MAX_PROMPT_CHARS" --arg hdr "$HEADER" '
   | select(length > 0 and (startswith("<") | not) and (contains($hdr) | not))
   | gsub("\n"; " ") | .[0:($max|tonumber)]' "$TRANSCRIPT" 2>/dev/null | tail -n "$MAX_PROMPTS")"
 
-[ -n "$prompts" ] || exit 0
+# Worker: its brief goes on its own line, longer, and the byte cap below never
+# drops it (that loop removes "- " lines only); the "- " list skips it.
+brief=""
+if [ -n "$AGENT_ID" ]; then
+  brief="$(jq -r --arg hdr "$HEADER" '
+    select(.type=="user" and .isCompactSummary!=true)
+    | .message.content
+    | if type=="string" then . else ([.[]? | select(.type=="text") | .text] | join(" ")) end
+    | select(length > 0 and (startswith("<") | not) and (contains($hdr) | not))
+    | gsub("\n"; " ")' "$TRANSCRIPT" 2>/dev/null | head -n 1)"
+  # cut by characters in jq, not bash ${:0:N} (bytes under a C locale)
+  short="$(jq -rn --arg b "$brief" --argjson n "$MAX_PROMPT_CHARS" '$b[0:$n]')"
+  [ -z "$short" ] || prompts="$(printf '%s\n' "$prompts" | grep -vxF -- "$short")"
+  brief="$(jq -rn --arg b "$brief" --argjson n "$MAX_BRIEF_CHARS" '$b[0:$n]')"
+fi
+
+[ -n "$prompts$brief" ] || exit 0
 
 out="$HEADER
-$(printf '%s\n' "$prompts" | sed 's/^/- /')
+${brief:+Your brief (first message): $brief
+}$(printf '%s\n' "$prompts" | grep -v '^$' | sed 's/^/- /')
 Compactions in this session: $compactions. Re-derive current goal and title status from these, not from the summary alone."
 
 # Point at the file postcompact-handoff.sh just wrote so the model can read the
