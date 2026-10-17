@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Idempotent: register fleet hooks in ~/.cursor/hooks.json via the Cursor
-# adapter. User-hook cwd is ~/.cursor/, so commands are relative
-# ./hooks/fleet-*.sh wrappers (Cursor docs). Does not touch plugin-declared
+# adapter. Commands use absolute $HOME/.cursor/hooks/fleet-*.sh wrapper paths
+# because the hook runner's cwd is not always ~/.cursor (a relative ./hooks path
+# failed with exit 127 / empty output and fail-closed blocked tools, 2026-10-17).
+# Does not touch plugin-declared
 # hooks (context-mode lives in the plugin, not this file).
 #
 # Usage: scripts/install-cursor-hooks.sh
@@ -54,9 +56,10 @@ done <<< "$(printf '%s' "$REGISTRY" | sed '/^[[:space:]]*$/d')"
 [ -f "$JSON" ] || printf '%s\n' '{"version":1,"hooks":{}}' > "$JSON"
 
 tmp="$(mktemp)"
-python3 - "$JSON" "$tmp" "$REGISTRY" <<'PY'
+python3 - "$JSON" "$tmp" "$REGISTRY" "$HOOK_DIR" <<'PY'
 import json, sys
 path, dest, registry = sys.argv[1], sys.argv[2], sys.argv[3]
+hook_dir = sys.argv[4]
 data = json.loads(open(path).read() or "{}")
 if not isinstance(data, dict):
     data = {}
@@ -74,7 +77,7 @@ for line in registry.splitlines():
     name, event, matcher, fail_closed = line.split("|")
     # bash, never a #! exec: cursor-agent is itself a #! script, so each #! exec under
     # it leaks ~1 KB of kernel memory until reboot (live 2026-10-03)
-    cmd = f"bash ./hooks/fleet-{name}.sh"
+    cmd = f"bash {hook_dir}/fleet-{name}.sh"
     entry = {
         "command": cmd,
         "timeout": 10,
@@ -82,16 +85,16 @@ for line in registry.splitlines():
     }
     if matcher:
         entry["matcher"] = matcher
-    wanted.append((event, cmd, entry))
+    wanted.append((event, name, cmd, entry))
 
-for event, cmd, entry in wanted:
+for event, name, cmd, entry in wanted:
     arr = hooks.get(event) or []
     if not isinstance(arr, list):
         arr = []
     replaced = False
     new_arr = []
     for item in arr:
-        if isinstance(item, dict) and item.get("command") in (cmd, cmd[len("bash "):]):
+        if isinstance(item, dict) and item.get("command") in (cmd, cmd[len("bash "):], f"bash ./hooks/fleet-{name}.sh", f"./hooks/fleet-{name}.sh"):
             if not replaced:  # old and new forms of one hook collapse to one entry
                 new_arr.append(entry)
             replaced = True

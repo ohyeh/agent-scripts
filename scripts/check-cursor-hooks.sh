@@ -21,18 +21,19 @@ for name in bol-prompt-gate subagent-concurrency-gate host-load-gate subagent-le
 done
 
 if [ -f "$JSON" ]; then
-  if out="$(python3 - "$JSON" <<'PY'
+  if out="$(python3 - "$JSON" "$HOOK_DIR" <<'PY'
 import json, sys
 path = sys.argv[1]
+hook_dir = sys.argv[2]
 data = json.loads(open(path).read())
 hooks = data.get("hooks") or {}
 want = {
-    "subagentStart": ["bash ./hooks/fleet-bol-prompt-gate.sh", "bash ./hooks/fleet-subagent-concurrency-gate.sh", "bash ./hooks/fleet-host-load-gate.sh", "bash ./hooks/fleet-subagent-ledger.sh"],
-    "subagentStop": ["bash ./hooks/fleet-subagent-ledger.sh"],
-    "preToolUse": ["bash ./hooks/fleet-bash-read-audit.sh", "bash ./hooks/fleet-agent-device-target-gate.sh", "bash ./hooks/fleet-tmux-assign-host-gate.sh", "bash ./hooks/fleet-host-load-gate.sh", "bash ./hooks/fleet-bol-prompt-gate.sh", "bash ./hooks/fleet-deny-replay-gate.sh"],
-    "postToolUse": ["bash ./hooks/fleet-context-ledger.sh"],
-    "beforeSubmitPrompt": ["bash ./hooks/fleet-claim-evidence-gate.sh"],
-    "stop": ["bash ./hooks/fleet-claim-evidence-gate.sh"],
+    "subagentStart": [f"bash {hook_dir}/fleet-bol-prompt-gate.sh", f"bash {hook_dir}/fleet-subagent-concurrency-gate.sh", f"bash {hook_dir}/fleet-host-load-gate.sh", f"bash {hook_dir}/fleet-subagent-ledger.sh"],
+    "subagentStop": [f"bash {hook_dir}/fleet-subagent-ledger.sh"],
+    "preToolUse": [f"bash {hook_dir}/fleet-bash-read-audit.sh", f"bash {hook_dir}/fleet-agent-device-target-gate.sh", f"bash {hook_dir}/fleet-tmux-assign-host-gate.sh", f"bash {hook_dir}/fleet-host-load-gate.sh", f"bash {hook_dir}/fleet-bol-prompt-gate.sh", f"bash {hook_dir}/fleet-deny-replay-gate.sh"],
+    "postToolUse": [f"bash {hook_dir}/fleet-context-ledger.sh"],
+    "beforeSubmitPrompt": [f"bash {hook_dir}/fleet-claim-evidence-gate.sh"],
+    "stop": [f"bash {hook_dir}/fleet-claim-evidence-gate.sh"],
 }
 errors = []
 for event, cmds in want.items():
@@ -40,16 +41,25 @@ for event, cmds in want.items():
     for cmd in cmds:
         if cmd not in have:
             errors.append(f"{event} missing {cmd}")
-forbidden = {
-    "./hooks/fleet-claude-version-sentinel.sh",
-    "./hooks/fleet-session-title-sentinel.sh",
-}
+forbidden = set()
+for sentinel in ("fleet-claude-version-sentinel.sh", "fleet-session-title-sentinel.sh"):
+    forbidden |= {
+        f"./hooks/{sentinel}",
+        f"bash ./hooks/{sentinel}",
+        f"{hook_dir}/{sentinel}",
+        f"bash {hook_dir}/{sentinel}",
+    }
 for event, arr in hooks.items():
     if not isinstance(arr, list):
         continue
     for item in arr:
-        if isinstance(item, dict) and item.get("command") in forbidden:
-            errors.append(f"{event} has skipped hook {item.get('command')}")
+        if not isinstance(item, dict):
+            continue
+        cmd = item.get("command")
+        if cmd in forbidden:
+            errors.append(f"{event} has skipped hook {cmd}")
+        elif isinstance(cmd, str) and cmd.startswith(("bash ./hooks/", "./hooks/")):
+            errors.append(f"{event} has relative hook path {cmd}")
 if errors:
     sys.stderr.write("\n".join(errors) + "\n")
     sys.exit(2)
