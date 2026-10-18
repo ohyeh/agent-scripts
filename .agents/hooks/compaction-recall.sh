@@ -60,27 +60,29 @@ compactions="${compactions:-0}"
 # Human prompts only: type==user whose content is a plain string or a text
 # block, skipping tool_result records, harness <tags>, and this hook's own
 # earlier output (the HEADER line) so a re-injection never re-injects itself.
-prompts="$(jq -r --arg max "$MAX_PROMPT_CHARS" --arg hdr "$HEADER" '
-  select(.type=="user" and .isCompactSummary!=true)
+prompts="$(jq -r --arg max "$MAX_PROMPT_CHARS" --arg hdr "$HEADER" --arg tr "$TRANSCRIPT" '
+  ($max | tonumber) as $m
+  | input_line_number as $ln
+  | select(.type=="user" and .isCompactSummary!=true)
   | .message.content
   | if type=="string" then . else ([.[]? | select(.type=="text") | .text] | join(" ")) end
   | select(length > 0 and (startswith("<") | not) and (contains($hdr) | not))
-  | gsub("\n"; " ") | .[0:($max|tonumber)]' "$TRANSCRIPT" 2>/dev/null | tail -n "$MAX_PROMPTS")"
+  | gsub("\n"; " ")
+  | if length > $m then .[0:$m] + " …[cut; full: \($tr):\($ln)]" else . end' "$TRANSCRIPT" 2>/dev/null | { if [ -n "$AGENT_ID" ]; then tail -n +2; else cat; fi; } | tail -n "$MAX_PROMPTS")"
 
 # Worker: its brief goes on its own line, longer, and the byte cap below never
 # drops it (that loop removes "- " lines only); the "- " list skips it.
 brief=""
 if [ -n "$AGENT_ID" ]; then
-  brief="$(jq -r --arg hdr "$HEADER" '
-    select(.type=="user" and .isCompactSummary!=true)
+  brief="$(jq -r --arg max "$MAX_BRIEF_CHARS" --arg hdr "$HEADER" --arg tr "$TRANSCRIPT" '
+    ($max | tonumber) as $m
+    | input_line_number as $ln
+    | select(.type=="user" and .isCompactSummary!=true)
     | .message.content
     | if type=="string" then . else ([.[]? | select(.type=="text") | .text] | join(" ")) end
     | select(length > 0 and (startswith("<") | not) and (contains($hdr) | not))
-    | gsub("\n"; " ")' "$TRANSCRIPT" 2>/dev/null | head -n 1)"
-  # cut by characters in jq, not bash ${:0:N} (bytes under a C locale)
-  short="$(jq -rn --arg b "$brief" --argjson n "$MAX_PROMPT_CHARS" '$b[0:$n]')"
-  [ -z "$short" ] || prompts="$(printf '%s\n' "$prompts" | grep -vxF -- "$short")"
-  brief="$(jq -rn --arg b "$brief" --argjson n "$MAX_BRIEF_CHARS" '$b[0:$n]')"
+    | gsub("\n"; " ")
+    | if length > $m then .[0:$m] + " …[cut; full: \($tr):\($ln)]" else . end' "$TRANSCRIPT" 2>/dev/null | head -n 1)"
 fi
 
 [ -n "$prompts$brief" ] || exit 0

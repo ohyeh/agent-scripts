@@ -42,6 +42,17 @@ never a field name to harvest on. For a tmux worker the result contract is
 workers unharvested for ~24 minutes on 2026-09-08. Ask for the produced file as
 `.body.artifacts`.
 
+## Verification contract
+
+Each repo declares its own verification values in `.claude/workflows/feature-lifecycle-auto.job.json` under `verification`:
+- `acceptance`: objective conditions that define done.
+- `verifyCommands`: deterministic commands that must exit 0.
+- `negativeCases`: fixtures or commands that must FAIL with an explicit `expectedExit` (default `1`; `126`/`127` or any other code = `ERROR`, not `negative_ok`).
+- `timeoutSec`: hard timeout per command (`perl -e 'alarm N; exec @ARGV' --`; exit `142` = `TIMEOUT`).
+- `sources`: verifier/oracle files frozen (`sha256`) before implementation and re-checked in every L0 round; any drift voids PASS.
+- `unknown ≠ PASS`: missing, unreadable, or unexecuted verification is `UNVERIFIED`, never `PASS`.
+- Adopt one result once: record each adopted delivery (`delivery_id` / `seq`) in `.workflow/<run>/state.json` and never adopt it twice.
+
 ## 1. SEARCH / LOCATE  (cheapest capable tier; read-only agent type if available)
 
 ```

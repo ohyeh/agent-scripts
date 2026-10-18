@@ -69,6 +69,11 @@ check_jsonl "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" 2 \
 run_ledger "$(jq -cn '{session_id:"jsonl-smoke",tool_name:"Bash",tool_input:{command:"make test"},tool_response:{stdout:"token=TEST_SECRET_123\nexit code 0\n18/18 passed\nPASS [hooks] ok\n463 tests passed",stderr:"",interrupted:false}}')"
 tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" | jq -e '(.evidence | sort) == (["18/18 passed","463 passed","PASS","exit=0"] | sort)' >/dev/null || { echo "FAIL: evidence tokens not normalized: $(tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl")" >&2; exit 1; }
 ! grep -q 'TEST_SECRET_123' "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl"
+# Step 1: passed token requires count >= 1 and left boundary anchor (0 passed, 0/0 passed, 0/1 passed emit no pass token; 3 passed emits "3 passed")
+run_ledger "$(jq -cn '{session_id:"jsonl-smoke",tool_name:"Bash",tool_input:{command:"make test"},tool_response:{stdout:"0 passed\n0/0 passed\n0/1 passed\n",stderr:"",interrupted:false}}')"
+tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" | jq -e '.evidence == []' >/dev/null || { echo "FAIL: 0/0 or 0/1 passed emitted a pass token: $(tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl")" >&2; exit 1; }
+run_ledger "$(jq -cn '{session_id:"jsonl-smoke",tool_name:"Bash",tool_input:{command:"make test"},tool_response:{stdout:"3 passed\n",stderr:"",interrupted:false}}')"
+tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" | jq -e '.evidence == ["3 passed"]' >/dev/null || { echo "FAIL: 3 passed token missing: $(tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl")" >&2; exit 1; }
 
 # provenance: a token present only in the ECHOED INPUT is not evidence
 # (session 07fab76e: ctx_execute echoed a grep pattern 'All tests passed')
@@ -123,6 +128,12 @@ echo '{"type":"user","isCompactSummary":true,"message":{"content":"s"}}' >> "$TR
 grep -q 'ESCALATION: this session has compacted 20 times' <<<"$(run_recall)" || { echo "FAIL: no escalation at 20 compactions" >&2; exit 1; }
 for i in $(seq 1 60); do printf '{"type":"user","message":{"content":"%s"}}\n' "$(head -c 300 /dev/zero | tr '\0' x)" >> "$TR"; done
 [[ "$(run_recall | wc -c)" -le 6100 ]] || { echo "FAIL: recall exceeded byte cap" >&2; exit 1; }
+# Step 1: 300-char prompt ending in REVOKE emits a transcript:line pointer that reads back REVOKE
+printf '{"type":"user","message":{"content":"%sREVOKE"}}\n' "$(head -c 294 /dev/zero | tr '\0' y)" >> "$TR"
+recall_ptr_out="$(run_recall)"
+ptr="$(printf '%s\n' "$recall_ptr_out" | sed -nE 's/.*\[cut; full: ([^]]+:[0-9]+)\].*/\1/p' | tail -n 1)"
+[[ -n "$ptr" ]] || { echo "FAIL: cut prompt missing [cut; full: path:line] pointer" >&2; exit 1; }
+sed -n "${ptr##*:}p" "${ptr%:*}" | grep -q 'REVOKE' || { echo "FAIL: pointed transcript line ${ptr} missing REVOKE" >&2; exit 1; }
 
 # title sentinel: title-only again — a ✅ title is the claim gate's business
 TR2="$WORK/transcript-short.jsonl"

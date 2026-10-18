@@ -53,30 +53,44 @@ const GLOBAL_JOB = '$HOME/.claude/workflows/.feature-lifecycle-auto.job.json'
 const BUILTIN = {}
 let a = { ...(typeof args === 'string' ? (() => { try { return JSON.parse(args) } catch { return {} } })() : (args || {})) }
 let jobSrc = null
-if (!a.repoPath || !a.brief) {
+if (!a.repoPath || !a.brief || !a.verification) {
   const job = await agent(
-    `Read a job JSON object. PREFER ${PROJECT_JOB} (relative to your current working directory). ` +
-    `If it is absent or unreadable, fall back to ${GLOBAL_JOB} (expand $HOME). ` +
-    `Return the parsed object of whichever existed, with an added "_source":"project"|"global". ` +
+    `Read a job JSON object. PREFER ${PROJECT_JOB} (relative to ${a.repoPath || 'your current working directory'}). ` +
+    `If it is absent or unreadable, or if repoPath/brief are missing from it, you may fall back to ${GLOBAL_JOB} (expand $HOME) ONLY for non-verification fields. ` +
+    `NEVER read or copy "verification" from ${GLOBAL_JOB} — "verification" may come ONLY from ${PROJECT_JOB}. ` +
+    `Return the parsed object with "_source":"project"|"global" and "_verificationFromProject":true|false. ` +
     `If neither exists, return {}. Return ONLY the object — no prose.`,
-    { label: 'read-job', phase: 'Plan', model: 'sonnet', effort: 'medium', isolation: undefined, agentType: undefined, schema: { type: 'object', properties: { repoPath: { type: 'string' }, brief: { type: 'string' }, slug: { type: 'string' }, mode: { type: 'string' }, _source: { type: 'string' } }, additionalProperties: true } }   // bootstrap: literal defaults (config not read yet); typed properties pin the shape (no `required` — {} is a valid "no job file" answer)
+    { label: 'read-job', phase: 'Plan', model: 'sonnet', effort: 'medium', isolation: undefined, agentType: undefined, schema: { type: 'object', properties: { repoPath: { type: 'string' }, brief: { type: 'string' }, slug: { type: 'string' }, mode: { type: 'string' }, verification: { type: 'object' }, _source: { type: 'string' }, _verificationFromProject: { type: 'boolean' } }, additionalProperties: true } }   // bootstrap: literal defaults (config not read yet); typed properties pin the shape (no `required` — {} is a valid "no job file" answer)
   )
   // Defense in depth: a loose structured output once wrapped the whole job as one
   // string property ({"input":"{...}"}), making every field read undefined.
   let j = job || {}
   if (typeof j === 'string') { try { j = JSON.parse(j) } catch { j = {} } }
-  if (j && !j.repoPath && !j.brief) {
+  if (j && !j.repoPath && !j.brief && !j.verification) {
     const k = Object.keys(j)
     if (k.length === 1 && typeof j[k[0]] === 'string') { try { j = JSON.parse(j[k[0]]) } catch { /* leave as-is */ } }
   }
   const src = j && j._source; if (j) delete j._source
+  const vFromProject = j && (j._verificationFromProject === true || src === 'project'); if (j) delete j._verificationFromProject
+  if (j && !vFromProject) delete j.verification   // NEVER take verification from GLOBAL_JOB
   jobSrc = src || null
   a = { ...BUILTIN, ...(j || {}), ...a }
+  if (src !== 'project' && !vFromProject) delete a.verification
   if (src === 'project' && !a.repoPath) a.repoPath = '.'   // you're in the repo → it IS the target
   if (src === 'global') log(`P4 WARNING: inputs came from the SHARED global job file — NOT concurrency-safe; confirm slug=${a.slug || '?'} is THIS run before trusting it.`)
   else if (src === 'project') log(`Inputs from project-local ${PROJECT_JOB} (per-project, concurrency-safe).`)
 }
-for (const k of ['repoPath', 'brief']) if (!a[k]) return { aborted: true, reason: jobSrc
+const nonEmptyArr = x => Array.isArray(x) && x.length > 0
+const verification = (a.verification && typeof a.verification === 'object') ? a.verification : null
+const hasVerification = !!(
+  verification &&
+  nonEmptyArr(verification.acceptance) &&
+  nonEmptyArr(verification.verifyCommands) &&
+  nonEmptyArr(verification.negativeCases) &&
+  nonEmptyArr(verification.sources)
+)
+const contractStatus = hasVerification ? 'DECLARED' : 'UNVERIFIED'
+for (const k of ['repoPath', 'brief']) if (!a[k]) return { aborted: true, contractStatus, reason: jobSrc
   ? `job file FOUND (source: ${jobSrc}) but field '${k}' is missing/empty after parse — fix the job file's fields, do not recreate it`
   : `no job file found and no '${k}' arg — create ${PROJECT_JOB} (preferred) or ${GLOBAL_JOB} (top-level Workflow args are dropped by this runtime)` }
 const mode = a.mode === 'frozen' ? 'frozen' : 'explore'
@@ -128,7 +142,7 @@ if (planClean && planPath) {
   const execJob = {
     repoPath: a.repoPath, slug, brief: a.brief, mode,
     autoBuild: a.autoBuild === true, commit: a.commit === true, push: a.push === true,
-    planPath, generatedBy: 'feature-lifecycle-auto',
+    planPath, verification, generatedBy: 'feature-lifecycle-auto',
   }
   await agent(
     `Under repo ${a.repoPath}, write this JSON to .claude/workflows/${slug}/job.json ` +
@@ -143,26 +157,33 @@ if (planClean && planPath) {
 phase('Gate')
 if (!planClean) {
   log(`Gate: plan stage NOT clean (mode=${mode}) — stopping before build, surfacing to user.`)
-  return { stage: 'plan', mode, passed: false, needsUser: true, plan }
+  return { stage: 'plan', mode, passed: false, contractStatus, needsUser: true, plan }
 }
 if (a.autoBuild !== true) {
   log('Gate: plan is clean. autoBuild=false → stopping for human review (commander mode).')
-  return { stage: 'plan', mode, passed: true, needsUser: false, builtNext: false, planPath, plan }
+  return { stage: 'plan', mode, passed: true, contractStatus, needsUser: false, builtNext: false, planPath, plan }
 }
-if (!planPath) return { stage: 'gate', mode, passed: true, needsUser: true, plan, note: 'plan clean but planPath unknown — pass planPath arg to enable autoBuild' }
+if (!planPath) return { stage: 'gate', mode, passed: true, contractStatus, needsUser: true, plan, note: 'plan clean but planPath unknown — pass planPath arg to enable autoBuild' }
 
 // ── Phase 3: BUILD — only reached when plan is clean AND autoBuild opted in ─────
 // P6 cost guard: don't start an expensive build pass on a near-exhausted token budget.
 if (budget?.total && budget.remaining() < 80_000) {
   log(`P6: token budget low (~${Math.round(budget.remaining() / 1000)}k left) — stopping before build to avoid a half-finished expensive pass.`)
-  return { stage: 'gate', mode, passed: true, needsUser: true, planPath, plan, note: 'plan clean but token budget too low to start build safely' }
+  return { stage: 'gate', mode, passed: true, contractStatus, needsUser: true, planPath, plan, note: 'plan clean but token budget too low to start build safely' }
 }
 phase('Build')
 const build = await workflow('spec-implement-dual-review-verify', {
   repoPath: a.repoPath,
   spec: `Implement the frozen plan at ${planPath}. Read it fully first; it is the authoritative spec (consensus-frozen / consensus-passed). Follow its file targets, behavior, and verification steps. Truth = source code and real command output, not memory.`,
   targetFile: a.targetFile,
-  model, effort, reviewEffort: a.reviewEffort, isolation, agentType, timeoutSec: a.timeoutSec, slug,   // forward model/effort/isolation/agentType + slug; no cli: the build's review ladder picks its reviewers
+  verification,
+  acceptance: verification?.acceptance,
+  verifyCommands: verification?.verifyCommands,
+  negativeCases: verification?.negativeCases,
+  sources: verification?.sources,
+  model, effort, reviewEffort: a.reviewEffort, isolation, agentType, timeoutSec: verification?.timeoutSec ?? a.timeoutSec, slug,   // forward model/effort/isolation/agentType + slug + verification; no cli: the build's review ladder picks its reviewers
 })
-const built = !!build && !build.aborted
-return { stage: 'build', mode, passed: built, needsUser: !built, planPath, plan, build }
+const built = !!build && !build.aborted && build.verified === true
+const finalContractStatus = !hasVerification ? 'UNVERIFIED' : (built ? 'PASS' : 'BLOCK')
+if (!hasVerification) log(`Verification contract is UNVERIFIED (incomplete or missing project verification in ${PROJECT_JOB}; requires acceptance, verifyCommands, negativeCases, and sources).`)
+return { stage: 'build', mode, passed: hasVerification && built, contractStatus: finalContractStatus, verified: hasVerification && built, needsUser: !built || !hasVerification, planPath, plan, build }

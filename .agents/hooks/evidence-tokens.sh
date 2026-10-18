@@ -9,7 +9,7 @@
 # inputs for the same reason).
 set -u
 tr -d '\r' \
-| grep -oE 'exit[ =:]*(code[ =:]*)?[0-9]+|[0-9]+/[0-9]+ passed|[0-9]+ (tests? )?passed|DEPLOY OK|VERDICT: *(PASS|BLOCK)|(^|[^A-Za-z])PASS([^A-Za-z]|$)|No issues found|All tests passed' 2>/dev/null \
-| sed -E 's/^exit[ =:]*(code[ =:]*)?([0-9]+)$/exit=\2/; s/^([0-9]+) tests? passed$/\1 passed/; s/^VERDICT: *(PASS|BLOCK)$/VERDICT: \1/; s/^[^A-Za-z]?PASS[^A-Za-z]?$/PASS/' \
+| grep -oE 'exit[ =:]*(code[ =:]*)?[0-9]+|(^|[^0-9/])([1-9][0-9]*/[1-9][0-9]* |[1-9][0-9]* (tests? )?)passed|DEPLOY OK|VERDICT: *(PASS|BLOCK)|(^|[^A-Za-z])PASS([^A-Za-z]|$)|No issues found|All tests passed' 2>/dev/null \
+| sed -E 's/^exit[ =:]*(code[ =:]*)?([0-9]+)$/exit=\2/; s/^[^0-9/]?([1-9][0-9]*) tests? passed$/\1 passed/; s/^[^0-9/]?([1-9][0-9]*(\/[1-9][0-9]*)? passed)$/\1/; s/^VERDICT: *(PASS|BLOCK)$/VERDICT: \1/; s/^[^A-Za-z]?PASS[^A-Za-z]?$/PASS/' \
 | sort -u | head -20
 exit 0

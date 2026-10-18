@@ -89,7 +89,8 @@ const model = a.model || 'opus'     // IMPLEMENTER / FIXER model only ('sonnet' 
 const effort = a.effort || 'medium'    // implementer effort (default medium; floor opus low)
 const reviewEffort = a.reviewEffort || 'high'
 const maxRounds = a.maxReviewRounds || 3
-const timeout = Number.isInteger(a.timeoutSec) ? a.timeoutSec : 1200
+const v = (a.verification && typeof a.verification === 'object') ? a.verification : {}
+const timeout = Number.isInteger(a.timeoutSec) ? a.timeoutSec : (Number.isInteger(v.timeoutSec) ? v.timeoutSec : 1200)
 // Official agent() opts, listed on every call. Both default OFF:
 // No isolation: every agent() would get its own worktree, so drafter, fixer, L0 and reviewers would not
 // see one another's edits. The ladder runs on one live tree.
@@ -105,7 +106,23 @@ const MANIFEST = `{ git -C ${R} rev-parse HEAD; ${CHANGE}; } 2>/dev/null | shasu
 const hex = s => String(s || '').slice(0, 64)   // shasum prints "<hex>  -"; a seat may drop the suffix (7 of 20 Luna verdicts did)
 const target = a.targetFile ? `\nTarget file: ${a.targetFile}` : ''
 const focus = a.reviewFocus || 'correctness, error handling, edge cases, anything that could silently corrupt state or data'
-const verifyCommands = Array.isArray(a.verifyCommands) ? a.verifyCommands : []
+const verifyCommands = Array.isArray(a.verifyCommands) ? a.verifyCommands : (Array.isArray(v.verifyCommands) ? v.verifyCommands : [])
+const negativeCases = Array.isArray(a.negativeCases) ? a.negativeCases : (Array.isArray(v.negativeCases) ? v.negativeCases : [])
+const sources = Array.isArray(a.sources) ? a.sources : (Array.isArray(v.sources) ? v.sources : [])
+const SOURCES_HASH = sources.length ? `(cd ${R} && shasum -a 256 ${sources.map(shellQuote).join(' ')})` : ''
+const PERL_TIMEOUT = 'perl -e \'my $t=shift; my $p=fork; if(!$p){setpgrp(0,0); exec @ARGV; exit 127} $SIG{ALRM}=sub{kill "KILL",-$p; waitpid $p,0; exit 142}; alarm $t; waitpid $p,0; exit($? & 127 ? 128+($? & 127) : $?>>8)\''
+const wrapTimeout = (cmd) => `${PERL_TIMEOUT} ${timeout} bash -c ${shellQuote(cmd)}`
+const normNeg = negativeCases.map((c, idx) => {
+  const obj = typeof c === 'string' ? { command: c } : (c || {})
+  const expectedExit = Number.isInteger(obj.expectedExit) ? obj.expectedExit : 1
+  const cmd = obj.command || (obj.fixture ? `node evals/run-behavior.mjs --case ${shellQuote(obj.fixture)}` : '')
+  return {
+    name: obj.name || `neg-${idx + 1}`,
+    command: cmd,
+    expectedExit,
+    wrapped: wrapTimeout(cmd),
+  }
+})
 
 const SPEC = `Repo: ${repo}.${target}\n\nSPEC:\n${a.spec}`
 
@@ -119,8 +136,15 @@ const FIX = { type: 'object', additionalProperties: false, required: ['ok', 'sum
     actions: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['id', 'action', 'evidence'],
       properties: { id: { type: 'string' }, action: { type: 'string', enum: ['fixed', 'rejected', 'deferred'] }, evidence: { type: 'string' } } } },
   } }
-const L0 = { type: 'object', additionalProperties: false, required: ['manifest', 'rc', 'output'],
-  properties: { manifest: { type: 'string' }, rc: { type: 'integer' }, output: { type: 'string', description: 'last 40 lines, verbatim' } } }
+const L0 = { type: 'object', additionalProperties: false, required: ['manifest', 'rc', 'output', 'sources_before', 'sources_after', 'negative_ok', 'negative_exits', 'timed_out'],
+  properties: {
+    manifest: { type: 'string' }, rc: { type: 'integer' }, output: { type: 'string', description: 'last 40 lines, verbatim' },
+    sources_before: { type: 'string', description: 'sha256 of each sources file before running checks (empty if no sources)' },
+    sources_after: { type: 'string', description: 'sha256 of each sources file after running checks (empty if no sources)' },
+    negative_ok: { type: 'boolean', description: 'true iff every negativeCases entry exited with its exact expectedExit' },
+    negative_exits: { type: 'array', items: { type: 'integer' }, description: 'actual exit code of each negativeCases command in order' },
+    timed_out: { type: 'boolean', description: 'true iff any command exited 142 (SIGALRM timeout)' },
+  } }
 const FINDING = { type: 'object', additionalProperties: false, required: ['id', 'severity', 'status', 'issue', 'evidence', 'fix', 'check'],
   properties: {
     id: { type: 'string', description: 'the ledger id for a known finding; any new id for a new one' },
@@ -143,6 +167,18 @@ const LUNA = { type: 'object', additionalProperties: false, required: ['ran', 'e
   properties: { ran: { type: 'boolean' }, error: { type: 'string' }, verdict: VERDICT } }
 
 phase('Implement')
+// Freeze the verification sources digest ONCE before any implementer/fixer runs; every L0 round checks against this frozen baseline.
+let frozenSourcesDigest = ''
+if (SOURCES_HASH) {
+  const base = await agent(
+    `In repo ${repo}: freeze the verification sources digest BEFORE implementation. Do not edit any file. Run \`${SOURCES_HASH}\`; return rc = its exit code and sources_baseline = its verbatim output.`,
+    { label: 'freeze-sources', phase: 'Implement', model: 'sonnet', effort: 'low', agentType, schema: { type: 'object', additionalProperties: false, required: ['rc', 'sources_baseline'], properties: { rc: { type: 'integer' }, sources_baseline: { type: 'string' } } } }
+  )
+  if (!base || base.rc !== 0 || !String(base.sources_baseline || '').trim()) {
+    return { aborted: true, stage: 'implement', reason: 'failed to freeze verification sources digest before implementation' }
+  }
+  frozenSourcesDigest = String(base.sources_baseline).trim()
+}
 const impl = await agent(
   `You are implementing per the spec below. Use the Write/Edit tools to make the change in the repo, then make any produced script executable if applicable. Finish the whole spec; do not add features beyond it and do not modify unrelated files. Do NOT commit: the review ladder reviews the uncommitted change.\n${SPEC}`,
   { label: 'implement', phase: 'Implement', model, effort, agentType }
@@ -158,7 +194,12 @@ const LADDER = [
 ]
 const BLOCKING = f => f.severity !== 'Minor'
 const runL0 = n => agent(
-  `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n1. ${verifyCommands.length ? `Run each, in order, stopping at the first non-zero exit:\n${verifyCommands.map(c => `  - ${c}`).join('\n')}\nrc = the first non-zero exit code, or 0; output = the last 40 lines verbatim.` : 'No verifyCommands were given: choose and run the narrowest relevant checks for this change (syntax check, linter, a smoke invocation) that write nothing into the repo; rc = the first non-zero exit code, or 0; output = each command and the last 40 lines verbatim.'}\n2. Then run \`${MANIFEST}\`; manifest = its output.`,
+  `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n` +
+  `0. ${SOURCES_HASH ? `Record sources_before = the verbatim output of \`${SOURCES_HASH}\`. It must match the pre-implementation frozen baseline:\n${frozenSourcesDigest}` : 'No sources were given: set sources_before = "".'}\n` +
+  `1. ${verifyCommands.length ? `Run each wrapped verify command below in order, stopping at the first non-zero exit (each command is wrapped with a process-group perl alarm ${timeout}s; exit 142 = TIMEOUT):\n${verifyCommands.map(c => `  - ${wrapTimeout(c)}`).join('\n')}\nIf any command exits 142, set timed_out = true, rc = 142, and prepend "TIMEOUT (exit 142)" to output. Otherwise timed_out = false and rc = the first non-zero exit code, or 0; output = the last 40 lines verbatim.` : `No verifyCommands were given: choose and run the narrowest relevant checks wrapped with \`${PERL_TIMEOUT} ${timeout} bash -c '<cmd>'\` that write nothing into the repo; exit 142 = TIMEOUT (set timed_out = true, rc = 142); otherwise timed_out = false, rc = the first non-zero exit code, or 0.`}\n` +
+  `2. ${normNeg.length ? `Run each wrapped negativeCases command below and record its actual exit code in negative_exits[] in order:\n${normNeg.map(n => `  - [${n.name}] (expectedExit=${n.expectedExit}): ${n.wrapped}`).join('\n')}\nFor each entry: exit 142 = TIMEOUT (set timed_out = true, negative_ok = false, rc = 142); exit 126 or 127 or any exit != expectedExit = ERROR (set negative_ok = false, rc = 1). Set negative_ok = true ONLY if every entry exited with its exact expectedExit.` : 'No negativeCases were given: set negative_exits = [] and negative_ok = true.'}\n` +
+  `3. ${SOURCES_HASH ? `Record sources_after = the verbatim output of \`${SOURCES_HASH}\`. If sources_before or sources_after differs from the frozen baseline above, set rc = 1 (changed digest voids PASS).` : 'Set sources_after = "".'}\n` +
+  `4. Then run \`${MANIFEST}\`; manifest = its output.`,
   { label: `L0#${n}`, phase: 'Review', model: 'sonnet', effort: 'medium', agentType, schema: L0 })   // manifest AFTER verify: checks that rewrite files must not void the round
 // No isolation (rejected above), so the prompt is the only guard: a reviewer that runs a check writes into the tree under review.
 const reviewPrompt = (tier, r, max, ledger, prev, l0) =>
@@ -215,9 +256,24 @@ ladder: for (const [li, L] of LADDER.entries()) {
     calls++
     const pre = await runL0(rounds + 1)
     if (!pre) return stop('L0 agent failed (returned null)', [])
-    if (pre.rc !== 0) {   // deterministic failure: fix first, the review round has not started
-      if (++l0Fails >= 2) return stop('L0 failed twice in a row', [`rc=${pre.rc}: ${pre.output.slice(-400)}`])
-      if (!(await fix(`L0 FAILED (rc=${pre.rc}). Output:\n${pre.output}\nFix the cause; also keep every open ledger finding in mind:\n${JSON.stringify([...ledger.values()], null, 2)}`, rounds + 1))) return stop('fixer failed on an L0 fix', [])
+    const norm = s => String(s || '').trim()
+    const digestChanged = SOURCES_HASH
+      ? (norm(pre.sources_before) !== frozenSourcesDigest || norm(pre.sources_after) !== frozenSourcesDigest)
+      : false
+    const timedOut = pre.timed_out === true || pre.rc === 142 || (pre.negative_exits || []).includes(142)
+    const negExitError = normNeg.length > 0 && (
+      !Array.isArray(pre.negative_exits) ||
+      pre.negative_exits.length !== normNeg.length ||
+      normNeg.some((n, i) => {
+        const code = pre.negative_exits[i]
+        return code === 126 || code === 127 || code === 142 || code !== n.expectedExit
+      })
+    )
+    const negFailed = pre.negative_ok === false || negExitError
+    if (pre.rc !== 0 || digestChanged || timedOut || negFailed) {   // deterministic failure: fix first, the review round has not started
+      const why = timedOut ? `TIMEOUT (exit 142 after ${timeout}s)` : digestChanged ? 'sources sha256 drifted from pre-implementation frozen baseline (voids PASS)' : negFailed ? `negativeCases ERROR/mismatch (exits=${JSON.stringify(pre.negative_exits || [])}, expected=${JSON.stringify(normNeg.map(n => n.expectedExit))})` : `rc=${pre.rc}`
+      if (++l0Fails >= 2) return stop(`L0 failed twice in a row (${why})`, [`${why}: ${pre.output.slice(-400)}`])
+      if (!(await fix(`L0 FAILED (${why}). Output:\n${pre.output}\nFix the cause; also keep every open ledger finding in mind:\n${JSON.stringify([...ledger.values()], null, 2)}`, rounds + 1))) return stop('fixer failed on an L0 fix', [])
       continue
     }
     l0Fails = 0; lastL0 = pre
