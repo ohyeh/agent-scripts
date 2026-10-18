@@ -27,58 +27,78 @@ printf '%s' "$input" | python3 -c '
 import sys, json, os, time
 from datetime import datetime, timezone
 
+out_path = os.path.expanduser("~/.gemini/antigravity-cli/statusline-usage-snapshot.json")
+
 try:
     data = json.load(sys.stdin)
     quota = data.get("quota") or {}
     now = int(time.time())
     scoped = []
 
-    # Gemini 5h & weekly quota
-    g5 = quota.get("gemini-5h")
-    if g5 and "remaining_fraction" in g5:
-        used = round((1 - float(g5["remaining_fraction"])) * 100)
-        reset_time = g5.get("reset_time")
-        if not reset_time and "reset_in_seconds" in g5:
-            reset_time = datetime.fromtimestamp(now + g5["reset_in_seconds"], tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        scoped.append({"display_name": "gemini", "utilization": used, "resets_at": reset_time})
+    def sort_key(k):
+        if k.endswith("-5h") and len(k) > 3:
+            family = k[:-3]
+            win_rank = 0
+        elif k.endswith("-weekly") and len(k) > 7:
+            family = k[:-7]
+            win_rank = 1
+        else:
+            family = k
+            win_rank = 2
 
-    gw = quota.get("gemini-weekly")
-    if gw and "remaining_fraction" in gw:
-        used = round((1 - float(gw["remaining_fraction"])) * 100)
-        reset_time = gw.get("reset_time")
-        if not reset_time and "reset_in_seconds" in gw:
-            reset_time = datetime.fromtimestamp(now + gw["reset_in_seconds"], tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        scoped.append({"display_name": "gemini-w", "utilization": used, "resets_at": reset_time})
+        if family == "gemini":
+            fam_rank = 0
+        elif family == "3p":
+            fam_rank = 1
+        else:
+            fam_rank = 2
 
-    # 3rd-party (3P) 5h & weekly quota
-    p5 = quota.get("3p-5h")
-    if p5 and "remaining_fraction" in p5:
-        used = round((1 - float(p5["remaining_fraction"])) * 100)
-        reset_time = p5.get("reset_time")
-        if not reset_time and "reset_in_seconds" in p5:
-            reset_time = datetime.fromtimestamp(now + p5["reset_in_seconds"], tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        scoped.append({"display_name": "3p", "utilization": used, "resets_at": reset_time})
+        return (fam_rank, family, win_rank, k)
 
-    pw = quota.get("3p-weekly")
-    if pw and "remaining_fraction" in pw:
-        used = round((1 - float(pw["remaining_fraction"])) * 100)
-        reset_time = pw.get("reset_time")
-        if not reset_time and "reset_in_seconds" in pw:
-            reset_time = datetime.fromtimestamp(now + pw["reset_in_seconds"], tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        scoped.append({"display_name": "3p-w", "utilization": used, "resets_at": reset_time})
+    for k in sorted(quota.keys(), key=sort_key):
+        entry = quota[k]
+        if not isinstance(entry, dict) or "remaining_fraction" not in entry:
+            continue
+        if k.endswith("-5h") and len(k) > 3:
+            dname = k[:-3]
+        elif k.endswith("-weekly") and len(k) > 7:
+            dname = f"{k[:-7]}-w"
+        else:
+            dname = k
+
+        used = round((1 - float(entry["remaining_fraction"])) * 100)
+        reset_time = entry.get("reset_time")
+        if not reset_time and "reset_in_seconds" in entry:
+            reset_time = datetime.fromtimestamp(now + entry["reset_in_seconds"], tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        scoped.append({"display_name": dname, "utilization": used, "resets_at": reset_time})
 
     snap = {
         "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "five_hour": {"used_percentage": None, "resets_at": None},
         "seven_day": {"used_percentage": None, "resets_at": None},
-        "model_scoped": scoped
+        "model_scoped": scoped,
+        "quota_keys": sorted(quota.keys()) if isinstance(quota, dict) else []
     }
 
-    out_path = os.path.expanduser("~/.gemini/antigravity-cli/statusline-usage-snapshot.json")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(snap, f)
-except Exception:
-    pass
+except Exception as e:
+    try:
+        err_snap = {
+            "updated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "five_hour": {"used_percentage": None, "resets_at": None},
+            "seven_day": {"used_percentage": None, "resets_at": None},
+            "model_scoped": [],
+            "error": type(e).__name__
+        }
+        if "quota" in locals() and isinstance(quota, dict):
+            err_snap["quota_keys"] = sorted(quota.keys())
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        with open(out_path, "w") as f:
+            json.dump(err_snap, f)
+    except Exception:
+        pass
 ' 2>/dev/null || true
 
 export CURSOR_STATUSLINE_USAGE_SNAPSHOT="$snapshot_file"
