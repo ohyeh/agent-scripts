@@ -58,6 +58,8 @@ Use this template structure when creating handoff documents. The smart scaffold 
 
 [Important patterns, conventions, or idioms found in this codebase that the next agent should follow]
 
+Anything this session made that could be useful beyond it (a workflow that emerged, a method, a fact) is a shared-memory-intake submission; name each file here, or write "nothing to submit". Do not copy its text here.
+
 ## Work Completed
 
 ### Tasks Finished

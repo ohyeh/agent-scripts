@@ -272,7 +272,7 @@ def generate_handoff(
 
 ### Key Patterns Discovered
 
-[TODO: Document important patterns, conventions, or idioms found in this codebase]
+[TODO: Document important patterns, conventions, or idioms found in this codebase. Anything this session made that could be useful beyond it (a workflow that emerged, a method, a fact) is a shared-memory-intake submission; name each file here, or write "nothing to submit"]
 
 ## Work Completed
 

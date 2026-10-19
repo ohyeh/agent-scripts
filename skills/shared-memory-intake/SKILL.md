@@ -17,7 +17,12 @@ active session.
 ## What belongs here
 
 A submission is a reusable fact or method a later session can apply directly
-(a path, a working command, a tool limit, a corrected belief). A reflection — what
+(a path, a working command, a tool limit, a corrected belief). Submit anything you
+judge, at the time, could be useful beyond this session, including a workflow that
+emerged during it (an ordered set of steps that worked). You do not need to prove it
+is global: review decides adoption. If you think it should become a rule, skill or
+recipe, also put an item in `~/.agents/retro-inbox/pending/` that cites the submission:
+`kind: proposal` when you can write a `maintenance.md` §3 row, else `kind: note`. A reflection — what
 went wrong and which rule, gate or brief to change — goes to `~/.agents/retro-inbox/`
 (format: `maintenance.md` §3), not here. When one session-end write has both, split it into two items, one per inbox,
 and do not copy the same text into both or into the handoff.
