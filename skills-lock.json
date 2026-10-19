@@ -214,7 +214,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/session-handoff/SKILL.md",
-      "skillFolderHash": "bb6b716ea78bea6e38996343ae4a67cd25c12a72",
+      "skillFolderHash": "ff97dcd722d05b69623fc6339b0a36a029db709a",
       "installedAt": "2026-07-18T20:48:39.017Z",
       "updatedAt": "2026-10-16T00:00:00.000Z"
     },
@@ -223,7 +223,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/shared-memory-intake/SKILL.md",
-      "skillFolderHash": "6562dbb221c3c6a556453585a192f2e9d1130e0c",
+      "skillFolderHash": "7a7a044b90dabda4eb2599db5f2e5e03e51cbae4",
       "installedAt": "2026-07-26T11:03:52.880Z",
       "updatedAt": "2026-10-15T17:40:19.474Z"
     },
