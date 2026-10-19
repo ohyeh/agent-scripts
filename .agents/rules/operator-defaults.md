@@ -34,7 +34,12 @@ Chain these for planning and investigation work:
   Do not move a slow test to another required command to hide its cost. If the change exceeds the
   budget, cut duplicate work before adding tests. Keep data-loss, security, and public-contract
   checks. Quote the executed wall time before claiming the budget is met; otherwise mark it
-  UNCONFIRMED. Do not add a gate script for this rule (2026-10-11: tmux-agent-tools smokes grew to
+  UNCONFIRMED. A bug-fix test states the failure it gave on the pre-fix code. A test that passes
+  only on a retry is a failure. A test removes all it creates (temp dirs, sockets, child processes,
+  files under HOME). Each test file runs from a runner the repository names; a test no runner
+  reaches is residue: wire it or delete it. Reviewers apply the same bar: a "missing test" finding
+  names the regression it detects, and a reviewer may ask to merge or delete a duplicate test.
+  Do not add a gate script for this rule (2026-10-11: tmux-agent-tools smokes grew to
   80 files / 5:32 one file per feature; cut to 33 / 1:08).
 - Tool lookup: first, use the tool copy bundled with the skill or script, or the copy at the execution location.
   Use `PATH` only if that copy is absent. Report which copy you use.

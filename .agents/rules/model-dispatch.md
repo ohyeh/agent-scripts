@@ -167,17 +167,33 @@ Every other recipe keeps its own loop until the W43 retro decides, and does not 
 |---|---|---|---|
 | L0 | deterministic | test/build/lint/scrub/grep/checksum before every round, then hash what is under review; a hash change during the round voids it | must PASS before the round |
 | L1 | `sonnet` high (code: `pr-review-toolkit:code-reviewer`); `gemini-3.8-flash-medium` or later (agy); `grok-4.7-xhigh` or later (Cursor); `gpt-6-luna` xhigh/max only on request | adversarial pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
-| TK | code only: `pr-review-toolkit` agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) on `sonnet` high, in parallel | a fixed-form full report of suggestions that sets a floor under L1's blind spots; findings join the ledger, the fixer answers them once; never passes the work | 1 round |
+| TK | code only: `pr-review-toolkit` agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) on `sonnet` high, in parallel | a fixed-form full report of suggestions that sets a floor under L1's blind spots; findings join the ledger, the fixer answers them once; never passes the work. The brief tells `pr-test-analyzer` to also list tests to merge or delete (operator-defaults Test cost) | 1 round |
 | L2 | commander-driven gate: `advisor` (as above). In-script seat: best tier (`fable` / `gpt-6-astra` / `gemini-4-argon`, low / medium), else better tier (`opus` or `gpt-6.1-sol`, medium+) (code: `pr-review-toolkit:code-reviewer`) | the final verdict; always runs | 3 rounds |
 
 No L3 (user ruling 2026-10-16): still blocking after L2 round 3 → stop the gate and ask the
 user. There is no further layer, so a stuck gate cannot keep burning usage.
 
+- Depth by risk: L0 sets the tier from all changed paths against the repository's path list.
+  Include committed, staged, unstaged, and untracked changes. A mixed diff takes the highest tier.
+  An unknown path is high. The author can raise a tier, never lower it. high = the full ladder, a
+  security lens in L2, and owner approval of the exact diff. normal = the full ladder. low = prose
+  docs only; executable, test, skill, rule, and config files cannot be low. Low uses the full
+  ladder until outcome evidence for that workload supports L0 + L2. Cite that evidence before the
+  first reduced review. A repository without a path list runs everything as normal.
 - When: a code change runs the full ladder once per PR or push checkpoint, on the accumulated
   diff; between slices only L0 runs (kernel: CI at the checkpoint, local checks between). Only
   the L0 agent runs checks: reviewers read the L0 output, the fixer runs the narrowest check for
   its edit, and Finalize reuses the last L0 (2026-10-11: reviewer-run tests rewrote the tree and
   voided rounds; 5 aborted runs cost 65.6M weighted tokens with no result).
+- Delivery chains. The review container is the PR or a push checkpoint without a PR. Freeze the
+  checkpoint range `origin/<base>..HEAD` before the push. Events are PR merge, push, tag push,
+  release, and deploy. Each event needs its own evidence and authorization under the kernel's
+  scope rules and standing approvals. Approval covers only the named actions and targets. Do not
+  ask again for the same approved scope. Before each event, local checks PASS on the candidate:
+  repository, commit, and clean tree. A later edit voids those checks. Remote CI, where the
+  repository has it, runs at the checkpoint and never replaces the local checks. After each event,
+  read back its destination and verify the expected result. Check the remote commit, tag target,
+  release artifact, or repository deploy check as applicable. Record a failure as a failure.
 - Before you send a worker's change to a second-model gate, read the diff for the reviewed commit.
   Cite the checked file:line. Then call `advisor` and assign the gate.
 - Reviewer and fixer contracts: `skills/using-workflows/workflows/_lib/worker-doctrine.md` §7–§9.

@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.38.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.39.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -44,7 +44,7 @@ ritual or quoting.
 - Long loops → operator-defaults §Long loop; loop-shaped work (audit/consensus/triage/plan→build/research) → skill using-workflows.
 - Non-trivial session lifecycle → session-titles.
 - Any code change → state assumptions, success criteria, verify step per
-  plan step.
+  plan step; a test change → operator-defaults Test cost.
 - Write procedural English, or simplify/re-explain → simplified-english.
   Plan/investigate or output → operator-defaults; many items/numbers to compare,
   or any page, diagram, chart, motion, or Artifact → artifacts-rules, unasked. Hard task, stalled, or final answer → judgment-rubrics §8.

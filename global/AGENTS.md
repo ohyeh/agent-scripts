@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.38.0-ironlaws
+Version: 4.39.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -55,7 +55,7 @@ ritual, no quoting; tooling enforces critical gates.
 - Long loops → operator-defaults §Long loop; loop-shaped work (audit/consensus/triage/plan→build/research) → skill using-workflows.
 - Non-trivial session lifecycle → session-titles.
 - Any code change → state assumptions, success criteria first, every plan
-  step has a verify check.
+  step has a verify check; adding or changing a test → operator-defaults Test cost.
 - Write procedural English (brief, rule, commit, skill text), or a
   simplify/re-explain request → simplified-english.
 - Plan/investigate or output → operator-defaults; many items/numbers to compare,
