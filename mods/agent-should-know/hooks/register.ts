@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-const MOD_VERSION = '0.1.2'
+const MOD_VERSION = '0.1.3'
 const NAME = 'agent-should-know'
 
 // The built-in's offer card carries these two buttons; its other views do not.
@@ -89,6 +89,38 @@ async function logLine($: EngineInterface, s: Log, at: string, kind: string, tex
   }
 }
 
+const BUILTIN_STORE = 'cc-plugin-you-should-know_builtin-'
+
+type Stored = { line: string; explanation: string | undefined }
+
+// The card as the built-in stored it: the whole line, and the explanation its
+// Learn more would show, written beside the card. Or why it could not be read.
+// shortcut: reads the built-in's own store file, an internal format under
+// ~/.claude only; upgrade if Claude Code moves it or CLAUDE_CONFIG_DIR is set.
+async function storedCard($: EngineInterface, shown: string): Promise<Stored | string> {
+  try {
+    const dir = `${await $.env.get('HOME')}/.claude/plugins/store`
+    const name = (await $.fs.list(dir)).find(f => f.name.startsWith(BUILTIN_STORE) && f.name.endsWith('.json'))?.name
+    if (name === undefined) return `no ${BUILTIN_STORE}*.json in ${dir}`
+    const sid = await $.session.id()
+    type Row = { id?: string; tag?: string; view?: { kind?: string; line?: string; explanation?: string } }
+    const rows = (JSON.parse(await $.fs.read(`${dir}/${name}`)) as { sessions?: Row[] }).sessions ?? []
+    const row = rows.find(r => r.id === sid)
+    if (row?.view?.kind !== 'offer' || row.view.line === undefined) return 'the store holds no offer for this session'
+    // The file may lag the screen and still hold this session's previous card.
+    const flat = (t: string) => t.replace(/\s+/g, ' ').trim()
+    if (!flat(row.view.line).startsWith(flat(shown.replace(/^(?:Heads up|You should know) · /, ''))))
+      return "the store's offer does not match the card on screen"
+    // The built-in ends every line with a period, after a 。 too.
+    const line = `${row.tag ?? 'Heads up'} · ${row.view.line.replace(/(?<=[。.!?])\.$/, '')}`
+    return { line, explanation: row.view.explanation }
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err)
+  }
+}
+
+const quote = (text: string) => text.split('\n').map(l => `> ${l}`).join('\n')
+
 export const register: Register = on => {
   const sent = new Set<string>()
   const s: Log = { cwd: '', file: null, flagged: '' }
@@ -139,12 +171,17 @@ export const register: Register = on => {
     if (kept.includes(line)) return hidden
     await $.store.set('sent', [...kept, line].slice(-KEPT))
 
+    const stored = await storedCard($, line)
+    const card = typeof stored === 'string' ? { line, explanation: undefined } : stored
+    const body = card.explanation ? `${quote(card.line)}\n>\n${quote(card.explanation)}` : quote(card.line)
+    const note = typeof stored === 'string' ? `\n(Only the card's line: its explanation was not read: ${stored}.)` : ''
+
     s.flagged = iso()
-    await logLine($, s, s.flagged, 'flagged', line)
+    await logLine($, s, s.flagged, 'flagged', card.line)
 
     // A plugin's prompt waits until the running turn ends: no interruption.
     $.prompt
-      .submit({ text: `${PREFIX}\n> ${line}\nCheck it against the work. If it holds, correct the work; if not, say why in one line.` })
+      .submit({ text: `${PREFIX}\n${body}${note}\nCheck it against the work. If it holds, correct the work; if not, say why in one line.` })
       .then(r => {
         if (r.drop !== undefined) pending = null
         $.ui.toast(r.drop === undefined ? `${NAME} v${MOD_VERSION}: sent to the main session` : `${NAME}: not sent (${r.drop})`)

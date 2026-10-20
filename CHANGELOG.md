@@ -1,5 +1,11 @@
 # Changelog
 
+## agent-should-know 0.1.3
+
+Owner 10-20: 「這是原始完整的嗎」, on a relay that carried the card's line only; earlier 「系統的可以自動轉發成功 load more 版本」.
+
+- **Learn more goes along**: the built-in writes the card's whole line and its Learn more explanation into its store file (`~/.claude/plugins/store/cc-plugin-you-should-know_builtin-*.json`, `sessions[].view`) when it shows the card. The relay now reads them there, so the agent gets both, quoted, and a two-sentence line is no longer cut. When the file cannot be read, the relay sends the line cut from the band and says why. Seen live 10-20 09:53 in healthgo-mobile: the stored explanation held the recommendation (another worker reviews stage 2) that the relayed line did not.
+
 ## agent-should-know 0.1.2
 
 Owner 10-20: 「多 session 多 repo 並行時 這樣會混亂」; 「重點是每個 session 的要順序性看得出來 … 同 repo 多 session 可能時間性交錯」.

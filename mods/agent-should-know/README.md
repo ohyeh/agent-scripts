@@ -15,7 +15,7 @@ does that hand-off for you:
 
 | When | What happens |
 |---|---|
-| An offer card shows | The card's line goes to the main agent as a prompt: "check it against the work; if it holds, correct the work, if not, say why in one line". A plugin's prompt waits until the running turn ends, so the agent is not interrupted. The card is hidden from the band. |
+| An offer card shows | The card's whole line and the explanation its Learn more would show go to the main agent as a prompt: "check it against the work; if it holds, correct the work, if not, say why in one line". Both are read from the built-in's store file, where it writes them with the card. A plugin's prompt waits until the running turn ends, so the agent is not interrupted. The card is hidden from the band. |
 | That prompt's turn ends | The agent's answer (first 600 characters) is added under the card's row in the log. |
 | The next morning | Read the log: one folder per repo, one file per session in it. |
 
@@ -48,8 +48,11 @@ The built-in must be on: `/plugin enable cc-plugin-you-should-know@builtin`.
 
 ## Limits
 
-- No API lets one plugin press another plugin's button, so the built-in's
-  Learn more is not run. The main agent's answer takes its place.
+- The line and explanation come from the built-in's own store file,
+  `~/.claude/plugins/store/cc-plugin-you-should-know_builtin-*.json`, an internal
+  format. When it cannot be read (moved, renamed, `CLAUDE_CONFIG_DIR` set), the relay
+  sends the line cut from the band, says why the explanation is missing, and a
+  two-sentence card then keeps its first sentence only.
 - Hiding is visual. The built-in keeps the card as its view until two prompts
   that a person typed clear it (origin `composer` or `bridge`; this mod's relay
   does not count), and it runs no new check until then. So in a task that runs
@@ -58,7 +61,6 @@ The built-in must be on: `/plugin enable cc-plugin-you-should-know@builtin`.
 - The mod reads the card from the band's tree by its two buttons (`Learn more`,
   `Knew this already`) and its tag (`Heads up ·` / `You should know ·`). A change to
   those in a Claude Code release stops the mod, silently.
-- The line is cut at its first sentence end, so a two-sentence card sends one sentence.
 - If the mod reloads between the send and the answer, the answer row is not logged.
 - The answer row is the first main turn to end after the one the relay waited behind.
   A prompt you type while the relay waits can run first; its answer is then logged
