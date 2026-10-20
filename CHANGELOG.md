@@ -1,5 +1,13 @@
 # Changelog
 
+## agent-should-know 0.1.0
+
+Owner 10-20: 「每次一直複製貼上挺白痴的」; 「長任務下更像是 agent-should-know」; 「隔天醒來 我一眼就知道 可能發生了哪些偏差被校正」.
+
+- **New mod** `mods/agent-should-know`: when the built-in `cc-plugin-you-should-know` shows an offer card, the mod submits the card's line to the main agent ("check it against the work; correct it or say why not"). A plugin's prompt waits for the running turn to end. The card is then hidden from the band. Each card is sent once; the last 20 lines are kept in the store, so a reload does not resend.
+- **Log** `~/.local/state/agent-should-know/log.md`: one row per card (time, project folder, session id, line), then the main agent's answer (first 600 characters) when that turn ends.
+- Limits: no API presses another plugin's button, so the built-in's Learn more is not run; the main agent's answer takes its place. Hiding is visual: the built-in keeps its view until two prompts clear it and runs no check meanwhile. The line is cut out by its tag (`Heads up ·` / `You should know ·`) up to the first sentence end, so a two-sentence card keeps one sentence.
+
 ## delegation-templates: a brief never names result.json 2026-10-20
 
 Owner 10-20: 「argon 剛才的通知和前面的結果重複」; 「統一預設多輪方式 … 每一 turn 分開 比較好吧」; consensus advisor + sol (r2 `VERDICT: CONSENSUS`).

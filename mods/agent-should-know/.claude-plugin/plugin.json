@@ -1,0 +1,13 @@
+{
+  "name": "agent-should-know",
+  "version": "0.1.0",
+  "description": "Sends each card of the built-in You should know mod to the main agent as a prompt, hides the card, and logs the card with the agent's verdict.",
+  "author": {
+    "name": "PaulYeh",
+    "url": "https://github.com/ohyeh"
+  },
+  "repository": "https://github.com/ohyeh/agent-scripts",
+  "keywords": ["you-should-know", "relay", "log", "band"],
+  "displayName": "Agent Should Know",
+  "license": "MIT"
+}
