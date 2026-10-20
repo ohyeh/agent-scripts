@@ -130,6 +130,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   expect(w.sent.length).toBe(1)
   expect(w.sent[0]).toContain('\n> Heads up · 兩張單程票被加總了。來回票更便宜。\n>\n> **Why it matters**\n> - The plan page lists 2.91 萬.\n')
   expect(w.sent[0]).not.toContain('Only the card')
+  expect(w.sent[0]).toMatch(/needs the user's approval .* is not made: name it and ask\./)
 
   // One file for this session: <project>/<day>-<sid8>.log
   const fileName = /^\/home\/me\/\.local\/state\/agent-should-know\/agent_automation\/\d{4}-\d{2}-\d{2}-28d2c553\.log$/
@@ -154,7 +155,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   expect([...rows].sort()).toEqual(rows)
 
   // The band counts it, and a fresh start (a reload) counts the same file again.
-  expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.1.4 · 1 heads-up · 1 handled')
+  expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.1.5 · 1 heads-up · 1 handled')
   await $.session.start(start)
   expect(textOf(await $.ui.render(band()))).toContain('· 1 heads-up · 1 handled')
 })
@@ -198,7 +199,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
 
   // Empty state, folded from the start: the header alone.
   const wide = textOf(await $.ui.render(band(120)))
-  expect(wide).toContain('▌agent should know v0.1.4 · no heads-up yet')
+  expect(wide).toContain('▌agent should know v0.1.5 · no heads-up yet')
   expect(wide).toContain('[ ⧉ log ][ ▸ open ][ hide ]')
   expect(wide).not.toContain('logged in')
   expect(textOf(await $.ui.render(band(50)))).toContain('[ ⧉ ][ ▸ ][ ✕ ]')
@@ -225,7 +226,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
   expect(textOf(await $.ui.render(band(120)))).not.toContain('agent should know')
   const shown = await $.command.run(cmd)
   expect(shown.text).toContain('band shown. 0 heads-up · 0 handled this session')
-  expect(textOf(await $.ui.render(band(120)))).toContain('▌agent should know v0.1.4')
+  expect(textOf(await $.ui.render(band(120)))).toContain('▌agent should know v0.1.5')
   expect((await $.command.run(cmd)).text).toContain('band hidden; /heads-up shows it again.')
 })
 

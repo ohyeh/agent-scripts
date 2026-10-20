@@ -1,5 +1,9 @@
 # Changelog
 
+## agent-should-know 0.1.5
+
+- **A relay approves nothing**: the relay told the agent "if it holds, correct the work". In healthgo-mobile (10-20 09:54) the agent then made `gpt-6-astra` a code reviewer, a best-tier model that needs the user's approval (model-dispatch, 10-16). Seen by the built-in's next card. The relay now says: fix only within what the user already approved; a fix that needs approval (a model tier, a push, a deletion, a change of scope) is not made: name it and ask.
+
 ## agent-should-know 0.1.4
 
 Owner 10-20: 「好像需要一個 pane 可以開啟 log 位置 然後計數 有幾筆 hands-up 發生在該 session」.
