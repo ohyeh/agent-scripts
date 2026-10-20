@@ -79,13 +79,27 @@ test('an offer card is sent once, hidden, and logged with its verdict', async ($
   expect(sent.length).toBe(1)
   expect(sent[0]).toContain('\n> Heads up · 兩張單程票被加總了。\n')
 
+  // One file for this session: <project>/<day>-<sid8>.log
+  const fileName = /^\/home\/me\/\.local\/state\/agent-should-know\/agent_automation\/\d{4}-\d{2}-\d{2}-28d2c553\.log$/
+  const logOf = () => [...files].find(([path]) => fileName.test(path))?.[1] ?? ''
+
   await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't0', reason: 'answer' })
-  expect(files.get('/home/me/.local/state/agent-should-know/log.md') ?? '').not.toContain('Long task reply.')
+  expect(logOf()).not.toContain('Long task reply.')
   await $.turn.start({ text: sent[0] ?? '', turnId: 't1' })
   await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
-  const log = files.get('/home/me/.local/state/agent-should-know/log.md') ?? ''
-  expect(log).toContain('· agent_automation · 28d2c553 · Heads up · 兩張單程票被加總了。')
-  expect(log).toContain('  - handled: Fixed: the fare now uses the round-trip price.')
+  expect(files.size).toBe(1)
+  const log = logOf()
+  expect(log).toContain('# agent_automation · 28d2c553-6d91 · /work/agent_automation\n')
+  // Each row leads with its ISO time and sid8, so files of one project sort into one timeline;
+  // the verdict names its card by the card's time.
+  const rows = log.split('\n').filter(r => r !== '' && !r.startsWith('#'))
+  expect(rows.length).toBe(2)
+  const flagged = /^(\d{4}-\d{2}-\d{2}T(\d{2}:\d{2}:\d{2})Z) · 28d2c553 · flagged · Heads up · 兩張單程票被加總了。$/.exec(rows[0] ?? '')
+  expect(flagged).not.toBeNull()
+  expect(rows[1]).toMatch(
+    new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z · 28d2c553 · handled ${flagged?.[2]} · Fixed: the fare now uses the round-trip price\\.$`),
+  )
+  expect([...rows].sort()).toEqual(rows)
 })
 
 test('the card alone, with nothing beside it, is hidden too', async ($, on) => {

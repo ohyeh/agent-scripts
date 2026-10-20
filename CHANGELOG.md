@@ -1,5 +1,11 @@
 # Changelog
 
+## agent-should-know 0.1.2
+
+Owner 10-20: 「多 session 多 repo 並行時 這樣會混亂」; 「重點是每個 session 的要順序性看得出來 … 同 repo 多 session 可能時間性交錯」.
+
+- **One log file per session, one folder per repo**: `~/.local/state/agent-should-know/<repo>/<day>-<sid8>.log`, headed by the repo, the full session id and its folder. Every row is `<UTC ISO time> · <sid8> · flagged · <line>` or `… · handled <card time> · <verdict>`, so a file reads in order and `cat <repo>/*.log | grep -v '^#' | sort` is the repo's timeline across sessions. Cause: one shared `log.md` took every session's rows in one list, a verdict written when its turn ended could land under another session's card, and two sessions writing at once could drop a row. The old `log.md` stays where it is; nothing reads it.
+
 ## agent-should-know 0.1.1
 
 - **Verdict row**: the log took the answer of the main turn that ran when the card showed, not the agent's answer to the card. Cause: a plugin's `prompt.submit` carries no `turnId`, so the turn it is queued behind was not known. The mod now tracks the running main turn at `turn.start` and skips its end. Seen on the first live card (0.1.0, 10-20 06:46); the test now starts a turn before the card and asserts its answer is not logged.

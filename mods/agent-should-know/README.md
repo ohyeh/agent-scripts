@@ -17,14 +17,26 @@ does that hand-off for you:
 |---|---|
 | An offer card shows | The card's line goes to the main agent as a prompt: "check it against the work; if it holds, correct the work, if not, say why in one line". A plugin's prompt waits until the running turn ends, so the agent is not interrupted. The card is hidden from the band. |
 | That prompt's turn ends | The agent's answer (first 600 characters) is added under the card's row in the log. |
-| The next morning | Read `~/.local/state/agent-should-know/log.md`: each card, where and when it showed, and what the agent did about it. |
+| The next morning | Read the log: one folder per repo, one file per session in it. |
 
-Log rows:
+Each session writes its own file only, `~/.local/state/agent-should-know/<repo>/<day>-<sid8>.log`,
+so sessions never write into each other's file. Every row starts with its UTC ISO time
+and the session's sid8, and a verdict names its card by the card's time:
 
 ```
-- 2026-10-20 06:40 · agent_automation · 28d2c553 · Heads up · The fare sums two one-way tickets.
-  - handled: Fixed: the fare now uses the round-trip price …
+# agent_automation · 28d2c553-6d91-4354-a50b-878fbaaa06af · /Users/me/github/agent_automation
+2026-10-20T06:40:12Z · 28d2c553 · flagged · Heads up · The fare sums two one-way tickets.
+2026-10-20T06:45:03Z · 28d2c553 · handled 06:40:12 · Fixed: the fare now uses the round-trip price …
 ```
+
+One session, in order: `cat ~/.local/state/agent-should-know/agent_automation/2026-10-20-28d2c553.log`.
+One repo, every session interleaved by time:
+
+```
+cat ~/.local/state/agent-should-know/agent_automation/*.log | grep -v '^#' | sort
+```
+
+The day in the file name is the UTC day of the session's first card.
 
 ## Install
 

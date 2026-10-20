@@ -1,5 +1,5 @@
 ./register.ts hooks: session.start, turn.start, prompt.submit, turn.complete, ui.render{component=AbovePrompt}
 ./register.ts gating hook without .catch: prompt.submit
-./register.ts calls: $.env.get (via log), $.fs.read (via log), $.fs.write (via log), $.prompt.submit, $.session.id, $.store.get, $.store.set, $.ui.resolve, $.ui.toast
+./register.ts calls: $.env.get (via logLine), $.fs.read (via logLine), $.fs.write (via logLine), $.prompt.submit, $.session.id (via logLine), $.store.get, $.store.set, $.ui.resolve, $.ui.toast
 ./register.ts env writes: nothing
 ./register.ts env reads: HOME
