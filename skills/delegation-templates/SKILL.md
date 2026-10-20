@@ -160,6 +160,11 @@ When the delegate is a tmux worker, ADD these lines to the filled template
 > schema_version 1) to {absolute result path} — do not rely on
 > `$TMUX_AGENT_RESULT` inside tool sandboxes. Put the REPORT bullets in its
 > `summary` field.
+
+A follow-up round (`tell`) gets a new result path; the wrapper puts it on line 1
+of that round's prompt. In any brief or tell, write "the result's `summary`
+field", never "result.json": a bare file name sends a worker back to the first
+round's path (2026-10-20, argon wrote every round to both).
 > If the dispatcher gives an overall deadline, write that valid result at least
 > 120 seconds before it; an artifact without it remains UNCONFIRMED.
 

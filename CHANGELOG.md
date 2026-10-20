@@ -1,5 +1,11 @@
 # Changelog
 
+## delegation-templates: a brief never names result.json 2026-10-20
+
+Owner 10-20: 「argon 剛才的通知和前面的結果重複」; 「統一預設多輪方式 … 每一 turn 分開 比較好吧」; consensus advisor + sol (r2 `VERDICT: CONSENSUS`).
+
+- **Per-round result path**: a `tell` round gets a new result path on line 1 of its prompt. A brief or tell writes "the result's `summary` field", never "result.json". Cause: argon kept the first round's root `result.json` from a bare file name and wrote every round to both paths, so the collector sent one result twice. Paired with tmux-agent-tools (per-round "earlier round is closed" line; collector skips a byte-identical copy).
+
 ## model-dispatch best tier needs approval 2026-10-16
 
 Owner 10-16: 「astra 濫用、亂用 害我 sol 用不了」; 「用 astra | fable | argon 要經過同意」; 「先問了 l2 也能正常用」.
