@@ -123,9 +123,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "01e393ce6ef4820bc71b90102895815fa6e6676b",
+      "skillFolderHash": "5407fb5a5d4593ba6f79713d1fecaad7a49dbafe",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-10-17T04:17:34.267Z"
+      "updatedAt": "2026-10-20T02:10:58.488Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -168,9 +168,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "2c50fe96a4c552977a0aa489294050df6fd069c5",
+      "skillFolderHash": "91c5e484720fc3740c59580094a4f52a6b545ef5",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-10-19T02:11:29.911Z"
+      "updatedAt": "2026-10-20T02:11:08.508Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
