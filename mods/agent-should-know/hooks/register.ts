@@ -1,6 +1,6 @@
 import type { EngineInterface, Register } from 'claude-code'
 
-const MOD_VERSION = '0.1.0'
+const MOD_VERSION = '0.1.1'
 const NAME = 'agent-should-know'
 
 // The built-in's offer card carries these two buttons; its other views do not.
@@ -69,22 +69,32 @@ export const register: Register = on => {
   const sent = new Set<string>()
   let cwd = ''
   // The relayed prompt, and the turn it was queued behind (its answer is not the verdict).
+  // A plugin's submit carries no turnId, so the running main turn is tracked here.
   let pending: { over: string | undefined } | null = null
+  let running: string | undefined
 
   on('session.start', async ($, e, next) => {
     cwd = e.cwd
     return next(e)
   })
 
+  on('turn.start', async ($, e, next) => {
+    // mods/types pins a TurnStartInput without agentId; the engine sends it for a subagent.
+    if ((e as { agentId?: string }).agentId === undefined) running = e.turnId
+    return next(e)
+  })
+
   on('prompt.submit', async ($, e, next) => {
     const o = e.origin
-    if (o?.kind === 'plugin' && (o.name === NAME || o.name.startsWith(`${NAME}@`))) pending = { over: e.turnId }
+    if (o?.kind === 'plugin' && (o.name === NAME || o.name.startsWith(`${NAME}@`))) pending = { over: e.turnId ?? running }
     return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
-    if (e.agentId !== undefined || pending === null || e.turnId === pending.over) return r
+    if (e.agentId !== undefined) return r
+    if (e.turnId === running) running = undefined
+    if (pending === null || e.turnId === pending.over) return r
     pending = null
     const verdict = r.text.trim().replace(/\s+/g, ' ').slice(0, VERDICT_CHARS)
     await log($, `  - ${e.reason === 'answer' ? 'handled' : e.reason}: ${verdict}`).catch(err =>

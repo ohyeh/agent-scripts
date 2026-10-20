@@ -1,5 +1,9 @@
 # Changelog
 
+## agent-should-know 0.1.1
+
+- **Verdict row**: the log took the answer of the main turn that ran when the card showed, not the agent's answer to the card. Cause: a plugin's `prompt.submit` carries no `turnId`, so the turn it is queued behind was not known. The mod now tracks the running main turn at `turn.start` and skips its end. Seen on the first live card (0.1.0, 10-20 06:46); the test now starts a turn before the card and asserts its answer is not logged.
+
 ## agent-should-know 0.1.0
 
 Owner 10-20: 「每次一直複製貼上挺白痴的」; 「長任務下更像是 agent-should-know」; 「隔天醒來 我一眼就知道 可能發生了哪些偏差被校正」.

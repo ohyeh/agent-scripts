@@ -34,7 +34,10 @@ test('an offer card is sent once, hidden, and logged with its verdict', async ($
   on('env.get', () => ({ value: '/home/me' }))
   on('session.id', () => ({ value: '28d2c553-6d91' }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('turn.complete', () => ({ text: 'Fixed: the fare now uses the round-trip price.' }))
+  on('turn.start', (_, e) => ({ turnId: e.turnId }))
+  on('turn.complete', (_, e) => ({
+    text: e.turnId === 't0' ? 'Long task reply.' : 'Fixed: the fare now uses the round-trip price.',
+  }))
 
   // Stands for the built-in's offer card beneath the mod; other plugins' bands
   // sit beside it in the same tree, their costs changing on every draw.
@@ -62,6 +65,8 @@ test('an offer card is sent once, hidden, and logged with its verdict', async ($
   })
 
   await $.session.start({ cwd: '/work/agent_automation', surface: 'terminal', isInteractive: true })
+  // The card shows while a long main turn runs; the relay is queued behind it.
+  await $.turn.start({ text: 'long task', turnId: 't0' })
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
@@ -74,6 +79,9 @@ test('an offer card is sent once, hidden, and logged with its verdict', async ($
   expect(sent.length).toBe(1)
   expect(sent[0]).toContain('\n> Heads up · 兩張單程票被加總了。\n')
 
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't0', reason: 'answer' })
+  expect(files.get('/home/me/.local/state/agent-should-know/log.md') ?? '').not.toContain('Long task reply.')
+  await $.turn.start({ text: sent[0] ?? '', turnId: 't1' })
   await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
   const log = files.get('/home/me/.local/state/agent-should-know/log.md') ?? ''
   expect(log).toContain('· agent_automation · 28d2c553 · Heads up · 兩張單程票被加總了。')

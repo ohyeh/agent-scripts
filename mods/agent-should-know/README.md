@@ -48,6 +48,9 @@ The built-in must be on: `/plugin enable cc-plugin-you-should-know@builtin`.
   those in a Claude Code release stops the mod, silently.
 - The line is cut at its first sentence end, so a two-sentence card sends one sentence.
 - If the mod reloads between the send and the answer, the answer row is not logged.
+- The answer row is the first main turn to end after the one the relay waited behind.
+  A prompt you type while the relay waits can run first; its answer is then logged
+  as the verdict. An unattended night has no such prompt.
 
 The mod draws no band of its own, so the band rules in [`../README.md`](../README.md)
 do not apply.
