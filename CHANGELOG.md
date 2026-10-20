@@ -1,5 +1,13 @@
 # Changelog
 
+## agent-should-know 0.1.4
+
+Owner 10-20: 「好像需要一個 pane 可以開啟 log 位置 然後計數 有幾筆 hands-up 發生在該 session」.
+
+- **Band**: `▌agent should know v0.1.4 · N heads-up · M handled [ ⧉ log ][ ▾ fold ][ hide ]` above the prompt, by the band rules in `mods/README.md` (a band, as the other mods here, not a `Pane`). `⧉ log` opens the session's log; open, the band shows its path; folded from the start, the fold choice kept; `[ hide ]` until `/heads-up`, which also prints the count and path. Icons only when narrow. No hotkeys.
+- **Count and file survive a reload**: the session's log path is kept in the store (`file:<sid>`); a start reads it back and counts its `flagged` and `handled` rows. A reload after midnight keeps writing the same file.
+- **Card detection**: the band's texts are joined with a space. Before, an English card line ending in `.` with another plugin's row right after it ("summed.workers …") had no sentence end and was not seen.
+
 ## agent-should-know 0.1.3
 
 Owner 10-20: 「這是原始完整的嗎」, on a relay that carried the card's line only; earlier 「系統的可以自動轉發成功 load more 版本」.

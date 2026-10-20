@@ -36,7 +36,26 @@ One repo, every session interleaved by time:
 cat ~/.local/state/agent-should-know/agent_automation/*.log | grep -v '^#' | sort
 ```
 
-The day in the file name is the UTC day of the session's first card.
+The day in the file name is the UTC day of the session's first card. The session keeps
+that file after a reload, across midnight too.
+
+## Band
+
+Above the prompt from the session start, folded to its header until you press `[ ▸ open ]`
+(the choice is kept for the next sessions). It follows the band rules in
+[`../README.md`](../README.md):
+
+```
+▌agent should know v0.1.4 · 2 heads-up · 1 handled [ ⧉ log ][ ▾ fold ][ hide ]
+  log: ~/.local/state/agent-should-know/agent_automation/2026-10-20-28d2c553.log
+```
+
+- The count is this session's: cards flagged, and verdicts logged for them.
+- `[ ⧉ log ]` opens the session's log (macOS `open`); before the first card it says
+  nothing is logged yet.
+- Open, it shows the log's path; with no card yet, one line on what will be logged where.
+- `[ hide ]` takes the band away; `/heads-up` shows it again and prints the count and
+  path. Narrow: `[ ⧉ ][ ▾ ][ ✕ ]`.
 
 ## Install
 
@@ -65,6 +84,5 @@ The built-in must be on: `/plugin enable cc-plugin-you-should-know@builtin`.
 - The answer row is the first main turn to end after the one the relay waited behind.
   A prompt you type while the relay waits can run first; its answer is then logged
   as the verdict. An unattended night has no such prompt.
-
-The mod draws no band of its own, so the band rules in [`../README.md`](../README.md)
-do not apply.
+- The repo folder is the last part of the session's start folder, not the git root:
+  a session started in a subfolder files under that subfolder's name.

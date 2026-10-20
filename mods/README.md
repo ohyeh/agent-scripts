@@ -2,7 +2,7 @@
 
 These rules apply to every surface the ecosystem draws in a terminal: a mod's band (Claude Code's
 `AbovePrompt` render site, the area above the prompt) and a full-screen TUI. Today these are
-session-recall (band + `bin/tui.mjs`), grok-bot-watch (band), `grok-bot-tui`
+session-recall (band + `bin/tui.mjs`), grok-bot-watch (band), agent-should-know (band), `grok-bot-tui`
 (`skills/using-grok-bot-app`), and in `ohyeh/tmux-agent-tools` the workers band and `tmux-agent-tui`.
 That repo follows this file; it does not keep a second copy.
 
