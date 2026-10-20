@@ -39,7 +39,10 @@ The built-in must be on: `/plugin enable cc-plugin-you-should-know@builtin`.
 - No API lets one plugin press another plugin's button, so the built-in's
   Learn more is not run. The main agent's answer takes its place.
 - Hiding is visual. The built-in keeps the card as its view until two prompts
-  clear it, and it runs no new check until then.
+  that a person typed clear it (origin `composer` or `bridge`; this mod's relay
+  does not count), and it runs no new check until then. So in a task that runs
+  unattended overnight, the log holds the first card only. The built-in stalls
+  the same way without this mod, on any card nobody answers.
 - The mod reads the card from the band's tree by its two buttons (`Learn more`,
   `Knew this already`) and its tag (`Heads up ·` / `You should know ·`). A change to
   those in a Claude Code release stops the mod, silently.

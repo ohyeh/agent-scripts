@@ -6,7 +6,7 @@ Owner 10-20: 「每次一直複製貼上挺白痴的」; 「長任務下更像�
 
 - **New mod** `mods/agent-should-know`: when the built-in `cc-plugin-you-should-know` shows an offer card, the mod submits the card's line to the main agent ("check it against the work; correct it or say why not"). A plugin's prompt waits for the running turn to end. The card is then hidden from the band. Each card is sent once; the last 20 lines are kept in the store, so a reload does not resend.
 - **Log** `~/.local/state/agent-should-know/log.md`: one row per card (time, project folder, session id, line), then the main agent's answer (first 600 characters) when that turn ends.
-- Limits: no API presses another plugin's button, so the built-in's Learn more is not run; the main agent's answer takes its place. Hiding is visual: the built-in keeps its view until two prompts clear it and runs no check meanwhile. The line is cut out by its tag (`Heads up ·` / `You should know ·`) up to the first sentence end, so a two-sentence card keeps one sentence.
+- Limits: no API presses another plugin's button, so the built-in's Learn more is not run; the main agent's answer takes its place. Hiding is visual: the built-in keeps its view until two prompts a person typed clear it (the relay does not count) and runs no check meanwhile, so an unattended night logs the first card only. The line is cut out by its tag (`Heads up ·` / `You should know ·`) up to the first sentence end, so a two-sentence card keeps one sentence.
 
 ## delegation-templates: a brief never names result.json 2026-10-20
 
