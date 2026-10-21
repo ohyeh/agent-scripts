@@ -141,9 +141,10 @@ is not stable. `profileName` can be absent. Do not use any of them as a fixed
 value: find the entry by its tabs ([Quickstart](#quickstart-read-first) step 1).
 
 Never drive Arc: it is the owner's own browser. Before any browser call, run
-`scripts/codex-cu-chrome-id`. It opens a probe tab in Google Chrome with
-AppleScript, finds the one entry that shows it, prints its `extensionInstanceId`,
-closes the tab and hands the screen back. The numeric `id` differs per cua
+`scripts/codex-cu-chrome-id`. It reads Google Chrome's tab URLs with AppleScript
+(read only, no focus change) and picks the one entry that holds them all; only if
+that does not decide, it opens a probe tab, then closes it and hands the screen
+back. It prints the `extensionInstanceId`. The numeric `id` differs per cua
 runtime (the same Chrome was `"1"` in one and `"2"` in another, 2026-10-21), so
 name Chrome by that `extensionInstanceId` in the same call and resolve this
 runtime's id from it (`getBrowser()` returns no `.id`):

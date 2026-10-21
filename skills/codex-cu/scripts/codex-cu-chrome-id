@@ -1,32 +1,34 @@
 #!/usr/bin/env bash
 # Prove which cua browser entry is the real Google Chrome; record it for codex-cu-chrome-gate.sh.
 # Every Chromium browser with the ChatGPT extension (Arc, Brave, ...) reports name "Chrome",
-# so a name or "it already has the page logged in" proves nothing. The proof: a probe tab that
-# AppleScript opens in Google Chrome, then found in getState(). Never activates Chrome.
+# so a name or "it already has the page logged in" proves nothing.
+# First a read-only match (2026-10-08 method, no focus change): the one entry whose tabs
+# hold every URL that AppleScript reads from Google Chrome, and that no other entry does.
+# Only when that does not decide, a probe tab — which raised Chrome on 2026-10-21, so the
+# app that was in front is restored after it.
 set -u
 STATE="${XDG_CONFIG_HOME:-$HOME/.config}/codex-cu/chrome-browser.json"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 marker="cu-probe-$$-$RANDOM"
 js="$(mktemp -t cu-probe).js"
 front="$(lsappinfo info -only bundleid "$(lsappinfo front)" | sed -n 's/.*="\(.*\)"/\1/p')"
-close_probe() {
-  osascript -e "tell application \"Google Chrome\" to close (every tab of every window whose URL contains \"$marker\")" >/dev/null 2>&1
+probed=0
+cleanup() {
   rm -f "$js"
-  # the probe raised Chrome (live 2026-10-21); hand the screen back to the app the owner had in front
+  [ "$probed" = 1 ] || return 0
+  osascript -e "tell application \"Google Chrome\" to close (every tab of every window whose URL contains \"$marker\")" >/dev/null 2>&1
   [ -n "$front" ] && [ "$front" != com.google.Chrome ] && open -b "$front"
 }
-trap close_probe EXIT
-
-osascript -e "tell application \"Google Chrome\" to make new tab at end of tabs of window 1 with properties {URL:\"https://example.com/#$marker\"}" >/dev/null \
-  || { echo "FAIL codex-cu-chrome-id: cannot open a probe tab in Google Chrome (no window, or no Automation permission)" >&2; exit 1; }
+trap cleanup EXIT
 # first call of a runtime must be exactly one API call
 echo 'await cua.getState();' > "$js"
 
-for try in 1 2 3; do
-  out="$("$DIR/codex-cu-remote" "$js" 2>&1)"
-  rec="$(MARKER="$marker" python3 -c '
+match() {  # $1 = mode: urls | marker
+  local out; out="$("$DIR/codex-cu-remote" "$js" 2>&1)"
+  MODE="$1" MARKER="$marker" URLS="$2" /usr/bin/python3 -c '
 import json, os, sys, time
-m = os.environ["MARKER"]
+mode, m = os.environ["MODE"], os.environ["MARKER"]
+want = {u.strip() for u in os.environ["URLS"].split(", ") if u.strip()}
 for line in sys.stdin:
     line = line.strip()
     if not (line.startswith("{") and "\"browsers\"" in line):
@@ -35,16 +37,31 @@ for line in sys.stdin:
         bs = json.loads(line).get("browsers") or []
     except ValueError:
         continue
-    hits = [b for b in bs if any(m in (t.get("url") or "") for t in b.get("tabs") or [])]
+    def urls(b): return {t.get("url") or "" for t in b.get("tabs") or []}
+    if mode == "marker":
+        hits = [b for b in bs if any(m in u for u in urls(b))]
+    else:
+        hits = [b for b in bs if want and want <= urls(b)]
     if len(hits) == 1:
         b = hits[0]
-        print(json.dumps({"id": b["id"], "extensionInstanceId": (b.get("metadata") or {}).get("extensionInstanceId"), "verified_at": int(time.time())}))
+        print(json.dumps({"id": b["id"], "extensionInstanceId": (b.get("metadata") or {}).get("extensionInstanceId"), "how": mode, "verified_at": int(time.time())}))
     sys.exit(0)
-' <<<"$out")"
-  [ -n "$rec" ] && break
-  sleep 2
-done
-[ -n "$rec" ] || { echo "FAIL codex-cu-chrome-id: no single browser entry shows the probe tab $marker" >&2; printf '%s\n' "$out" | tail -5 >&2; exit 1; }
+' <<<"$out"
+}
+
+urls="$(osascript -e 'tell application "Google Chrome" to get URL of every tab of every window' 2>/dev/null)"
+rec="$(match urls "$urls")"
+if [ -z "$rec" ]; then
+  probed=1
+  osascript -e "tell application \"Google Chrome\" to make new tab at end of tabs of window 1 with properties {URL:\"https://example.com/#$marker\"}" >/dev/null \
+    || { echo "FAIL codex-cu-chrome-id: tab URLs did not decide, and no probe tab could open in Google Chrome" >&2; exit 1; }
+  for try in 1 2 3; do
+    rec="$(match marker "")"
+    [ -n "$rec" ] && break
+    sleep 2
+  done
+fi
+[ -n "$rec" ] || { echo "FAIL codex-cu-chrome-id: no single browser entry matches Google Chrome" >&2; exit 1; }
 mkdir -p "$(dirname "$STATE")"
 printf '%s\n' "$rec" > "$STATE"
 echo "PASS codex-cu-chrome-id: Google Chrome = $rec"
