@@ -140,6 +140,17 @@ The numeric `id` and `metadata.extensionInstanceId` differ per Mac and the `id`
 is not stable. `profileName` can be absent. Do not use any of them as a fixed
 value: find the entry by its tabs ([Quickstart](#quickstart-read-first) step 1).
 
+Never drive Arc: it is the owner's own browser. Before any browser call, run
+`scripts/codex-cu-chrome-id`. It opens a probe tab in Google Chrome with
+AppleScript, finds the one entry that shows it, prints its `extensionInstanceId`,
+closes the tab and hands the screen back. The numeric `id` differs per cua
+runtime (the same Chrome was `"1"` in one and `"2"` in another, 2026-10-21), so
+name Chrome by that `extensionInstanceId` in the same call:
+`const b = await cua.getBrowser({ extensionInstanceId: "<printed>" });` then use
+`b.id`. The Claude hook `codex-cu-chrome-gate.sh` denies a browser call that does
+not, any literal id or `"chrome"`, a proof older than 30 minutes, and `getApp`
+on Arc or another Chromium browser.
+
 Before a long call you can also confirm which app hosts the extension:
 
 ```sh

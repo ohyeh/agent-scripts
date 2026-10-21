@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Prove which cua browser entry is the real Google Chrome; record it for codex-cu-chrome-gate.sh.
+# Every Chromium browser with the ChatGPT extension (Arc, Brave, ...) reports name "Chrome",
+# so a name or "it already has the page logged in" proves nothing. The proof: a probe tab that
+# AppleScript opens in Google Chrome, then found in getState(). Never activates Chrome.
+set -u
+STATE="${XDG_CONFIG_HOME:-$HOME/.config}/codex-cu/chrome-browser.json"
+DIR="$(cd "$(dirname "$0")" && pwd)"
+marker="cu-probe-$$-$RANDOM"
+js="$(mktemp -t cu-probe).js"
+front="$(lsappinfo info -only bundleid "$(lsappinfo front)" | sed -n 's/.*="\(.*\)"/\1/p')"
+close_probe() {
+  osascript -e "tell application \"Google Chrome\" to close (every tab of every window whose URL contains \"$marker\")" >/dev/null 2>&1
+  rm -f "$js"
+  # the probe raised Chrome (live 2026-10-21); hand the screen back to the app the owner had in front
+  [ -n "$front" ] && [ "$front" != com.google.Chrome ] && open -b "$front"
+}
+trap close_probe EXIT
+
+osascript -e "tell application \"Google Chrome\" to make new tab at end of tabs of window 1 with properties {URL:\"https://example.com/#$marker\"}" >/dev/null \
+  || { echo "FAIL codex-cu-chrome-id: cannot open a probe tab in Google Chrome (no window, or no Automation permission)" >&2; exit 1; }
+# first call of a runtime must be exactly one API call
+echo 'await cua.getState();' > "$js"
+
+for try in 1 2 3; do
+  out="$("$DIR/codex-cu-remote" "$js" 2>&1)"
+  rec="$(MARKER="$marker" python3 -c '
+import json, os, sys, time
+m = os.environ["MARKER"]
+for line in sys.stdin:
+    line = line.strip()
+    if not (line.startswith("{") and "\"browsers\"" in line):
+        continue
+    try:
+        bs = json.loads(line).get("browsers") or []
+    except ValueError:
+        continue
+    hits = [b for b in bs if any(m in (t.get("url") or "") for t in b.get("tabs") or [])]
+    if len(hits) == 1:
+        b = hits[0]
+        print(json.dumps({"id": b["id"], "extensionInstanceId": (b.get("metadata") or {}).get("extensionInstanceId"), "verified_at": int(time.time())}))
+    sys.exit(0)
+' <<<"$out")"
+  [ -n "$rec" ] && break
+  sleep 2
+done
+[ -n "$rec" ] || { echo "FAIL codex-cu-chrome-id: no single browser entry shows the probe tab $marker" >&2; printf '%s\n' "$out" | tail -5 >&2; exit 1; }
+mkdir -p "$(dirname "$STATE")"
+printf '%s\n' "$rec" > "$STATE"
+echo "PASS codex-cu-chrome-id: Google Chrome = $rec"

@@ -183,7 +183,7 @@ echo "PASS [invariants] all checks green"
 # test gets its own HOME/XDG/TMPDIR so a fixture never writes the real home.
 # Budget: ~30s total on the operator host.
 layer0_tests=(
-  test-rm-home-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
+  test-rm-home-gate.sh test-codex-cu-chrome-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
   test-review-dispatch-gate.sh test-workflow-agent-cap.sh
   test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate test-round-cost-gate.sh test-worker-followup-gate.sh
@@ -414,6 +414,7 @@ hook_install "$SRC/.agents/hooks/review-dispatch-gate.sh"
 hook_install "$SRC/.agents/hooks/workflow-agent-cap.sh"
 hook_install "$SRC/.agents/hooks/pr-create-gate.sh"
 hook_install "$SRC/.agents/hooks/rm-home-gate.sh"
+hook_install "$SRC/.agents/hooks/codex-cu-chrome-gate.sh"
 hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
 hook_install "$SRC/.agents/hooks/claude-only.sh"
 hook_install "$SRC/.agents/hooks/agy-adapt.sh"
@@ -448,6 +449,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
    --arg review "\"\$HOME/.agents/hooks/review-dispatch-gate.sh\"" \
    --arg wfcap "\"\$HOME/.agents/hooks/workflow-agent-cap.sh\"" \
    --arg rmhome "\"\$HOME/.agents/hooks/rm-home-gate.sh\"" \
+   --arg cuchrome "\"\$HOME/.agents/hooks/codex-cu-chrome-gate.sh\"" \
    --arg prcreate "\"\$HOME/.agents/hooks/pr-create-gate.sh\"" \
    --arg recall "\"\$HOME/.agents/hooks/compaction-recall.sh\"" \
    --arg precompact "\"\$HOME/.agents/hooks/precompact-instructions.sh\"" \
@@ -516,6 +518,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "Workflow"; $wfcap)
   | ensureMatched("SubagentStart"; "workflow-subagent"; $wfcap)
   | ensureMatched("PreToolUse"; "Bash"; $rmhome)
+  | ensureMatched("PreToolUse"; "mcp__codex-cu__js"; $cuchrome)
   | ensureMatched("PreToolUse"; "Bash"; $prcreate)
   | ensureMatched("PostToolUse"; "*"; $ledger)
   | ensureMatched("SessionStart"; "compact"; $recall)
@@ -653,7 +656,7 @@ if [ -d ~/.gemini/config ]; then
   apply "$t" "$AGY_PLUGIN/hooks.json" hooks
 fi
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1
