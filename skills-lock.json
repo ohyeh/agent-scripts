@@ -168,9 +168,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "91c5e484720fc3740c59580094a4f52a6b545ef5",
+      "skillFolderHash": "f09f5ad7f7d913f9d4eeecd464c59868b27406ba",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-10-20T02:11:08.508Z"
+      "updatedAt": "2026-10-21T02:22:02.050Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
