@@ -145,9 +145,12 @@ Never drive Arc: it is the owner's own browser. Before any browser call, run
 AppleScript, finds the one entry that shows it, prints its `extensionInstanceId`,
 closes the tab and hands the screen back. The numeric `id` differs per cua
 runtime (the same Chrome was `"1"` in one and `"2"` in another, 2026-10-21), so
-name Chrome by that `extensionInstanceId` in the same call:
-`const b = await cua.getBrowser({ extensionInstanceId: "<printed>" });` then use
-`b.id`. The Claude hook `codex-cu-chrome-gate.sh` denies a browser call that does
+name Chrome by that `extensionInstanceId` in the same call and resolve this
+runtime's id from it (`getBrowser()` returns no `.id`):
+`const cid = (await cua.getState({ emit: false })).browsers.find(x => x.metadata?.extensionInstanceId === "<printed>")?.id;`
+then `cua.getTab(tabId, { browser: cid })` or `cua.createBrowserTab(cid, url, …)`.
+Open pages with `createBrowserTab`, not osascript: an osascript `make new tab`
+raised Chrome to the front on 2026-10-21. The Claude hook `codex-cu-chrome-gate.sh` denies a browser call that does
 not, any literal id or `"chrome"`, a proof older than 30 minutes, and `getApp`
 on Arc or another Chromium browser.
 

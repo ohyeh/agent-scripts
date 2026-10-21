@@ -48,6 +48,6 @@ ext = str(rec.get("extensionInstanceId"))
 bad = [n for n in named if n not in inapp | {ext}]
 if bad or ext not in code:
     deny("name Google Chrome by its proven extensionInstanceId in this same call: "
-         "const b = await cua.getBrowser({ extensionInstanceId: \"" + ext + "\" }); then use b.id. "
+         "const cid = (await cua.getState({ emit: false })).browsers.find(x => x.metadata?.extensionInstanceId === \"" + ext + "\")?.id; then pass cid. "
          + ("Refused " + str(bad) + ": " if bad else "") + "a literal id or \"chrome\" can be Arc, which also reports name Chrome.")
 ' <<<"$IN"

@@ -16,7 +16,7 @@ t "getState no record"          0 'await cua.getState();'
 t "getTab no record"            2 'await cua.getTab(1, { browser: "2" });'
 printf '{"id":"2","extensionInstanceId":"ext-c","verified_at":%s}\n' "$(date +%s)" > "$S"
 t "getTab literal id"           2 'let tab = await cua.getTab(709, { browser: "2" });'
-t "getTab via proven ext"       0 'const b = await cua.getBrowser({ extensionInstanceId: "ext-c" }); let tab = await cua.getTab(709, { browser: b.id });'
+t "getTab via proven ext"       0 'const cid = (await cua.getState({ emit: false })).browsers.find(x => x.metadata?.extensionInstanceId === "ext-c")?.id; let tab = await cua.getTab(709, { browser: cid });'
 t "createBrowserTab via ext"    0 'const b = await cua.getBrowser({ extensionInstanceId: "ext-c" }); await cua.createBrowserTab(b.id, "https://x", { sessionName: "t" });'
 t "createBrowserTab chrome"     2 'await cua.createBrowserTab("chrome", "https://x", {});'
 t "getBrowser other ext (Arc)"  2 'await cua.getBrowser({ extensionInstanceId: "ext-arc" });'
