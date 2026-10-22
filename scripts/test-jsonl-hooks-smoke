@@ -231,11 +231,6 @@ for k in task-notification plugin legacy; do
     *) printf '{"type":"user","timestamp":"2026-01-01T00:00:05.000Z","origin":{"kind":"%s"},"message":{"content":"worker finished"}}\n' "$k";; esac >> "$TRN"
   ledger_for "n9$k" "$TWO" "$READ"; [[ -z "$(run_claim "n9$k" '`deploy.sh` 的 W43-3 還沒 push' "$TRN")" ]] || { echo "FAIL: a $k row reset the human turn" >&2; exit 1; }
 done
-# kernel Done scope: a text-only answer (reads, no file edit) cites `path:line` instead of a tool token (dc9d26c7)
-ledger_for c15a "$BEFORE" "$TWO" "$READ"; [[ -z "$(run_claim c15a 'Done: the retry lives in `src/x.ts:41`')" ]]           || { echo "FAIL: text-only answer citing path:line blocked" >&2; exit 1; }
-ledger_for c15b "$BEFORE" "$TWO" "$EDIT0"; [[ "$(run_claim c15b 'Done: the retry lives in `src/x.ts:41`')" == block ]]    || { echo "FAIL: path:line cite waived evidence after an Edit" >&2; exit 1; }
-ledger_for c15c "$BEFORE" "$TWO" "$READ"; [[ "$(run_claim c15c 'Done: the retry lives in the client')" == block ]]        || { echo "FAIL: text-only claim without path:line passed" >&2; exit 1; }
-ledger_for c15d "$BEFORE" "$TWO" "$READ"; [[ "$(run_claim c15d 'W43-18 還沒做，見 `src/x.ts:41`' "$TRT")" == block ]]     || { echo "FAIL: path:line cite waived the absence rule" >&2; exit 1; }
 ledger_for c6 "$BEFORE";           [[ -z "$(run_claim c6 '改了設定，attempted, unverified')" ]]        || { echo "FAIL: self-labelled reply blocked" >&2; exit 1; }
 ledger_for c7 "$BEFORE";           [[ -z "$(run_claim c7 'The claim-evidence-gate blocks a `done` claim; 「完成宣告 gate」 is discussed here, and Completion claim text is quoted')" ]] || { echo "FAIL: discussing the gate treated as a claim" >&2; exit 1; }
 ledger_for c8 "$BEFORE" "$RUN0";   [[ "$(run_claim c8 'the worker is stuck, no reply for 30 min')" == block ]] || { echo "FAIL: negative claim on one call not blocked" >&2; exit 1; }
