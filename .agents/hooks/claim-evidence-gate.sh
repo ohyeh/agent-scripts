@@ -72,11 +72,11 @@ negative_lines="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' \
 [ -n "$claim" ] || [ -z "$negative_lines" ] || claim="negative"
 # W44-7: hand-backs checked against this turn's tool calls — a reload the agent can run itself,
 # and a page called live with no render check (artifacts-rules §Quality, screenshot evidence).
-# Only an ask counts: a run verb before the command, not a past-tense or quoted mention.
-reload_ask="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' | grep -viE 'judgment-rubrics|claim-evidence-gate|earlier|before|told you|之前|先前|已經|曾' \
-  | grep -Eqi '(執行|跑|打|輸入|按|run|type|please)[^。.!\n]{0,12}/reload-plugins|重新載入 *plugin' && echo 1)"
-# Only a claim about the page: "is/now/went live", 已上線, 已發布 — not "live source" or "was published in 2025".
-live_say="$(printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(is|are|now|went|goes|been) (now )?(live|published)([^a-z]|$)|已上線|上線了|已發布' && echo 1)"
+# Any /reload-plugins outside a fence needs a reload call this turn: the remedy is one call, so a
+# mention that is not an ask costs a turn, while a missed ask costs the user a hand-back.
+reload_ask="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' | grep -viE 'judgment-rubrics|claim-evidence-gate' | grep -Eqi '/reload-plugins|重新載入 *plugin' && echo 1)"
+# A page claim: live/published/上線/發布 after a page noun or "it", published before one, or live/published before an artifact URL.
+live_say="$(printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(page|artifact|dashboard|it)[^a-z][^.;。]{0,30}(live|published)|(頁面|網頁|儀表板|頁)[^。；]{0,15}(上線|發布)|(^|[^a-z])published[^.;。]{0,20}(page|artifact|dashboard)|(live|published|上線|發布)[^a-z]{0,4}(at |:|：)? *https://claude\.ai/artifact|^ *(已上線|已發布)' && echo 1)"
 [ -n "$claim" ] || [ -n "$reload_ask$live_say" ] || exit 0
 
 csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"

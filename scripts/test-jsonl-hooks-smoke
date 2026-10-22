@@ -256,7 +256,14 @@ PUBU='{"name":"Artifact","input":{"file_path":"/s/page.html","icon":"chart"}}'
 [[ -z "$(run_claim h5 'The page is live: https://claude.ai/artifact/x' "$(trh h5.jsonl "$PUBU" '{"name":"mcp__claude-in-chrome__computer","input":{"action":"screenshot"}}')")" ]] || { echo "FAIL: W44-7 live page after a screenshot blocked" >&2; exit 1; }
 # L1 false blocks: "live"/"published" in another sense, /reload-plugins as history or a quote, a Bash line naming a screenshot
 [[ -z "$(run_claim h6 'I checked the live source and the file; the page is saved to the artifact URL. The skill was published in 2025 by the vendor.' "$(trh h6.jsonl "$PUBU")")" ]] || { echo "FAIL: W44-7 live in another sense blocked" >&2; exit 1; }
-[[ -z "$(run_claim h7 'Earlier I told you to run `/reload-plugins`; this time no reload is needed. The gate flags replies that say /reload-plugins without a call.' "$(trh h7.jsonl "$BASHU")")" ]] || { echo "FAIL: W44-7 /reload-plugins as history blocked" >&2; exit 1; }
+# Any /reload-plugins outside a fence needs a reload call (L1 round 2: verb lists missed real asks).
+[[ "$(run_claim h7 '要 /reload-plugins 才會載入。' "$(trh h7.jsonl "$BASHU")")" == block ]] || { echo "FAIL: W44-7 reload ask without a run verb passed" >&2; exit 1; }
+[[ -z "$(run_claim h7b 'Run this:
+```
+/reload-plugins
+```' "$(trh h7b.jsonl "$BASHU" '{"name":"mcp__tmux-agent__reload","input":{}}')")" ]] || { echo "FAIL: W44-7 reload ask after a reload call blocked" >&2; exit 1; }
+[[ "$(run_claim h9 "It's live at the URL." "$(trh h9.jsonl "$PUBU")")" == block ]] || { echo "FAIL: W44-7 it's live with no screenshot passed" >&2; exit 1; }
+[[ -z "$(run_claim h10 'The source is live, not memory. The tag has been published to GitHub.' "$(trh h10.jsonl "$PUBU")")" ]] || { echo "FAIL: W44-7 live/published about a non-page blocked" >&2; exit 1; }
 [[ "$(run_claim h8 '頁面已上線：https://claude.ai/artifact/x' "$(trh h8.jsonl "$PUBU" '{"name":"Bash","input":{"command":"echo take a screenshot later"}}')")" == block ]] || { echo "FAIL: W44-7 a Bash line naming a screenshot passed as a render check" >&2; exit 1; }
 
 # bol: prose shape is no longer judged (runnable-check heuristic retired
