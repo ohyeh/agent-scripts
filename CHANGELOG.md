@@ -1,5 +1,9 @@
 # Changelog
 
+## session-recall 0.14.1
+
+- **`↩ quote` on a reply not kept**: a reply of a turn still running (kept only at `turn.complete`) or one pushed out of the last 16 gave the toast "that reply is not among the answers kept" (owner screenshot 10-22, a turn waiting on a background agent). On a miss, `↩` now finds that one reply in `$.session.messages()` (the transcript so far) and adds only it, so the newest kept replies stay; `addAnswer` keeps one copy of a reply, so the same reply at `turn.complete` is not added twice (two copies made its excerpts name no place). 2 tests; without each fix the first fails.
+
 ## agent-should-know 0.1.5
 
 - **A relay approves nothing**: the relay told the agent "if it holds, correct the work". In healthgo-mobile (10-20 09:54) the agent then made `gpt-6-astra` a code reviewer, a best-tier model that needs the user's approval (model-dispatch, 10-16). Seen by the built-in's next card. The relay now says: fix only within what the user already approved; a fix that needs approval (a model tier, a push, a deletion, a change of scope) is not made: name it and ask.

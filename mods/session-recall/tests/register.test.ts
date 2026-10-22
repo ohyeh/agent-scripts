@@ -1146,6 +1146,48 @@ describe('the TUI', () => {
     expect(w.toasts.at(-1)).toContain('not from this reply')
   })
 
+  test('↩ on a reply of a turn still running quotes it: the transcript holds it before the turn ends', async ($, on) => {
+    const clip = { text: '' }
+    const messages: unknown[] = []
+    const w = world(on, { clip, messages })
+    await $.session.start(start)
+    await w.clock.advance(1_000)
+    const answer = '- waiting on the agent\n- then re-record'
+    messages.push({ role: 'assistant', text: answer, toolUses: [] })
+    await $.ui.render({ surface: 'terminal', component: 'AssistantMessage', requestId: 'm1', viewport: { columns: 100, rows: 50 }, props: { text: answer, isFirstOfReply: true } } as never)
+    clip.text = 'then re-record'
+    await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
+    expect(w.filled.at(-1)).toEqual({ text: '#q1\n> then re-record\n\n', mode: 'insert' })
+    // The turn ends with that reply: kept once, so a second ↩ still quotes it.
+    await $.turn.complete({ ...turn, answer } as never)
+    await $.ui.render({ surface: 'terminal', component: 'AssistantMessage', requestId: 'm1', viewport: { columns: 100, rows: 50 }, props: { text: answer, isFirstOfReply: true } } as never)
+    clip.text = 'waiting on the agent'
+    await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
+    expect(w.filled).toHaveLength(2)
+  })
+
+  test('↩ on a reply pushed out of the kept answers quotes it and keeps the newest ones', async ($, on) => {
+    const clip = { text: '' }
+    const old = '- the oldest reply\n- quote me later'
+    const messages: unknown[] = [{ role: 'assistant', text: old, toolUses: [] }]
+    const w = world(on, { clip, messages })
+    await $.session.start(start)
+    for (let i = 0; i < 16; i++) {
+      await w.clock.advance(1_000)
+      await $.turn.complete({ ...turn, answer: `- reply ${i}\n- line ${i}` } as never)
+    }
+    const msg = (text: string, id: string) => ({ surface: 'terminal', component: 'AssistantMessage', requestId: id, viewport: { columns: 100, rows: 50 }, props: { text, isFirstOfReply: true } }) as never
+    await $.ui.render(msg(old, 'm1'))
+    clip.text = 'quote me later'
+    await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm1' } as never)
+    expect(w.filled.at(-1)).toEqual({ text: '#q1\n> quote me later\n\n', mode: 'insert' })
+    // The newest kept reply is still there: no other old reply was added back.
+    await $.ui.render(msg('- reply 15\n- line 15', 'm2'))
+    clip.text = 'line 15'
+    await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm2' } as never)
+    expect(w.filled.at(-1)).toEqual({ text: '#q2\n> line 15\n\n', mode: 'insert' })
+  })
+
   test('↩ on a selection that runs past the reply: each run of its lines is a #qN, the rest plain >; the band lists the quotes, [×] takes one out', async ($, on) => {
     const clip = { text: '' }
     const w = world(on, { clip })

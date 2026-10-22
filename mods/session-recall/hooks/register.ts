@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir, subagentMade } from './lib/assets.ts'
 import { answerId, findExcerpt, itemsOf, locate, plain, quoteOf, quoteRefsIn } from './lib/items.ts'
 
-const MOD_VERSION = '0.14.0'
+const MOD_VERSION = '0.14.1'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -85,7 +85,9 @@ async function snapshot(s: State, $: $, list?: Entry[]) {
 
 function addAnswer(s: State, text: string, at: number) {
   const items = itemsOf(text)
-  if (items.length) s.answers = [{ id: answerId(items), at, items }, ...s.answers].slice(0, MAX_ANSWERS)
+  const id = items.length ? answerId(items) : ''
+  // A reply ↩ added mid-turn comes again at turn.complete: a second copy would make its excerpts name no place.
+  if (id && !s.answers.some(a => a.id === id)) s.answers = [{ id, at, items }, ...s.answers].slice(0, MAX_ANSWERS)
 }
 
 /**
@@ -216,7 +218,20 @@ function pastedPart(answers: { id: string; items: string[]; flat: string }[], li
  * line by line: each run of lines this reply holds becomes a #qN, the other lines go in as plain `>` lines.
  */
 async function focusBlock(s: State, $: $, text: string) {
-  const at = locate(s.answers, text)
+  let at = locate(s.answers, text)
+  // Not kept: a reply of a turn still running (kept when the turn ends), or one pushed out of the last MAX_ANSWERS.
+  // The transcript has it: only that one reply is added, so the newest kept ones stay.
+  if (!at) {
+    try {
+      const m = [...(await $.session.messages())].reverse().find(m => m.role === 'assistant' && m.text && itemsOf(m.text).length && locate([{ id: '', items: itemsOf(m.text) }], text))
+      if (m) {
+        addAnswer(s, m.text, await $.clock.now())
+        at = locate(s.answers, text)
+      }
+    } catch (err) {
+      $.ui.log(`session-recall: answers not read (${errText(err)})`, { to: 'debug' })
+    }
+  }
   // The terminal copies its gutter too: each line's indent and the reply bullet go.
   const clip = (await clipboard($))?.split('\n').map(l => l.replace(/^[\s⏺]+/, '')).join('\n').trim()
   if (!at || !clip) return $.ui.toast(at ? 'select the part of this reply to quote and copy it, then press ↩ quote again' : 'that reply is not among the answers kept (a reply still being written is added when it ends)')
