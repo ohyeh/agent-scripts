@@ -161,9 +161,13 @@ replaces reading the touched code.
 - Linear history: rebase onto the base, then fast-forward merge; stacked PRs
   rebase from the bottom up. Rewriting your own unmerged branch is routine;
   rewriting a protected or shared branch is irreversible → ask first.
-- Delegated long waits: blocking/event-driven, never a bare `sleep N`; keep
-  working on independent items while subagents run. Scratch files → session
-  scratchpad, never repo root or `/tmp`.
+- Waits on a worker, script, or remote job: before the turn ends, arm a
+  monitor with a stall deadline (the brief's, else 10 minutes) so silence
+  wakes you, never a bare `sleep N`. Watch completion only where nothing
+  else notifies: the collector and task notifications already deliver it, so
+  a second wake on the same result gets one line and no action. Keep working
+  on independent items meanwhile. Scratch files → session scratchpad, never
+  repo root or `/tmp`.
 
 ## Tools
 - Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, project scripts, official
