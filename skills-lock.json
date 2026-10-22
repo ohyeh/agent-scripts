@@ -60,7 +60,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/codex-cu/SKILL.md",
-      "skillFolderHash": "b3d3d4adadc48543cf06f2856e240d8fff644e02",
+      "skillFolderHash": "c917ad2da24e78c63d325b5b6dc72a1e0b0a5ec1",
       "installedAt": "2026-10-08T17:59:00.705Z",
       "updatedAt": "2026-10-22T16:48:46.000Z"
     },
@@ -323,7 +323,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-workflows/SKILL.md",
-      "skillFolderHash": "f4bbf60309ee8708c577143583a0981f32c3b6f7",
+      "skillFolderHash": "86e3912981f73cd62cef51872144f6f119bf506a",
       "installedAt": "2026-07-18T20:48:21.473Z",
       "updatedAt": "2026-10-22T16:33:13.000Z"
     },
