@@ -33,8 +33,7 @@ lsof -nP -iTCP:39231 -sTCP:LISTEN                       # already debuggable?
 scripts/ensure.mjs                                     # all of the below, in one call
 pkill -x "Grok Bot"                                    # no approval needed (standing rule, below)
 open -a "Grok Bot" --args --remote-debugging-port=39231
-agent-browser connect 39231
-agent-browser tab      # expect one target: file://…/app.asar/dist/renderer/index.html
+agent-browser --cdp "${GROK_BOT_CDP_PORT:-39231}" tab   # expect one target: file://…/app.asar/dist/renderer/index.html
 ```
 
 The port is 39231, not 9231: Chrome and Node debuggers sit at 9222–9230 and other
@@ -48,12 +47,12 @@ An app update relaunches it without the flag, so this recurs. `scripts/ensure.mj
 does it in one call (reopen the window, or quit and relaunch with the port, or
 launch; another app on the port is left alone) and the TUI and the mod run it themselves.
 
-If the port is already listening, skip straight to `connect` — no restart, no
+If the port is already listening, skip straight to `agent-browser --cdp` — no restart, no
 approval needed, nothing lost.
 
 **Listening but no target** (`/json/list` is `[]`): the app is running with its
 window closed. `open -a "Grok Bot"` (no `--args`) reopens the window without a
-restart. Check the list before `agent-browser connect`: against a port with no
+restart. Check the list before an `agent-browser --cdp` command: against a port with no
 page it launches its own browser instead (close it with `agent-browser close`).
 
 ## Address bots by UUID, never by name

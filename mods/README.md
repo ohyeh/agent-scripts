@@ -39,6 +39,13 @@ collaborators (Claude, sol, agy, advisor). Where a rule cites a fixed standard, 
   For a saved choice, wait for the write and assert the stored value after each action.
   Run a fresh `session.start` with the same store after each saved choice. Assert the render and stored value again.
   For other state, assert the reset that the code specifies. A render check after one press is not enough.
+- Band tree readers: a mod that reads the band's tree (`next(e)`) is tested beside another plugin's row whose text
+  changes on every draw, with no space at the joint. Mount it at least twice and assert one action, not two.
+  A test that draws the mod's row alone is not enough (agent-should-know 0.1.0 sent one card 3 times).
+- Another plugin's state: before a README or a reply says it cannot be read, read
+  `~/.claude/plugins/store/<plugin>_<marketplace>-*.json` and quote the result.
+- Mod prompts: a prompt that a mod submits for the agent says that it approves nothing. A fix that needs the
+  user's approval (a model tier, a push, a deletion, a change of scope) is named and asked, not made.
 - Mod changes: run `MOD=mods/<m> scripts/test-mod-permissions-smoke` and require exit 0, plus the surface checks above.
   `claude plugin test` alone does not check types; its `N pass` is not enough.
 - Review: compare buttons, hotkeys and commands with the previous version. List each removal against the request.

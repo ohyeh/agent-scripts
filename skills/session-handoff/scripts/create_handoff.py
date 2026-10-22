@@ -11,10 +11,10 @@ Creates a new handoff document with auto-detected metadata:
 - Handoff chain linking
 
 Usage:
-    python create_handoff.py [task-slug] [--continues-from <previous-handoff>]
-    python create_handoff.py "implementing-auth"
-    python create_handoff.py "auth-part-2" --continues-from 2024-01-15-auth.md
-    python create_handoff.py  # auto-generates slug from timestamp
+    python3 create_handoff.py [task-slug] [--continues-from <previous-handoff>]
+    python3 create_handoff.py "implementing-auth"
+    python3 create_handoff.py "auth-part-2" --continues-from 2024-01-15-auth.md
+    python3 create_handoff.py  # auto-generates slug from timestamp
 """
 
 import argparse
@@ -398,7 +398,7 @@ def main():
     print(f"1. Open {filepath}")
     print(f"2. Replace [TODO: ...] placeholders with actual content")
     print(f"3. Focus especially on 'Important Context' and 'Immediate Next Steps'")
-    print(f"4. Run: python ~/.agents/skills/session-handoff/scripts/validate_handoff.py {filepath}")
+    print(f"4. Run: python3 ~/.agents/skills/session-handoff/scripts/validate_handoff.py {filepath}")
     print(f"   (Checks for completeness and accidental secrets)")
 
     return filepath

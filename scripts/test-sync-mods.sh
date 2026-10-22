@@ -31,6 +31,11 @@ reg 0.13.0
 if out="$(run --check)" && grep -q 'PASS \[mods\] m1=0.13.0 m2=not-installed' <<<"$out"; then ok "in sync: PASS, an uninstalled mod is reported"
 else bad "in sync: $out"; fi
 
+# W44-10: an install newer than the release is not behind
+reg 0.14.0; : > "$T/calls"
+if out="$(run --check)" && grep -q 'm1=0.14.0' <<<"$out" && [ ! -s "$T/calls" ]; then ok "newer --check: exit 0, no CLI call"
+else bad "newer --check: $out"; fi
+
 reg 0.12.1; : > "$T/calls"
 if out="$(run --check)"; then bad "behind --check: exit 0 ($out)"
 elif grep -q 'm1(0.12.1->0.13.0)' <<<"$out" && [ ! -s "$T/calls" ]; then ok "behind --check: exit 1, names it, no CLI call"

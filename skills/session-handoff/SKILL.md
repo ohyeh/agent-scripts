@@ -27,17 +27,17 @@ Determine which mode applies:
 Run the smart scaffold script to create a pre-filled handoff document:
 
 ```bash
-python ~/.agents/skills/session-handoff/scripts/create_handoff.py [task-slug]
+python3 ~/.agents/skills/session-handoff/scripts/create_handoff.py [task-slug]
 ```
 
-Example: `python ~/.agents/skills/session-handoff/scripts/create_handoff.py implementing-user-auth`
+Example: `python3 ~/.agents/skills/session-handoff/scripts/create_handoff.py implementing-user-auth`
 
 Run it from the target project directory: the scaffold reads the project path,
 git branch, and recent commits from the current working directory.
 
 **For continuation handoffs** (linking to previous work):
 ```bash
-python ~/.agents/skills/session-handoff/scripts/create_handoff.py "auth-part-2" --continues-from 2024-01-15-auth.md
+python3 ~/.agents/skills/session-handoff/scripts/create_handoff.py "auth-part-2" --continues-from 2024-01-15-auth.md
 ```
 
 The script will:
@@ -64,7 +64,7 @@ Use the template structure in [references/handoff-template.md](references/handof
 Run the validation script to check completeness and security:
 
 ```bash
-python ~/.agents/skills/session-handoff/scripts/validate_handoff.py <handoff-file>
+python3 ~/.agents/skills/session-handoff/scripts/validate_handoff.py <handoff-file>
 ```
 
 The validator checks:
