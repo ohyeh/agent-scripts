@@ -46,8 +46,13 @@ export async function read(d, id, n) {
   const c = await d.count(id)
   if (c !== 1) return { state: c ? 'ambiguous' : 'no-bot' }
   const prev = await d.current()
-  const r = await open(d, id, n)
-  await restore(d, prev, id)
+  let r
+  try {
+    r = await open(d, id, n)
+  } finally {
+    // A failed read still puts the screen back; a failed restore surfaces, after the read's own error.
+    await restore(d, prev, id)
+  }
   const now = await d.current()
   return { ...r, bot: id, prev: prev?.slice(0, 8) ?? null, restored: !prev || !!now?.startsWith(prev) }
 }

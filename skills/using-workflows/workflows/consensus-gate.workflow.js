@@ -69,9 +69,10 @@ const plainPath = p => typeof p === 'string' && p.length > 0 && !/[\0\n\r]/.test
 if (!plainPath(repo)) return { aborted: true, reason: 'invalid arg: repoPath' }
 if (!Array.isArray(freeze) || !freeze.every(plainPath)) return { aborted: true, reason: 'invalid arg: freeze must be an array of paths (no NUL or newline)' }
 const l0 = typeof a.l0 === 'string' ? a.l0 : ''
-// Three labelled lines, content only: a path spelled another way (cd + relative, wf_6b475093-bbb
+// Three labelled lines, content only (freeze = one digest line per file, so a byte moving across a
+// file boundary still changes it): a path spelled another way (cd + relative, wf_6b475093-bbb
 // 2026-10-22) hashes the same, and a voided round names the part that changed.
-const MANIFEST = `printf 'head %s\\ndiff %s\\nfreeze %s\\n' "$(git -C ${q(repo)} rev-parse HEAD 2>/dev/null || echo no-git)" "$(git -C ${q(repo)} diff HEAD 2>/dev/null | shasum -a 256 | cut -c1-16)" "$(${freeze.length ? `cat -- ${freeze.map(q).join(' ')} 2>&1` : 'true'} | shasum -a 256 | cut -c1-16)"`
+const MANIFEST = `printf 'head %s\\ndiff %s\\nfreeze %s\\n' "$(git -C ${q(repo)} rev-parse HEAD 2>/dev/null || echo no-git)" "$(git -C ${q(repo)} diff HEAD 2>/dev/null | shasum -a 256 | cut -c1-16)" "$(for f in ${freeze.length ? freeze.map(q).join(' ') : "''"}; do [ -z "$f" ] || shasum -a 256 < "$f" 2>/dev/null || echo missing; done | shasum -a 256 | cut -c1-16)"`
 
 // _lib/worker-doctrine.md §7, kept byte-close (scripts cannot import).
 const REVIEWER_CONTRACT = 'ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise. Round 1: list EVERY finding now, in one pass; a finding held back for a later round counts as a miss. Each finding: stable id, file:line or command output, severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that proves the fix. A finding without evidence is dropped. Round 2+: you get the finding ledger and the before/after diff of the fix. Report (a) each ledger finding: resolved (with evidence) or still open (not_fixed | partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect fix_caused=true only when the diff shows the fix caused it; a new defect the fix did not cause is a round-1 miss. Read-only: do not edit files or run build, test, lint or any command that writes into the tree; the L0 output you are given is the check evidence. A live reproduction runs in a scratch dir outside the repo. PASS only with 0 Critical and 0 Major open.'
@@ -124,9 +125,15 @@ Return only the structured fields.`,
 )
 // `passed` is a strict allow-list: only genuine consensus at the verdict layer (L2), with L0 green
 // and the manifest unchanged, clears the gate. An L1 agree is a pre-filter result, never a pass.
-const parts = m => Object.fromEntries((m || '').split('\n').map(l => l.trim().split(/\s+/)).filter(x => x.length === 2))
+// A manifest counts only with exactly one non-empty head, diff and freeze line; anything else voids.
+const KEYS = ['head', 'diff', 'freeze']
+const parts = m => {
+  const rows = (m || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => l.split(/\s+/))
+  const o = Object.fromEntries(rows.filter(x => x.length === 2))
+  return rows.length === 3 && KEYS.every(k => o[k]) ? o : null
+}
 const before = parts(r?.manifest_before), after = parts(r?.manifest_after)
-const changed = ['head', 'diff', 'freeze'].filter(k => before[k] !== after[k])
+const changed = before && after ? KEYS.filter(k => before[k] !== after[k]) : ['invalid-manifest']
 const voided = !!r && changed.length > 0
 const l0Failed = !!r && r.l0_rc !== 0
 return {

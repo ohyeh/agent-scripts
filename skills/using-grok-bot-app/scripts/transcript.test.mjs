@@ -83,3 +83,10 @@ test('no-bot, ambiguous, not-open', async () => {
   assert.equal((await read(amb.d, 'aaaaaaaa', 50)).state, 'ambiguous')
   assert.equal((await read(app({ stuck: true }).d, 'aaaaaaaa', 50)).state, 'not-open')
 })
+
+test('a read that throws still opens the previous bot again, then throws', async () => {
+  const a = app()
+  a.d.tail = async () => { throw new Error('cdp gone') }
+  await assert.rejects(read(a.d, 'aaaaaaaa', 6), /cdp gone/)
+  assert.deepEqual([a.clicks, a.current], [['aaaaaaaa', 'bbbbbbbb'], B])
+})
