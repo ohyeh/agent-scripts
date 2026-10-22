@@ -5,8 +5,9 @@
 # canonical, machines are deployed copies only.
 #
 # Usage: scripts/deploy.sh           deploy every layer
-#        scripts/deploy.sh --check   same layer checks, read-only: no write to ~, exit 1 at the
-#                                    first layer that differs from the release. Skips Layer 0
+#        scripts/deploy.sh --check   same layer checks, read-only: no write to ~; runs every
+#                                    layer, then exits 1 if any layer differs from the release
+#                                    (W44-3: a skills FAIL must not hide the hooks). Skips Layer 0
 #                                    (it tests the release tree, not this host) and the layers
 #                                    that have no read-only check (agy statusline, codex-cu).
 #                                    "Deployed / in sync" claims quote this exit 0 (W43-3).
@@ -18,8 +19,8 @@
 # tree), every verify step still runs. Everything else is identical.
 #
 # Layers, in order (each layer prints PASS/FAIL + the hash/diff evidence it
-# checked; the FIRST failing layer aborts the whole run non-zero -- fail
-# fast, no silent fallback to a partial deploy):
+# checked; on deploy the FIRST failing layer aborts the whole run non-zero -- fail
+# fast, no silent fallback to a partial deploy; --check reports every layer):
 #   0. invariants - scripts/check-rules-invariants.mjs run inside the
 #                 downloaded tree; any FAIL aborts before ~ is touched.
 #   1. global   - global/CLAUDE.md -> ~/.claude/CLAUDE.md,
@@ -97,6 +98,13 @@ apply() {
     rm -f "$1"; exit 1
   fi
   rm -f "$1"
+}
+# One layer. Deploy: a FAIL exits the script. --check: a FAIL (an `exit 1` or a set -e stop)
+# ends only this layer's subshell; main exits with the combined status after the last layer.
+CHECK_RC=0
+layer() {
+  if [ "$CHECK" = 0 ]; then "$@"; return; fi
+  set +e; ( set -e; "$@" ); [ $? = 0 ] || CHECK_RC=1; set -e
 }
 
 resolve_release() {
@@ -188,7 +196,7 @@ layer0_tests=(
   test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate test-round-cost-gate.sh test-worker-followup-gate.sh
   test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-recipe-usage-stats.sh test-docs-audit-ownership test-behavior-runner
-  test-consensus-gate-ladder test-plan-pipeline-ladder
+  test-consensus-gate-ladder test-plan-pipeline-ladder test-haiku-research-round
   test-feature-plan-consensus-ladder test-review-gate-smoke.mjs
 )
 for t in "${layer0_tests[@]}"; do
@@ -208,6 +216,7 @@ fi
 # --- Layer 1: global runtime files -----------------------------------------
 # Same kernel to every present runtime: Claude, Codex, and Gemini/agy (GEMINI.md
 # only when ~/.gemini exists — that runtime is optional).
+layer_global() {
 echo "==> [global] deploying CLAUDE.md + AGENTS.md (+ GEMINI.md if ~/.gemini present)"
 global_targets=(
   "$SRC/global/CLAUDE.md:$HOME/.claude/CLAUDE.md"
@@ -229,8 +238,11 @@ for pair in "${global_targets[@]}"; do
   global_report="$global_report $(basename "$dst")=$src_md5"
 done
 echo "PASS [global] md5 match ($global_report )"
+}
+layer layer_global
 
 # --- Layer 2: rules ----------------------------------------------------------
+layer_rules() {
 echo "==> [rules] rsync canonical .agents/rules/ -> ~/.agents/rules/"
 if [ "$CLONE_TRACKED" = 1 ]; then
   echo "     (clone-tracked: symlink already points at the pulled clone; rsync skipped, diff still verified)"
@@ -246,8 +258,11 @@ if [ -n "$rules_diff" ]; then
   exit 1
 fi
 echo "PASS [rules] 0 diff"
+}
+layer layer_rules
 
 # --- Layer 3: workflows -------------------------------------------------------
+layer_workflows() {
 echo "==> [workflows] install.sh --force -> ~/.claude/workflows/"
 w mkdir -p ~/.claude/workflows
 manifest=~/.claude/workflows/.using-workflows-managed-files
@@ -268,8 +283,11 @@ if [ -n "$wf_diff" ]; then
   exit 1
 fi
 echo "PASS [workflows] $(wc -l <<<"$shipped" | tr -d ' ') managed files match the release"
+}
+layer layer_workflows
 
 # --- Layer 4: skills -----------------------------------------------------------
+layer_skills() {
 echo "==> [skills] restoring skills-lock.json via npx skills experimental_install"
 if [ ! -f "$SRC/skills-lock.json" ]; then
   echo "FAIL [skills] no skills-lock.json in the downloaded repo tree" >&2
@@ -378,11 +396,14 @@ else
   [ -f "$AS/session-handoff/SKILL.md" ] || { echo "FAIL [agy-skills] $AS/session-handoff/SKILL.md does not resolve" >&2; exit 1; }
   echo "PASS [agy-skills] $AS -> $(readlink "$AS")"
 fi
+}
+layer layer_skills
 
 # --- Layer 5: hooks ------------------------------------------------------------
 # Kernel sentinel hooks (version-upgrade tripwire + session-title nudge) are
 # repo-managed: installed to ~/.agents/hooks/ and registered idempotently in
 # ~/.claude/settings.json. Workflow-gate hooks stay with their owning plugins.
+layer_hooks() {
 echo "==> [hooks] installing sentinel hooks + registering in ~/.claude/settings.json"
 w rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent-tools plugin
 w rm -f ~/.agents/hooks/bol-prompt-warn.sh      # retired 2026-08-25; replaced by bol-prompt-gate.sh (blocking)
@@ -684,29 +705,40 @@ echo "==> [hooks] registering portable sentinels in ~/.cursor/hooks.json"
 w bash "$SRC/scripts/install-cursor-hooks.sh"
 bash "$SRC/scripts/check-cursor-hooks.sh"
 echo "PASS [hooks] Cursor adapter registry"
+}
+layer layer_hooks
 
 # --- Layer 6: context-mode storage pin ---------------------------------------
 # Machine-local. Layer 0 cannot see ~/. Plugin upgrades drop CONTEXT_MODE_DIR.
+layer_context_mode() {
 echo "==> [context-mode] pin storage to ~/.claude/context-mode"
 if [ "$CHECK" = 1 ]; then bash "$SRC/scripts/check-context-mode-dir.sh"   # the installer's own last step
 else bash "$SRC/scripts/install-context-mode-dir.sh"; fi
 echo "PASS [context-mode] canonical store ~/.claude/context-mode"
+}
+layer layer_context_mode
 
 # --- Layer 7: Cursor runtime (kernel / ponytail rule / HUD) -------------------
+layer_cursor() {
 echo "==> [cursor] kernel.mdc + ponytail rule + HUD statusLine"
 w bash "$SRC/scripts/install-cursor-kernel.sh"
 w bash "$SRC/scripts/install-cursor-ponytail.sh"
 w bash "$SRC/scripts/install-cursor-hud.sh"
 bash "$SRC/scripts/check-cursor-runtime.sh"
 echo "PASS [cursor] kernel + HUD + ponytail wiring"
+}
+layer layer_cursor
 
 # --- Layer 7b: Antigravity runtime (statusline) --------------------------------
+layer_agy() {
 echo "==> [agy] statusline script + settings.json"
 if [ "$CHECK" = 1 ]; then echo "SKIP [agy] no read-only check"
 else bash "$SRC/scripts/install-antigravity-statusline.sh"; fi
-
+}
+layer layer_agy
 
 # --- Layer 8: agent definitions ----------------------------------------------
+layer_agents() {
 echo "==> [agents] global/agents/<runtime>/ -> runtime agent dirs"
 agents_report=""
 for rt in claude codex; do
@@ -735,11 +767,16 @@ for rt in claude codex; do
   agents_report="$agents_report $rt=$(find "$src" -type f | wc -l | tr -d ' ')"
 done
 echo "PASS [agents] 0 diff (${agents_report# })"
+}
+layer layer_agents
 
 # --- Layer 8b: mods (this repo's Claude Code plugins at the release version) ----
+layer_mods() {
 echo "==> [mods] installed agent-scripts plugins vs the release marketplace"
 if [ "$CHECK" = 1 ]; then bash "$SRC/scripts/sync-mods.sh" --check
 else bash "$SRC/scripts/sync-mods.sh"; fi
+}
+layer layer_mods
 
 # W35 retro F2: a per-host deploy record, so a retro can window "after both
 # hosts ran version X" instead of comparing hosts on different gate versions.
@@ -760,7 +797,8 @@ fi
 
 # Provenance (deploy log = release) + one isolated run of the context-mode hook: a mounted
 # hook is not a working hook (W41 F2). Deploy and --check both end here (W43-3).
-bash "$SRC/scripts/check-deploy-drift.sh"
+layer bash "$SRC/scripts/check-deploy-drift.sh"
+if [ "$CHECK_RC" != 0 ]; then echo "==> CHECK FAILED — see the FAIL lines above; this host differs from $RELEASE_REF @ $DEPLOYED_SHA" >&2; exit 1; fi
 if [ "$CHECK" = 1 ]; then echo "==> CHECK OK — this host matches $RELEASE_REF @ $DEPLOYED_SHA"
 else echo "==> DEPLOY OK — all layers PASS"; fi
 }

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # deploy.sh --check on THIS host (W43-3): (1) exit 0 and zero writes; (2) kernel in sync but one
-# skill pin drifted -> exit 1 at [skills]. Real HOME + network, so not in deploy.sh layer0_tests.
+# skill pin drifted -> [skills] FAIL, later layers still run, exit 1. Real HOME + network, so not in deploy.sh layer0_tests.
 #
 # Zero writes = the files deploy.sh and its install-* children write (paths taken from those
 # scripts), plus plugins/installed_plugins.json (W43-7). Not covered: stores a live session
-# writes on its own (~/.claude/context-mode, ~/.claude.json, ~/.claude/projects).
+# writes on its own (~/.claude/context-mode, ~/.claude.json, ~/.claude/projects, and the hook
+# logs beside deploy-log.jsonl: a live Cursor session's cursor-adapt.sh rewrites them).
 # Usage: scripts/test-deploy-check.sh
 cd "$(dirname "$0")/.." || exit 1
 set -uo pipefail
@@ -20,7 +21,8 @@ paths=(
   ~/.gemini/GEMINI.md ~/.gemini/settings.json ~/.gemini/config/plugins ~/.gemini/config/skills
   ~/.agents/rules ~/.agents/hooks ~/.agents/.skill-lock.json ~/.agents/skills
   ~/.cursor/hooks.json ~/.cursor/mcp.json ~/.cursor/cli-config.json ~/.cursor/rules
-  ~/.local/bin ~/.local/state/agent-scripts ~/.config/codex-cu ~/.zshrc ~/skills-lock.json
+  ~/.local/bin ~/.local/state/agent-scripts/deploy-log.jsonl ~/.local/state/agent-scripts/fleet-deploy
+  ~/.config/codex-cu ~/.zshrc ~/skills-lock.json
 )
 snap() {
   local p l
@@ -49,8 +51,9 @@ jq --arg k "$key" '.skills[$k].skillFolderHash = "000000000000000000000000000000
   ~/.agents/.skill-lock.json > "$T/lock.json"
 if SKILLS_GLOBAL_LOCK="$T/lock.json" bash scripts/deploy.sh --check > "$T/neg.log" 2>&1; then
   bad "drifted pin: exit 0"
-elif grep -q '^PASS \[global\]' "$T/neg.log" && grep -q "^FAIL \[skills\].* $key\$" "$T/neg.log"; then
-  ok "drifted pin '$key': global PASS, [skills] exit 1 names it"
-else bad "drifted pin: wrong failure:"; grep -E '^(PASS|FAIL) \[(global|skills)' "$T/neg.log"; fi
+elif grep -q '^PASS \[global\]' "$T/neg.log" && grep -q "^FAIL \[skills\].* $key\$" "$T/neg.log" \
+  && grep -q '^PASS \[hooks\]' "$T/neg.log"; then   # W44-3: later layers still run
+  ok "drifted pin '$key': global PASS, [skills] FAIL names it, [hooks] still checked, exit 1"
+else bad "drifted pin: wrong failure:"; grep -E '^(PASS|FAIL) \[(global|skills|hooks)' "$T/neg.log"; fi
 
 exit "$fail"
