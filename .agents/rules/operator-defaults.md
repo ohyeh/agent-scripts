@@ -82,9 +82,9 @@ Chain these for planning and investigation work:
   `stop-slop`: active voice, human subject, no adverbs, no em dashes, concrete
   over vague.
 - Re-explain on request through the `simplified-english` rule.
-- A closing recap lists only the questions inside the current request that the
-  user has not answered yet. Re-check each against later replies, and name
-  each one; never "6 decisions are waiting" without the list (W44-6).
+- When a closing recap lists decisions waiting on the user, list only the ones
+  still unanswered: re-check each against later replies, and name each one;
+  never "6 decisions are waiting" without the list (W44-6).
 - A command handed to the user is one copy-paste line: absolute paths expanded,
   no placeholders left, and it says where to run it (which host, which directory).
 - Use lists or numbered options when the content has many parts or the user must

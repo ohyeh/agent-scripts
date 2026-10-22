@@ -263,7 +263,15 @@ PUBU='{"name":"Artifact","input":{"file_path":"/s/page.html","icon":"chart"}}'
 /reload-plugins
 ```' "$(trh h7b.jsonl "$BASHU" '{"name":"mcp__tmux-agent__reload","input":{}}')")" ]] || { echo "FAIL: W44-7 reload ask after a reload call blocked" >&2; exit 1; }
 [[ "$(run_claim h9 "It's live at the URL." "$(trh h9.jsonl "$PUBU")")" == block ]] || { echo "FAIL: W44-7 it's live with no screenshot passed" >&2; exit 1; }
-[[ -z "$(run_claim h10 'The source is live, not memory. The tag has been published to GitHub.' "$(trh h10.jsonl "$PUBU")")" ]] || { echo "FAIL: W44-7 live/published about a non-page blocked" >&2; exit 1; }
+[[ -z "$(run_claim h10 'The source is live, not memory. The tag has been published to GitHub. I fixed it, so the live check passes now.' "$(trh h10.jsonl "$PUBU")")" ]] || { echo "FAIL: W44-7 live/published about a non-page blocked" >&2; exit 1; }
+# L2: real screenshots through codex-cu or agent-browser count; a fenced command is not an ask
+[[ -z "$(run_claim h11 'The page is live: https://claude.ai/artifact/x' "$(trh h11.jsonl "$PUBU" '{"name":"mcp__codex-cu__js","input":{"code":"const t = await cua.getTab({url}); await t.screenshot({})"}}')")" ]] || { echo "FAIL: W44-7 codex-cu screenshot not counted" >&2; exit 1; }
+[[ -z "$(run_claim h12 'The page is live: https://claude.ai/artifact/x' "$(trh h12.jsonl "$PUBU" '{"name":"Bash","input":{"command":"agent-browser --cdp 9222 screenshot /s/p.png"}}')")" ]] || { echo "FAIL: W44-7 agent-browser screenshot not counted" >&2; exit 1; }
+[[ "$(run_claim h13 'I have published it.' "$(trh h13.jsonl "$PUBU")")" == block ]] || { echo "FAIL: W44-7 'I have published it' with no screenshot passed" >&2; exit 1; }
+[[ -z "$(run_claim h14 'Docs example:
+```
+/reload-plugins
+```' "$(trh h14.jsonl "$BASHU")")" ]] || { echo "FAIL: W44-7 fenced /reload-plugins blocked" >&2; exit 1; }
 [[ "$(run_claim h8 '頁面已上線：https://claude.ai/artifact/x' "$(trh h8.jsonl "$PUBU" '{"name":"Bash","input":{"command":"echo take a screenshot later"}}')")" == block ]] || { echo "FAIL: W44-7 a Bash line naming a screenshot passed as a render check" >&2; exit 1; }
 
 # bol: prose shape is no longer judged (runnable-check heuristic retired

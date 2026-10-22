@@ -75,8 +75,8 @@ negative_lines="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' \
 # Any /reload-plugins outside a fence needs a reload call this turn: the remedy is one call, so a
 # mention that is not an ask costs a turn, while a missed ask costs the user a hand-back.
 reload_ask="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' | grep -viE 'judgment-rubrics|claim-evidence-gate' | grep -Eqi '/reload-plugins|重新載入 *plugin' && echo 1)"
-# A page claim: live/published/上線/發布 after a page noun or "it", published before one, or live/published before an artifact URL.
-live_say="$(printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(page|artifact|dashboard|it)[^a-z][^.;。]{0,30}(live|published)|(頁面|網頁|儀表板|頁)[^。；]{0,15}(上線|發布)|(^|[^a-z])published[^.;。]{0,20}(page|artifact|dashboard)|(live|published|上線|發布)[^a-z]{0,4}(at |:|：)? *https://claude\.ai/artifact|^ *(已上線|已發布)' && echo 1)"
+# A page claim: live/published after a page noun, "it is/went live", "published it", live before an artifact URL, 已上線/已發布.
+live_say="$(printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(page|artifact|dashboard)( is| went| has gone| has been| is now|:) (now )?(live|published)|(^|[^a-z])it(.s| is| went| has gone| has been| is now) (now )?(live|published)|(^|[^a-z])(published|deployed)( it| the page| the artifact| and live)|(live|published)[^a-z]{0,4}(at |:)? *https://claude\.ai/artifact|已上線|上線了|已發布|(頁面|網頁|儀表板|頁).{0,15}(上線|發布)' && echo 1)"
 [ -n "$claim" ] || [ -n "$reload_ask$live_say" ] || exit 0
 
 csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
@@ -102,7 +102,7 @@ if [ -n "$reload_ask$live_say" ] && grep -q '"type":"assistant"' "$TRANSCRIPT"; 
   [ -n "$reload_ask" ] && ! grep -q '^mcp__tmux-agent__reload ' <<<"$uses" \
     && handback_reason="Hand-back without own try: the reply asks the user to reload plugins, but this turn made no mcp__tmux-agent__reload call. Call mcp__tmux-agent__reload first; hand back only if it reports the old version."
   pub="$(grep -n '^Artifact ' <<<"$uses" | grep -vE '"action":"(read|list|open|delete|pin|unpin|quickstart)"|"asset":true' | tail -1 | cut -d: -f1)"
-  [ -n "$live_say" ] && [ -n "$pub" ] && ! tail -n "+$((pub + 1))" <<<"$uses" | grep -qE '^[^ ]*([Ss]creenshot|ArtifactCheck)[^ ]* |"action":"screenshot"' \
+  [ -n "$live_say" ] && [ -n "$pub" ] && ! tail -n "+$((pub + 1))" <<<"$uses" | grep -qE '^[^ ]*([Ss]creenshot|ArtifactCheck)[^ ]* |"action":"screenshot"|^mcp__codex-cu__js .*\.screenshot\(|^Bash .*(agent-browser|screencapture)[^"]* screenshot|^Bash .*screencapture ' \
     && handback_reason="${handback_reason:+$handback_reason }Page called live after an Artifact publish with no render check: take a screenshot of the published page (artifacts-rules §Quality, screenshot evidence) before you say it is live."
 fi
 
