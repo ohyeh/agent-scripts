@@ -296,9 +296,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-grok-bot-app/SKILL.md",
-      "skillFolderHash": "78cc0deab1fb9a9db635b1dd9088e2255e010b7e",
+      "skillFolderHash": "094788519516bc5907c2db856860afa80328d448",
       "installedAt": "2026-09-04T08:30:33.000Z",
-      "updatedAt": "2026-10-15T16:56:05.000Z"
+      "updatedAt": "2026-10-22T16:33:13.000Z"
     },
     "using-skills": {
       "source": "ohyeh/agent-scripts",
@@ -323,9 +323,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-workflows/SKILL.md",
-      "skillFolderHash": "387fece0453b29272e3314175b7b55183fed825b",
+      "skillFolderHash": "90b978e85e93173f8657cf8d8bbb56bf4418084f",
       "installedAt": "2026-07-18T20:48:21.473Z",
-      "updatedAt": "2026-10-12T17:40:00.000Z"
+      "updatedAt": "2026-10-22T16:33:13.000Z"
     },
     "wayfinder": {
       "source": "mattpocock/skills",
