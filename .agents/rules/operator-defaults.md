@@ -56,8 +56,9 @@ Chain these for planning and investigation work:
   run state file. Point the wakeup prompt at that file. Do not send the old
   goal again as the task.
 - Before a long task or loop starts, write the user's own words and the
-  completion condition you wrote side by side in the state file. Show both
-  to the user and start after the user replies (W44-5).
+  completion condition you wrote side by side in the state file, and show
+  both in the first recap. Wait for the user's reply only where the kernel
+  already asks first (an unattended loop) (W44-5).
 - Before the next mutating action, write each human correction into the state
   file. Keep its full text and its transcript position. Record the applied
   revision only after the goal, scope, and authorization match the correction.

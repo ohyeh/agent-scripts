@@ -84,7 +84,8 @@ BROWSER: close every tab you open before you return; list the tabs before and af
 const round = args.round || 'r'
 const TABS = { type: 'object', properties: { tabs: { type: 'array', items: { type: 'string' } } }, required: ['tabs'] }
 const listTabs = when => agent(`Run this read-only command once and return every URL it prints, in order, duplicates kept (it separates URLs with ", "). Do nothing else.
-osascript -e 'tell application "Google Chrome" to get URL of every tab of every window'`, {
+osascript -e 'if application "Google Chrome" is running then tell application "Google Chrome" to get URL of every tab of every window'
+(The guard keeps it from launching Chrome; Chrome not running = no tabs.)`, {
   label: `${round}:tabs-${when}`, phase: 'Research', schema: TABS, model: 'haiku', effort: 'low', agentType: 'general-purpose',
 }).then(r => r && r.tabs, () => null)
 // count-aware: a URL open once before and twice after is one leak
