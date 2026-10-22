@@ -99,7 +99,8 @@ tmux_prev() {
     jq -e --arg s "$SESSION_ID" --arg d "$1" '.owner == $s and ((.dir // "") | rtrimstr("/")) == $d' "$wj" >/dev/null 2>&1 || continue
     [ -f "$w/brief.md" ] && is_review < "$w/brief.md" || continue
     # each tell writes episodes/<seq>/dispatch.json with its own since; the latest one is the reviewer's time
-    t="$(cat "$wj" "$w"/episodes/*/dispatch.json 2>/dev/null | jq -s '[.[].since // 0] | max')"
+    # one file at a time: an unreadable episode must not hide the worker
+    t="$(for f in "$wj" "$w"/episodes/*/dispatch.json; do jq -r '.since // 0 | numbers' "$f" 2>/dev/null; done | sort -n | tail -1)"; t="${t:-0}"
     [ "$t" -gt "$best" ] && { best="$t"; prev="$w"; }
   done
   [ -n "$prev" ] && echo "$best $prev"

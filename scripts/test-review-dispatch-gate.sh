@@ -174,6 +174,8 @@ reset; worker r9.wwwww "$S" /w 1792670000000 2 "$BLOCKV"
 echo '{"seq":2,"since":1792684900000}' > "$T/v3/r9.wwwww/episodes/2/dispatch.json"
 { use toolu_Z | jq -c '.timestamp="2026-10-22T16:00:00.000Z"'; res toolu_Z 'VERDICT: PASS'; } > "$TR"
 t "cross: tell round newer than Agent PASS" 2 "$(agent "$REV")"
+mkdir -p "$T/v3/r9.wwwww/episodes/1"; echo '{"seq":1,"since":' > "$T/v3/r9.wwwww/episodes/1/dispatch.json"
+t "cross: a malformed episode keeps the worker" 2 "$(agent "$REV")"
 
 n="$(jq -r 'select(.result=="shopping")' "$T/data/agent-hooks/review-dispatch-stats.jsonl" | grep -c timestamp)"
 [ "$n" -ge 1 ] && echo "ok   stats records shopping ($n)" || { echo "FAIL stats records shopping"; fail=1; }
