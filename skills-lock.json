@@ -168,9 +168,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "0fcc7f2ca9a6f173e52a013c8bf12905bd3b2080",
+      "skillFolderHash": "a1b75ee46c63278e58596db2a4cdb4dca060d1d5",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-10-22T00:59:21.652Z"
+      "updatedAt": "2026-10-22T18:51:01.305Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -260,9 +260,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "21f4c38feb53e29c724f84f9f6c057af72a71a79",
+      "skillFolderHash": "6b0148d2b773b50504d480b9412dda3e8627dda2",
       "installedAt": "2026-07-18T20:48:24.825Z",
-      "updatedAt": "2026-10-22T15:49:55.000Z"
+      "updatedAt": "2026-10-22T18:51:05.748Z"
     },
     "triage": {
       "source": "mattpocock/skills",
