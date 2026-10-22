@@ -24,7 +24,7 @@ so sessions never write into each other's file. Every row starts with its UTC IS
 and the session's sid8, and a verdict names its card by the card's time:
 
 ```
-# agent_automation · 28d2c553-6d91-4354-a50b-878fbaaa06af · /Users/me/github/agent_automation
+# agent_automation · 28d2c553-6d91-4354-a50b-878fbaaa06af · ~/github/agent_automation
 2026-10-20T06:40:12Z · 28d2c553 · flagged · Heads up · The fare sums two one-way tickets.
 2026-10-20T06:45:03Z · 28d2c553 · handled 06:40:12 · Fixed: the fare now uses the round-trip price …
 ```
@@ -46,7 +46,7 @@ Above the prompt from the session start, folded to its header until you press `[
 [`../README.md`](../README.md):
 
 ```
-▌agent should know v0.1.5 · 2 heads-up · 1 handled [ ⧉ log ][ ▾ fold ][ hide ]
+▌agent should know v0.1.6 · 2 heads-up · 1 handled [ ⧉ log ][ ▾ fold ][ hide ]
   log: ~/.local/state/agent-should-know/agent_automation/2026-10-20-28d2c553.log
 ```
 

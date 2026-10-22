@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { cells, fit, rowsOf } from './lib/band.ts'
 
-const MOD_VERSION = '0.1.5'
+const MOD_VERSION = '0.1.6'
 const NAME = 'agent-should-know'
 const COMMAND = 'heads-up'
 const ACCENT = 'magenta'

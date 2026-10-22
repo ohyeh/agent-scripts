@@ -2,7 +2,7 @@ import { expect, test } from 'claude-code/testing'
 
 const PLUGIN = 'agent-should-know'
 const SID = '28d2c553-6d91'
-const STORE = '/home/me/.claude/plugins/store'
+const STORE = '/h/me/.claude/plugins/store'
 const BUILTIN = 'cc-plugin-you-should-know_builtin-19776595df2c.json'
 const start = { cwd: '/work/agent_automation', surface: 'terminal' as const, isInteractive: true }
 const cmd = { command: 'heads-up', args: '', origin: { kind: 'composer' as const }, presentation: { isFullscreen: false, columns: 120 } }
@@ -64,7 +64,7 @@ function world(on: On, store = new Map<string, unknown>()) {
       .map(p => ({ name: p.slice(e.path.length + 1), kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false })),
   }))
   on('process.run', (_, e) => (opened.push(e.argv.join(' ')), { value: { exitCode: 0, stdout: '', stderr: '' } }))
-  on('env.get', () => ({ value: '/home/me' }))
+  on('env.get', () => ({ value: '/h/me' }))
   on('session.id', () => ({ value: SID }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
@@ -133,7 +133,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   expect(w.sent[0]).toMatch(/needs the user's approval .* is not made: name it and ask\./)
 
   // One file for this session: <project>/<day>-<sid8>.log
-  const fileName = /^\/home\/me\/\.local\/state\/agent-should-know\/agent_automation\/\d{4}-\d{2}-\d{2}-28d2c553\.log$/
+  const fileName = /^\/h\/me\/\.local\/state\/agent-should-know\/agent_automation\/\d{4}-\d{2}-\d{2}-28d2c553\.log$/
   const logOf = () => [...w.files].find(([path]) => fileName.test(path))?.[1] ?? ''
 
   await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't0', reason: 'answer' })
@@ -155,7 +155,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   expect([...rows].sort()).toEqual(rows)
 
   // The band counts it, and a fresh start (a reload) counts the same file again.
-  expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.1.5 · 1 heads-up · 1 handled')
+  expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.1.6 · 1 heads-up · 1 handled')
   await $.session.start(start)
   expect(textOf(await $.ui.render(band()))).toContain('· 1 heads-up · 1 handled')
 })
@@ -199,7 +199,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
 
   // Empty state, folded from the start: the header alone.
   const wide = textOf(await $.ui.render(band(120)))
-  expect(wide).toContain('▌agent should know v0.1.5 · no heads-up yet')
+  expect(wide).toContain('▌agent should know v0.1.6 · no heads-up yet')
   expect(wide).toContain('[ ⧉ log ][ ▸ open ][ hide ]')
   expect(wide).not.toContain('logged in')
   expect(textOf(await $.ui.render(band(50)))).toContain('[ ⧉ ][ ▸ ][ ✕ ]')
@@ -226,7 +226,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
   expect(textOf(await $.ui.render(band(120)))).not.toContain('agent should know')
   const shown = await $.command.run(cmd)
   expect(shown.text).toContain('band shown. 0 heads-up · 0 handled this session')
-  expect(textOf(await $.ui.render(band(120)))).toContain('▌agent should know v0.1.5')
+  expect(textOf(await $.ui.render(band(120)))).toContain('▌agent should know v0.1.6')
   expect((await $.command.run(cmd)).text).toContain('band hidden; /heads-up shows it again.')
 })
 
@@ -236,7 +236,7 @@ test('the log button opens the session log once a card was logged', async ($, on
   await $.session.start(start)
   await $.ui.render(band(120))
   await $.ui.press({ plugin: PLUGIN, key: 'log', requestId: 'above' })
-  expect(w.toasts.at(-1)).toMatch(/^opened \/home\/me\/.local\/state\/agent-should-know\/agent_automation\//)
+  expect(w.toasts.at(-1)).toMatch(/^opened \/h\/me\/.local\/state\/agent-should-know\/agent_automation\//)
   expect(w.opened.length).toBe(1)
-  expect(w.opened[0]).toMatch(/^open \/home\/me\/\.local\/state\/agent-should-know\/agent_automation\/\d{4}-\d{2}-\d{2}-28d2c553\.log$/)
+  expect(w.opened[0]).toMatch(/^open \/h\/me\/\.local\/state\/agent-should-know\/agent_automation\/\d{4}-\d{2}-\d{2}-28d2c553\.log$/)
 })

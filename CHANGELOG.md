@@ -1,5 +1,9 @@
 # Changelog
 
+## agent-should-know 0.1.6
+
+- **Placeholder paths pass scrub**: the README log sample and the tests used placeholder home paths under the macOS and Linux home roots, which `scripts/scrub.sh` flags as home paths (exit 1, a push blocker; W43 L2-3). The README now shows `~/github/…`, and the tests use `/h/me` as session-recall's tests do. No behavior change.
+
 ## session-recall 0.14.1
 
 - **`↩ quote` on a reply not kept**: a reply of a turn still running (kept only at `turn.complete`) or one pushed out of the last 16 gave the toast "that reply is not among the answers kept" (owner screenshot 10-22, a turn waiting on a background agent). On a miss, `↩` now finds that one reply in `$.session.messages()` (the transcript so far) and adds only it, so the newest kept replies stay; `addAnswer` keeps one copy of a reply, so the same reply at `turn.complete` is not added twice (two copies made its excerpts name no place). 2 tests; without each fix the first fails.

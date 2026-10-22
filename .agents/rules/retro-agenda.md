@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.15.0（2026-10-19：§6.5 收 global 化候選，投稿不設門檻，採用與否在 retro 決定）；1.14.0（2026-10-16 W42 收尾：§6.5 收尾前再收一次 inbox；§8 `updated.at` 記錄寫入當下的 UTC、backlog 狀態收尾重查）；1.13.0（2026-10-16 W42：§Layer1 加分項與忙碌度三支 collector 與 advisor 補算；§8 儀表板固定區塊不得默默拿掉）；1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+Version: 1.16.0（2026-10-22 W43：§8 固定區塊加漏斗推進、打斷率、上週 backlog 落地；使用者「這些的落地、推進比較重要吧」）；1.15.0（2026-10-19：§6.5 收 global 化候選，投稿不設門檻，採用與否在 retro 決定）；1.14.0（2026-10-16 W42 收尾：§6.5 收尾前再收一次 inbox；§8 `updated.at` 記錄寫入當下的 UTC、backlog 狀態收尾重查）；1.13.0（2026-10-16 W42：§Layer1 加分項與忙碌度三支 collector 與 advisor 補算；§8 儀表板固定區塊不得默默拿掉）；1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
 ＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
 1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
@@ -182,7 +182,7 @@ retro 開跑時與報告收尾前各一次，以 SSH 收齊每台在編機器的
 「[agent-scripts] 艦隊與 Retro」（Dashboard 型別，同 URL 原地更新：資料寫 datasets、頁面寫
 files/index.html；URL 以 Artifact list 現場查，標題固定；不再另開每週 Retro 頁）。
 資料一律現場重測，禁止沿用上輪數字。儀表板固定區塊：各機器 USD 當量、CodeBurn 分項、其他分析
-（context-mode 走路率含 Codex、真人訊號、常駐偏好、改動配對、advisor 補算、Grok Bot 忙碌度）、backlog；
+（context-mode 走路率含 Codex、真人訊號含打斷率、常駐偏好、改動配對、advisor 補算、Grok Bot 忙碌度）、漏斗 6 步與門檻的推進、backlog（上週各列做了／有效＋本週列）；
 少一區要在報告寫明原因，不得默默拿掉（W42 使用者：「值錢的圖表數據砍去哪了」）。樣本太小的值灰掉並標分母。
 dataset 的 `updated.at` 填寫入當下的 UTC（W42 兩次把台灣時間當 UTC，寫成未來時間）。
 收尾前依 judgment-rubrics §2／§5 重查本輪 backlog 狀態，再更新報告；未查證的項目保留並標 `UNCONFIRMED`，不得列為「還沒做」（W42 使用者：「你也不查證做了沒 只會一直複誦」）。

@@ -50,10 +50,14 @@ rules/; a delegation failed for a reason a check would have caught; a model/tool
 availability change. In the same turn, pick exactly one outcome:
 - Gate: a hook or check under `.agents/hooks/` or `scripts/` that fails on the bad
   case. It follows the eligibility test above and the §1 row of each file it touches.
+  A new gate retires or merges one existing gate or rule paragraph in the same commit,
+  unless the user approves the addition by name (W43: hooks 21→32 in four weeks, nearly
+  all proposed by agents; user 2026-10-22 「ＨＯＯＫ 也你說的啊」「和 advisor 確認可以改啊」).
 - Rule fix: the rule text is wrong or missing → exact diff to that file (§1).
 - Backlog row (§3): worth enforcing, but no gate yet.
 - Nothing: one-off trivia, project-specific detail (goes to that project's notes), or
-  already covered — cite the covering `file:line` and stop.
+  already covered by a gate or rule — cite its `file:line`; if that gate or rule is
+  what failed, the outcome is fixing it in place (Rule fix), not a new one.
 
 ## §3 Backlog row format
 One file in `~/.agents/retro-inbox/pending/` (`mkdir -p` it if absent), named
