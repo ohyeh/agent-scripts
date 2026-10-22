@@ -169,6 +169,11 @@ reset; { use toolu_Y | jq -c '.timestamp="2026-10-22T16:00:00.900Z"'; res toolu_
 worker r9.zzzzz "$S" /w 1792684800500 1 "$PASSV"
 t "cross: same second, Agent BLOCK 400 ms later" 2 "$(assign /w "$REV")"
 rm -f "$CT"
+# a tell after the Agent reviewer makes the tmux reviewer the newer one (episode dispatch.json .since)
+reset; worker r9.wwwww "$S" /w 1792670000000 2 "$BLOCKV"
+echo '{"seq":2,"since":1792684900000}' > "$T/v3/r9.wwwww/episodes/2/dispatch.json"
+{ use toolu_Z | jq -c '.timestamp="2026-10-22T16:00:00.000Z"'; res toolu_Z 'VERDICT: PASS'; } > "$TR"
+t "cross: tell round newer than Agent PASS" 2 "$(agent "$REV")"
 
 n="$(jq -r 'select(.result=="shopping")' "$T/data/agent-hooks/review-dispatch-stats.jsonl" | grep -c timestamp)"
 [ "$n" -ge 1 ] && echo "ok   stats records shopping ($n)" || { echo "FAIL stats records shopping"; fail=1; }

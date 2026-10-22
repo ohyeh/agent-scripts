@@ -7,8 +7,6 @@
 # both verdicts): 45 review workers, 35 ran one round; replayed in dispatch order, 16 of 45
 # dispatches followed a BLOCK reviewer with a fresh one and 5 followed a reviewer with no verdict (one target went astra → sol → fable → astra → fable).
 # Known limit: every tell counts as a round, a clarifying tell included.
-# Known limit (W44-13): a tmux reviewer's time is its first dispatch (`since`), not its last tell, so an
-# Agent reviewer sent between two tells reads as the newer one.
 #
 # A review brief = a brief that names both `VERDICT: PASS` and `VERDICT: BLOCK` (delegation-templates §5).
 # Scope: workers this session dispatched (worker.json .owner == session_id) into the same dir.
@@ -93,14 +91,15 @@ agent_prev() {
   v="$(grep -F "$id" "$1" | grep -v '"type":"assistant"' | grep -oE 'VERDICT:[[:space:]]*`?(PASS|BLOCK)' | tail -1 | grep -oE 'PASS|BLOCK')"
   echo "$row ${v:-NONE}"
 }
-# prints "<since ms> <worker dir>" for the latest review worker this session sent into dir $1, or nothing
+# prints "<last dispatch ms> <worker dir>" for the latest review worker this session sent into dir $1, or nothing
 tmux_prev() {
   local wj w t best=0 prev=""
   for wj in $(grep -lF "$SESSION_ID" "$V3"/*/worker.json 2>/dev/null); do
     w="${wj%/worker.json}"
     jq -e --arg s "$SESSION_ID" --arg d "$1" '.owner == $s and ((.dir // "") | rtrimstr("/")) == $d' "$wj" >/dev/null 2>&1 || continue
     [ -f "$w/brief.md" ] && is_review < "$w/brief.md" || continue
-    t="$(jq -r '.since // 0' "$wj")"
+    # each tell writes episodes/<seq>/dispatch.json with its own since; the latest one is the reviewer's time
+    t="$(cat "$wj" "$w"/episodes/*/dispatch.json 2>/dev/null | jq -s '[.[].since // 0] | max')"
     [ "$t" -gt "$best" ] && { best="$t"; prev="$w"; }
   done
   [ -n "$prev" ] && echo "$best $prev"
