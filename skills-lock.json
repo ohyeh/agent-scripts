@@ -60,7 +60,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/codex-cu/SKILL.md",
-      "skillFolderHash": "5c36a0c929962eb9da45596b80e20ab2babc4370",
+      "skillFolderHash": "b3d3d4adadc48543cf06f2856e240d8fff644e02",
       "installedAt": "2026-10-08T17:59:00.705Z",
       "updatedAt": "2026-10-22T16:48:46.000Z"
     },
@@ -105,7 +105,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/delegation-templates/SKILL.md",
-      "skillFolderHash": "408774c678eb3d102c79a70610d3d3fa020664a4",
+      "skillFolderHash": "82ac85921b5d8f78424841fe28c19dac4b8656a7",
       "installedAt": "2026-07-18T20:48:21.471Z",
       "updatedAt": "2026-10-22T15:49:55.000Z"
     },
@@ -214,7 +214,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/session-handoff/SKILL.md",
-      "skillFolderHash": "ff97dcd722d05b69623fc6339b0a36a029db709a",
+      "skillFolderHash": "fe753c3b1be8a71828489e979f500ccde15b3f47",
       "installedAt": "2026-07-18T20:48:39.017Z",
       "updatedAt": "2026-10-16T00:00:00.000Z"
     },
@@ -296,7 +296,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-grok-bot-app/SKILL.md",
-      "skillFolderHash": "094788519516bc5907c2db856860afa80328d448",
+      "skillFolderHash": "6fbee1ff3e60d3a08518c4a69f1e0c64710a3894",
       "installedAt": "2026-09-04T08:30:33.000Z",
       "updatedAt": "2026-10-22T16:33:13.000Z"
     },
@@ -323,7 +323,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-workflows/SKILL.md",
-      "skillFolderHash": "90b978e85e93173f8657cf8d8bbb56bf4418084f",
+      "skillFolderHash": "e8c6714eb80a8608ef87dcd11da3458f809dfa7d",
       "installedAt": "2026-07-18T20:48:21.473Z",
       "updatedAt": "2026-10-22T16:33:13.000Z"
     },
