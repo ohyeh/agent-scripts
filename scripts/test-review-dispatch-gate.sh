@@ -86,6 +86,11 @@ reset; worker r1.aaaaa "$S" "$T/pushed" 100 2 "$BLOCKV"
 t "round cap: round 2 BLOCK, tell"     0 "$(tell r1.aaaaa)"
 reset; worker r1.aaaaa "$S" "$T/pushed" 100 3 "$PASSV"
 t "round cap: round 3 PASS, tell"      0 "$(tell r1.aaaaa)"
+# a reviewer reused after a PASS: the cap counts rounds since that PASS (W44: ep5 PASS, ep6 BLOCK)
+worker r1.aaaaa "$S" "$T/pushed" 100 6 "$BLOCKV"; mkdir -p "$T/v3/r1.aaaaa/episodes/5"; printf '%s\n' "$PASSV" > "$T/v3/r1.aaaaa/episodes/5/result.json"
+t "round cap: counts since the last PASS" 0 "$(tell r1.aaaaa)"
+rm -rf "$T/v3/r1.aaaaa/episodes/5"
+t "round cap: 6 rounds, no PASS"         2 "$(tell r1.aaaaa)"
 reset; worker r1.aaaaa "$S" "$T/pushed" 100 5 "$BLOCKV" 0
 t "round cap: not a reviewer"          0 "$(tell r1.aaaaa)"
 reset; worker r1.aaaaa other-session "$T/pushed" 100 4 "$BLOCKV"

@@ -44,9 +44,9 @@ rounds() {
   done
   echo "$n"
 }
-# verdict of the CURRENT round: PASS | BLOCK | NONE (round still running or no verdict) | ERR (unreadable)
-verdict() {
-  local n r out; n="$(rounds "$1")"; r="$1/episodes/$n/result.json"
+# verdict of round $2: PASS | BLOCK | NONE (round still running or no verdict) | ERR (unreadable)
+vof() {
+  local n="$2" r out; r="$1/episodes/$n/result.json"
   # only round 1 may fall back to the root result; a later round without a result is still running
   [ -f "$r" ] || { [ "$n" = 1 ] && r="$1/result.json"; }
   [ -f "$r" ] || { echo NONE; return; }
@@ -55,6 +55,14 @@ verdict() {
     | if $v == "PASS" or $v == "BLOCK" then $v
       else ((.summary // "" | tostring) | capture("VERDICT:\\s*(?<v>PASS|BLOCK)").v // "NONE") end' "$r" 2>/dev/null)" || { echo ERR; return; }
   case "$out" in PASS|BLOCK|NONE) echo "$out";; *) echo ERR;; esac   # several JSON values = not one result
+}
+verdict() { vof "$1" "$(rounds "$1")"; }   # the CURRENT round
+# Rounds since the last earlier PASS: a reviewer reused after a PASS starts a new count
+# (W44 10-22: 6 episodes with 3 PASS were capped as "6 rounds without PASS").
+open_rounds() {
+  local n i p=0; n="$(rounds "$1")"
+  for ((i = 1; i < n; i++)); do [ "$(vof "$1" "$i")" = PASS ] && p=$i; done
+  echo $((n - p))
 }
 log() {
   jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg tool "$TOOL" --arg result "$1" \
@@ -109,7 +117,7 @@ if [ "$TOOL" = "mcp__tmux-agent__tell" ]; then
   D="$(jq -r '.dir // empty' "$W/worker.json" 2>/dev/null)"; D="${D%/}"
   CWD="$(printf '%s' "$IN" | jq -r '.cwd // empty')"; CWD="${CWD%/}"
   [ -z "$CWD" ] || [ "$CWD" = "$D" ] || exit 0   # same dir only
-  R="$(rounds "$W")"; V="$(verdict "$W")"
+  R="$(open_rounds "$W")"; V="$(verdict "$W")"
   [ "$V" = ERR ] && { log error "$D" "$NAME" "$R"; exit 0; }   # unreadable result: never deny on it
   if [ "$R" -ge "$CAP" ] && [ "$V" != "PASS" ]; then
     log round-cap "$D" "$NAME" "$R"
