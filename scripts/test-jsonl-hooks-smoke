@@ -240,6 +240,20 @@ TR4="$WORK/transcript-title.jsonl"
 printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"go"}}' '{"type":"custom-title","customTitle":"✅ foo — shipped · .1-abcd1234"}' > "$TR4"
 ledger_for c11 "$RUN0";            [[ "$(run_claim c11 'see above' "$TR4")" == block ]]               || { echo "FAIL: ✅ title without quoted evidence not blocked" >&2; exit 1; }
 ledger_for c12 "$RUN0";            [[ -z "$(run_claim c12 'exit=0' "$TR4")" ]]                        || { echo "FAIL: ✅ title with bound evidence blocked" >&2; exit 1; }
+# W44-7: a reload hand-back needs a mcp__tmux-agent__reload call; "live" after an Artifact publish needs a screenshot
+trh() { # $1 file, then tool_use objects ({name,input}) made this turn
+  local f="$WORK/$1"; shift
+  printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"go"}}' > "$f"
+  for u in "$@"; do jq -cn --argjson u "$u" '{type:"assistant",timestamp:"2026-01-01T00:00:03.000Z",message:{content:[$u + {type:"tool_use"}]}}' >> "$f"; done
+  printf '%s' "$f"
+}
+BASHU='{"name":"Bash","input":{"command":"git pull"}}'
+PUBU='{"name":"Artifact","input":{"file_path":"/s/page.html","icon":"chart"}}'
+[[ "$(run_claim h1 '已更新 plugin，請執行 `/reload-plugins` 再試。' "$(trh h1.jsonl "$BASHU")")" == block ]] || { echo "FAIL: W44-7 reload hand-back with no reload call passed" >&2; exit 1; }
+[[ -z "$(run_claim h2 '已更新 plugin，請執行 `/reload-plugins` 再試。' "$(trh h2.jsonl "$BASHU" '{"name":"mcp__tmux-agent__reload","input":{}}')")" ]] || { echo "FAIL: W44-7 reload hand-back after a reload call blocked" >&2; exit 1; }
+[[ -z "$(run_claim h3 'The tmux-agent plugin is at v0.46.19; its plugins list is unchanged.' "$(trh h3.jsonl "$BASHU")")" ]] || { echo "FAIL: W44-7 a plain plugin mention blocked" >&2; exit 1; }
+[[ "$(run_claim h4 'The page is live: https://claude.ai/artifact/x' "$(trh h4.jsonl "$PUBU")")" == block ]] || { echo "FAIL: W44-7 live page with no screenshot passed" >&2; exit 1; }
+[[ -z "$(run_claim h5 'The page is live: https://claude.ai/artifact/x' "$(trh h5.jsonl "$PUBU" '{"name":"mcp__claude-in-chrome__computer","input":{"action":"screenshot"}}')")" ]] || { echo "FAIL: W44-7 live page after a screenshot blocked" >&2; exit 1; }
 
 # bol: prose shape is no longer judged (runnable-check heuristic retired
 # 2026-08-30 under the kernel's do-not-mechanize-judgment rule). A declared

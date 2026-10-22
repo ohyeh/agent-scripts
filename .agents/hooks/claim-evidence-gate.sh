@@ -70,7 +70,11 @@ negative_lines="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' \
   | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告' | grep -Eiv "$LABEL_RE" \
   | while IFS= read -r l; do printf '%s' "$l" | sed -E 's/`[^`]*`//g; s/「[^」]*」//g' | grep -Eqi "$NEG_RE" && printf '%s\n' "$l"; done)"
 [ -n "$claim" ] || [ -z "$negative_lines" ] || claim="negative"
-[ -n "$claim" ] || exit 0
+# W44-7: hand-backs checked against this turn's tool calls — a reload the agent can run itself,
+# and a page called live with no render check (artifacts-rules.md:78, screenshot evidence).
+reload_ask="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' | grep -viE 'judgment-rubrics|claim-evidence-gate' | grep -Eqi '/reload-plugins|重新載入 *plugin' && echo 1)"
+live_say="$(printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(live|published)([^a-z]|$)|上線|已發布' && echo 1)"
+[ -n "$claim" ] || [ -n "$reload_ask$live_say" ] || exit 0
 
 csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
 MARKER="$STATE_DIR/claim-checked-$csha"
@@ -87,6 +91,18 @@ since="$(jq -rR 'fromjson? | select(.type == "user" or (tostring | contains("\"t
 window="$(jq -c --arg s "$since" 'select(.timestamp[0:19] >= $s)' "$LEDGER" 2>/dev/null)"
 calls="$(printf '%s\n' "$window" | grep -c '"tool"')"
 
+handback_reason=""
+# Claude transcripts only: other formats (Codex, adapters) carry no readable tool_use rows here.
+if [ -n "$reload_ask$live_say" ] && grep -q '"type":"assistant"' "$TRANSCRIPT"; then
+  uses="$(jq -r --arg s "$since" 'select((.timestamp // "")[0:19] >= $s) | .message.content? | arrays | .[]
+    | select(.type == "tool_use") | "\(.name) \(.input | tostring)"' "$TRANSCRIPT" 2>/dev/null)"
+  [ -n "$reload_ask" ] && ! grep -q '^mcp__tmux-agent__reload ' <<<"$uses" \
+    && handback_reason="Hand-back without own try: the reply asks the user to reload plugins, but this turn made no mcp__tmux-agent__reload call. Call mcp__tmux-agent__reload first; hand back only if it reports the old version."
+  pub="$(grep -n '^Artifact ' <<<"$uses" | grep -vE '"action":"(read|list|open|delete|pin|unpin|quickstart)"' | tail -1 | cut -d: -f1)"
+  [ -n "$live_say" ] && [ -n "$pub" ] && ! tail -n "+$((pub + 1))" <<<"$uses" | grep -qE 'screenshot|ArtifactCheck' \
+    && handback_reason="${handback_reason:+$handback_reason }Page called live after an Artifact publish with no render check: take a screenshot of the published page (artifacts-rules.md:78, screenshot evidence) before you say it is live."
+fi
+
 reason=""
 if [ "$claim" = "positive" ]; then
   # Kernel 4.26.0 "Done" scope: the tool-run evidence rule binds only when the
@@ -96,7 +112,7 @@ if [ "$claim" = "positive" ]; then
   mutating="$(printf '%s\n' "$window" | jq -r '.tool // empty' 2>/dev/null | grep -cE '^(Bash|Edit|Write|MultiEdit|NotebookEdit|apply_patch)$')"
   if [ "${mutating:-0}" -eq 0 ]; then
     jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "${SESSION_ID:-}" '{timestamp:$ts, claim:"positive", session:$sid, blocked:false, skipped:"no-mutating-tool"}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
-    [ -n "$negative_lines" ] || exit 0
+    [ -n "$negative_lines" ] || [ -n "$handback_reason" ] || exit 0
   else
   observed="$(printf '%s\n' "$window" | jq -r '.evidence[]? // empty' 2>/dev/null | sort -u)"
   quoted="$([ -x "$TOKENIZER" ] && printf '%s' "$last" | bash "$TOKENIZER")"
@@ -154,9 +170,11 @@ if [ -n "$negative_lines" ]; then
   [ -n "$neg_reason" ] && reason="${reason:+$reason }Negative claim (not done/stuck/failed/missing) fails the absence rule (judgment-rubrics §2): $neg_reason. Check that item now and name it (\`file\`, W-id, sha) in the line, or mark the line UNCONFIRMED and name the unchecked channel."
 fi
 
+reason="${reason:+$reason }$handback_reason"
+
 # W35 retro F8: the gate had no stats file, so its hit rate was unmeasurable.
 STATS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"; mkdir -p "$STATS_DIR"
-jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg claim "$claim" --arg sid "${SESSION_ID:-}" --argjson blocked "$([ -n "$reason" ] && echo true || echo false)" \
+jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg claim "${claim:-handback}" --arg sid "${SESSION_ID:-}" --argjson blocked "$([ -n "$reason" ] && echo true || echo false)" \
   '{timestamp:$ts, claim:$claim, session:$sid, blocked:$blocked}' >> "$STATS_DIR/claim-evidence-stats.jsonl"
 [ -n "$reason" ] || exit 0
 jq -n --arg r "$reason" '{decision: "block", reason: $r}'
