@@ -1,6 +1,6 @@
 ---
 name: codex-cu
-description: Drive macOS apps and Chrome through the local Codex cua_repl MCP (server name codex-cu). Use this whenever the user says computer use, browser use, cua, codex-cu, or asks to click a native app or a Chrome page through the ChatGPT extension. Not for a normal web page that agent-browser can read, not for the Cursor built-in browser harness, and not for hover or document.cookie (those go to Claude in Chrome or agent-browser).
+description: Drive macOS apps and Chrome through the local Codex cua_repl MCP (server name codex-cu). Use this whenever the user says computer use, browser use, cua, codex-cu, or a task needs a browser page or a native app: where it runs it is the default browser tool (the user's logged-in Chrome, background tab first), ahead of agent-browser. Not for the Cursor built-in browser harness, and not for hover or document.cookie (those go to Claude in Chrome or agent-browser).
 allowed-tools: Bash(ps:*), Bash(pgrep:*), Bash(open:*), Bash(osascript:*)
 ---
 
