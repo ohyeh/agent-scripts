@@ -71,9 +71,12 @@ negative_lines="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' \
   | while IFS= read -r l; do printf '%s' "$l" | sed -E 's/`[^`]*`//g; s/「[^」]*」//g' | grep -Eqi "$NEG_RE" && printf '%s\n' "$l"; done)"
 [ -n "$claim" ] || [ -z "$negative_lines" ] || claim="negative"
 # W44-7: hand-backs checked against this turn's tool calls — a reload the agent can run itself,
-# and a page called live with no render check (artifacts-rules.md:78, screenshot evidence).
-reload_ask="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' | grep -viE 'judgment-rubrics|claim-evidence-gate' | grep -Eqi '/reload-plugins|重新載入 *plugin' && echo 1)"
-live_say="$(printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(live|published)([^a-z]|$)|上線|已發布' && echo 1)"
+# and a page called live with no render check (artifacts-rules §Quality, screenshot evidence).
+# Only an ask counts: a run verb before the command, not a past-tense or quoted mention.
+reload_ask="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' | grep -viE 'judgment-rubrics|claim-evidence-gate|earlier|before|told you|之前|先前|已經|曾' \
+  | grep -Eqi '(執行|跑|打|輸入|按|run|type|please)[^。.!\n]{0,12}/reload-plugins|重新載入 *plugin' && echo 1)"
+# Only a claim about the page: "is/now/went live", 已上線, 已發布 — not "live source" or "was published in 2025".
+live_say="$(printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(is|are|now|went|goes|been) (now )?(live|published)([^a-z]|$)|已上線|上線了|已發布' && echo 1)"
 [ -n "$claim" ] || [ -n "$reload_ask$live_say" ] || exit 0
 
 csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
@@ -98,9 +101,9 @@ if [ -n "$reload_ask$live_say" ] && grep -q '"type":"assistant"' "$TRANSCRIPT"; 
     | select(.type == "tool_use") | "\(.name) \(.input | tostring)"' "$TRANSCRIPT" 2>/dev/null)"
   [ -n "$reload_ask" ] && ! grep -q '^mcp__tmux-agent__reload ' <<<"$uses" \
     && handback_reason="Hand-back without own try: the reply asks the user to reload plugins, but this turn made no mcp__tmux-agent__reload call. Call mcp__tmux-agent__reload first; hand back only if it reports the old version."
-  pub="$(grep -n '^Artifact ' <<<"$uses" | grep -vE '"action":"(read|list|open|delete|pin|unpin|quickstart)"' | tail -1 | cut -d: -f1)"
-  [ -n "$live_say" ] && [ -n "$pub" ] && ! tail -n "+$((pub + 1))" <<<"$uses" | grep -qE 'screenshot|ArtifactCheck' \
-    && handback_reason="${handback_reason:+$handback_reason }Page called live after an Artifact publish with no render check: take a screenshot of the published page (artifacts-rules.md:78, screenshot evidence) before you say it is live."
+  pub="$(grep -n '^Artifact ' <<<"$uses" | grep -vE '"action":"(read|list|open|delete|pin|unpin|quickstart)"|"asset":true' | tail -1 | cut -d: -f1)"
+  [ -n "$live_say" ] && [ -n "$pub" ] && ! tail -n "+$((pub + 1))" <<<"$uses" | grep -qE '^[^ ]*([Ss]creenshot|ArtifactCheck)[^ ]* |"action":"screenshot"' \
+    && handback_reason="${handback_reason:+$handback_reason }Page called live after an Artifact publish with no render check: take a screenshot of the published page (artifacts-rules §Quality, screenshot evidence) before you say it is live."
 fi
 
 reason=""

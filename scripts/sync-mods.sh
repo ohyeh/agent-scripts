@@ -13,7 +13,7 @@ MP="$ROOT/.claude-plugin/marketplace.json"
 IP="$HOME/.claude/plugins/installed_plugins.json"
 have() { jq -r --arg k "$1@agent-scripts" '.plugins[$k][0].version // empty' "$IP"; }
 # $1 >= $2 as versions. shortcut: sort -V puts 0.13.0-dev after 0.13.0; use a semver parser if a mod ships pre-releases.
-atleast() { [ "$(printf '%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]; }
+atleast() { [ -n "$2" ] && [ "$(printf '%s\n' "$2" "$1" | sort -V | head -1)" = "$2" ]; }
 # A registered version is not an install: the files must be at installPath.
 files() { [ -f "$(jq -r --arg k "$1@agent-scripts" '.plugins[$k][0].installPath // empty' "$IP")/.claude-plugin/plugin.json" ]; }
 

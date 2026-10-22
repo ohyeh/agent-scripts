@@ -38,6 +38,6 @@ check('clean browser round -> []', Array.isArray(out.tab_leaks) && out.tab_leaks
 ;({ out } = await run({ context: 'x', scouts, tools: 'codex-cu' }, { 'tabs-before': ['u1'], 'tabs-after': null }))
 check('failed tab listing is not reported clean', out.tab_leaks === null, out.tab_leaks)
 ;({ out, st } = await run({ context: 'x', scouts }, {}))
-check('web round runs in parallel, no tab check', st.maxLive === 2 && out.tab_leaks.length === 0 && !st.prompts.a.includes('BROWSER'), { st, out })
+check('web round runs in parallel, no tab check', st.maxLive === 2 && out.tab_leaks === 'unchecked' && !st.prompts.a.includes('BROWSER'), { st, out })
 process.exit(fail)
 EOF

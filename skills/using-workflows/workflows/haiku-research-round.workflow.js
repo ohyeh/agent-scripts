@@ -32,8 +32,8 @@
 // Returns { scouts: [{ key, findings: [{claim, source, status, quote?, implication, ...fields}],
 // open_questions, blockers } | { key, failed: true }], tab_leaks, needs_reread }.
 // A failed scout is reported, never dropped. tab_leaks: Chrome tab URLs open after the round
-// that were not open before ([] = none; null = a tab listing failed; not checked without
-// args.tools, since the default tools open no tabs). needs_reread: "refuted" findings with no
+// that were not open before ([] = none; null = a tab listing failed; 'unchecked' without
+// args.tools, since the default tools open no tabs; Chrome only). needs_reread: "refuted" findings with no
 // verbatim quote, taken out of findings — the commander re-reads the source before using them.
 
 export const meta = {
@@ -101,8 +101,8 @@ let res = []
 if (codexCu) for (const s of args.scouts) res.push(await run(s).catch(() => null))
 else res = await parallel(args.scouts.map(s => () => run(s)))
 const after = args.tools ? await listTabs('after') : []
-const tab_leaks = before && after ? leaked([...before], after) : null
-if (tab_leaks === null || tab_leaks.length) log(`tab_leaks: ${tab_leaks ? tab_leaks.join(' ') : 'tab listing failed'}`)
+const tab_leaks = !args.tools ? 'unchecked' : before && after ? leaked([...before], after) : null
+if (tab_leaks === null || (Array.isArray(tab_leaks) && tab_leaks.length)) log(`tab_leaks: ${tab_leaks ? tab_leaks.join(' ') : 'tab listing failed'}`)
 
 const needs_reread = []
 const scouts = res.map((r, i) => {
