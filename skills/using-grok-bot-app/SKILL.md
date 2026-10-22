@@ -3,7 +3,7 @@ name: using-grok-bot-app
 description: Read and drive the "Grok Bot" macOS desktop app (an Electron app) over CDP with agent-browser — list its bots and folders, read a conversation transcript, or check what a bot last said. Use this whenever the user mentions Grok Bot, "the bot app", or a bot named in that app's sidebar, asks what one of those bots replied or is working on, or wants a message read from or drafted into that app — even when they only say "the bot app" without naming it. Not for an SSH deploy host that happens to be named grok-bot, and not for xAI's Grok API.
 allowed-tools: Bash(agent-browser:*), Bash(pgrep:*), Bash(lsof:*)
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # Using the Grok Bot app
@@ -107,7 +107,17 @@ bad state in its panel is fixed from this skill:
 | `node-too-old` | Not the app: the login-`PATH` node needs 22+ |
 
 Full transcript of one bot — this requires selecting it, which changes what the
-user sees on screen. The active bot is marked `aria-current="page"`, so capture
+user sees on screen. The default way is `scripts/transcript.mjs`: it opens the bot,
+prints the transcript's last N characters as one JSON line (`{"state":"ok","tail":…,"prev":…,"restored":true}`;
+the other states are in its header), and opens the bot that was open before again. It needs only Node 22+,
+never types or sends, and leaves the screen alone when someone opened another bot meanwhile:
+
+```sh
+scripts/transcript.mjs <uuid8> [port] [--tail 1500]
+```
+
+`agent-browser` is optional here (install, from its own skill stub: `npm i -g agent-browser && agent-browser install`).
+By hand, the active bot is marked `aria-current="page"`, so capture
 it in the same call that navigates away, and you can restore it afterwards
 without guessing. Substitute the target UUID prefix for `<uuid8>`:
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## using-grok-bot-app 1.1.0
+
+- **`scripts/transcript.mjs <uuid> [port] [--tail N]`**: reads one bot's transcript tail without `agent-browser` (not installed on every Mac; session dc9d26c7 wrote CDP by hand for it, 10-22). It opens the bot, waits until the log text is not empty and two reads 250 ms apart agree (just after the click the log is empty: seen live), prints one JSON line, and opens the previous bot again unless another was opened meanwhile. It never types or sends. The restore and the CDP connection come from `send.mjs` (now exported as `restore` and `cdp`; the grok-bot-watch copy `bin/send.mjs` is synced by `scripts/sync-mod-core`, no behavior change there). SKILL.md Read names it as the default way; `agent-browser` is optional.
+
 ## agent-should-know 0.1.6
 
 - **Placeholder paths pass scrub**: the README log sample and the tests used placeholder home paths under the macOS and Linux home roots, which `scripts/scrub.sh` flags as home paths (exit 1, a push blocker; W43 L2-3). The README now shows `~/github/…`, and the tests use `/h/me` as session-recall's tests do. No behavior change.

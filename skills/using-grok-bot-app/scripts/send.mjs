@@ -106,9 +106,13 @@ export async function send(d, id, text) {
   if (!norm(text) || !ID_RE.test(id)) return deliver(d, id, text)
   const prev = await d.current()
   const state = await deliver(d, id, text)
-  // Put the screen back: the bot that was open before, unless someone has since opened another one.
-  if (prev && !prev.startsWith(id) && (await d.current())?.startsWith(id) && (await d.count(prev)) === 1) await d.click(prev)
+  await restore(d, prev, id)
   return state
+}
+
+/** Put the screen back: the bot that was open before (prev), unless someone has since opened another one than id. */
+export async function restore(d, prev, id) {
+  if (prev && !prev.startsWith(id) && (await d.current())?.startsWith(id) && (await d.count(prev)) === 1) await d.click(prev)
 }
 
 async function deliver(d, id, text) {
@@ -191,7 +195,8 @@ const SUBMIT = (id, text) => `window.__grokBotSend = (async () => {
   return { state: norm(c.innerText) ? 'pending' : 'submitted', before };
 })()`
 
-async function cdp(port) {
+/** The app's renderer over CDP: { d: effects, ev(expression), close }, or null when the port has no renderer. */
+export async function cdp(port) {
   let pages
   try {
     pages = await (await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(1500) })).json()
@@ -217,7 +222,7 @@ async function cdp(port) {
     waiting.set(++seq, r => (r.error || r.result?.exceptionDetails ? rej(new Error(JSON.stringify(r.error ?? r.result.exceptionDetails).slice(0, 200))) : res(r.result?.result?.value)))
     ws.send(JSON.stringify({ id: seq, method: 'Runtime.evaluate', params: { expression: expr, returnByValue: true, awaitPromise: true } }))
   })
-  return { close: () => ws.close(), d: effects(ev) }
+  return { close: () => ws.close(), d: effects(ev), ev }
 }
 
 /** The send's effects as page expressions, over ev(expression) → value: CDP here, a fake DOM in the test. */
