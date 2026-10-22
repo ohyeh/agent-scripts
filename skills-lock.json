@@ -105,9 +105,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/delegation-templates/SKILL.md",
-      "skillFolderHash": "8c0ab44465d20ed07a320cfb7e4fc1924b9919cd",
+      "skillFolderHash": "408774c678eb3d102c79a70610d3d3fa020664a4",
       "installedAt": "2026-07-18T20:48:21.471Z",
-      "updatedAt": "2026-10-11T07:59:48.591Z"
+      "updatedAt": "2026-10-22T15:49:55.000Z"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -260,9 +260,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "7d6f5eb2406a435935b9f794c3b92aaaa685cbfe",
+      "skillFolderHash": "21f4c38feb53e29c724f84f9f6c057af72a71a79",
       "installedAt": "2026-07-18T20:48:24.825Z",
-      "updatedAt": "2026-10-15T17:30:21.536Z"
+      "updatedAt": "2026-10-22T15:49:55.000Z"
     },
     "triage": {
       "source": "mattpocock/skills",
