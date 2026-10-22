@@ -60,9 +60,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/codex-cu/SKILL.md",
-      "skillFolderHash": "6018d02b2a4f3a3337a75e8043d0bb5d3044f6a8",
+      "skillFolderHash": "5c36a0c929962eb9da45596b80e20ab2babc4370",
       "installedAt": "2026-10-08T17:59:00.705Z",
-      "updatedAt": "2026-10-22T16:44:36.000Z"
+      "updatedAt": "2026-10-22T16:48:46.000Z"
     },
     "codex-dynamic-workflows": {
       "source": "dannymac180/skills",
