@@ -46,13 +46,19 @@ export async function read(d, id, n) {
   const c = await d.count(id)
   if (c !== 1) return { state: c ? 'ambiguous' : 'no-bot' }
   const prev = await d.current()
-  let r
+  // A failed read still puts the screen back; when both fail, the message keeps both reasons.
+  let r, readErr
   try {
     r = await open(d, id, n)
-  } finally {
-    // A failed read still puts the screen back; a failed restore surfaces, after the read's own error.
-    await restore(d, prev, id)
+  } catch (e) {
+    readErr = e
   }
+  try {
+    await restore(d, prev, id)
+  } catch (e) {
+    throw readErr ? new Error(`${readErr.message ?? readErr}; restore also failed: ${e.message ?? e}`) : e
+  }
+  if (readErr) throw readErr
   const now = await d.current()
   return { ...r, bot: id, prev: prev?.slice(0, 8) ?? null, restored: !prev || !!now?.startsWith(prev) }
 }

@@ -90,3 +90,11 @@ test('a read that throws still opens the previous bot again, then throws', async
   await assert.rejects(read(a.d, 'aaaaaaaa', 6), /cdp gone/)
   assert.deepEqual([a.clicks, a.current], [['aaaaaaaa', 'bbbbbbbb'], B])
 })
+
+test('read and restore both fail: the error names both', async () => {
+  const a = app()
+  a.d.tail = async () => { throw new Error('read failed') }
+  const click = a.d.click
+  a.d.click = async id => { if (id.startsWith('bbbbbbbb')) throw new Error('restore failed'); return click(id) }
+  await assert.rejects(read(a.d, 'aaaaaaaa', 6), /read failed; restore also failed: restore failed/)
+})
