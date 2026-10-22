@@ -83,7 +83,9 @@ agent_prev() {
   local row id v
   [ -f "$1" ] || return 0
   row="$(jq -r --arg cwd "$2" 'select(.type == "assistant" and ((.cwd // "") | rtrimstr("/")) == $cwd)
-    | (((.timestamp // "") | sub("\\.[0-9]+"; "") | try fromdate catch 0) * 1000 | floor) as $ms
+    | (.timestamp // "") as $t
+    | (($t | sub("\\.[0-9]+"; "") | try fromdate catch 0) * 1000
+       + ($t | (capture("\\.(?<f>[0-9]+)").f // "0") | . + "00" | .[0:3] | tonumber)) as $ms
     | .message.content[]? | select(.type == "tool_use" and .name == "Agent")
     | select((.input.prompt // "") | test("VERDICT:\\s*`?PASS") and test("VERDICT:\\s*`?BLOCK")) | "\($ms) \(.id)"' "$1" 2>/dev/null | tail -1)"
   [ -n "$row" ] || return 0

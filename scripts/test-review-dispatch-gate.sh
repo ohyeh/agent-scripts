@@ -165,6 +165,9 @@ t "cross: Agent BLOCK + LAYER, tmux assign" 0 "$(assign /w "LAYER: L3 — sol an
 $REV")"
 worker r9.yyyyy "$S" /w 1792684800999 1 "$PASSV"
 t "cross: newer tmux PASS wins over Agent BLOCK" 0 "$(assign /w "$REV")"
+reset; { use toolu_Y | jq -c '.timestamp="2026-10-22T16:00:00.900Z"'; res toolu_Y 'VERDICT: BLOCK'; } > "$CT"
+worker r9.zzzzz "$S" /w 1792684800500 1 "$PASSV"
+t "cross: same second, Agent BLOCK 400 ms later" 2 "$(assign /w "$REV")"
 rm -f "$CT"
 
 n="$(jq -r 'select(.result=="shopping")' "$T/data/agent-hooks/review-dispatch-stats.jsonl" | grep -c timestamp)"
