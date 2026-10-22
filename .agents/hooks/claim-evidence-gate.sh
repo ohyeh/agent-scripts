@@ -7,7 +7,8 @@
 #
 #   positive claim  — done/fixed/verified/完成/修好/測好/… or a ✅ title.
 #       Checked only when a mutating tool (Bash/Edit/Write/…) ran after the
-#       last human prompt (kernel 4.26.0 Done scope); a plain answer exits 0.
+#       last human prompt (kernel 4.26.0 Done scope); a plain answer exits 0,
+#       and so does a no-file-edit answer that cites `path:line`.
 #       Bound by TOKEN EQUALITY: the reply must quote at least one evidence
 #       token (exit=N, N passed, N/M passed, PASS, DEPLOY OK, VERDICT: …)
 #       that a tool actually printed AFTER the last human prompt, as recorded
@@ -94,7 +95,9 @@ if [ "$claim" = "positive" ]; then
   # (no mutating tool in the window) cites its source instead — the ledger
   # has tool names but not Bash commands, so Bash counts as mutating.
   mutating="$(printf '%s\n' "$window" | jq -r '.tool // empty' 2>/dev/null | grep -cE '^(Bash|Edit|Write|MultiEdit|NotebookEdit|apply_patch)$')"
-  if [ "${mutating:-0}" -eq 0 ]; then
+  # A read-only answer (Bash reads allowed, no file edit) that cites `path:line` carries its own evidence.
+  edits="$(printf '%s\n' "$window" | jq -r '.tool // empty' 2>/dev/null | grep -cE '^(Edit|Write|MultiEdit|NotebookEdit|apply_patch)$')"
+  if [ "${mutating:-0}" -eq 0 ] || { [ "${edits:-0}" -eq 0 ] && printf '%s' "$last" | grep -Eq '[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)*\.[A-Za-z0-9]+:[0-9]+'; }; then
     jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "${SESSION_ID:-}" '{timestamp:$ts, claim:"positive", session:$sid, blocked:false, skipped:"no-mutating-tool"}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
     [ -n "$negative_lines" ] || exit 0
   else
