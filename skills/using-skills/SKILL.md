@@ -41,7 +41,7 @@ skill is a link: tools, generators and constraint sets come from the map.
 |---|---|---|---|
 | New feature, acceptance unclear | `unknowns-discovery` (when its trigger holds) → `prototype` for a design question, or `wayfinder` when too big for one session → implement (`tdd` when the user wants test-first) → a check executed and quoted before any done claim (kernel Done rule) → `defect-first-review` when risk or the user asks | stated defaults → design answer or decision tickets → diff and tests → quoted check output → findings | findings fixed and re-verified; a repeated finding → a gate, or a backlog row that names the file |
 | Bug or regression | `diagnosing-bugs` (many competing hypotheses → enter `using-workflows` instead) → re-run the original scenario → `defect-first-review` on the fix diff when risk warrants | repro and failing signal → fix and regression test → original scenario re-run → findings | regression test stays in the repo |
-| Test plan | write the cases inline → only when execution is authorized: the browser row below (web) or `agent-device` (app) → a bug → Bug row; tracker issues → `triage` | cases → execution evidence → bug report | a missed case goes back into the plan |
+| Test plan | write the cases inline → only when execution is authorized: the browser row below (web) or the app row below (app) → a bug → Bug row; tracker issues → `triage` | cases → execution evidence → bug report | a missed case goes back into the plan |
 | Pause or hand off | `session-handoff`; reusable knowledge for Codex → `shared-memory-intake` (inbox only) | handoff doc → inbox entry | the next session starts from the doc |
 
 Owner pointers (their chains stay with them): codebase-wide deepening →
@@ -94,8 +94,8 @@ before any install or deploy.
 | read a pasted URL as clean markdown | `defuddle` | Skill() |
 | read, fill, merge, or produce a PDF | `pdf` | Skill() |
 | investigate a question against primary sources, write it up | `research` | Skill() |
-| drive a browser or a desktop app: navigate, fill forms, read a logged-in page, screenshot | `codex-cu` first: the user's own Chrome, background tab first, on any host where it runs; `agent-browser` only where codex-cu is not available or cannot do the step, in one named session reused and closed at the end, never several at once | Skill() |
-| drive an iOS, Android, macOS, or TV app | `agent-device` | Skill() |
+| drive a browser: navigate, fill forms, read a logged-in page, screenshot | `codex-cu` where it is installed: the user's own Chrome, background tab first. A host without it (no ChatGPT Computer Use plugin) goes straight to `agent-browser`, no setup unless the user asks; so does a step codex-cu cannot do. `agent-browser` runs one named session, reused and closed at the end, never several at once | Skill() |
+| drive an iOS, Android, macOS, or TV app | macOS app: `codex-cu` where it is installed, else `agent-device`; iOS, Android, TV: `agent-device` | Skill() |
 | read or drive the Grok Bot macOS app (bots, folders, transcripts) | `using-grok-bot-app` | Skill() |
 
 ## Write for people to read
