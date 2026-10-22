@@ -55,6 +55,9 @@ Chain these for planning and investigation work:
 - Keep the finite outcome, acceptance, scope, budget, and checkpoint in the
   run state file. Point the wakeup prompt at that file. Do not send the old
   goal again as the task.
+- Before a long task or loop starts, write the user's own words and the
+  completion condition you wrote side by side in the state file. Show both
+  to the user and start after the user replies (W44-5).
 - Before the next mutating action, write each human correction into the state
   file. Keep its full text and its transcript position. Record the applied
   revision only after the goal, scope, and authorization match the correction.
@@ -78,6 +81,9 @@ Chain these for planning and investigation work:
   `stop-slop`: active voice, human subject, no adverbs, no em dashes, concrete
   over vague.
 - Re-explain on request through the `simplified-english` rule.
+- A closing recap lists only the questions inside the current request that the
+  user has not answered yet. Re-check each against later replies, and name
+  each one; never "6 decisions are waiting" without the list (W44-6).
 - A command handed to the user is one copy-paste line: absolute paths expanded,
   no placeholders left, and it says where to run it (which host, which directory).
 - Use lists or numbered options when the content has many parts or the user must

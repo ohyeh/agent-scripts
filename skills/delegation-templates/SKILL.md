@@ -98,6 +98,8 @@ STOP CONDITION: if behavior must change to proceed, stop and report — do not d
 
 ```
 GOAL: Answer: {question}. The answer will drive {decision}.
+OWNER QUESTION (verbatim): {the owner's latest question, copied, not rephrased}.
+READ FIRST: {the owner's recorded preference or method files, e.g. TRIP.md, METHOD.md}; rank results in their order.
 SOURCES: prefer {official docs/repo/spec}; treat blogs/forums as secondary.
 ACCEPTANCE:
 - Every claim cited (URL or file:line). Uncited = label UNCONFIRMED.
@@ -112,6 +114,7 @@ OUTPUT: findings to {artifact_path}; return path + a ≤10-bullet summary.
 ```
 GOAL: Adversarially review {diff/files/claim}. Assume it is broken until proven otherwise.
 REVIEWED INPUT: {commit sha | file list + sha256} — the verdict binds to this (judgment-rubrics §2).
+READ FIRST: {the owner's recorded preference files and latest request, verbatim}.
 SCOPE CONTRACT: {what the change supports; what it detects and refuses}.
 Restate the contract in each round after a scope change.
 CALLERS: {each changed export → its callers and how each uses the value}.

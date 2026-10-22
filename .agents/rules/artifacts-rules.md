@@ -22,7 +22,9 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 - Discover the types live: Artifact `list scope:"types"`. Start one with
   `quickstart`, then follow the type's own instructions.
 - `Dashboard` → metrics, KPIs, status, comparisons. Every number shows its
-  source.
+  source. When a tracked row changes status (commit, release, user ruling),
+  update the dashboard dataset in the same turn; a page that cites the old
+  status is a defect (W44-6).
 - `Motion` → animated explainer, walkthrough, demo video, motion graphic;
   exports MP4. Verify it with frames at the start, middle, and end.
 - Load `artifact-design` before you publish; load `dataviz` before any chart.
