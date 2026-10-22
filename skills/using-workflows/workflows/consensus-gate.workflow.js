@@ -16,6 +16,7 @@
 //     l0: "scripts/test-x",             // OPTIONAL deterministic check run before the review; non-zero = gate fails
 //     effort: "medium",                 // low|medium|high: the conduit agent's effort (reviewer effort = profile effort_flags)
 //     marker: "=== REVIEWER VERDICT END ===",  // just a sentinel; pass "=== CODEX VERDICT END ===" for legacy byte-compat
+//     outDir: "/abs/run-dir",           // where the reviewer writes its report (default: <repoPath>/.workflow/consensus-gate)
 //     timeoutSec: 600
 //   }})
 //
@@ -61,10 +62,16 @@ if (!(Number.isInteger(round) && round >= 1)) return { aborted: true, reason: 'i
 const layer = a.layer || 'L2'
 if (!['L1', 'L2'].includes(layer)) return { aborted: true, reason: 'invalid arg: layer must be L1 | L2 (no L3: after L2 round 3, ask the user)' }
 const freeze = a.freeze || (a.proposalFile ? [a.proposalFile] : [])
-// Paths and l0 are interpolated into shell commands: paths get a strict charset, l0 is caller-owned.
-if (!Array.isArray(freeze) || freeze.some(f => typeof f !== 'string' || !/^[A-Za-z0-9._\/~+@-]+$/.test(f))) return { aborted: true, reason: 'invalid arg: freeze must be an array of plain paths' }
+// Paths go into shell commands single-quoted, so any path without a NUL or newline works
+// (Unicode included); l0 is caller-owned.
+const q = p => `'${p.replace(/'/g, `'\\''`)}'`
+const plainPath = p => typeof p === 'string' && p.length > 0 && !/[\0\n\r]/.test(p)
+if (!plainPath(repo)) return { aborted: true, reason: 'invalid arg: repoPath' }
+if (!Array.isArray(freeze) || !freeze.every(plainPath)) return { aborted: true, reason: 'invalid arg: freeze must be an array of paths (no NUL or newline)' }
 const l0 = typeof a.l0 === 'string' ? a.l0 : ''
-const MANIFEST = `{ git -C ${repo} rev-parse HEAD 2>/dev/null || echo no-git; git -C ${repo} diff HEAD 2>/dev/null; ${freeze.length ? `shasum -a 256 ${freeze.join(' ')}` : 'true'}; } | shasum -a 256`
+// Three labelled lines, content only: a path spelled another way (cd + relative, wf_6b475093-bbb
+// 2026-10-22) hashes the same, and a voided round names the part that changed.
+const MANIFEST = `printf 'head %s\\ndiff %s\\nfreeze %s\\n' "$(git -C ${q(repo)} rev-parse HEAD 2>/dev/null || echo no-git)" "$(git -C ${q(repo)} diff HEAD 2>/dev/null | shasum -a 256 | cut -c1-16)" "$(${freeze.length ? `cat -- ${freeze.map(q).join(' ')} 2>&1` : 'true'} | shasum -a 256 | cut -c1-16)"`
 
 // _lib/worker-doctrine.md §7, kept byte-close (scripts cannot import).
 const REVIEWER_CONTRACT = 'ADVERSARIAL REVIEW. Assume the work is wrong until the evidence says otherwise. Round 1: list EVERY finding now, in one pass; a finding held back for a later round counts as a miss. Each finding: stable id, file:line or command output, severity Critical|Major|Minor, why it is wrong, the concrete fix, the check that proves the fix. A finding without evidence is dropped. Round 2+: you get the finding ledger and the before/after diff of the fix. Report (a) each ledger finding: resolved (with evidence) or still open (not_fixed | partly), and adjudicate every fixer rejection; (b) NEW defects. Mark a new defect fix_caused=true only when the diff shows the fix caused it; a new defect the fix did not cause is a round-1 miss. Read-only: do not edit files or run build, test, lint or any command that writes into the tree; the L0 output you are given is the check evidence. A live reproduction runs in a scratch dir outside the repo. PASS only with 0 Critical and 0 Major open.'
@@ -81,7 +88,10 @@ const modConduit = ({ profile, base, dir, worker, out, marker, timeout, task }) 
     : `1. mcp__tmux-agent__assign {profile: "${profile}", name: "${base}", dir: the absolute path of ${dir}, brief: "GOAL: " + the task below + that instruction + "\\nACCEPTANCE: ${out} ends with the marker line.\\nREPORT: a one-line summary."}. worker = the name the receipt returns (with its suffix).\n`) +
   `2. Call mcp__tmux-agent__await {name: worker, max_seconds: ${Math.min(540, timeout)}} until it returns status success, failed or blocked; after ${Math.max(1, Math.ceil(timeout / 540))} pending calls, stop and report the timeout.\n` +
   `3. Read ${out}; it must end with the marker line. Return worker in the worker field.\n\nTASK:\n${task}`
-const OUT = `/tmp/${cli}-consensus-${session}-r${round}.md`
+const outDir = a.outDir || `${repo.replace(/\/+$/, '')}/.workflow/consensus-gate`
+if (!plainPath(outDir)) return { aborted: true, reason: 'invalid arg: outDir' }
+// Not /tmp (kernel: scratch stays in the session or run dir); cli in the name keeps two reviewers apart.
+const OUT = `${outDir}/${cli}-${session}-r${round}.md`
 
 const SCHEMA = {
   type: 'object', additionalProperties: false,
@@ -104,19 +114,22 @@ const r = await agent(
   `Get a high-effort architecture/decision consensus from a ${cli} reviewer, then return its verdict.
 Steps:
 1. Ensure the proposal text is available. ${a.proposalFile ? `Proposal file: ${a.proposalFile}.` : `Proposal text:\n<<<\n${a.proposalText}\n>>>`}
-   OUT = ${OUT} (one file per round; never delete an earlier round's file).
-   L0 (run checks, then hash): ${l0 ? `run \`${l0}\` in ${repo} → l0_rc (exit code) and l0_output (last 40 lines).` : 'no l0 command: l0_rc = 0, l0_output = "no l0 command".'} Then run \`${MANIFEST}\` → manifest_before.${l0 ? ' If l0_rc is not 0, stop here: skip steps 2–3, verdict = "", consensus = unclear, and still fill manifest_after by re-running the manifest command.' : ''}
+   OUT = ${OUT} (one file per round; never delete an earlier round's file). Run \`mkdir -p ${q(outDir)}\` first.
+   L0 (run checks, then hash): ${l0 ? `run \`${l0}\` in ${repo} → l0_rc (exit code) and l0_output (last 40 lines).` : 'no l0 command: l0_rc = 0, l0_output = "no l0 command".'} Then run this manifest command exactly as written (no cd, no shortened paths) \`${MANIFEST}\` → manifest_before (its three lines, verbatim).${l0 ? ' If l0_rc is not 0, stop here: skip steps 2–3, verdict = "", consensus = unclear, and still fill manifest_after by re-running the manifest command.' : ''}
 2. Get the review (task = the proposal plus the reviewer contract below):
 ${modConduit({ profile: cli, base: session, dir: repo, worker: a.worker, out: OUT, marker, timeout, task: `the proposal above, then the L0 result from step 1 (l0_rc and l0_output, verbatim), then this reviewer contract: ${REVIEWER_CONTRACT}` })}
-3. Run the manifest command again → manifest_after. Return: verdict = the verdict text read from OUT (trimmed, drop the trailing marker line); consensus = your classification (agree / agree_with_changes / disagree / unclear); notes = key objections or required changes; worker.
+3. Run the same manifest command again, exactly as written → manifest_after (three lines, verbatim). Return: verdict = the verdict text read from OUT (trimmed, drop the trailing marker line); consensus = your classification (agree / agree_with_changes / disagree / unclear); notes = key objections or required changes; worker.
 Return only the structured fields.`,
   { label: `${cli}:${session}`, phase: 'Consult', model, effort, isolation, agentType, schema: SCHEMA }
 )
 // `passed` is a strict allow-list: only genuine consensus at the verdict layer (L2), with L0 green
 // and the manifest unchanged, clears the gate. An L1 agree is a pre-filter result, never a pass.
-const voided = !!r && r.manifest_before !== r.manifest_after
+const parts = m => Object.fromEntries((m || '').split('\n').map(l => l.trim().split(/\s+/)).filter(x => x.length === 2))
+const before = parts(r?.manifest_before), after = parts(r?.manifest_after)
+const changed = ['head', 'diff', 'freeze'].filter(k => before[k] !== after[k])
+const voided = !!r && changed.length > 0
 const l0Failed = !!r && r.l0_rc !== 0
 return {
-  gate: r, consensus: r?.consensus, worker: r?.worker, layer, round, voided, l0Failed, prefilter: layer === 'L1',
+  gate: r, consensus: r?.consensus, worker: r?.worker, layer, round, voided, voidedBy: voided ? changed : [], l0Failed, prefilter: layer === 'L1', out: OUT,
   passed: layer !== 'L1' && r?.ok === true && r?.consensus === 'agree' && !voided && !l0Failed,
 }
