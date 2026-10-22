@@ -15,7 +15,7 @@ file set plus installed skills. If you are unsure which row applies, use the str
 
 ## §1 Edit permission matrix
 
-| File | Agent may (no approval)… | Requires user approval |
+| File | Agent may (no approval)… | Approval path |
 |---|---|---|
 | `rules/model-dispatch.md` §1 table | Update model values after LIVE verification (schema/`/model`), quote the check in the commit message | Changing the ladder or contracts (§2–§7) |
 | Other `rules/*.md` | Fix objectively broken paths/commands (verify first, quote the check in the commit message) | Any semantic change — exact diff, settled by the consensus ladder (advisor + a second-model reviewer, judgment-rubrics §3), applied, and reported to the user in the same turn with the diff and who agreed (user 2026-10-22 「你和 advisor + sol 確認就好啊」) |

@@ -69,18 +69,23 @@ for i in $(seq 2 25); do wf_start wf-cap "w$i" || { echo "FAIL: B1 agent $i of 2
 if wf_start wf-cap w26; then echo "FAIL: B1 26th workflow agent not capped" >&2; exit 1; fi
 grep -q 'CAPPED: W43-1 haiku-research-round agent 26/25' "$WORK/cap-stderr" || { echo "FAIL: B1 CAPPED text: $(cat "$WORK/cap-stderr")" >&2; exit 1; }
 wf_start wf-norun n1 && [[ "$(wf_counted wf-norun)" == 0 ]] || { echo "FAIL: B1 subagent counted with no run on record" >&2; exit 1; }
+wf_start wf-cap agent-tool || { echo "FAIL: B1 Agent-tool subagent woken again under its id was capped: $(cat "$WORK/cap-stderr")" >&2; exit 1; }
+jq -cn '{hook_event_name:"SubagentStart",session_id:"wf-cap",agent_id:"waiter1",agent_type:"tmux-agent:tmux-waiter"}' | hook_env bash "$ROOT/.agents/hooks/subagent-ledger.sh" 2>/dev/null \
+  || { echo "FAIL: B1 tmux-agent waiter was capped" >&2; exit 1; }
 
 # W44-2 B2: a main-agent TaskStop of a workflow (via context-ledger) drops that run's live markers only
 TS_STATE="$TEST_HOME/.local/state/agent-hooks/taskstop/subagents"; mkdir -p "$TS_STATE" "$WORK/wf_X" "$WORK/wf_Y"
 for a in x1 x2 y1; do echo "general-purpose t" > "$TS_STATE/$a"; done
 : > "$WORK/wf_X/agent-x1.meta.json"; : > "$WORK/wf_X/agent-x2.meta.json"; : > "$WORK/wf_Y/agent-y1.meta.json"
 { jq -cn --arg d "$WORK/wf_X" '{type:"user",toolUseResult:{status:"async_launched",taskId:"tX",taskType:"local_workflow",runId:"wf_X",transcriptDir:$d}}'
-  jq -cn --arg d "$WORK/wf_Y" '{type:"user",toolUseResult:{status:"async_launched",taskId:"tY",taskType:"local_workflow",runId:"wf_Y",transcriptDir:$d}}'; } > "$WORK/ts-transcript.jsonl"
+  jq -n --arg d "$WORK/wf_Y" '{type:"user",toolUseResult:{status:"async_launched",taskId:"tY",taskType:"local_workflow",runId:"wf_Y",transcriptDir:$d}}' | tr -d '\n'; echo; } > "$WORK/ts-transcript.jsonl"
 task_stop() { jq -cn --arg t "$1" --arg ty "$2" --arg tp "$WORK/ts-transcript.jsonl" '{hook_event_name:"PostToolUse",session_id:"taskstop",transcript_path:$tp,tool_name:"TaskStop",tool_input:{task_id:$t},tool_response:{task_type:$ty}}' | hook_env bash "$ROOT/.agents/hooks/context-ledger.sh"; }
 task_stop tY local_agent
 [[ "$(ls "$TS_STATE" | tr '\n' ' ')" == "x1 x2 y1 " ]] || { echo "FAIL: B2 local_agent TaskStop removed markers: $(ls "$TS_STATE")" >&2; exit 1; }
 task_stop tX local_workflow
 [[ "$(ls "$TS_STATE" | tr '\n' ' ')" == "y1 " ]] || { echo "FAIL: B2 workflow TaskStop: want y1 left, got $(ls "$TS_STATE")" >&2; exit 1; }
+task_stop tY local_workflow   # spaced JSON (`"taskId": "tY"`) in the transcript line
+[[ -z "$(ls "$TS_STATE")" ]] || { echo "FAIL: B2 TaskStop missed a spaced-JSON launch line: $(ls "$TS_STATE")" >&2; exit 1; }
 
 run_ledger() {
   printf '%s' "$1" |

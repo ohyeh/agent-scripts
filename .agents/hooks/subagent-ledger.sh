@@ -25,7 +25,7 @@ LEDGER="$STATE/subagents"
 # Compaction keeps the process and its background subagents, so it keeps the ledger.
 if [ "$EVENT" = SessionStart ]; then
   case "$(printf '%s' "$IN" | jq -r '.source // empty')" in
-    startup|resume|clear) rm -rf "$LEDGER" "$STATE/pending" ;;
+    startup|resume|clear) rm -rf "$LEDGER" "$STATE/pending" "$STATE/tool-agents" ;;
   esac
   exit 0
 fi
@@ -38,7 +38,8 @@ if [ "$EVENT" = PostToolUse ]; then
   [ "$(printf '%s' "$IN" | jq -r '.tool_response.task_type? // empty')" = local_workflow ] || exit 0
   TASK_ID="$(printf '%s' "$IN" | jq -r '.tool_input.task_id // empty')"
   TRANSCRIPT="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
-  RUN_DIR="$(grep -F "\"taskId\":\"$TASK_ID\"" "$TRANSCRIPT" 2>/dev/null \
+  # the raw id only as a prefilter; jq decides (a spaced `"taskId": "…"` line must still match)
+  RUN_DIR="$(grep -F "$TASK_ID" "$TRANSCRIPT" 2>/dev/null \
     | jq -r --arg t "$TASK_ID" 'select(.toolUseResult.taskId? == $t) | .toolUseResult.transcriptDir // empty' 2>/dev/null | head -1)"
   [ -n "$TASK_ID" ] && [ -n "$RUN_DIR" ] || { echo "subagent-ledger: TaskStop $TASK_ID: no Workflow launch with transcriptDir in $TRANSCRIPT" >&2; exit 0; }
   for m in "$LEDGER"/*; do
@@ -68,18 +69,22 @@ case "$EVENT" in
       [ -n "$oldest" ] || break
       mv "$STATE/pending/$oldest" "$claim" 2>/dev/null || continue   # another start took it
       claimed=1
+      mkdir -p "$STATE/tool-agents" && : > "$STATE/tool-agents/$AGENT_ID"   # a later wake-up keeps this identity
       grep -qE "^[0-9]+ $AGENT_TYPE nested" "$claim" && mkdir -p "$STATE/nested" && : > "$STATE/nested/$AGENT_ID"
       rm -f "$claim"
       break
     done
     # W44-2 B1 (W43-1 cap, owner 10-16, cap 25): an Agent-tool subagent always passed
     # PreToolUse(Agent), which wrote a pending; a workflow agent never does, and its agent_type
-    # can be any recipe type. No pending claimed + a run on record -> workflow agent.
-    # shortcut: the run key outlives the run, so any pending-less start (also a restart under the
-    # same id) counts to the newest run, even a stale
-    # run (high, never low); clear the key when a Workflow end event exists. Two runs live at
+    # can be any recipe type. No pending claimed + a run on record -> workflow agent. Not counted:
+    # an id that once claimed a pending (an Agent-tool subagent woken again under the same id, Sol
+    # W44 F2) and the tmux-agent waiter.
+    # shortcut: the run key outlives the run, so another pending-less start counts to the newest
+    # run, even a stale one; clear the key when a Workflow end event exists. Two runs live at
     # once share the newer key. A claim race can swap one workflow agent with one Agent subagent.
     [ -z "$claimed" ] || exit 0
+    [ -e "$STATE/tool-agents/$AGENT_ID" ] && exit 0
+    case "$AGENT_TYPE" in *tmux-waiter) exit 0 ;; esac
     CAP="${WORKFLOW_AGENT_CAP:-25}"
     DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"
     mkdir -p "$DATA_DIR"
