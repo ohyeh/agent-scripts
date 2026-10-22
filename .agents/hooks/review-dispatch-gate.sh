@@ -7,6 +7,8 @@
 # both verdicts): 45 review workers, 35 ran one round; replayed in dispatch order, 16 of 45
 # dispatches followed a BLOCK reviewer with a fresh one and 5 followed a reviewer with no verdict (one target went astra → sol → fable → astra → fable).
 # Known limit: every tell counts as a round, a clarifying tell included.
+# Known limit (W44-13): a tmux reviewer's time is its first dispatch (`since`), not its last tell, so an
+# Agent reviewer sent between two tells reads as the newer one.
 #
 # A review brief = a brief that names both `VERDICT: PASS` and `VERDICT: BLOCK` (delegation-templates §5).
 # Scope: workers this session dispatched (worker.json .owner == session_id) into the same dir.
@@ -16,6 +18,7 @@
 #   tell to a review worker with >= 3 rounds and no PASS                 -> deny (round cap)
 # Every deny is a question the agent answers; the answer line is what lets the call through.
 #   Agent, previous Agent reviewer (same cwd, this transcript) BLOCK / no verdict -> deny, same answers (W43-22)
+#   either dispatch: the previous reviewer is the newer of the two sources (W44-13)
 # Not covered: reviewers across sessions, whether a review is needed.
 set -u
 
@@ -74,40 +77,32 @@ line() { printf '%s' "$BRIEF" | grep -E -m1 "^[[:space:]]*$1:[[:space:]]*[^[:spa
 # W43-22: in-process Agent reviewers (W42: 71, 27 shopping). State is this session's transcript: the
 # previous Agent review brief from the same cwd, and its verdict in the tool_result (foreground) or
 # the task-notification that names its tool-use id (background). A fix re-check is `SendMessage`
-# to that agent, which this gate never sees. Same answers as the tmux path; no batch question.
-if [ "$TOOL" = Agent ]; then
-  BRIEF="$(printf '%s' "$IN" | jq -r '.tool_input.prompt // empty')"
-  printf '%s' "$BRIEF" | is_review || exit 0
-  TR="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
-  CWD="$(printf '%s' "$IN" | jq -r '.cwd // empty')"; CWD="${CWD%/}"
-  [ -f "$TR" ] || { log allow "$CWD" "" 0; exit 0; }
-  PID="$(jq -r --arg cwd "$CWD" 'select(.type == "assistant" and ((.cwd // "") | rtrimstr("/")) == $cwd)
+# to that agent, which this gate never sees.
+# prints "<epoch ms> <tool-use id> <PASS|BLOCK|NONE>" for the last one, or nothing
+agent_prev() {
+  local row id v
+  [ -f "$1" ] || return 0
+  row="$(jq -r --arg cwd "$2" 'select(.type == "assistant" and ((.cwd // "") | rtrimstr("/")) == $cwd)
+    | (((.timestamp // "") | sub("\\.[0-9]+"; "") | try fromdate catch 0) * 1000 | floor) as $ms
     | .message.content[]? | select(.type == "tool_use" and .name == "Agent")
-    | select((.input.prompt // "") | test("VERDICT:\\s*`?PASS") and test("VERDICT:\\s*`?BLOCK")) | .id' "$TR" 2>/dev/null | tail -1)"
-  [ -n "$PID" ] || { log allow "$CWD" "" 0; exit 0; }
-  PV="$(grep -F "$PID" "$TR" | grep -v '"type":"assistant"' | grep -oE 'VERDICT:[[:space:]]*`?(PASS|BLOCK)' | tail -1 | grep -oE 'PASS|BLOCK')"
-  PV="${PV:-NONE}"; PN="agent ${PID: -8}"
-  if [ "$PV" = NONE ]; then
-    ANS="$(line REDISPATCH)"; [ -n "$ANS" ] || ANS="$(line PARALLEL)"
-    [ -n "$ANS" ] || ANS="$(line LAYER)"; [ -n "$ANS" ] || ANS="$(line 'NEW SCOPE')"
-    if [ -z "$ANS" ]; then
-      log no-verdict "$CWD" "$PN" 1
-      echo "BLOCKED (reviewer without a verdict): the previous Agent reviewer here ($PN) has no verdict yet. Ask yourself: is it still running? Then wait for its notification. Did it end without a verdict? Then add a line \`REDISPATCH: <why it did not finish>\`. A planned parallel seat takes \`PARALLEL: <layer or role>\`; an unrelated scope \`NEW SCOPE: <what>\`." >&2
-      exit 2
-    fi
-    log allow-answered "$CWD" "$PN" 1 "$ANS"; exit 0
-  fi
-  if [ "$PV" = BLOCK ]; then
-    ANS="$(line LAYER)"; [ -n "$ANS" ] || ANS="$(line 'NEW SCOPE')"
-    if [ -z "$ANS" ]; then
-      log shopping "$CWD" "$PN" 1
-      echo "BLOCKED (reviewer shopping): the previous Agent reviewer here ($PN) returned VERDICT: BLOCK. Ask yourself: why a new reviewer? A fix re-check goes back to the same reviewer: \`SendMessage\` to that agent (judgment-rubrics §4). If you escalate a layer, add a line \`LAYER: <L2|L3> — <reason>\`; if this is a new, unrelated scope, add \`NEW SCOPE: <what>\`." >&2
-      exit 2
-    fi
-    log allow-answered "$CWD" "$PN" 1 "$ANS"; exit 0
-  fi
-  log allow "$CWD" "$PN" 0; exit 0
-fi
+    | select((.input.prompt // "") | test("VERDICT:\\s*`?PASS") and test("VERDICT:\\s*`?BLOCK")) | "\($ms) \(.id)"' "$1" 2>/dev/null | tail -1)"
+  [ -n "$row" ] || return 0
+  id="${row#* }"
+  v="$(grep -F "$id" "$1" | grep -v '"type":"assistant"' | grep -oE 'VERDICT:[[:space:]]*`?(PASS|BLOCK)' | tail -1 | grep -oE 'PASS|BLOCK')"
+  echo "$row ${v:-NONE}"
+}
+# prints "<since ms> <worker dir>" for the latest review worker this session sent into dir $1, or nothing
+tmux_prev() {
+  local wj w t best=0 prev=""
+  for wj in $(grep -lF "$SESSION_ID" "$V3"/*/worker.json 2>/dev/null); do
+    w="${wj%/worker.json}"
+    jq -e --arg s "$SESSION_ID" --arg d "$1" '.owner == $s and ((.dir // "") | rtrimstr("/")) == $d' "$wj" >/dev/null 2>&1 || continue
+    [ -f "$w/brief.md" ] && is_review < "$w/brief.md" || continue
+    t="$(jq -r '.since // 0' "$wj")"
+    [ "$t" -gt "$best" ] && { best="$t"; prev="$w"; }
+  done
+  [ -n "$prev" ] && echo "$best $prev"
+}
 
 if [ "$TOOL" = "mcp__tmux-agent__tell" ]; then
   NAME="$(printf '%s' "$IN" | jq -r '.tool_input.name // empty')"
@@ -128,45 +123,56 @@ if [ "$TOOL" = "mcp__tmux-agent__tell" ]; then
   exit 0
 fi
 
-BRIEF="$(printf '%s' "$IN" | jq -r '.tool_input.brief // empty')"
-DIR="$(printf '%s' "$IN" | jq -r '.tool_input.dir // empty')"; DIR="${DIR%/}"
+# Dispatch of a new reviewer (assign or Agent). W44-13: the previous reviewer is the newer of the
+# Agent reviewer in this session's transcript and the tmux review worker, so a BLOCK on one side
+# also stops shopping on the other. The mod's gate payload has no transcript_path: find it by session id.
+if [ "$TOOL" = Agent ]; then
+  BRIEF="$(printf '%s' "$IN" | jq -r '.tool_input.prompt // empty')"
+  DIR="$(printf '%s' "$IN" | jq -r '.cwd // empty')"
+else
+  BRIEF="$(printf '%s' "$IN" | jq -r '.tool_input.brief // empty')"
+  DIR="$(printf '%s' "$IN" | jq -r '.tool_input.dir // empty')"
+fi
+DIR="${DIR%/}"
 printf '%s' "$BRIEF" | is_review || exit 0
-
-# latest review worker this session sent into the same dir
-PREV="" PSINCE=0
-for wj in $(grep -lF "$SESSION_ID" "$V3"/*/worker.json 2>/dev/null); do
-  w="${wj%/worker.json}"
-  jq -e --arg s "$SESSION_ID" --arg d "$DIR" '.owner == $s and ((.dir // "") | rtrimstr("/")) == $d' "$wj" >/dev/null 2>&1 || continue
-  [ -f "$w/brief.md" ] && is_review < "$w/brief.md" || continue
-  t="$(jq -r '.since // 0' "$wj")"
-  [ "$t" -gt "$PSINCE" ] && { PSINCE="$t"; PREV="$w"; }
-done
-[ -n "$PREV" ] || { log allow "$DIR" "" 0; exit 0; }
-PN="${PREV##*/}"; PV="$(verdict "$PREV")"
-[ "$PV" = ERR ] && { log error "$DIR" "$PN" 0; exit 0; }   # unreadable result: never deny on it
+TR="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
+[ -n "$TR" ] || TR="$(ls "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/projects/*/"$SESSION_ID".jsonl 2>/dev/null | head -1)"
+read -r ATS AID AV <<< "$(agent_prev "$TR" "$DIR")"
+read -r PSINCE PREV <<< "$(tmux_prev "$DIR")"
+if [ -n "${PREV:-}" ] && [ "$PSINCE" -ge "${ATS:-0}" ]; then
+  PN="${PREV##*/}"; PV="$(verdict "$PREV")"; PR="$(rounds "$PREV")"
+  RECHECK="\`tell $PN\`"; WAIT="wait for it or \`peek $PN\`"
+  [ "$PV" = ERR ] && { log error "$DIR" "$PN" 0; exit 0; }   # unreadable result: never deny on it
+elif [ -n "${AID:-}" ]; then
+  PN="agent ${AID: -8}"; PV="$AV"; PR=1
+  RECHECK="\`SendMessage\` to that agent"; WAIT="wait for its notification"
+else
+  log allow "$DIR" "" 0; exit 0
+fi
 
 if [ "$PV" = "NONE" ]; then
   # no verdict: still running, or exited without a report (2026-10-15: Sol r3 worker vanished)
   ANS="$(line REDISPATCH)"; [ -n "$ANS" ] || ANS="$(line PARALLEL)"
   [ -n "$ANS" ] || ANS="$(line LAYER)"; [ -n "$ANS" ] || ANS="$(line 'NEW SCOPE')"
   if [ -z "$ANS" ]; then
-    log no-verdict "$DIR" "$PN" "$(rounds "$PREV")"
-    echo "BLOCKED (reviewer without a verdict): $PN reviewed this dir and has no verdict yet. Ask yourself: is it still working? Then wait for it or \`peek $PN\`. Did it exit without a report? Then add a line \`REDISPATCH: <why $PN did not finish>\`. Is this a planned parallel seat? Then add \`PARALLEL: <layer or role>\`. An unrelated scope takes \`NEW SCOPE: <what>\`." >&2
+    log no-verdict "$DIR" "$PN" "$PR"
+    echo "BLOCKED (reviewer without a verdict): $PN reviewed this dir and has no verdict yet. Ask yourself: is it still working? Then $WAIT. Did it exit without a report? Then add a line \`REDISPATCH: <why $PN did not finish>\`. Is this a planned parallel seat? Then add \`PARALLEL: <layer or role>\`. An unrelated scope takes \`NEW SCOPE: <what>\`." >&2
     exit 2
   fi
-  log allow-answered "$DIR" "$PN" "$(rounds "$PREV")" "$ANS"
+  log allow-answered "$DIR" "$PN" "$PR" "$ANS"
   exit 0
 fi
 if [ "$PV" != "PASS" ]; then
   ANS="$(line LAYER)"; [ -n "$ANS" ] || ANS="$(line 'NEW SCOPE')"
   if [ -z "$ANS" ]; then
-    log shopping "$DIR" "$PN" "$(rounds "$PREV")"
-    echo "BLOCKED (reviewer shopping): $PN reviewed this dir and has not returned PASS (last verdict: $PV). Ask yourself: why a new reviewer? A fix re-check goes back to the same reviewer: \`tell $PN\` (judgment-rubrics §4). If you escalate a layer, add a line \`LAYER: <L2|L3> — <reason>\`; if this is a new, unrelated scope, add \`NEW SCOPE: <what>\`." >&2
+    log shopping "$DIR" "$PN" "$PR"
+    echo "BLOCKED (reviewer shopping): $PN reviewed this dir and has not returned PASS (last verdict: $PV). Ask yourself: why a new reviewer? A fix re-check goes back to the same reviewer: $RECHECK (judgment-rubrics §4). If you escalate a layer, add a line \`LAYER: <L2|L3> — <reason>\`; if this is a new, unrelated scope, add \`NEW SCOPE: <what>\`." >&2
     exit 2
   fi
-  log allow-answered "$DIR" "$PN" "$(rounds "$PREV")" "$ANS"
+  log allow-answered "$DIR" "$PN" "$PR" "$ANS"
   exit 0
 fi
+[ "$TOOL" = Agent ] && { log allow "$DIR" "$PN" 0; exit 0; }   # no batch question for in-process reviewers
 
 # previous reviewer passed: could this wait and go with the next checkpoint?
 UNPUSHED="$(git -C "$DIR" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)"

@@ -23,7 +23,8 @@ file set plus installed skills. If you are unsure which row applies, use the str
 | Backlog rows (§3) | Add rows freely | Closing a row as dropped |
 | Global files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`) | Nothing | Everything (edit BOTH in the same change; `Version:` lines must stay identical). Content contract (user rulings 2026-08-08 + 2026-08-16 two-edition scheme): iron laws only; the solid edition (`global/CLAUDE.md`/`global/AGENTS.md`, deployed) has NO size cap — the budget baseline gate governs growth; `global/kernel-lean.md` (fetched by `WEB-AGENTS.md` for network-only agents) carries no hard character cap — keep it terse by review, not by a number; detail lives in routed files; imperative modality (MUST/never/ask-first) is part of the norm and must never be softened by compression |
 | Installed skills (`~/.agents/skills/*`, `~/.claude/skills/*`, plugin skills) | Nothing | Everything — never edit a skill without an approved diff |
-| `~/.claude/settings.json`, plugins, hooks | Nothing | Everything (user decided 2026-07-10 to keep current plugin set) |
+| `~/.claude/settings.json`, plugins | Nothing | Everything (user decided 2026-07-10 to keep current plugin set) |
+| Hooks and gates (`.agents/hooks/`, `scripts/` checks) | Nothing | A change to an existing hook or gate, or a new gate that §2 allows — same consensus path as `rules/*.md` (user 2026-10-22 「你都知道和 advisor 討論好就加一加啊」) |
 | `.workflow/*` task artifacts (per project) | Free | — |
 
 "Show the exact diff" means: print the proposed old→new text and the triggering
@@ -36,7 +37,7 @@ cannot reopen the failure.
 
 Before proposing a rule, hook, or gate after a violation: name the controlling
 rule and the action that violated it, correct the current action or claim, then
-assess enforcement. A mechanism is eligible for user approval only when (a) two
+assess enforcement. A mechanism is eligible for its §1 approval path only when (a) two
 verified incidents repeat the same prohibited action after the rule was clear,
 (b) one incident's recurrence risks a hard-stop boundary, security, privacy, or
 data loss, or (c) the user explicitly requests enforcement. Cite the incidents

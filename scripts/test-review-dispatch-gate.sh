@@ -3,7 +3,7 @@
 cd "$(dirname "$0")/.." || exit 1
 H="$PWD/.agents/hooks/review-dispatch-gate.sh"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
-export TMUX_AGENT_STATE_V3="$T/v3" XDG_DATA_HOME="$T/data"
+export TMUX_AGENT_STATE_V3="$T/v3" XDG_DATA_HOME="$T/data" CLAUDE_CONFIG_DIR="$T/cc"
 fail=0
 S=sess-1
 git init -q --bare "$T/remote.git"
@@ -153,6 +153,19 @@ t "agent: no verdict + REDISPATCH"      0 "$(agent "$REV
 REDISPATCH: it hit the turn limit")"
 { use toolu_D; res toolu_D 'VERDICT: BLOCK'; use toolu_E; res toolu_E 'VERDICT: PASS'; } > "$TR"
 t "agent: latest reviewer PASS"         0 "$(agent "$REV")"
+
+# W44-13: one previous reviewer across both sources (the newer one)
+CT="$T/cc/projects/p/$S.jsonl"; mkdir -p "${CT%/*}"
+reset; worker r9.xxxxx "$S" /w 1792670000000 1 "$BLOCKV"; : > "$TR"
+t "cross: tmux BLOCK, then Agent reviewer" 2 "$(agent "$REV")"
+grep -q 'tell r9.xxxxx' "$T/err" && echo "ok   cross denial names tell <tmux reviewer>" || { echo "FAIL cross denial names tell <tmux reviewer>"; fail=1; }
+reset; { use toolu_X | jq -c '.timestamp="2026-10-22T16:00:00.123Z"'; res toolu_X 'VERDICT: BLOCK'; } > "$CT"
+t "cross: Agent BLOCK, then tmux assign" 2 "$(assign /w "$REV")"
+t "cross: Agent BLOCK + LAYER, tmux assign" 0 "$(assign /w "LAYER: L3 — sol and fable disagree
+$REV")"
+worker r9.yyyyy "$S" /w 1792684800999 1 "$PASSV"
+t "cross: newer tmux PASS wins over Agent BLOCK" 0 "$(assign /w "$REV")"
+rm -f "$CT"
 
 n="$(jq -r 'select(.result=="shopping")' "$T/data/agent-hooks/review-dispatch-stats.jsonl" | grep -c timestamp)"
 [ "$n" -ge 1 ] && echo "ok   stats records shopping ($n)" || { echo "FAIL stats records shopping"; fail=1; }
