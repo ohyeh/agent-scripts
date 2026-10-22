@@ -51,6 +51,7 @@ Each repo declares its own verification values in `.claude/workflows/feature-lif
 - `timeoutSec`: hard timeout per command (`perl -e 'alarm N; exec @ARGV' --`; exit `142` = `TIMEOUT`).
 - `sources`: verifier/oracle files frozen (`sha256`) before implementation and re-checked in every L0 round; any drift voids PASS.
 - `unknown ≠ PASS`: missing, unreadable, or unexecuted verification is `UNVERIFIED`, never `PASS`.
+- `/loop` exit: copy `templates/loop.md` to `<repo>/.claude/loop.md`, so the loop ends on this verification, not on a line the agent writes.
 - Adopt one result once: record each adopted delivery (`delivery_id` / `seq`) in `.workflow/<run>/state.json` and never adopt it twice.
 
 ## 1. SEARCH / LOCATE  (cheapest capable tier; read-only agent type if available)

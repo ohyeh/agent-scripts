@@ -18,8 +18,8 @@ file set plus installed skills. If you are unsure which row applies, use the str
 | File | Agent may (no approval)… | Requires user approval |
 |---|---|---|
 | `rules/model-dispatch.md` §1 table | Update model values after LIVE verification (schema/`/model`), quote the check in the commit message | Changing the ladder or contracts (§2–§7) |
-| Other `rules/*.md` | Fix objectively broken paths/commands (verify first, quote the check in the commit message) | Any semantic change — show the exact diff, wait for approval |
-| Companion docs in `rules/` (letter, provisioning runbook) | Fix verified-broken facts/paths (quote the check in the commit message) | Semantic/content changes — diff + approval |
+| Other `rules/*.md` | Fix objectively broken paths/commands (verify first, quote the check in the commit message) | Any semantic change — exact diff, settled by the consensus ladder (advisor + a second-model reviewer, judgment-rubrics §3), applied, and reported to the user in the same turn with the diff and who agreed (user 2026-10-22 「你和 advisor + sol 確認就好啊」) |
+| Companion docs in `rules/` (letter, provisioning runbook) | Fix verified-broken facts/paths (quote the check in the commit message) | Semantic/content changes — same consensus path as the row above |
 | Backlog rows (§3) | Add rows freely | Closing a row as dropped |
 | Global files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`) | Nothing | Everything (edit BOTH in the same change; `Version:` lines must stay identical). Content contract (user rulings 2026-08-08 + 2026-08-16 two-edition scheme): iron laws only; the solid edition (`global/CLAUDE.md`/`global/AGENTS.md`, deployed) has NO size cap — the budget baseline gate governs growth; `global/kernel-lean.md` (fetched by `WEB-AGENTS.md` for network-only agents) carries no hard character cap — keep it terse by review, not by a number; detail lives in routed files; imperative modality (MUST/never/ask-first) is part of the norm and must never be softened by compression |
 | Installed skills (`~/.agents/skills/*`, `~/.claude/skills/*`, plugin skills) | Nothing | Everything — never edit a skill without an approved diff |
@@ -27,7 +27,8 @@ file set plus installed skills. If you are unsure which row applies, use the str
 | `.workflow/*` task artifacts (per project) | Free | — |
 
 "Show the exact diff" means: print the proposed old→new text and the triggering
-incident, then STOP until the user approves. Never apply-then-ask. Quote the old text
+incident. For a row that requires user approval, STOP until the user approves; never
+apply-then-ask. For a consensus row, apply after the consensus and report. Quote the old text
 from the saved file at proposal time; if the pre-edit text is unavailable, say so rather
 than treating HEAD as the original. Before changing a rule whose text cites a lesson,
 ops/evidence note, or commit as its trigger, read that source first and confirm the change
