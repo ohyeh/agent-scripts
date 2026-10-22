@@ -463,7 +463,8 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
    --arg compcap "\"\$HOME/.agents/hooks/compaction-cap-gate.sh\"" \
    --arg idle "\"\$HOME/.agents/hooks/wakeup-idle-gate.sh\"" \
    --arg roundcost "\"\$HOME/.agents/hooks/round-cost-gate.sh\"" \
-   --arg followup "\"\$HOME/.agents/hooks/worker-followup-gate.sh\"" '
+   --arg followup "\"\$HOME/.agents/hooks/worker-followup-gate.sh\"" \
+   --arg dispatchgate "$HOME/.agents/hooks/review-dispatch-gate.sh" '
   def ensure(ev; bare): ($only + " " + bare) as $cmd |
     .hooks[ev] = ((.hooks[ev] // [])
       | if any(.[]; any(.hooks[]?; .command == $cmd))
@@ -511,12 +512,15 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "Bash"; $audit)
   | ensureMatched("PreToolUse"; "Bash"; $device)
   | ensureMatched("PreToolUse"; "Bash"; $assignhost)
-  | ensureMatched("PreToolUse"; "mcp__tmux-agent__assign|mcp__tmux-agent__tell|Agent"; $review)
-  # W43-22 widened the matcher; ensureMatched keeps an existing entry as is, so move it in place
+  | ensureMatched("PreToolUse"; "Agent"; $review)
+  # W44-1: settings PreToolUse never fires for mod tools; the tmux-agent mod runs this gate
+  # itself from TMUX_AGENT_DISPATCH_GATE. ensureMatched keeps an existing entry, so move it in place
   | .hooks.PreToolUse |= map(if any(.hooks[]?; .command == ($only + " " + $review))
-      then .matcher = "mcp__tmux-agent__assign|mcp__tmux-agent__tell|Agent" else . end)
+      then .matcher = "Agent" else . end)
+  | .env = ((.env // {}) + {TMUX_AGENT_DISPATCH_GATE: $dispatchgate})
   | ensureMatched("PreToolUse"; "Workflow"; $wfcap)
-  | ensureMatched("SubagentStart"; "workflow-subagent"; $wfcap)
+  # W44-2 B1: subagent-ledger.sh now counts workflow agents at SubagentStart
+  | retire("SubagentStart"; $only + " " + $wfcap)
   | ensureMatched("PreToolUse"; "Bash"; $rmhome)
   | ensureMatched("PreToolUse"; "mcp__codex-cu__js"; $cuchrome)
   | ensureMatched("PreToolUse"; "Bash"; $prcreate)

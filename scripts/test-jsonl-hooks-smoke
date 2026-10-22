@@ -56,6 +56,32 @@ run_ledger_event SubagentStop "$SID" "agent-3"
 run_conc "$SID" || { echo "FAIL: dispatch blocked with 4 live subagents" >&2; exit 1; }
 grep -c '"result":"concurrency"' "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" | grep -qx 1 || { echo "FAIL: concurrency stat not logged exactly once" >&2; exit 1; }
 
+# W44-2 B1: the ledger counts a workflow agent (no pending claimed + a run on record) under the run key
+hook_env() { HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" XDG_STATE_HOME="$TEST_HOME/.local/state" "$@"; }
+wf_launch() { jq -cn --arg s "$1" '{hook_event_name:"PreToolUse",tool_name:"Workflow",session_id:$s,tool_input:{name:"haiku-research-round"}}' | hook_env bash "$ROOT/.agents/hooks/workflow-agent-cap.sh"; }
+wf_start() { jq -cn --arg s "$1" --arg a "$2" '{hook_event_name:"SubagentStart",session_id:$s,agent_id:$a,agent_type:"general-purpose"}' | hook_env bash "$ROOT/.agents/hooks/subagent-ledger.sh" 2>"$WORK/cap-stderr"; }
+wf_counted() { find "$TEST_HOME/.local/state/agent-hooks/$1/workflow-runs" -type f 2>/dev/null | wc -l | tr -d ' '; }
+wf_launch wf-cap
+mkdir -p "$TEST_HOME/.local/state/agent-hooks/wf-cap/pending"; echo "1 general-purpose" > "$TEST_HOME/.local/state/agent-hooks/wf-cap/pending/1-p"
+wf_start wf-cap agent-tool && [[ "$(wf_counted wf-cap)" == 0 ]] || { echo "FAIL: B1 subagent with a pending was counted" >&2; exit 1; }
+wf_start wf-cap w1 && [[ "$(wf_counted wf-cap)" == 1 ]] || { echo "FAIL: B1 pending-less subagent with a run on record not counted" >&2; exit 1; }
+for i in $(seq 2 25); do wf_start wf-cap "w$i" || { echo "FAIL: B1 agent $i of 25 denied" >&2; exit 1; }; done
+if wf_start wf-cap w26; then echo "FAIL: B1 26th workflow agent not capped" >&2; exit 1; fi
+grep -q 'CAPPED: W43-1 haiku-research-round agent 26/25' "$WORK/cap-stderr" || { echo "FAIL: B1 CAPPED text: $(cat "$WORK/cap-stderr")" >&2; exit 1; }
+wf_start wf-norun n1 && [[ "$(wf_counted wf-norun)" == 0 ]] || { echo "FAIL: B1 subagent counted with no run on record" >&2; exit 1; }
+
+# W44-2 B2: a main-agent TaskStop of a workflow (via context-ledger) drops that run's live markers only
+TS_STATE="$TEST_HOME/.local/state/agent-hooks/taskstop/subagents"; mkdir -p "$TS_STATE" "$WORK/wf_X" "$WORK/wf_Y"
+for a in x1 x2 y1; do echo "general-purpose t" > "$TS_STATE/$a"; done
+: > "$WORK/wf_X/agent-x1.meta.json"; : > "$WORK/wf_X/agent-x2.meta.json"; : > "$WORK/wf_Y/agent-y1.meta.json"
+{ jq -cn --arg d "$WORK/wf_X" '{type:"user",toolUseResult:{status:"async_launched",taskId:"tX",taskType:"local_workflow",runId:"wf_X",transcriptDir:$d}}'
+  jq -cn --arg d "$WORK/wf_Y" '{type:"user",toolUseResult:{status:"async_launched",taskId:"tY",taskType:"local_workflow",runId:"wf_Y",transcriptDir:$d}}'; } > "$WORK/ts-transcript.jsonl"
+task_stop() { jq -cn --arg t "$1" --arg ty "$2" --arg tp "$WORK/ts-transcript.jsonl" '{hook_event_name:"PostToolUse",session_id:"taskstop",transcript_path:$tp,tool_name:"TaskStop",tool_input:{task_id:$t},tool_response:{task_type:$ty}}' | hook_env bash "$ROOT/.agents/hooks/context-ledger.sh"; }
+task_stop tY local_agent
+[[ "$(ls "$TS_STATE" | tr '\n' ' ')" == "x1 x2 y1 " ]] || { echo "FAIL: B2 local_agent TaskStop removed markers: $(ls "$TS_STATE")" >&2; exit 1; }
+task_stop tX local_workflow
+[[ "$(ls "$TS_STATE" | tr '\n' ' ')" == "y1 " ]] || { echo "FAIL: B2 workflow TaskStop: want y1 left, got $(ls "$TS_STATE")" >&2; exit 1; }
+
 run_ledger() {
   printf '%s' "$1" |
     HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/context-ledger.sh" >/dev/null 2>&1
@@ -355,4 +381,4 @@ printf '%s' "$out" | jq -e '.decision == "deny"' >/dev/null || { echo "FAIL: agy
 out="$(printf '%s' '{"conversationId":"c","toolCall":{"name":"invoke_subagent","args":{"Task":"t"}}}' | run_adapted bash "$ROOT/.agents/hooks/agy-adapt.sh" PreToolUse host-load-gate)"
 printf '%s' "$out" | jq -e '.decision == "deny"' >/dev/null || { echo "FAIL: agy invoke_subagent deny not mapped: $out" >&2; exit 1; }
 
-echo "JSONL hooks smoke: bol denies incomplete briefs + proxy briefs missing declared fields; concurrency gate denies the 6th subagent; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call; host load gate warns via additionalContext, denies Agent/v2 spawn/local agent-tmux launches on load/pressure/unreadable (also through the Cursor and agy adapters), passes start-ssh/dry-run/off/non-macOS"
+echo "JSONL hooks smoke: bol denies incomplete briefs + proxy briefs missing declared fields; concurrency gate denies the 6th subagent; ledger counts pending-less workflow agents per run and caps the 26th; workflow TaskStop drops only that run's markers; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call; host load gate warns via additionalContext, denies Agent/v2 spawn/local agent-tmux launches on load/pressure/unreadable (also through the Cursor and agy adapters), passes start-ssh/dry-run/off/non-macOS"

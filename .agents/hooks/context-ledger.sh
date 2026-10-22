@@ -57,4 +57,11 @@ fi
 AGENT_ID="$(printf '%s' "$IN" | jq -r '.agent_id // empty')"
 jq -cn --arg ts "$ts" --arg tool "$TOOL_NAME" --arg file "$FILE_PATH" --arg sha "$sha" --argjson ev "${evidence:-[]}" --arg aid "$AGENT_ID" \
   '{timestamp: $ts, tool: $tool, file: (if $file == "" then null else $file end), input_sha256: $sha, evidence: $ev, agent_id: (if $aid == "" then null else $aid end)}' >> "$LEDGER"
+
+# W44-2 B2: this hook already sees every PostToolUse, so it hands TaskStop to the subagent ledger
+# (no extra registration). A failure is logged and never changes this hook's exit.
+if [ "$TOOL_NAME" = TaskStop ]; then
+  printf '%s' "$IN" | bash "$(dirname "$0")/subagent-ledger.sh" 2>>"$RUN_DIR/taskstop-forward.log" \
+    || echo "$ts subagent-ledger.sh exit=$?" >> "$RUN_DIR/taskstop-forward.log"
+fi
 exit 0
