@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# W44-8 smoke for haiku-research-round: a browser round reports leaked tabs, codex-cu scouts
+# run one at a time with namespaced globals, and a "refuted" finding with no quote goes to
+# needs_reread. Runs the recipe body with stubbed agent()/parallel(); no model is called.
+set -u
+W="$(CDPATH= cd -- "$(dirname -- "$0")/../skills/using-workflows/workflows" && pwd)"
+node --input-type=module - "$W/haiku-research-round.workflow.js" <<'EOF'
+import fs from 'node:fs'
+const body = fs.readFileSync(process.argv[2], 'utf8').replace(/^export const meta/m, 'const meta')
+const AsyncFn = Object.getPrototypeOf(async () => {}).constructor
+const run = async (args, tabs) => {
+  const st = { live: 0, maxLive: 0, prompts: {} }
+  const agent = async (prompt, o) => {
+    const key = o.label.split(':')[1]
+    if (key.startsWith('tabs-')) return tabs[key] === null ? null : { tabs: tabs[key] }
+    st.prompts[key] = prompt; st.live++; st.maxLive = Math.max(st.maxLive, st.live)
+    await new Promise(r => setTimeout(r, 5)); st.live--
+    return { findings: [{ claim: 'c', source: 'u', status: 'refuted', quote: key === 'a' ? 'verbatim text' : '' }], open_questions: [], blockers: [] }
+  }
+  const parallel = async thunks => Promise.all(thunks.map(t => t().catch(() => null)))
+  const out = await new AsyncFn('args', 'agent', 'parallel', 'phase', 'log', body)(args, agent, parallel, () => {}, () => {})
+  return { out, st }
+}
+let fail = 0
+const check = (name, ok, got) => { if (!ok) fail = 1; console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${ok ? '' : ` — got: ${JSON.stringify(got)}`}`) }
+const scouts = [{ key: 'a', prompt: 'A' }, { key: 'b', prompt: 'B' }]
+
+let { out, st } = await run({ context: 'x', scouts, tools: 'codex-cu + Chrome' },
+  { 'tabs-before': ['u1', 'u2'], 'tabs-after': ['u1', 'u2', 'u2', 'gf'] })
+check('leaked tabs reported (count-aware)', JSON.stringify(out.tab_leaks) === '["u2","gf"]', out.tab_leaks)
+check('codex-cu scouts run one at a time', st.maxLive === 1, st.maxLive)
+check('scout globals namespaced by key', st.prompts.b.includes('globalThis["scout_b"]'), st.prompts.b)
+check('unquoted refuted -> needs_reread', out.needs_reread.length === 1 && out.needs_reread[0].key === 'b' && out.scouts[1].findings.length === 0, out)
+check('quoted refuted stays a finding', out.scouts[0].findings.length === 1, out.scouts[0])
+
+;({ out } = await run({ context: 'x', scouts, tools: 'codex-cu' }, { 'tabs-before': ['u1'], 'tabs-after': ['u1'] }))
+check('clean browser round -> []', Array.isArray(out.tab_leaks) && out.tab_leaks.length === 0, out.tab_leaks)
+;({ out } = await run({ context: 'x', scouts, tools: 'codex-cu' }, { 'tabs-before': ['u1'], 'tabs-after': null }))
+check('failed tab listing is not reported clean', out.tab_leaks === null, out.tab_leaks)
+;({ out, st } = await run({ context: 'x', scouts }, {}))
+check('web round runs in parallel, no tab check', st.maxLive === 2 && out.tab_leaks.length === 0 && !st.prompts.a.includes('BROWSER'), { st, out })
+process.exit(fail)
+EOF

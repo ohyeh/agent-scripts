@@ -37,6 +37,11 @@ Tab mechanics (each checked 2026-10-16 with `lsappinfo front` before and after):
 - Close any other tab: `osascript -e 'tell application "Google Chrome" to close (every tab of every window whose URL contains "<marker>")'`.
   `cua.getTab({url}) … close()` on a tab the run did not create hung until the
   timeout and reset the runtime.
+- Close every tab you open. List the tab URLs before and after the run (the
+  osascript `get URL` line in Quickstart step 1); a new URL in the after list
+  is a leak: close it and report it. A report of "closed my tab" is not a check.
+- Click with `tab.playwright.locator(sel).click()`, never `.click()` inside
+  `evaluate`: it threw `el.click is not a function` (2026-10-19).
 - After a click that changes data (delete, submit), check the result with rung 1,
   not the page: `getAXState` timed out on `DOMSnapshot.captureSnapshot` right
   after a delete.
