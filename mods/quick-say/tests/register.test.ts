@@ -47,22 +47,22 @@ test('the band starts folded, opens, and a combo button fills its whole text int
   await $.session.start(start)
 
   const folded = textOf(await $.ui.render(band()))
-  expect(folded).toContain('▌quick say v0.3.1 · 4 combos · auto · 0 nudges [ ⚡ auto ][ ▸ open ][ hide ]')
-  expect(folded).not.toContain('9: 收工')
+  expect(folded).toContain('▌quick say v0.4.0 · 6 combos · auto · 0 nudges [ ⚡ auto ][ ▸ open ][ hide ]')
+  expect(folded).not.toContain('0: 收工')
 
   await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above' })
   expect(w.store.get('quick-say.fold')).toBe('open')
   const open = textOf(await $.ui.render(band()))
   expect(open).toContain('[ ▾ fold ]')
-  expect(open).toContain('6: 審過再做  7: 進度續跑  8: 做完推送  9: 收工')
+  expect(open).toContain('5: 接手  6: 審過再做  7: 離席照做  8: 進度續跑  9: 做完推送  0: 收工')
 
-  await $.ui.press({ plugin: PLUGIN, key: 'say-9', requestId: 'above' })
-  expect(w.filled).toEqual([PHRASES[3].text])
+  await $.ui.press({ plugin: PLUGIN, key: 'say-0', requestId: 'above' })
+  expect(w.filled).toEqual([PHRASES[5].text])
   expect(w.sent.length).toBe(0)
 
   // The open choice is kept for the next session; folding again is kept too.
   await $.session.start(start)
-  expect(textOf(await $.ui.render(band()))).toContain('9: 收工')
+  expect(textOf(await $.ui.render(band()))).toContain('0: 收工')
   await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above' })
   expect(w.store.get('quick-say.fold')).toBe('folded')
   await $.session.start(start)
@@ -74,9 +74,13 @@ test('narrow: icons only, labels cut, never wrapped; no room: the phrase row goe
   await $.session.start(start)
 
   const narrow = textOf(await $.ui.render(band(40)))
-  expect(narrow).toContain('▌quick say v0.3.1')
+  expect(narrow).toContain('▌quick say v0.4.0')
   expect(narrow).toContain('[ ⚡ ][ ▾ ][ ✕ ]')
-  expect(narrow).toContain('6: 審過…')
+  // Six labels do not fit 40 columns: two rows of three, uncut.
+  expect(narrow).toContain('5: 接手  6: 審過再做  7: 離席照做')
+  expect(narrow).toContain('8: 進度續跑  9: 做完推送  0: 收工')
+  // Room for one phrase row only: one row, labels cut.
+  expect(textOf(await $.ui.render(band(40, 3)))).toContain('5: …')
 
   // maxRows 2 leaves one row under the workers row: the header alone; 1 leaves none.
   const tight = textOf(await $.ui.render(band(120, 2)))
@@ -99,9 +103,9 @@ test('hide takes the band away across sessions until /quick-say shows it again',
 
   const shown = await $.command.run(cmd)
   expect(shown.text).toContain('band shown')
-  expect(shown.text).toContain(`9 收工: ${PHRASES[3].text}`)
+  expect(shown.text).toContain(`0 收工: ${PHRASES[5].text}`)
   expect(w.store.get('quick-say.hidden')).toBe('shown')
-  expect(textOf(await $.ui.render(band()))).toContain('▌quick say v0.3.1')
+  expect(textOf(await $.ui.render(band()))).toContain('▌quick say v0.4.0')
 
   expect((await $.command.run(cmd)).text).toContain('band hidden; /quick-say shows it again.')
 })

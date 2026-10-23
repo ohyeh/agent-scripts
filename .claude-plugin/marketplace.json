@@ -45,8 +45,8 @@
     {
       "name": "quick-say",
       "source": "./mods/quick-say",
-      "description": "Function-hook mod: follow-through for the owner's repeated asks. At the end of a main-agent turn, one framed reminder for uncommitted or unpushed work this session made, or for a closing \"shall I?\"; else the likely next combo shows dim in the empty prompt. Digits 6-9 fill a combo into the prompt. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.3.1",
+      "description": "Function-hook mod: follow-through for the owner's repeated asks. At the end of a main-agent turn, one framed reminder for uncommitted or unpushed work this session made, or for a closing \"shall I?\"; else the likely next combo shows dim in the empty prompt. Digits 5-9 and 0 fill a combo into the prompt. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.4.0",
       "author": {
         "name": "PaulYeh"
       },

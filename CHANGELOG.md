@@ -1,5 +1,13 @@
 # Changelog
 
+## quick-say 0.4.0
+
+Owner 10-23: 「你應該好好的去研究過往我 session 的發言、難處…要分有人在旁的發言 以及可能長時間不在長任務 loop or goal 的發言」; 「最笨就是讓 agy flash 每個 session 去研究說話以及遇到的問題」.
+
+- **Two more combos from a per-session study**: agy-flash read 336 sessions one by one (all local, remote44 healthgo only, archives in, worker and headless runs out; every quote checked against the session file) and found 471 lost rounds. sol's earlier pass over a wider set of sessions points the same way. `5 接手` (start of a session: read the named handoff or the latest record, report in four lines, go on, never ask where the last session stopped) targets briefs that left the agent to guess. `7 離席照做` (the owner leaves: run the agreed plan to its acceptance, watch waits with a stall limit, stop only when done, blocked or a new approval is needed) targets long runs that stopped while the owner was away. `進度續跑` now asks for a four-line report. The keys are now 5-9 and 0; `收工` moved to 0.
+- **Too narrow for six labels**: two rows of three when the band has room, else one row of cut labels.
+- Not a combo's job: about 40% of the lost rounds went to work that missed the mark or was misread, and about 22% to rules or tools the agent should already follow. A button cannot carry the owner's deliverable, and a rule gap needs a rule or hook fix.
+
 ## quick-say 0.3.1
 
 - **Combo texts from sol and agy**: both found the same four runs (sol, adjacent runs checked by hand: review 22 sessions, push 18, progress 16, wrap-up 5; agy, broader: 30 / 19 / 52 / 10). The four texts are sol's rewrites, which keep the limits the old ones broke: a plan-only task delivers the plan, deploy or reload only an authorized target, review fixes go back to the same reviewer for at most three rounds. `做完推送` adds agy's tests and pre-push check before a push.

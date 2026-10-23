@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { cells, fit, rowsOf } from './lib/band.ts'
 import { askPrompt, askTail, dirOf, gitDirOf, gitPrompt, isCommit, type GitGap } from './lib/follow.ts'
 
-const MOD_VERSION = '0.3.1'
+const MOD_VERSION = '0.4.0'
 const NAME = 'quick-say'
 const COMMAND = 'quick-say'
 const ACCENT = 'cyan'
@@ -14,10 +14,18 @@ const HIDE_KEY = `${NAME}.hidden`
 // Combos: what the owner spent two to four prompts in a row asking for (session logs 2026-10-23:
 // "advisor review 過了？" → "意見一次說完" → "有共識才執行"; "PLAN 都做好了？" → "都有 PUSH？" →
 // "先 PUSH 啊"; "順利？" → "繼續處理啊"; "都搞定？" → the /session-handoff wrap-up), each one prompt.
-// Texts: sol's rewrites (they keep plan-only, deploy and review-round limits), with agy's pre-push check.
+// 接手 and 離席照做 come from the per-session study of 336 sessions (.workflow/202610231450-quick-say-combos/booklet.md):
+// briefs that made the agent guess the earlier work, and long runs that stopped while the owner was away.
 // A digit fills the prompt box; the person reads it and sends it, so it approves what it says.
-// Digits 6-9: the workers band numbers its rows from 1, and a clash goes to whichever draws later.
+// Digits 5-9 and 0: the workers band numbers its rows from 1 and a clash goes to whichever draws later;
+// 5 clashes only with five or more workers, and 接手 comes before any worker starts.
 export const PHRASES = [
+  {
+    hotkey: '5',
+    label: '接手',
+    when: 'session 剛開始，要接續之前的工作（交接、計畫或上一個 session）',
+    text: '接手這個 repo 進行中的工作：先讀本 session 指定的交接或計畫；沒指定就查最新的交接、run dir、git log 與過往 session 紀錄，不要問我上次做到哪。用四行回報：目標、已驗證完成、未完成項目、下一步；若多份紀錄互相衝突，列出差異與建議，不要猜。接著在既有授權內續做，已驗證且未變的不重做。',
+  },
   {
     hotkey: '6',
     label: '審過再做',
@@ -26,18 +34,24 @@ export const PHRASES = [
   },
   {
     hotkey: '7',
-    label: '進度續跑',
-    when: 'agent 停下來報告一段，或做到一半停住，還有後續步驟可以自己接著做',
-    text: '簡短回報本次進度：先列仍需要我決定的事，再列已完成項目與本 session 驗證證據、目前在做什麼、剩餘項目及卡點。沒有待決事項就直接接下一步，做到本次驗收完成；遇到需新增授權或無法自行排除的卡點，附證據與具體建議回報，不用等我再說繼續。',
+    label: '離席照做',
+    when: '計畫已定案，使用者要離開一段時間，交給 agent 自己做到完成',
+    text: '我要離開一段時間。依本 session 已定案的計畫，在既有授權內做到驗收完成，不另加目標。每輪先對照未完成項目再做下一步；advisor 能定的事不要等我。等待 worker 或外部工作時設監看與停滯期限，不要空等。只有完成、真的卡住或需要新授權才停下回報，回報附證據；push 依既定檢查點。',
   },
   {
     hotkey: '8',
+    label: '進度續跑',
+    when: 'agent 停下來報告一段，或做到一半停住，或使用者回來想知道進度，還有後續步驟可以自己接著做',
+    text: '用四行回報：需要我決定的事、已驗證完成（附本 session 證據）、目前在跑或在等什麼、下一步與停滯期限。沒有待決事項就直接接著做到本次驗收完成，不因我問進度而停下或重跑已通過且未變的檢查；需新增授權的部分另列，其他照做，不用等我再說繼續。',
+  },
+  {
+    hotkey: '9',
     label: '做完推送',
     when: 'agent 說做完了，但還沒對照計畫逐項確認、或還沒 commit、push、部署',
     text: '依本次已核准範圍逐項對帳，把未完成的做完並附本 session 驗證輸出；只定案計畫的任務就交付計畫。測試、pre-push 檢查與 review 通過後，依分支與授權規則 commit、push；部署或 reload 只處理已有授權的目標。最後列 commit SHA、push 結果、部署驗證，以及未交付項目、原因與下一步。',
   },
   {
-    hotkey: '9',
+    hotkey: '0',
     label: '收工',
     when: '任務都完成、驗證過也推送了，這個 session 可以結束',
     text: '收工。核對本次目標、驗證及 push 狀態，未完成項目如實列出。用 session-handoff skill 寫可接續的交接，再給 recap：成果、證據、未完成項目與下一步。整理本 session 的錯誤、修正與開發建議，納入 main session、sub-agent 和 tmux worker 的行為，依 shared-memory-intake skill 投稿；附交接與投稿位置。',
@@ -257,15 +271,19 @@ export const register: Register = on => {
       ],
     })
     if (s.folded || budget < 2) return Box({ flexDirection: 'column', children: [below, header] })
-    // Each phrase gets an equal share of the row: '  N: ' plus its label, cut to fit (rule 10).
-    const share = Math.floor(width / PHRASES.length) - 5
-    const row = Box({
-      flexDirection: 'row',
-      children: PHRASES.flatMap(p => [
-        Text({ children: '  ' }),
-        Button({ key: `say-${p.hotkey}`, hotkey: p.hotkey, plain: true, label: fit(p.label, share), onPress: () => say($, p) }),
-      ]),
-    })
-    return Box({ flexDirection: 'column', children: [below, header, row] })
+    // Each phrase gets an equal share of its row: '  N: ' plus its label, cut to fit (rule 10).
+    // Too narrow for even one character and '…' each: two rows, when the budget has room for them.
+    const perRow = budget >= 3 && Math.floor(width / PHRASES.length) < 9 ? Math.ceil(PHRASES.length / 2) : PHRASES.length
+    const share = Math.floor(width / perRow) - 5
+    const rows = [PHRASES.slice(0, perRow), PHRASES.slice(perRow)].filter(r => r.length > 0).map(r =>
+      Box({
+        flexDirection: 'row',
+        children: r.flatMap(p => [
+          Text({ children: '  ' }),
+          Button({ key: `say-${p.hotkey}`, hotkey: p.hotkey, plain: true, label: fit(p.label, share), onPress: () => say($, p) }),
+        ]),
+      }),
+    )
+    return Box({ flexDirection: 'column', children: [below, header, ...rows] })
   })
 }
