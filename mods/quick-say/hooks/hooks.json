@@ -1,0 +1,4 @@
+{
+  "description": "Draws the canned prompts above the prompt and submits the pressed one as the person's own words.",
+  "modules": ["./register.ts"]
+}

@@ -1,0 +1,5 @@
+./register.ts hooks: session.start, command.run{command=quick-say}, ui.render{component=AbovePrompt}
+./register.ts gating hook without .catch: command.run{command=quick-say}
+./register.ts calls: $.command.register, $.prompt.submit (via say), $.store.get, $.store.set, $.ui.invalidate, $.ui.resolve, $.ui.toast
+.claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
+hooks/hooks.json names a hooks module (a code file listed under `modules`). The plugin directory has rules of its own for such code, and these checks apply none of them, so passing here does not mean the directory accepts the plugin. The developer portal's own validation applies those rules.

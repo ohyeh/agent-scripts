@@ -1,0 +1,13 @@
+{
+  "name": "quick-say",
+  "version": "0.1.0",
+  "description": "Canned prompts in a band above the prompt: in an empty prompt, press 5-9 to send the session opener, continue, status, go-ahead or wrap-up message as your own words.",
+  "author": {
+    "name": "PaulYeh",
+    "url": "https://github.com/ohyeh"
+  },
+  "repository": "https://github.com/ohyeh/agent-scripts",
+  "keywords": ["canned", "prompt", "band"],
+  "displayName": "Quick Say",
+  "license": "MIT"
+}
