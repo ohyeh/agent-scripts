@@ -12,8 +12,8 @@ own — routing truth lives in the routers, read fresh every run:
 
 1. `skills/using-skills/SKILL.md` — the top-level intent map (adopted surface,
    dormant list, lifecycle view).
-2. `skills/using-design-skills/SKILL.md` — pipelines for anything visual /
-   interface-shaped.
+2. `skills/using-decision-tree/references/design.md` — pipelines for anything
+   visual / interface-shaped.
 3. `skills/using-workflows/SKILL.md` — loop-shaped work (audit, plan→build,
    consensus, triage) and the recipe roster.
 
@@ -28,7 +28,7 @@ recommended answer — then wait. Typical first frontier:
 
 - Is there a codebase already, or greenfield?
 - One session or multi-session? (multi → a `.workflow/` run dir + handoff seams matter)
-- Is the deliverable visual/interface-shaped? (→ using-design-skills owns it)
+- Is the deliverable visual/interface-shaped? (→ the design branch of using-decision-tree owns it)
 - Is the work loop-shaped — audit / consensus / triage / plan→build? (→
   using-workflows owns it)
 - How settled is the idea? (fuzzy → grilling first)

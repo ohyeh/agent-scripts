@@ -25,7 +25,7 @@ inline or use its slash command · `via-router` = enter through the router named
 
 | Router | Enter it when | Mode |
 |---|---|---|
-| `using-design-skills` | Anything visual: web page, app screen, HTML deliverable, chart, artifact, motion, plus module and API interface design | Skill() |
+| `using-decision-tree` | Anything visual: web page, app screen, HTML deliverable, chart, artifact, motion, plus module and API interface design (its design branch) | Skill() |
 | `using-workflows` | Loop-shaped work: audit, consensus, triage, plan→build, lifecycle, research rounds. Owns the recipes in `~/.claude/workflows/`; this file does not list them | Skill() |
 | `using-tmux-agent-tools` | Running a CLI as a tmux worker, or deciding inline versus worker | Skill() |
 
@@ -46,7 +46,7 @@ skill is a link: tools, generators and constraint sets come from the map.
 
 Owner pointers (their chains stay with them): codebase-wide deepening →
 `improve-codebase-architecture`; interface, domain or visual design →
-`using-design-skills`; writing for people → `writing-artifacts`; tmux workers →
+`using-decision-tree`; writing for people → `writing-artifacts`; tmux workers →
 `using-tmux-agent-tools`; loops and recipes → `using-workflows`; a skill edit →
 `skill-creator` (draft, eval), then rule `maintenance` §1 (exact diff, approval)
 before any install or deploy.
@@ -109,17 +109,10 @@ before any install or deploy.
 | assemble material into a journey of beats | `writing-beats` | manual |
 | remove AI writing patterns from any prose | `stop-slop` | Skill() |
 
-## Visual and HTML output (all through `using-design-skills`)
+## Visual and HTML output
 
-Listed so a name resolves, not as a bypass. The router picks the owner.
-
-| Skill | Owns |
-|---|---|
-| `impeccable` | Direction for native screens and existing interfaces; audit and polish after a Taste build |
-| `apple-design` | Springs, gestures, interruptible motion |
-| `design-taste-frontend` | Default direction (Taste v2) for new web pages and web app screens |
-| `diagram-design` | House-style typed diagrams, mermaid, draw.io and excalidraw, PNG/SVG export |
-| `archify` | Native diagrams drawn from a real repo or trace |
+`using-decision-tree` → `references/design.md` names every visual member and
+when each one runs. This file lists none of them.
 
 ## Session and fleet upkeep
 

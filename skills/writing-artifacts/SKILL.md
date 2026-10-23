@@ -1,6 +1,6 @@
 ---
 name: writing-artifacts
-description: Turn a fuzzy subject — a problem description, an incident, a decision, a long-form idea — into a polished deliverable in the user's chosen format (md, html page, Artifact, image, or plain prose). Runs the writing production line (mine → structure → tighten) with stop-slop discipline, then hands rendering to using-design-skills. Invoke when the user wants something EXPLAINED WELL as a document/page, not when they just want code changed.
+description: Turn a fuzzy subject — a problem description, an incident, a decision, a long-form idea — into a polished deliverable in the user's chosen format (md, html page, Artifact, image, or plain prose). Runs the writing production line (mine → structure → tighten) with stop-slop discipline, then hands rendering to the design branch of using-decision-tree. Invoke when the user wants something EXPLAINED WELL as a document/page, not when they just want code changed.
 ---
 
 # writing-artifacts
@@ -59,7 +59,7 @@ whole run (not just this stage): no filler, no hedging, no AI-slop cadence.
 
 - `md` / plain prose → deliver the tightened text directly; done.
 - `html` page / Artifact / diagram / image → hand the FINISHED TEXT to
-  `using-design-skills` as the content contract and let IT compose the
+  `using-decision-tree` (design branch) as the content contract and let IT compose the
   pipeline (it owns authority selection, imagegen delegation, and the
   screenshot-evidence quality loop). Never style inline yourself; the text is
   frozen content by this point — design changes layout, not wording.

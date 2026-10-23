@@ -8,7 +8,7 @@ This repository is the canonical home (ADR-0001) for the fleet's generic agent p
 routers, workflow recipes, and shared rule files; machines are deployed copies only. Built
 incrementally per a frozen, second-model-reviewed implementation plan. Key contents:
 
-- `skills/using-design-skills/` — the Gate R2 `CLEAN`-reviewed design router.
+- `skills/using-decision-tree/` — the decision-tree router: one trunk, one branch file per domain (design first).
 - `skills/using-workflows/` — the workflow meta-router and its 12 canonical recipes
   (`skills/using-workflows/workflows/`), migrated from `ohyeh/tmux-agent-tools`. This bundle is
   the single canonical copy; machines deploy it to `~/.claude/workflows/` via the install script.

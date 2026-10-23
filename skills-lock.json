@@ -264,14 +264,14 @@
       "installedAt": "2026-07-18T20:48:21.472Z",
       "updatedAt": "2026-09-27T13:47:36.006Z"
     },
-    "using-design-skills": {
+    "using-decision-tree": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/using-design-skills/SKILL.md",
-      "skillFolderHash": "20f9c247220a92fe1aaede44119baf93a4c90484",
-      "installedAt": "2026-07-18T20:48:21.473Z",
-      "updatedAt": "2026-10-13T00:00:00.000Z"
+      "skillPath": "skills/using-decision-tree/SKILL.md",
+      "skillFolderHash": "PIN-AFTER-COMMIT",
+      "installedAt": "2026-10-23T00:00:00.000Z",
+      "updatedAt": "2026-10-23T00:00:00.000Z"
     },
     "using-grok-bot-app": {
       "source": "ohyeh/agent-scripts",

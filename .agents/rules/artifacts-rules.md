@@ -5,7 +5,7 @@ This file holds only what an agent does not do by default (measured
 2026-10-13, `.workflow/202610131110-skill-eval`). Generic craft — choose the
 diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 — is not repeated here. The pipeline and the quality loop live in skill
-`using-design-skills`.
+`using-decision-tree` (design branch).
 
 ## Pick the format by size
 
@@ -52,11 +52,12 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 
 ## Diagram
 
-- Owner: skill `diagram-design`; `archify` for its native types drawn from a real repo or trace.
+- Owner: the diagram rows of skill `using-decision-tree` (design branch).
 - More than about nine nodes → split into an overview and a detail diagram.
-- Which diagrams animate, and how: skill `using-design-skills` §DEFER.
+- Which diagrams animate, and how: skill `using-decision-tree`, design branch §Contracts.
 - Static first: with JS off, in reduced motion, in print, and in every
-  export, the complete labeled figure is visible (`archify`: all but JS off).
+  export, the complete labeled figure is visible, except where a member row of
+  the design branch states an exception.
 
 ## Motion in an interface
 
@@ -75,4 +76,4 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 ## Quality
 
 An ugly or generic visual is a BLOCK, not a finished stage. Run the quality
-loop in `using-design-skills` (screenshot evidence, desktop and mobile).
+loop in `using-decision-tree`, design branch (screenshot evidence, desktop and mobile).
