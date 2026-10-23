@@ -16,7 +16,7 @@ say_pass() { echo "PASS [cursor-hooks] $*"; }
 [ -x "$ADAPT" ] || say_fail "adapter not executable: \$HOME/.agents/hooks/cursor-adapt.sh"
 [ -f "$JSON" ] || say_fail "missing \$HOME/.cursor/hooks.json"
 
-for name in bol-prompt-gate subagent-concurrency-gate host-load-gate subagent-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate context-ledger claim-evidence-gate deny-replay-gate; do
+for name in bol-prompt-gate subagent-concurrency-gate host-load-gate subagent-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate rm-home-gate context-ledger claim-evidence-gate deny-replay-gate; do
   [ -x "${HOOK_DIR}/fleet-${name}.sh" ] || say_fail "wrapper missing: \$HOME/.cursor/hooks/fleet-${name}.sh"
 done
 
@@ -30,7 +30,7 @@ hooks = data.get("hooks") or {}
 want = {
     "subagentStart": [f"bash {hook_dir}/fleet-bol-prompt-gate.sh", f"bash {hook_dir}/fleet-subagent-concurrency-gate.sh", f"bash {hook_dir}/fleet-host-load-gate.sh", f"bash {hook_dir}/fleet-subagent-ledger.sh"],
     "subagentStop": [f"bash {hook_dir}/fleet-subagent-ledger.sh"],
-    "preToolUse": [f"bash {hook_dir}/fleet-bash-read-audit.sh", f"bash {hook_dir}/fleet-agent-device-target-gate.sh", f"bash {hook_dir}/fleet-tmux-assign-host-gate.sh", f"bash {hook_dir}/fleet-host-load-gate.sh", f"bash {hook_dir}/fleet-bol-prompt-gate.sh", f"bash {hook_dir}/fleet-deny-replay-gate.sh"],
+    "preToolUse": [f"bash {hook_dir}/fleet-bash-read-audit.sh", f"bash {hook_dir}/fleet-agent-device-target-gate.sh", f"bash {hook_dir}/fleet-tmux-assign-host-gate.sh", f"bash {hook_dir}/fleet-rm-home-gate.sh", f"bash {hook_dir}/fleet-host-load-gate.sh", f"bash {hook_dir}/fleet-bol-prompt-gate.sh", f"bash {hook_dir}/fleet-deny-replay-gate.sh"],
     "postToolUse": [f"bash {hook_dir}/fleet-context-ledger.sh"],
     "beforeSubmitPrompt": [f"bash {hook_dir}/fleet-claim-evidence-gate.sh"],
     "stop": [f"bash {hook_dir}/fleet-claim-evidence-gate.sh"],

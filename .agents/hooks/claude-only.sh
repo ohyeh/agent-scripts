@@ -11,4 +11,5 @@ if jq -e 'type == "object" and has("cursor_version")' >/dev/null 2>&1 <<<"$paylo
 fi
 # bash <hook>, not a shebang exec: on macOS a #! script that execs another #!
 # script leaks ~1 KB of kernel memory (data.kalloc.1024) per launch until reboot.
-printf '%s' "$payload" | bash "$@"
+# Claude Code shows a prompt for a hook's permissionDecision "ask" (rm-home-gate reads this).
+printf '%s' "$payload" | AGENT_HOOK_ASK_OK=1 bash "$@"

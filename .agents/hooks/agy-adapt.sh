@@ -11,7 +11,7 @@
 #     last PLANNER_RESPONSE content = last_assistant_message.
 #     Hook {"decision":"block"} → {"decision":"continue","reason":…}.
 # Pass-through: PreToolUse {"decision":"ask"} (agy reads {} as deny, measured;
-# "allow" would bypass agy permissions); other events {}.
+# "allow" would bypass agy permissions); a hook ask → force_ask; other events {}.
 set -u
 HOOKS_DIR="${AGY_ADAPT_HOOKS_DIR:-$HOME/.agents/hooks}"
 EVENT="${1:-}"; NAME="${2:-}"
@@ -30,8 +30,17 @@ PreToolUse)
     agent_type:"ABSENT",
     tool_name:(.toolCall.name | if .=="run_command" then "Bash" else . end),
     tool_input:((.toolCall.args // {}) + {command:(.toolCall.args.CommandLine // ""), run_in_background:false})}')"
-  err="$(printf '%s' "$mapped" | bash "$HOOK" 2>&1 >/dev/null)"; ec=$?
-  if [ "$ec" -eq 2 ]; then jq -cn --arg r "$err" '{decision:"deny", reason:$r}'; else echo '{"decision":"ask"}'; fi
+  errf="$(mktemp)"
+  out="$(printf '%s' "$mapped" | AGENT_HOOK_ASK_OK=1 bash "$HOOK" 2>"$errf")"; ec=$?
+  err="$(cat "$errf")"; rm -f "$errf"
+  # A hook ask → force_ask (plain ask honors the owner's Always Allow, agy docs); a hook
+  # warning rides in the ask reason (UNCONFIRMED that agy shows it to the model).
+  ask="$(jq -r '.hookSpecificOutput.permissionDecisionReason // empty' <<<"$out" 2>/dev/null)"
+  ctx="$(jq -r '.hookSpecificOutput.additionalContext // empty' <<<"$out" 2>/dev/null)"
+  if [ "$ec" -eq 2 ]; then jq -cn --arg r "$err" '{decision:"deny", reason:$r}'
+  elif [ -n "$ask" ]; then jq -cn --arg r "$ask" '{decision:"force_ask", reason:$r}'
+  elif [ -n "$ctx" ]; then jq -cn --arg r "$ctx" '{decision:"ask", reason:$r}'
+  else echo '{"decision":"ask"}'; fi
   ;;
 Stop)
   [ -f "$trx" ] || { echo '{}'; exit 0; }

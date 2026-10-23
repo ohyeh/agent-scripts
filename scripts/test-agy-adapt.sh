@@ -13,6 +13,9 @@ pre() { jq -cn --arg c "$1" '{conversationId:"c1",transcriptPath:"/x/.gemini/ant
 ok "plain command asks"   ask  "$(pre 'echo hi' | "$A" PreToolUse tmux-assign-host-gate | jq -r .decision)"
 ok "parent poll denied"   deny "$(pre 'agent-tmux codex sta''tus w1' | "$A" PreToolUse tmux-assign-host-gate | jq -r .decision)"
 ok "missing hook is {}"   '{}' "$("$A" PreToolUse no-such-hook < /dev/null 2>/dev/null)"
+ok "gate ask is force_ask" force_ask "$(pre 'git worktree a''dd /tmp/x' | "$A" PreToolUse rm-home-gate | jq -r .decision)"
+ok "gate deny stays deny"  deny "$(pre 'open -a Arc' | "$A" PreToolUse rm-home-gate | jq -r .decision)"
+ok "gate pass asks"        ask  "$(pre 'echo hi' | "$A" PreToolUse rm-home-gate | jq -r .decision)"
 
 trx() { # $1 = final reply, $2 = conversation id (default: fresh), $3 = shell output
   printf '%s\n' '{"type":"USER_INPUT","created_at":"2026-09-26T11:00:00Z","content":"x"}' \

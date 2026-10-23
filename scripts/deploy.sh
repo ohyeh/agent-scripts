@@ -542,7 +542,10 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "Workflow"; $wfcap)
   # W44-2 B1: subagent-ledger.sh now counts workflow agents at SubagentStart
   | retire("SubagentStart"; $only + " " + $wfcap)
-  | ensureMatched("PreToolUse"; "Bash"; $rmhome)
+  | ensureMatched("PreToolUse"; "Bash|EnterWorktree|Agent"; $rmhome)
+  # 2026-10-23: rm-home-gate also asks before a worktree; widen an existing Bash entry in place
+  | .hooks.PreToolUse |= map(if any(.hooks[]?; .command == ($only + " " + $rmhome))
+      then .matcher = "Bash|EnterWorktree|Agent" else . end)
   | ensureMatched("PreToolUse"; "mcp__codex-cu__js"; $cuchrome)
   | ensureMatched("PreToolUse"; "Bash"; $prcreate)
   | ensureMatched("PostToolUse"; "*"; $ledger)
@@ -674,7 +677,8 @@ if [ -d ~/.gemini/config ]; then
     PreToolUse:[{matcher:"run_command",hooks:[
       {type:"command",command:($a+" PreToolUse tmux-assign-host-gate")},
       {type:"command",command:($a+" PreToolUse bash-read-audit")},
-      {type:"command",command:($a+" PreToolUse host-load-gate")}]},
+      {type:"command",command:($a+" PreToolUse host-load-gate")},
+      {type:"command",command:($a+" PreToolUse rm-home-gate")}]},
       {matcher:"invoke_subagent",hooks:[
       {type:"command",command:($a+" PreToolUse host-load-gate")}]}],
     Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$t"
