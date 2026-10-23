@@ -10,7 +10,7 @@
 // allowed). The plan stages drive the OPTIONAL external CLI (args.cli) themselves; the build stage takes no cli (its review
 // ladder picks the reviewers). The shell never touches the CLI/atoms directly.
 // COMMANDER DUTY (user ruling 2026-09-02): before invoking this shell, and again at the Gate before
-// autoBuild, the commander calls `advisor` (skill using-workflows §ADVISOR GATE). The shell cannot
+// autoBuild, the commander calls `advisor` (skill using-decision-tree, references/loops.md §Contracts, advisor gate). The shell cannot
 // call tools; the gate lives in the commander.
 //
 //   Workflow({ name: 'feature-lifecycle-auto', args: {

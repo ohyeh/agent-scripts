@@ -282,15 +282,6 @@
       "installedAt": "2026-07-18T20:48:24.826Z",
       "updatedAt": "2026-10-16T09:41:25.997Z"
     },
-    "using-workflows": {
-      "source": "ohyeh/agent-scripts",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/using-workflows/SKILL.md",
-      "skillFolderHash": "b44179ab1a3911a70a66d503b77c4d1a48dd18af",
-      "installedAt": "2026-07-18T20:48:21.473Z",
-      "updatedAt": "2026-10-23T00:00:00.000Z"
-    },
     "wayfinder": {
       "source": "mattpocock/skills",
       "sourceType": "github",

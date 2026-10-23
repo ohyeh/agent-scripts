@@ -38,7 +38,7 @@ const refs = [
   'skills/delegation-templates/SKILL.md',
   'rules/judgment-rubrics.md',
   'skills/unknowns-discovery/SKILL.md',
-  'skills/using-workflows/SKILL.md',
+  'skills/using-decision-tree/references/loops.md',
   'rules/session-titles.md',
   'rules/maintenance.md',
 ];

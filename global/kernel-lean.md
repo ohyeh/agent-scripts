@@ -41,7 +41,7 @@ ritual or quoting.
 - Define or use judge outputs to choose an action, or report an event probability
   → judgment-rubrics §9.
 - Unclear acceptance, multi-phase, or material default → skill unknowns-discovery.
-- Long loops → operator-defaults §Long loop; loop-shaped work (audit/consensus/triage/plan→build/research) → skill using-workflows.
+- Long loops → operator-defaults §Long loop; loop-shaped work (audit/consensus/triage/plan→build/research) → skill using-decision-tree, loops branch.
 - Non-trivial session lifecycle → session-titles.
 - Any code change → state assumptions, success criteria, verify step per
   plan step; a test change → operator-defaults Test cost.

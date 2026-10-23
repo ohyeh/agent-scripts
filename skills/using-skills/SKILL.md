@@ -25,29 +25,28 @@ inline or use its slash command · `via-router` = enter through the router named
 
 | Router | Enter it when | Mode |
 |---|---|---|
-| `using-decision-tree` | Anything visual: web page, app screen, HTML deliverable, chart, artifact, motion, plus module and API interface design (its design branch) | Skill() |
-| `using-workflows` | Loop-shaped work: audit, consensus, triage, plan→build, lifecycle, research rounds. Owns the recipes in `~/.claude/workflows/`; this file does not list them | Skill() |
+| `using-decision-tree` | Anything visual: web page, app screen, HTML deliverable, chart, artifact, motion, plus module and API interface design (its design branch); loop-shaped work: audit, consensus, triage, plan→build, lifecycle, research rounds (its loops branch, `references/loops.md`; owns the recipes in `~/.claude/workflows/`) | Skill() |
 | `using-tmux-agent-tools` | Running a CLI as a tmux worker, or deciding inline versus worker | Skill() |
 
 ## Flows: situation → handoff → artifact → loop
 
 Conditional handoffs, not a pipeline. Use only the stages the task needs,
 inside the scope the user authorized. A domain router that owns a pipeline
-keeps it. Loop-shaped work or a named recipe goes to `using-workflows`, which
+keeps it. Loop-shaped work or a named recipe goes to the `using-decision-tree` loops branch, which
 picks or bypasses; a fresh reviewer alone does not make a recipe. Not every
 skill is a link: tools, generators and constraint sets come from the map.
 
 | Situation | Handoff | Artifact per step | Loop closes when |
 |---|---|---|---|
 | New feature, acceptance unclear | `unknowns-discovery` (when its trigger holds) → `prototype` for a design question, or `wayfinder` when too big for one session → implement (`tdd` when the user wants test-first) → a check executed and quoted before any done claim (kernel Done rule) → `defect-first-review` when risk or the user asks | stated defaults → design answer or decision tickets → diff and tests → quoted check output → findings | findings fixed and re-verified; a repeated finding → a gate, or a backlog row that names the file |
-| Bug or regression | `diagnosing-bugs` (many competing hypotheses → enter `using-workflows` instead) → re-run the original scenario → `defect-first-review` on the fix diff when risk warrants | repro and failing signal → fix and regression test → original scenario re-run → findings | regression test stays in the repo |
+| Bug or regression | `diagnosing-bugs` (many competing hypotheses → enter the `using-decision-tree` loops branch instead) → re-run the original scenario → `defect-first-review` on the fix diff when risk warrants | repro and failing signal → fix and regression test → original scenario re-run → findings | regression test stays in the repo |
 | Test plan | write the cases inline → only when execution is authorized: the browser row below (web) or the app row below (app) → a bug → Bug row; tracker issues → `triage` | cases → execution evidence → bug report | a missed case goes back into the plan |
 | Pause or hand off | `session-handoff`; reusable knowledge for Codex → `shared-memory-intake` (inbox only) | handoff doc → inbox entry | the next session starts from the doc |
 
 Owner pointers (their chains stay with them): codebase-wide deepening →
 `improve-codebase-architecture`; interface, domain or visual design →
 `using-decision-tree`; writing for people → `writing-artifacts`; tmux workers →
-`using-tmux-agent-tools`; loops and recipes → `using-workflows`; a skill edit →
+`using-tmux-agent-tools`; loops and recipes → the `using-decision-tree` loops branch; a skill edit →
 `skill-creator` (draft, eval), then rule `maintenance` §1 (exact diff, approval)
 before any install or deploy.
 
@@ -95,7 +94,7 @@ before any install or deploy.
 |---|---|---|
 | read a pasted URL as clean markdown | `defuddle` | Skill() |
 | read, fill, merge, or produce a PDF | `pdf` | Skill() |
-| investigate a question against primary sources, write it up | `using-workflows` → `haiku-research-round` | Skill() |
+| investigate a question against primary sources, write it up | `using-decision-tree` loops branch → `haiku-research-round` | Skill() |
 | drive a browser: navigate, fill forms, read a logged-in page, screenshot | `codex-cu` where it is installed: the user's own Chrome, background tab first. A host without it (no ChatGPT Computer Use plugin) goes straight to `agent-browser`, no setup unless the user asks; so does a step codex-cu cannot do. `agent-browser` runs one named session, reused and closed at the end, never several at once | Skill() |
 | drive an iOS, Android, macOS, or TV app | macOS app: `codex-cu` where it is installed, else `agent-device`; iOS, Android, TV: `agent-device` | Skill() |
 | read or drive the Grok Bot macOS app (bots, folders, transcripts) | `using-grok-bot-app` | Skill() |

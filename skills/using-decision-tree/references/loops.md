@@ -1,18 +1,21 @@
----
-name: using-workflows
-description: "Which workflow recipe runs this. Invoke BEFORE any of: audit (docs vs code, design vs code, root cause, project direction), review findings to triage or resolve, PR review comments, feature brief to plan, plan needs a second-model verdict, spec to implement, research or price comparison that may take several rounds, 「跑一輪審查」, 「幫我找資料／比價」, 「幫我 plan」, 「把 findings 處理掉」. After any audit finishes, invoke again to route its findings to triage. Even a 1% chance means invoke it."
----
+# Loops branch
 
-# using-workflows
+Loop-shaped work: stages plus a convergence condition — audit chains,
+consensus review, plan→build lifecycles, findings triage, research over
+rounds. You pick **which** recipe the situation needs, fill its args, run it,
+and keep the closed loop moving. You are not a recipe.
 
-You pick **which** recipe the situation needs, fill its args, run it, and keep
-the closed loop moving. You are not a recipe.
+The RECIPE member is a recipe, not a skill, and is not in the skill lock.
+For RECIPE, replace trunk steps 4–5 with this check: discover the live roster
+with `ls ~/.claude/workflows/*.workflow.js .claude/workflows/*.workflow.js 2>/dev/null`,
+read the chosen recipe's header comment for its args contract, then run this
+branch's contracts. The WORKER member is a skill; use trunk steps 4–5 for it.
 
-## BYPASS — check FIRST
+## Bypass — check FIRST
 
 One bounded task, single context, no stages, no convergence condition → do it
-directly (inline, or one worker via `using-tmux-agent-tools`). No recipe, no
-run dir. When in doubt, bypass — recipes exist for loops, not ceremony.
+directly (inline, or one worker: WORKER row). No recipe, no run dir. When in
+doubt, bypass — recipes exist for loops, not ceremony.
 Exception: research across several sources or rounds (find, compare prices,
 gather sources) is NOT bypassed — go to `haiku-research-round`. A
 one-tool-call fact stays inline; a small question takes one scout, not a
@@ -28,35 +31,24 @@ requires a stated reason):
 - 「這個小改不用 gate」— behavior-tier edits to any recipe DO need one
   consensus-gate round first.
 
-Subagent exemption: delegated workers never enter this router — the
+Subagent exemption: delegated workers never enter this branch — the
 dispatcher already routed; workers follow their brief.
 
-## TRIGGER
+## Questions
 
-Loop-shaped work: stages plus a convergence condition. Audit chains,
-consensus review, plan→build lifecycles, findings triage.
-
-### From the Continuity trigger (global CLAUDE.md/AGENTS.md)
-
-The global rule routes loop-shaped work here at task start. On arrival:
+**Q1 Arrival — from the kernel loop-shaped route.**
 1. Match the trigger word (audit / consensus verification / findings triage /
-   root-cause deep-dive / plan→build) to a recipe via SELECT below.
-2. Runtime split: Claude invokes the recipe natively via `Workflow`; Codex
-   commands it through `references/codex-adapter.md` (`claude-workflow-runner`)
-   — the runner is mechanical, so run it at `opus` effort `low` (the floor;
-   see MODEL FLOOR below).
+   root-cause deep-dive / plan→build / research) to a recipe via Q2.
+2. Runtime: see Contracts §Cross-runtime — Claude runs the recipe natively
+   with `Workflow`; Codex commands it through `references/codex-adapter.md`
+   (`claude-workflow-runner`) at `opus` effort `low` (the floor); Cursor and
+   agy stop and report.
 3. Write-back duty: every recipe artifact/result lands in the CALLER's
-   `.workflow/<YYYYMMDDHHMM>-<slug>/` run directory (the one the Continuity
-   rule had you create) — never a detached location. One task = one run dir,
-   shared by convention and recipe alike.
+   `.workflow/<YYYYMMDDHHMM>-<slug>/` run directory — never a detached
+   location. One task = one run dir, shared by convention and recipe alike.
 
-## SELECT
-
-Discover live — never recite the recipe list from memory:
-
-```bash
-ls ~/.claude/workflows/*.workflow.js .claude/workflows/*.workflow.js 2>/dev/null
-```
+**Q2 Select — which recipe (RECIPE row).**
+Discover live — never recite the recipe list from memory (the `ls` above).
 
 The inner loop (the ONLY loop — there is no scheduling outer ring; do not
 invent one):
@@ -108,28 +100,28 @@ The collector still sends the main session one notice for the same result. A
 recipes (`consensus-gate`, `plan-pipeline`, `feature-plan-consensus`) work this
 way; launch or effort flags go in the agent-tmux profile `.conf` that `cli` names.
 
-## MODEL FLOOR (user ruling 2026-09-02)
+## Contracts
 
-Except for the worker, the L1/TK review roles and mechanical seats (L0 runners and
-CLI conduits: `sonnet` medium) below, every recipe agent runs at least
-`opus` effort `low`; the default worker is
-`opus` effort `medium`, reviewers `high`. Planning, synthesis,
-revision, and verdicts NEVER run on `sonnet` or `haiku` — a plan written by
-either is not a plan. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
-(`model-dispatch.md` §Review ladder, user ruling 2026-10-09; `plan-pipeline`
-and `spec-implement-dual-review-verify` do this in-script, the latter plus a
-one-pass `pr-review-toolkit` TK step); the verdict stays with L2 (`fable`, else `opus`); no L3 —
-still blocking after L2 round 3, stop and ask the user.
+**Model floor (user ruling 2026-09-02).** Except for the worker, the L1/TK
+review roles and mechanical seats (L0 runners and CLI conduits: `sonnet`
+medium) below, every recipe agent runs at least `opus` effort `low`; the
+default worker is `opus` effort `medium`, reviewers `high`. Planning,
+synthesis, revision, and verdicts NEVER run on `sonnet` or `haiku` — a plan
+written by either is not a plan. `sonnet` 5.5+ may run the L1 pre-filter of
+the review ladder (`model-dispatch.md` §Review ladder, user ruling
+2026-10-09; `plan-pipeline` and `spec-implement-dual-review-verify` do this
+in-script, the latter plus a one-pass `pr-review-toolkit` TK step); the
+verdict stays with L2 (`fable`, else `opus`); no L3 — still blocking after L2
+round 3, stop and ask the user.
 Otherwise `sonnet`/`haiku` 5.5+ may run implementation and read-only data
 gathering by commander's call (user ruling 2026-10-10); recipe args carry the
 choice: `spec-implement…` `model`, `pr-review-triage-resolve` `fixModel`,
 `feature-plan-consensus` `discoverModel`.
 
-## ADVISOR GATE (user ruling 2026-09-02)
-
-Recipes cannot call tools; the gate lives in YOU, the commander. When the
-`advisor` tool is available it is MANDATORY at these points, and the
-verdict is recorded in the run dir before the next action:
+**Advisor gate (user ruling 2026-09-02).** Recipes cannot call tools; the
+gate lives in YOU, the commander. When the `advisor` tool is available it is
+MANDATORY at these points, and the verdict is recorded in the run dir before
+the next action:
 1. BEFORE the first `Workflow` launch — brief, recipe, args (model floor,
    `cli` omitted or justified, round caps, hard time-box).
 2. AT every human gate the recipe returns (`needsUser`, `autoBuild=false`,
@@ -141,13 +133,10 @@ quick-share run (32 plan agents, 182M input tokens, 64 KB plan, zero code
 for 3.5 h) went uncaught because no gate sat between "plan rev N" and
 "critic round N+1".
 
-## Cross-runtime execution
-
-Both runtimes RUN recipes through this router; only the execution vehicle
-differs. Claude Code executes `.workflow.js` natively with `Workflow()`.
-Codex executes via `ADAPTED: claude-workflow-runner` (one bounded Claude
-runner capsule — mechanics in `references/codex-adapter.md`), under these
-constraints (Codex-authored, gate-v2 2026-07-19):
+**Cross-runtime.** Claude Code executes `.workflow.js` natively with
+`Workflow()`. Codex executes via `ADAPTED: claude-workflow-runner` (one
+bounded Claude runner capsule — mechanics in `references/codex-adapter.md`),
+under these constraints (Codex-authored, gate-v2 2026-07-19):
 
 - Codex MUST freeze recipe name, args, acceptance, author runtime, and reviewer profile before dispatching exactly one Claude runner.
 - The runner MUST invoke exactly one native `Workflow(...)`, preserve its return under `recipe_result`, write schema-v1 `result.json`, then stop.
@@ -156,33 +145,42 @@ constraints (Codex-authored, gate-v2 2026-07-19):
 - Human gates MUST return `status: paused` plus `next_action`, preserve `recipe_result`, stop the runner, and resume only via a new explicitly approved invocation.
 - Evidence MUST say `recipe <name> executed natively on Claude runtime via runner (commanded by Codex)`; adapter or child failure is never recipe PASS.
 
-Runtime matrix (Claude Code = `NATIVE` for all 13; Codex column):
+Runtime matrix (Claude Code = `NATIVE` for all 13). Cursor and agy have no
+`Workflow()` and no adapter: every recipe there is `UNAVAILABLE — stop and
+report`; do not improvise the loop by hand.
 
-| Recipe | Codex |
-|---|---|
-| 3 audits, `findings-triage`, `project-direction-review`, `workflow-manifest` (6, no tmux inside) | `ADAPTED: claude-workflow-runner` |
-| `haiku-research-round` (no tmux) | `UNTESTED` — only run natively on Claude so far; stop and report |
-| `pr-review-triage-resolve` (no tmux; T3 rung = fresh Claude opus unless `externalAgentType` is set) | `UNTESTED` — only run natively on Claude so far; stop and report |
-| `consensus-gate` (simple verdict outcome only) | `ADAPTED: direct-claude-review` — `references/codex-adapter.md` |
-| `consensus-gate` (as recipe), lifecycle + its 3 stages when `cli` IS set (5, they drive tmux-agent mod workers inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise |
+| Recipe | Codex | Cursor, agy |
+|---|---|---|
+| 3 audits, `findings-triage`, `project-direction-review`, `workflow-manifest` (6, no tmux inside) | `ADAPTED: claude-workflow-runner` | `UNAVAILABLE` |
+| `haiku-research-round` (no tmux) | `UNTESTED` — only run natively on Claude so far; stop and report | `UNAVAILABLE` |
+| `pr-review-triage-resolve` (no tmux; T3 rung = fresh Claude opus unless `externalAgentType` is set) | `UNTESTED` — only run natively on Claude so far; stop and report | `UNAVAILABLE` |
+| `consensus-gate` (simple verdict outcome only) | `ADAPTED: direct-claude-review` — `references/codex-adapter.md` | `UNAVAILABLE` |
+| `consensus-gate` (as recipe), lifecycle + its 3 stages when `cli` IS set (5, they drive tmux-agent mod workers inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise | `UNAVAILABLE` |
 
-## DEFER
-
+**Defer.**
 - Chain recipes from the TOP level only — `workflow()` nesting cap is 1, and
   the lifecycle shell spends it.
-- Run dir (`.workflow/<slug>/`, `codex-dynamic-workflows` conventions) ONLY
-  when work spans days, has 2+ phases, or must survive interruption/handoff.
-  Within-chat work: a single results file, or nothing.
+- Run dir (`.workflow/<slug>/`) ONLY when work spans days, has 2+ phases, or
+  must survive interruption/handoff. Within-chat work: a single results file,
+  or nothing.
 - Recipe edits: behavior-tier → consensus-gate one round FIRST; wording →
   direct. Canonical = the agent-scripts repo bundle
   (`skills/using-workflows/workflows/`) → redeploy to `~/.claude/workflows/`;
   a live edit made machine-side must be folded back into the bundle in the
   same change.
 
-## NOT-FOUND
+**Not found.** No recipe fits → the work probably is not loop-shaped; bypass.
+A genuinely new loop shape → propose a new recipe to the user; never
+improvise a half-recipe inline. Per-recipe reference: `workflows/README.md`
+(canonical: agent-scripts bundle `skills/using-workflows/workflows/README.md`;
+deployed copy at `~/.claude/workflows/README.md`).
 
-No recipe fits → the work probably is not loop-shaped; bypass. A genuinely
-new loop shape → propose a new recipe to the user; never improvise a
-half-recipe inline. Per-recipe reference: `workflows/README.md` (canonical:
-agent-scripts bundle `skills/using-workflows/workflows/README.md`; deployed
-copy at `~/.claude/workflows/README.md`).
+## Member table
+
+The only place a loops member is chosen. Edit rules: trunk §Changing the
+tree. `recheck` = the fact that makes the row stale, not a new winner.
+
+| id | question | when | choice | evidence | date | recheck | class |
+|---|---|---|---|---|---|---|---|
+| RECIPE | Q2 | Any loop-shaped work | The recipe Q2 names from the live global and project-local listing above; a project-local recipe shadows the same global name | former `using-workflows` router, retired 2026-10-23 | 2026-10-23 | the named recipe is absent from both live listings | mechanical |
+| WORKER | Bypass | One bounded task that should run off the main context | `using-tmux-agent-tools` | former `using-workflows` router | 2026-10-23 | absent from the lock | mechanical |

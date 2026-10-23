@@ -75,7 +75,7 @@ Shared statusline wrapper (Claude Code + Cursor CLI): `scripts/claude-hud-status
 
 Reusable cross-project Workflow scripts. **The Workflow tool's per-run script copies under `~/.claude/projects/<slug>/<session-id>/workflows/` are run artifacts, never the source of truth.**
 
-- **Source of truth**: the `using-workflows` skill bundle — `skills/using-workflows/workflows/*.workflow.js` (including `_lib/` and `README.md`) in the public `agent-scripts` repo, the sole canonical copy; `npx skills` lockfile source = `ohyeh/agent-scripts` (`https://github.com/ohyeh/agent-scripts.git`).
+- **Source of truth**: the workflow bundle — `skills/using-workflows/workflows/*.workflow.js` (including `_lib/` and `README.md`) in the public `agent-scripts` repo, the sole canonical copy; `npx skills` lockfile source = `ohyeh/agent-scripts` (`https://github.com/ohyeh/agent-scripts.git`).
 - **Deployed / invocation**: recipes must live under `~/.claude/workflows/` (regular files) to be discovered by Claude Code and invokable via `/<name>` or `Workflow({name})`; a project-level `.claude/workflows/` shadows a same-named recipe → name new recipes to avoid collisions with names already used in a project. See `workflows/README.md` in the bundle for details.
 - **Rebuild**: first restore skills per the Agent Skills flow above (preferred = the `skills-lock.json` restore) → then deploy `*.workflow.js` + `_lib/` to `~/.claude/workflows/` per the bundle's `workflows/README.md`.
 - **Parameters**: run targets (repoPath/appId/deeplink/flavor/…) + flags + non-secret config → `args`. **Secrets never enter `args`/prompt/transcript** — pass a `args.credsFile` path and the env key name instead; machine-local values (Xcode/UDID/FVM path) → env/config.

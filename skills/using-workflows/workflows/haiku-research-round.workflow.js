@@ -12,7 +12,7 @@
 //     scouts: [                         // REQUIRED: one agent each, run in parallel; keep 3-5
 //       { key: "shop-a", prompt: "TASK: ..." },
 //     ],
-//     model: "haiku",                   // read-only data gathering (using-workflows MODEL FLOOR):
+//     model: "haiku",                   // read-only data gathering (using-decision-tree references/loops.md §Contracts, model floor):
 //     effort: "medium",                 //   haiku/sonnet 5.5+ by commander's call; never synthesis
 //     fields: {                         // OPTIONAL extra per-finding fields, name -> description
 //       price: "NT$ per variant as shown on the page",   // e.g. a price survey

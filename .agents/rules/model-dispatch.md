@@ -99,7 +99,7 @@ it to a subagent or worker in the same turn; a subagent repeats the same calls, 
 user, and adds a context. In session 9a3b40c3 a delegated Grok Bot read cost $90.32 and hit the
 subagent cap 71 times. Research is the exception (user ruling 2026-10-13): when the work is
 gathering facts, prices, or sources, the commander stays the commander even if the user names
-the tool, and routes it through `using-workflows` → `haiku-research-round`.
+the tool, and routes it through the `using-decision-tree` loops branch → `haiku-research-round`.
 
 ## §3 Assignment and report contract
 
@@ -155,7 +155,7 @@ read-only data gathering in a recipe by commander's call (user ruling 2026-10-10
 (`cli`) is optional and NOT codex-specific: any agent-tmux profile (codex, claude fable/opus,
 cursor grok, agy) qualifies as the review gate, provided it differs from the author; absent, a
 fresh Claude `opus` agent is the second brain. The commander calls `advisor` before launch, at every gate, and before any
-resume (skill `using-workflows` §ADVISOR GATE).
+resume (skill `using-decision-tree`, `references/loops.md` §Contracts, advisor gate).
 
 ### Review ladder (user ruling 2026-10-09)
 
