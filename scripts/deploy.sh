@@ -323,13 +323,16 @@ fi
 # skillFolderHash is the upstream git tree of the skill folder. A root-level skill
 # (skillPath SKILL.md) hashes the whole upstream repo, which the CLI does not copy
 # in full: for those only SKILL.md is checked.
+# $2 = core.autocrlf: an upstream `eol=crlf` attribute checks out CRLF over an LF blob
+# (impeccable *.cmd, 2026-10-23), so a folder also matches its pin with CRLF folded to LF.
+# shortcut: a line-ending-only local edit passes; upgrade when the installer carries upstream .gitattributes.
 folder_tree() { local g; g="$(mktemp -d)"; git init -q "$g"; printf '__pycache__/\n*.pyc\n.DS_Store\n' > "$g/ex"  # run-time litter
-  git --git-dir="$g/.git" --work-tree="$1" -c core.excludesFile="$g/ex" add -A . && git --git-dir="$g/.git" write-tree; rm -rf "$g"; }
+  git --git-dir="$g/.git" --work-tree="$1" -c core.excludesFile="$g/ex" -c core.autocrlf="${2:-false}" add -A . 2>/dev/null && git --git-dir="$g/.git" write-tree; rm -rf "$g"; }
 skills_missing="" skills_differ=""
 while IFS=$'\t' read -r k sp h; do
   d="$HOME/.agents/skills/$k"
   if [ ! -f "$d/SKILL.md" ]; then skills_missing="$skills_missing $k"; continue; fi
-  case "$sp" in */*) [ "$(folder_tree "$d")" = "$h" ] || skills_differ="$skills_differ $k";; esac
+  case "$sp" in */*) [ "$(folder_tree "$d")" = "$h" ] || [ "$(folder_tree "$d" input)" = "$h" ] || skills_differ="$skills_differ $k";; esac
 done < <(jq -r '.skills | to_entries[] | [.key, .value.skillPath, .value.skillFolderHash] | @tsv' "$SRC/skills-lock.json")
 if [ -n "$skills_missing$skills_differ" ]; then
   echo "FAIL [skills] not installed:${skills_missing:- none}; content differs from the pin:${skills_differ:- none} — deploy runs the installer; if a folder stays, remove it and deploy again" >&2
