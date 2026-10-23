@@ -17,6 +17,8 @@
 # was actually deployed (codex review, 2026-09-01).
 set -euo pipefail
 
+python3 "$(dirname "$0")/codex-context-mode.py" --check
+
 REPO_GIT_URL="${REPO_GIT_URL:-https://github.com/ohyeh/agent-scripts.git}"
 RELEASE_REF="${RELEASE_REF:-refs/heads/main}"
 LOG="${DEPLOY_LOG:-$HOME/.local/state/agent-scripts/deploy-log.jsonl}"

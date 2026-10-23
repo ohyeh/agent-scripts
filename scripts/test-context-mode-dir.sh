@@ -111,4 +111,6 @@ bash -n scripts/context-mode-mcp.sh && ok "bash -n wrapper"
 bash -n scripts/install-context-mode-dir.sh && ok "bash -n install"
 bash -n scripts/check-context-mode-dir.sh && ok "bash -n check"
 
+python3 scripts/test-codex-context-mode.py scripts/codex-context-mode.py || fail=1
+
 exit "$fail"
