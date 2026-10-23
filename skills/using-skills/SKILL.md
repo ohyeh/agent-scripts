@@ -115,9 +115,9 @@ Listed so a name resolves, not as a bypass. The router picks the owner.
 
 | Skill | Owns |
 |---|---|
-| `impeccable` | Direction authority: product UI, landing and marketing pages, redesigns, polish, critique |
+| `impeccable` | Direction for native screens and existing interfaces; audit and polish after a Taste build |
 | `apple-design` | Springs, gestures, interruptible motion |
-| `design-taste-frontend` | Opt-in direction authority (Taste v2) for award-level public web pages |
+| `design-taste-frontend` | Default direction (Taste v2) for new web pages and web app screens |
 | `diagram-design` | House-style typed diagrams, mermaid, draw.io and excalidraw, PNG/SVG export |
 | `archify` | Native diagrams drawn from a real repo or trace |
 

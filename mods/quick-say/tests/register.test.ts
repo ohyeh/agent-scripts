@@ -28,6 +28,8 @@ type On = Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => u
 // The engine beneath the mod: a store, and the prompts it submits.
 function world(on: On, store = new Map<string, unknown>()) {
   const sent: { text: string; origin: unknown }[] = []
+  const filled: string[] = []
+  on('prompt.fill', (_, e) => (filled.push(e.text), { isFilled: true, text: e.text, cursor: e.text.length }))
   on('prompt.submit', (_, e) => (sent.push({ text: e.text, origin: e.origin }), { text: e.text }))
   on('ui.toast', () => ({ value: undefined }))
   on('ui.invalidate', () => ({ value: undefined }))
@@ -37,27 +39,26 @@ function world(on: On, store = new Map<string, unknown>()) {
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   // Another plugin's row beneath the mod: one row of the budget.
   on('ui.render', ($, e) => $.ui.resolve(e).Text({ children: 'workers v0.46.14 · tmux 0' }))
-  return { sent, store }
+  return { sent, filled, store }
 }
 
-test('the band starts folded, opens, and a phrase button submits its text as the person', async ($, on) => {
+test('the band starts folded, opens, and a combo button fills its whole text into the prompt, unsent', async ($, on) => {
   const w = world(on)
   await $.session.start(start)
 
   const folded = textOf(await $.ui.render(band()))
-  expect(folded).toContain('▌quick say v0.1.0 · 5 phrases [ ▸ open ][ hide ]')
+  expect(folded).toContain('▌quick say v0.2.0 · 4 combos [ ▸ open ][ hide ]')
   expect(folded).not.toContain('9: 收工')
 
   await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above' })
   expect(w.store.get('quick-say.fold')).toBe('open')
   const open = textOf(await $.ui.render(band()))
   expect(open).toContain('[ ▾ fold ]')
-  expect(open).toContain('5: 開場  6: 繼續  7: 進度？  8: 照做  9: 收工')
+  expect(open).toContain('6: 審過再做  7: 進度續跑  8: 做完推送  9: 收工')
 
   await $.ui.press({ plugin: PLUGIN, key: 'say-9', requestId: 'above' })
-  expect(w.sent.length).toBe(1)
-  expect(w.sent[0]?.text).toBe(PHRASES[4].text)
-  expect(w.sent[0]?.origin).toMatchObject({ kind: 'plugin', asUser: true })
+  expect(w.filled).toEqual([PHRASES[3].text])
+  expect(w.sent.length).toBe(0)
 
   // The open choice is kept for the next session; folding again is kept too.
   await $.session.start(start)
@@ -73,15 +74,15 @@ test('narrow: icons only, labels cut, never wrapped; no room: the phrase row goe
   await $.session.start(start)
 
   const narrow = textOf(await $.ui.render(band(40)))
-  expect(narrow).toContain('▌quick say v0.1.0')
+  expect(narrow).toContain('▌quick say v0.2.0')
   expect(narrow).toContain('[ ▾ ][ ✕ ]')
-  expect(narrow).toContain('5: 開…')
+  expect(narrow).toContain('6: 審過…')
 
   // maxRows 2 leaves one row under the workers row: the header alone; 1 leaves none.
   const tight = textOf(await $.ui.render(band(120, 2)))
   expect(tight).toContain('workers v0.46.14')
   expect(tight).toContain('▌quick say')
-  expect(tight).not.toContain('5: 開場')
+  expect(tight).not.toContain('6: 審過再做')
   expect(textOf(await $.ui.render(band(120, 1)))).not.toContain('quick say')
 })
 
@@ -98,9 +99,9 @@ test('hide takes the band away across sessions until /quick-say shows it again',
 
   const shown = await $.command.run(cmd)
   expect(shown.text).toContain('band shown')
-  expect(shown.text).toContain(`9 收工: ${PHRASES[4].text}`)
+  expect(shown.text).toContain(`9 收工: ${PHRASES[3].text}`)
   expect(w.store.get('quick-say.hidden')).toBe('shown')
-  expect(textOf(await $.ui.render(band()))).toContain('▌quick say v0.1.0')
+  expect(textOf(await $.ui.render(band()))).toContain('▌quick say v0.2.0')
 
   expect((await $.command.run(cmd)).text).toContain('band hidden; /quick-say shows it again.')
 })

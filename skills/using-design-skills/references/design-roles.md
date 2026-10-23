@@ -9,13 +9,12 @@ Capability flags when classifying an unlisted skill (may carry several):
 
 | Skill | Reach for it when | Its audit rubric (used by the quality loop) |
 |---|---|---|
-| `impeccable` | Product UI, landing and marketing pages, portfolios, redesigns; polish/critique of existing interfaces | Its "AI slop test" |
-| `design-taste-frontend` (Taste v2) | Opt-in only: the user names Taste, or asks for an award-level public web page with real photos and accepts a long, token-heavy run; state the token budget before it starts and keep it as low as the page allows (owner ruling 2026-10-23) | Its inspector + `references/critique.md`. One look-and-fix round by default (its max is 3, only when the user raises the budget); it replaces the router's internal rounds — never both |
+| `design-taste-frontend` (Taste v2) | DEFAULT for any new web page or web app screen (owner ruling 2026-10-23); the build runs on a Sonnet worker | Its inspector + `references/critique.md`. One look-and-fix round by default (its max is 3, only when the user raises the budget); it replaces the router's internal rounds — never both |
+| `impeccable` | Native iOS/Android screens, existing interfaces (audit-first), DESIGN.md | Its "AI slop test" |
 
-`design-taste-frontend` self-triggers on any web page, dashboard or polish
-request; that nominates it, it does not authorize a run. Without the opt-in
-above, use `impeccable` and run none of Taste's build, inspector or
-look-and-fix loop. A generic "make it less AI-made" ask is not the opt-in.
+After a Taste build, run `impeccable` audit then polish on the render as the
+review stage — it reviews, it does not reset direction (the community order:
+Taste first, then impeccable). Its fixes count toward the shared round cap.
 
 If a selected authority ships no usable checklist, the reviewer falls back to
 impeccable's AI slop test as the default rubric. A skill that cannot support
@@ -85,7 +84,7 @@ scoped edits are NOT delegable — inline by definition.
 
 ## Auto-fill defaults (ask only what's genuinely the user's call)
 
-- Role 1 authority: `impeccable`; `design-taste-frontend` only on the opt-in in Role 1.
+- Role 1 authority: `design-taste-frontend` for new web work; `impeccable` for native screens and existing interfaces.
 - DESIGN.md path: `{repo}/DESIGN.md` unless a docs convention exists.
 - Gate 0 viewports: desktop + mobile for any responsive deliverable.
 - `cli` for delegated stages: `~/.agents/rules/model-dispatch.md` §5; don't
