@@ -41,6 +41,17 @@
       },
       "category": "development",
       "keywords": ["you-should-know", "relay", "mod", "hooks"]
+    },
+    {
+      "name": "quick-say",
+      "source": "./mods/quick-say",
+      "description": "Function-hook mod: canned prompts in a band above the prompt; in an empty prompt, press 5-9 to send the session opener, continue, status, go-ahead or wrap-up message as your own words. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.1.0",
+      "author": {
+        "name": "PaulYeh"
+      },
+      "category": "development",
+      "keywords": ["canned", "prompt", "mod", "hooks"]
     }
   ]
 }

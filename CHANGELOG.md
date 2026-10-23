@@ -1,5 +1,11 @@
 # Changelog
 
+## quick-say 0.1.0
+
+Owner 10-23: 「很多時候 開始、結束 都說類似的話 交代而已」; 「幫我翻修過讓 agent 更看得懂、更明確」.
+
+- **New mod** `mods/quick-say`: a band of five canned prompts. In an empty prompt, digits 5-9 send 開場 / 繼續 / 進度？ / 照做 / 收工 as the person's own words (`$.prompt.submit` with `asUser`), queued until the running turn ends. The phrases are the owner's most repeated prompts in the session logs (`update title` 12x first, the `/session-handoff … /shared-memory-intake` wrap-up 16x last, 繼續/順利？/處理啊 variants), each rewritten as one explicit instruction. Folded from the start, fold kept, `[ hide ]` until `/quick-say`, which also lists the phrases. Digits start at 5: the workers band numbers its rows from 1.
+
 ## using-grok-bot-app 1.1.0
 
 - **`scripts/transcript.mjs <uuid> [port] [--tail N]`**: reads one bot's transcript tail without `agent-browser` (not installed on every Mac; session dc9d26c7 wrote CDP by hand for it, 10-22). It opens the bot, waits until the log text is not empty and two reads 250 ms apart agree (just after the click the log is empty: seen live), prints one JSON line, and opens the previous bot again unless another was opened meanwhile. It never types or sends. The restore and the CDP connection come from `send.mjs` (now exported as `restore` and `cdp`; the grok-bot-watch copy `bin/send.mjs` is synced by `scripts/sync-mod-core`, no behavior change there). SKILL.md Read names it as the default way; `agent-browser` is optional.
