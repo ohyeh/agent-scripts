@@ -42,9 +42,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/ask-nova/SKILL.md",
-      "skillFolderHash": "01de00965c495f6c57f7ec731b63c8b5f38e794f",
+      "skillFolderHash": "8b2ad40992da9636919e4e3f2801e7359872051d",
       "installedAt": "2026-08-01T11:44:27.225Z",
-      "updatedAt": "2026-09-27T13:47:31.434Z"
+      "updatedAt": "2026-10-23T00:00:00.000Z"
     },
     "codebase-design": {
       "source": "mattpocock/skills",
@@ -269,7 +269,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-decision-tree/SKILL.md",
-      "skillFolderHash": "PIN-AFTER-COMMIT",
+      "skillFolderHash": "f707b426b0a03e509102034c0e37b631adcca34f",
       "installedAt": "2026-10-23T00:00:00.000Z",
       "updatedAt": "2026-10-23T00:00:00.000Z"
     },
@@ -287,9 +287,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-skills/SKILL.md",
-      "skillFolderHash": "13c5b70f7df6925582c6ecd88f0bf7ca1acf9d74",
+      "skillFolderHash": "d54241cd68276442e1871c24e8ff21c6074d0fc5",
       "installedAt": "2026-07-19T11:40:52.644Z",
-      "updatedAt": "2026-10-22T16:46:39.000Z"
+      "updatedAt": "2026-10-23T00:00:00.000Z"
     },
     "using-tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
@@ -332,9 +332,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/writing-artifacts/SKILL.md",
-      "skillFolderHash": "18f60c46c097f6255fd0c80379148e4d2855b316",
+      "skillFolderHash": "4e3117c6a803244829dbf8a59053cc6ec35798d2",
       "installedAt": "2026-08-01T11:44:27.233Z",
-      "updatedAt": "2026-10-13T00:00:00.000Z"
+      "updatedAt": "2026-10-23T00:00:00.000Z"
     },
     "writing-beats": {
       "source": "mattpocock/skills",
