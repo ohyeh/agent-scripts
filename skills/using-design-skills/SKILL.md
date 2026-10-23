@@ -37,7 +37,7 @@ walkthrough, motion graphic → Artifact type `Motion` (both: Artifact
 `quickstart`, then the type's instructions own structure; motion is written
 as code so every word, number and timing stays editable, and a reference
 case lends its structure and timing, never its prompt) ·
-data file → `data-report` · module/API/domain →
+data file → Artifact type `Dashboard` + `dataviz` · module/API/domain →
 Pipeline D · token work → DESIGN.md itself · mockup-only → static HTML mockup, no build loop ·
 "would this work?" → `prototype`, alone, no loop.
 No Artifact tool (Codex, Cursor, agy) → each Artifact route above becomes one
@@ -46,8 +46,8 @@ self-contained HTML file under `artifacts-rules`; say so in the report.
 Q2 **Variant.** Existing interface → audit-first (authority critiques the
 CURRENT render before rebuild). New → direct build.
 
-Q3 **Orthogonal specialists (additive).** Charts from a data file →
-`data-report`; charts inside a page or a `Dashboard` → `dataviz`. Artifact →
+Q3 **Orthogonal specialists (additive).** Any chart, from a data
+file, inside a page or a `Dashboard` → `dataviz`. Artifact →
 `artifact-design`. Both are bundled with the runtime rather than the lock;
 `artifact-design` is mandatory before publishing; skip either explicitly if it
 does not resolve this turn. UI motion or gesture → `apple-design` (it also

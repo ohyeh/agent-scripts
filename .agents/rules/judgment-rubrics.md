@@ -204,8 +204,8 @@ paths, or user-facing UI — do not run these unconditionally on every task.
   scan and note the result; do not ship an unreviewed new dependency.
 - [ ] Performance-critical path touched: capture a before/after number (latency,
   query count, bundle size) — a claim without a number is not a perf claim.
-- [ ] User-facing UI touched: keyboard nav + contrast spot-check (see `impeccable`/
-  `web-design-guidelines` skills), not a full audit unless requested.
+- [ ] User-facing UI touched: keyboard nav + contrast spot-check (see skill
+  `impeccable` audit), not a full audit unless requested.
 - [ ] User-facing terminal UI or CLI control touched: the §2 runtime-claim evidence is one
   real PTY run showing visible input, output, exit status, and the resulting file or
   configuration state; unit or headless tests do not substitute.

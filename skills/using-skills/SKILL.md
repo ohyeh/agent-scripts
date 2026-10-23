@@ -77,7 +77,7 @@ before any install or deploy.
 |---|---|---|
 | diagnose a hard bug or performance regression inline | `diagnosing-bugs` | Skill() |
 | review a diff defect-first, read-only, every finding | `defect-first-review` | Skill() |
-| review UI code against Web Interface Guidelines | `web-design-guidelines` | Skill() |
+| review UI code: a11y, contrast, responsive, UX | `impeccable` (audit) | Skill() |
 
 ## Delegate and orchestrate
 
@@ -118,8 +118,9 @@ Listed so a name resolves, not as a bypass. The router picks the owner.
 | `impeccable` | Direction authority: product UI, landing and marketing pages, redesigns, polish, critique |
 | `apple-design` | Springs, gestures, interruptible motion |
 | `hallmark` | Anti-slop greenfield pages, audits, design extraction from a URL or screenshot |
-| `diagram-design` | House-style typed diagrams, mermaid and draw.io, PNG/SVG export |
-| `data-report` | CSV, Excel, or JSON into a visual report page |
+| `design-taste-frontend` | Opt-in direction authority (Taste v2) for award-level public web pages |
+| `diagram-design` | House-style typed diagrams, mermaid, draw.io and excalidraw, PNG/SVG export |
+| `archify` | Native diagrams drawn from a real repo or trace |
 
 ## Session and fleet upkeep
 
@@ -162,7 +163,7 @@ that plugin's cache; `bundled` = ships with Claude Code.
 | `claude-api` | Claude Code | bundled |
 
 Other enabled plugins (`code-review`, `commit-commands`, `pr-review-toolkit`,
-`session-report`, `frontend-design`, `security-guidance`) show in the listing
+`session-report`, `security-guidance`) show in the listing
 with their own descriptions. Rules files (`~/.agents/rules/*.md`) are not
 skills; the kernel routes them.
 

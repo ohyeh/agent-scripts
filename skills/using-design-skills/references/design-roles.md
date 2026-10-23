@@ -35,7 +35,6 @@ pair each animation with its prompt.
 | Skill | Adds |
 |---|---|
 | `apple-design` | Springs, gestures, interruptible motion — any "make it feel fluid/physical" ask |
-| `data-report` | A CSV, Excel, or JSON file into a visual report page |
 | `dataviz` *(bundled skill)* | Any chart, stat tile, or dashboard layout, including inside a `Dashboard` artifact. If it does not resolve, apply charting best practice inline and say so |
 | `artifact-design` *(bundled skill)* | MANDATORY before publishing any Artifact page (`artifact-capabilities` only if the page calls connectors) |
 
@@ -61,9 +60,7 @@ authority involved.
 | You, under `~/.agents/rules/artifacts-rules.md` | Report, explainer, comparison, and plan pages as one self-contained HTML file (the html skills were retired 2026-10-13; their non-default rules moved there) |
 | Artifact types `Dashboard` / `Motion` | Pages that are mostly numbers, statuses, or items to compare / watchable animation (Claude Code only) |
 
-When the source is a data FILE the owner stays `data-report`;
-`diagram-design` may be loaded by it as the house-style layer, never instead
-of it. `diagram-design` self-triggers (plugin-shipped, trigger-rich
+`diagram-design` self-triggers (plugin-shipped, trigger-rich
 description), so when this router picks another owner, say so explicitly in
 the plan.
 

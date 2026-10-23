@@ -73,15 +73,6 @@
       "installedAt": "2026-07-18T20:47:39.088Z",
       "updatedAt": "2026-10-08T19:25:24.025Z"
     },
-    "data-report": {
-      "source": "nexu-io/open-design",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/nexu-io/open-design.git",
-      "skillPath": "skills/data-report/SKILL.md",
-      "skillFolderHash": "5a39e74b96598d8578474894ee02710f1acb8658",
-      "installedAt": "2026-07-18T22:54:22.507Z",
-      "updatedAt": "2026-07-18T22:54:22.507Z"
-    },
     "defect-first-review": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
@@ -335,15 +326,6 @@
       "skillFolderHash": "32b0ce970b1394ede47116e1d3e07f9ccc87591f",
       "installedAt": "2026-07-18T20:49:31.170Z",
       "updatedAt": "2026-10-08T19:25:17.889Z"
-    },
-    "web-design-guidelines": {
-      "source": "vercel-labs/agent-skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/vercel-labs/agent-skills.git",
-      "skillPath": "skills/web-design-guidelines/SKILL.md",
-      "skillFolderHash": "3116f3e62dbd02b44a598b1aa690d2a8938e8f89",
-      "installedAt": "2026-08-08T03:30:00.000Z",
-      "updatedAt": "2026-08-08T03:30:00.000Z"
     },
     "wizard": {
       "source": "mattpocock/skills",
