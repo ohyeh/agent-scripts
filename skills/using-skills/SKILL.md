@@ -93,7 +93,7 @@ before any install or deploy.
 |---|---|---|
 | read a pasted URL as clean markdown | `defuddle` | Skill() |
 | read, fill, merge, or produce a PDF | `pdf` | Skill() |
-| investigate a question against primary sources, write it up | `research` | Skill() |
+| investigate a question against primary sources, write it up | `using-workflows` → `haiku-research-round` | Skill() |
 | drive a browser: navigate, fill forms, read a logged-in page, screenshot | `codex-cu` where it is installed: the user's own Chrome, background tab first. A host without it (no ChatGPT Computer Use plugin) goes straight to `agent-browser`, no setup unless the user asks; so does a step codex-cu cannot do. `agent-browser` runs one named session, reused and closed at the end, never several at once | Skill() |
 | drive an iOS, Android, macOS, or TV app | macOS app: `codex-cu` where it is installed, else `agent-device`; iOS, Android, TV: `agent-device` | Skill() |
 | read or drive the Grok Bot macOS app (bots, folders, transcripts) | `using-grok-bot-app` | Skill() |

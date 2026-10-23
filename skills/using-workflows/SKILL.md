@@ -15,7 +15,10 @@ directly (inline, or one worker via `using-tmux-agent-tools`). No recipe, no
 run dir. When in doubt, bypass — recipes exist for loops, not ceremony.
 Exception: research across several sources or rounds (find, compare prices,
 gather sources) is NOT bypassed — go to `haiku-research-round`. A
-one-tool-call fact stays inline.
+one-tool-call fact stays inline; a small question takes one scout, not a
+fanout. Either way, follow each claim to the primary source that owns it
+(official docs, source code, specs). When the findings must be kept, write one
+Markdown file with a source per claim, where the repo already keeps such notes.
 
 Red flags that have actually burned us (naming one and proceeding anyway
 requires a stated reason):
