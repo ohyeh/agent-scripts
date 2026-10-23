@@ -63,7 +63,7 @@ function world(on: On, store = new Map<string, unknown>()) {
       .filter(p => p.startsWith(`${e.path}/`))
       .map(p => ({ name: p.slice(e.path.length + 1), kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false })),
   }))
-  on('process.run', (_, e) => (opened.push(e.argv.join(' ')), { value: { exitCode: 0, stdout: '', stderr: '' } }))
+  on('process.run', (_, e) => (opened.push(e.argv.join(' ')), { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('env.get', () => ({ value: '/h/me' }))
   on('session.id', () => ({ value: SID }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))

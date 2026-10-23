@@ -1,5 +1,13 @@
 # Changelog
 
+## session-recall 0.14.2
+
+- **No `↩ quote` on a summary block**: the terminal draws the text between two tool calls as a summary (`isSummary`, a faint ` · summary`), and the transcript keeps the original, not the summary. Pressed there, `↩` could never find the reply and said "that reply is not among the answers kept (a reply still being written is added when it ends)", which never came true (owner screenshot 10-23: the block was a thinking summary). The button is now left off such blocks. 1 test; without the fix it fails.
+
+## mods: types 2.1.309
+
+- `mods/types/claude-code.d.ts` was written by 2.1.283 and lacked fields the engine already sends (`TurnStartInput.agentId`, `PromptSubmitArgs.asUser`, `AssistantMessage.isSummary`). Refreshed from 2.1.309; agent-should-know drops its `agentId` cast (no behavior change). `process.run` results now carry `isStdoutTruncated`/`isStderrTruncated`: the test mocks of agent-should-know, grok-bot-watch and session-recall add them.
+
 ## quick-say 0.1.0
 
 Owner 10-23: 「很多時候 開始、結束 都說類似的話 交代而已」; 「幫我翻修過讓 agent 更看得懂、更明確」.

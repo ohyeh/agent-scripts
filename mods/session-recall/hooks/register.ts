@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir, subagentMade } from './lib/assets.ts'
 import { answerId, findExcerpt, itemsOf, locate, plain, quoteOf, quoteRefsIn } from './lib/items.ts'
 
-const MOD_VERSION = '0.14.1'
+const MOD_VERSION = '0.14.2'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -841,7 +841,8 @@ export const register: Register = on => {
   // selected in that block and copied goes into the prompt as #qN. Terminal only. Nothing read here: it runs per block.
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     const drawn = await next(e)
-    if (e.surface !== 'terminal' || !itemsOf(e.props.text, 1).length) return drawn
+    // A summary block's text is not the reply the transcript keeps: ↩ could never find it.
+    if (e.surface !== 'terminal' || e.props.isSummary || !itemsOf(e.props.text, 1).length) return drawn
     const { Box, Button } = $.ui.resolve(e)
     const text = e.props.text
     return Box({

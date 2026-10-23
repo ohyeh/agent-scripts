@@ -240,8 +240,7 @@ export const register: Register = on => {
   })
 
   on('turn.start', async ($, e, next) => {
-    // mods/types pins a TurnStartInput without agentId; the engine sends it for a subagent.
-    if ((e as { agentId?: string }).agentId === undefined) s.running = e.turnId
+    if (e.agentId === undefined) s.running = e.turnId
     return next(e)
   })
 

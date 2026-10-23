@@ -68,17 +68,17 @@ function world(
   on('process.run', async ($, e) => {
     if (e.argv[0] === '/bin/sh') {
       lookups += 1
-      return { value: { exitCode: 0, stdout: opts.node ?? 'profile says hi\n/n/node\n', stderr: '' } }
+      return { value: { exitCode: 0, stdout: opts.node ?? 'profile says hi\n/n/node\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     if (e.argv[0] !== '/n/node') throw new Error(`spawn ENOENT ${e.argv[0]}`)
     if (e.argv[1]?.endsWith('/bin/send.mjs')) {
       sends.push({ bot: e.argv[2]!, rest: e.argv.slice(3), stdin: String(e.init?.stdin) })
       if (opts.sendState === 'THROW') throw new Error('process.run: timed out')
-      return { value: { exitCode: 0, stdout: JSON.stringify({ state: opts.sendState ?? 'sent', port: 39231 }), stderr: '' } }
+      return { value: { exitCode: 0, stdout: JSON.stringify({ state: opts.sendState ?? 'sent', port: 39231 }), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     if (e.argv[1]?.endsWith('/bin/ensure.mjs')) {
       ensures.push(e.argv[1])
-      return { value: { exitCode: 0, stdout: '{"state":"restarted","port":39231}', stderr: '' } }
+      return { value: { exitCode: 0, stdout: '{"state":"restarted","port":39231}', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     if ((opts.spawnFails ?? 0) > helperRuns + spawnErrors) {
       spawnErrors += 1
@@ -89,7 +89,7 @@ function world(
     if (opts.hold) await opts.hold
     // THROW: the engine rejects the run at its timeout.
     if (out === 'THROW') throw new Error('process.run: timed out')
-    return { value: { exitCode: 0, stdout: out, stderr: '' } }
+    return { value: { exitCode: 0, stdout: out, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('prompt.submit', async ($, e) => {
     const answer = await (answers[woken.length] ?? 'accept')

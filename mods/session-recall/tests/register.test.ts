@@ -1003,19 +1003,19 @@ function world(on: On, opts: { failWrites?: boolean; text?: string; isError?: bo
   // lsof: vite listens on :5173 from the session's folder; nothing else listens.
   on('process.run', ($, e) => {
     const argv = [...e.argv]
-    if (argv[0] === 'pbpaste') return { value: { exitCode: 0, stdout: opts.clip?.text ?? '', stderr: '' } }
+    if (argv[0] === 'pbpaste') return { value: { exitCode: 0, stdout: opts.clip?.text ?? '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     if (argv[0] === 'lsof') {
       const stdout = argv.includes('-iTCP:5173') ? 'p4242\ncvite\n' : argv.includes('4242') ? 'p4242\nfcwd\nn/work/retro-w41\n' : ''
-      return { value: { exitCode: stdout ? 0 : 1, stdout, stderr: '' } }
+      return { value: { exitCode: stdout ? 0 : 1, stdout, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     // The transcript file: none unless the test gives one (the replay then reads what the engine holds).
-    if (argv[0] === 'node' && argv[1]?.endsWith('/bin/transcript.mjs')) return { value: opts.transcript ? { exitCode: 0, stdout: JSON.stringify(opts.transcript), stderr: '' } : { exitCode: 1, stdout: '', stderr: 'Error: no transcript' } }
+    if (argv[0] === 'node' && argv[1]?.endsWith('/bin/transcript.mjs')) return { value: opts.transcript ? { exitCode: 0, stdout: JSON.stringify(opts.transcript), stderr: '', isStdoutTruncated: false, isStderrTruncated: false } : { exitCode: 1, stdout: '', stderr: 'Error: no transcript', isStdoutTruncated: false, isStderrTruncated: false } }
     if (argv[0] === 'git' && argv.includes('get-url')) {
       runs.push(argv)
-      return { value: { exitCode: 0, stdout: 'git@github.com:o/r.git\n', stderr: '' } }
+      return { value: { exitCode: 0, stdout: 'git@github.com:o/r.git\n', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
     }
     if (argv[0] !== 'test') runs.push(argv)
-    return { value: { exitCode: 0, stdout: '', stderr: '' } }
+    return { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   on('ui.render', () => ({ type: 'engine', ref: 0 }) as never)
   on('ui.invalidate', () => ({ value: undefined }))
@@ -1102,6 +1102,15 @@ describe('the TUI', () => {
     const listed = JSON.stringify(await $.tool.call({ tool: 'mcp__session-recall__recall', kind: 'quote', query: 'ship' } as never))
     expect(listed).toContain('#q1 = lines 2, 3')
     expect(JSON.stringify(await $.tool.call({ tool: 'mcp__session-recall__recall', kind: 'quote', query: 'nowhere' } as never))).toContain('no quote matches')
+  })
+
+  test('↩ is not drawn on a summary block: the terminal rewrote its text, so no kept reply holds it', async ($, on) => {
+    world(on)
+    await $.session.start(start)
+    const text = '- pinned mod types are older\n- the engine takes asUser'
+    expect(JSON.stringify(await $.ui.render(reply(text)))).toContain('↩ quote')
+    const summary = { ...(reply(text, 'm2') as object), props: { text, isFirstOfReply: false, isSummary: true } } as never
+    expect(JSON.stringify(await $.ui.render(summary))).not.toContain('↩ quote')
   })
 
   test('↩ on a reply block with nothing of it copied says to select and copy; code and other surfaces are left as drawn', async ($, on) => {
