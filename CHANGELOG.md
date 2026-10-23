@@ -1,5 +1,9 @@
 # Changelog
 
+## quick-say 0.3.1
+
+- **Combo texts from sol and agy**: both found the same four runs (sol, adjacent runs checked by hand: review 22 sessions, push 18, progress 16, wrap-up 5; agy, broader: 30 / 19 / 52 / 10). The four texts are sol's rewrites, which keep the limits the old ones broke: a plan-only task delivers the plan, deploy or reload only an authorized target, review fixes go back to the same reviewer for at most three rounds. `做完推送` adds agy's tests and pre-push check before a push.
+
 ## quick-say 0.3.0
 
 Owner 10-23: 「你這選項怎來的…這樣我根本不知道你會發啥 然後就送出了」; 「很多時候花了兩三回合以上 都是同一件事 你不是該發現然後變成一個組合技嗎」; 「目前這樣只有表面能用 但沒真正改善我的痛點」.

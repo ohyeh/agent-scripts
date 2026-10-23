@@ -47,7 +47,7 @@ test('the band starts folded, opens, and a combo button fills its whole text int
   await $.session.start(start)
 
   const folded = textOf(await $.ui.render(band()))
-  expect(folded).toContain('▌quick say v0.3.0 · 4 combos · auto · 0 nudges [ ⚡ auto ][ ▸ open ][ hide ]')
+  expect(folded).toContain('▌quick say v0.3.1 · 4 combos · auto · 0 nudges [ ⚡ auto ][ ▸ open ][ hide ]')
   expect(folded).not.toContain('9: 收工')
 
   await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above' })
@@ -74,7 +74,7 @@ test('narrow: icons only, labels cut, never wrapped; no room: the phrase row goe
   await $.session.start(start)
 
   const narrow = textOf(await $.ui.render(band(40)))
-  expect(narrow).toContain('▌quick say v0.3.0')
+  expect(narrow).toContain('▌quick say v0.3.1')
   expect(narrow).toContain('[ ⚡ ][ ▾ ][ ✕ ]')
   expect(narrow).toContain('6: 審過…')
 
@@ -101,7 +101,7 @@ test('hide takes the band away across sessions until /quick-say shows it again',
   expect(shown.text).toContain('band shown')
   expect(shown.text).toContain(`9 收工: ${PHRASES[3].text}`)
   expect(w.store.get('quick-say.hidden')).toBe('shown')
-  expect(textOf(await $.ui.render(band()))).toContain('▌quick say v0.3.0')
+  expect(textOf(await $.ui.render(band()))).toContain('▌quick say v0.3.1')
 
   expect((await $.command.run(cmd)).text).toContain('band hidden; /quick-say shows it again.')
 })

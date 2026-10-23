@@ -35,7 +35,7 @@ row until you type a prompt yourself, so a gate cannot loop.
 ## Band
 
 ```
-▌quick say v0.3.0 · 4 combos · auto · 1 nudge     [ ⚡ auto ][ ▾ fold ][ hide ]
+▌quick say v0.3.1 · 4 combos · auto · 1 nudge     [ ⚡ auto ][ ▾ fold ][ hide ]
   6: 審過再做  7: 進度續跑  8: 做完推送  9: 收工
 ```
 

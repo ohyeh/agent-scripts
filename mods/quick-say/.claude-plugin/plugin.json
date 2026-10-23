@@ -1,6 +1,6 @@
 {
   "name": "quick-say",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Follow-through for the owner's repeated asks: at the end of a main-agent turn, one framed reminder for uncommitted or unpushed work this session made, or for a closing \"shall I?\"; else the likely next combo shows dim in the empty prompt. Digits 6-9 fill a combo into the prompt.",
   "author": {
     "name": "PaulYeh",

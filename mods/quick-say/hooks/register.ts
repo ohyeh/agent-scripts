@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { cells, fit, rowsOf } from './lib/band.ts'
 import { askPrompt, askTail, dirOf, gitDirOf, gitPrompt, isCommit, type GitGap } from './lib/follow.ts'
 
-const MOD_VERSION = '0.3.0'
+const MOD_VERSION = '0.3.1'
 const NAME = 'quick-say'
 const COMMAND = 'quick-say'
 const ACCENT = 'cyan'
@@ -14,6 +14,7 @@ const HIDE_KEY = `${NAME}.hidden`
 // Combos: what the owner spent two to four prompts in a row asking for (session logs 2026-10-23:
 // "advisor review 過了？" → "意見一次說完" → "有共識才執行"; "PLAN 都做好了？" → "都有 PUSH？" →
 // "先 PUSH 啊"; "順利？" → "繼續處理啊"; "都搞定？" → the /session-handoff wrap-up), each one prompt.
+// Texts: sol's rewrites (they keep plan-only, deploy and review-round limits), with agy's pre-push check.
 // A digit fills the prompt box; the person reads it and sends it, so it approves what it says.
 // Digits 6-9: the workers band numbers its rows from 1, and a clash goes to whichever draws later.
 export const PHRASES = [
@@ -21,25 +22,25 @@ export const PHRASES = [
     hotkey: '6',
     label: '審過再做',
     when: 'agent 提了計畫或要動手改東西，但還沒經過 review 或第二模型審過',
-    text: '照老規矩：先內部審過，再交 sol + advisor 做對抗式 review，請他們把意見一次說完。有共識、沒有 blocker 才動手；有分歧先自己收斂，只把真正要我決定的事帶來問我。',
+    text: '先核對本次目標、驗收與最小完整方案，自己檢查後，依現行模型規則請 advisor＋Sol 做對抗 review，把問題與建議一次列完。修正交回同一 reviewer 複查，最多三輪；有共識且無 blocker，便在既有授權內實作並驗證。仍有分歧時，附證據與建議，只問真正需要我決定的事。',
   },
   {
     hotkey: '7',
     label: '進度續跑',
     when: 'agent 停下來報告一段，或做到一半停住，還有後續步驟可以自己接著做',
-    text: '回報進度：先講需要我決定的事，再講已完成什麼（附本 session 實際跑過的驗證輸出）、還剩什麼。沒有要我決定的事，就直接做下一步，不用等我說繼續。',
+    text: '簡短回報本次進度：先列仍需要我決定的事，再列已完成項目與本 session 驗證證據、目前在做什麼、剩餘項目及卡點。沒有待決事項就直接接下一步，做到本次驗收完成；遇到需新增授權或無法自行排除的卡點，附證據與具體建議回報，不用等我再說繼續。',
   },
   {
     hotkey: '8',
     label: '做完推送',
     when: 'agent 說做完了，但還沒對照計畫逐項確認、或還沒 commit、push、部署',
-    text: '對帳：逐項檢查我給的計畫是否都做完（附驗證輸出），沒做完的直接做完。review 過後 commit、push，需要部署的就部署。最後回報 commit sha、push 結果，以及還沒推送的東西和原因。',
+    text: '依本次已核准範圍逐項對帳，把未完成的做完並附本 session 驗證輸出；只定案計畫的任務就交付計畫。測試、pre-push 檢查與 review 通過後，依分支與授權規則 commit、push；部署或 reload 只處理已有授權的目標。最後列 commit SHA、push 結果、部署驗證，以及未交付項目、原因與下一步。',
   },
   {
     hotkey: '9',
     label: '收工',
     when: '任務都完成、驗證過也推送了，這個 session 可以結束',
-    text: '收工。先確認計畫都做完、該推的都推了（列出 sha），然後依序：1. 用 session-handoff skill 寫交接文件。2. 回一段 recap：做了什麼、結果和證據、沒做完的事。3. 整理這個 session 的犯錯回饋和開發建議，包含 sub-agent 和 tmux worker 的行為，不只 main session，用 shared-memory-intake skill 投稿。',
+    text: '收工。核對本次目標、驗證及 push 狀態，未完成項目如實列出。用 session-handoff skill 寫可接續的交接，再給 recap：成果、證據、未完成項目與下一步。整理本 session 的錯誤、修正與開發建議，納入 main session、sub-agent 和 tmux worker 的行為，依 shared-memory-intake skill 投稿；附交接與投稿位置。',
   },
 ] as const
 
