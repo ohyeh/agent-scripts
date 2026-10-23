@@ -54,9 +54,7 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 
 - Owner: skill `diagram-design` (house style, typed forms, connector rules).
 - More than about nine nodes → split into an overview and a detail diagram.
-- A diagram about direction (data flow, architecture, dependency, deployment)
-  is animated by default: one `aria-hidden` flow token, cycle of 3 s or more,
-  no playback controls. Every other type is static.
+- Which diagrams animate, and how: skill `using-design-skills` §DEFER.
 - Static first: with JS off, in reduced motion, in print, and in every
   export, the complete labeled figure is visible.
 

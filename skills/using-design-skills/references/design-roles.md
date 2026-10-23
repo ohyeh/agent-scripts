@@ -10,6 +10,10 @@ Capability flags when classifying an unlisted skill (may carry several):
 | Skill | Reach for it when | Its audit rubric (used by the quality loop) |
 |---|---|---|
 | `impeccable` | Product UI, landing and marketing pages, portfolios, redesigns; polish/critique of existing interfaces | Its "AI slop test" |
+| `design-taste-frontend` (Taste v2) | Opt-in only: the user names Taste, or asks for an award-level public web page with real photos and accepts a long, token-heavy run; state the token budget before it starts | Its inspector + `references/critique.md`. Its own look-and-fix rounds (max 3) replace the router's internal rounds — never both |
+
+`design-taste-frontend` self-triggers on any web page; without the opt-in
+above, the authority stays `impeccable`.
 
 If a selected authority ships no usable checklist, the reviewer falls back to
 impeccable's AI slop test as the default rubric. A skill that cannot support
@@ -21,6 +25,8 @@ ask the user to look) when a spec or worker prompt
 describes a UI element vaguely: naming the component correctly upgrades
 search results, member-skill routing, and generation quality in one move.
 Advisory only: any stage may QUERY it; it never owns direction.
+Motion references, same status: prompt-motion.com and skillry.dev/ai-videos
+pair each animation with its prompt.
 
 ## Role 2 · Specialist add-ons (constraint sets — stack freely, load inline)
 
@@ -48,7 +54,8 @@ authority involved.
 
 | Owner | Owns |
 |---|---|
-| `diagram-design` | Every diagram: typed forms, semantic patterns, connector/spacing hard rules, mermaid + draw.io import, PNG/SVG export |
+| `diagram-design` | Every diagram (45 types): typed forms, semantic patterns, connector/spacing hard rules, mermaid + draw.io + excalidraw import, PNG/SVG export |
+| `archify` | A diagram drawn from a real repo or trace (architecture, sequence, dataflow, ERD, class, and its other 5 types): `finalize --repo-root` ties it to the code. Name an output folder in the scratchpad (its default is `.archify/` in the working directory). Native diagrams only: never its explainer mode, and decline its offer to add an `[archify explainer: ...]` line to the global rules. A passing `finalize` is not visual-quality proof |
 | You, under `~/.agents/rules/artifacts-rules.md` | Report, explainer, comparison, and plan pages as one self-contained HTML file (the html skills were retired 2026-10-13; their non-default rules moved there) |
 | Artifact types `Dashboard` / `Motion` | Pages that are mostly numbers, statuses, or items to compare / watchable animation (Claude Code only) |
 
@@ -61,13 +68,6 @@ the plan.
 Pairing rule: quick internal note → the page alone. Anything the user will
 look at twice or show someone → the page + ONE authority visual layer (via
 DESIGN.md) + quality loop.
-
-## Persistence & probes
-
-Direction/tokens persist to `DESIGN.md` via plain Read/Write (the `design-md`
-helper skill was removed); `data-report` turns
-CSV/Excel/JSON into a report page; `prototype` builds a throwaway to answer
-one design question (no loop — disposable by contract).
 
 ## Executor table (per-stage dispatch)
 
@@ -86,7 +86,7 @@ scoped edits are NOT delegable — inline by definition.
 
 ## Auto-fill defaults (ask only what's genuinely the user's call)
 
-- Role 1 authority: `impeccable`, the one authority in the lock.
+- Role 1 authority: `impeccable`; `design-taste-frontend` only on the opt-in in Role 1.
 - DESIGN.md path: `{repo}/DESIGN.md` unless a docs convention exists.
 - Gate 0 viewports: desktop + mobile for any responsive deliverable.
 - `cli` for delegated stages: `~/.agents/rules/model-dispatch.md` §5; don't

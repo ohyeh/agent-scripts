@@ -389,6 +389,25 @@
       "skillFolderHash": "ac92229646fccf7315ae139c37b479b3790617f2",
       "installedAt": "2026-08-03T04:20:00.000Z",
       "updatedAt": "2026-08-20T01:52:54.727Z"
+    },
+    "archify": {
+      "source": "tt-a1i/archify",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/tt-a1i/archify.git",
+      "skillPath": "archify/SKILL.md",
+      "skillFolderHash": "39069dd190f574064fe410aa3af1b6dfd98a522c",
+      "installedAt": "2026-10-23T05:53:45.590Z",
+      "updatedAt": "2026-10-23T05:53:45.590Z"
+    },
+    "design-taste-frontend": {
+      "source": "Leonxlnx/taste-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
+      "skillPath": "skills/taste-skill/SKILL.md",
+      "skillFolderHash": "2a22452297d559ea5ad97c178879d30ee3ec8022",
+      "pluginName": "taste-skill",
+      "installedAt": "2026-10-23T05:53:48.470Z",
+      "updatedAt": "2026-10-23T05:53:48.470Z"
     }
   },
   "dismissed": {

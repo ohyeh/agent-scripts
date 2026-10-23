@@ -25,14 +25,17 @@ module/API interface design.
 
 ## QUESTIONS — compose the pipeline (answer in order)
 
-Q1 **Base deliverable — who owns the output?** Diagram → `diagram-design` for
-every diagram (house style, mermaid, draw.io, PNG-SVG export) · report or
+Q1 **Base deliverable — who owns the output?** Diagram → `diagram-design`
+(house style, mermaid, draw.io, excalidraw, PNG-SVG export); a diagram drawn
+from a real repo or trace → `archify` (`references/design-roles.md` Role 5) · report or
 plan page → you build one self-contained HTML file under `artifacts-rules` ·
 web/mobile → target stack ·
 Artifact → artifact file · metrics, KPIs, status or any large scan-and-compare
 content → Artifact type `Dashboard` · animation, explainer or demo video,
 walkthrough, motion graphic → Artifact type `Motion` (both: Artifact
-`quickstart`, then the type's instructions own structure) ·
+`quickstart`, then the type's instructions own structure; motion is written
+as code so every word, number and timing stays editable, and a reference
+case lends its structure and timing, never its prompt) ·
 data file → `data-report` · module/API/domain →
 Pipeline D · token work → DESIGN.md itself · mockup-only → static HTML mockup, no build loop ·
 "would this work?" → `prototype`, alone, no loop.
@@ -100,7 +103,8 @@ fresh reviewer, verdict still PASS/BLOCK. `prototype` → none.
   diagram type (ER, quadrant, bar, Venn) defaults to `none` — no flow to
   point at means motion is decoration. The static-first contract is NOT
   relaxed: with JS off, and in reduced-motion, print, and every export, the
-  complete labeled figure is visible.
+  complete labeled figure is visible. These defaults bind `diagram-design`
+  output; `archify` keeps its own Viewer (starts Still, the reader picks Live).
 - **Format: HTML first.** Every diagram and visual deliverable is a
   self-contained `.html`; `svg`/`png` are EXPORTED from it, never
   hand-authored. Markdown (a mermaid fence) requires the user asking for it
@@ -135,8 +139,10 @@ show a review happened.
 
 **Rubric, in order:** 1. THE SLOP TEST — the authority's audit rubric,
 judged at the quality bar above; generic gradient-hero / emoji-bullet /
-card-grid sameness = BLOCK regardless of correctness, and so does a render
-that is clean but not award-level. 2. Prose discipline — no filler,
+card-grid sameness, or taglines and helper text the layout should make
+unnecessary (units, time window, source, status and error text stay) = BLOCK
+regardless of correctness, and so does a render that is clean but not
+award-level. 2. Prose discipline — no filler,
 scannable hierarchy.
 3. DESIGN.md conformance. 4. The stage's frozen ACCEPTANCE criteria.
 
