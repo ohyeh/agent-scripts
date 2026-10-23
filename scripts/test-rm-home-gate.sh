@@ -69,14 +69,17 @@ j "EnterWorktree ask CLI"       ask  '{"tool_name":"EnterWorktree","tool_input":
 j "EnterWorktree no ask"        deny '{"tool_name":"EnterWorktree","tool_input":{}}'
 j "Agent isolation"             ask  '{"tool_name":"Agent","tool_input":{"prompt":"x","isolation":"worktree"}}' 1
 j "Agent plain"                 pass '{"tool_name":"Agent","tool_input":{"prompt":"x"}}' 1
-R0="$(git rev-parse --show-toplevel)"
-j "cd subdir warns"             warn "$(b "cd scripts && ls")"
-j "cd quoted space warns"       warn "$(b "cd -- \"/tmp/no such dir\"")"
-j "cd var warns"                warn "$(b "cd \$X && ls")"
-j "cd repo root"                pass "$(b "cd $R0 && make")"
+# cd cases run in a scratch repo: deploy's Layer 0 runs this file in a tarball, not a clone.
+R0="$(mktemp -d)"; trap 'rm -rf "$R0" "$N0"' EXIT
+git -C "$R0" init -q && mkdir "$R0/scripts"
+N0="$(mktemp -d)"
+j "cd subdir warns"             warn "$(b "cd scripts && ls" "$R0")"
+j "cd quoted space warns"       warn "$(b "cd -- \"/tmp/no such dir\"" "$R0")"
+j "cd var warns"                warn "$(b "cd \$X && ls" "$R0")"
+j "cd repo root"                pass "$(b "cd $R0 && make" "$R0")"
 j "cd root from subdir"         pass "$(b "cd .." "$R0/scripts")"
-j "subshell cd"                 pass "$(b "(cd scripts && ls)")"
-j "cd in echo"                  pass "$(b "echo 'cd x'")"
-j "cd after sibling"            pass "$(b "echo ok && cd scripts")"
-j "cd outside a repo"           pass "$(b "cd /" /tmp)"
+j "subshell cd"                 pass "$(b "(cd scripts && ls)" "$R0")"
+j "cd in echo"                  pass "$(b "echo 'cd x'" "$R0")"
+j "cd after sibling"            pass "$(b "echo ok && cd scripts" "$R0")"
+j "cd outside a repo"           pass "$(b "cd /" "$N0")"
 exit "$fail"

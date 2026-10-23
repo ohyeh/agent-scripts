@@ -180,7 +180,8 @@ else printf 'FAIL %-36s ec=%s out=%s\n' "claude-only runs Claude payload" "$ec" 
 # --- rm-home-gate via adapter: Cursor does not enforce ask, so a gate ask is a deny ---
 install -m 0755 .agents/hooks/rm-home-gate.sh "$HOME/.agents/hooks/"
 WTJ="$(jq -cn --arg c "git worktree a""dd /tmp/x" '{hook_event_name:"preToolUse",tool_name:"Shell",conversation_id:"c1",tool_input:{command:$c,timeout:30000}}')"
-CDJ="$(jq -cn --arg d "$PWD" '{hook_event_name:"preToolUse",tool_name:"Shell",conversation_id:"c1",cwd:$d,tool_input:{command:"cd scripts && ls",working_directory:$d,timeout:30000}}')"
+CDR="$HOME/cdrepo"; git -C "$(mkdir -p "$CDR/scripts" && echo "$CDR")" init -q
+CDJ="$(jq -cn --arg d "$CDR" '{hook_event_name:"preToolUse",tool_name:"Shell",conversation_id:"c1",cwd:$d,tool_input:{command:"cd scripts && ls",working_directory:$d,timeout:30000}}')"
 t "worktree add denied (no ask)" 2 rm-home-gate "$WTJ"
 t "cd subdir allowed" 0 rm-home-gate "$CDJ"
 if printf '%s' "$CDJ" | "$HOME/.agents/hooks/cursor-adapt.sh" rm-home-gate | jq -e '.additional_context | test("cd scripts")' >/dev/null; then
