@@ -36,5 +36,5 @@ tree. `recheck` = the fact that makes the row stale, not a new winner.
 
 | id | question | when | choice | evidence | date | recheck | class |
 |---|---|---|---|---|---|---|---|
-| MAP | Q1 | One bounded job in one domain | `using-skills` (its intent tables) | dt-synthesis.md consensus 2, 2026-10-23 | 2026-10-23 | absent from the lock, or its tables move into branch files | mechanical |
+| MAP | Q1 | One bounded job in one domain | The row of `references/map.md` whose "I need to…" fits | the former top-level skill router, folded in 2026-10-23 (dt-synthesis.md consensus 2) | 2026-10-23 | the named skill is absent from the lock | mechanical |
 | INTERVIEW | Q2 | The user asks to stress-test an unsettled idea | `grilling`, frontier rounds; never a default step | Owner ruling 2026-10-23 (the old flow picker retired); sol-hybrid.md:115 | 2026-10-23 | absent from the lock | owner |

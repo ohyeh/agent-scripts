@@ -1,9 +1,4 @@
----
-name: using-skills
-description: "Which skill owns this task. Invoke BEFORE doing by hand any of: .pdf read or fill, test plan, architecture improvement, second-model review, docs writing, greenfield page, prose cleanup, 「有沒有 skill」, 「用哪個」 — or any task not named in the kernel routing index. Even a 1% chance a skill covers it means invoke this first; it costs one read."
----
-
-# using-skills
+# Skill map (intent branch, MAP row)
 
 Route by intent. Every name below is an entry in `skills-lock.json`, the
 installed roster, so a name here always resolves on this machine.
@@ -14,39 +9,34 @@ loop-shaped work, code changes, output shape — its route wins. A few of those
 skills still get a row below so that every lock name resolves in one place; the
 row is a lookup, not a second opinion.
 
-Two hops maximum: `using-skills` → domain router → member. Never route back
-here from inside a domain router. Read the live `SKILL.md` before acting;
-never act from memory of an old roster.
+Two hops maximum: `using-decision-tree` → domain router → member. Visual
+work → `references/design.md`; loop-shaped work → `references/loops.md`
+(both through `references/index.md`). Never route back here from inside a
+branch. Read the live `SKILL.md` before acting; never act from memory of an
+old roster.
 
 **Mode column**: `Skill()` = model-invocable · `manual` = read its `SKILL.md`
 inline or use its slash command · `via-router` = enter through the router named.
 
-## Hop 1: domain routers
-
-| Router | Enter it when | Mode |
-|---|---|---|
-| `using-decision-tree` | Anything visual: web page, app screen, HTML deliverable, chart, artifact, motion, plus module and API interface design (its design branch); loop-shaped work: audit, consensus, triage, plan→build, lifecycle, research rounds (its loops branch, `references/loops.md`; owns the recipes in `~/.claude/workflows/`) | Skill() |
-| `using-tmux-agent-tools` | Running a CLI as a tmux worker, or deciding inline versus worker | Skill() |
-
 ## Flows: situation → handoff → artifact → loop
 
 Conditional handoffs, not a pipeline. Use only the stages the task needs,
-inside the scope the user authorized. A domain router that owns a pipeline
-keeps it. Loop-shaped work or a named recipe goes to the `using-decision-tree` loops branch, which
-picks or bypasses; a fresh reviewer alone does not make a recipe. Not every
-skill is a link: tools, generators and constraint sets come from the map.
+inside the scope the user authorized. A branch that owns a pipeline keeps it.
+Loop-shaped work or a named recipe goes to the loops branch, which picks or
+bypasses; a fresh reviewer alone does not make a recipe. Not every skill is a
+link: tools, generators and constraint sets come from the map.
 
 | Situation | Handoff | Artifact per step | Loop closes when |
 |---|---|---|---|
 | New feature, acceptance unclear | `unknowns-discovery` (when its trigger holds) → `prototype` for a design question, or `wayfinder` when too big for one session → implement (`tdd` when the user wants test-first) → a check executed and quoted before any done claim (kernel Done rule) → `defect-first-review` when risk or the user asks | stated defaults → design answer or decision tickets → diff and tests → quoted check output → findings | findings fixed and re-verified; a repeated finding → a gate, or a backlog row that names the file |
-| Bug or regression | `diagnosing-bugs` (many competing hypotheses → enter the `using-decision-tree` loops branch instead) → re-run the original scenario → `defect-first-review` on the fix diff when risk warrants | repro and failing signal → fix and regression test → original scenario re-run → findings | regression test stays in the repo |
+| Bug or regression | `diagnosing-bugs` (many competing hypotheses → enter the loops branch instead) → re-run the original scenario → `defect-first-review` on the fix diff when risk warrants | repro and failing signal → fix and regression test → original scenario re-run → findings | regression test stays in the repo |
 | Test plan | write the cases inline → only when execution is authorized: the browser row below (web) or the app row below (app) → a bug → Bug row; tracker issues → `triage` | cases → execution evidence → bug report | a missed case goes back into the plan |
 | Pause or hand off | `session-handoff`; reusable knowledge for Codex → `shared-memory-intake` (inbox only) | handoff doc → inbox entry | the next session starts from the doc |
 
 Owner pointers (their chains stay with them): codebase-wide deepening →
-`improve-codebase-architecture`; interface, domain or visual design →
-`using-decision-tree`; writing for people → `writing-artifacts`; tmux workers →
-`using-tmux-agent-tools`; loops and recipes → the `using-decision-tree` loops branch; a skill edit →
+`improve-codebase-architecture`; interface, domain or visual design → the
+design branch; writing for people → `writing-artifacts`; tmux workers →
+`using-tmux-agent-tools`; loops and recipes → the loops branch; a skill edit →
 `skill-creator` (draft, eval), then rule `maintenance` §1 (exact diff, approval)
 before any install or deploy.
 
@@ -56,7 +46,7 @@ before any install or deploy.
 |---|---|---|
 | diverge in parallel under different cognitive frames | `adhd` | Skill() |
 | stress-test a plan or decision in frontier rounds | `grilling` | Skill() |
-| pick a flow when the situation is fuzzy or cross-domain | `using-decision-tree` → read `references/intent.md` Q2 | manual |
+| pick a flow when the situation is fuzzy or cross-domain | `references/intent.md` Q2 | manual |
 | surface the map/territory gap in unfamiliar territory | `unknowns-discovery` | Skill() |
 | build a throwaway prototype to answer a design question | `prototype` | Skill() |
 | chart work too big for one session as decision tickets | `wayfinder` | manual |
@@ -84,6 +74,7 @@ before any install or deploy.
 
 | I need to… | Skill | Mode |
 |---|---|---|
+| run a CLI as a tmux worker, or decide inline versus worker | `using-tmux-agent-tools` | Skill() |
 | write any worker brief (GOAL/ACCEPTANCE/REPORT) | `delegation-templates` | Skill() |
 | drive tmux workers: mechanics and wrappers | `tmux-agent-tools` | via-router |
 | plan and run an explicitly orchestrated agent workflow | `codex-dynamic-workflows` | Skill() |
@@ -94,7 +85,7 @@ before any install or deploy.
 |---|---|---|
 | read a pasted URL as clean markdown | `defuddle` | Skill() |
 | read, fill, merge, or produce a PDF | `pdf` | Skill() |
-| investigate a question against primary sources, write it up | `using-decision-tree` loops branch → `haiku-research-round` | Skill() |
+| investigate a question against primary sources, write it up | loops branch → `haiku-research-round` | manual |
 | drive a browser: navigate, fill forms, read a logged-in page, screenshot | `codex-cu` where it is installed: the user's own Chrome, background tab first. A host without it (no ChatGPT Computer Use plugin) goes straight to `agent-browser`, no setup unless the user asks; so does a step codex-cu cannot do. `agent-browser` runs one named session, reused and closed at the end, never several at once | Skill() |
 | drive an iOS, Android, macOS, or TV app | macOS app: `codex-cu` where it is installed, else `agent-device`; iOS, Android, TV: `agent-device` | Skill() |
 | read or drive the Grok Bot macOS app (bots, folders, transcripts) | `using-grok-bot-app` | Skill() |
@@ -109,8 +100,8 @@ before any install or deploy.
 
 ## Visual and HTML output
 
-`using-decision-tree` → `references/design.md` names every visual member and
-when each one runs. This file lists none of them.
+`references/design.md` names every visual member and when each one runs. This
+file lists none of them.
 
 ## Session and fleet upkeep
 
@@ -159,7 +150,7 @@ skills; the kernel routes them.
 
 ## Subagent exemption
 
-A worker executing one assigned task does not enter this router. The dispatcher
+A worker executing one assigned task does not enter this tree. The dispatcher
 already routed; the worker follows its brief.
 
 ## Red flags
@@ -169,7 +160,7 @@ Naming one and proceeding anyway needs a stated reason.
 - 「這只是小問題，不用 skill」: go direct when the domain is obvious, but do not
   skip routing on substantial work.
 - 「我記得那支 skill 的內容」: members change. Read the live `SKILL.md` first.
-- 「先做完再回頭套流程」: for loop-shaped or visual work the router picks the
+- 「先做完再回頭套流程」: for loop-shaped or visual work the branch picks the
   process first. Retrofitting ships half-done work.
 
 ## Freshness self-check
@@ -178,7 +169,7 @@ This map matches `skills-lock.json` at its last edit. When a name here does not
 resolve, or the listing shows a skill this map omits, confirm before trusting it:
 
 ```bash
-diff <(rg -o '`[a-z][a-z0-9-]+`' ~/.agents/skills/using-skills/SKILL.md | tr -d '`' | sort -u) \
+diff <(rg -o '`[a-z][a-z0-9-]+`' ~/.agents/skills/using-decision-tree/references/map.md ~/.agents/skills/using-decision-tree/references/design.md | sed 's/.*://' | tr -d '`' | sort -u) \
      <(jq -r '.skills|keys[]' ~/.agents/.skill-lock.json | sort)
 ```
 

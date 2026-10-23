@@ -264,15 +264,6 @@
       "installedAt": "2026-09-04T08:30:33.000Z",
       "updatedAt": "2026-10-22T16:33:13.000Z"
     },
-    "using-skills": {
-      "source": "ohyeh/agent-scripts",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
-      "skillPath": "skills/using-skills/SKILL.md",
-      "skillFolderHash": "6a498a9d87f4ac700f704f74ac81fce8d5e2ad03",
-      "installedAt": "2026-07-19T11:40:52.644Z",
-      "updatedAt": "2026-10-23T00:00:00.000Z"
-    },
     "using-tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
       "sourceType": "github",

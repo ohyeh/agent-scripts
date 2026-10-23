@@ -1,6 +1,6 @@
 ---
 name: using-decision-tree
-description: "Which skill, in what order, for visual or interface work. Invoke BEFORE any visual output: web page, landing page, dashboard, product UI, mobile screen, HTML report, diagram, chart, plan page, artifact, motion, redesign, 「做個頁面」, 「畫圖」, 「報告做成網頁」, plus module or API interface design. Walks one decision table, binds one owner per role, closes with an evidence check."
+description: "Which skill or recipe owns this task, in what order. Invoke BEFORE doing by hand any task the kernel routing index does not name (.pdf read or fill, test plan, architecture improvement, docs writing, prose cleanup, 「有沒有 skill」, 「用哪個」); BEFORE any visual output (web page, landing page, dashboard, product UI, mobile screen, HTML report, diagram, chart, plan page, artifact, motion, redesign, 「做個頁面」, 「畫圖」, 「報告做成網頁」, module or API interface design); and BEFORE loop-shaped work (audit, second-model review, findings triage, PR review comments, feature brief to plan, spec to implement, research or price comparison over rounds, 「跑一輪審查」, 「幫我 plan」, 「把 findings 處理掉」). Walks one decision table per branch, binds one owner per role, closes with an evidence check."
 ---
 
 # using-decision-tree
@@ -15,7 +15,7 @@ branch file plus one index row; this file does not change for it.
 1. The kernel routing index names a skill other than `using-decision-tree`
    for this trigger → open that skill and stop here. The kernel route wins.
 2. Read `references/index.md`. Pick the row whose `when` fits the task. No row
-   fits → this tree does not cover the task yet; use `using-skills`.
+   fits → follow `references/map.md` §Nothing fits.
 3. Read that branch file. Answer its questions top to bottom. Take member
    names only from its member table; cite the row id you used.
 4. Bind each chosen member live:
