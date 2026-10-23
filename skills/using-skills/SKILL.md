@@ -104,9 +104,6 @@ before any install or deploy.
 |---|---|---|
 | turn a fuzzy subject into a finished deliverable (entry point) | `writing-artifacts` | Skill() |
 | write in-repo software docs: README, API, tutorial | `documentation-writing` | Skill() |
-| mine raw fragments before any structure | `writing-fragments` | manual |
-| shape raw material into an article paragraph by paragraph | `writing-shape` | manual |
-| assemble material into a journey of beats | `writing-beats` | manual |
 | remove AI writing patterns from any prose | `stop-slop` | Skill() |
 
 ## Visual and HTML output

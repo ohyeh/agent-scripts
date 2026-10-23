@@ -9,7 +9,7 @@ set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # Retired from skills-lock.json (git history, 2026-10-01) + names the
 # 2026-10-01 remote-44 audit found referenced but never defined.
-RETIRED='using-design-skills brainstorming canary-source-proof git-commit web-design-guidelines data-report hallmark
+RETIRED='using-design-skills brainstorming canary-source-proof git-commit web-design-guidelines data-report hallmark writing-beats writing-fragments writing-shape
 high-end-visual-design image-to-code imagegen-frontend-mobile
 imagegen-frontend-web karpathy-guidelines migrate-to-shoehorn pierre-guard
 refactor release-plannotator resolving-merge-conflicts review-renovate simplify

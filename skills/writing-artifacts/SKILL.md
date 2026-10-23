@@ -5,9 +5,9 @@ description: Turn a fuzzy subject — a problem description, an incident, a deci
 
 # writing-artifacts
 
-A production line: raw thoughts in, publishable artifact out. You orchestrate
-stations; each station's method lives in its own SKILL.md — read it at that
-stage, never work from memory of it.
+A production line: raw thoughts in, publishable artifact out. Stages 1–2 run
+from this file; every other station's method lives in its own SKILL.md — read
+it at that stage, never work from memory of it.
 
 ## Stage 0 — frame (one question round, then move)
 
@@ -29,26 +29,34 @@ without a grounded term, no "simply/just/obviously".
 **Genre branch, decided here:** in-repo SOFTWARE documentation (README, API
 docs, tutorials, how-to guides — anything living under the repo) swaps the
 structure station: run `documentation-writing` (Eight Rules + Diataxis, docs/
-location and linking rules) as Stage 2 instead of the writing-beats/shape
-pair, keeping Stage 1 mining and Stage 3 `stop-slop` discipline unchanged.
+location and linking rules) as Stage 2 instead of the default structure
+stage, keeping Stage 1 mining and Stage 3 `stop-slop` discipline unchanged.
 Everything else — problem writeups, incidents, decisions, long-form prose —
 takes the default line below.
 
 ## Stage 1 — mine (diverge)
 
-`writing-fragments`: dump everything known about the subject as raw
-fragments — evidence, timeline, feelings, half-thoughts — no structure yet.
+List everything known about the subject before any structure: evidence,
+timeline, claims with a one-line reason, half-thoughts. Name each unknown
+instead of writing around it. Push for a leading word: one compact coinage the
+whole piece can hang on; it later shapes the structure, transitions and title.
 For a genuinely fuzzy idea (not a known incident), run `adhd` first for
-parallel divergence, then fragment the survivors.
+parallel divergence, then mine the survivors.
 
 ## Stage 2 — structure (converge)
 
-Pick ONE:
-- `writing-beats` — when the reader must be LED somewhere: problem
-  narratives, incident writeups, decision rationales. Grounds each term
-  before a beat leans on it.
-- `writing-shape` — when the material is already roughly ordered and just
-  needs shaping paragraph by paragraph.
+1. Ground before you lean. Fix what the READER brings (prerequisites); every
+   other concept must be introduced by an earlier section before a later one
+   uses it. Keep a running grounded list. When a section needs an ungrounded
+   concept, add a grounding section before it or make the concept a
+   prerequisite.
+2. Draft 2–3 openings, each a different angle; pick the one that fits the
+   READER and name the pick in the Stage 5 report.
+3. Order the rest by "what does the reader need next?". Cut a section that
+   lands no new point; leftover material is fine.
+
+Co-writing section by section (the user picks the opening and each block) runs
+only when the user asks for it.
 
 ## Stage 3 — tighten
 

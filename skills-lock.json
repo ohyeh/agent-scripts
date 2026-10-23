@@ -336,33 +336,6 @@
       "installedAt": "2026-08-01T11:44:27.233Z",
       "updatedAt": "2026-10-23T00:00:00.000Z"
     },
-    "writing-beats": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/in-progress/writing-beats/SKILL.md",
-      "skillFolderHash": "3a28fb076fdaaec0927080718abb98fc0f340011",
-      "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-20T01:52:50.999Z"
-    },
-    "writing-fragments": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/in-progress/writing-fragments/SKILL.md",
-      "skillFolderHash": "98e500e0097ec80f52f6a024c5a2ff6d15235bdb",
-      "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-20T01:52:52.732Z"
-    },
-    "writing-shape": {
-      "source": "mattpocock/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/mattpocock/skills.git",
-      "skillPath": "skills/in-progress/writing-shape/SKILL.md",
-      "skillFolderHash": "ac92229646fccf7315ae139c37b479b3790617f2",
-      "installedAt": "2026-08-03T04:20:00.000Z",
-      "updatedAt": "2026-08-20T01:52:54.727Z"
-    },
     "archify": {
       "source": "tt-a1i/archify",
       "sourceType": "github",
