@@ -117,7 +117,6 @@ Listed so a name resolves, not as a bypass. The router picks the owner.
 |---|---|
 | `impeccable` | Direction authority: product UI, landing and marketing pages, redesigns, polish, critique |
 | `apple-design` | Springs, gestures, interruptible motion |
-| `hallmark` | Anti-slop greenfield pages, audits, design extraction from a URL or screenshot |
 | `design-taste-frontend` | Opt-in direction authority (Taste v2) for award-level public web pages |
 | `diagram-design` | House-style typed diagrams, mermaid, draw.io and excalidraw, PNG/SVG export |
 | `archify` | Native diagrams drawn from a real repo or trace |

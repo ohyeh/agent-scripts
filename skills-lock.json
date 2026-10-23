@@ -145,15 +145,6 @@
       "installedAt": "2026-08-10T07:08:45.281Z",
       "updatedAt": "2026-10-08T19:25:12.142Z"
     },
-    "hallmark": {
-      "source": "nutlope/hallmark",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/nutlope/hallmark.git",
-      "skillPath": "skills/hallmark/SKILL.md",
-      "skillFolderHash": "9bef0978c1448d6e5fbeacfa7302326d6183a06c",
-      "installedAt": "2026-08-21T07:50:52.145Z",
-      "updatedAt": "2026-10-22T17:17:21.950Z"
-    },
     "impeccable": {
       "source": "pbakaus/impeccable",
       "sourceType": "github",
@@ -296,7 +287,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-skills/SKILL.md",
-      "skillFolderHash": "2aa13ea5c7bdc242662f88bdc4561ee8abec8b8f",
+      "skillFolderHash": "f423f71d2d97205239734f414194f0dc9ad3545f",
       "installedAt": "2026-07-19T11:40:52.644Z",
       "updatedAt": "2026-10-22T16:46:39.000Z"
     },
