@@ -127,7 +127,8 @@ Awards, or FWA. "Correct and clean" is not the bar.
 1. Internal: the builder self-checks the render against the bar, then runs
    up to 3 critique rounds with `advisor` or an opus/sonnet one-shot.
    Fix between rounds. Stop when a round finds nothing that moves the work
-   toward the bar.
+   toward the bar. An authority that ships its own look-and-fix rounds
+   (`references/design-roles.md` Role 1) supplies these; add none of yours.
 2. External (optional, judged by difficulty): add one fresh CLI reviewer
    (`consensus-gate`, `args.cli`) for hard work — a new visual direction,
    complex interaction or motion, or high stakes — or when the internal

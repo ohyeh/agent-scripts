@@ -54,8 +54,8 @@ authority involved.
 
 | Owner | Owns |
 |---|---|
-| `diagram-design` | Every diagram (45 types): typed forms, semantic patterns, connector/spacing hard rules, mermaid + draw.io + excalidraw import, PNG/SVG export |
-| `archify` | A diagram drawn from a real repo or trace (architecture, sequence, dataflow, ERD, class, and its other 5 types): `finalize --repo-root` ties it to the code. Name an output folder in the scratchpad (its default is `.archify/` in the working directory). Native diagrams only: never its explainer mode, and decline its offer to add an `[archify explainer: ...]` line to the global rules. A passing `finalize` is not visual-quality proof |
+| `diagram-design` | Every other diagram (the widest type range): typed forms, semantic patterns, connector/spacing hard rules, mermaid + draw.io + excalidraw import, PNG/SVG export |
+| `archify` | A diagram drawn from a real repo or trace (architecture, sequence, dataflow, ERD, class and a few more; its Type router lists them): `finalize --repo-root` ties it to the code. Name an output folder in the scratchpad (its default is `.archify/` in the working directory). Native diagrams only: never its explainer mode, and decline its offer to add an `[archify explainer: ...]` line to the global rules. A passing `finalize` is not visual-quality proof |
 | You, under `~/.agents/rules/artifacts-rules.md` | Report, explainer, comparison, and plan pages as one self-contained HTML file (the html skills were retired 2026-10-13; their non-default rules moved there) |
 | Artifact types `Dashboard` / `Motion` | Pages that are mostly numbers, statuses, or items to compare / watchable animation (Claude Code only) |
 
