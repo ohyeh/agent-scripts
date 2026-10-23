@@ -34,6 +34,10 @@ also lists every phrase in full. Narrow: `[ ▾ ][ ✕ ]` and labels cut with `�
 
 - A bare digit presses a band Button only in an empty prompt, and only while the band's tree
   fits `maxRows`: when the band scrolls, the phrase row is left out instead.
+- While the band is open, a digit 5-9 in an empty prompt sends its phrase at once, with no
+  confirmation: a prompt that starts with 5-9 cannot be typed that way, and a wrong key sends
+  `8 照做` (a go-ahead) or `9 收工` (handoff and a shared-memory submission). To start a prompt
+  with one of those digits, type a space first, or fold the band.
 - Digits start at 5 because the tmux-agent workers band numbers its rows from 1. With five or
   more workers listed, the two bands share a digit and the band drawn later takes it.
 - The phrase does not pass through the slash-command parser: the wrap-up names its skills in
