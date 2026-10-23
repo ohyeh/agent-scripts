@@ -1,5 +1,13 @@
 # Changelog
 
+## quick-say 0.3.0
+
+Owner 10-23: 「你這選項怎來的…這樣我根本不知道你會發啥 然後就送出了」; 「很多時候花了兩三回合以上 都是同一件事 你不是該發現然後變成一個組合技嗎」; 「目前這樣只有表面能用 但沒真正改善我的痛點」.
+
+- **Combos, not single phrases**: the owner's logs (sol and agy, independently: `.workflow/202610231450-quick-say-combos/`) show runs of 2-4 prompts on one thing: progress then 繼續 (52 sessions), review by sol + advisor until consensus (30), plan check then push (19), wrap-up (10). Four combos replace the five 0.1.0 phrases; `update title` is gone (not needed for the work).
+- **A digit fills, it does not send** (0.2.0): the whole text goes into the prompt box; Enter sends it.
+- **Follow-through**: at the end of a main-agent answer, a git gate (files this session edited and not committed, its commits not on the upstream) or a "shall I?" gate (the answer ends asking leave) sends one framed reminder that approves nothing; once per state, at most 2 in a row until the owner types. With no gate, `$.model.classify` picks the likely next combo and `$.prompt.suggest` shows its full text dim (Tab takes it). `[ ⚡ auto ]` and `/quick-say auto` turn it off; the header counts reminders. Bash-made edits are not tracked (README, Limits).
+
 ## session-recall 0.14.2
 
 - **No `↩ quote` on a summary block**: the terminal draws the text between two tool calls as a summary (`isSummary`, a faint ` · summary`), and the transcript keeps the original, not the summary. Pressed there, `↩` could never find the reply and said "that reply is not among the answers kept (a reply still being written is added when it ends)", which never came true (owner screenshot 10-23: the block was a thinking summary). The button is now left off such blocks. 1 test; without the fix it fails.

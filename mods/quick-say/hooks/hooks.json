@@ -1,4 +1,4 @@
 {
-  "description": "Draws the canned prompts above the prompt and submits the pressed one as the person's own words.",
+  "description": "Tracks what this session edits and commits; at the end of a main-agent turn, reminds the agent of unfinished git work or a closing request for leave, else suggests the likely next combo. Draws the combos above the prompt.",
   "modules": ["./register.ts"]
 }

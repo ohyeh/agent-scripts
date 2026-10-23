@@ -1,7 +1,7 @@
 {
   "name": "quick-say",
-  "version": "0.2.0",
-  "description": "Canned prompts in a band above the prompt: in an empty prompt, press 5-9 to send the session opener, continue, status, go-ahead or wrap-up message as your own words.",
+  "version": "0.3.0",
+  "description": "Follow-through for the owner's repeated asks: at the end of a main-agent turn, one framed reminder for uncommitted or unpushed work this session made, or for a closing \"shall I?\"; else the likely next combo shows dim in the empty prompt. Digits 6-9 fill a combo into the prompt.",
   "author": {
     "name": "PaulYeh",
     "url": "https://github.com/ohyeh"
