@@ -549,6 +549,9 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   # 2026-10-23: rm-home-gate also asks before a worktree; widen an existing Bash entry in place
   | .hooks.PreToolUse |= map(if any(.hooks[]?; .command == ($only + " " + $rmhome))
       then .matcher = "Bash|EnterWorktree|Agent" else . end)
+  # bypassPermissions ignores a hook ask (live 2026-10-23); ask rules cover that mode
+  | .permissions.ask = (((.permissions.ask // []) + ["EnterWorktree", "Bash(git worktree add *)",
+      "Bash(git -C * worktree add *)", "Bash(*Google Chrome* --headless*)"]) | unique)
   | ensureMatched("PreToolUse"; "mcp__codex-cu__js"; $cuchrome)
   | ensureMatched("PreToolUse"; "Bash"; $prcreate)
   | ensureMatched("PostToolUse"; "*"; $ledger)
