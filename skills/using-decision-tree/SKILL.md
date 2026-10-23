@@ -12,8 +12,8 @@ branch file plus one index row; this file does not change for it.
 
 ## Walk
 
-1. The kernel routing index names a skill for this trigger → open that skill
-   and stop here. The kernel route wins.
+1. The kernel routing index names a skill other than `using-decision-tree`
+   for this trigger → open that skill and stop here. The kernel route wins.
 2. Read `references/index.md`. Pick the row whose `when` fits the task. No row
    fits → this tree does not cover the task yet; use `using-skills`.
 3. Read that branch file. Answer its questions top to bottom. Take member

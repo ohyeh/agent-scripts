@@ -10,7 +10,7 @@ Chain these for planning and investigation work:
 - `wayfinder`: plan an effort too big for one session as decision tickets on the
   issue tracker.
 - `unknowns-discovery`: surface assumptions and unknowns first.
-- `ask-nova`: pick the flow when the fit is unclear.
+- `using-decision-tree`, intent branch: pick the flow when the fit is unclear.
 - `diagnosing-bugs`: trace a bug to its root cause.
 
 ## Before you act

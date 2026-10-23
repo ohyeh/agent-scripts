@@ -57,7 +57,7 @@ before any install or deploy.
 |---|---|---|
 | diverge in parallel under different cognitive frames | `adhd` | Skill() |
 | stress-test a plan or decision in frontier rounds | `grilling` | Skill() |
-| pick a flow when the situation is fuzzy or cross-domain | `ask-nova` | manual |
+| pick a flow when the situation is fuzzy or cross-domain | `using-decision-tree` → read `references/intent.md` Q2 | manual |
 | surface the map/territory gap in unfamiliar territory | `unknowns-discovery` | Skill() |
 | build a throwaway prototype to answer a design question | `prototype` | Skill() |
 | chart work too big for one session as decision tickets | `wayfinder` | manual |

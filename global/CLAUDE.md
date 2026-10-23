@@ -68,7 +68,7 @@ ritual, no quoting; tooling enforces critical gates.
   a gate, or a backlog row that names the file; no free-text lesson list.
 - Usage, cost, or quota analysis → harness-diagnosis §Usage analysis.
 - Task type not named above (PDFs, test plans, architecture) → skill
-  using-skills before doing it by hand.
+  using-decision-tree, intent branch, before doing it by hand.
 
 Binds when work is multi-phase, irreversible, or delegated; a single
 reversible edit with clear acceptance goes straight to code. Routing never

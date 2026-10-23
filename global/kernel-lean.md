@@ -52,7 +52,7 @@ ritual or quoting.
 - Friction found → maintenance §2: a gate, or a backlog row naming the file;
   no free-text lesson list.
 - Usage, cost, or quota analysis → harness-diagnosis §Usage analysis.
-- Task not named above → skill using-skills first.
+- Task not named above → skill using-decision-tree, intent branch, first.
 
 Binds for multi-phase, irreversible, or delegated work; a single reversible
 edit with clear acceptance goes straight to code.
