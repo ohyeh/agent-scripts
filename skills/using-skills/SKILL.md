@@ -78,6 +78,8 @@ before any install or deploy.
 | diagnose a hard bug or performance regression inline | `diagnosing-bugs` | Skill() |
 | review a diff defect-first, read-only, every finding | `defect-first-review` | Skill() |
 | review UI code: a11y, contrast, responsive, UX | `impeccable` (audit) | Skill() |
+| give a project a verification skill and feature map that drive the app like a user (reuse its device or browser harness, e.g. healthgo's `device-hub-pro`) | `create-verification-skill` | manual |
+| keep that verification skill and feature map true after the code changes | `maintain-verification-skill` | manual |
 
 ## Delegate and orchestrate
 

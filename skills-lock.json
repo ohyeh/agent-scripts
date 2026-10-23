@@ -336,6 +336,24 @@
       "pluginName": "taste-skill",
       "installedAt": "2026-10-23T05:53:48.470Z",
       "updatedAt": "2026-10-23T05:53:48.470Z"
+    },
+    "create-verification-skill": {
+      "source": "backnotprop/pstack",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/backnotprop/pstack.git",
+      "skillPath": "skills/create-verification-skill/SKILL.md",
+      "skillFolderHash": "97a20d3674c1befc5d51e4b8f60590903e23a134",
+      "installedAt": "2026-10-23T10:44:31.760Z",
+      "updatedAt": "2026-10-23T10:44:31.760Z"
+    },
+    "maintain-verification-skill": {
+      "source": "backnotprop/pstack",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/backnotprop/pstack.git",
+      "skillPath": "skills/maintain-verification-skill/SKILL.md",
+      "skillFolderHash": "35325a9f380b1dc6d79d7502b5667feba00b752b",
+      "installedAt": "2026-10-23T10:44:31.765Z",
+      "updatedAt": "2026-10-23T10:44:31.765Z"
     }
   },
   "dismissed": {
