@@ -12,8 +12,10 @@ Capability flags when classifying an unlisted skill (may carry several):
 | `impeccable` | Product UI, landing and marketing pages, portfolios, redesigns; polish/critique of existing interfaces | Its "AI slop test" |
 | `design-taste-frontend` (Taste v2) | Opt-in only: the user names Taste, or asks for an award-level public web page with real photos and accepts a long, token-heavy run; state the token budget before it starts | Its inspector + `references/critique.md`. Its own look-and-fix rounds (max 3) replace the router's internal rounds — never both |
 
-`design-taste-frontend` self-triggers on any web page; without the opt-in
-above, the authority stays `impeccable`.
+`design-taste-frontend` self-triggers on any web page, dashboard or polish
+request; that nominates it, it does not authorize a run. Without the opt-in
+above, use `impeccable` and run none of Taste's build, inspector or
+look-and-fix loop. A generic "make it less AI-made" ask is not the opt-in.
 
 If a selected authority ships no usable checklist, the reviewer falls back to
 impeccable's AI slop test as the default rubric. A skill that cannot support
@@ -55,7 +57,7 @@ authority involved.
 | Owner | Owns |
 |---|---|
 | `diagram-design` | Every other diagram (the widest type range): typed forms, semantic patterns, connector/spacing hard rules, mermaid + draw.io + excalidraw import, PNG/SVG export |
-| `archify` | A diagram drawn from a real repo or trace (architecture, sequence, dataflow, ERD, class and a few more; its Type router lists them): `finalize --repo-root` ties it to the code. Name an output folder in the scratchpad (its default is `.archify/` in the working directory). Native diagrams only: never its explainer mode, and decline its offer to add an `[archify explainer: ...]` line to the global rules. A passing `finalize` is not visual-quality proof |
+| `archify` | One of its native types (its Type router lists them) drawn from a real repo or trace; `finalize --repo-root` ties repo facts to the code. Gate: its delivered HTML must show every label with JS off; its default READ depth hides fine labels (checked 2026-10-23), so until a no-JS view is verified the owner stays `diagram-design`. Run it from a scratchpad folder with a relative `meta.output` (its default is `.archify/` in the working directory). Native diagrams only: never its explainer mode, and decline its offer to add an `[archify explainer: ...]` line to the global rules. A passing `finalize` is not visual-quality proof |
 | You, under `~/.agents/rules/artifacts-rules.md` | Report, explainer, comparison, and plan pages as one self-contained HTML file (the html skills were retired 2026-10-13; their non-default rules moved there) |
 | Artifact types `Dashboard` / `Motion` | Pages that are mostly numbers, statuses, or items to compare / watchable animation (Claude Code only) |
 

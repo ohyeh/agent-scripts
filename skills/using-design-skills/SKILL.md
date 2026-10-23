@@ -26,8 +26,9 @@ module/API interface design.
 ## QUESTIONS — compose the pipeline (answer in order)
 
 Q1 **Base deliverable — who owns the output?** Diagram → `diagram-design`
-(house style, mermaid, draw.io, excalidraw, PNG-SVG export); a diagram drawn
-from a real repo or trace → `archify` (`references/design-roles.md` Role 5) · report or
+(house style, mermaid, draw.io, excalidraw, PNG-SVG export); `archify` only
+for one of its native types drawn from a real repo or trace, under the gate in
+`references/design-roles.md` Role 5 · report or
 plan page → you build one self-contained HTML file under `artifacts-rules` ·
 web/mobile → target stack ·
 Artifact → artifact file · metrics, KPIs, status or any large scan-and-compare
@@ -103,8 +104,9 @@ fresh reviewer, verdict still PASS/BLOCK. `prototype` → none.
   diagram type (ER, quadrant, bar, Venn) defaults to `none` — no flow to
   point at means motion is decoration. The static-first contract is NOT
   relaxed: with JS off, and in reduced-motion, print, and every export, the
-  complete labeled figure is visible. These defaults bind `diagram-design`
-  output; `archify` keeps its own Viewer (starts Still, the reader picks Live).
+  complete labeled figure is visible. The motion defaults bind `diagram-design`
+  only; `archify` keeps its Viewer (Still unless the reader saved Live). The
+  static-first contract binds both owners.
 - **Format: HTML first.** Every diagram and visual deliverable is a
   self-contained `.html`; `svg`/`png` are EXPORTED from it, never
   hand-authored. Markdown (a mermaid fence) requires the user asking for it
@@ -129,6 +131,8 @@ Awards, or FWA. "Correct and clean" is not the bar.
    Fix between rounds. Stop when a round finds nothing that moves the work
    toward the bar. An authority that ships its own look-and-fix rounds
    (`references/design-roles.md` Role 1) supplies these; add none of yours.
+   Its rounds, its meter-repair reruns and the fix rounds below share one cap
+   of three; a BLOCK or a new reviewer never resets it.
 2. External (optional, judged by difficulty): add one fresh CLI reviewer
    (`consensus-gate`, `args.cli`) for hard work — a new visual direction,
    complex interaction or motion, or high stakes — or when the internal

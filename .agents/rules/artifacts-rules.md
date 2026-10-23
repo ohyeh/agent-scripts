@@ -52,7 +52,7 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 
 ## Diagram
 
-- Owner: skill `diagram-design` (house style, typed forms, connector rules).
+- Owner: skill `diagram-design`; `archify` only under the gate in `using-design-skills`.
 - More than about nine nodes → split into an overview and a detail diagram.
 - Which diagrams animate, and how: skill `using-design-skills` §DEFER.
 - Static first: with JS off, in reduced motion, in print, and in every
