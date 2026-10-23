@@ -52,11 +52,11 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 
 ## Diagram
 
-- Owner: skill `diagram-design`; `archify` only under the gate in `using-design-skills`.
+- Owner: skill `diagram-design`; `archify` for its native types drawn from a real repo or trace.
 - More than about nine nodes → split into an overview and a detail diagram.
 - Which diagrams animate, and how: skill `using-design-skills` §DEFER.
 - Static first: with JS off, in reduced motion, in print, and in every
-  export, the complete labeled figure is visible.
+  export, the complete labeled figure is visible (`archify`: all but JS off).
 
 ## Motion in an interface
 

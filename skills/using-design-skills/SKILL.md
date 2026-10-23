@@ -27,8 +27,8 @@ module/API interface design.
 
 Q1 **Base deliverable — who owns the output?** Diagram → `diagram-design`
 (house style, mermaid, draw.io, excalidraw, PNG-SVG export); `archify` only
-for one of its native types drawn from a real repo or trace, under the gate in
-`references/design-roles.md` Role 5 · report or
+for one of its native types drawn from a real repo or trace
+(`references/design-roles.md` Role 5) · report or
 plan page → you build one self-contained HTML file under `artifacts-rules` ·
 web/mobile → target stack ·
 Artifact → artifact file · metrics, KPIs, status or any large scan-and-compare
@@ -106,7 +106,8 @@ fresh reviewer, verdict still PASS/BLOCK. `prototype` → none.
   relaxed: with JS off, and in reduced-motion, print, and every export, the
   complete labeled figure is visible. The motion defaults bind `diagram-design`
   only; `archify` keeps its Viewer (Still unless the reader saved Live). The
-  static-first contract binds both owners.
+  static-first contract binds both owners, except that `archify` may hide
+  fine labels with JS off (owner ruling 2026-10-23).
 - **Format: HTML first.** Every diagram and visual deliverable is a
   self-contained `.html`; `svg`/`png` are EXPORTED from it, never
   hand-authored. Markdown (a mermaid fence) requires the user asking for it
