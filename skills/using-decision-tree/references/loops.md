@@ -42,7 +42,8 @@ dispatcher already routed; workers follow their brief.
 2. Runtime: see Contracts §Cross-runtime — Claude runs the recipe natively
    with `Workflow`; Codex commands it through `references/codex-adapter.md`
    (`claude-workflow-runner`) at `opus` effort `low` (the floor); Cursor and
-   agy stop and report.
+   agy run it by hand when the row has no `stop`. A missing Claude tool or
+   model is not a stop by itself: replace it by role (§Cross-runtime).
 3. Write-back duty: every recipe artifact/result lands in the CALLER's
    `.workflow/<YYYYMMDDHHMM>-<slug>/` run directory — never a detached
    location. One task = one run dir, shared by convention and recipe alike.
@@ -118,17 +119,20 @@ gathering by commander's call (user ruling 2026-10-10); recipe args carry the
 choice: `spec-implement…` `model`, `pr-review-triage-resolve` `fixModel`,
 `feature-plan-consensus` `discoverModel`.
 
-**Advisor gate (user ruling 2026-09-02).** Recipes cannot call tools; the
-gate lives in YOU, the commander. When the `advisor` tool is available it is
-MANDATORY at these points, and the verdict is recorded in the run dir before
-the next action:
-1. BEFORE the first `Workflow` launch — brief, recipe, args (model floor,
-   `cli` omitted or justified, round caps, hard time-box).
+**Advisor gate (user ruling 2026-09-02; every runtime).** Recipes cannot call
+tools; the gate lives in YOU, the commander. The verdict MUST be independent.
+Use the `advisor` tool when you have it. Otherwise ask one reviewer on another
+model through `using-tmux-agent-tools`. Pick the seat from the Tiers table in
+`model-dispatch.md` §1: the `better` row, or an approved `best` row. Your own
+rounds prepare the review; they are not the verdict. The gate is MANDATORY at
+these points, and the verdict is recorded in the run dir before the next action:
+1. BEFORE the first `Workflow` launch or by-hand round — brief, recipe, args
+   (model floor, `cli` omitted or justified, round caps, hard time-box).
 2. AT every human gate the recipe returns (`needsUser`, `autoBuild=false`,
    plan clean → build) — the plan itself, its size, and whether to build.
 3. BEFORE any resume / relaunch after an abort (usage limit, exhausted
    ladder) — same run or narrower.
-No advisor verdict → do not launch, resume, or build. The 2026-09-02
+No independent verdict → do not launch, resume, or build. The 2026-09-02
 quick-share run (32 plan agents, 182M input tokens, 64 KB plan, zero code
 for 3.5 h) went uncaught because no gate sat between "plan rev N" and
 "critic round N+1".
@@ -146,13 +150,32 @@ under these constraints (Codex-authored, gate-v2 2026-07-19):
 - Evidence MUST say `recipe <name> executed natively on Claude runtime via runner (commanded by Codex)`; adapter or child failure is never recipe PASS.
 
 Runtime matrix (Claude Code = `NATIVE` for all 13). Cursor and agy have no
-`Workflow()` and no adapter: every recipe there is `UNAVAILABLE — stop and
-report`; do not improvise the loop by hand.
+`Workflow()` and no adapter: every recipe there is `UNAVAILABLE` natively.
+`UNAVAILABLE` and `UNTESTED` name the native path only; they do not stop the
+work. A row stops the work when any cell in it says `stop`. Every adapter
+constraint, human gate, and kernel hard boundary still holds.
+
+**By hand.** Read the recipe's header comment. Run its stages in order. Do a
+stage yourself only when your model fits its role and tier. Otherwise give it
+to one worker that does (`using-tmux-agent-tools`). Map each Claude-only seat
+by role through the Tiers table in `model-dispatch.md` §1. Scouts and other
+gathering use the `basic` row, or the `exec` row when `basic` has no model.
+Planning, synthesis, revision, and verdicts use the `better` row, or an
+approved `best` row. Write "by hand, not the recipe" in the report. These four
+hold on every runtime:
+- G1: the Advisor gate above, before the first round.
+- G2: the brief names a round cap and a time-box (same approach ≤3 rounds,
+  judgment-rubrics §8).
+- G3: "done" quotes a check that ran this session (judgment-rubrics §2).
+- G4: no worker starts a worker; every worker brief carries the no-cascade line.
+
+If you cannot meet G1–G4, report the unmet guarantee. Do not launch or resume
+the loop. Do not claim completion.
 
 | Recipe | Codex | Cursor, agy |
 |---|---|---|
 | 3 audits, `findings-triage`, `project-direction-review`, `workflow-manifest` (6, no tmux inside) | `ADAPTED: claude-workflow-runner` | `UNAVAILABLE` |
-| `haiku-research-round` (no tmux) | `UNTESTED` — only run natively on Claude so far; stop and report | `UNAVAILABLE` |
+| `haiku-research-round` (no tmux) | `UNTESTED` natively; by hand: ≤5 scouts a round, ≤3 rounds | `UNAVAILABLE` natively; by hand: ≤5 scouts a round, ≤3 rounds |
 | `pr-review-triage-resolve` (no tmux; T3 rung = fresh Claude opus unless `externalAgentType` is set) | `UNTESTED` — only run natively on Claude so far; stop and report | `UNAVAILABLE` |
 | `consensus-gate` (simple verdict outcome only) | `ADAPTED: direct-claude-review` — `references/codex-adapter.md` | `UNAVAILABLE` |
 | `consensus-gate` (as recipe), lifecycle + its 3 stages when `cli` IS set (5, they drive tmux-agent mod workers inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise | `UNAVAILABLE` |
