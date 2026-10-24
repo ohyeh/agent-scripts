@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repair Codex context-mode bin links, or check its active hook registration."""
+"""Check, repair, lock or unlock the active Codex context-mode plugin."""
 import collections
 import json
 import os
@@ -152,9 +152,30 @@ def check_hooks(root, entry, plugin_id):
     print(f"PASS [codex-context-mode] {len(hooks)} hooks registered, enabled and trusted; no plugin diagnostics")
 
 
+def set_locked(root, locked):
+    if sys.platform != "darwin":
+        raise RuntimeError("plugin locking requires macOS user immutable flags")
+    if bin_links(root):
+        raise RuntimeError("repair bin links before locking the plugin")
+    paths = [root]
+    for base, dirs, files in os.walk(root):
+        paths.extend(Path(base) / name for name in dirs + files)
+    # Lock children first; unlock parents first so updates can resume.
+    paths.sort(key=lambda path: len(path.parts), reverse=locked)
+    for path in paths:
+        flags = path.stat().st_flags
+        wanted = flags | stat.UF_IMMUTABLE if locked else flags & ~stat.UF_IMMUTABLE
+        if flags != wanted:
+            os.chflags(path, wanted)
+    if any(bool(path.stat().st_flags & stat.UF_IMMUTABLE) != locked for path in paths):
+        raise RuntimeError("plugin lock verification failed")
+    action = "LOCKED" if locked else "UNLOCKED"
+    print(f"{action} [codex-context-mode] {len(paths)} entries: {root}; hook trust unchanged")
+
+
 def main():
-    if sys.argv[1:] not in ([], ["--check"], ["--repair"]):
-        raise RuntimeError("usage: python3 scripts/codex-context-mode.py [--check|--repair]")
+    if sys.argv[1:] not in ([], ["--check"], ["--repair"], ["--lock"], ["--unlock"]):
+        raise RuntimeError("usage: python3 scripts/codex-context-mode.py [--check|--repair|--lock|--unlock]")
     codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
     if not shutil.which("codex"):
         if (codex_home / "config.toml").exists():
@@ -175,6 +196,9 @@ def main():
         params = {"cwds": [str(Path.cwd())]}
         entry = cli.rpc("hooks/list", params)["data"][0]
         root = active_root(entry, enabled[0], codex_home)
+        if "--lock" in sys.argv or "--unlock" in sys.argv:
+            set_locked(root, "--lock" in sys.argv)
+            return
         links = bin_links(root)
         if links and "--repair" not in sys.argv:
             raise RuntimeError(f"{len(links)} incompatible bin links; rerun deploy to repair")

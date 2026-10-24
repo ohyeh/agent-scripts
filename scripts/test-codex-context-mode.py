@@ -116,6 +116,25 @@ for line in sys.stdin:
     assert "config/batchWrite" not in fake.read_text()
     print("PASS: RPC checks trusted, modified, disabled and missing hooks; --check preserves symlinks; repair never approves trust")
 
+    if sys.platform == "darwin":
+        try:
+            module.set_locked(root, True)
+            module.set_locked(root, True)
+            for path in (target, directory / "new-file"):
+                try:
+                    path.write_text("must fail")
+                    raise AssertionError(f"locked plugin accepted a write: {path}")
+                except PermissionError:
+                    pass
+            fixture.write_text(json.dumps({"entry": entry}))
+            assert subprocess.run([sys.executable, str(helper), "--unlock"],
+                                  capture_output=True, text=True, timeout=5).returncode == 0
+        finally:
+            module.set_locked(root, False)
+        target.write_bytes(target.read_bytes())
+        assert run(entry).returncode == 0
+        print("PASS: macOS lock blocks overwrite and creation; repeated lock and CLI unlock preserve hook checks")
+
     fixture.write_text(json.dumps({"hang": True}))
     with module.Codex() as cli:
         cli.deadline = time.monotonic() + 0.2
