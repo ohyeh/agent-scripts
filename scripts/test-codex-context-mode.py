@@ -91,11 +91,21 @@ for line in sys.stdin:
 ''')
     fake.chmod(0o755)
     os.environ["PATH"] = str(cli_dir) + os.pathsep + os.environ["PATH"]
-    def run(entry, check=True, **extra):
+    def run(entry, check=True, locked=True, **extra):
         fixture.write_text(json.dumps({"entry": entry, **extra}))
-        return subprocess.run([sys.executable, str(helper), "--check" if check else "--repair"],
-                              capture_output=True, text=True, timeout=5)
+        lock_fixture = sys.platform == "darwin" and check and locked and not module.bin_links(root)
+        if lock_fixture:
+            module.set_locked(root, True)
+        try:
+            return subprocess.run([sys.executable, str(helper), "--check" if check else "--repair"],
+                                  capture_output=True, text=True, timeout=5)
+        finally:
+            if lock_fixture:
+                module.set_locked(root, False)
     entry = {"hooks": [hook], "warnings": [], "errors": []}
+    if sys.platform == "darwin":
+        checked = run(entry, locked=False)
+        assert checked.returncode == 1 and "plugin lock is incomplete" in checked.stderr
     assert run(entry).returncode == 0
     assert run({"hooks": [], "warnings": [], "errors": []}).returncode == 1
     assert run(entry, enabled=False).returncode == 0
@@ -120,6 +130,14 @@ for line in sys.stdin:
         try:
             module.set_locked(root, True)
             module.set_locked(root, True)
+            module.check_locked(root)
+            os.chflags(target, target.stat().st_flags & ~module.stat.UF_IMMUTABLE)
+            try:
+                module.check_locked(root)
+                raise AssertionError("partly unlocked plugin accepted")
+            except RuntimeError as error:
+                assert "plugin lock is incomplete" in str(error)
+            module.set_locked(root, True)
             for path in (target, directory / "new-file"):
                 try:
                     path.write_text("must fail")
@@ -133,7 +151,15 @@ for line in sys.stdin:
             module.set_locked(root, False)
         target.write_bytes(target.read_bytes())
         assert run(entry).returncode == 0
-        print("PASS: macOS lock blocks overwrite and creation; repeated lock and CLI unlock preserve hook checks")
+        print("PASS: macOS checks reject missing or partial locks; lock blocks writes; repeated lock and CLI unlock preserve hook checks")
+
+    platform = sys.platform
+    try:
+        sys.platform = "linux"
+        module.check_locked(root)
+    finally:
+        sys.platform = platform
+    print("PASS: non-macOS hook checks do not require macOS immutable flags")
 
     fixture.write_text(json.dumps({"hang": True}))
     with module.Codex() as cli:

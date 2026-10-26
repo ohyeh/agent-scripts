@@ -725,7 +725,10 @@ echo "==> [context-mode] pin storage to ~/.claude/context-mode"
 if [ "$CHECK" = 1 ]; then bash "$SRC/scripts/check-context-mode-dir.sh"   # the installer's own last step
 else bash "$SRC/scripts/install-context-mode-dir.sh"; fi
 echo "PASS [context-mode] canonical store ~/.claude/context-mode"
-if [ "$CHECK" = 0 ]; then python3 "$SRC/scripts/codex-context-mode.py" --repair; fi
+if [ "$CHECK" = 0 ]; then
+  python3 "$SRC/scripts/codex-context-mode.py" --repair
+  if [ "$(uname -s)" = Darwin ]; then python3 "$SRC/scripts/codex-context-mode.py" --lock; fi
+fi
 }
 layer layer_context_mode
 

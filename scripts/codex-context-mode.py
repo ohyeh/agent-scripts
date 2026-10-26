@@ -173,6 +173,17 @@ def set_locked(root, locked):
     print(f"{action} [codex-context-mode] {len(paths)} entries: {root}; hook trust unchanged")
 
 
+def check_locked(root):
+    if sys.platform != "darwin":
+        return
+    paths = [root]
+    for base, dirs, files in os.walk(root):
+        paths.extend(Path(base) / name for name in dirs + files)
+    if any(not path.stat().st_flags & stat.UF_IMMUTABLE for path in paths):
+        raise RuntimeError("plugin lock is incomplete; rerun deploy to lock it")
+    print(f"PASS [codex-context-mode] {len(paths)} entries immutable")
+
+
 def main():
     if sys.argv[1:] not in ([], ["--check"], ["--repair"], ["--lock"], ["--unlock"]):
         raise RuntimeError("usage: python3 scripts/codex-context-mode.py [--check|--repair|--lock|--unlock]")
@@ -206,6 +217,7 @@ def main():
             repair(root, links)
             print("OK [codex-context-mode] plugin entries compatible; hook trust still needs deployment verification")
             return
+        check_locked(root)
         check_hooks(root, entry, enabled[0])
 
 
