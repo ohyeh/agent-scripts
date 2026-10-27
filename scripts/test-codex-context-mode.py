@@ -84,7 +84,8 @@ for line in sys.stdin:
         time.sleep(60)
     method=request["method"]
     if method=="initialize": result={}
-    elif method=="config/read": result={"config":{"plugins":{"context-mode@context-mode":{"enabled":fixture.get("enabled",True)}}}}
+    elif method=="config/read": result={"config":{"plugins":{"context-mode@context-mode":{"enabled":fixture.get("enabled",True)}},
+        "marketplaces":{"context-mode":{"source":fixture.get("source","https://github.com/ohyeh/context-mode.git")}}}}
     elif method=="hooks/list": result={"data":[fixture["entry"]]}
     else: raise RuntimeError("unexpected RPC: "+method)
     print(json.dumps({"id":request["id"],"result":result}),flush=True)
@@ -107,6 +108,8 @@ for line in sys.stdin:
         checked = run(entry, locked=False)
         assert checked.returncode == 1 and "plugin lock is incomplete" in checked.stderr
     assert run(entry).returncode == 0
+    upstream = run(entry, source="https://github.com/mksglu/context-mode.git")
+    assert upstream.returncode == 1 and "not https://github.com/ohyeh/context-mode.git" in upstream.stderr
     assert run({"hooks": [], "warnings": [], "errors": []}).returncode == 1
     assert run(entry, enabled=False).returncode == 0
     assert run({**entry, "hooks": [{**hook, "trustStatus": "modified"}]}).returncode == 1

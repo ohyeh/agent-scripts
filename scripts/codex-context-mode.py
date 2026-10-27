@@ -15,6 +15,7 @@ import sys
 import tempfile
 import time
 
+FORK = "https://github.com/ohyeh/context-mode.git"
 
 class Codex:
     def __enter__(self):
@@ -217,6 +218,14 @@ def main():
             repair(root, links)
             print("OK [codex-context-mode] plugin entries compatible; hook trust still needs deployment verification")
             return
+        # Pinned fork: upstream moved Insight to a hosted product after 1.0.162.
+        source = config.get("marketplaces", {}).get("context-mode", {}).get("source")
+        if source != FORK:
+            raise RuntimeError(f"context-mode marketplace source is {source}, not {FORK}; "
+                               "run `codex plugin marketplace remove context-mode && "
+                               "codex plugin marketplace add ohyeh/context-mode --ref main`, "
+                               "reinstall deps, rerun deploy, then approve /hooks again")
+        print(f"PASS [codex-context-mode] marketplace source {FORK}")
         check_locked(root)
         check_hooks(root, entry, enabled[0])
 
