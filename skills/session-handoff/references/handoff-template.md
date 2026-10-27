@@ -16,6 +16,7 @@ Use this template structure when creating handoff documents. The smart scaffold 
   - [Decisions Made](#decisions-made)
 - [Pending Work](#pending-work)
   - [Immediate Next Steps](#immediate-next-steps)
+  - [Agent Proposals (not requested)](#agent-proposals-not-requested)
   - [Mistakes and Corrections](#mistakes-and-corrections)
   - [Blockers/Open Questions](#blockersopen-questions)
   - [Deferred Items](#deferred-items)
@@ -34,6 +35,8 @@ Use this template structure when creating handoff documents. The smart scaffold 
 ## Session Metadata
 - Created: [TIMESTAMP]
 - Written by: [CLI] session [SESSION_ID] (filled by the script from CLAUDE_CODE_SESSION_ID or CODEX_THREAD_ID)
+- Model: [MODEL_ID] (from `--model`; no CLI exposes it in the environment)
+- Host: [MACHINE_NAME] (filled by the script)
 - Project: [PROJECT_PATH]
 - Branch: [GIT_BRANCH]
 - Session duration: [APPROX_DURATION]
@@ -83,9 +86,13 @@ Anything this session made that could be useful beyond it (a workflow that emerg
 
 ### Immediate Next Steps
 
-1. [Most critical next action - what to do first]
-2. [Second priority]
-3. [Third priority]
+1. [Most critical next action] — Source: [user quote + date | user-reviewed work record, file:line or section]
+2. [Second priority] — Source: [...]
+(If no user-requested next step exists, remove the numbered placeholders and write: "No user-requested next steps are recorded. Agent Proposals are not approved scope." This is a status statement, not an action item; it needs no Source.)
+
+### Agent Proposals (not requested)
+
+- [An idea of this session with no Source, or "none". Never present a proposal as the user's scope. A task the user requested but deferred goes under Deferred Items.]
 
 ### Mistakes and Corrections
 
@@ -138,7 +145,7 @@ Required when any Blocker is listed. The successor must not re-verify these unle
 
 ## Related Resources
 
-- [Link to relevant documentation]
+- [Link or path] — user-reviewed: [date | no]
 - [Related file paths]
 - [External resources consulted]
 

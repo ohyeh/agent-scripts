@@ -27,10 +27,12 @@ Determine which mode applies:
 Run the smart scaffold script to create a pre-filled handoff document:
 
 ```bash
-python3 ~/.agents/skills/session-handoff/scripts/create_handoff.py [task-slug]
+python3 ~/.agents/skills/session-handoff/scripts/create_handoff.py [task-slug] --model <your model ID>
 ```
 
-Example: `python3 ~/.agents/skills/session-handoff/scripts/create_handoff.py implementing-user-auth`
+Example: `python3 ~/.agents/skills/session-handoff/scripts/create_handoff.py implementing-user-auth --model claude-opus-5-5`
+
+Pass `--model` with the model ID you run as: no CLI puts it in the environment. Without it, the Model line stays a `[TODO]` and the validator blocks.
 
 Run it from the target project directory: the scaffold reads the project path,
 git branch, and recent commits from the current working directory.
@@ -43,7 +45,7 @@ python3 ~/.agents/skills/session-handoff/scripts/create_handoff.py "auth-part-2"
 The script will:
 - Create `.claude/handoffs/` directory if needed
 - Generate timestamped filename
-- Pre-fill: timestamp, project path, git branch, recent commits, modified files
+- Pre-fill: timestamp, writer (CLI and session id), model, host name, project path, git branch, recent commits, modified files
 - Add handoff chain links if continuing from previous
 - Output file path for editing
 
@@ -53,7 +55,10 @@ Open the generated file and fill in all `[TODO: ...]` sections. Prioritize these
 
 1. **Current State Summary** - What's happening right now
 2. **Important Context** - Critical info the next agent MUST know
-3. **Immediate Next Steps** - Clear, actionable first steps
+3. **Immediate Next Steps** - Clear, actionable first steps. Each item names its Source: a user quote or a user-reviewed work record.
+   A user quote is the user's verbatim words with a date; a filled `Q-n` `ans:` counts.
+   A user-reviewed work record is an artifact page or spec the user reviewed. A handoff or an agent note is not one.
+   Put your own ideas under "Agent Proposals (not requested)".
 4. **Decisions Made** - Choices with rationale (not just outcomes)
 5. **Mistakes and Corrections** - Wrong turns and user corrections, with evidence; a rule proposal goes to `~/.agents/retro-inbox/pending/` and only its file name goes here
 
@@ -94,7 +99,7 @@ session. List the recent ones, not only the newest:
 
 ```bash
 ls -lt .claude/handoffs/*.md | head -10              # newest first
-grep -H -E '^- (Written by|Session|CLI):' .claude/handoffs/*.md   # writer: manual and compact handoffs
+grep -H -E '^- (Written by|Session|CLI|Model|Host):' .claude/handoffs/*.md   # writer: manual and compact handoffs
 ```
 
 Read every handoff from the last two days whose task or files overlap yours.
@@ -123,9 +128,11 @@ Read the relevant handoff document completely before taking any action.
 
 If handoff is part of a chain (has "Continues from" link), also read the linked previous handoff for full context.
 
+Read in full every user-reviewed work record the handoff names, in any section. Do not check it by keyword search alone.
+
 ### Step 4: Verify Context
 
-Before acting on the handoff:
+Before you state scope or act on the handoff:
 
 1. Project directory and git branch match what the handoff names.
 2. Listed blockers are still blockers (they may have been resolved since).
@@ -134,6 +141,11 @@ Before acting on the handoff:
    value is not approval.
 3. Stated assumptions still hold — check the ones the next step depends on.
 4. Modified files have no conflicting work on top of them.
+5. Check every Immediate Next Step against its Source. Read the Source and confirm it supports the listed action.
+   An item with no Source is a proposal. An item whose Source you cannot check is UNCONFIRMED.
+   Never present a proposal, an UNCONFIRMED item, or your own new idea as the user's scope.
+   A user quote beats a user-reviewed work record. Between user quotes, the later one wins.
+   An agent-written item never overrides a Source. Report the conflict and correct the handoff before you state scope or act.
 
 ### Step 5: Begin Work
 

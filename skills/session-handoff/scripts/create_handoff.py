@@ -20,6 +20,7 @@ Usage:
 import argparse
 import os
 import re
+import socket
 import subprocess
 import sys
 from datetime import datetime
@@ -174,7 +175,8 @@ def get_previous_handoff_info(project_path: str, continues_from: str = None) -> 
 def generate_handoff(
     project_path: str,
     slug: str = None,
-    continues_from: str = None
+    continues_from: str = None,
+    model: str = None
 ) -> str:
     """Generate a handoff document with pre-filled metadata."""
 
@@ -246,6 +248,8 @@ def generate_handoff(
 - Created: {timestamp}
 - Project: {project_path.replace(str(Path.home()), "~")}
 - Written by: {writer()}
+- Model: {model or "[TODO: model ID this session runs as; pass --model]"}
+- Host: {socket.gethostname().split(".")[0]}
 - Branch: {branch_line}
 - Session duration: [estimate how long you worked]
 
@@ -296,9 +300,12 @@ def generate_handoff(
 
 ### Immediate Next Steps
 
-1. [TODO: Most critical next action]
-2. [TODO: Second priority]
-3. [TODO: Third priority]
+1. [TODO: Most critical next action] — Source: [TODO: user quote + date | user-reviewed work record, file:line or section]
+2. [TODO: Second priority] — Source: [TODO]
+
+### Agent Proposals (not requested)
+
+- [TODO: an idea of this session with no Source, or "none". Never present a proposal as the user's scope]
 
 ### Mistakes and Corrections
 
@@ -348,7 +355,7 @@ def generate_handoff(
 
 ## Related Resources
 
-- [TODO: Add links to relevant docs and files]
+- [TODO: Add links to relevant docs and files. Mark each: user-reviewed: <date> or no]
 
 ---
 
@@ -376,6 +383,10 @@ def main():
         dest="continues_from",
         help="Filename of previous handoff this continues from"
     )
+    parser.add_argument(
+        "--model",
+        help="Model ID this session runs as (no CLI exposes it in the environment)"
+    )
 
     args = parser.parse_args()
 
@@ -391,7 +402,7 @@ def main():
             print(f"Use --continues-from <filename> to link handoffs.\n")
 
     # Generate handoff
-    filepath = generate_handoff(project_path, args.slug, args.continues_from)
+    filepath = generate_handoff(project_path, args.slug, args.continues_from, args.model)
 
     print(f"Created handoff document: {filepath}")
     print(f"\nNext steps:")
