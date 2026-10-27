@@ -105,9 +105,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "fc621a41771cbfa1836b9e41592c6e123936d133",
+      "skillFolderHash": "c08bd09cdf53ddd0475e91cb17114be8e38dc640",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-10-24T04:37:00.230Z"
+      "updatedAt": "2026-10-27T02:09:21.710Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -141,9 +141,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "851543ff58a7d43a04577ddc7daf8c0dcd7d355e",
+      "skillFolderHash": "8305acdb8704446cfd0a3e6d7f29fbab836eb746",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-10-24T04:37:07.209Z"
+      "updatedAt": "2026-10-27T02:09:26.479Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -305,19 +305,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/tt-a1i/archify.git",
       "skillPath": "archify/SKILL.md",
-      "skillFolderHash": "39069dd190f574064fe410aa3af1b6dfd98a522c",
+      "skillFolderHash": "d5fc699feb186e8be4e2d9e86f850a8ea1b6959e",
       "installedAt": "2026-10-23T05:53:45.590Z",
-      "updatedAt": "2026-10-23T05:53:45.590Z"
+      "updatedAt": "2026-10-27T02:09:35.272Z"
     },
     "design-taste-frontend": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",
       "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
       "skillPath": "skills/taste-skill/SKILL.md",
-      "skillFolderHash": "2a22452297d559ea5ad97c178879d30ee3ec8022",
-      "pluginName": "taste-skill",
+      "skillFolderHash": "844f3cf223d25a29e75f7965d095a093938282df",
       "installedAt": "2026-10-23T05:53:48.470Z",
-      "updatedAt": "2026-10-23T05:53:48.470Z"
+      "updatedAt": "2026-10-27T02:09:37.700Z"
     },
     "create-verification-skill": {
       "source": "backnotprop/pstack",
