@@ -1,5 +1,12 @@
 # Changelog
 
+## agent-should-know 0.2.1
+
+Owner 10-28: 「/asks 的版本 revert 啊」.
+
+- **Reverted to the 0.1.8 code** (card relay and log only). 0.2.0's ledger, alignment hold and self-audit are gone. After a resume, the 0.2.0 band showed `log: /.local/state/agent-should-know/unknown/2026-10-28-.log` and `held: tamper:ledger · store-error:HooksError`. From then on it denied every non-read tool, even `rg` and `git log`. Owner messages, `/reload-plugins` and `/asks off` did not clear it. The version is 0.2.1, not 0.1.8, because `sync-mods.sh` keeps an installed version that is newer than the release.
+- The settings Stop gate (`claim-evidence-gate.sh`) runs its audit branch only while `audit/active` exists, and 0.2.1 no longer writes that file.
+
 ## grok-bot-watch 0.18.0
 
 Owner 10-28: 「同理 grok bot watch … 也要一起看」.

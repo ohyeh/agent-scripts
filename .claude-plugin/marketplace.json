@@ -34,8 +34,8 @@
     {
       "name": "agent-should-know",
       "source": "./mods/agent-should-know",
-      "description": "Function-hook mod: keeps the owner's messages verbatim in a ledger (~/.local/state/agent-should-know/), holds tools that do not read until the agent writes an alignment line (or a checked Retro block for a correction) for each new owner message, and audits the main loop's final step against the ledger and the evidence (a fork of the session, else the session's model), writing a verdict file per reply for the settings Stop gate (~/.local/state/agent-hooks/<sid>/audit/); while the gate or the mod holds the session, only reading tools run until the owner types. Also sends each card of the built-in You should know mod (cc-plugin-you-should-know), with its Learn more explanation, to the main agent, hides the card, and logs it with the agent's verdict. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.2.0",
+      "description": "Function-hook mod: sends each card of the built-in You should know mod (cc-plugin-you-should-know), with its Learn more explanation, to the main agent (its line after the running turn's next tool result, then the whole card as a prompt once that turn ends), hides the card, and logs the card with the agent's verdict in one file per session under ~/.local/state/agent-should-know/. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.2.1",
       "author": {
         "name": "PaulYeh"
       },
