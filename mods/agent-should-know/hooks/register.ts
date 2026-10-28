@@ -135,6 +135,8 @@ type State = {
   auditing: boolean
   held: string | null
   auditHeld: boolean
+  // The turn whose audit set the hold; null for REPORTED, which only the owner releases.
+  heldTurn: string | null
   activeErr: string | null
   last: string
   // The relayed card, and the turn it was queued behind (its answer is not the verdict).
@@ -307,7 +309,7 @@ const errClass = (err: unknown) => (err instanceof Error ? err.name : typeof err
 const openRows = (s: State) => s.rows.filter(r => owns(r) && !r.closed)
 const coverageLabel = (s: State) => (s.lost || s.dirty || s.written < s.u ? 'unknown' : s.derived ? 'unconfirmed' : 'known')
 
-const saveGuard = ($: EngineInterface, s: State) => $.state.set(GUARD, { sid: s.sid, generation: s.gen, files: s.projection, held: s.held, auditHeld: s.auditHeld, ledger: s.ledger, duties: s.duties, episode: s.ep, dirty: s.dirty })
+const saveGuard = ($: EngineInterface, s: State) => $.state.set(GUARD, { sid: s.sid, generation: s.gen, files: s.projection, held: s.held, auditHeld: s.auditHeld, heldTurn: s.heldTurn, ledger: s.ledger, duties: s.duties, episode: s.ep, dirty: s.dirty })
 
 async function coverageNow($: EngineInterface, s: State) {
   try {
@@ -484,6 +486,7 @@ async function release($: EngineInterface, s: State) {
     if (s.held !== null) await logLine($, s, iso(), 'released', s.held)
     s.held = null
     s.auditHeld = false
+    s.heldTurn = null
     delete s.projection.held
     await saveGuard($, s)
   } catch (err) {
@@ -770,11 +773,13 @@ async function writeVerdict($: EngineInterface, s: State, sha: string, gen: numb
   await checkProjection($, s, true)
   if (v.verdict === 'PASS' && s.held !== null && !s.auditHeld) v = { ...v, verdict: 'UNKNOWN', reason: s.held }
   if (v.verdict === 'PASS') {
-    await release($, s)
+    // A PASS clears only a hold its own turn's audit set; REPORTED and earlier turns wait for the owner.
+    if (s.held === null || (s.auditHeld && s.heldTurn === v.turnId)) await release($, s)
   } else {
     if (s.held === null || s.auditHeld) {
       s.held = `${v.verdict}: ${v.reason}`
       s.auditHeld = true
+      s.heldTurn = v.verdict === 'REPORTED' ? null : v.turnId
     }
     // Save the hold before its disk mirror: I/O failure cannot release tools.
     await saveGuard($, s)
@@ -909,6 +914,7 @@ export const register: Register = on => {
     auditing: false,
     held: null,
     auditHeld: false,
+    heldTurn: null,
     activeErr: null,
     last: '',
     pending: null,
@@ -938,6 +944,7 @@ export const register: Register = on => {
       s.projection = guard.files
       s.held = guard.held
       s.auditHeld = guard.auditHeld
+      s.heldTurn = guard.heldTurn ?? null
       s.ledger = guard.ledger
       s.duties = guard.duties
       s.ep = guard.episode
@@ -1104,6 +1111,7 @@ export const register: Register = on => {
         if (s.held === null) {
           s.held = 'audit-skipped:stale'
           s.auditHeld = true
+          s.heldTurn = r.turnId
         }
         await saveGuard($, s)
       }
@@ -1112,6 +1120,7 @@ export const register: Register = on => {
       if (s.held === null) {
         s.held = reason
         s.auditHeld = true
+        s.heldTurn = r.turnId
       }
       await saveGuard($, s)
       $.ui.toast(`${NAME} v${MOD_VERSION}: self-audit failed (${errText(err)})`)

@@ -1033,6 +1033,20 @@ test('F8: FAIL holds without a writable held mirror; a later PASS in the same ch
   expect(await call($, EDIT)).toBe('ok')
 })
 
+test('F8: a PASS in a later turn keeps an earlier turn\'s FAIL hold until the owner speaks', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  await say($, 'run the tests')
+  g.transcript.push(user('run the tests'), assistant(REPLY))
+  g.j.fork.push(answer({ verdict: 'FAIL', complete: false, findings: [{ id: 'F1', check: 'a', source: 'reply', quote: REPLY, problem: 'No test evidence' }] }))
+  await g.finish($, REPLY)
+  expect(await call($, EDIT)).toMatch(/held Edit/)
+  g.j.fork.push(PASS)
+  await g.finish($, 'Later turn reply.', { turnId: 't2' }, { turnId: 't2' })
+  expect((await g.verdict('Later turn reply.'))?.verdict).toBe('PASS')
+  expect(await call($, EDIT)).toMatch(/held Edit/)
+})
+
 test('F1: each final step rewrites every audit projection, including unchanged files and a forged PASS', async ($, on) => {
   const g = judge(on)
   await $.session.start(start)

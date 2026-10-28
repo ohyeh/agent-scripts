@@ -8,7 +8,7 @@ declare module 'claude-code' {
   interface PluginState {
     // G3: owner rows not yet in the ledger file.
     'agent-should-know': {
-      guard: { sid: string; generation: number; files: Record<string, string>; held: string | null; auditHeld: boolean; ledger: { path: string; text: string; rows: PluginState['agent-should-know']['replay']; written: number } | null; duties: AskDuty[]; episode: AskEpisode; dirty: boolean }
+      guard: { sid: string; generation: number; files: Record<string, string>; held: string | null; auditHeld: boolean; heldTurn?: string | null; ledger: { path: string; text: string; rows: PluginState['agent-should-know']['replay']; written: number } | null; duties: AskDuty[]; episode: AskEpisode; dirty: boolean }
       replay: {
         u: number
         at: string
