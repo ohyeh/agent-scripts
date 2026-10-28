@@ -277,7 +277,7 @@ test('the log button opens the session log once a card was logged', async ($, on
 
 type Msg = { role: 'user' | 'assistant'; text: string; toolUses: { tool_use_id: string; tool: string; input: Record<string, unknown>; text?: string }[] }
 const usage = { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
-const answer = (o: object | string) => ({ isAnswered: true, text: typeof o === 'string' ? o : JSON.stringify(o), usage })
+const answer = (o: object | string) => ({ isAnswered: true, text: typeof o === 'string' ? o : JSON.stringify('verdict' in o ? { supersedes: [], constraints: [], ...o } : o), usage })
 const PASS = answer({ verdict: 'PASS', complete: true, findings: [] })
 const REPLY = 'Done. The tests pass.'
 const F1 = { id: 'F1', check: 'a', source: 'reply', quote: 'The tests pass.', problem: 'no test run backs it' }
@@ -341,7 +341,7 @@ function judge(on: On, store = new Map<string, unknown>(), isFailing?: (path: st
     w,
     j,
     transcript,
-    rows: () => (file(ASKS)?.[1] ?? '').split('\n').filter(Boolean).map(l => JSON.parse(l) as { u: number; origin: string; text: string }),
+    rows: () => (file(ASKS)?.[1] ?? '').split('\n').filter(Boolean).map(l => JSON.parse(l) as { u: number; origin: string; text: string; closed?: boolean; constraint?: boolean }),
     log: () => (file(LOG)?.[1] ?? '').split('\n').filter(r => r !== '' && !r.startsWith('#')),
     gen: () => (JSON.parse(w.files.get(`${AUDIT}/current`) ?? '{}') as { generation?: string }).generation,
     verdict: async (reply: string) => JSON.parse(w.files.get(`${AUDIT}/${await sha16(reply)}.json`) ?? 'null') as Record<string, unknown> | null,
@@ -482,7 +482,7 @@ test('N3: text around the object is a protocol error; a tool quote under an unre
   await g.finish($, REPLY)
   const v = await g.verdict(REPLY)
   expect(v).toMatchObject({ verdict: 'FAIL', findings: [{ id: 'F2', problem: 'the README is not updated' }] })
-  expect(String(v?.reason)).toContain('- F2 (b, ask) 「update the README」: the README is not updated')
+  expect(String(v?.reason)).toContain('[audit] F2 the README is not updated')
 })
 
 test('G5/N4: past the FAIL cap only exact [audit] lines relay the findings: REPORTED, held, asks still open', async ($, on) => {
@@ -520,6 +520,76 @@ test('N2: past 3 judge calls the audit is UNAUDITED judge-cap, and no ask is clo
   expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNAUDITED', reason: 'judge-cap' })
   expect(g.j.forkPrompts.length).toBe(3)
   expect(g.w.files.get(`${GATE}/asks-open.md`)).toContain('U1 [owner]')
+})
+
+test('K3: later owner text B 先不用做 supersedes ask B even when the verdict is FAIL', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  await say($, '做 B')
+  g.transcript.push(user('做 B'))
+  await say($, 'B 先不用做')
+  g.transcript.push(user('B 先不用做'))
+  g.j.fork.push(answer({ verdict: 'FAIL', complete: true, findings: [F1], supersedes: [{ row_id: 'U1', quote: 'B 先不用做' }] }))
+  await g.finish($, REPLY)
+  expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'FAIL' })
+  expect(g.rows()[0]?.closed).toBe(true)
+  expect(g.w.files.get(`${GATE}/asks-open.md`)).not.toContain('U1 [owner]')
+})
+
+test('K3: agent text, earlier or undelivered owner text, unknown rows and altered quotes cannot supersede; invalid entries are counted', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  await say($, 'B 先不用做')
+  g.transcript.push(user('B 先不用做'))
+  await say($, '做 B')
+  g.transcript.push(user('做 B'), assistant('B 先不用做'))
+  await say($, 'B 先不用做', { kind: 'sdk' })
+  g.transcript.push(user('B 先不用做'))
+  await say($, 'B 先不用做\n稍後再說')
+  const supersedes = [{ row_id: 'U2', quote: 'B 先不用做' }, { row_id: 'U2', quote: 'B  先不用做' }, { row_id: 'U99', quote: 'B 先不用做' }, null]
+  g.j.fork.push(answer({ verdict: 'PASS', complete: true, findings: [], supersedes }))
+  await g.finish($, REPLY)
+  expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'protocol:pass-with-dropped-findings' })
+  expect(g.rows()[1]?.closed).not.toBe(true)
+  expect(g.log().filter(l => l.includes(' · finding-dropped · ')).length).toBe(4)
+})
+
+test('K3: PASS keeps a constraint open across reload; only a later owner quote closes it', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  await say($, '不要 push')
+  g.transcript.push(user('不要 push'))
+  g.j.fork.push(answer({ verdict: 'PASS', complete: true, findings: [], constraints: ['U1'] }), PASS)
+  await g.finish($, REPLY)
+  expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'PASS' })
+  expect(g.rows()[0]).toMatchObject({ constraint: true })
+  expect(g.rows()[0]?.closed).not.toBe(true)
+  await $.session.start(start)
+  await g.finish($, REPLY)
+  expect(g.rows()[0]?.closed).not.toBe(true)
+  expect(g.w.files.get(`${GATE}/asks-open.md`)).toContain('[constraint]')
+  await say($, '取消不要 push 的限制')
+  g.transcript.push(user('取消不要 push 的限制'))
+  g.j.fork.push(answer({ verdict: 'PASS', complete: true, findings: [], supersedes: [{ row_id: 'U1', quote: '取消不要 push 的限制' }] }))
+  await g.finish($, REPLY)
+  expect(g.rows()[0]?.closed).toBe(true)
+})
+
+test('judge-cap: UNKNOWN then FAIL at call 3 requires exact audit relay, never UNAUDITED', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  await say($, 'run the tests')
+  g.j.fork.push(answer('not JSON'), FAIL, FAIL)
+  for (let i = 0; i < 3; i++) await g.finish($, REPLY)
+  expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'FAIL' })
+  expect(String((await g.verdict(REPLY))?.reason)).toContain('[audit] F1 no test run backs it')
+  await g.finish($, `${REPLY}\n[audit] F1 no test run backs it; fixed`)
+  expect(await g.verdict(`${REPLY}\n[audit] F1 no test run backs it; fixed`)).toMatchObject({ verdict: 'FAIL' })
+  const reply = `${REPLY}\n[audit] F1 no test run backs it`
+  await g.finish($, reply)
+  expect(await g.verdict(reply)).toMatchObject({ verdict: 'REPORTED', findings: [{ id: 'F1', problem: 'no test run backs it' }] })
+  expect(g.j.forkPrompts.length).toBe(3)
+  expect(g.rows()[0]?.closed).not.toBe(true)
 })
 
 test('N2/N7: a failed ledger write is retried by the next change; two in a row read UNAUDITED store-error', async ($, on) => {
@@ -658,8 +728,8 @@ test('G2: while held, shell shapes that write are denied and plain reads run; MC
   await $.session.start(start)
   g.w.files.set(`${AUDIT}/held`, JSON.stringify({ reason: 'REPORTED E1' }))
   const bash = (command: string) => call($, { tool: 'Bash', command, description: 'x' })
-  const writes = ["sed -n 'w victim' input", 'sort -o victim input', 'uniq input victim', 'git log --output=victim', 'git diff --output=victim', 'rg --pre ./x foo', 'python3 x.py']
-  const reads = ['rg -i foo', 'grep -i foo f', "sed -n '1,5p' f", 'git diff', 'sort f']
+  const writes = ["sed -n 'w victim' input", 'sort -o victim input', 'uniq input victim', 'git log --output=victim', 'git diff --output=victim', 'rg --pre ./x foo', 'python3 x.py', '__proto__ victim', 'rg --max-c=2 foo f']
+  const reads = ['rg -i foo', 'grep -i foo f', "sed -n '1,5p' f", 'git diff', 'sort f', 'rg --max-count=2 foo f']
   const ran: string[] = []
   for (const command of [...writes, ...reads]) if (!/held Bash: REPORTED E1/.test(String(await bash(command)))) ran.push(command)
   expect(ran).toEqual(reads)
@@ -691,6 +761,52 @@ test('N1: a directive needs its Align line; a correction its Retro, checked agai
   g.transcript.push(assistant('Retro U2: I said 「The tests pass.」; no test ran; I missed U1; I run npm test now.'))
   expect(await call($, EDIT)).toBe('ok')
   expect(g.j.smallPrompts[3]).toContain('I run npm test now.')
+})
+
+for (const [name, commands] of [
+  ['S1 quote removal', ["sort -'o' victim input", 'sort -\\o victim input', "sort '-o'victim input", "sort -'o victim' input"]],
+  ['S2 ANSI-C and localized strings', ["sort $'\\x2do' victim input", 'sort $"-o" victim input']],
+  ['S3 long option abbreviations', ['sort --out=victim input', 'git log --outp=victim']],
+  ['S4 shell expansion', ['sort {-o,victim} input', 'sort $FLAGS input', 'sort ~opts input', 'sort * input', 'sort ? input', 'sort [a-z] input', 'sort `flags` input']],
+  ['S5 unlisted exec and write flags', ['rg --hostname-bin ./x pattern path', 'rg -z pattern path', 'rg --search-zip pattern path', 'rg --pre ./x pattern path', 'rg --pre-glob=x pattern path', 'yq -s expr file', 'yq --split-exp=x file', 'yq -i expr file', 'file -C magic', 'file --compile magic', 'sort -T dir file', 'sort --compress-program=x file', 'git log --textconv', 'git diff --ext-diff', 'git -c core.pager=x log', 'git --paginate log', "sed -n '1p' -f script file"]],
+] as const) {
+  test(`${name}: held shell bypasses stay held`, async ($, on) => {
+    const g = judge(on)
+    await $.session.start(start)
+    g.w.files.set(`${AUDIT}/held`, JSON.stringify({ reason: 'security test' }))
+    for (const command of commands) expect(await call($, { tool: 'Bash', command, description: command })).toMatch(/held Bash: security test/)
+  })
+}
+
+for (const command of ['rg -i pattern path', 'grep -n pattern file']) {
+  test(`shell allowlist: ${command} runs while held`, async ($, on) => {
+    const g = judge(on)
+    await $.session.start(start)
+    g.w.files.set(`${AUDIT}/held`, JSON.stringify({ reason: 'security test' }))
+    expect(await call($, { tool: 'Bash', command, description: command })).toBe('ok')
+  })
+}
+
+test('S6: audit state writes are denied without a hold and with asks off; resolved paths and shell prefixes are protected, reads run', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  const writes = [
+    { tool: 'Write', file_path: `${AUDIT}/x.json`, content: '{}' },
+    { ...EDIT, file_path: `~/.local/state/agent-hooks/${SID}/audit/../audit/current` },
+    { tool: 'NotebookEdit', notebook_path: `../../h/me/.local/state/agent-should-know/x.ipynb`, new_source: 'x' },
+    { tool: 'Bash', command: `rm ~/.local/state/agent-hooks/${SID}/audit/held` },
+    { tool: 'Bash', command: `echo '{"verdict":"PASS"}' > $HOME/.local/state/agent-hooks/${SID}/audit/a.json` },
+    { tool: 'Bash', command: `mv x \${HOME}/.local/state/agent-should-know/x` },
+    { tool: 'Bash', command: `rm ${AUDIT}/held` },
+  ]
+  for (const input of writes) expect(await call($, input)).toMatch(/denied .*cannot write, move or delete/)
+  expect(g.w.toasts.filter(t => t.includes('cannot write, move or delete')).length).toBe(writes.length)
+  expect(g.log().filter(l => l.includes(' · state-write-denied · ')).length).toBe(writes.length)
+  expect(await call($, { tool: 'Bash', command: `cat ${AUDIT}/current` })).toBe('ok')
+  expect(await call($, { tool: 'Read', file_path: `${AUDIT}/current` })).toBe('ok')
+  await asks($, 'off')
+  expect(await call($, writes[0]!)).toMatch(/denied Write/)
+  expect(await call($, EDIT)).toBe('ok')
 })
 
 test('N1/G1: a failed Retro check keeps the hold; after 3 only the owner\'s /asks release U<n> lets the act run, and the episode cannot PASS', async ($, on) => {

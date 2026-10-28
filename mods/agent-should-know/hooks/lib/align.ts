@@ -7,19 +7,25 @@ const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead', 'ToolS
 const MCP_READS = new Set([`${CTX}ctx_search`, 'mcp__session-recall__recall', 'mcp__tmux-agent__peek'])
 
 // G2: command shapes, not programs; anything outside them holds.
-const PROGRAMS = new Set(['cat', 'head', 'tail', 'wc', 'stat', 'file', 'sed', 'rg', 'grep', 'find', 'jq', 'yq', 'sort', 'uniq', 'git', 'ls', 'fd'])
 const GIT_READ = new Set(['status', 'diff', 'log', 'show', 'rev-parse', 'blame'])
-// Options that make a listed program write, delete or run another program.
-const WRITES: Record<string, RegExp> = {
-  find: /^-(?:exec|execdir|ok|okdir|delete|fprint0?|fprintf|fls)$/,
-  fd: /^(?:-[a-zA-Z]*[xX]|--exec)/,
-  ls: /^-[a-zA-Z]*[xX]/,
-  rg: /^--pre(?:-glob)?(?:=|$)/,
-  grep: /^--pre(?:-glob)?(?:=|$)/,
-  sort: /^(?:-[a-zA-Z]*o|--output|--compress-program)/,
-  jq: /^(?:-[a-zA-Z]*i|--in-?place)/,
-  yq: /^(?:-[a-zA-Z]*i|--in-?place)/,
-  git: /^(?:--output(?:=|$)|--ext-diff$|-[a-zA-Z]*[oc])/,
+// Exact flags and their argument counts. Unknown options hold, including abbreviations.
+const FLAGS: Record<string, Record<string, number>> = {
+  cat: { '-n': 0, '-b': 0, '-s': 0 },
+  head: { '-n': 1, '-c': 1 },
+  tail: { '-n': 1, '-c': 1 },
+  wc: { '-l': 0, '-w': 0, '-c': 0, '-m': 0 },
+  stat: { '-f': 1, '-c': 1, '--format': 1 },
+  file: { '-b': 0, '-i': 0, '--brief': 0, '--mime': 0 },
+  rg: { '-i': 0, '-n': 0, '-l': 0, '-c': 0, '-F': 0, '-v': 0, '-w': 0, '--hidden': 0, '--no-ignore': 0, '--files': 0, '--fixed-strings': 0, '--ignore-case': 0, '--line-number': 0, '-e': 1, '--regexp': 1, '-m': 1, '--max-count': 1 },
+  grep: { '-i': 0, '-n': 0, '-l': 0, '-c': 0, '-F': 0, '-v': 0, '-w': 0, '-r': 0, '-R': 0, '-E': 0, '-e': 1, '--regexp': 1, '-m': 1, '--max-count': 1 },
+  find: { '-type': 1, '-name': 1, '-iname': 1, '-path': 1, '-maxdepth': 1, '-mindepth': 1, '-print': 0, '-print0': 0 },
+  jq: { '-r': 0, '-c': 0, '-s': 0, '-e': 0, '--raw-output': 0, '--compact-output': 0 },
+  yq: { '-r': 0, '-e': 0, '--unwrapScalar': 0 },
+  sort: { '-n': 0, '-r': 0, '-u': 0, '-f': 0, '-b': 0, '-k': 1, '-t': 1, '--numeric-sort': 0, '--reverse': 0, '--unique': 0 },
+  uniq: { '-c': 0, '-d': 0, '-u': 0, '-i': 0 },
+  git: { '--short': 0, '--stat': 0, '--name-only': 0, '--name-status': 0, '--oneline': 0, '--no-patch': 0, '--no-ext-diff': 0, '--no-textconv': 0, '--show-toplevel': 0, '--abbrev-ref': 0, '--verify': 0, '-n': 1, '--max-count': 1 },
+  ls: { '-l': 0, '-a': 0, '-h': 0, '-t': 0, '-r': 0, '-d': 0, '-1': 0 },
+  fd: { '-H': 0, '-I': 0, '-t': 1, '--type': 1, '--hidden': 0, '--no-ignore': 0, '--max-depth': 1 },
 }
 // `sed -n '<addr>p'`: line numbers, `$` or `/re/`, an optional range, then p.
 const ADDR = String.raw`(?:\d+|\$|/[^/']*/)`
@@ -50,7 +56,7 @@ function segments(command: string): string[] | null {
       continue
     }
     if (c === "'" || c === '"') q = c
-    else if (c === ';' || c === '&' || c === '>' || c === '\n' || (c === '<' && n === '(')) return null
+    else if (c === ';' || c === '&' || c === '>' || c === '<' || c === '\n') return null
     else if (c === '|') {
       if (n === '|') return null
       segs.push(cur)
@@ -64,25 +70,51 @@ function segments(command: string): string[] | null {
   return segs
 }
 
-const unquote = (w: string) => w.replace(/^(['"])([\s\S]*)\1$/, '$2')
-
-// A pattern file from stdin or a device is not a path the reader can check.
-const notPath = (w: string | undefined) => w === undefined || w === '-' || w.startsWith('/dev/')
+// No shell expansions or partial-word quotes: checked words must be the argv Bash runs.
+function literal(w: string): string | null {
+  if (/[$\\`{}~*?\[]/.test(w)) return null
+  const quoted = /^(['"])([^'"]*)\1$/.exec(w)
+  if (quoted) return quoted[2] ?? ''
+  return /['"]/.test(w) ? null : w
+}
 
 /** One pipe segment in one of the G2 shapes. */
 function segmentReads(seg: string): boolean {
-  const raw = seg.trim().split(/\s+/)
-  const words = raw.map(unquote)
+  const raw = seg.trim().match(/(?:'[^']*'|"[^"]*"|[^\s'"])+/g) ?? []
+  const words = raw.map(literal)
+  if (words.some(w => w === null)) return false
   const [prog, sub] = words
-  if (prog === undefined || !PROGRAMS.has(prog)) return false
-  const opts = words.slice(1)
-  if (WRITES[prog] && opts.some(w => WRITES[prog]!.test(w))) return false
-  if (prog === 'sed') return raw[1] === '-n' && SED_PRINT.test(raw[2] ?? '') && raw.slice(3).every(w => !w.startsWith('-'))
-  if (prog === 'rg' || prog === 'grep')
-    return !opts.some((w, i) => (/^(?:-f|--file)$/.test(w) ? notPath(opts[i + 1]) : /^(?:-f|--file=)/.test(w) && notPath(w.replace(/^(?:-f|--file=)/, ''))))
-  if (prog === 'git') return sub !== undefined && GIT_READ.has(sub)
+  if (prog === undefined || prog === null) return false
+  if (prog === 'sed') return raw[1] === '-n' && SED_PRINT.test(raw[2] ?? '') && words.slice(3).every(w => w !== null && !w.startsWith('-'))
+  const flags = Object.hasOwn(FLAGS, prog) ? FLAGS[prog] : undefined
+  if (flags === undefined) return false
+  if (prog === 'git' && (sub === undefined || sub === null || !GIT_READ.has(sub))) return false
+  const opts = words.slice(prog === 'git' ? 2 : 1) as string[]
+  let paths = 0
+  let end = false
+  for (let i = 0; i < opts.length; i++) {
+    const w = opts[i]!
+    if (w === '--' && prog !== 'find') {
+      end = true
+      continue
+    }
+    if (end || !w.startsWith('-') || w === '-') {
+      paths++
+      continue
+    }
+    const eq = w.startsWith('--') ? w.indexOf('=') : -1
+    const flag = eq < 0 ? w : w.slice(0, eq)
+    const count = Object.hasOwn(flags, flag) ? flags[flag] : undefined
+    if (count === undefined) {
+      if (/^-[^-]{2,}$/.test(w) && [...w.slice(1)].every(c => flags[`-${c}`] === 0)) continue
+      return false
+    }
+    if (eq >= 0) {
+      if (count !== 1) return false
+    } else if (count === 1 && (opts[++i] === undefined || opts[i]!.startsWith('-'))) return false
+  }
   // `uniq in out` writes out.
-  if (prog === 'uniq') return opts.filter(w => !w.startsWith('-')).length <= 1
+  if (prog === 'uniq') return paths <= 1
   return true
 }
 
@@ -96,6 +128,31 @@ export function bashReadOnly(command: string): boolean {
 export function readOnly(tool: string, input: Record<string, unknown>): boolean {
   if (READ_TOOLS.has(tool) || MCP_READS.has(tool)) return true
   return tool === 'Bash' && typeof input.command === 'string' && bashReadOnly(input.command)
+}
+
+/** S6: lexical path resolution also catches a relative path or `..` into the mod's state. */
+export function stateWrite(tool: string, input: Record<string, unknown>, home: string, cwd: string, sid: string): boolean {
+  const resolve = (path: string) => {
+    const expanded = path.replace(/^~(?=\/|$)/, home)
+    const parts: string[] = []
+    for (const p of (expanded.startsWith('/') ? expanded : `${cwd}/${expanded}`).split('/')) {
+      if (p === '..') parts.pop()
+      else if (p !== '' && p !== '.') parts.push(p)
+    }
+    return `/${parts.join('/')}`
+  }
+  const roots = [`${home}/.local/state/agent-hooks/${sid}`, `${home}/.local/state/agent-should-know`]
+  const protectedPath = (path: string) => {
+    const resolved = resolve(path)
+    return roots.some(r => resolved === r || resolved.startsWith(`${r}/`))
+  }
+  if (['Write', 'Edit', 'NotebookEdit'].includes(tool)) {
+    const path = input.file_path ?? input.notebook_path
+    return typeof path === 'string' && protectedPath(path)
+  }
+  if (tool !== 'Bash' || typeof input.command !== 'string' || bashReadOnly(input.command)) return false
+  const command = input.command.replace(/\$\{HOME\}|\$HOME\b|~(?=\/)/g, home)
+  return roots.some(r => command.includes(r)) || (command.match(/[^\s'";|&<>]+/g) ?? []).some(protectedPath)
 }
 
 export type Form = 'align' | 'retro'

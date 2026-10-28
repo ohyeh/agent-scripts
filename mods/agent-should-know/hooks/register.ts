@@ -1,7 +1,7 @@
 import type { EngineInterface, ModelUsage, Register, SessionMessage } from 'claude-code'
 
-import { type Form, classified, classifierPrompt, formFound, formText, meets, parseSubstance, readOnly, retroBlock, substancePrompt } from './lib/align.ts'
-import { type Finding, evidence, failReason, judgePrompt, parseVerdict, relays, reportReason, sha16, toolIds, verify } from './lib/audit.ts'
+import { type Form, classified, classifierPrompt, formFound, formText, meets, parseSubstance, readOnly, retroBlock, stateWrite, substancePrompt } from './lib/align.ts'
+import { type Finding, evidence, failReason, judgePrompt, parseVerdict, relays, reportReason, sha16, superseded, toolIds, verify } from './lib/audit.ts'
 import { cells, fit, rowsOf } from './lib/band.ts'
 import { type Row, attachmentNames, deliveries, kindOf, ledgerText, openText, owns, parseRows, quotedSpans, transcriptRows, userIndexes } from './lib/ledger.ts'
 
@@ -671,14 +671,14 @@ async function audit($: EngineInterface, s: State, turnId: string, reply: string
 
   // Past the FAIL cap the judge is not asked again: the reply either relays each finding as its line or fails.
   const mechanical = async () => {
-    if (!relays(reply, ep.findings)) return write('FAIL', reportReason(ep.k, ep.findings))
+    if (!relays(reply, ep.findings)) return write('FAIL', reportReason(ep.k, ep.findings), ep.findings)
     if (!(await write('REPORTED', `E${ep.k}: ${ep.findings.map(f => f.id).join(',')} relayed, open`, ep.findings))) return
     await writeHeld($, s, sha, `REPORTED E${ep.k}: ${ep.findings.map(f => f.id).join(', ')} still open; the owner decides`)
     await nextEpisode($, s)
   }
   if (s.storeFails >= 2) return write('UNAUDITED', `store-error:${s.storeErr}`)
   if (ep.fails > FAIL_BLOCKS) return mechanical()
-  if (ep.calls >= JUDGE_CALLS) return write('UNAUDITED', 'judge-cap')
+  if (ep.calls >= JUDGE_CALLS) return ep.findings.length ? mechanical() : write('UNAUDITED', 'judge-cap')
   ep.calls += 1
   await saveEpisode($, s)
 
@@ -692,13 +692,25 @@ async function audit($: EngineInterface, s: State, turnId: string, reply: string
   const v = parseVerdict(res.text)
   if (v === null) return write('UNKNOWN', 'protocol')
   const { valid, dropped } = verify(v.findings, { reply, rows: s.rows, open, episode })
+  const supers = superseded(v.supersedes, s.rows, at)
+  dropped.push(...supers.dropped)
+  const constraints = v.constraints.map(id => s.rows.find(r => `U${r.u}` === id && owns(r) && at.has(r.u)))
+  constraints.forEach((r, i) => {
+    if (r === undefined) dropped.push(`constraint ${v.constraints[i]} is not a delivered owner row`)
+  })
   for (const bad of dropped) await logLine($, s, iso(), 'finding-dropped', `E${ep.k} · ${bad}`)
+  // A stale judge cannot change the ledger, just as it cannot write a verdict (G4).
+  if (gen === s.gen) {
+    for (const r of constraints) if (r !== undefined) r.constraint = true
+    for (const r of s.rows) if (supers.valid.includes(r.u)) r.closed = true
+    if (constraints.length || supers.valid.length) await persist($, s, { rows: true, bump: false })
+  }
   if (v.verdict === 'FAIL') {
     if (valid.length === 0) return write('UNKNOWN', 'protocol:fail-without-valid-finding')
     ep.fails += 1
     ep.findings = valid
     await saveEpisode($, s)
-    return ep.fails <= FAIL_BLOCKS ? write('FAIL', failReason(ep.k, valid, v.complete), valid) : mechanical()
+    return ep.fails <= FAIL_BLOCKS && ep.calls < JUDGE_CALLS ? write('FAIL', failReason(ep.k, valid, v.complete), valid) : mechanical()
   }
   if (valid.length) return write('UNKNOWN', 'protocol:pass-with-findings')
   if (dropped.length) return write('UNKNOWN', 'protocol:pass-with-dropped-findings')
@@ -710,8 +722,8 @@ async function audit($: EngineInterface, s: State, turnId: string, reply: string
   }
   if (!(await write('PASS', `E${ep.k}`))) return
   if (ep.fails) await logLine($, s, iso(), `audit-resolved ${ep.findings.map(f => f.id).join(',')}`, `E${ep.k}`)
-  // N2: only a PASS closes an ask. No generation bump: the PASS just written must stay current for the gate.
-  for (const r of covered) r.closed = true
+  // N2: PASS closes tasks, never ongoing constraints. Keep the verdict's generation current.
+  for (const r of covered) if (!r.constraint) r.closed = true
   await persist($, s, { rows: true, bump: false })
   await nextEpisode($, s)
 }
@@ -853,6 +865,12 @@ export const register: Register = on => {
   // (origin not engine) reaches no model.
   on('tool.call', async ($, e, next) => {
     if (next.origin.plugin !== 'engine' || e.agentId !== undefined) return next(e)
+    if (stateWrite(e.tool, e as unknown as Record<string, unknown>, s.home, s.cwd, s.sid)) {
+      const reason = `${NAME} denied ${e.tool}: agent tools cannot write, move or delete this session's audit state or agent-should-know state.`
+      $.ui.toast(reason)
+      await logLine($, s, iso(), 'state-write-denied', e.tool)
+      return { deny: reason }
+    }
     if (!s.off && !readOnly(e.tool, e as unknown as Record<string, unknown>)) {
       let held: string | null
       try {

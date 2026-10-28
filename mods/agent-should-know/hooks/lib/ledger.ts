@@ -15,7 +15,9 @@ export type Row = {
   seen: number
   /** [start, end) spans of text the owner quoted or pasted: a label for the judge, who decides adoption. */
   quoted?: [number, number][]
-  /** A PASS covered it (N2): only then does an ask leave asks-open.md. */
+  /** A constraint stays open until later owner text supersedes it. */
+  constraint?: boolean
+  /** A PASS covered the ask, or later owner text superseded it (N2). */
   closed?: boolean
 }
 
@@ -77,7 +79,7 @@ export function render(r: Row): string {
   }
   text += r.text.slice(at)
   const files = r.attachments.length ? ` [attachments: ${r.attachments.join(', ')}]` : ''
-  return `U${r.u} [${MARKS[r.origin]}] ${r.at}${files}:\n${text}`
+  return `U${r.u} [${MARKS[r.origin]}] ${r.at}${files}${r.constraint ? ' [constraint]' : ''}:\n${text}`
 }
 
 /** The ledger whole when it fits, else the rows still open, the newest 20 and where the rest is. */
