@@ -153,7 +153,14 @@ export function stateWrite(tool: string, input: Record<string, unknown>, home: s
     const path = input.file_path ?? input.notebook_path
     return typeof path === 'string' && protectedPath(path)
   }
-  if (tool.startsWith('mcp__') && !readOnly(tool, input)) return roots.some(r => JSON.stringify(input).replace(/\$\{HOME\}|\$HOME\b|~(?=\/)/g, home).includes(r))
+  if (tool.startsWith('mcp__') && !readOnly(tool, input)) {
+    const writes = (value: unknown): boolean => {
+      if (typeof value === 'string') return value.includes('/') && protectedPath(value)
+      if (Array.isArray(value)) return value.some(writes)
+      return value !== null && typeof value === 'object' && Object.values(value).some(writes)
+    }
+    return writes(input)
+  }
   if (tool !== 'Bash' || typeof input.command !== 'string' || bashReadOnly(input.command)) return false
   const command = input.command.replace(/\$\{HOME\}|\$HOME\b|~(?=\/)/g, home)
   if (/(?:^|[\s/;|&])(python[\d.]*|node|perl|ruby|sh|bash|zsh|osascript)\b/.test(command) && command.includes('.local/state')) return true

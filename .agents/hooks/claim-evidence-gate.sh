@@ -106,16 +106,8 @@ if [ -f "$AUDIT_DIR/active" ]; then
       rm -f "$STATE_DIR/held-write-failed"
       jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "${SESSION_ID:-}" --arg r "$audit_hold" '{timestamp:$ts, claim:"audit", session:$sid, blocked:false, held:$r}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
     else
-      n="$(cat "$chain" 2>/dev/null || echo 0)"
-      failures="$(cat "$STATE_DIR/held-write-failed" 2>/dev/null || echo 0)"
-      if [ "$failures" -gt 0 ] && { [ "$n" -ge "$AUDIT_CHAIN_CAP" ] || [ "$failures" -ge "$AUDIT_CHAIN_CAP" ]; }; then
-        hold_error_message="暫停失敗：無法寫入 held（$held_error），agent 未被擋住，請檢查"
-        audit_reason=""
-      else
-        audit_reason="cannot write held ($held_error)"
-        echo $((failures + 1)) > "$STATE_DIR/held-write-failed"
-        echo $((n + 1)) > "$chain"
-      fi
+      hold_error_message="無法寫入 held（$held_error）；audit/active 存在時，mod 仍持有 hold，非讀取工具仍被擋住。"
+      audit_reason=""
       audit_hold=""
       jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg error "$held_error" --arg message "$hold_error_message" '{timestamp:$ts, claim:"audit", error:$error, systemMessage:$message}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
     fi

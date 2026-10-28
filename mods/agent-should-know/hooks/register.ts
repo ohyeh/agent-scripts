@@ -24,7 +24,7 @@ const FOLD_KEY = `${NAME}.fold`
 const HIDE_KEY = `${NAME}.hidden`
 /** The session's log file, so a reload (or one after midnight) keeps writing and counting the same file. */
 const fileKey = (sid: string) => `file:${sid}`
-/** The owner ledger's path and last row number; the rows live in the file, which has no store size limit. */
+/** The owner ledger's durable path; engine state owns the live rows. */
 const asksKey = (sid: string) => `asks:${sid}`
 const dutiesKey = (sid: string) => `duties:${sid}`
 /** Kept in the store so a hot reload or a relayed turn does not reset an episode's counts. */
@@ -115,6 +115,7 @@ type State = {
   u: number
   written: number
   asksPath: string | null
+  ledger: { path: string; text: string; rows: Row[]; written: number } | null
   // N2: store writes that failed in a row, and the last one's error class.
   storeFails: number
   storeErr: string | null
@@ -133,6 +134,7 @@ type State = {
   off: boolean
   auditing: boolean
   held: string | null
+  auditHeld: boolean
   activeErr: string | null
   last: string
   // The relayed card, and the turn it was queued behind (its answer is not the verdict).
@@ -305,7 +307,7 @@ const errClass = (err: unknown) => (err instanceof Error ? err.name : typeof err
 const openRows = (s: State) => s.rows.filter(r => owns(r) && !r.closed)
 const coverageLabel = (s: State) => (s.lost || s.dirty || s.written < s.u ? 'unknown' : s.derived ? 'unconfirmed' : 'known')
 
-const saveGuard = ($: EngineInterface, s: State) => $.state.set(GUARD, { sid: s.sid, generation: s.gen, files: s.projection, held: s.held, duties: s.duties, episode: s.ep, dirty: s.dirty })
+const saveGuard = ($: EngineInterface, s: State) => $.state.set(GUARD, { sid: s.sid, generation: s.gen, files: s.projection, held: s.held, auditHeld: s.auditHeld, ledger: s.ledger, duties: s.duties, episode: s.ep, dirty: s.dirty })
 
 async function coverageNow($: EngineInterface, s: State) {
   try {
@@ -325,9 +327,12 @@ async function projectFile($: EngineInterface, s: State, name: string, text: str
 }
 
 // F1: disk is a projection, never authority to remove a hold or introduce a verdict.
-async function checkProjection($: EngineInterface, s: State) {
+async function checkProjection($: EngineInterface, s: State, rewrite = false) {
   await s.writing
   const bad: string[] = []
+  if (s.ledger !== null && await $.fs.read(s.ledger.path).catch(() => null) !== s.ledger.text) {
+    bad.push('ledger')
+  }
   try {
     for (const f of await $.fs.list(auditDir(s))) {
       if (/\.json$/.test(f.name) && !Object.hasOwn(s.projection, f.name)) {
@@ -350,10 +355,21 @@ async function checkProjection($: EngineInterface, s: State) {
   if (bad.length) {
     const reason = `tamper:${[...new Set(bad)].join(',')}`
     s.held ??= reason
+    if (bad.some(name => name !== 'held')) s.auditHeld = false
     s.projection.held = JSON.stringify({ reason: s.held })
     await saveGuard($, s)
     $.ui.toast(`${NAME}: ${reason}; the hold stays`)
     await logLine($, s, iso(), 'tamper', reason)
+  }
+  if (bad.includes('ledger') && s.ledger !== null) {
+    try {
+      await $.fs.write(s.ledger.path, s.ledger.text)
+    } catch (err) {
+      $.ui.toast(`${NAME}: ledger not restored (${errClass(err)}); held`)
+      await logLine($, s, iso(), 'projection-error', `ledger:${errClass(err)}`)
+    }
+  }
+  if (bad.length || rewrite) {
     for (const [name, text] of Object.entries(s.projection)) {
       try {
         await $.fs.write(`${auditDir(s)}/${name}`, text)
@@ -385,13 +401,16 @@ function persist($: EngineInterface, s: State, opts: { rows: boolean; bump: bool
           r.episode = s.ep
         }
         const fresh = s.rows.filter(r => r.u > s.written)
+        s.ledger = { path: s.asksPath, text: `${s.rows.map(r => JSON.stringify(r)).join('\n')}\n`, rows: s.rows, written: s.written }
+        await saveGuard($, s)
         await $.state.set(REPLAY, fresh)
         await $.fs.write(pendingPath(s.asksPath), String(fresh.length))
-        await $.fs.write(s.asksPath, `${s.rows.map(r => JSON.stringify(r)).join('\n')}\n`)
+        await $.fs.write(s.asksPath, s.ledger.text)
         await $.store.set(asksKey(s.sid), s.asksPath)
         await $.fs.write(pendingPath(s.asksPath), '0')
         await $.state.set(REPLAY, [])
         s.written = s.rows.at(-1)?.u ?? 0
+        s.ledger.written = s.written
       }
       if (opts.bump) s.gen += 1
       await projectFile($, s, 'current', JSON.stringify({ generation: String(s.gen) }))
@@ -464,6 +483,7 @@ async function release($: EngineInterface, s: State) {
     await run($, ['rm', '-f', `${d}/held`, `${d}/chain`, `${d}/missing-chain`])
     if (s.held !== null) await logLine($, s, iso(), 'released', s.held)
     s.held = null
+    s.auditHeld = false
     delete s.projection.held
     await saveGuard($, s)
   } catch (err) {
@@ -505,17 +525,18 @@ async function record($: EngineInterface, s: State, origin: Row['origin'], text:
 async function resume($: EngineInterface, s: State, asks: string) {
   s.asksPath = asks
   try {
-    s.rows = parseRows(await $.fs.read(asks))
+    s.rows = s.ledger?.rows ?? parseRows(await $.fs.read(asks))
+    s.ledger ??= { path: asks, rows: s.rows, text: `${s.rows.map(r => JSON.stringify(r)).join('\n')}\n`, written: s.rows.at(-1)?.u ?? 0 }
   } catch (err) {
     s.storeFails += 1
     s.storeErr = errClass(err)
     s.lost = true
     $.ui.toast(`${NAME} v${MOD_VERSION}: owner ledger not read (${errText(err)}); coverage unknown`)
   }
-  s.written = s.rows.at(-1)?.u ?? 0
+  s.written = s.ledger?.written ?? 0
   try {
     const queued = ((await $.state.get(REPLAY)).value ?? []).filter(r => r.u > s.written)
-    s.rows.push(...queued)
+    s.rows.push(...queued.filter(r => !s.rows.some(row => row.u === r.u)))
     const pending = Number((await $.fs.read(pendingPath(asks)).catch(() => '0')).trim() || 0)
     if (pending > queued.length) s.lost = true
     const messages = await $.session.messages()
@@ -669,6 +690,34 @@ const usageText = (u: ModelUsage) =>
   `in ${u.input_tokens} cr ${u.cache_read_input_tokens ?? 0} cw ${u.cache_creation_input_tokens ?? 0} out ${u.output_tokens}`
 const tokOf = (u: ModelUsage) => u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + u.output_tokens
 
+// Resolve symlinks before `..`, as the OS does, including a new file's existing parent.
+async function resolvePath($: EngineInterface, s: State, given: string): Promise<string> {
+  const expanded = given.replace(/^~(?=\/|$)/, s.home)
+  let probe = expanded.startsWith('/') ? expanded : `${s.cwd}/${expanded}`
+  let suffix = ''
+  while (!(await $.fs.exists(probe))) {
+    if (probe === '/') throw new Error('root not readable')
+    const i = probe.lastIndexOf('/')
+    suffix = `/${probe.slice(i + 1)}${suffix}`
+    probe = probe.slice(0, i) || '/'
+  }
+  const real = (await $.fs.stat(probe, { resolve: true })).realPath
+  if (real === undefined) throw new Error('unresolved path')
+  return `${real}${suffix}`
+}
+
+async function resolveArguments($: EngineInterface, s: State, value: unknown): Promise<unknown> {
+  if (typeof value === 'string') {
+    return value.includes('/') || /^(?:\.{1,2}|~)$/.test(value) || await $.fs.exists(`${s.cwd}/${value}`)
+      ? resolvePath($, s, value) : value
+  }
+  if (Array.isArray(value)) return Promise.all(value.map(v => resolveArguments($, s, v)))
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([key, v]) => [key, await resolveArguments($, s, v)])))
+  }
+  return value
+}
+
 async function nextEpisode($: EngineInterface, s: State) {
   s.ep = episodeAfter(s.ep.k + 1, s.u)
   await saveEpisode($, s)
@@ -718,7 +767,26 @@ async function writeVerdict($: EngineInterface, s: State, sha: string, gen: numb
     await logLine($, s, iso(), 'audit-stale', `${v.episode} · ${v.verdict} dropped · gen ${gen}→${s.gen}`)
     return false
   }
+  await checkProjection($, s, true)
+  if (v.verdict === 'PASS' && s.held !== null && !s.auditHeld) v = { ...v, verdict: 'UNKNOWN', reason: s.held }
+  if (v.verdict === 'PASS') {
+    await release($, s)
+  } else {
+    if (s.held === null || s.auditHeld) {
+      s.held = `${v.verdict}: ${v.reason}`
+      s.auditHeld = true
+    }
+    // Save the hold before its disk mirror: I/O failure cannot release tools.
+    await saveGuard($, s)
+  }
   await projectFile($, s, `${sha}.json`, JSON.stringify({ ...v, generation: String(gen) }))
+  if (s.held !== null) {
+    try {
+      await writeHeld($, s, sha, s.held)
+    } catch (err) {
+      $.ui.toast(`${NAME}: held mirror not written (${errClass(err)}); the mod holds`)
+    }
+  }
   s.last = `${v.verdict} ${v.episode}`
   await logLine($, s, iso(), `audit-${v.verdict.toLowerCase()}`, `${v.episode} · ${v.reason.split('\n')[0]}`)
   $.ui.invalidate('ui.render')
@@ -743,7 +811,8 @@ async function audit($: EngineInterface, s: State, turnId: string, reply: string
   const base = { turnId, episode: `E${ep.k}`, covered: covered.map(r => `U${r.u}`), tools: toolIds(episode) }
   const write = (verdict: Verdict, reason: string, findings?: Finding[]) =>
     writeVerdict($, s, sha, gen, { verdict, reason, ...base, ...(findings ? { findings: findings.map(f => ({ id: f.id, problem: f.problem })) } : {}) })
-  if (s.held !== null) return write('UNKNOWN', s.held)
+  if (s.storeFails >= 2) return write('UNKNOWN', `store-error:${s.storeErr}`)
+  if (s.held !== null && !s.auditHeld) return write('UNKNOWN', s.held)
 
   // Past the FAIL cap the judge is not asked again: the reply either relays each finding as its line or fails.
   const mechanical = async () => {
@@ -752,7 +821,6 @@ async function audit($: EngineInterface, s: State, turnId: string, reply: string
     await writeHeld($, s, sha, `REPORTED E${ep.k}: ${ep.findings.map(f => f.id).join(', ')} still open; the owner decides`)
     await nextEpisode($, s)
   }
-  if (s.storeFails >= 2) return write('UNKNOWN', `store-error:${s.storeErr}`)
   if (coverage.length || await coverageNow($, s) === 'unknown') return write('UNKNOWN', 'coverage:unknown')
   if (ep.fails > FAIL_BLOCKS) return mechanical()
   if (ep.calls >= JUDGE_CALLS) return ep.findings.length ? mechanical() : write('UNAUDITED', 'judge-cap')
@@ -824,6 +892,7 @@ export const register: Register = on => {
     u: 0,
     written: 0,
     asksPath: null,
+    ledger: null,
     storeFails: 0,
     storeErr: null,
     writing: Promise.resolve(),
@@ -839,6 +908,7 @@ export const register: Register = on => {
     off: false,
     auditing: false,
     held: null,
+    auditHeld: false,
     activeErr: null,
     last: '',
     pending: null,
@@ -861,17 +931,20 @@ export const register: Register = on => {
       s.file = fileFor(s, path)
       s.count = countOf(await $.fs.read(path).catch(() => ''))
     }
-    const guard = (await $.state.get(GUARD)).value
+    const guard = structuredClone((await $.state.get(GUARD)).value)
+    s.ledger = null
     if (guard?.sid === s.sid) {
       s.gen = guard.generation
       s.projection = guard.files
       s.held = guard.held
+      s.auditHeld = guard.auditHeld
+      s.ledger = guard.ledger
       s.duties = guard.duties
       s.ep = guard.episode
       s.dirty = guard.dirty
     }
     // A hot reload trusts $.state; a new process rebuilds durable duties and episode guards from rows.
-    const asks = (await $.store.get(asksKey(s.sid))) as string | undefined
+    const asks = s.ledger?.path ?? (await $.store.get(asksKey(s.sid))) as string | undefined
     if (asks !== undefined) await resume($, s, asks)
     else await derive($, s)
     if (guard?.sid !== s.sid) {
@@ -886,6 +959,7 @@ export const register: Register = on => {
     }
     if (s.projection.current === undefined) await projectFile($, s, 'current', JSON.stringify({ generation: String(s.gen) }))
     if (!s.off) await writeActive($, s)
+    await saveGuard($, s)
     await $.command.register({ name: COMMAND, description: `Agent should know v${MOD_VERSION}: /${COMMAND} shows or hides the band, with this session's heads-up count and log` })
     await $.command.register({ name: 'asks', description: `Agent should know v${MOD_VERSION}: /asks release U<n> | confirm | off` })
     return next(e)
@@ -894,6 +968,7 @@ export const register: Register = on => {
   // Before this mod's own commands, which answer without next: every owner command is a row; the mod's own open no duty.
   on('command.run', async ($, e, next) => {
     const kind = kindOf(e.origin)
+    if (kind === 'owner') await release($, s)
     if (kind !== null) await record($, s, kind === 'owner' ? 'owner-command' : kind, `/${e.command}${e.args ? ` ${e.args}` : ''}`, [], await seenNow($), e.command !== COMMAND && e.command !== 'asks')
     return next(e)
   })
@@ -977,28 +1052,17 @@ export const register: Register = on => {
     if (next.origin.plugin !== 'engine' || e.agentId !== undefined) return next(e)
     await checkProjection($, s)
     let target = e as unknown as Record<string, unknown>
-    if (['Write', 'Edit', 'NotebookEdit'].includes(e.tool)) {
-      const given = String(target.file_path ?? target.notebook_path ?? '').replace(/^~(?=\/)/, s.home)
-      // Resolve symlinks before `..`, as the OS does; lexical collapse could hide a protected target.
-      const path = given.startsWith('/') ? given : `${s.cwd}/${given}`
-      let probe = path
-      let suffix = ''
-      try {
-        while (!(await $.fs.exists(probe))) {
-          if (probe === '/') throw new Error('root not readable')
-          const i = probe.lastIndexOf('/')
-          suffix = `/${probe.slice(i + 1)}${suffix}`
-          probe = probe.slice(0, i) || '/'
-        }
-        const real = (await $.fs.stat(probe, { resolve: true })).realPath
-        if (real === undefined) throw new Error('unresolved path')
-        target = { ...target, file_path: `${real}${suffix}` }
-      } catch (err) {
-        const why = `${NAME} denied ${e.tool}: target path could not be resolved (${errClass(err)})`
-        $.ui.toast(why)
-        await logLine($, s, iso(), 'state-write-denied', why)
-        return { deny: why }
+    try {
+      if (['Write', 'Edit', 'NotebookEdit'].includes(e.tool)) {
+        target = { ...target, file_path: await resolvePath($, s, String(target.file_path ?? target.notebook_path ?? '')) }
+      } else if (e.tool.startsWith('mcp__') && !readOnly(e.tool, target)) {
+        target = await resolveArguments($, s, target) as Record<string, unknown>
       }
+    } catch (err) {
+      const why = `${NAME} denied ${e.tool}: target path could not be resolved (${errClass(err)})`
+      $.ui.toast(why)
+      await logLine($, s, iso(), 'state-write-denied', why)
+      return { deny: why }
     }
     if (stateWrite(e.tool, target, s.home, s.cwd, s.sid)) {
       const reason = `${NAME} denied ${e.tool}: agent tools cannot write, move or delete this session's audit state or agent-should-know state.`
@@ -1031,13 +1095,25 @@ export const register: Register = on => {
     let gen = s.gen
     let sha = ''
     try {
-      await checkProjection($, s)
+      await checkProjection($, s, true)
       if (s.off) return r
       gen = s.gen
       sha = await sha16(r.answer)
       await audit($, s, r.turnId, r.answer, sha, gen)
+      if (gen !== s.gen || s.projection[`${sha}.json`] === undefined) {
+        if (s.held === null) {
+          s.held = 'audit-skipped:stale'
+          s.auditHeld = true
+        }
+        await saveGuard($, s)
+      }
     } catch (err) {
       const reason = `hook-error:${errClass(err)}`
+      if (s.held === null) {
+        s.held = reason
+        s.auditHeld = true
+      }
+      await saveGuard($, s)
       $.ui.toast(`${NAME} v${MOD_VERSION}: self-audit failed (${errText(err)})`)
       try {
         await writeVerdict($, s, sha || (await sha16(r.answer)), gen, { verdict: 'UNKNOWN', reason, turnId: r.turnId, episode: `E${s.ep.k}`, covered: [], tools: [] })
@@ -1045,6 +1121,7 @@ export const register: Register = on => {
         await logLine($, s, iso(), 'audit-unwritten', `${reason} · ${errClass(again)}`)
       }
     } finally {
+      if (!s.off) await checkProjection($, s, true)
       s.auditing = false
     }
     return r

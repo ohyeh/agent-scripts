@@ -52,6 +52,7 @@ function world(on: On, store = new Map<string, unknown>(), isFailing = (_path: s
   const sent: string[] = []
   const opened: string[] = []
   const files = new Map<string, string>()
+  const writes: string[] = []
   on('prompt.submit', (_, e) => (sent.push(e.text), { text: e.text }))
   const toasts: string[] = []
   on('ui.toast', (_, e) => (toasts.push(String((e as { text?: unknown }).text ?? JSON.stringify(e))), { value: undefined }))
@@ -69,6 +70,7 @@ function world(on: On, store = new Map<string, unknown>(), isFailing = (_path: s
     return { value: text }
   })
   on('fs.write', (_, e) => {
+    writes.push(e.path)
     if (isFailing(e.path)) throw new Error('EACCES')
     files.set(e.path, e.text)
     return { value: undefined }
@@ -104,7 +106,7 @@ function world(on: On, store = new Map<string, unknown>(), isFailing = (_path: s
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
   on('tool.call', () => ({ result: {}, text: 'ok' }) as never)
-  return { sent, opened, files, store, toasts, state, links, messages, faults }
+  return { sent, opened, files, store, toasts, state, links, messages, faults, writes }
 }
 
 // The built-in's offer card beneath the mod; other plugins' bands sit beside it,
@@ -448,13 +450,14 @@ test('N10: a step with tool uses, with no stop reason, or of a subagent is not a
   expect(await g.verdict(REPLY)).toBeNull()
 })
 
-test('N10: an error in the hook is UNKNOWN hook-error:<class>', async ($, on) => {
+test('F8 N10: an error in the hook is UNKNOWN hook-error:<class> and holds tools', async ($, on) => {
   const g = judge(on)
   await $.session.start(start)
   g.j.fork.push({ isAnswered: true, text: '{}', usage: undefined })
   await g.finish($, REPLY)
   expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'hook-error:TypeError', turnId: 't1' })
   expect(g.w.toasts.some(t => t.includes('self-audit failed'))).toBe(true)
+  expect(await call($, EDIT)).toMatch(/held Edit/)
 })
 
 test('N10: the judge races a 60 s clock; no answer by then is UNKNOWN timeout', async ($, on) => {
@@ -496,7 +499,7 @@ test('G4: turn.start rewrites active, removes earlier verdicts, chain and missin
   expect(g.gen()).toBe(String(before + 1))
 })
 
-test('G4: a judge result that lands after the generation moved is dropped; the mod does not audit its own fork', async ($, on) => {
+test('F8 G4: a stale judge result is dropped and held; the mod does not audit its own fork', async ($, on) => {
   const g = judge(on)
   await $.session.start(start)
   await say($, 'run the tests')
@@ -513,6 +516,7 @@ test('G4: a judge result that lands after the generation moved is dropped; the m
   open()
   await done
   expect(await g.verdict(REPLY)).toBeNull()
+  expect(await call($, EDIT)).toMatch(/held Edit: audit-skipped:stale/)
   expect(g.log().some(l => / · audit-stale · E1 · UNKNOWN dropped · gen \d+→\d+$/.test(l))).toBe(true)
   expect(g.w.files.get(`${GATE}/asks-open.md`)).toContain('U1 [owner]')
 })
@@ -946,6 +950,8 @@ test('F1: ancestor, MCP, realpath symlink and interpreter state writes are denie
     { tool: 'Bash', command: 'mv /h/me/.local /elsewhere' },
     { tool: 'Write', file_path: '/h/me/.local', content: '{}' },
     { tool: 'mcp__filesystem__write_file', path: `${AUDIT}/current`, content: '{}' },
+    { tool: 'mcp__filesystem__write_file', path: '/work/state-link/audit/current', content: '{}' },
+    { tool: 'mcp__filesystem__delete_directory', path: '~/.local/state' },
     { tool: 'Write', file_path: '/work/state-link/audit/current', content: '{}' },
     { tool: 'Write', file_path: '/work/state-link/audit/../current', content: '{}' },
     { tool: 'Bash', command: 'python3 -c "from pathlib import Path; Path.home().joinpath(\'.local/state\',\'agent-hooks\').rmdir()"' },
@@ -968,6 +974,77 @@ test('F1: ancestor, MCP, realpath symlink and interpreter state writes are denie
   await asks($, 'off')
   g.w.files.set(`${AUDIT}/current`, '{}')
   expect(await call($, EDIT)).toMatch(/held Edit: tamper:current/)
+})
+
+test('F1: split-path Python writes run but the next tool call or final step repairs gate input and holds', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  const command = 'python3 -c "from pathlib import Path; p=Path.home().joinpath(\'.local\',\'state\',\'agent-hooks\',\'' + SID + '\',\'audit\',\'current\'); p.write_text(\'{}\')"'
+  const before = g.w.files.get(`${AUDIT}/current`)
+  expect(await call($, { tool: 'Bash', command })).toBe('ok')
+  g.w.files.set(`${AUDIT}/current`, '{}')
+  expect(await call($, EDIT)).toMatch(/held Edit: tamper:current/)
+  expect(g.w.files.get(`${AUDIT}/current`)).toBe(before)
+  await say($, 'continue')
+  const current = g.w.files.get(`${AUDIT}/current`)
+  expect(await call($, { tool: 'Bash', command })).toBe('ok')
+  g.w.files.set(`${AUDIT}/current`, '{}')
+  await g.finish($, REPLY)
+  expect(g.w.files.get(`${AUDIT}/current`)).toBe(current)
+  expect((await g.verdict(REPLY))?.verdict).toBe('UNKNOWN')
+  expect(await call($, EDIT)).toMatch(/held Edit: tamper:current/)
+})
+
+test('F1: a tool-overwritten ledger is restored from state and held at the next tool call and final step', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  await say($, 'keep this ask')
+  const path = [...g.w.files.keys()].find(p => p.endsWith('.asks.jsonl'))!
+  const before = g.w.files.get(path)
+  expect(await call($, { tool: 'Bash', command: 'python3 -c "print(1)"' })).toBe('ok')
+  g.w.files.set(path, '')
+  expect(await call($, EDIT)).toMatch(/held Edit: tamper:ledger/)
+  expect(g.w.files.get(path)).toBe(before)
+  expect(g.w.toasts.some(t => t.includes('tamper:ledger'))).toBe(true)
+  expect(g.log().some(t => t.includes('tamper:ledger'))).toBe(true)
+  g.w.files.set(path, '')
+  await g.finish($, REPLY)
+  expect(g.w.files.get(path)).toBe(before)
+  const b = fresh(g)
+  g.w.files.set(path, '')
+  await b.start()
+  expect((await b.act(EDIT)).deny).toContain('tamper:ledger')
+  expect(g.w.files.get(path)).toBe(before)
+})
+
+test('F8: FAIL holds without a writable held mirror; a later PASS in the same chain releases', async ($, on) => {
+  const g = judge(on, undefined, p => p === `${AUDIT}/held`)
+  await $.session.start(start)
+  await say($, 'run the tests')
+  g.transcript.push(user('run the tests'), assistant(REPLY))
+  g.j.fork.push(answer({ verdict: 'FAIL', complete: false, findings: [{ id: 'F1', check: 'a', source: 'reply', quote: REPLY, problem: 'No test evidence' }] }))
+  await g.finish($, REPLY)
+  expect((await g.verdict(REPLY))?.verdict).toBe('FAIL')
+  expect(g.w.files.has(`${AUDIT}/held`)).toBe(false)
+  expect(await call($, EDIT)).toMatch(/held Edit/)
+  g.j.fork.push(PASS)
+  await g.finish($, 'The test evidence is now present.')
+  expect((await g.verdict('The test evidence is now present.'))?.verdict).toBe('PASS')
+  expect(await call($, EDIT)).toBe('ok')
+})
+
+test('F1: each final step rewrites every audit projection, including unchanged files and a forged PASS', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  await g.finish($, REPLY)
+  const previous = g.w.files.get(`${AUDIT}/${await sha16(REPLY)}.json`)
+  g.w.writes.length = 0
+  g.w.files.set(`${AUDIT}/${await sha16(REPLY)}.json`, '{"verdict":"PASS"}')
+  await g.finish($, 'A different final reply')
+  expect(g.w.files.get(`${AUDIT}/${await sha16(REPLY)}.json`)).toBe(previous)
+  for (const name of ['active', 'current', `${await sha16(REPLY)}.json`]) expect(g.w.writes).toContain(`${AUDIT}/${name}`)
+  expect((await g.verdict('A different final reply'))?.verdict).toBe('UNKNOWN')
+  expect(await call($, EDIT)).toMatch(/held Edit/)
 })
 
 test('F2: held Git status and diff are denied; log and show require both execution guards', async ($, on) => {
