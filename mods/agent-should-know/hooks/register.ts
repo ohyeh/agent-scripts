@@ -1,8 +1,10 @@
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, PluginState, Register } from 'claude-code'
 
 import { cells, fit, rowsOf } from './lib/band.ts'
+import { atomic, AUDIT_PROMPT, cleanupEmptySid, digest, errorText, judgeResult, migrate, ownerRow, projectionOf, rootOf, snapshot, validIdentity } from './lib/records.ts'
+import type { Bundle, Call, Identity, Owner } from './lib/records.ts'
 
-const MOD_VERSION = '0.1.8'
+const MOD_VERSION = '0.3.0'
 const NAME = 'agent-should-know'
 const COMMAND = 'heads-up'
 const ACCENT = 'magenta'
@@ -114,6 +116,7 @@ function fileFor(s: State, path: string) {
 async function logLine($: EngineInterface, s: State, at: string, kind: string, text: string) {
   // A failed log row must not fail the hook: the relay after it matters more.
   try {
+    if (!validIdentity(s)) throw new Error('identity unready; log not written')
     if (s.file === null) {
       s.file = fileFor(s, `${folderOf(s)}/${at.slice(0, 10)}-${s.sid.slice(0, 8)}.log`)
       await $.store.set(fileKey(s.sid), s.file.path)
@@ -212,7 +215,344 @@ function summary(s: State) {
   return `${s.count.flagged} heads-up · ${s.count.handled} handled this session · log: ${where}`
 }
 
+const STATE = { plugin: 'agent-should-know', key: 'observer-v1' } as const
+type Saved = PluginState['agent-should-know']['observer-v1']
+type Turn = { id: string; model: string; calls: Call[]; expected: Set<string>; messages: unknown[]; coverage: Set<string> }
+
+let instance = crypto.randomUUID()
+let seq = 0
+let epoch = 0
+let version = 0
+let id: Identity | null = null
+let rows: Owner[] = []
+let ledger: string | null = null
+let projection: string | null = null
+let enabled = true
+let health = 'initializing'
+let turn: Turn | null = null
+let probe: Promise<void> | null = null
+let writing: Promise<void> = Promise.resolve()
+let diagnostics: Promise<void> = Promise.resolve()
+let job: Promise<void> | null = null
+let controller: AbortController | null = null
+let timer: ReturnType<EngineInterface['clock']['after']> | null = null
+let remindedEpoch = -1
+const warnings = new Set<string>()
+
+const notice = ($: EngineInterface, text: string, warning = true) => {
+  health = text
+  if (warning) warnings.add(text)
+  try { $.ui.log(`agent-should-know v0.3.0: ${text}`); $.ui.invalidate('ui.render') } catch { /* The next healthy dispatch repeats the pending notice. */ }
+}
+const cancel = () => {
+  epoch += 1
+  timer?.cancel()
+  timer = null
+  controller?.abort()
+}
+const trace = ($: EngineInterface, event: string, extra: Record<string, unknown> = {}): Promise<void> => {
+  const row = { instance, seq: ++seq, at: Date.now(), event, epoch, sid: id?.sid ?? null, ...extra }
+  const context = id
+  diagnostics = diagnostics.then(async () => {
+    $.ui.log(JSON.stringify(row), { to: 'debug' })
+    if (!context) return
+    const path = `${rootOf(context)}/diagnostics.jsonl`
+    const old = await $.fs.exists(path) ? await $.fs.read(path) : ''
+    if (old.length > 1024 * 1024) notice($, 'diagnostics size warning; owner decides retention')
+    await atomic($, path, `${old}${JSON.stringify(row)}\n`, await $.fs.exists(path) ? old : null)
+  }).catch(err => notice($, `diagnostics not saved: ${errorText(err)}`))
+  return diagnostics
+}
+const saveState = async ($: EngineInterface) => {
+  if (!id) return
+  const value: Saved = { schema_version: 1, sid: id.sid, epoch, rows, ledger, projection, pending: job !== null, instance }
+  const r = await $.state.set(STATE, value, { ifVersion: version })
+  version = r.version
+  if (!r.isSet) {
+    enabled = false
+    cancel()
+    throw new Error('state CAS conflict; not saved; use on after a fresh dispatch')
+  }
+}
+const persist = ($: EngineInterface): Promise<void> => {
+  const context = id
+  const at = epoch
+  writing = writing.then(async () => {
+    if (!context || id !== context || at !== epoch) return
+    const text = rows.length ? `${rows.map(r => JSON.stringify(r)).join('\n')}\n` : ''
+    await atomic($, `${rootOf(context)}/owner.asks.jsonl`, text, ledger)
+    if (id !== context) return
+    ledger = text
+    if (at !== epoch) return
+    const projected = snapshot(context, rows, epoch, enabled)
+    await atomic($, projectionOf(context), projected, projection)
+    if (id !== context) return
+    projection = projected
+    if (at !== epoch) return
+    await saveState($)
+  }).catch(err => notice($, `storage not saved; coverage UNKNOWN: ${errorText(err)}`))
+  return writing
+}
+const identity = async ($: EngineInterface): Promise<Identity> => {
+  let operation = 'session.id'
+  try {
+    const sid = await $.session.id()
+    await trace($, 'identity.await', { operation, empty: sid === '' })
+    operation = 'env.get(HOME)'
+    const home = (await $.env.get('HOME')) ?? ''
+    await trace($, 'identity.await', { operation, absolute: home.startsWith('/') })
+    operation = 'session.cwd'
+    const cwd = await $.session.cwd()
+    await trace($, 'identity.await', { operation, absolute: cwd.startsWith('/') })
+    return { sid, home, cwd }
+  } catch (err) {
+    await trace($, 'identity.error', { operation, error: errorText(err) })
+    throw new Error(`${operation}: ${errorText(err)}`)
+  }
+}
+const ready = async ($: EngineInterface) => {
+  if (probe) return probe
+  probe = (async () => {
+    try {
+      const live = await identity($)
+      await trace($, 'identity', { liveSid: live.sid, sidEqual: id?.sid === live.sid, homeEqual: id?.home === live.home, cwdEqual: id?.cwd === live.cwd })
+      if (!validIdentity(live)) {
+        cancel(); id = null; enabled = false
+        notice($, 'identity unready; no state write; tools remain available')
+        return
+      }
+      if (id?.sid === live.sid && id.home === live.home && id.cwd === live.cwd) return
+      cancel()
+      id = null
+      rows = []; ledger = null; projection = null; turn = null; enabled = true
+      const control = await $.store.get(`control:${live.sid}`)
+      enabled = control !== 'off'
+      const saved = await $.state.get(STATE)
+      version = saved.version
+      const value = saved.value as Saved | undefined
+      if (value?.schema_version === 1 && value.sid === live.sid) {
+        if (!Array.isArray(value.rows) || value.rows.some(r => r.schema_version !== 1 || r.sid !== live.sid || !r.uuid || !Array.isArray(r.items) || r.items.some(i => r.text.slice(i.start, i.end) !== i.text))) throw new Error('invalid engine recovery state')
+        rows = value.rows
+        ledger = value.ledger
+        projection = value.projection
+        epoch = Math.max(epoch, value.epoch + 1)
+        if (value.pending) { enabled = false; notice($, 'UNKNOWN interrupted audit at reload; no verdict restored; use on after old environment ends') }
+      }
+      id = live
+      if (await $.fs.exists(`${rootOf(live)}/owner.asks.jsonl`) && ledger === null) notice($, 'historical ledger retained; native recovery coverage UNKNOWN; disk grants no authority')
+      if (health === 'initializing') health = enabled ? 'ready' : 'off'
+      await saveState($)
+      await trace($, 'identity-ready')
+    } catch (err) {
+      enabled = false
+      notice($, `identity/store recovery degraded; explicit on required: ${errorText(err)}`)
+    }
+  })().finally(() => { probe = null })
+  return probe
+}
+const failed = ($: EngineInterface, event: string, error: unknown) => {
+  notice($, `hook ${event} UNKNOWN: ${errorText(error)}`)
+}
+
 export const register: Register = on => {
+  cancel()
+  instance = crypto.randomUUID()
+  seq = 0; epoch = 0; version = 0
+  id = null; rows = []; ledger = null; projection = null
+  enabled = true; health = 'initializing'; turn = null; probe = null
+  writing = Promise.resolve(); diagnostics = Promise.resolve()
+  job = null; controller = null; timer = null
+  warnings.clear()
+  remindedEpoch = -1
+
+  on('session.start', async ($, e, next) => {
+    try { await cleanupEmptySid($) } catch (err) { notice($, `cleanup incomplete: ${errorText(err)}`) }
+    await ready($)
+    await $.command.register({ name: 'asks', description: 'Owner asks and audit: status, on, off, migrate' })
+    s.cwd = e.cwd
+    s.sid = await $.session.id()
+    s.home = (await $.env.get('HOME')) ?? ''
+    if (validIdentity(s)) {
+      s.folded = (await $.store.get(FOLD_KEY)) !== 'open'
+      s.hidden = (await $.store.get(HIDE_KEY)) === 'hidden'
+      const path = (await $.store.get(fileKey(s.sid))) as string | undefined
+      if (path !== undefined) {
+        if (typeof path !== 'string' || !path.startsWith(`${folderOf(s)}/`) || !path.endsWith(`-${s.sid.slice(0, 8)}.log`) || path.split('/').includes('..')) {
+          notice($, 'relay cache path invalid; ignored; original retained')
+        } else {
+          s.file = fileFor(s, path)
+          s.count = countOf(await $.fs.read(path))
+        }
+      }
+      await $.command.register({ name: 'heads-up', description: `Agent should know v${MOD_VERSION}: show or hide the card band` })
+    }
+    await trace($, 'session.start', { cwdEqual: id?.cwd === e.cwd })
+    return next(e)
+  }).catch(($, e, next) => { failed($, 'session.start', next.error); return next(e) })
+
+  on('session.attach', async ($, e, next) => { await ready($); await trace($, 'session.attach'); return next(e) })
+    .catch(($, e, next) => { failed($, 'session.attach', next.error); return next(e) })
+
+  on('session.end', ($, e, next) => {
+    cancel()
+    id = null; turn = null; rows = []; ledger = null; projection = null
+    s.sid = ''; s.cwd = ''; s.home = ''; s.file = null
+    s.pending = null; s.early = null; s.running = undefined; s.sent.clear()
+    try { $.ui.log(JSON.stringify({ instance, event: 'session.end', sid: e.sessionId, reason: e.reason, epoch }), { to: 'debug' }) } catch { /* No model or repair at session end. */ }
+    return next(e)
+  }).catch(($, e, next) => { failed($, 'session.end', next.error); return next(e) })
+
+  on('command.run', { command: 'asks' }, async ($, e) => {
+    await ready($)
+    if (e.origin?.kind !== 'composer' && e.origin?.kind !== 'bridge') return { text: 'asks: command origin is not owner authority' }
+    const action = e.args.trim()
+    if (action === 'off') {
+      const interrupted = job !== null || timer !== null
+      enabled = false; cancel(); health = 'off'
+      if (interrupted) notice($, 'off; audit cancelled; previous verdict unavailable', false)
+      if (!id) return { text: 'off in this instance; identity unready; not saved' }
+      try { await $.store.set(`control:${id.sid}`, 'off'); await persist($) } catch (err) { notice($, `off in memory; not saved: ${errorText(err)}`) }
+    } else if (action === 'on') {
+      if (!id) return { text: 'identity unready; not enabled' }
+      if (job) return { text: 'UNKNOWN previous request still settling; no new audit started' }
+      const state = await $.state.get(STATE)
+      version = state.version
+      cancel(); enabled = true; health = 'ready'; warnings.clear()
+      try { await $.store.set(`control:${id.sid}`, 'on'); await persist($) } catch (err) { notice($, `on not saved: ${errorText(err)}`) }
+    } else if (action === 'migrate') {
+      if (!id) return { text: 'migrate: identity unready; no files changed' }
+      try { return { text: await migrate($, id) } } catch (err) { notice($, errorText(err)) }
+    }
+    await trace($, 'command', { action: ['on', 'off', 'migrate'].includes(action) ? action : 'status' })
+    return { text: `agent-should-know v0.3.0: ${enabled ? 'on' : 'off'}; ${health}\n${rows.flatMap(r => r.items.map(i => `${i.id} [${i.kind}${i.answer ? ', answered' : ', open'}] ${i.text}`)).join('\n')}\n${[...warnings].join('\n')}` }
+  }).catch(($, _e, next) => { failed($, 'command.run', next.error); return { text: `asks UNKNOWN: ${errorText(next.error)}` } })
+
+  on('prompt.submit', async ($, e, next) => {
+    await ready($)
+    if (e.origin?.kind === 'composer' || e.origin?.kind === 'bridge') {
+      if (job || timer) notice($, 'audit UNKNOWN: interrupted by new owner message', false)
+      cancel()
+    }
+    await trace($, 'prompt.submit', { origin: e.origin?.kind ?? 'unknown' })
+    const o = e.origin
+    if (o?.kind === 'plugin' && (o.name === NAME || o.name.startsWith(`${NAME}@`))) s.pending = { over: e.turnId ?? s.running, card: s.flagged }
+    return next(e)
+  }).catch(($, e, next) => { failed($, 'prompt.submit', next.error); return next(e) })
+
+  on('session.append', async ($, e, next) => {
+    const result = await next(e)
+    if (e.agentId !== undefined || 'deny' in result) return result
+    await ready($)
+    if (turn) {
+      turn.messages.push({ uuid: result.uuid, origin: e.origin, message: result.message })
+      for (const block of result.message.content) {
+        if (!['text', 'thinking', 'tool_use', 'tool_result'].includes(block.type)) turn.coverage.add(`media or unknown body ${result.uuid}`)
+        if (block.type === 'tool_use' && typeof block.id === 'string') turn.expected.add(block.id)
+      }
+    }
+    if (enabled && id && ['prompt', 'delivery', 'command'].includes(e.door) && result.message.role !== 'assistant' && (e.origin.kind === 'composer' || e.origin.kind === 'bridge')) {
+      if (!rows.some(r => r.uuid === result.uuid)) {
+        cancel()
+        const text = result.message.content.flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
+        rows.push(ownerRow(id, result.uuid, e.origin.kind, text, epoch, instance))
+        await persist($)
+      }
+    }
+    await trace($, 'session.append', { uuid: result.uuid, origin: e.origin.kind, agent: e.agentId ?? null })
+    return result
+  }).catch(($, e, next) => { failed($, 'session.append', next.error); return next(e) })
+
+  on('turn.start', async ($, e, next) => {
+    if (e.agentId !== undefined) return next(e)
+    await ready($)
+    turn = { id: e.turnId, model: await $.session.model(), calls: [], expected: new Set(), messages: [], coverage: new Set() }
+    s.running = e.turnId
+    if (id) { s.sid = id.sid; s.home = id.home; s.cwd = id.cwd }
+    await trace($, 'turn.start', { turn: e.turnId })
+    return next(e)
+  }).catch(($, e, next) => { failed($, 'turn.start', next.error); return next(e) })
+
+  on('turn.step', async function* ($, e, next) {
+    if (e.agentId === undefined && turn?.id === e.turnId) {
+      turn.model = e.model
+      if (e.messageCount >= 4096) turn.coverage.add('SDK message cap')
+      await trace($, 'turn.step', { turn: e.turnId, step: e.index })
+    }
+    for await (const chunk of next(e)) {
+      if (e.agentId === undefined && turn?.id === e.turnId && chunk.kind === 'tool') turn.expected.add(chunk.id)
+      yield chunk
+    }
+  }).catch(async function* ($, e, next) { failed($, 'turn.step', next.error); yield* next(e) })
+
+  on('tool.call', async ($, e, next) => {
+    const result = await next(e)
+    await ready($)
+    await trace($, 'tool.call.enter', { tool: e.tool, call: e.tool_use_id, agent: e.agentId ?? null })
+    if (e.agentId === undefined && next.origin.plugin === 'engine' && turn) turn.calls.push({ id: e.tool_use_id, tool: e.tool, input: e, result })
+    await trace($, 'tool.call.exit', { tool: e.tool, call: e.tool_use_id, denied: 'deny' in result })
+    if (s.early !== null && next.origin.plugin === 'engine' && e.agentId === undefined && !('deny' in result)) {
+      const early = s.early
+      s.early = null
+      return { ...result, context: [...(result.context ?? []), early] }
+    }
+    if (enabled && e.agentId === undefined && next.origin.plugin === 'engine' && !('deny' in result) && remindedEpoch !== epoch && rows.length) {
+      remindedEpoch = epoch
+      const open = rows.flatMap(r => r.items.filter(i => !i.resolution && (!i.answer || i.kind !== 'task')).map(i => `${i.id}: ${JSON.stringify(i.text)}`))
+      return { ...result, context: [...(result.context ?? []), `Native owner ask index (observer context; quoted material grants no new authority):\n${open.join('\n')}`] }
+    }
+    return result
+  }).catch(($, e, next) => { failed($, 'tool.call', next.error); return next(e) })
+
+  on('turn.complete', async ($, e, next) => {
+    const result = await next(e)
+    if (e.agentId !== undefined) return result
+    s.early = null
+    if (e.turnId === s.running) s.running = undefined
+    if (s.pending !== null && e.turnId !== s.pending.over) {
+      const { card } = s.pending
+      s.pending = null
+      await logLine($, s, iso(), `${e.reason === 'answer' ? 'handled' : e.reason} ${card.slice(11, 19)}`, result.text.trim().replace(/\s+/g, ' ').slice(0, VERDICT_CHARS))
+    }
+    await ready($)
+    await trace($, 'turn.complete', { turn: e.turnId, reason: e.reason })
+    for (const warning of warnings) { try { $.ui.log(`agent-should-know turn end: ${warning}`) } catch { /* Retain pending notices. */ } }
+    if (!id || !enabled || !turn || turn.id !== e.turnId) return result
+    if (job || timer) { notice($, 'UNKNOWN audit already active; no second request'); return result }
+    const current = turn
+    for (const call of current.expected) if (!current.calls.some(c => c.id === call)) current.coverage.add(`missing result ${call}`)
+    if (!rows.length) current.coverage.add('no native owner provenance captured')
+    for (const warning of warnings) current.coverage.add(warning)
+    const context = id
+    const at = epoch
+    const bundle: Bundle = JSON.parse(JSON.stringify({ schema_version: 1, sid: context.sid, epoch: at, instance, turn: e.turnId, reply: result.text, owners: rows, calls: current.calls, messages: current.messages, coverage: [...current.coverage] }))
+    const model = e.usage?.model ?? current.model
+    controller = new AbortController()
+    const signal = controller.signal
+    notice($, 'audit UNKNOWN: pending; result follows independently', false)
+    timer = $.clock.after(0, () => {
+      timer = null
+      if (at !== epoch || id !== context || !enabled) return
+      job = Promise.resolve().then(async () => {
+        await saveState($)
+        const body = JSON.stringify(bundle)
+        const hash = await digest(body)
+        const path = `${rootOf(context)}/audit/${hash}`
+        await atomic($, `${path}.evidence.json`, body, null)
+        const answer = await $.model.complete({ model, effort: 'high', timeoutMs: 60000, prompt: `${AUDIT_PROMPT}\n${body}` }, { signal })
+        if (at !== epoch || id !== context || !enabled || signal.aborted) return
+        const judged = answer.isAnswered ? judgeResult(answer.text, bundle) : { verdict: 'UNKNOWN' as const, reason: `model ${answer.reason}`, owners: rows }
+        await atomic($, `${path}.json`, JSON.stringify({ schema_version: 1, sid: context.sid, epoch: at, instance, digest: hash, verdict: judged.verdict, reason: judged.reason }), null)
+        if (at !== epoch || id !== context || !enabled) return
+        if (judged.verdict === 'PASS') { rows = judged.owners; await persist($) }
+        notice($, `audit ${judged.verdict}: ${judged.reason}; ${path}.json`, judged.verdict === 'UNKNOWN')
+      }).catch(err => notice($, `audit UNKNOWN; not saved: ${errorText(err)}`)).finally(() => {
+        job = null
+        controller = null
+        if (id === context) void saveState($).catch(err => notice($, `audit state not saved: ${errorText(err)}`))
+      })
+    })
+    return result
+  }).catch(($, e, next) => { failed($, 'turn.complete', next.error); return next(e) })
   const s: State = {
     cwd: '',
     sid: '',
@@ -228,60 +568,17 @@ export const register: Register = on => {
     hidden: false,
   }
 
-  on('session.start', async ($, e, next) => {
-    s.cwd = e.cwd
-    s.sid = await $.session.id()
-    s.home = (await $.env.get('HOME')) ?? ''
-    s.folded = (await $.store.get(FOLD_KEY)) !== 'open'
-    s.hidden = (await $.store.get(HIDE_KEY)) === 'hidden'
-    const path = (await $.store.get(fileKey(s.sid))) as string | undefined
-    if (path !== undefined) {
-      s.file = fileFor(s, path)
-      s.count = countOf(await $.fs.read(path).catch(() => ''))
-    }
-    await $.command.register({ name: 'heads-up', description: `Agent should know v${MOD_VERSION}: /${COMMAND} shows or hides the band, with this session's heads-up count and log` })
-    return next(e)
-  })
 
   on('command.run', { command: 'heads-up' }, async ($, e) => {
     await setHidden($, s, !s.hidden)
     return { text: `${s.hidden ? `band hidden; /${COMMAND} shows it again.` : 'band shown.'} ${summary(s)}` }
   })
 
-  on('turn.start', async ($, e, next) => {
-    if (e.agentId === undefined) s.running = e.turnId
-    return next(e)
-  })
 
-  on('prompt.submit', async ($, e, next) => {
-    const o = e.origin
-    if (o?.kind === 'plugin' && (o.name === NAME || o.name.startsWith(`${NAME}@`))) s.pending = { over: e.turnId ?? s.running, card: s.flagged }
-    return next(e)
-  })
 
   // The main loop's next tool result only: a subagent's would not reach the main agent, and
   // a plugin's own `$.tool.call` (origin not engine) reaches no model.
-  on('tool.call', async ($, e, next) => {
-    const r = await next(e)
-    if (s.early === null || next.origin.plugin !== 'engine' || e.agentId !== undefined || 'deny' in r) return r
-    const early = s.early
-    s.early = null
-    return { ...r, context: [...(r.context ?? []), early] }
-  })
 
-  on('turn.complete', async ($, e, next) => {
-    const r = await next(e)
-    if (e.agentId !== undefined) return r
-    // Not read in time: the queued prompt carries the card.
-    s.early = null
-    if (e.turnId === s.running) s.running = undefined
-    if (s.pending === null || e.turnId === s.pending.over) return r
-    const { card } = s.pending
-    s.pending = null
-    const verdict = r.text.trim().replace(/\s+/g, ' ').slice(0, VERDICT_CHARS)
-    await logLine($, s, iso(), `${e.reason === 'answer' ? 'handled' : e.reason} ${card.slice(11, 19)}`, verdict)
-    return r
-  })
 
   // The card leaves the band once relayed; this mod's header goes under what is left,
   // in what is left of maxRows, and nothing when even the header does not fit.
@@ -291,18 +588,18 @@ export const register: Register = on => {
     const tree = await next(e)
     const line = offerLine(tree)
     let below = tree
-    if (line !== null) {
+    if (line !== null && validIdentity(s)) {
       below = (withoutCard(tree) ?? $.ui.resolve(e).Box({})) as typeof tree
       await relay($, s, line)
     }
-    if (s.hidden) return below
+    if (s.hidden && warnings.size === 0) return below
     const budget = e.props.maxRows - rowsOf(below)
     if (budget < 1) return below
 
     const { Box, Text, Button } = $.ui.resolve(e)
     const width = e.props.bodyColumns
     const title = `▌agent should know v${MOD_VERSION}`
-    const status = s.count.flagged ? ` · ${s.count.flagged} heads-up · ${s.count.handled} handled ` : ' · no heads-up yet '
+    const status = (s.count.flagged ? ` · ${s.count.flagged} heads-up · ${s.count.handled} handled ` : ' · no heads-up yet ') + (health === 'ready' ? '' : `· ${health} `)
     // Buttons say what they do when the header has room for it, else their icon (the workers band's rule).
     // ' [-]' is the engine's collapse control, drawn over the band's last cells: kept clear.
     const words = cells(title) + cells(status) + cells('[ ⧉ log ][ ▾ fold ][ hide ] [-]') <= width
@@ -330,5 +627,5 @@ export const register: Register = on => {
     const home = (p: string) => (s.home && p.startsWith(s.home) ? `~${p.slice(s.home.length)}` : p)
     const detail = s.file ? `  log: ${home(s.file.path)}` : `  each card goes to the agent; logged in ${home(folderOf(s))}/`
     return Box({ flexDirection: 'column', children: [below, header, Text({ dimColor: true, children: fit(detail, width) })] })
-  })
+  }).catch(($, e, next) => { $.ui.log(`${NAME}: relay render degraded: ${errText(next.error)}`); return next(e) })
 }

@@ -1,6 +1,7 @@
 {
   "name": "agent-should-know",
-  "version": "0.2.1",
+  "version": "0.3.0",
+  "types": "./types/index.d.ts",
   "description": "Sends each card of the built-in You should know mod to the main agent as a prompt, hides the card, and logs the card with the agent's verdict.",
   "author": {
     "name": "PaulYeh",

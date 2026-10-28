@@ -1,9 +1,15 @@
-./register.ts hooks: session.start, command.run{command=heads-up}, turn.start, prompt.submit, tool.call, turn.complete, ui.render{component=AbovePrompt}
+types ./types/index.d.ts declares on $: nothing (no EngineInterface member)
+types ./types/index.d.ts declares state: agent-should-know.observer-v1
+./register.ts hooks: session.start, session.attach, session.end, command.run{command=asks}, prompt.submit, session.append, turn.start, turn.step, tool.call, turn.complete, command.run{command=heads-up}, ui.render{component=AbovePrompt}
 ./register.ts answers its own command: command.run{command=heads-up}
-./register.ts gating hook without .catch: prompt.submit
-./register.ts gating hook without .catch: tool.call
-./register.ts calls: $.command.register, $.env.get, $.fs.exists (via openLog), $.fs.list (via storedCard), $.fs.read, $.fs.write (via logLine), $.process.run (via openLog), $.prompt.submit (via relay), $.session.id, $.store.get, $.store.set, $.ui.invalidate, $.ui.resolve, $.ui.toast
+./register.ts gating hook with .catch: command.run{command=asks}
+./register.ts gating hook with .catch: prompt.submit
+./register.ts gating hook with .catch: session.append
+./register.ts gating hook with .catch: tool.call
+./register.ts calls: $.clock.after, $.command.register, $.env.get, $.fs.exists (via atomic, openLog, ready, trace), $.fs.list (via storedCard), $.fs.read, $.fs.write (via atomic, logLine), $.model.complete, $.process.run (via atomic, migrate, openLog), $.prompt.submit (via relay), $.session.cwd (via identity), $.session.id, $.session.model, $.state.get, $.state.set (via saveState), $.store.delete (via cleanupEmptySid), $.store.get, $.store.keys (via cleanupEmptySid, migrate), $.store.set, $.ui.invalidate, $.ui.log, $.ui.resolve, $.ui.toast
 ./register.ts env writes: nothing
 ./register.ts env reads: HOME
+./register.ts state writes: agent-should-know.observer-v1
+./register.ts state reads: agent-should-know.observer-v1
 .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
 hooks/hooks.json names a hooks module (a code file listed under `modules`). The plugin directory has rules of its own for such code, and these checks apply none of them, so passing here does not mean the directory accepts the plugin. The developer portal's own validation applies those rules.

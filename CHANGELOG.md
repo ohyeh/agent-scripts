@@ -1,5 +1,15 @@
 # Changelog
 
+## agent-should-know 0.3.0
+
+- Report audit FAIL, UNKNOWN, state errors and incomplete cleanup through `ui.log` and the band. Never deny a tool.
+- Remove the Stop gate's audit IPC. Keep independent claim binding. Compaction caches carry historical context and coverage only.
+- At start, use `store.delete` for the five known empty-sid keys. Preserve every other key and all owner files.
+- `/asks` shows native owner UUIDs and item spans. `/asks off` cancels in memory before persistence; `/asks on` starts a new epoch.
+- Freeze the final reply, native rows and tool results for one audit. A tracked timer runs `model.complete` with a measured 60000 ms deadline. Late results cannot publish across off, clear or a new owner message.
+- `/asks migrate` inventories and backs up old `*.asks.jsonl`, then archives them under `_v0.2-archive/`. It preserves the new `owner.asks.jsonl` and is a no-op on a second run.
+- Diagnostics retain their bytes. A size warning leaves retention to the owner. Disk caches never restore a current PASS.
+
 ## agent-should-know 0.2.1
 
 Owner 10-28: 「/asks 的版本 revert 啊」.

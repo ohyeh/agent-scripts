@@ -43,82 +43,9 @@ TOKENIZER="$(dirname "$0")/evidence-tokens.sh"
 
 last="$(printf '%s' "$IN" | jq -r '.last_assistant_message // empty')"
 
-# agent-should-know 0.2.0 audits each final reply in `turn.step` (a mod's classic.Stop hook is skipped on
-# hosts where sec-default@builtin runs first) and leaves its verdict here, keyed by the reply's hash and
-# stamped with the generation in audit/current (bumped at each turn start and ledger change), so an old
-# PASS for the same text never counts. This hook enforces it, on re-entry too. When the turn has to end
-# without a pass (chain cap, no verdict after one re-check, UNAUDITED), it writes audit/held: the mod then
-# holds every non-read tool call until the owner's next message, and the owner sees why.
 reason=""
-audit_reason=""
-audit_file=""
-audit_state=""
-audit_hold=""
-hold_error_message=""
-AUDIT_DIR="$STATE_DIR/audit"
-AUDIT_CHAIN_CAP=4
-if [ -f "$AUDIT_DIR/active" ]; then
-  chain="$AUDIT_DIR/chain"
-  # One stop chain = one turn's Stop and its re-entries; a missing verdict gets one block per chain
-  # (the fix adds a line, so a per-reply marker would block every re-entry).
-  [ "$HOOK_ACTIVE" = "true" ] || { echo 0 > "$chain"; rm -f "$AUDIT_DIR/missing-chain" "$STATE_DIR/held-write-failed"; }
-  ash="$(printf '%s' "$last" | perl -0pe 's/[\t\n\x0B\f\r ]+\z//' | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
-  gen="$(jq -r '.generation // empty' "$AUDIT_DIR/current" 2>/dev/null)"
-  vf="$AUDIT_DIR/$ash.json"
-  if [ -n "$gen" ] && [ -f "$vf" ] && [ "$(jq -r '.generation // empty' "$vf" 2>/dev/null)" = "$gen" ]; then
-    case "$(jq -r '.verdict // empty' "$vf" 2>/dev/null)" in
-      FAIL|UNKNOWN) audit_reason="$(jq -r '.reason // empty' "$vf")"
-        [ -n "$audit_reason" ] || audit_reason="Self-audit (agent-should-know) verdict carries no reason: name the tool call behind each claim you keep." ;;
-      PASS) ;;
-      # Cap reached with asks still open: the mod holds the episode itself and wrote REPORTED only after
-      # it matched each open finding to an `[audit] <id> <problem>` line of this reply.
-      REPORTED) audit_file="$vf"
-        unrelayed="$(printf '%s\n' "$last" | jq -rRn --slurpfile v "$vf" '
-          [inputs | sub("^\\s*(- )?"; "") | sub("\\s+$"; "")] as $t
-          | [$v[0].findings[]? | select(("[audit] \(.id) \(.problem // "")") as $w | $t | index($w) | not) | .id] | join(", ")' 2>/dev/null)"
-        [ -z "$unrelayed" ] || audit_reason="Self-audit REPORTED open findings this reply does not relay: $unrelayed. Add each as its own line \`[audit] <id> <problem>\`, copied from the audit." ;;
-      UNAUDITED) audit_state=UNAUDITED
-        audit_hold="Self-audit could not run for this reply ($(jq -r '.reason // "no reason"' "$vf")). Its claims are unchecked." ;;
-      *) audit_reason="Self-audit (agent-should-know) verdict file is unreadable for this reply: name the tool call behind each claim you keep." ;;
-    esac
-  else
-    # No verdict for this reply in the current generation: never written, or left from an earlier turn.
-    audit_state=missing
-    if [ ! -f "$AUDIT_DIR/missing-chain" ]; then
-      : > "$AUDIT_DIR/missing-chain"
-      audit_reason="Self-audit (agent-should-know $(head -c 40 "$AUDIT_DIR/active" 2>/dev/null)) wrote no verdict for this reply in generation ${gen:-none} (unknown is not a pass; marker ${AUDIT_DIR/#$HOME/\~}/active). Re-check each claim yourself and name the tool call behind it, then close the reply with a line 自我稽核未執行：no verdict."
-    else
-      audit_hold="Self-audit wrote no verdict, also after one re-check in this stop. The reply's claims are unchecked."
-    fi
-  fi
-  if [ -n "$audit_reason" ]; then
-    n="$(cat "$chain" 2>/dev/null || echo 0)"
-    if [ "$n" -ge "$AUDIT_CHAIN_CAP" ]; then
-      audit_hold="Self-audit still does not pass after $n blocks: $audit_reason"
-      audit_reason=""
-    else
-      echo $((n + 1)) > "$chain"
-    fi
-  fi
-  if [ -n "$audit_hold" ]; then
-    mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"
-    if held_error="$( { jq -cn --arg r "$audit_hold" --arg sha "$ash" --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" '{at:$ts, sha:$sha, reason:$r}' > "$AUDIT_DIR/held"; } 2>&1)"; then
-      rm -f "$STATE_DIR/held-write-failed"
-      jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "${SESSION_ID:-}" --arg r "$audit_hold" '{timestamp:$ts, claim:"audit", session:$sid, blocked:false, held:$r}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
-    else
-      hold_error_message="無法寫入 held（${held_error}）。agent-should-know 若仍在執行，會由它自己暫停非讀取工具；gate 無法確認這點，請看 band 是否顯示暫停。"
-      audit_reason=""
-      audit_hold=""
-      jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg error "$held_error" --arg message "$hold_error_message" '{timestamp:$ts, claim:"audit", error:$error, systemMessage:$message}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
-    fi
-  fi
-fi
-# Every exit from here on carries the audit result too: the token checks below often exit early.
 finish() {
-  local r="${audit_reason:+$audit_reason }${reason:-}" m=""
-  [ -n "$audit_hold" ] && m="未通過自我稽核，工作已暫停，等你下一則訊息：$audit_hold"
-  [ -z "$hold_error_message" ] || m="$hold_error_message"
-  [ -n "$r$m" ] && jq -n --arg r "$r" --arg m "$m" '(if $r != "" then {decision: "block", reason: $r} else {} end) + (if $m != "" then {systemMessage: $m} else {} end)'
+  [ -z "$reason" ] || jq -n --arg r "$reason" '{decision: "block", reason: $r}'
 }
 trap finish EXIT
 [ -f "$TRANSCRIPT" ] || exit 0
@@ -143,26 +70,18 @@ fi
 # exempts its own line only (W43-18: one 「還沒」 let a reply list "not done" items it never checked).
 printf '%s' "$speech" | grep -Eqi 'unverified|UNCONFIRMED|attempted|not observed|not (yet )?(done|fixed|verified)|未驗證|未觀測|尚未|還沒|未完成' && claim=""
 LABEL_RE='unverified|UNCONFIRMED|attempted|not observed|not checked|未驗證|未觀測|未查|沒(有)?查|不確定'
-# The audit's own label is a label only when this reply really went unaudited.
-case "$audit_state" in UNAUDITED|missing) LABEL_RE="$LABEL_RE|自我稽核未執行" ;; esac
 # A "not done" state is a negative claim too (W43-18): 還沒/尚未/未完成 assert what is not there.
 NEG_RE='(^|[^a-z])(stuck|failed|missing|not implemented|not (yet )?(done|fixed|started)|no (reply|response)|never (reported|responded)|hung|dead)([^a-z]|$)|卡住|受阻|失敗|缺少|不存在|尚未|還沒|未完成|未開始|沒(有)?回(覆|應)|掛了'
 # Kept raw (code spans intact): a line's `code`, file, W-id or sha is the subject it must be bound to.
-# A REPORTED reply relays the audit's open findings as `[audit] <id> <problem>` lines. Only a line equal
-# to that (an optional "- " aside) is exempt: anything the agent adds on the line stays checked.
-audit_lines=""
-[ -n "$audit_file" ] && audit_lines="$(printf '%s\n' "$last" | jq -rR --slurpfile v "$audit_file" '
-  . as $l | ($l | sub("^\\s*(- )?"; "") | sub("\\s+$"; "")) as $t
-  | select(any($v[0].findings[]?; (.problem // "") != "" and $t == "[audit] \(.id) \(.problem)")) | $l' 2>/dev/null)"
-negative_lines="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' | { [ -n "$audit_lines" ] && grep -vxF -- "$audit_lines" || cat; } \
+negative_lines="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' \
   | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告' | grep -Eiv "$LABEL_RE" \
   | while IFS= read -r l; do printf '%s' "$l" | sed -E 's/`[^`]*`//g; s/「[^」]*」//g' | grep -Eqi "$NEG_RE" && printf '%s\n' "$l"; done)"
 [ -n "$claim" ] || [ -z "$negative_lines" ] || claim="negative"
 # W44-7: hand-backs checked against this turn's tool calls — a reload the agent can run itself,
 # and a page called live with no render check (artifacts-rules §Quality, screenshot evidence).
-# Any /reload-plugins outside a fence needs a reload call this turn: the remedy is one call, so a
-# mention that is not an ask costs a turn, while a missed ask costs the user a hand-back.
-reload_ask="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' | grep -viE 'judgment-rubrics|claim-evidence-gate' | grep -Eqi '/reload-plugins|重新載入 *plugin' && echo 1)"
+# Bind a request to the owner, not a quoted instruction or a historical command.
+reload_ask="$(printf '%s' "$last" | sed -E '/^```/,/^```/d; /^>/d; s/「[^」]*」//g' | grep -viE 'judgment-rubrics|claim-evidence-gate' \
+  | grep -Ei '/reload-plugins|重新載入 *plugin' | grep -Eqi '請|(^|[ ，。])要[ /]|(^|[.!?] *)(run|execute|you (must|need to)) |(^|[^a-z])please([^a-z]|$)' && echo 1)"
 # A page claim: live/published after a page noun, "it is/went live", "published it", live before an artifact URL, 已上線/已發布.
 live_say="$(printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(page|artifact|dashboard)( is| went| has gone| has been| is now|:) (now )?(live|published)|(^|[^a-z])it(.s| is| went| has gone| has been| is now) (now )?(live|published)|(^|[^a-z])(published|deployed)( it| the page| the artifact| and live)|(live|published)[^a-z]{0,4}(at |:)? *https://claude\.ai/artifact|已上線|上線了|已發布|(頁面|網頁|儀表板|頁).{0,15}(上線|發布)' && echo 1)"
 [ -n "$claim" ] || [ -n "$reload_ask$live_say" ] || exit 0

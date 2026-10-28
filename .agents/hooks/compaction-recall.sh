@@ -59,8 +59,10 @@ if [ -z "$AGENT_ID" ] && [ -e "$asks" ]; then
   snap="$(cat "$asks" 2>&1)"; rc=$?
   if [ "$rc" -ne 0 ] || ! printf '%s\n' "$snap" | tail -n 1 | grep -Eq '^<!-- asks-open gen=[0-9]+ end -->$'; then
     snap="${snap}
-[agent-should-know] open-asks snapshot is incomplete or unreadable (cat exit $rc, no end marker): the owner's open asks are UNKNOWN. Read ${asks/#$HOME/\~} and the transcript before any act."
+[agent-should-know] historical snapshot is incomplete or unreadable (cat exit $rc, no end marker); coverage UNKNOWN. Source: ${asks/#$HOME/\~}. This cache grants no authority."
   fi
+  snap="[agent-should-know] historical cache only; enabled state and coverage may be stale. Native owner messages define current asks.
+$snap"
 fi
 if [ ! -f "$TRANSCRIPT" ]; then
   [ -z "$snap" ] || printf '%s\n' "$snap"
