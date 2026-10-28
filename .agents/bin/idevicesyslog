@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# idevicesyslog guard, installed ahead of the real binary in PATH (~/.local/bin).
+# 2026-10-28: an unbounded idevicesyslog stream during WDA input preceded a kernel
+# panic and reboot of an old iOS 16 test iPhone (diagnosticd 90% CPU,
+# thermalmonitord watchdog). Owner: enforce it, only for that phone.
+# Devices listed by UDID in the machine-local ~/.config/agent-device/fragile-devices
+# (one per line, # comments; never in this public repo) get every stream stopped
+# after 60 s (KILL 5 s later). The check reads the real arguments at exec time, so
+# shell variables, wrappers and fastlane lanes that call `idevicesyslog` are covered.
+# Not covered: a call by absolute path to the real binary, and other log readers
+# (pymobiledevice3 syslog).
+set -u
+
+REAL="${IDEVICESYSLOG_REAL:-}"
+if [ -z "$REAL" ]; then
+  while IFS= read -r c; do
+    [ "$c" -ef "${BASH_SOURCE[0]}" ] && continue
+    REAL="$c"; break
+  done < <(type -ap idevicesyslog)
+fi
+[ -n "$REAL" ] || { echo "idevicesyslog guard: no real idevicesyslog in PATH (brew install libimobiledevice)" >&2; exit 127; }
+
+LIST="$HOME/.config/agent-device/fragile-devices"
+[ -f "$LIST" ] || exec "$REAL" "$@"
+
+# Parse like the real tool (getopt_long): last -u wins; -uX and clustered short
+# options; the first positional word is a command (pidlist, archive), not a stream.
+udid="" net=0 cmd=""
+args=("$@"); i=0
+LONGS="udid network help version quiet-list output match unmatch trigger untrigger process exclude start-time age-limit size-limit exit debug no-colors colors syslog-relay quiet kernel no-kernel"
+while [ $i -lt ${#args[@]} ]; do
+  a="${args[$i]}"
+  # getopt_long accepts a unique prefix of a long option: expand it first.
+  if [ "${a#--}" != "$a" ] && [ -n "${a#--}" ]; then
+    n="${a#--}"; n="${n%%=*}"; rest="${a#--$n}"; hit=""
+    for L in $LONGS; do
+      [ "$L" = "$n" ] && { hit="$L"; break; }
+      case "$L" in "$n"*) [ -z "$hit" ] && hit="$L" || hit="?" ;; esac
+    done
+    [ -n "$hit" ] && [ "$hit" != "?" ] && a="--$hit$rest"
+  fi
+  case "$a" in
+    --) cmd="${args[$((i+1))]:-}"; break ;;
+    --udid=*) udid="${a#*=}" ;;
+    --udid) i=$((i+1)); udid="${args[$i]:-}" ;;
+    --network) net=1 ;;
+    --help|--version|--quiet-list) exec "$REAL" "$@" ;;
+    --output|--match|--unmatch|--trigger|--untrigger|--process|--exclude|--start-time|--age-limit|--size-limit) i=$((i+1)) ;;
+    --*) ;;
+    -?*)
+      s="${a#-}"
+      while [ -n "$s" ]; do
+        o="${s:0:1}"; s="${s:1}"
+        case "$o" in
+          h|v) exec "$REAL" "$@" ;;
+          n) net=1 ;;
+          u|o|m|M|t|T|p|e)
+            if [ -n "$s" ]; then v="$s"; s=""; else i=$((i+1)); v="${args[$i]:-}"; fi
+            [ "$o" = u ] && udid="$v" ;;
+        esac
+      done ;;
+    *) [ -z "$cmd" ] && cmd="$a" ;;
+  esac
+  i=$((i+1))
+done
+case "$cmd" in pidlist|archive) exec "$REAL" "$@" ;; esac
+
+# No -u: the real tool takes the first device of the transport; pin that choice.
+pin=()
+if [ -z "$udid" ]; then
+  if [ $net = 1 ]; then udid="$(idevice_id -n 2>/dev/null | head -1)"; else udid="$(idevice_id -l 2>/dev/null | head -1)"; fi
+  [ -n "$udid" ] && pin=(-u "$udid")
+fi
+
+if [ -n "$udid" ] && grep -vE '^[[:space:]]*(#|$)' "$LIST" | sed 's/[[:space:]]//g' | grep -qxF -- "$udid"; then
+  command -v timeout >/dev/null 2>&1 || { echo "idevicesyslog guard: $udid is a fragile device and no \`timeout\` is installed (brew install coreutils); refusing to stream." >&2; exit 127; }
+  echo "idevicesyslog guard: $udid is a fragile device ($LIST); this stream stops after 60 s." >&2
+  exec timeout -k 5 60 "$REAL" ${pin[@]+"${pin[@]}"} "$@"   # bash 3.2 + set -u: no bare empty array
+fi
+exec "$REAL" "$@"

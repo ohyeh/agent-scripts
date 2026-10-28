@@ -193,7 +193,7 @@ echo "PASS [invariants] all checks green"
 layer0_tests=(
   test-rm-home-gate.sh test-codex-cu-chrome-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
   test-review-dispatch-gate.sh test-workflow-agent-cap.sh
-  test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke
+  test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke test-idevicesyslog-guard.sh
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate test-round-cost-gate.sh test-worker-followup-gate.sh
   test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-recipe-usage-stats.sh test-docs-audit-ownership test-behavior-runner
   test-consensus-gate-ladder test-plan-pipeline-ladder test-haiku-research-round
@@ -433,6 +433,16 @@ hook_install "$SRC/.agents/hooks/bash-read-audit.sh"
 hook_install "$SRC/.agents/hooks/artifact-title-gate.sh"
 hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/agents/claude/*.md frontmatter, not settings.json
 hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
+# idevicesyslog guard (2026-10-28 iPhone panic): sits ahead of the real binary in PATH.
+if [ "$CHECK" = 1 ]; then
+  { cmp -s "$SRC/.agents/bin/idevicesyslog" ~/.local/bin/idevicesyslog && [ -x ~/.local/bin/idevicesyslog ]; } || { echo "FAIL [bin] ~/.local/bin/idevicesyslog missing, not executable, or differs from the release" >&2; exit 1; }
+  if command -v idevicesyslog >/dev/null 2>&1; then
+    [ "$(command -v idevicesyslog)" -ef ~/.local/bin/idevicesyslog ] || { echo "FAIL [bin] PATH resolves idevicesyslog to $(command -v idevicesyslog), not the guard in ~/.local/bin" >&2; exit 1; }
+    command -v timeout >/dev/null 2>&1 || { echo "FAIL [bin] idevicesyslog guard needs \`timeout\` (brew install coreutils)" >&2; exit 1; }
+  fi
+else
+  mkdir -p ~/.local/bin && install -m 0755 "$SRC/.agents/bin/idevicesyslog" ~/.local/bin/idevicesyslog
+fi
 hook_install "$SRC/.agents/hooks/tmux-assign-host-gate.sh"
 hook_install "$SRC/.agents/hooks/review-dispatch-gate.sh"
 hook_install "$SRC/.agents/hooks/workflow-agent-cap.sh"
