@@ -130,6 +130,29 @@ If handoff is part of a chain (has "Continues from" link), also read the linked 
 
 Read in full every user-reviewed work record the handoff names, in any section. Do not check it by keyword search alone.
 
+### Step 3b: Read the Sessions Behind the Handoffs
+
+A handoff is an agent's summary of a session, not its record. Read the record too.
+
+1. List the sessions. Take the writer session of every handoff you selected in Step 1 (`Session:` line, or the id in `compact-<id>.md`), every session in their chains, and every session the user names. Several handoffs often point to several sessions.
+2. For each session, read ALL of the user's messages and the agent's last reply. For a Claude Code session (`~/.claude/projects/<project>/<session-id>.jsonl`):
+
+   ```bash
+   JSONL=~/.claude/projects/<project>/<session-id>.jsonl   # set this first; an empty path makes jq wait on stdin
+   jq -r 'def txt: if type=="string" then . else (map(select(.type=="text").text)|join(" ")) end;
+     select((.type=="user" and ((.message.content|type)=="string" or ((.message.content|map(.type)|index("tool_result"))==null)))
+         or (.type=="attachment" and .attachment.type=="queued_command"))
+     | (.message.content // .attachment.prompt | txt) as $t
+     | select($t|test("^\\s*<|^Base directory for this skill|^Stop hook feedback|^This session is being continued|plugin sent a message")|not)
+     | "\(.timestamp[0:19])  \($t)"' "$JSONL"                       # all user messages, mid-turn ones included
+   jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' "$JSONL" | tail -60   # last reply
+   ```
+
+   `queued_command` rows are messages the user sent while the agent worked; a filter on `type=="user"` alone misses them. For another CLI, read its own session log the same way.
+3. Where a user message and a handoff differ, the user message wins. Correct the handoff before you state scope.
+
+**Your first status reply lists what you read:** each handoff and each session, marked `full`, `partial (<range>)` or `not read`. Never present a partial read as understanding. If you skipped a session, say so; do not state its content.
+
 ### Step 4: Verify Context
 
 Before you state scope or act on the handoff:
