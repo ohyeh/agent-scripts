@@ -716,7 +716,7 @@ async function resolveArguments($: EngineInterface, s: State, value: unknown): P
   }
   if (Array.isArray(value)) return Promise.all(value.map(v => resolveArguments($, s, v)))
   if (value !== null && typeof value === 'object') {
-    return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([key, v]) => [key, await resolveArguments($, s, v)])))
+    return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([key, v]) => [key, /^(?:content|contents|text|body|data|message)$/i.test(key) ? v : await resolveArguments($, s, v)])))
   }
   return value
 }

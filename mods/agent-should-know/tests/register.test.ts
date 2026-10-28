@@ -1053,6 +1053,12 @@ test('F8: a PASS in a later turn keeps an earlier turn\'s FAIL hold until the ow
   expect(await call($, EDIT)).toMatch(/held Edit/)
 })
 
+test('R2: an MCP write whose content is a bare slash is not a protected-path write', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  expect(await call($, { tool: 'mcp__filesystem__write_file', path: 'notes.txt', content: '/' })).toBe('ok')
+})
+
 test('F1: each final step rewrites every audit projection, including unchanged files and a forged PASS', async ($, on) => {
   const g = judge(on)
   await $.session.start(start)

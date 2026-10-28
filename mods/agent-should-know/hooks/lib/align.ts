@@ -154,10 +154,12 @@ export function stateWrite(tool: string, input: Record<string, unknown>, home: s
     return typeof path === 'string' && protectedPath(path)
   }
   if (tool.startsWith('mcp__') && !readOnly(tool, input)) {
+    // What a tool writes (content, text, body, data) is payload, not a target path.
+    const PAYLOAD = /^(?:content|contents|text|body|data|message)$/i
     const writes = (value: unknown): boolean => {
       if (typeof value === 'string') return value.includes('/') && protectedPath(value)
       if (Array.isArray(value)) return value.some(writes)
-      return value !== null && typeof value === 'object' && Object.values(value).some(writes)
+      return value !== null && typeof value === 'object' && Object.entries(value).some(([k, v]) => !PAYLOAD.test(k) && writes(v))
     }
     return writes(input)
   }
