@@ -171,6 +171,9 @@ mkdir -p "$TEST_HOME/.local/state/agent-hooks/rc-asks"
 asks_out="$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
 grep -q 'zEND」' <<<"$asks_out" || { echo "FAIL: recall dropped or cut the open asks" >&2; exit 1; }
 grep -q 'snapshot is incomplete' <<<"$asks_out" && { echo "FAIL: a whole snapshot flagged incomplete" >&2; exit 1; }
+asks_out="$(printf '%s' "$(jq -cn --arg t "$WORK/missing-transcript" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
+grep -q 'zEND」' <<<"$asks_out" || { echo "FAIL F7: missing transcript skipped asks-open snapshot" >&2; exit 1; }
+echo 'PASS F7: missing transcript injects asks-open snapshot'
 sed -i '' '$d' "$TEST_HOME/.local/state/agent-hooks/rc-asks/asks-open.md"
 grep -q 'open asks are UNKNOWN' <<<"$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")" \
   || { echo "FAIL: a snapshot with no end marker was passed on as whole" >&2; exit 1; }
@@ -247,6 +250,8 @@ ledger_for a1 "$TWO" "$READ"; verdict_for a1 '說明如下' '{"verdict":"PASS"}'
 [[ -z "$(run_claim a1 $'說明如下\n\n  ' "$TRT")" ]] || { echo "FAIL: PASS verdict not found across trailing whitespace" >&2; exit 1; }
 ledger_for a2 "$TWO" "$READ"; verdict_for a2 '說明如下' '{"verdict":"FAIL","reason":"U2 asked for B; the reply covers A only"}'
 gate_out a2 '說明如下' | jq -r .reason | grep -q 'U2 asked for B' || { echo "FAIL: FAIL verdict reason not relayed" >&2; exit 1; }
+[[ "$(run_claim a2 '說明如下' "$WORK/missing-transcript")" == block ]] || { echo "FAIL F7: missing transcript skipped FAIL verdict" >&2; exit 1; }
+echo 'PASS F7: missing transcript still enforces FAIL verdict'
 ledger_for a3 "$TWO" "$READ"; verdict_for a3 'other reply' '{"verdict":"PASS"}'
 [[ "$(run_claim a3 '說明如下' "$TRT")" == block ]] || { echo "FAIL: missing verdict passed" >&2; exit 1; }
 out="$(gate_out a3 $'說明如下\n自我稽核未執行：no verdict' true)"
@@ -278,6 +283,19 @@ ledger_for a11 "$TWO" "$READ"; verdict_for a11 $'說明如下\n自我稽核未�
 out="$(gate_out a11 $'說明如下\n自我稽核未執行：store-error，W43-18 還沒驗')"
 [[ "$(jq -r '.decision // empty' <<<"$out")" == "" && "$(jq -r '.systemMessage // empty' <<<"$out")" == *store-error:EIO* && "$(held_of a11)" == held ]] \
   || { echo "FAIL: UNAUDITED did not end the turn held and visible: $out" >&2; exit 1; }
+ledger_for f8 "$TWO" "$READ"; verdict_for f8 '說明如下' '{"verdict":"UNAUDITED","reason":"fixture"}'
+f8dir="$TEST_HOME/.local/state/agent-hooks/f8/audit"
+# A held directory makes the redirect fail even for root; the audit directory is also read-only.
+mkdir "$f8dir/held"; echo 4 > "$f8dir/chain"; chmod a-w "$f8dir"
+out="$(gate_out f8 '說明如下' true 2>"$WORK/f8-stderr")"
+[[ "$(jq -r '.decision // empty' <<<"$out")" == block && "$(jq -r '.reason // empty' <<<"$out")" == 'cannot write held ('* && "$(jq -r '.systemMessage // empty' <<<"$out")" != *工作已暫停* ]] \
+  || { chmod u+w "$f8dir"; echo "FAIL F8: held write failure did not block honestly: $out" >&2; exit 1; }
+out="$(gate_out f8 '說明如下' true 2>"$WORK/f8-stderr")"
+chmod u+w "$f8dir"
+[[ "$(jq -r '.decision // empty' <<<"$out")" == '' && "$(jq -r '.systemMessage // empty' <<<"$out")" == 暫停失敗：無法寫入\ held* && "$(jq -r '.systemMessage // empty' <<<"$out")" != *工作已暫停* ]] \
+  || { echo "FAIL F8: past-cap held failure claimed a pause: $out" >&2; exit 1; }
+grep -q '暫停失敗' "$TEST_HOME/.local/share/agent-hooks/claim-evidence-stats.jsonl" || { echo 'FAIL F8: held failure was not logged' >&2; exit 1; }
+echo 'PASS F8: unwritable audit hold blocks once more, then reports pause failure honestly'
 # a line that names no subject keeps the old bar (>= 2 calls); a printed evidence token binds a line
 ledger_for n6 "$TWO" "$READ"; [[ -z "$(run_claim n6 '重設計還在進行，頁面還沒更新' "$TRT")" ]] || { echo "FAIL: keyless line blocked on 2 calls" >&2; exit 1; }
 ledger_for n7 "$TWO";         [[ "$(run_claim n7 '重設計還在進行，頁面還沒更新' "$TRT")" == block ]] || { echo "FAIL: keyless line passed on 1 call" >&2; exit 1; }

@@ -1,6 +1,10 @@
 import { expect, mock, test } from 'claude-code/testing'
+import type { EngineInterface } from 'claude-code'
 
 import { sha16 } from '../hooks/lib/audit.ts'
+import { register } from '../hooks/register.ts'
+import type { Row } from '../hooks/lib/ledger.ts'
+import { classified } from '../hooks/lib/align.ts'
 
 const PLUGIN = 'agent-should-know'
 const SID = '28d2c553-6d91'
@@ -43,6 +47,8 @@ type On = Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => u
 
 // The engine beneath the mod: a store, files, prompts and opens it records.
 function world(on: On, store = new Map<string, unknown>(), isFailing = (_path: string) => false) {
+  const faults = { session: false, store: (_key: string) => false }
+  const messages: Msg[] = []
   const sent: string[] = []
   const opened: string[] = []
   const files = new Map<string, string>()
@@ -52,7 +58,11 @@ function world(on: On, store = new Map<string, unknown>(), isFailing = (_path: s
   on('ui.invalidate', () => ({ value: undefined }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('store.get', (_, e) => ({ value: store.get(e.key) }))
-  on('store.set', (_, e) => (store.set(e.key, e.value), { value: undefined }))
+  on('store.set', (_, e) => {
+    if (faults.store(e.key)) throw new Error('EIO')
+    store.set(e.key, e.value)
+    return { value: undefined }
+  })
   on('fs.read', (_, e) => {
     const text = files.get(e.path)
     if (text === undefined) throw new Error('ENOENT')
@@ -63,7 +73,9 @@ function world(on: On, store = new Map<string, unknown>(), isFailing = (_path: s
     files.set(e.path, e.text)
     return { value: undefined }
   })
-  on('fs.exists', (_, e) => ({ value: files.has(e.path) || [...files.keys()].some(p => p.startsWith(`${e.path}/`)) }))
+  const links = new Map<string, string>()
+  on('fs.exists', (_, e) => ({ value: e.path === '/' || links.has(e.path) || files.has(e.path) || [...files.keys()].some(p => p.startsWith(`${e.path}/`)) }))
+  on('fs.stat', (_, e) => ({ value: { kind: 'directory', size: 0, mtimeMs: 0, isLink: links.has(e.path), realPath: links.get(e.path) ?? e.path } }) as never)
   on('fs.list', (_, e) => ({
     value: [...files.keys()]
       .filter(p => p.startsWith(`${e.path}/`))
@@ -85,10 +97,14 @@ function world(on: On, store = new Map<string, unknown>(), isFailing = (_path: s
   on('state.set', (_, e) => (state.set(e.key, e.value), { value: { isSet: true, version: 1 } }) as never)
   on('env.get', () => ({ value: '/h/me' }))
   on('session.id', () => ({ value: SID }))
+  on('session.messages', () => {
+    if (faults.session) throw new Error('EIO')
+    return { value: messages } as never
+  })
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
   on('tool.call', () => ({ result: {}, text: 'ok' }) as never)
-  return { sent, opened, files, store, toasts, state }
+  return { sent, opened, files, store, toasts, state, links, messages, faults }
 }
 
 // The built-in's offer card beneath the mod; other plugins' bands sit beside it,
@@ -277,7 +293,7 @@ test('the log button opens the session log once a card was logged', async ($, on
 
 type Msg = { role: 'user' | 'assistant'; text: string; toolUses: { tool_use_id: string; tool: string; input: Record<string, unknown>; text?: string }[] }
 const usage = { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
-const answer = (o: object | string) => ({ isAnswered: true, text: typeof o === 'string' ? o : JSON.stringify('verdict' in o ? { supersedes: [], constraints: [], ...o } : o), usage })
+const answer = (o: object | string) => ({ isAnswered: true, text: typeof o === 'string' ? /^(CORRECTION|DIRECTIVE|PASSIVE)$/.test(o) ? `${o} NOCONSTRAINT` : o : JSON.stringify('verdict' in o ? { supersedes: [], constraints: [], ...o } : o), usage })
 const PASS = answer({ verdict: 'PASS', complete: true, findings: [] })
 const REPLY = 'Done. The tests pass.'
 const F1 = { id: 'F1', check: 'a', source: 'reply', quote: 'The tests pass.', problem: 'no test run backs it' }
@@ -304,10 +320,55 @@ const call = async ($: $T, input: object) => {
 }
 const asks = ($: $T, args: string, origin: object = { kind: 'composer' }) => $.command.run({ ...cmd, command: 'asks', args, origin } as never)
 
+// Invoke a newly registered closure against the same engine mocks; no old mod instance handles these calls.
+function fresh(g: ReturnType<typeof judge>) {
+  const { files, store, state, faults, toasts } = g.w
+  // The test host scopes $ to its scanned calls; this isolated runtime instead shares only durable data.
+  const runtime = {
+    session: { id: async () => SID, messages: async () => { if (faults.session) throw new Error('EIO'); return g.transcript }, model: async () => 'm' },
+    env: { get: async () => '/h/me' },
+    store: { get: async (key: string) => store.get(key), set: async (key: string, value: unknown) => { if (faults.store(key)) throw new Error('EIO'); store.set(key, value) } },
+    state: { get: async (d: { key: string }) => ({ value: state.get(d.key) }), set: async (d: { key: string }, value: unknown) => { state.set(d.key, JSON.parse(JSON.stringify(value))) } },
+    fs: {
+      read: async (p: string) => { if (!files.has(p)) throw new Error('ENOENT'); return files.get(p)! },
+      write: async (p: string, t: string) => { files.set(p, t) },
+      exists: async (p: string) => p === '/' || files.has(p) || [...files.keys()].some(f => f.startsWith(`${p}/`)),
+      list: async (p: string) => [...files.keys()].filter(f => f.startsWith(`${p}/`)).map(f => ({ name: f.slice(p.length + 1) })),
+      stat: async (p: string) => ({ realPath: g.w.links.get(p) ?? p }),
+    },
+    process: { run: async ([prog, ...args]: string[]) => {
+      if (prog === 'rm') for (const a of args.filter(a => a !== '-f')) files.delete(a)
+      if (prog === 'mv') { files.set(args[1]!, files.get(args[0]!)!); files.delete(args[0]!) }
+      return { exitCode: 0 }
+    } },
+    ui: { toast: (text: string) => toasts.push(text), invalidate: () => {} },
+    command: { register: async () => ({}) },
+    clock: { after: () => ({ cancel: () => {} }) },
+    model: {
+      fork: async (p: { prompt: string }) => { g.j.forkPrompts.push(p.prompt); return g.j.fork.shift() ?? PASS },
+      complete: async (p: { prompt: string }) => { g.j.smallPrompts.push(p.prompt); return g.j.small.shift() ?? answer('PASSIVE') },
+    },
+  } as unknown as EngineInterface
+  const hooks = new Map<string, (...args: never[]) => unknown>()
+  register(((name: string, ...args: unknown[]) => {
+    if (args.length === 1) hooks.set(name, args[0] as (...args: never[]) => unknown)
+  }) as never, {} as never)
+  const next = Object.assign(async () => ({ text: 'ok', cwd: start.cwd }), { origin: { plugin: 'engine' } })
+  return {
+    start: () => hooks.get('session.start')!(runtime as never, start as never, next as never),
+    act: (input: object) => hooks.get('tool.call')!(runtime as never, input as never, next as never) as Promise<{ deny?: string; text?: string }>,
+    finish: async (text: string) => {
+      const step = async function* () { return { turnId: 'fresh', answer: text, toolUses: [], stopReason: 'end_turn' } }
+      const stream = hooks.get('turn.step')!(runtime as never, {} as never, step as never) as AsyncGenerator<unknown>
+      for await (const _ of stream) void _
+    },
+  }
+}
+
 // The models, the transcript and the turn's step beneath the mod: each answer queued, the defaults the no-answer ones.
 function judge(on: On, store = new Map<string, unknown>(), isFailing?: (path: string) => boolean) {
   const w = world(on, store, isFailing)
-  const transcript: Msg[] = []
+  const transcript = w.messages
   const j = {
     fork: [] as unknown[],
     alt: [] as unknown[],
@@ -318,10 +379,11 @@ function judge(on: On, store = new Map<string, unknown>(), isFailing?: (path: st
     smallRequests: [] as object[],
     wait: undefined as Promise<void> | undefined,
     step: {} as object,
+    onFork: undefined as (() => void) | undefined,
   }
-  on('session.messages', () => ({ value: transcript }) as never)
   on('session.model', () => ({ value: 'claude-opus-5-5' }))
   on('model.fork', async (_, e) => {
+    j.onFork?.()
     j.forkPrompts.push(e.prompt)
     if (j.wait) await j.wait
     return { value: (j.fork.shift() ?? { isAnswered: false, reason: 'nothing-to-fork' }) as never }
@@ -341,7 +403,7 @@ function judge(on: On, store = new Map<string, unknown>(), isFailing?: (path: st
     w,
     j,
     transcript,
-    rows: () => (file(ASKS)?.[1] ?? '').split('\n').filter(Boolean).map(l => JSON.parse(l) as { u: number; origin: string; text: string; closed?: boolean; constraint?: boolean }),
+    rows: () => (file(ASKS)?.[1] ?? '').split('\n').filter(Boolean).map(l => JSON.parse(l) as Row),
     log: () => (file(LOG)?.[1] ?? '').split('\n').filter(r => r !== '' && !r.startsWith('#')),
     gen: () => (JSON.parse(w.files.get(`${AUDIT}/current`) ?? '{}') as { generation?: string }).generation,
     verdict: async (reply: string) => JSON.parse(w.files.get(`${AUDIT}/${await sha16(reply)}.json`) ?? 'null') as Record<string, unknown> | null,
@@ -438,6 +500,7 @@ test('G4: a judge result that lands after the generation moved is dropped; the m
   const g = judge(on)
   await $.session.start(start)
   await say($, 'run the tests')
+  g.transcript.push(user('run the tests'))
   let open = () => {}
   g.j.wait = new Promise<void>(r => (open = r))
   g.j.fork.push(PASS)
@@ -450,7 +513,7 @@ test('G4: a judge result that lands after the generation moved is dropped; the m
   open()
   await done
   expect(await g.verdict(REPLY)).toBeNull()
-  expect(g.log().some(l => / · audit-stale · E1 · PASS dropped · gen \d+→\d+$/.test(l))).toBe(true)
+  expect(g.log().some(l => / · audit-stale · E1 · UNKNOWN dropped · gen \d+→\d+$/.test(l))).toBe(true)
   expect(g.w.files.get(`${GATE}/asks-open.md`)).toContain('U1 [owner]')
 })
 
@@ -458,6 +521,7 @@ test('G6: a PASS with any valid finding is UNKNOWN; N3: a PASS not complete is U
   const g = judge(on)
   await $.session.start(start)
   await say($, 'run the tests')
+  g.transcript.push(user('run the tests'))
   g.j.fork.push(answer({ verdict: 'PASS', complete: true, findings: [F1] }), answer({ verdict: 'PASS', complete: false, findings: [] }))
   await g.finish($, REPLY)
   expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'protocol:pass-with-findings' })
@@ -489,6 +553,7 @@ test('G5/N4: past the FAIL cap only exact [audit] lines relay the findings: REPO
   const g = judge(on)
   await $.session.start(start)
   await say($, 'run the tests')
+  g.transcript.push(user('run the tests'))
   g.j.fork.push(FAIL, FAIL, FAIL)
   await g.finish($, REPLY)
   expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'FAIL', findings: [{ id: 'F1', problem: 'no test run backs it' }] })
@@ -512,6 +577,7 @@ test('N2: past 3 judge calls the audit is UNAUDITED judge-cap, and no ask is clo
   const g = judge(on)
   await $.session.start(start)
   await say($, 'run the tests')
+  g.transcript.push(user('run the tests'))
   for (let i = 0; i < 3; i++) {
     await g.finish($, REPLY)
     expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'judge:fork nothing-to-fork;complete empty-reply' })
@@ -559,6 +625,7 @@ test('K3: PASS keeps a constraint open across reload; only a later owner quote c
   await $.session.start(start)
   await say($, '不要 push')
   g.transcript.push(user('不要 push'))
+  g.j.small.push(answer('DIRECTIVE CONSTRAINT'))
   g.j.fork.push(answer({ verdict: 'PASS', complete: true, findings: [], constraints: ['U1'] }), PASS)
   await g.finish($, REPLY)
   expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'PASS' })
@@ -579,6 +646,7 @@ test('judge-cap: UNKNOWN then FAIL at call 3 requires exact audit relay, never U
   const g = judge(on)
   await $.session.start(start)
   await say($, 'run the tests')
+  g.transcript.push(user('run the tests'))
   g.j.fork.push(answer('not JSON'), FAIL, FAIL)
   for (let i = 0; i < 3; i++) await g.finish($, REPLY)
   expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'FAIL' })
@@ -592,7 +660,7 @@ test('judge-cap: UNKNOWN then FAIL at call 3 requires exact audit relay, never U
   expect(g.rows()[0]?.closed).not.toBe(true)
 })
 
-test('N2/N7: a failed ledger write is retried by the next change; two in a row read UNAUDITED store-error', async ($, on) => {
+test('F3 N2/N7: a failed ledger write is retried by the next change; two in a row read UNKNOWN store-error', async ($, on) => {
   let failing = true
   const g = judge(on, undefined, p => failing && p.endsWith('.asks.jsonl'))
   await $.session.start(start)
@@ -610,7 +678,7 @@ test('N2/N7: a failed ledger write is retried by the next change; two in a row r
   g.j.fork.push(PASS)
   await g.finish($, REPLY)
   // The engine wraps a hook's throw: its class here is HooksError.
-  expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNAUDITED', reason: 'store-error:HooksError' })
+  expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'store-error:HooksError' })
   expect(g.j.forkPrompts).toEqual([])
   expect(textOf(await $.ui.render(band(200)))).toContain('store-error:HooksError')
 })
@@ -636,9 +704,10 @@ test('G3: the state queue replays a row the ledger missed; a lost queue reads co
   g.j.fork.push(PASS, PASS)
   await g.finish($, REPLY)
   expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'coverage:unknown' })
-  expect(g.j.forkPrompts[0]).toContain('owner rows that may be missing from the ledger')
+  expect(g.j.forkPrompts.length).toBe(0)
   expect((await asks($, 'confirm', { kind: 'peer' })).text).toContain('only from the owner')
   expect((await asks($, 'confirm')).text).toContain('coverage confirmed')
+  g.transcript.push(user('a'), user('b'), user('c'))
   await g.finish($, REPLY)
   expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'PASS' })
 })
@@ -729,7 +798,7 @@ test('G2: while held, shell shapes that write are denied and plain reads run; MC
   g.w.files.set(`${AUDIT}/held`, JSON.stringify({ reason: 'REPORTED E1' }))
   const bash = (command: string) => call($, { tool: 'Bash', command, description: 'x' })
   const writes = ["sed -n 'w victim' input", 'sort -o victim input', 'uniq input victim', 'git log --output=victim', 'git diff --output=victim', 'rg --pre ./x foo', 'python3 x.py', '__proto__ victim', 'rg --max-c=2 foo f']
-  const reads = ['rg -i foo', 'grep -i foo f', "sed -n '1,5p' f", 'git diff', 'sort f', 'rg --max-count=2 foo f']
+  const reads = ['rg -i foo', 'grep -i foo f', "sed -n '1,5p' f", 'git log --no-ext-diff --no-textconv', 'sort f', 'rg --max-count=2 foo f']
   const ran: string[] = []
   for (const command of [...writes, ...reads]) if (!/held Bash: REPORTED E1/.test(String(await bash(command)))) ran.push(command)
   expect(ran).toEqual(reads)
@@ -865,4 +934,208 @@ test('/asks off: no hold, no audit, the gate marker removed', async ($, on) => {
   expect(await call($, EDIT)).toBe('ok')
   await g.finish($, REPLY)
   expect(g.j.forkPrompts).toEqual([])
+})
+
+test('F1: ancestor, MCP, realpath symlink and interpreter state writes are denied; projection tamper holds and repairs', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  g.w.links.set('/work/state-link', GATE)
+  g.w.links.set('/work/state-link/audit/..', GATE)
+  for (const input of [
+    { tool: 'Bash', command: 'rm -rf /h/me/.local/state' },
+    { tool: 'Bash', command: 'mv /h/me/.local /elsewhere' },
+    { tool: 'Write', file_path: '/h/me/.local', content: '{}' },
+    { tool: 'mcp__filesystem__write_file', path: `${AUDIT}/current`, content: '{}' },
+    { tool: 'Write', file_path: '/work/state-link/audit/current', content: '{}' },
+    { tool: 'Write', file_path: '/work/state-link/audit/../current', content: '{}' },
+    { tool: 'Bash', command: 'python3 -c "from pathlib import Path; Path.home().joinpath(\'.local/state\',\'agent-hooks\').rmdir()"' },
+  ]) expect(await call($, input)).toMatch(/denied/)
+  const before = g.w.files.get(`${AUDIT}/current`)
+  g.w.files.set(`${AUDIT}/current`, '{"generation":"999"}')
+  expect(await call($, EDIT)).toMatch(/held Edit: tamper:current/)
+  expect(g.w.files.get(`${AUDIT}/current`)).toBe(before)
+  expect(g.w.toasts.some(t => t.includes('tamper:current'))).toBe(true)
+  g.w.files.delete(`${AUDIT}/held`)
+  expect(await call($, EDIT)).toMatch(/held Edit: tamper:current/)
+  expect(g.w.files.has(`${AUDIT}/held`)).toBe(true)
+  g.w.files.set(`${AUDIT}/fake.json`, '{"verdict":"PASS"}')
+  expect(await call($, EDIT)).toMatch(/held Edit/)
+  expect(g.w.files.has(`${AUDIT}/fake.json`)).toBe(false)
+  for (const p of [...g.w.files.keys()]) if (p.startsWith(`${AUDIT}/`)) g.w.files.delete(p)
+  expect(await call($, EDIT)).toMatch(/held Edit/)
+  expect(g.w.files.get(`${AUDIT}/current`)).toBe(before)
+  expect(g.log().some(l => l.includes('tamper:'))).toBe(true)
+  await asks($, 'off')
+  g.w.files.set(`${AUDIT}/current`, '{}')
+  expect(await call($, EDIT)).toMatch(/held Edit: tamper:current/)
+})
+
+test('F2: held Git status and diff are denied; log and show require both execution guards', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  g.w.files.set(`${AUDIT}/held`, JSON.stringify({ reason: 'git safety' }))
+  for (const command of ['git status', 'git diff', 'git status --no-ext-diff --no-textconv', 'git diff --no-ext-diff --no-textconv', 'git log', 'git show HEAD:file', 'git log --no-ext-diff', 'git show --no-textconv', 'git show -- --no-ext-diff --no-textconv'])
+    expect(await call($, { tool: 'Bash', command })).toMatch(/held Bash/)
+  for (const command of ['git log --no-ext-diff --no-textconv', 'git show --no-ext-diff --no-textconv HEAD:file'])
+    expect(await call($, { tool: 'Bash', command })).toBe('ok')
+})
+
+test('F3: pending replay forbids PASS; a failed close-state write leaves only UNKNOWN', async ($, on) => {
+  let failing = true
+  const g = judge(on, undefined, p => p.endsWith('.asks.jsonl') && failing)
+  await $.session.start(start)
+  await say($, 'do B')
+  g.transcript.push(user('do B'))
+  g.j.fork.push(PASS)
+  await g.finish($, REPLY)
+  expect((await g.verdict(REPLY))?.verdict).toBe('UNKNOWN')
+  failing = false
+  await say($, 'continue')
+  g.transcript.push(user('continue'))
+  const pending = [...g.w.files.keys()].find(p => p.endsWith('.pending'))!
+  g.w.files.set(pending, '1')
+  await g.finish($, REPLY)
+  expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'coverage:unknown' })
+  g.w.files.set(pending, '0')
+  // Fail only the close write, after the judge has returned PASS.
+  g.j.onFork = () => { failing = true }
+  await g.finish($, REPLY)
+  expect((await g.verdict(REPLY))?.verdict).toBe('UNKNOWN')
+  expect(g.w.files.get(`${AUDIT}/${await sha16(REPLY)}.json`)).not.toContain('"verdict":"PASS"')
+})
+
+test('F4: a fresh register keeps transcript rows unconfirmed until persisted owner confirmation', async ($, on) => {
+  const g = judge(on)
+  g.transcript.push(user('unfinished task'))
+  await $.session.start(start)
+  g.w.state.clear()
+  const a = fresh(g)
+  await a.start()
+  g.j.fork.push(PASS)
+  await a.finish(REPLY)
+  expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'coverage:unconfirmed' })
+  await asks($, 'confirm')
+  g.w.state.clear()
+  const b = fresh(g)
+  await b.start()
+  g.j.fork.push(PASS)
+  await b.finish(REPLY)
+  expect((await g.verdict(REPLY))?.verdict).toBe('PASS')
+})
+
+test('F5: a failed transcript read mechanically forbids a judge PASS', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  g.w.faults.session = true
+  g.j.fork.push(PASS)
+  await g.finish($, REPLY)
+  expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'coverage:unknown' })
+  expect(g.j.forkPrompts.length).toBe(0)
+})
+
+test('F6 constraint: malformed and truncated kind answers fail closed with constraint=true and toast', async ($, on) => {
+  expect(classified('PASSIVE')).toBeUndefined()
+  expect(classified('PASSIVE NOCONSTRAINT trailing')).toBeUndefined()
+  expect(classified('  PASSIVE NOCONSTRAINT\n')).toEqual({ need: null, constraint: false })
+  const g = judge(on)
+  await $.session.start(start)
+  await say($, 'wrong')
+  g.transcript.push(user('wrong'))
+  g.j.small.push(answer('PASSIVE NOCONSTRAINT\nCORRECTION CONSTRAINT'))
+  expect(await call($, EDIT)).toMatch(/Retro needed: classifier protocol/)
+  expect(g.rows()[0]?.constraint).toBe(true)
+  expect(g.w.toasts.some(t => t.includes('U1 not classified'))).toBe(true)
+  await say($, 'also wrong')
+  g.transcript.push(user('also wrong'), assistant('Retro U1: I correct it now.'))
+  g.j.small.push(answer({ aligned: true, missing: [] }), { isAnswered: true, text: 'PASSIVE NOCONSTRAINT', usage: { ...usage, output_tokens: 4000 } })
+  expect(await call($, EDIT)).toMatch(/Retro needed: classifier truncated/)
+  expect(g.rows()[1]?.constraint).toBe(true)
+})
+
+test('F9: a fresh register rebuilds duties and episode guards from ledger despite failed store writes', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  g.w.faults.store = key => /^(duties|episode):/.test(key)
+  await say($, 'wrong: never ran tests')
+  g.transcript.push(user('wrong: never ran tests'))
+  g.j.small.push(answer('CORRECTION CONSTRAINT'))
+  expect(await call($, EDIT)).toMatch(/Retro needed/)
+  g.w.state.clear()
+  const b = fresh(g)
+  await b.start()
+  expect((await b.act(EDIT)).deny).toMatch(/Retro needed/)
+  await asks($, 'release U1')
+  g.w.state.clear()
+  const a = fresh(g)
+  await a.start()
+  g.j.fork.push(PASS)
+  await a.finish(REPLY)
+  expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'align-unchecked:U1' })
+})
+
+test('F7: missing transcript cannot skip the final-step audit projection and UNKNOWN verdict', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  const current = g.w.files.get(`${AUDIT}/current`)
+  for (const p of [...g.w.files.keys()]) if (p.startsWith(`${AUDIT}/`)) g.w.files.delete(p)
+  g.w.faults.session = true
+  await g.finish($, REPLY)
+  expect((await g.verdict(REPLY))?.verdict).toBe('UNKNOWN')
+  expect(g.w.files.get(`${AUDIT}/current`)).toBe(current)
+  expect(g.w.files.has(`${AUDIT}/active`)).toBe(true)
+})
+
+test('F8: a failed held projection write keeps the authoritative hold on later tool calls', async ($, on) => {
+  let failHeld = false
+  const g = judge(on, undefined, p => failHeld && p.endsWith('/held'))
+  await $.session.start(start)
+  g.w.files.delete(`${AUDIT}/current`)
+  failHeld = true
+  expect(await call($, EDIT)).toMatch(/held Edit: tamper:current/)
+  expect(g.w.files.has(`${AUDIT}/held`)).toBe(false)
+  expect(await call($, EDIT)).toMatch(/held Edit: tamper:current/)
+  expect(g.w.toasts.some(t => t.includes('projection held not written'))).toBe(true)
+})
+
+test('F10: delivery requires the full 500-prefix row and command arguments', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  const prefix = 'x'.repeat(500)
+  await say($, `${prefix} do not push`)
+  g.transcript.push(user(`${prefix} push now`))
+  await $.command.run({ ...cmd, command: 'review', args: 'src' })
+  g.transcript.push(user('/review other'))
+  g.j.fork.push(PASS)
+  await g.finish($, REPLY)
+  expect((await g.verdict(REPLY))?.covered).toEqual([])
+  expect(g.rows().every(r => !r.closed)).toBe(true)
+})
+
+test('F11: a new owner row resets FAIL and call caps once while retaining open findings', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  await say($, 'do A')
+  g.transcript.push(user('do A'))
+  g.j.fork.push(FAIL, FAIL, FAIL)
+  for (let i = 0; i < 3; i++) await g.finish($, REPLY)
+  await say($, 'also fix B')
+  g.transcript.push(user('also fix B'))
+  expect(g.rows().at(-1)?.episode).toMatchObject({ calls: 0, fails: 0, findings: [F1] })
+  g.j.fork.push(PASS)
+  await g.finish($, REPLY)
+  expect(g.j.forkPrompts.length).toBe(4)
+  expect((await g.verdict(REPLY))?.verdict).toBe('PASS')
+})
+
+test('constraint: mod-classified 不要 push stays open after PASS with judge constraints empty', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  await say($, '不要 push')
+  g.transcript.push(user('不要 push'))
+  g.j.small.push(answer('DIRECTIVE CONSTRAINT'))
+  g.j.fork.push(answer({ verdict: 'PASS', complete: true, findings: [], constraints: [] }))
+  await g.finish($, REPLY)
+  expect((await g.verdict(REPLY))?.verdict).toBe('PASS')
+  expect(g.rows()[0]?.constraint).toBe(true)
+  expect(g.rows()[0]?.closed).not.toBe(true)
 })

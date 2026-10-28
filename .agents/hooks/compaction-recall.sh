@@ -51,7 +51,21 @@ if [ -n "$AGENT_ID" ]; then
   jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg aid "$AGENT_ID" --argjson found "$([ -f "$TRANSCRIPT" ] && echo true || echo false)" \
     '{timestamp: $ts, agent_id: $aid, own_transcript_found: $found}' >> "$DATA_DIR/compaction-recall-subagent.jsonl"
 fi
-[ -f "$TRANSCRIPT" ] || exit 0
+# The open-asks projection has no dependency on the transcript file.
+SID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
+asks="$HOME/.local/state/agent-hooks/$SID/asks-open.md"
+snap=""
+if [ -z "$AGENT_ID" ] && [ -e "$asks" ]; then
+  snap="$(cat "$asks" 2>&1)"; rc=$?
+  if [ "$rc" -ne 0 ] || ! printf '%s\n' "$snap" | tail -n 1 | grep -Eq '^<!-- asks-open gen=[0-9]+ end -->$'; then
+    snap="${snap}
+[agent-should-know] open-asks snapshot is incomplete or unreadable (cat exit $rc, no end marker): the owner's open asks are UNKNOWN. Read ${asks/#$HOME/\~} and the transcript before any act."
+  fi
+fi
+if [ ! -f "$TRANSCRIPT" ]; then
+  [ -z "$snap" ] || printf '%s\n' "$snap"
+  exit 0
+fi
 
 # grep -c prints "0" AND exits 1 on no match, so `|| echo 0` would yield "0\n0".
 compactions="$(grep -c '"isCompactSummary":true' "$TRANSCRIPT" 2>/dev/null)"
@@ -85,7 +99,10 @@ if [ -n "$AGENT_ID" ]; then
     | if length > $m then .[0:$m] + " …[cut; full: \($tr):\($ln)]" else . end' "$TRANSCRIPT" 2>/dev/null | head -n 1)"
 fi
 
-[ -n "$prompts$brief" ] || exit 0
+if [ -z "$prompts$brief" ]; then
+  [ -z "$snap" ] || printf '%s\n' "$snap"
+  exit 0
+fi
 
 out="$HEADER
 ${brief:+Your brief (first message): $brief
@@ -124,13 +141,7 @@ done
 # agent-should-know keeps the owner's open asks here, verbatim; they go after the byte cap because a
 # dropped ask is the failure they guard against. Main thread only: the file is the parent's.
 # The mod ends a whole snapshot with `<!-- asks-open gen=<n> end -->`; without it the copy is partial.
-asks="$HOME/.local/state/agent-hooks/$SID/asks-open.md"
-if [ -z "$AGENT_ID" ] && [ -e "$asks" ]; then
-  snap="$(cat "$asks" 2>&1)"; rc=$?
-  if [ "$rc" -ne 0 ] || ! printf '%s\n' "$snap" | tail -n 1 | grep -Eq '^<!-- asks-open gen=[0-9]+ end -->$'; then
-    snap="${snap}
-[agent-should-know] open-asks snapshot is incomplete or unreadable (cat exit $rc, no end marker): the owner's open asks are UNKNOWN. Read ${asks/#$HOME/\~} and the transcript before any act."
-  fi
+if [ -n "$snap" ]; then
   out="$out
 $snap"
 fi

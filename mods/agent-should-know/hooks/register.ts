@@ -3,7 +3,7 @@ import type { EngineInterface, ModelUsage, Register, SessionMessage } from 'clau
 import { type Form, classified, classifierPrompt, formFound, formText, meets, parseSubstance, readOnly, retroBlock, stateWrite, substancePrompt } from './lib/align.ts'
 import { type Finding, evidence, failReason, judgePrompt, parseVerdict, relays, reportReason, sha16, superseded, toolIds, verify } from './lib/audit.ts'
 import { cells, fit, rowsOf } from './lib/band.ts'
-import { type Row, attachmentNames, deliveries, kindOf, ledgerText, openText, owns, parseRows, quotedSpans, transcriptRows, userIndexes } from './lib/ledger.ts'
+import { type Duty, type Episode, type Row, attachmentNames, deliveries, kindOf, ledgerText, openText, owns, parseRows, quotedSpans, transcriptRows, userIndexes } from './lib/ledger.ts'
 
 const MOD_VERSION = '0.2.0'
 const NAME = 'agent-should-know'
@@ -32,6 +32,7 @@ const episodeKey = (sid: string) => `episode:${sid}`
 const offKey = (sid: string) => `off:${sid}`
 /** G3: rows not yet in the ledger file, queued in the engine's state until the file write lands. */
 const REPLAY = { plugin: 'agent-should-know', key: 'replay' } as const
+const GUARD = { plugin: 'agent-should-know', key: 'guard' } as const
 const FAIL_BLOCKS = 2
 /** N9: judge calls per stable input; a new owner row resets the count. */
 const JUDGE_CALLS = 3
@@ -44,19 +45,6 @@ const RETRO_CHECK = { ...CLASSIFY, maxTokens: 8000 } as const
 // The runtime reports no stop reason here: an unparsable answer that used every token was cut off.
 const badAnswer = (usage: ModelUsage, max: number) => (usage.output_tokens >= max ? 'truncated' : 'protocol')
 
-/** One owner row's alignment duty: open once the row is delivered, met by the form the classifier asked for. */
-type Duty = { u: number; need?: Form | null; why?: string; tries: number; retro?: string; missing?: string[] }
-type Episode = {
-  k: number
-  /** The first owner row of the episode: rows from here on joined it. */
-  from: number
-  fails: number
-  calls: number
-  /** The last FAIL's valid findings: past the cap the reply relays them as `[audit]` lines. */
-  findings: Finding[]
-  /** `U<n>` once the owner released a Retro that failed its check: the episode cannot PASS. */
-  unchecked: string | null
-}
 const episodeAfter = (k: number, u: number): Episode => ({ k, from: u + 1, fails: 0, calls: 0, findings: [], unchecked: null })
 type Verdict = 'PASS' | 'FAIL' | 'UNKNOWN' | 'REPORTED' | 'UNAUDITED'
 const KIND_WORD = { retro: '糾正', align: '指令', none: '一般' } as const
@@ -133,6 +121,8 @@ type State = {
   writing: Promise<void>
   // The gate's generation: bumped at turn.start and on every ledger change.
   gen: number
+  projection: Record<string, string>
+  dirty: boolean
   duties: Duty[]
   classifying: Map<number, Promise<Form | null>>
   kinds: Map<number, string>
@@ -313,7 +303,67 @@ const auditDir = (s: State) => `${gateDir(s)}/audit`
 const pendingPath = (asks: string) => asks.replace(/\.asks\.jsonl$/, '.pending')
 const errClass = (err: unknown) => (err instanceof Error ? err.name : typeof err)
 const openRows = (s: State) => s.rows.filter(r => owns(r) && !r.closed)
-const coverageLabel = (s: State) => (s.lost ? 'unknown' : s.derived ? 'unconfirmed' : 'known')
+const coverageLabel = (s: State) => (s.lost || s.dirty || s.written < s.u ? 'unknown' : s.derived ? 'unconfirmed' : 'known')
+
+const saveGuard = ($: EngineInterface, s: State) => $.state.set(GUARD, { sid: s.sid, generation: s.gen, files: s.projection, held: s.held, duties: s.duties, episode: s.ep, dirty: s.dirty })
+
+async function coverageNow($: EngineInterface, s: State) {
+  try {
+    const queued = (await $.state.get(REPLAY)).value ?? []
+    const pending = s.asksPath === null ? 0 : Number(await $.fs.read(pendingPath(s.asksPath)))
+    return queued.length || !Number.isFinite(pending) || pending !== 0 ? 'unknown' : coverageLabel(s)
+  } catch (err) {
+    await logLine($, s, iso(), 'coverage-error', errClass(err))
+    return 'unknown'
+  }
+}
+
+async function projectFile($: EngineInterface, s: State, name: string, text: string) {
+  s.projection[name] = text
+  await saveGuard($, s)
+  await $.fs.write(`${auditDir(s)}/${name}`, text)
+}
+
+// F1: disk is a projection, never authority to remove a hold or introduce a verdict.
+async function checkProjection($: EngineInterface, s: State) {
+  await s.writing
+  const bad: string[] = []
+  try {
+    for (const f of await $.fs.list(auditDir(s))) {
+      if (/\.json$/.test(f.name) && !Object.hasOwn(s.projection, f.name)) {
+        bad.push(f.name)
+        await run($, ['rm', '-f', `${auditDir(s)}/${f.name}`])
+      }
+      if (f.name === 'held' && s.projection.held === undefined) {
+        // The gate can add a restriction; only the owner can remove it.
+        s.held = await readHeld($, s) ?? 'tamper:held'
+        s.projection.held = JSON.stringify({ reason: s.held })
+        bad.push('held')
+      }
+    }
+    for (const [name, text] of Object.entries(s.projection)) {
+      if (await $.fs.read(`${auditDir(s)}/${name}`).catch(() => null) !== text) bad.push(name)
+    }
+  } catch (err) {
+    bad.push(`audit:${errClass(err)}`)
+  }
+  if (bad.length) {
+    const reason = `tamper:${[...new Set(bad)].join(',')}`
+    s.held ??= reason
+    s.projection.held = JSON.stringify({ reason: s.held })
+    await saveGuard($, s)
+    $.ui.toast(`${NAME}: ${reason}; the hold stays`)
+    await logLine($, s, iso(), 'tamper', reason)
+    for (const [name, text] of Object.entries(s.projection)) {
+      try {
+        await $.fs.write(`${auditDir(s)}/${name}`, text)
+      } catch (err) {
+        $.ui.toast(`${NAME}: projection ${name} not written (${errClass(err)}); held`)
+        await logLine($, s, iso(), 'projection-error', `${name}:${errClass(err)}`)
+      }
+    }
+  }
+}
 
 async function run($: EngineInterface, argv: string[]) {
   const r = await $.process.run(argv, { timeoutMs: 5000 })
@@ -324,11 +374,16 @@ async function run($: EngineInterface, argv: string[]) {
 // pending count says how many, so a crash before the ledger write shows at resume. Then the generation and
 // asks-open.md (temp file + rename). Writes queue, so two rows never race.
 function persist($: EngineInterface, s: State, opts: { rows: boolean; bump: boolean }): Promise<void> {
+  if (opts.rows) s.dirty = true
   s.writing = s.writing.then(async () => {
     try {
       s.asksPath ??= `${folderOf(s)}/${iso().slice(0, 10)}-${s.sid.slice(0, 8)}.asks.jsonl`
       // A row still unwritten is retried by any later write, so failures count in a row (N2).
       if (opts.rows || s.written < s.u) {
+        for (const r of s.rows) {
+          r.duty = s.duties.find(d => d.u === r.u) ?? null
+          r.episode = s.ep
+        }
         const fresh = s.rows.filter(r => r.u > s.written)
         await $.state.set(REPLAY, fresh)
         await $.fs.write(pendingPath(s.asksPath), String(fresh.length))
@@ -339,18 +394,21 @@ function persist($: EngineInterface, s: State, opts: { rows: boolean; bump: bool
         s.written = s.rows.at(-1)?.u ?? 0
       }
       if (opts.bump) s.gen += 1
-      await $.fs.write(`${auditDir(s)}/current`, JSON.stringify({ generation: String(s.gen) }))
+      await projectFile($, s, 'current', JSON.stringify({ generation: String(s.gen) }))
       const dst = `${gateDir(s)}/asks-open.md`
       const text = openText(openRows(s), s.asksPath, s.gen)
       await $.fs.write(`${dst}.tmp`, text)
       await run($, ['mv', `${dst}.tmp`, dst])
       s.storeFails = 0
       s.storeErr = null
+      s.dirty = false
+      await saveGuard($, s)
       if (opts.rows) await logLine($, s, iso(), 'asks-open', `gen ${s.gen} · ${openRows(s).length} open · ${text.length} chars`)
     } catch (err) {
       s.storeFails += 1
       s.storeErr = errClass(err)
-      $.ui.toast(`${NAME} v${MOD_VERSION}: owner ledger not written (${errText(err)}); ${s.storeFails >= 2 ? 'audits read UNAUDITED' : 'retried at the next change'}`)
+      s.dirty = true
+      $.ui.toast(`${NAME} v${MOD_VERSION}: owner ledger not written (${errText(err)}); coverage unknown, retried at the next change`)
       await logLine($, s, iso(), 'store-error', `${s.storeErr} · ${s.storeFails} in a row`)
     }
     $.ui.invalidate('ui.render')
@@ -358,14 +416,20 @@ function persist($: EngineInterface, s: State, opts: { rows: boolean; bump: bool
   return s.writing
 }
 
-const saveDuties = ($: EngineInterface, s: State) =>
-  $.store.set(dutiesKey(s.sid), s.duties).catch(err => $.ui.toast(`${NAME}: alignment duties not saved (${errText(err)})`))
-const saveEpisode = ($: EngineInterface, s: State) =>
-  $.store.set(episodeKey(s.sid), s.ep).catch(err => $.ui.toast(`${NAME}: audit episode not saved (${errText(err)})`))
+const saveDuties = async ($: EngineInterface, s: State) => {
+  await saveGuard($, s)
+  await persist($, s, { rows: true, bump: false })
+  await $.store.set(dutiesKey(s.sid), s.duties).catch(err => $.ui.toast(`${NAME}: alignment duties store not saved (${errText(err)}); ledger retains duties`))
+}
+const saveEpisode = async ($: EngineInterface, s: State) => {
+  await saveGuard($, s)
+  await persist($, s, { rows: true, bump: false })
+  await $.store.set(episodeKey(s.sid), s.ep).catch(err => $.ui.toast(`${NAME}: audit episode store not saved (${errText(err)}); ledger retains guards`))
+}
 
 async function writeActive($: EngineInterface, s: State) {
   try {
-    await $.fs.write(`${auditDir(s)}/active`, `${NAME} ${MOD_VERSION}\n`)
+    await projectFile($, s, 'active', `${NAME} ${MOD_VERSION}\n`)
     s.activeErr = null
   } catch (err) {
     s.activeErr = errClass(err)
@@ -388,8 +452,8 @@ async function readHeld($: EngineInterface, s: State): Promise<string | null> {
 }
 
 async function writeHeld($: EngineInterface, s: State, sha: string, reason: string) {
-  await $.fs.write(`${auditDir(s)}/held`, JSON.stringify({ at: iso(), sha, reason }))
   s.held = reason
+  await projectFile($, s, 'held', JSON.stringify({ at: iso(), sha, reason }))
   await logLine($, s, iso(), 'held', reason)
 }
 
@@ -400,6 +464,8 @@ async function release($: EngineInterface, s: State) {
     await run($, ['rm', '-f', `${d}/held`, `${d}/chain`, `${d}/missing-chain`])
     if (s.held !== null) await logLine($, s, iso(), 'released', s.held)
     s.held = null
+    delete s.projection.held
+    await saveGuard($, s)
   } catch (err) {
     $.ui.toast(`${NAME}: hold not cleared (${errText(err)})`)
   }
@@ -422,12 +488,12 @@ async function record($: EngineInterface, s: State, origin: Row['origin'], text:
   const quoted = quotedSpans(text)
   if (quoted.length) row.quoted = quoted
   s.rows.push(row)
-  if (duty && (origin === 'owner' || origin === 'owner-command')) {
-    s.duties.push({ u: row.u, tries: 0 })
+  if (origin === 'owner' || origin === 'owner-command') {
+    if (duty) s.duties.push({ u: row.u, tries: 0 })
     s.ep.calls = 0
+    s.ep.fails = 0
     if (origin === 'owner') s.ep.unchecked = null
-    await saveDuties($, s)
-    await saveEpisode($, s)
+    await saveGuard($, s)
   }
   await persist($, s, { rows: true, bump: true })
   await logLine($, s, row.at, 'ask', `U${row.u} ${origin} · ${text.length} chars${attachments.length ? ` · ${attachments.join(', ')}` : ''}`)
@@ -463,6 +529,9 @@ async function resume($: EngineInterface, s: State, asks: string) {
     await logLine($, s, iso(), 'resume-error', errClass(err))
   }
   s.u = s.rows.at(-1)?.u ?? 0
+  s.derived = s.rows.some(r => r.origin === 'transcript' && !r.confirmed)
+  s.duties = s.rows.filter(r => owns(r) && r.duty !== null).map(r => r.duty ?? { u: r.u, tries: 0 })
+  s.ep = s.rows.findLast(r => r.episode !== undefined)?.episode ?? s.ep
   if (s.lost) await logLine($, s, iso(), 'coverage', 'unknown: rows may be missing; /asks confirm after checking the ledger')
   if (s.written < s.u) await persist($, s, { rows: true, bump: true })
 }
@@ -472,11 +541,16 @@ async function derive($: EngineInterface, s: State) {
   let rows: { text: string; seen: number }[] = []
   try {
     rows = transcriptRows(await $.session.messages())
-  } catch {
+  } catch (err) {
+    s.lost = true
+    await logLine($, s, iso(), 'derive-error', errClass(err))
     return
   }
   if (rows.length === 0) return
-  for (const t of rows) s.rows.push({ u: ++s.u, at: iso(), origin: 'transcript', text: t.text, attachments: [], seen: t.seen })
+  for (const t of rows) {
+    s.rows.push({ u: ++s.u, at: iso(), origin: 'transcript', text: t.text, attachments: [], seen: t.seen })
+    s.duties.push({ u: s.u, tries: 0 })
+  }
   s.derived = true
   await persist($, s, { rows: true, bump: true })
 }
@@ -499,14 +573,15 @@ function classify($: EngineInterface, s: State, d: Duty, claims: string, row: Ro
       .complete({ ...CLASSIFY, prompt: classifierPrompt(claims, row.text) })
       .then(
         r => {
-          if (!r.isAnswered) return { need: 'retro' as const, why: `classifier ${r.reason}`, usage: r.usage }
-          const need = classified(r.text)
-          return need === undefined ? { need: 'retro' as const, why: `classifier ${badAnswer(r.usage, CLASSIFY.maxTokens)}`, usage: r.usage } : { need, why: undefined, usage: r.usage }
+          if (!r.isAnswered) return { need: 'retro' as const, constraint: true, why: `classifier ${r.reason}`, usage: r.usage }
+          const kind = r.usage.output_tokens >= CLASSIFY.maxTokens ? undefined : classified(r.text)
+          return kind === undefined ? { need: 'retro' as const, constraint: true, why: `classifier ${badAnswer(r.usage, CLASSIFY.maxTokens)}`, usage: r.usage } : { ...kind, why: undefined, usage: r.usage }
         },
-        (err: unknown) => ({ need: 'retro' as const, why: `classifier ${errClass(err)}`, usage: undefined }),
+        (err: unknown) => ({ need: 'retro' as const, constraint: true, why: `classifier ${errClass(err)}`, usage: undefined }),
       )
-      .then(async ({ need, why, usage }) => {
+      .then(async ({ need, constraint, why, usage }) => {
         d.need = need
+        row.constraint = constraint
         if (why !== undefined) {
           d.why = why
           $.ui.toast(`${NAME}: U${d.u} not classified (${why}); held as a correction`)
@@ -536,7 +611,7 @@ async function substance($: EngineInterface, s: State, d: Duty, tool: string, ro
   try {
     const r = await $.model.complete({ ...RETRO_CHECK, prompt: substancePrompt(row.text, claims, retro) })
     await logLine($, s, iso(), 'retro-check', `U${d.u} try ${d.tries} · ${Date.now() - t0}ms · ${usageText(r.usage)}`)
-    const v = r.isAnswered ? parseSubstance(r.text) : null
+    const v = r.isAnswered && r.usage.output_tokens < RETRO_CHECK.maxTokens ? parseSubstance(r.text) : null
     if (v?.aligned === true) return null
     if (v !== null) {
       d.retro = retro
@@ -643,7 +718,7 @@ async function writeVerdict($: EngineInterface, s: State, sha: string, gen: numb
     await logLine($, s, iso(), 'audit-stale', `${v.episode} · ${v.verdict} dropped · gen ${gen}→${s.gen}`)
     return false
   }
-  await $.fs.write(`${auditDir(s)}/${sha}.json`, JSON.stringify({ ...v, generation: String(gen) }))
+  await projectFile($, s, `${sha}.json`, JSON.stringify({ ...v, generation: String(gen) }))
   s.last = `${v.verdict} ${v.episode}`
   await logLine($, s, iso(), `audit-${v.verdict.toLowerCase()}`, `${v.episode} · ${v.reason.split('\n')[0]}`)
   $.ui.invalidate('ui.render')
@@ -668,6 +743,7 @@ async function audit($: EngineInterface, s: State, turnId: string, reply: string
   const base = { turnId, episode: `E${ep.k}`, covered: covered.map(r => `U${r.u}`), tools: toolIds(episode) }
   const write = (verdict: Verdict, reason: string, findings?: Finding[]) =>
     writeVerdict($, s, sha, gen, { verdict, reason, ...base, ...(findings ? { findings: findings.map(f => ({ id: f.id, problem: f.problem })) } : {}) })
+  if (s.held !== null) return write('UNKNOWN', s.held)
 
   // Past the FAIL cap the judge is not asked again: the reply either relays each finding as its line or fails.
   const mechanical = async () => {
@@ -676,7 +752,8 @@ async function audit($: EngineInterface, s: State, turnId: string, reply: string
     await writeHeld($, s, sha, `REPORTED E${ep.k}: ${ep.findings.map(f => f.id).join(', ')} still open; the owner decides`)
     await nextEpisode($, s)
   }
-  if (s.storeFails >= 2) return write('UNAUDITED', `store-error:${s.storeErr}`)
+  if (s.storeFails >= 2) return write('UNKNOWN', `store-error:${s.storeErr}`)
+  if (coverage.length || await coverageNow($, s) === 'unknown') return write('UNKNOWN', 'coverage:unknown')
   if (ep.fails > FAIL_BLOCKS) return mechanical()
   if (ep.calls >= JUDGE_CALLS) return ep.findings.length ? mechanical() : write('UNAUDITED', 'judge-cap')
   ep.calls += 1
@@ -685,6 +762,11 @@ async function audit($: EngineInterface, s: State, turnId: string, reply: string
   const label = coverageLabel(s)
   if (label !== 'known') coverage.push(label === 'unknown' ? 'owner rows that may be missing from the ledger' : 'owner rows read back from the transcript, not confirmed')
   const open = new Set(openRows(s).map(r => r.u))
+  for (const row of covered) {
+    if (row.constraint !== undefined) continue
+    const d = s.duties.find(d => d.u === row.u) ?? { u: row.u, tries: 0 }
+    await classify($, s, d, assistantText(messages, from ?? -1, at.get(row.u)), row)
+  }
   const t0 = Date.now()
   const res = await judge($, { asks: ledgerText(s.rows, open, s.asksPath ?? '(not written)'), episodeFrom: ep.from, reply, coverage }, episode)
   if ('reason' in res) return write('UNKNOWN', res.reason)
@@ -694,16 +776,11 @@ async function audit($: EngineInterface, s: State, turnId: string, reply: string
   const { valid, dropped } = verify(v.findings, { reply, rows: s.rows, open, episode })
   const supers = superseded(v.supersedes, s.rows, at)
   dropped.push(...supers.dropped)
-  const constraints = v.constraints.map(id => s.rows.find(r => `U${r.u}` === id && owns(r) && at.has(r.u)))
-  constraints.forEach((r, i) => {
-    if (r === undefined) dropped.push(`constraint ${v.constraints[i]} is not a delivered owner row`)
-  })
   for (const bad of dropped) await logLine($, s, iso(), 'finding-dropped', `E${ep.k} · ${bad}`)
   // A stale judge cannot change the ledger, just as it cannot write a verdict (G4).
   if (gen === s.gen) {
-    for (const r of constraints) if (r !== undefined) r.constraint = true
     for (const r of s.rows) if (supers.valid.includes(r.u)) r.closed = true
-    if (constraints.length || supers.valid.length) await persist($, s, { rows: true, bump: false })
+    if (supers.valid.length) await persist($, s, { rows: true, bump: false })
   }
   if (v.verdict === 'FAIL') {
     if (valid.length === 0) return write('UNKNOWN', 'protocol:fail-without-valid-finding')
@@ -716,16 +793,23 @@ async function audit($: EngineInterface, s: State, turnId: string, reply: string
   if (dropped.length) return write('UNKNOWN', 'protocol:pass-with-dropped-findings')
   if (!v.complete) return write('UNKNOWN', 'protocol:pass-not-complete')
   if (label !== 'known') return write('UNKNOWN', `coverage:${label}`)
+  if (coverage.length || await coverageNow($, s) !== 'known') return write('UNKNOWN', 'coverage:unknown')
   if (ep.unchecked !== null) {
     if (await write('UNKNOWN', `align-unchecked:${ep.unchecked}`)) await writeHeld($, s, sha, `align-unchecked:${ep.unchecked}: the owner released a Retro that failed its check`)
     return
   }
-  if (!(await write('PASS', `E${ep.k}`))) return
-  if (ep.fails) await logLine($, s, iso(), `audit-resolved ${ep.findings.map(f => f.id).join(',')}`, `E${ep.k}`)
+  if (gen !== s.gen) return write('UNKNOWN', 'stale')
   // N2: PASS closes tasks, never ongoing constraints. Keep the verdict's generation current.
   for (const r of covered) if (!r.constraint) r.closed = true
   await persist($, s, { rows: true, bump: false })
+  if (s.dirty) {
+    for (const r of covered) if (!r.constraint && !supers.valid.includes(r.u)) r.closed = false
+    return write('UNKNOWN', `close-state:${s.storeErr}`)
+  }
   await nextEpisode($, s)
+  if (s.dirty) return write('UNKNOWN', `close-state:${s.storeErr}`)
+  if (!(await write('PASS', `E${ep.k}`))) return
+  if (ep.fails) await logLine($, s, iso(), `audit-resolved ${ep.findings.map(f => f.id).join(',')}`, `E${ep.k}`)
 }
 
 export const register: Register = on => {
@@ -744,6 +828,8 @@ export const register: Register = on => {
     storeErr: null,
     writing: Promise.resolve(),
     gen: 0,
+    projection: {},
+    dirty: false,
     duties: [],
     classifying: new Map(),
     kinds: new Map(),
@@ -775,13 +861,30 @@ export const register: Register = on => {
       s.file = fileFor(s, path)
       s.count = countOf(await $.fs.read(path).catch(() => ''))
     }
-    s.gen = Number(JSON.parse(await $.fs.read(`${auditDir(s)}/current`).catch(() => '{}')).generation ?? 0) || 0
-    // A reload or resume keeps the ledger, the open duties and the episode: the file holds the rows, the store the rest.
+    const guard = (await $.state.get(GUARD)).value
+    if (guard?.sid === s.sid) {
+      s.gen = guard.generation
+      s.projection = guard.files
+      s.held = guard.held
+      s.duties = guard.duties
+      s.ep = guard.episode
+      s.dirty = guard.dirty
+    }
+    // A hot reload trusts $.state; a new process rebuilds durable duties and episode guards from rows.
     const asks = (await $.store.get(asksKey(s.sid))) as string | undefined
     if (asks !== undefined) await resume($, s, asks)
     else await derive($, s)
-    s.duties = ((await $.store.get(dutiesKey(s.sid))) as Duty[] | undefined) ?? []
-    s.ep = ((await $.store.get(episodeKey(s.sid))) as Episode | undefined) ?? episodeAfter(1, s.u)
+    if (guard?.sid !== s.sid) {
+      s.duties = s.rows.filter(r => owns(r) && r.duty !== null).map(r => r.duty ?? { u: r.u, tries: 0 })
+      s.ep = s.rows.findLast(r => r.episode !== undefined)?.episode ?? episodeAfter(1, 0)
+      // A new process has no authority for old verdicts; do not import them from disk.
+      const old = (await $.fs.list(auditDir(s)).catch(() => [])).filter(f => /\.json$/.test(f.name))
+      if (old.length) await run($, ['rm', '-f', ...old.map(f => `${auditDir(s)}/${f.name}`)])
+    } else {
+      s.duties = guard.duties
+      s.ep = guard.episode
+    }
+    if (s.projection.current === undefined) await projectFile($, s, 'current', JSON.stringify({ generation: String(s.gen) }))
     if (!s.off) await writeActive($, s)
     await $.command.register({ name: COMMAND, description: `Agent should know v${MOD_VERSION}: /${COMMAND} shows or hides the band, with this session's heads-up count and log` })
     await $.command.register({ name: 'asks', description: `Agent should know v${MOD_VERSION}: /asks release U<n> | confirm | off` })
@@ -818,14 +921,20 @@ export const register: Register = on => {
     if (verb === 'confirm') {
       s.lost = false
       s.derived = false
+      for (const r of s.rows) r.confirmed = true
+      await persist($, s, { rows: true, bump: false })
+      if (s.dirty) return { text: `confirmation not saved (${s.storeErr}); coverage unknown` }
       await logLine($, s, iso(), 'confirm', `coverage known · ${s.rows.length} rows`)
       $.ui.invalidate('ui.render')
       return { text: `coverage confirmed: ${s.rows.length} rows in ${s.asksPath ?? '(no ledger yet)'}` }
     }
     if (verb === 'off') {
+      await release($, s)
       s.off = true
       await $.store.set(offKey(s.sid), 'off')
       await run($, ['rm', '-f', `${auditDir(s)}/active`]).catch(err => $.ui.toast(`${NAME}: gate marker not removed (${errText(err)})`))
+      delete s.projection.active
+      await saveGuard($, s)
       await logLine($, s, iso(), 'off', 'hold and audit off for this session')
       $.ui.invalidate('ui.render')
       return { text: 'agent-should-know: hold and audit off for this session; the Stop gate skips it.' }
@@ -842,6 +951,7 @@ export const register: Register = on => {
     try {
       const names = (await $.fs.list(auditDir(s))).map(f => f.name).filter(n => /\.json$|^missing-chain$|^chain$/.test(n))
       if (names.length) await run($, ['rm', '-f', ...names.map(n => `${auditDir(s)}/${n}`)])
+      for (const n of names) delete s.projection[n]
     } catch (err) {
       await logLine($, s, iso(), 'turn-start-error', errClass(err))
     }
@@ -865,24 +975,45 @@ export const register: Register = on => {
   // (origin not engine) reaches no model.
   on('tool.call', async ($, e, next) => {
     if (next.origin.plugin !== 'engine' || e.agentId !== undefined) return next(e)
-    if (stateWrite(e.tool, e as unknown as Record<string, unknown>, s.home, s.cwd, s.sid)) {
+    await checkProjection($, s)
+    let target = e as unknown as Record<string, unknown>
+    if (['Write', 'Edit', 'NotebookEdit'].includes(e.tool)) {
+      const given = String(target.file_path ?? target.notebook_path ?? '').replace(/^~(?=\/)/, s.home)
+      // Resolve symlinks before `..`, as the OS does; lexical collapse could hide a protected target.
+      const path = given.startsWith('/') ? given : `${s.cwd}/${given}`
+      let probe = path
+      let suffix = ''
+      try {
+        while (!(await $.fs.exists(probe))) {
+          if (probe === '/') throw new Error('root not readable')
+          const i = probe.lastIndexOf('/')
+          suffix = `/${probe.slice(i + 1)}${suffix}`
+          probe = probe.slice(0, i) || '/'
+        }
+        const real = (await $.fs.stat(probe, { resolve: true })).realPath
+        if (real === undefined) throw new Error('unresolved path')
+        target = { ...target, file_path: `${real}${suffix}` }
+      } catch (err) {
+        const why = `${NAME} denied ${e.tool}: target path could not be resolved (${errClass(err)})`
+        $.ui.toast(why)
+        await logLine($, s, iso(), 'state-write-denied', why)
+        return { deny: why }
+      }
+    }
+    if (stateWrite(e.tool, target, s.home, s.cwd, s.sid)) {
       const reason = `${NAME} denied ${e.tool}: agent tools cannot write, move or delete this session's audit state or agent-should-know state.`
       $.ui.toast(reason)
       await logLine($, s, iso(), 'state-write-denied', e.tool)
       return { deny: reason }
     }
-    if (!s.off && !readOnly(e.tool, e as unknown as Record<string, unknown>)) {
-      let held: string | null
-      try {
-        held = await readHeld($, s)
-      } catch (err) {
-        held = `the hold state could not be read (${errClass(err)})`
-      }
-      if (held !== s.held) $.ui.invalidate('ui.render')
-      s.held = held
+    if (!readOnly(e.tool, e as unknown as Record<string, unknown>)) {
+      const held = s.held
       if (held !== null) return { deny: `${NAME} held ${e.tool}: ${held}. Only tools that read run until the owner sends a message.` }
-      const why = await hold($, s, e.tool)
-      if (why !== null) return { deny: why }
+      if (!s.off) {
+        const why = await hold($, s, e.tool)
+        if (why !== null) return { deny: why }
+        if (s.dirty) return { deny: `${NAME} held ${e.tool}: ledger state not saved (${s.storeErr}); coverage unknown` }
+      }
     }
     const r = await next(e)
     if ('deny' in r || s.early === null) return r
@@ -894,12 +1025,15 @@ export const register: Register = on => {
   // N10: the main loop's final step (no tool use, a response) is the reply the turn ends on.
   on('turn.step', async function* ($, e, next) {
     const r = yield* next(e)
-    if (e.agentId !== undefined || s.off || s.auditing || r.toolUses.length > 0 || r.stopReason === null) return r
+    if (e.agentId !== undefined || s.auditing || r.toolUses.length > 0 || r.stopReason === null) return r
     // The judge's own fork is a model request too: it must not audit itself.
     s.auditing = true
-    const gen = s.gen
+    let gen = s.gen
     let sha = ''
     try {
+      await checkProjection($, s)
+      if (s.off) return r
+      gen = s.gen
       sha = await sha16(r.answer)
       await audit($, s, r.turnId, r.answer, sha, gen)
     } catch (err) {
@@ -919,7 +1053,7 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
     if (e.agentId !== undefined) return r
-    s.held = await readHeld($, s).catch(() => s.held)
+    await checkProjection($, s)
     $.ui.invalidate('ui.render')
     // Not read in time: the queued prompt carries the card.
     s.early = null

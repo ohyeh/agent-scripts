@@ -35,7 +35,6 @@ IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
 HOOK_ACTIVE="$(printf '%s' "$IN" | jq -r '.stop_hook_active // false')"
 TRANSCRIPT="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
-[ -f "$TRANSCRIPT" ] || exit 0
 SESSION_ID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
 STATE_DIR="${HOME}/.local/state/agent-hooks/${SESSION_ID:-pid-$PPID}"
 mkdir -p "$STATE_DIR"
@@ -55,13 +54,14 @@ audit_reason=""
 audit_file=""
 audit_state=""
 audit_hold=""
+hold_error_message=""
 AUDIT_DIR="$STATE_DIR/audit"
 AUDIT_CHAIN_CAP=4
 if [ -f "$AUDIT_DIR/active" ]; then
   chain="$AUDIT_DIR/chain"
   # One stop chain = one turn's Stop and its re-entries; a missing verdict gets one block per chain
   # (the fix adds a line, so a per-reply marker would block every re-entry).
-  [ "$HOOK_ACTIVE" = "true" ] || { echo 0 > "$chain"; rm -f "$AUDIT_DIR/missing-chain"; }
+  [ "$HOOK_ACTIVE" = "true" ] || { echo 0 > "$chain"; rm -f "$AUDIT_DIR/missing-chain" "$STATE_DIR/held-write-failed"; }
   ash="$(printf '%s' "$last" | perl -0pe 's/[\t\n\x0B\f\r ]+\z//' | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
   gen="$(jq -r '.generation // empty' "$AUDIT_DIR/current" 2>/dev/null)"
   vf="$AUDIT_DIR/$ash.json"
@@ -101,17 +101,35 @@ if [ -f "$AUDIT_DIR/active" ]; then
     fi
   fi
   if [ -n "$audit_hold" ]; then
-    jq -cn --arg r "$audit_hold" --arg sha "$ash" --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" '{at:$ts, sha:$sha, reason:$r}' > "$AUDIT_DIR/held"
-    jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "${SESSION_ID:-}" --arg r "$audit_hold" '{timestamp:$ts, claim:"audit", session:$sid, blocked:false, held:$r}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
+    mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"
+    if held_error="$( { jq -cn --arg r "$audit_hold" --arg sha "$ash" --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" '{at:$ts, sha:$sha, reason:$r}' > "$AUDIT_DIR/held"; } 2>&1)"; then
+      rm -f "$STATE_DIR/held-write-failed"
+      jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "${SESSION_ID:-}" --arg r "$audit_hold" '{timestamp:$ts, claim:"audit", session:$sid, blocked:false, held:$r}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
+    else
+      n="$(cat "$chain" 2>/dev/null || echo 0)"
+      failures="$(cat "$STATE_DIR/held-write-failed" 2>/dev/null || echo 0)"
+      if [ "$failures" -gt 0 ] && { [ "$n" -ge "$AUDIT_CHAIN_CAP" ] || [ "$failures" -ge "$AUDIT_CHAIN_CAP" ]; }; then
+        hold_error_message="暫停失敗：無法寫入 held（$held_error），agent 未被擋住，請檢查"
+        audit_reason=""
+      else
+        audit_reason="cannot write held ($held_error)"
+        echo $((failures + 1)) > "$STATE_DIR/held-write-failed"
+        echo $((n + 1)) > "$chain"
+      fi
+      audit_hold=""
+      jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg error "$held_error" --arg message "$hold_error_message" '{timestamp:$ts, claim:"audit", error:$error, systemMessage:$message}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
+    fi
   fi
 fi
 # Every exit from here on carries the audit result too: the token checks below often exit early.
 finish() {
   local r="${audit_reason:+$audit_reason }${reason:-}" m=""
   [ -n "$audit_hold" ] && m="未通過自我稽核，工作已暫停，等你下一則訊息：$audit_hold"
+  [ -z "$hold_error_message" ] || m="$hold_error_message"
   [ -n "$r$m" ] && jq -n --arg r "$r" --arg m "$m" '(if $r != "" then {decision: "block", reason: $r} else {} end) + (if $m != "" then {systemMessage: $m} else {} end)'
 }
 trap finish EXIT
+[ -f "$TRANSCRIPT" ] || exit 0
 [ "$HOOK_ACTIVE" = "true" ] && exit 0
 [ -n "$last" ] || exit 0
 title="$(grep -o '"customTitle":"[^"]*"' "$TRANSCRIPT" 2>/dev/null | tail -1 | cut -d'"' -f4)"

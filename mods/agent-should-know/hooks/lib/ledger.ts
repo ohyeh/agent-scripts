@@ -1,4 +1,9 @@
 import type { PromptOrigin, PromptSubmitAttachment, SessionMessage } from 'claude-code'
+import type { Finding } from './audit.ts'
+import type { Form } from './align.ts'
+
+export type Duty = { u: number; need?: Form | null; why?: string; tries: number; retro?: string; missing?: string[] }
+export type Episode = { k: number; from: number; fails: number; calls: number; findings: Finding[]; unchecked: string | null }
 
 /** owner: typed or bridged; owner-command: a slash command typed so; unknown: kept, authorizes nothing;
  * transcript: owner text read back from the session at a start with no ledger (resume, continued session). */
@@ -17,6 +22,9 @@ export type Row = {
   quoted?: [number, number][]
   /** A constraint stays open until later owner text supersedes it. */
   constraint?: boolean
+  confirmed?: boolean
+  duty?: Duty | null
+  episode?: Episode
   /** A PASS covered the ask, or later owner text superseded it (N2). */
   closed?: boolean
 }
@@ -131,7 +139,7 @@ export function deliveries(messages: readonly SessionMessage[], rows: readonly R
       next = r.seen + 1
       continue
     }
-    const probe = r.origin === 'owner-command' ? (r.text.split(/\s/)[0] ?? r.text) : flat(r.text).slice(0, 500)
+    const probe = flat(r.text)
     for (let k = Math.max(r.seen, next); k < users.length; k++) {
       if (!flat(messages[users[k]!]!.text).includes(probe)) continue
       at.set(r.u, users[k]!)

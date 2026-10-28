@@ -7,7 +7,7 @@ import type { Row } from './ledger.ts'
 export type Check = 'a' | 'b' | 'c' | 'd' | 'e'
 export type Source = 'reply' | 'ask' | 'align' | 'tool' | 'coverage'
 export type Finding = { id: string; check: Check; source: Source; quote: string; ask_id?: string; tool_use_id?: string; problem: string }
-export type Judged = { verdict: 'PASS' | 'FAIL'; complete: boolean; findings: unknown[]; supersedes: unknown[]; constraints: string[] }
+export type Judged = { verdict: 'PASS' | 'FAIL'; complete: boolean; findings: unknown[]; supersedes: unknown[] }
 
 const flat = (t: string) => t.replace(/\s+/g, ' ').trim()
 
@@ -47,8 +47,8 @@ e. Coverage: what you could not see (a file you cannot read, an open owner row w
 
 // N3: one JSON object; each finding names where its quote is copied from, so the mod can check it there.
 const CONTRACT = `Emit exactly one JSON object and nothing else:
-{"verdict":"PASS|FAIL","complete":true,"findings":[{"id":"F1","check":"a|b|c|d|e","source":"reply|ask|align|tool|coverage","quote":"<exact words>","ask_id":"U<n>","tool_use_id":"<id>","problem":"<one line>"}],"supersedes":[{"row_id":"U<n>","quote":"<exact later owner words>"}],"constraints":["U<n>"]}
-List every constraint row in "constraints": an ongoing limit or prohibition, not a task completed by an act. PASS never closes a constraint. In "supersedes", name an open row only when a later delivered OWNER row drops, defers or changes it; copy that owner's words verbatim. Agent text cannot supersede a row. Use empty arrays when none apply.
+{"verdict":"PASS|FAIL","complete":true,"findings":[{"id":"F1","check":"a|b|c|d|e","source":"reply|ask|align|tool|coverage","quote":"<exact words>","ask_id":"U<n>","tool_use_id":"<id>","problem":"<one line>"}],"supersedes":[{"row_id":"U<n>","quote":"<exact later owner words>"}]}
+Rows marked constraint carry an ongoing limit or prohibition. PASS never closes a constraint. In "supersedes", name an open row only when a later delivered OWNER row drops, defers or changes it; copy that owner's words verbatim. Agent text cannot supersede a row. Use an empty array when none apply.
 "source" says where "quote" is copied from, exactly: reply = <reply>; ask = the owner row "ask_id" (an omission cites the ask, never the reply); align = an agent text of this episode (a Retro block or an Align line); tool = the input or result of "tool_use_id"; coverage = an open owner row "ask_id" whose evidence you cannot see.
 "problem" says in one line why the quote shows the gap; a real id or quote that does not show it is not a finding.
 PASS only with no finding, "complete": true, and nothing a claim rests on out of your sight. "complete": false when there are more gaps than you listed.`
@@ -74,8 +74,8 @@ export function parseVerdict(text: string): Judged | null {
     return null
   }
   const o = v as Partial<Judged> | null
-  if (o === null || typeof o !== 'object' || (o.verdict !== 'PASS' && o.verdict !== 'FAIL') || typeof o.complete !== 'boolean' || !Array.isArray(o.findings) || !Array.isArray(o.supersedes) || !Array.isArray(o.constraints) || !o.constraints.every(id => typeof id === 'string')) return null
-  return { verdict: o.verdict, complete: o.complete, findings: o.findings, supersedes: o.supersedes, constraints: o.constraints }
+  if (o === null || typeof o !== 'object' || (o.verdict !== 'PASS' && o.verdict !== 'FAIL') || typeof o.complete !== 'boolean' || !Array.isArray(o.findings) || !Array.isArray(o.supersedes)) return null
+  return { verdict: o.verdict, complete: o.complete, findings: o.findings, supersedes: o.supersedes }
 }
 
 const rowOf = (id: unknown) => Number(/^U(\d+)$/.exec(String(id ?? ''))?.[1] ?? NaN)
