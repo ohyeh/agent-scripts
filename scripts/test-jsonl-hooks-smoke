@@ -242,7 +242,7 @@ verdict_for() { # $1 sid, $2 reply, $3 verdict JSON (or raw text); stamps genera
 }
 gate_out() { # $1 sid, $2 reply, $3 stop_hook_active: the hook's whole JSON output
   printf '%s' "$(jq -cn --arg t "$TRT" --arg m "$2" --arg sid "$1" --argjson a "${3:-false}" '{session_id:$sid,transcript_path:$t,stop_hook_active:$a,last_assistant_message:$m}')" |
-    HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/claim-evidence-gate.sh"
+    HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" XDG_STATE_HOME="$TEST_HOME/.local/state" bash "$ROOT/.agents/hooks/claim-evidence-gate.sh"
 }
 run_active() { gate_out "$1" "$2" true | jq -r '.decision // empty'; }
 held_of() { [ -f "$TEST_HOME/.local/state/agent-hooks/$1/audit/held" ] && echo held; }
@@ -294,7 +294,7 @@ out="$(gate_out f8 '說明如下' true 2>"$WORK/f8-stderr")"
 chmod u+w "$f8dir"
 [[ "$(jq -r '.decision // empty' <<<"$out")" == '' && "$(jq -r '.systemMessage // empty' <<<"$out")" == 無法寫入\ held* && "$(cat "$f8dir/chain")" == 4 ]] \
   || { echo "FAIL F8: past-cap held failure claimed a pause: $out" >&2; exit 1; }
-grep -q 'gate 無法確認這點' "$TEST_HOME/.local/share/agent-hooks/claim-evidence-stats.jsonl" || { echo 'FAIL F8: held failure was not logged' >&2; exit 1; }
+grep -q 'gate 無法確認這點' "$TEST_DATA/agent-hooks/claim-evidence-stats.jsonl" || { echo 'FAIL F8: held failure was not logged' >&2; exit 1; }
 echo 'PASS F8: unwritable held mirror ends the turn without a second-block loop; mod owns enforcement'
 # a line that names no subject keeps the old bar (>= 2 calls); a printed evidence token binds a line
 ledger_for n6 "$TWO" "$READ"; [[ -z "$(run_claim n6 '重設計還在進行，頁面還沒更新' "$TRT")" ]] || { echo "FAIL: keyless line blocked on 2 calls" >&2; exit 1; }
