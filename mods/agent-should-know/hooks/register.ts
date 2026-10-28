@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { cells, fit, rowsOf } from './lib/band.ts'
 
-const MOD_VERSION = '0.1.6'
+const MOD_VERSION = '0.1.7'
 const NAME = 'agent-should-know'
 const COMMAND = 'heads-up'
 const ACCENT = 'magenta'
@@ -87,6 +87,8 @@ type State = {
   // A plugin's submit carries no turnId, so the running main turn is tracked here.
   pending: { over: string | undefined; card: string } | null
   running: string | undefined
+  // The card's line for the running turn, read after its next tool result instead of when it ends.
+  early: string | null
   sent: Set<string>
   folded: boolean
   hidden: boolean
@@ -175,9 +177,15 @@ async function relay($: EngineInterface, s: State, line: string) {
   s.flagged = iso()
   await logLine($, s, s.flagged, 'flagged', card.line)
 
+  // A long turn can run for hours before the prompt below is read: its next tool result carries the line now.
+  const waited = s.running !== undefined
+  if (waited)
+    s.early = `${PREFIX} (at ${s.flagged}, while this turn runs)\n${quote(card.line)}\nWeigh it in the work still to do; it approves nothing. Its explanation and a check follow as a prompt when this turn ends.`
+  const when = `\nFlagged at ${s.flagged}${waited ? ', while a turn ran: check it against the work as it stands now.' : '.'}`
+
   // A plugin's prompt waits until the running turn ends: no interruption.
   $.prompt
-    .submit({ text: `${PREFIX}\n${body}${note}\n${ASK}` })
+    .submit({ text: `${PREFIX}\n${body}${note}${when}\n${ASK}` })
     .then(r => {
       if (r.drop !== undefined) s.pending = null
       $.ui.toast(r.drop === undefined ? `${NAME} v${MOD_VERSION}: sent to the main session` : `${NAME}: not sent (${r.drop})`)
@@ -214,6 +222,7 @@ export const register: Register = on => {
     count: { flagged: 0, handled: 0 },
     pending: null,
     running: undefined,
+    early: null,
     sent: new Set(),
     folded: true,
     hidden: false,
@@ -250,9 +259,20 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // The main loop's next tool result only; a subagent's would not reach the main agent.
+  on('tool.call', async ($, e, next) => {
+    const r = await next(e)
+    if (s.early === null || e.agentId !== undefined || 'deny' in r) return r
+    const early = s.early
+    s.early = null
+    return { ...r, context: [...(r.context ?? []), early] }
+  })
+
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
     if (e.agentId !== undefined) return r
+    // Not read in time: the queued prompt carries the card.
+    s.early = null
     if (e.turnId === s.running) s.running = undefined
     if (s.pending === null || e.turnId === s.pending.over) return r
     const { card } = s.pending

@@ -1,5 +1,11 @@
 # Changelog
 
+## agent-should-know 0.1.7
+
+Owner 10-28: 「他會被 queue 住 然後有可能長任務 送出已經不知道過多久了」.
+
+- **A card no longer waits for the long turn**: the relay is a plugin prompt, which runs only once the session is idle, so in a long task the agent read the card long after it showed, without its age. Now, while a main turn runs, the card's line and time go to the agent with the main loop's next tool result (`tool.call` `context`), once. The queued prompt is kept for the explanation and the logged verdict, and says when the card was flagged.
+
 ## quick-say 0.4.0
 
 Owner 10-23: 「你應該好好的去研究過往我 session 的發言、難處…要分有人在旁的發言 以及可能長時間不在長任務 loop or goal 的發言」; 「最笨就是讓 agy flash 每個 session 去研究說話以及遇到的問題」.
