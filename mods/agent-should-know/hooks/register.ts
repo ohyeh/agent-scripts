@@ -571,10 +571,9 @@ async function derive($: EngineInterface, s: State) {
     return
   }
   if (rows.length === 0) return
-  for (const t of rows) {
-    s.rows.push({ u: ++s.u, at: iso(), origin: 'transcript', text: t.text, attachments: [], seen: t.seen })
-    s.duties.push({ u: s.u, tries: 0 })
-  }
+  // History rows are audited for coverage but open no duty: they were answered before the mod ran, and
+  // classifying each one would hold every act of a long resumed session on a model call.
+  for (const t of rows) s.rows.push({ u: ++s.u, at: iso(), origin: 'transcript', text: t.text, attachments: [], seen: t.seen })
   s.derived = true
   await persist($, s, { rows: true, bump: true })
 }

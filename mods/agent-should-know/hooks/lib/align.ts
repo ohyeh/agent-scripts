@@ -154,11 +154,13 @@ export function stateWrite(tool: string, input: Record<string, unknown>, home: s
     return typeof path === 'string' && protectedPath(path)
   }
   if (tool.startsWith('mcp__') && !readOnly(tool, input)) {
-    // Every string is checked; only the bare root is not taken as an ancestor (a payload of "/" names no target).
-    const writes = (value: unknown): boolean => {
-      if (typeof value === 'string') return value.includes('/') && statePath(value, home, cwd) !== '/' && protectedPath(value)
-      if (Array.isArray(value)) return value.some(writes)
-      return value !== null && typeof value === 'object' && Object.values(value).some(writes)
+    // Every string is checked, nested ones too. Only a bare "/" held directly by a payload key
+    // (what the tool writes, not where) is not taken as the root's ancestor target.
+    const PAYLOAD = /^(?:content|contents|text|body|data|message)$/i
+    const writes = (value: unknown, key = ''): boolean => {
+      if (typeof value === 'string') return value.includes('/') && !(PAYLOAD.test(key) && value.trim() === '/') && protectedPath(value)
+      if (Array.isArray(value)) return value.some(v => writes(v))
+      return value !== null && typeof value === 'object' && Object.entries(value).some(([k, v]) => writes(v, k))
     }
     return writes(input)
   }
