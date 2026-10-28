@@ -35,7 +35,7 @@
       "name": "agent-should-know",
       "source": "./mods/agent-should-know",
       "description": "Function-hook mod: sends each card of the built-in You should know mod (cc-plugin-you-should-know), with its Learn more explanation, to the main agent (its line after the running turn's next tool result, then the whole card as a prompt once that turn ends), hides the card, and logs the card with the agent's verdict in one file per session under ~/.local/state/agent-should-know/. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.2.1",
+      "version": "0.3.0",
       "author": {
         "name": "PaulYeh"
       },
