@@ -121,5 +121,19 @@ while [ "$(printf '%s' "$out" | wc -c)" -gt "$MAX_TOTAL_BYTES" ]; do
   [ "$(printf '%s\n' "$out" | grep -c '^- ')" -eq 0 ] && break
 done
 
+# agent-should-know keeps the owner's open asks here, verbatim; they go after the byte cap because a
+# dropped ask is the failure they guard against. Main thread only: the file is the parent's.
+# The mod ends a whole snapshot with `<!-- asks-open gen=<n> end -->`; without it the copy is partial.
+asks="$HOME/.local/state/agent-hooks/$SID/asks-open.md"
+if [ -z "$AGENT_ID" ] && [ -e "$asks" ]; then
+  snap="$(cat "$asks" 2>&1)"; rc=$?
+  if [ "$rc" -ne 0 ] || ! printf '%s\n' "$snap" | tail -n 1 | grep -Eq '^<!-- asks-open gen=[0-9]+ end -->$'; then
+    snap="${snap}
+[agent-should-know] open-asks snapshot is incomplete or unreadable (cat exit $rc, no end marker): the owner's open asks are UNKNOWN. Read ${asks/#$HOME/\~} and the transcript before any act."
+  fi
+  out="$out
+$snap"
+fi
+
 printf '%s\n' "$out"
 exit 0

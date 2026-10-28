@@ -165,6 +165,17 @@ recall_ptr_out="$(run_recall)"
 ptr="$(printf '%s\n' "$recall_ptr_out" | sed -nE 's/.*\[cut; full: ([^]]+:[0-9]+)\].*/\1/p' | tail -n 1)"
 [[ -n "$ptr" ]] || { echo "FAIL: cut prompt missing [cut; full: path:line] pointer" >&2; exit 1; }
 sed -n "${ptr##*:}p" "${ptr%:*}" | grep -q 'REVOKE' || { echo "FAIL: pointed transcript line ${ptr} missing REVOKE" >&2; exit 1; }
+# agent-should-know's open asks ride after the byte cap, whole; a subagent's recall leaves them out
+mkdir -p "$TEST_HOME/.local/state/agent-hooks/rc-asks"
+{ echo '## Open owner asks (agent-should-know)'; echo "- U1 「$(head -c 3000 /dev/zero | tr '\0' z)END」"; echo '<!-- asks-open gen=3 end -->'; } > "$TEST_HOME/.local/state/agent-hooks/rc-asks/asks-open.md"
+asks_out="$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
+grep -q 'zEND」' <<<"$asks_out" || { echo "FAIL: recall dropped or cut the open asks" >&2; exit 1; }
+grep -q 'snapshot is incomplete' <<<"$asks_out" && { echo "FAIL: a whole snapshot flagged incomplete" >&2; exit 1; }
+sed -i '' '$d' "$TEST_HOME/.local/state/agent-hooks/rc-asks/asks-open.md"
+grep -q 'open asks are UNKNOWN' <<<"$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")" \
+  || { echo "FAIL: a snapshot with no end marker was passed on as whole" >&2; exit 1; }
+asks_out="$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",agent_id:"w1",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
+grep -q 'Open owner asks' <<<"$asks_out" && { echo "FAIL: a subagent's recall carried the parent's asks" >&2; exit 1; }
 
 # title sentinel: title-only again — a ✅ title is the claim gate's business
 TR2="$WORK/transcript-short.jsonl"
@@ -219,6 +230,52 @@ ledger_for n3 "$TWO" "$READ"; [[ -z "$(run_claim n3 'W43-18 還沒做（UNCONFIR
 ledger_for n4 "$TWO" "$READ"; [[ "$(run_claim n4 'foo.sh:12 還沒修' "$TRT")" == block ]]        || { echo "FAIL: a file:line the tools never touched counted as evidence" >&2; exit 1; }
 ledger_for n5 "$TWO" "$READ"; [[ "$(run_claim n5 'W43-3 done in 2ad6a5a
 W43-22 未開始' "$TRT")" == block ]] || { echo "FAIL: unbound negative line passed next to a positive claim" >&2; exit 1; }
+ledger_for n7 "$TWO" "$READ"; [[ "$(run_claim n7 '自我稽核未執行：fork api-error，W43-18 還沒驗' "$TRT")" == block ]] || { echo "FAIL: the unaudited label exempted a line with no audit state behind it" >&2; exit 1; }
+# agent-should-know audit verdicts (keyed by the reply's hash, trailing whitespace stripped, and the generation)
+verdict_for() { # $1 sid, $2 reply, $3 verdict JSON (or raw text); stamps generation 1 and makes it current
+  local d="$TEST_HOME/.local/state/agent-hooks/$1/audit"; mkdir -p "$d"; : > "$d/active"; echo '{"generation":"1"}' > "$d/current"
+  { printf '%s' "$3" | jq -ce '. + {generation:"1"}' 2>/dev/null || printf '%s' "$3"; } \
+    > "$d/$(printf '%s' "$2" | perl -0pe 's/\s+\z//' | shasum -a 256 | cut -c1-16).json"
+}
+gate_out() { # $1 sid, $2 reply, $3 stop_hook_active: the hook's whole JSON output
+  printf '%s' "$(jq -cn --arg t "$TRT" --arg m "$2" --arg sid "$1" --argjson a "${3:-false}" '{session_id:$sid,transcript_path:$t,stop_hook_active:$a,last_assistant_message:$m}')" |
+    HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/claim-evidence-gate.sh"
+}
+run_active() { gate_out "$1" "$2" true | jq -r '.decision // empty'; }
+held_of() { [ -f "$TEST_HOME/.local/state/agent-hooks/$1/audit/held" ] && echo held; }
+ledger_for a1 "$TWO" "$READ"; verdict_for a1 '說明如下' '{"verdict":"PASS"}'
+[[ -z "$(run_claim a1 $'說明如下\n\n  ' "$TRT")" ]] || { echo "FAIL: PASS verdict not found across trailing whitespace" >&2; exit 1; }
+ledger_for a2 "$TWO" "$READ"; verdict_for a2 '說明如下' '{"verdict":"FAIL","reason":"U2 asked for B; the reply covers A only"}'
+gate_out a2 '說明如下' | jq -r .reason | grep -q 'U2 asked for B' || { echo "FAIL: FAIL verdict reason not relayed" >&2; exit 1; }
+ledger_for a3 "$TWO" "$READ"; verdict_for a3 'other reply' '{"verdict":"PASS"}'
+[[ "$(run_claim a3 '說明如下' "$TRT")" == block ]] || { echo "FAIL: missing verdict passed" >&2; exit 1; }
+out="$(gate_out a3 $'說明如下\n自我稽核未執行：no verdict' true)"
+[[ "$(jq -r '.decision // empty' <<<"$out")" == "" && "$(jq -r '.systemMessage // empty' <<<"$out")" == 未通過自我稽核* && "$(held_of a3)" == held ]] \
+  || { echo "FAIL: the re-entry after a missing-verdict block did not end the turn held and visible: $out" >&2; exit 1; }
+rm "$TEST_HOME/.local/state/agent-hooks/a3/audit/held"
+[[ "$(run_claim a3 '說明如下' "$TRT")" == block ]] || { echo "FAIL: a new stop chain did not get its one missing-verdict block" >&2; exit 1; }
+REP='{"verdict":"REPORTED","findings":[{"id":"F1","problem":"fixture 不存在"}]}'
+ledger_for a4 "$TWO" "$READ"; verdict_for a4 $'已改好前兩項。\n- [audit] F1 fixture 不存在' "$REP"
+[[ -z "$(run_claim a4 $'已改好前兩項。\n- [audit] F1 fixture 不存在' "$TRT")" ]] || { echo "FAIL: exact [audit] line checked as a negative claim" >&2; exit 1; }
+ledger_for a5 "$TWO" "$READ"; verdict_for a5 $'已改好前兩項。\n- [audit] F1 fixture 不存在；W99-9 根本不存在' "$REP"
+[[ "$(run_claim a5 $'已改好前兩項。\n- [audit] F1 fixture 不存在；W99-9 根本不存在' "$TRT")" == block ]] || { echo "FAIL: a claim riding on an [audit] line escaped" >&2; exit 1; }
+ledger_for a6 "$TWO" "$READ"; verdict_for a6 $'W43-18 還沒做\n- [audit] F1 fixture 不存在' "$REP"
+[[ "$(run_claim a6 $'W43-18 還沒做\n- [audit] F1 fixture 不存在' "$TRT")" == block ]] || { echo "FAIL: a negative line beside an [audit] line escaped" >&2; exit 1; }
+ledger_for a12 "$TWO" "$READ"; verdict_for a12 '已改好前兩項。' "$REP"
+gate_out a12 '已改好前兩項。' | jq -r '.reason // empty' | grep -q 'does not relay: F1' || { echo "FAIL: REPORTED passed a reply that drops finding F1" >&2; exit 1; }
+ledger_for a7 "$TWO" "$READ"; verdict_for a7 '說明如下' 'not json'
+[[ "$(run_claim a7 '說明如下' "$TRT")" == block ]] || { echo "FAIL: unreadable verdict passed" >&2; exit 1; }
+ledger_for a8 "$TWO" "$READ"; verdict_for a8 '說明如下' '{"verdict":"FAIL","reason":"r"}'
+got="$(run_claim a8 '說明如下' "$TRT") $(run_active a8 '說明如下') $(run_active a8 '說明如下') $(run_active a8 '說明如下') $(run_active a8 '說明如下')"
+[[ "$got" == "block block block block " && "$(held_of a8)" == held ]] || { echo "FAIL: audit chain cap: got '$got' $(held_of a8)" >&2; exit 1; }
+ledger_for a9 "$TWO" "$READ"; verdict_for a9 '說明如下' '{"verdict":"FAIL","reason":"r"}'; rm "$TEST_HOME/.local/state/agent-hooks/a9/audit/active"
+[[ -z "$(run_claim a9 '說明如下' "$TRT")" ]] || { echo "FAIL: verdict enforced without the active marker" >&2; exit 1; }
+ledger_for a10 "$TWO" "$READ"; verdict_for a10 '說明如下' '{"verdict":"PASS"}'; echo '{"generation":"2"}' > "$TEST_HOME/.local/state/agent-hooks/a10/audit/current"
+[[ "$(run_claim a10 '說明如下' "$TRT")" == block ]] || { echo "FAIL: a PASS from an earlier generation counted" >&2; exit 1; }
+ledger_for a11 "$TWO" "$READ"; verdict_for a11 $'說明如下\n自我稽核未執行：store-error，W43-18 還沒驗' '{"verdict":"UNAUDITED","reason":"store-error:EIO"}'
+out="$(gate_out a11 $'說明如下\n自我稽核未執行：store-error，W43-18 還沒驗')"
+[[ "$(jq -r '.decision // empty' <<<"$out")" == "" && "$(jq -r '.systemMessage // empty' <<<"$out")" == *store-error:EIO* && "$(held_of a11)" == held ]] \
+  || { echo "FAIL: UNAUDITED did not end the turn held and visible: $out" >&2; exit 1; }
 # a line that names no subject keeps the old bar (>= 2 calls); a printed evidence token binds a line
 ledger_for n6 "$TWO" "$READ"; [[ -z "$(run_claim n6 '重設計還在進行，頁面還沒更新' "$TRT")" ]] || { echo "FAIL: keyless line blocked on 2 calls" >&2; exit 1; }
 ledger_for n7 "$TWO";         [[ "$(run_claim n7 '重設計還在進行，頁面還沒更新' "$TRT")" == block ]] || { echo "FAIL: keyless line passed on 1 call" >&2; exit 1; }
