@@ -16,7 +16,7 @@ does that hand-off for you:
 | When | What happens |
 |---|---|
 | An offer card shows | The card's whole line and the explanation its Learn more would show go to the main agent as a prompt: "check it against the work; if it holds, fix it only within what the user already approved; a fix that needs the user's approval (a model tier, a push, a deletion, a change of scope) is not made: name it and ask; if it does not hold, say why in one line". Both are read from the built-in's store file, where it writes them with the card. A plugin's prompt waits until the running turn ends, so the agent is not interrupted. The prompt says when the card was flagged. The card is hidden from the band. |
-| A turn is running when the card shows | That prompt can wait for hours. So the card's line, its time, and "weigh it in the work still to do" go to the agent at once, after the main loop's next tool result. A subagent's tool result does not carry it. The prompt above still follows when the turn ends. |
+| A turn is running when the card shows | That prompt can wait for hours. So the card (line and explanation), its time, and "weigh it in the work still to do" go to the agent at once, after the main loop's next tool result. A subagent's tool result, or another plugin's own tool call, does not carry it. The prompt above still follows when the turn ends, for the logged answer. |
 | That prompt's turn ends | The agent's answer (first 600 characters) is added under the card's row in the log. |
 | The next morning | Read the log: one folder per repo, one file per session in it. |
 
@@ -47,7 +47,7 @@ Above the prompt from the session start, folded to its header until you press `[
 [`../README.md`](../README.md):
 
 ```
-▌agent should know v0.1.7 · 2 heads-up · 1 handled [ ⧉ log ][ ▾ fold ][ hide ]
+▌agent should know v0.1.8 · 2 heads-up · 1 handled [ ⧉ log ][ ▾ fold ][ hide ]
   log: ~/.local/state/agent-should-know/agent_automation/2026-10-20-28d2c553.log
 ```
 
@@ -82,11 +82,11 @@ The built-in must be on: `/plugin enable cc-plugin-you-should-know@builtin`.
   `Knew this already`) and its tag (`Heads up ·` / `You should know ·`). A change to
   those in a Claude Code release stops the mod, silently.
 - If the mod reloads between the send and the answer, the answer row is not logged.
-- The early line needs one more tool call in the running turn. A turn that only writes its answer
+- The early card needs one more tool call in the running turn. A turn that only writes its answer
   after the card shows reads the card in the queued prompt only. During one long tool call (a build,
-  a wait), the line arrives when that call ends.
-- With a turn running, the agent reads each card twice: the line early, then the whole card and the
-  check. The log keeps the second answer only.
+  a wait), the card arrives when that call ends.
+- With a turn running, the agent reads each card twice: early, then with the check. The log keeps
+  the second answer only, so the verdict row stays the answer to this card, not the long task's.
 - The answer row is the first main turn to end after the one the relay waited behind.
   A prompt you type while the relay waits can run first; its answer is then logged
   as the verdict. An unattended night has no such prompt.

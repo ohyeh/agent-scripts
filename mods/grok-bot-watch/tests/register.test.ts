@@ -348,6 +348,62 @@ function textOf(node: unknown): string {
 /** The band as one line of text: each Text node is its own entry in textOf. */
 const flat = async ($: { ui: { render: (e: ReturnType<typeof band>) => Promise<unknown> } }) => textOf(await $.ui.render(band())).replace(/\n/g, '')
 
+describe('mid-turn delivery (0.18.0)', () => {
+  /** Nothing beneath the mod answers a model request, a Read or a turn's end in a test: the floor. */
+  const floor = (on: On) => {
+    on('turn.step', async function* () {
+      return { turnId: 't1', index: 0, answer: '', toolUses: [], stopReason: 'end_turn' } as never
+    })
+    on('tool.call', { tool: 'Read' }, () => ({ result: 'file text' }) as never)
+    on('turn.complete', () => ({ text: '' }) as never)
+  }
+  /** One model request of the turn; `agentId` makes it a subagent's. */
+  const step = async ($: { turn: { step: (input: never) => AsyncIterable<unknown> } }, agentId?: string) => {
+    for await (const _ of $.turn.step({ turnId: 't1', index: 0, model: 'm', messageCount: 1, ...(agentId ? { agentId } : {}) } as never)) void _
+  }
+  const read = (agentId?: string) => ({ tool: 'Read', file_path: '/x', ...(agentId ? { agentId } : {}) }) as never
+  const contextOf = (r: unknown) => ((r as { context?: readonly string[] }).context ?? []).join('\n')
+  const turnEnd = { answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' } as never
+
+  test('a reply that settles mid-turn rides the next main-loop tool result once, and is counted', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A')), ok(row('A')), ok(row('B')), ok(row('B'))])
+    floor(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await step($)
+    await clock.advance(TICK * 3)
+    expect(w.woken, 'no turn of its own while the turn runs').toEqual([])
+
+    expect(contextOf(await $.tool.call(read('sub-1'))), 'a subagent never carries it').toEqual('')
+    expect(contextOf(await $.tool.call(read()))).toContain('preview: [w:*] B')
+    expect(contextOf(await $.tool.call(read())), 'carried once').toEqual('')
+    await macrotask()
+    expect((w.kv.get(key) as { wakes?: number }).wakes).toBe(1)
+    await $.turn.complete(turnEnd)
+    await macrotask()
+    expect(w.woken, 'and never submitted afterwards').toEqual([])
+  })
+
+  test('with no later tool call the wake is submitted when the turn ends, stamped with its wait', async ($, on) => {
+    const clock = mock.clock(on)
+    const w = world(on, [ok(row('A')), ok(row('A')), ok(row('B')), ok(row('B'))])
+    floor(on)
+    await $.session.start(start)
+    await $.tool.call({ tool: WATCH, botUuid: UUID })
+    await step($)
+    await clock.advance(TICK * 3)
+    await clock.advance(120_000)
+    expect(w.woken).toEqual([])
+
+    await $.turn.complete(turnEnd)
+    for (let i = 0; i < 5 && w.woken.length === 0; i += 1) await macrotask()
+    expect(w.woken.length).toBe(1)
+    expect(w.woken[0]).toContain('preview: [w:*] B')
+    expect(w.woken[0]).toMatch(/\(ready \d\d:\d\d, delivered \d\d:\d\d: 2 min later\)/)
+  })
+})
+
 describe('panel (T7, T4)', () => {
   test('no watch of ours: no bot row, only the header and the hint', async ($, on) => {
     mock.clock(on)

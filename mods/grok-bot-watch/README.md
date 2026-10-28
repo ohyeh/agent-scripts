@@ -4,6 +4,12 @@ A Claude Code function-hook mod. You watch a Grok Bot bot by UUID; the mod
 reads the app's sidebar every 10 s and submits one prompt to this session when
 the bot finishes a new reply. The session no longer has to poll.
 
+A plugin's prompt waits until the session is idle, so a reply that settled during a
+long turn used to wait for that turn to end. While the main loop's turn runs, the wake
+now goes to the agent after the main loop's next tool result instead (a subagent's
+tool result does not carry it). A turn with no further tool call gets it as a prompt when
+it ends, with `(ready HH:MM, delivered HH:MM: N min later)` once it waited a minute.
+
 ## Requirements
 
 - `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`; without it the plugin does not load

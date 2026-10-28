@@ -140,7 +140,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   expect(await contextOf({ ...bash, agentId: 'a1' })).toEqual([])
   const early = await contextOf(bash)
   expect(early.length).toBe(1)
-  expect(early[0]).toMatch(/^A side agent .*\(at \d{4}-\d{2}-\d{2}T[\d:]{8}Z, while this turn runs\)\n> Heads up · 兩張單程票被加總了。來回票更便宜。\n.*approves nothing/)
+  expect(early[0]).toMatch(/^A side agent .*\(at \d{4}-\d{2}-\d{2}T[\d:]{8}Z, while this turn runs\)\n> Heads up · 兩張單程票被加總了。來回票更便宜。\n>\n> \*\*Why it matters\*\*\n> - The plan page lists 2\.91 萬\.\n.*approves nothing/)
   expect(await contextOf(bash)).toEqual([])
 
   // One file for this session: <project>/<day>-<sid8>.log
@@ -166,7 +166,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   expect([...rows].sort()).toEqual(rows)
 
   // The band counts it, and a fresh start (a reload) counts the same file again.
-  expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.1.7 · 1 heads-up · 1 handled')
+  expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.1.8 · 1 heads-up · 1 handled')
   await $.session.start(start)
   expect(textOf(await $.ui.render(band()))).toContain('· 1 heads-up · 1 handled')
 })
@@ -210,7 +210,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
 
   // Empty state, folded from the start: the header alone.
   const wide = textOf(await $.ui.render(band(120)))
-  expect(wide).toContain('▌agent should know v0.1.7 · no heads-up yet')
+  expect(wide).toContain('▌agent should know v0.1.8 · no heads-up yet')
   expect(wide).toContain('[ ⧉ log ][ ▸ open ][ hide ]')
   expect(wide).not.toContain('logged in')
   expect(textOf(await $.ui.render(band(50)))).toContain('[ ⧉ ][ ▸ ][ ✕ ]')
@@ -237,7 +237,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
   expect(textOf(await $.ui.render(band(120)))).not.toContain('agent should know')
   const shown = await $.command.run(cmd)
   expect(shown.text).toContain('band shown. 0 heads-up · 0 handled this session')
-  expect(textOf(await $.ui.render(band(120)))).toContain('▌agent should know v0.1.7')
+  expect(textOf(await $.ui.render(band(120)))).toContain('▌agent should know v0.1.8')
   expect((await $.command.run(cmd)).text).toContain('band hidden; /heads-up shows it again.')
 })
 

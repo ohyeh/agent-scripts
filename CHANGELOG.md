@@ -1,5 +1,15 @@
 # Changelog
 
+## grok-bot-watch 0.18.0
+
+Owner 10-28: 「同理 grok bot watch … 也要一起看」.
+
+- **A wake no longer waits for the long turn**: a wake was a plugin prompt, which runs only once the session is idle; in the 10-28 transcript scan (sol, argon) a reply that settled mid-turn waited up to 3.9 min. While the main loop's turn runs, the wake now parks and goes with the main loop's next tool result (`tool.call` `context`, origin engine only), once; a turn with no further tool call gets it as a prompt at its end, stamped `(ready HH:MM, delivered HH:MM: N min later)`. The tmux-agent mod's pattern (0.45). The `watch` tool texts say so. 2 tests.
+
+## agent-should-know 0.1.8
+
+- **The early card is whole and reaches the model**: sol and argon (10-28 review) found two gaps in 0.1.7. Another plugin's own `$.tool.call` also took the card, but its context reaches no model (`claude-code.d.ts:13595`); the hook now takes only the model's own calls (origin engine), as tmux-agent does. And mid-turn the agent read only the card's line: it now reads the explanation too. The queued prompt stays, so the logged verdict is still the answer to this card (argon's single delivery would log the long task's reply). Mid-turn delivery is no longer unconfirmed: this session received tmux-agent notices as `tool.call hook additional context`, and argon found `hook_additional_context` rows before the next model request in the transcripts.
+
 ## agent-should-know 0.1.7
 
 Owner 10-28: 「他會被 queue 住 然後有可能長任務 送出已經不知道過多久了」.

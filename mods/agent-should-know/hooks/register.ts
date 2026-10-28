@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { cells, fit, rowsOf } from './lib/band.ts'
 
-const MOD_VERSION = '0.1.7'
+const MOD_VERSION = '0.1.8'
 const NAME = 'agent-should-know'
 const COMMAND = 'heads-up'
 const ACCENT = 'magenta'
@@ -180,7 +180,7 @@ async function relay($: EngineInterface, s: State, line: string) {
   // A long turn can run for hours before the prompt below is read: its next tool result carries the line now.
   const waited = s.running !== undefined
   if (waited)
-    s.early = `${PREFIX} (at ${s.flagged}, while this turn runs)\n${quote(card.line)}\nWeigh it in the work still to do; it approves nothing. Its explanation and a check follow as a prompt when this turn ends.`
+    s.early = `${PREFIX} (at ${s.flagged}, while this turn runs)\n${body}${note}\nWeigh it in the work still to do; it approves nothing. A check of it follows as a prompt when this turn ends.`
   const when = `\nFlagged at ${s.flagged}${waited ? ', while a turn ran: check it against the work as it stands now.' : '.'}`
 
   // A plugin's prompt waits until the running turn ends: no interruption.
@@ -259,10 +259,11 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // The main loop's next tool result only; a subagent's would not reach the main agent.
+  // The main loop's next tool result only: a subagent's would not reach the main agent, and
+  // a plugin's own `$.tool.call` (origin not engine) reaches no model.
   on('tool.call', async ($, e, next) => {
     const r = await next(e)
-    if (s.early === null || e.agentId !== undefined || 'deny' in r) return r
+    if (s.early === null || next.origin.plugin !== 'engine' || e.agentId !== undefined || 'deny' in r) return r
     const early = s.early
     s.early = null
     return { ...r, context: [...(r.context ?? []), early] }
