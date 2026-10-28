@@ -1057,6 +1057,8 @@ test('R2: an MCP write whose content is a bare slash is not a protected-path wri
   const g = judge(on)
   await $.session.start(start)
   expect(await call($, { tool: 'mcp__filesystem__write_file', path: 'notes.txt', content: '/' })).toBe('ok')
+  // A target nested under a payload-like key is still checked.
+  expect(await call($, { tool: 'mcp__filesystem__write_file', data: { path: `${AUDIT}/current` }, content: '{}' })).toMatch(/denied/)
 })
 
 test('F1: each final step rewrites every audit projection, including unchanged files and a forged PASS', async ($, on) => {
