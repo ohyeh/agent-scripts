@@ -1,4 +1,4 @@
 {
-  "description": "Reads the You should know offer card above the prompt, submits it to the main agent, hides it, and logs it with the agent's answer.",
+  "description": "Keeps the owner ledger, holds tools until the agent aligns, audits the final step for the Stop gate, and relays the You should know card to the main agent.",
   "modules": ["./register.ts"]
 }

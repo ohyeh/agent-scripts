@@ -47,34 +47,58 @@ Above the prompt from the session start, folded to its header until you press `[
 [`../README.md`](../README.md):
 
 ```
-▌agent should know v0.2.0 · 2 heads-up · 1 handled · audits 4/6 · 2→1 · 81200 tok ⚠ 1 disclosed [ ⧉ log ][ ▾ fold ][ hide ]
+▌agent should know v0.2.0 · 1 asks open · audit FAIL E2 · coverage known · U3 糾正 · 2 heads-up · 1 handled ⚠ held: REPORTED E1: F1 still open [ ⧉ log ][ ▾ fold ][ hide ]
   log: ~/.local/state/agent-should-know/agent_automation/2026-10-20-28d2c553.log
 ```
 
-- The count is this session's: cards flagged, and verdicts logged for them.
-- `audits p/n · f→r · t tok` shows once the first audit ran: audits that passed of all
-  audits, episodes that failed → findings resolved, and the judges' tokens.
-- `⚠ d disclosed · u unaudited` and `⚠ ledger not written` show in yellow, never dim, only
-  when they are not zero; the plain counts are cut first when the line is short.
+- The status: owner asks still open, the last verdict and its episode, the coverage label
+  (`known`, `unconfirmed` for rows read back from the transcript, `unknown` when rows may be
+  missing), and the kind the classifier gave the newest rows (糾正, 指令, 一般).
+- Then this session's cards: flagged, and verdicts logged for them.
+- `⚠ …` in red, never dim, cut last: `held: <reason>`, `store-error:<class>`,
+  `U<n> Retro stuck: /asks release U<n>`, `gate marker not written`, `off`.
 - `[ ⧉ log ]` opens the session's log (macOS `open`); before the first card it says
   nothing is logged yet.
 - Open, it shows the log's path; with no card yet, one line on what will be logged where.
 - `[ hide ]` takes the band away; `/heads-up` shows it again and prints the count and
   path. Narrow: `[ ⧉ ][ ▾ ][ ✕ ]`.
 
-## Owner ledger, alignment and self-audit (0.2.0)
+## Owner ledger, hold and self-audit (0.2.0)
 
 | Part | What it does |
 |---|---|
-| Owner ledger | Every prompt you type (`composer`), send from the phone (`bridge`) or queue is one row, kept whole, with its attachment names and the spans you quoted or pasted (material, not a command). A slash command you type is an `owner-command` row. `sdk`, `channel`, `slack-ping` and `unclassified` prompts are `unknown` rows: kept, never an ask. Peers, plugins (`asUser` too) and task notifications are not ledgered. The file is `~/.local/state/agent-should-know/<repo>/<day>-<sid8>.asks.jsonl`; a reload reads it back. A resume adds a row that says the earlier asks are not in this ledger. |
-| Compaction | Each main-loop compaction tells the summarizer to quote every owner message verbatim, in order (after any instructions already given). After it, the next main-loop tool result and your next prompt carry the ledger: whole up to 60,000 characters, else the open rows, the newest 20 and the path. |
-| Alignment hold | Once your message reaches the model, tools that only read run (Read, Grep, Glob, ToolSearch, WebFetch, `rg`/`git log`-style Bash, …). The first other call is denied, with your message quoted, until the agent's text after it holds `U<n> 「…」 → <what I do now>`. When Haiku classifies the message as a correction (or cannot answer), the line is not enough: the text must hold a `Retro U<n>:` block (what was claimed, what the tools show, the rule missed, the corrected act). Subagents and plugin tool calls are not held. |
-| Self-audit | When a main turn ends, a judge reads the reply against the ledger and the evidence: a fork of the session first; when the fork does not answer, an evidence package (texts, tool calls with write bodies elided, results head 1,500 + tail 500 characters) goes to the session's model. Its JSON findings are checked by the mod (each quote must be in the reply, each ref in the ledger or the tool calls). FAIL blocks the stop with the findings, two rounds at most; then the reply must close with a `未解決的稽核項目` section that lists them (DISCLOSED). When no judge answers, or the answer is malformed, the reply must carry `自我稽核未執行：<reason>` (UNAUDITED). A block from a settings Stop hook and the audit's go out as one reason. |
+| Owner ledger | Every prompt you type (`composer`), send from the phone (`bridge`) or queue is one row, kept whole, with its attachment names and the spans you quoted or pasted (material, not a command). A slash command you type is one `owner-command` row. `sdk`, `channel`, `slack-ping` and `unclassified` prompts are `unknown` rows: kept, never an ask. A message from a peer, a plugin (`asUser` too) or the system (task notifications, `scheduled-trigger`, `auto-continuation`, `observer`, `observer-activity`, `projects-relay`, `peer-send-message`) is information, not an owner instruction: no row. The file is `~/.local/state/agent-should-know/<repo>/<day>-<sid8>.asks.jsonl`. A new row waits in the engine's `$.state` queue, with a pending count beside the ledger, until the file write lands; a failed write is retried by the next change. |
+| Resume | A start with a ledger for this session reads it back, adds the rows the state queue kept, and reads coverage `unknown` when the pending count names more rows than the queue holds, or the transcript holds owner text the ledger lacks. A start with no ledger but owner text in the transcript reads those rows back as `unconfirmed`. Neither lets an audit PASS until you check the ledger and type `/asks confirm`. |
+| Alignment hold | Once your message reaches the model, tools that only read run. The first other call is denied, with your message quoted, until the agent's text after it holds what Haiku asked for: `U<n> 「…」 → <what I do now>` for a directive, a `Retro U<n>:` block for a correction (or when the classifier cannot answer), nothing for a passive message. A Retro is checked by Haiku before the act runs; no answer, a bad answer or an error keeps the hold. After 3 failed checks only your `/asks release U<n>` lets the act run, and that episode cannot PASS. Subagents and plugin tool calls are not held. |
+| Reads | Read, Grep, Glob, ToolSearch, WebFetch, WebSearch, a named list of MCP read tools, and Bash in read shapes only: `cat`, `head`, `rg`, `grep`, `find`, `git status/diff/log/show`, `sed -n '<addr>p'`, `sort`, … per pipe segment, with no redirect and none of the options that write or run (`sed w`, `sort -o`, `git --output`, `rg --pre`, `find -exec`, a second `uniq` file, …). `rg -i` reads. |
+| Self-audit | At the main loop's final step (`turn.step`: no tool use, a stop reason) a judge reads the reply (`r.answer`, verbatim) against the ledger and the evidence: a fork of the session first; when the fork does not answer, the session's model with the episode's texts, tool calls and results whole. Both race a 60 s clock. The answer must be one JSON object; each finding names where its quote comes from (`reply`, `ask`, `align`, `tool`, `coverage`) and the mod checks it there. FAIL sends the findings back, two rounds at most; after that the reply must carry each finding as its own line `[audit] <id> <problem>` (REPORTED: the asks stay open and the session is held). Only a PASS closes the asks it covered. |
+| Held | `~/.local/state/agent-hooks/<sid>/audit/held` (written by the settings Stop gate, or by the mod on REPORTED and align-unchecked): every tool that does not read is denied with its reason, and the band shows it in red. Only your own message (`composer`, `bridge`) clears it; clearing does not close a finding. |
 
-Log rows: `ask`, `align`, `retro`, `held <tool> U<n>`, `gate pass|block`, `audit-pass`,
-`audit-fail <ids>` (with its round), `audit-resolved <ids>`, `audit-disclosed`, `audit-unknown`,
-`finding-invalid`, `disclose-missing`. Each audit row carries the path that answered (`fork` or
-`alt`), its latency and its token usage.
+### The Stop gate's files
+
+The settings Stop hook `.agents/hooks/claim-evidence-gate.sh` reads, under `~/.local/state/agent-hooks/<sid>/`:
+
+| File | Written |
+|---|---|
+| `audit/active` | at session start and each turn start: `agent-should-know 0.2.0` (removed by `/asks off`) |
+| `audit/current` | `{"generation":"<n>"}`, bumped at each turn start and each ledger change; the turn start also removes `*.json`, `chain` and `missing-chain` |
+| `audit/<sha16>.json` | one per audited reply, named by the first 16 hex of sha256 over the reply with trailing ASCII whitespace trimmed: `verdict` (PASS, FAIL, UNKNOWN, REPORTED, UNAUDITED), `reason`, `generation` (the one at audit start; a result that lands after it moved is dropped), `turnId`, `episode`, `covered`, `tools`, and `findings` for FAIL and REPORTED |
+| `asks-open.md` | every open row verbatim, from `## Open owner asks (agent-should-know)` to `<!-- asks-open gen=<n> end -->`, written to a temp file and renamed |
+
+UNKNOWN reasons: `timeout`, `judge:<why>`, `protocol` (not one JSON object), `protocol:pass-with-findings`,
+`protocol:pass-not-complete`, `protocol:fail-without-valid-finding`, `coverage:<label>`, `align-unchecked:U<n>`,
+`hook-error:<class>`. UNAUDITED: `judge-cap` (3 judge calls since the last owner row), `store-error:<class>`
+(two ledger writes failed in a row).
+
+### `/asks`
+
+Only from your own Enter (`composer`, `bridge`): `/asks` prints the open count, the coverage and the last verdict;
+`/asks release U<n>` lets a stuck correction's act run (align-unchecked); `/asks confirm` sets coverage known;
+`/asks off` turns the hold and the audit off for this session and removes `audit/active`.
+
+Log rows: `ask`, `asks-open`, `classify`, `align`, `retro`, `passive`, `retro-check`, `held <tool> U<n>`,
+`held`, `released`, `judge` (path, latency, usage, `tok`), `audit-pass|fail|unknown|reported|unaudited`,
+`audit-stale`, `audit-resolved <ids>`, `finding-dropped`, `store-error`, `coverage`, `confirm`, `release`, `off`.
 
 ## Install
 
@@ -114,13 +138,8 @@ The built-in must be on: `/plugin enable cc-plugin-you-should-know@builtin`.
   does not show the running turn's text there yet, an Align line written in the same turn is not
   seen, and the write stays held until the next turn. A message the transcript reformats is never
   seen as delivered, so it opens no hold; a command row matches on `/name` only.
-- Bash counts as reading only by its first word per pipe segment; `-i` anywhere (also `rg -i`)
-  and redirects hold it. `sed -n` with a `w` command or `git diff --output` still pass.
-- The audit runs at every main-turn end and costs a judge call (high effort). Whether
-  `$.model.fork` answers inside a Stop hook, and what it costs, is measured in the log rows, not
-  promised here.
-- Unledgered origins: `scheduled-trigger`, `auto-continuation`, `observer`, `observer-activity`,
-  `projects-relay` and `peer-send-message` are not ledgered until the owner rules on them.
-- An alignment duty closes when its turn ends without a block, met or not; the audit's checks
-  (c) and (d) judge that turn.
-- The `gate` row folds every settings Stop hook into one verdict; it cannot say which one blocked.
+- A Bash shape outside the read list holds, also when it only reads (`python3 -c`, `awk`): the
+  list is shapes, not programs.
+- The audit runs at every main-turn end and costs a judge call (high effort). Whether the fork's own
+  model request comes back through `turn.step` is not known; the mod skips its own audit while one runs.
+- Only a PASS closes an ask. An ask answered by a later owner message stays open until an audit passes.

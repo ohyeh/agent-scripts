@@ -1,6 +1,7 @@
 {
   "name": "agent-should-know",
   "version": "0.2.0",
+  "types": "./types/state.d.ts",
   "description": "Keeps the owner's messages verbatim in a ledger, holds writing tools until the agent aligns to each new message, audits each reply against the ledger and the evidence before the turn ends, and relays each card of the built-in You should know mod to the main agent with its logged verdict.",
   "author": {
     "name": "PaulYeh",
