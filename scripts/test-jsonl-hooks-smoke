@@ -174,7 +174,7 @@ grep -q 'snapshot is incomplete' <<<"$asks_out" && { echo "FAIL: a whole snapsho
 asks_out="$(printf '%s' "$(jq -cn --arg t "$WORK/missing-transcript" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
 grep -q 'zEND」' <<<"$asks_out" || { echo "FAIL F7: missing transcript skipped asks-open snapshot" >&2; exit 1; }
 echo 'PASS F7: missing transcript injects asks-open snapshot'
-sed -i '' '$d' "$TEST_HOME/.local/state/agent-hooks/rc-asks/asks-open.md"
+f="$TEST_HOME/.local/state/agent-hooks/rc-asks/asks-open.md"; sed -i.bak '$d' "$f" && rm -f "$f.bak" # -i.bak: BSD and GNU sed both accept it
 grep -q 'open asks are UNKNOWN' <<<"$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")" \
   || { echo "FAIL: a snapshot with no end marker was passed on as whole" >&2; exit 1; }
 asks_out="$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",agent_id:"w1",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
