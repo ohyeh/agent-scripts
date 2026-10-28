@@ -235,7 +235,7 @@ ledger_for n7 "$TWO" "$READ"; [[ "$(run_claim n7 '自我稽核未執行：fork a
 verdict_for() { # $1 sid, $2 reply, $3 verdict JSON (or raw text); stamps generation 1 and makes it current
   local d="$TEST_HOME/.local/state/agent-hooks/$1/audit"; mkdir -p "$d"; : > "$d/active"; echo '{"generation":"1"}' > "$d/current"
   { printf '%s' "$3" | jq -ce '. + {generation:"1"}' 2>/dev/null || printf '%s' "$3"; } \
-    > "$d/$(printf '%s' "$2" | perl -0pe 's/\s+\z//' | shasum -a 256 | cut -c1-16).json"
+    > "$d/$(printf '%s' "$2" | perl -0pe 's/[\t\n\x0B\f\r ]+\z//' | shasum -a 256 | cut -c1-16).json"
 }
 gate_out() { # $1 sid, $2 reply, $3 stop_hook_active: the hook's whole JSON output
   printf '%s' "$(jq -cn --arg t "$TRT" --arg m "$2" --arg sid "$1" --argjson a "${3:-false}" '{session_id:$sid,transcript_path:$t,stop_hook_active:$a,last_assistant_message:$m}')" |
@@ -263,6 +263,8 @@ ledger_for a6 "$TWO" "$READ"; verdict_for a6 $'W43-18 還沒做\n- [audit] F1 fi
 [[ "$(run_claim a6 $'W43-18 還沒做\n- [audit] F1 fixture 不存在' "$TRT")" == block ]] || { echo "FAIL: a negative line beside an [audit] line escaped" >&2; exit 1; }
 ledger_for a12 "$TWO" "$READ"; verdict_for a12 '已改好前兩項。' "$REP"
 gate_out a12 '已改好前兩項。' | jq -r '.reason // empty' | grep -q 'does not relay: F1' || { echo "FAIL: REPORTED passed a reply that drops finding F1" >&2; exit 1; }
+ledger_for a13 "$TWO" "$READ"; verdict_for a13 '說明如下' '{"verdict":"PASS"}'
+[[ "$(run_claim a13 '說明如下　' "$TRT")" == block ]] || { echo "FAIL: a trailing U+3000 was trimmed (the mod trims ASCII whitespace only)" >&2; exit 1; }
 ledger_for a7 "$TWO" "$READ"; verdict_for a7 '說明如下' 'not json'
 [[ "$(run_claim a7 '說明如下' "$TRT")" == block ]] || { echo "FAIL: unreadable verdict passed" >&2; exit 1; }
 ledger_for a8 "$TWO" "$READ"; verdict_for a8 '說明如下' '{"verdict":"FAIL","reason":"r"}'

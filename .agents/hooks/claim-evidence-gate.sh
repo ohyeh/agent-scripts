@@ -62,7 +62,7 @@ if [ -f "$AUDIT_DIR/active" ]; then
   # One stop chain = one turn's Stop and its re-entries; a missing verdict gets one block per chain
   # (the fix adds a line, so a per-reply marker would block every re-entry).
   [ "$HOOK_ACTIVE" = "true" ] || { echo 0 > "$chain"; rm -f "$AUDIT_DIR/missing-chain"; }
-  ash="$(printf '%s' "$last" | perl -0pe 's/\s+\z//' | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
+  ash="$(printf '%s' "$last" | perl -0pe 's/[\t\n\x0B\f\r ]+\z//' | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
   gen="$(jq -r '.generation // empty' "$AUDIT_DIR/current" 2>/dev/null)"
   vf="$AUDIT_DIR/$ash.json"
   if [ -n "$gen" ] && [ -f "$vf" ] && [ "$(jq -r '.generation // empty' "$vf" 2>/dev/null)" = "$gen" ]; then
