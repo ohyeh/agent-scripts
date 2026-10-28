@@ -776,7 +776,8 @@ async function writeVerdict($: EngineInterface, s: State, sha: string, gen: numb
     // A PASS clears only a hold its own turn's audit set; REPORTED and earlier turns wait for the owner.
     if (s.held === null || (s.auditHeld && s.heldTurn === v.turnId)) await release($, s)
   } else {
-    if (s.held === null || s.auditHeld) {
+    // Re-set only a free hold or one this turn's audit owns: a REPORTED or earlier-turn hold is never handed over.
+    if (s.held === null || (s.auditHeld && s.heldTurn === v.turnId)) {
       s.held = `${v.verdict}: ${v.reason}`
       s.auditHeld = true
       s.heldTurn = v.verdict === 'REPORTED' ? null : v.turnId

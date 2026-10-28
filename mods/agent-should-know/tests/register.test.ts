@@ -1045,6 +1045,12 @@ test('F8: a PASS in a later turn keeps an earlier turn\'s FAIL hold until the ow
   await g.finish($, 'Later turn reply.', { turnId: 't2' }, { turnId: 't2' })
   expect((await g.verdict('Later turn reply.'))?.verdict).toBe('PASS')
   expect(await call($, EDIT)).toMatch(/held Edit/)
+  // A FAIL then PASS inside a later turn cannot take over the earlier hold and release it.
+  g.j.fork.push(answer({ verdict: 'FAIL', complete: false, findings: [{ id: 'F2', check: 'a', source: 'reply', quote: 'Third turn reply.', problem: 'No evidence' }] }))
+  await g.finish($, 'Third turn reply.', { turnId: 't3' }, { turnId: 't3' })
+  g.j.fork.push(PASS)
+  await g.finish($, 'Third turn fixed.', { turnId: 't3' }, { turnId: 't3' })
+  expect(await call($, EDIT)).toMatch(/held Edit/)
 })
 
 test('F1: each final step rewrites every audit projection, including unchanged files and a forged PASS', async ($, on) => {
