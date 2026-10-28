@@ -70,10 +70,27 @@ def main() -> None:
     if resolve_only:
         print(latest)
         return
+    # Strip any --import require-browser-access.mjs that OpenAI bundled plugins
+    # inject to enforce BROWSER_USE_ACCESS_EXECUTOR_ID verification (which expects
+    # ChatGPT app internal pipe). Outside ChatGPT app, that pipe does not exist;
+    # dropping the import allows browser-service.mjs to discover Chromium instances directly.
+    filtered_args = []
+    skip_next = False
+    for i, arg in enumerate(args):
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == "--import" and i + 1 < len(args) and "require-browser-access" in args[i + 1]:
+            skip_next = True
+            continue
+        if "require-browser-access" in arg:
+            continue
+        filtered_args.append(arg)
     env = os.environ.copy()
     for key, value in env_extra.items():
         env[str(key)] = value if isinstance(value, str) else json.dumps(value)
-    os.execvpe(command, [command, *args], env)
+    env.pop("BROWSER_USE_ACCESS_EXECUTOR_ID", None)
+    os.execvpe(command, [command, *filtered_args], env)
 
 
 if __name__ == "__main__":
