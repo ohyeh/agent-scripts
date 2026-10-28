@@ -1,8 +1,11 @@
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, ModelForkResult, ModelUsage, Register, SessionMessage, ToolCallInput } from 'claude-code'
 
+import { type Form, classified, classifierPrompt, formFound, formText, meets, readOnly } from './lib/align.ts'
+import { type Finding, discloseBlock, disclosed, evidence, failBlock, judgePrompt, parseVerdict, toolIds, verify } from './lib/audit.ts'
 import { cells, fit, rowsOf } from './lib/band.ts'
+import { type Kind, type Row, RESUME_NOTE, active, attachmentNames, kindOf, ledgerText, owns, parseRows, quotedSpans } from './lib/ledger.ts'
 
-const MOD_VERSION = '0.1.8'
+const MOD_VERSION = '0.2.0'
 const NAME = 'agent-should-know'
 const COMMAND = 'heads-up'
 const ACCENT = 'magenta'
@@ -21,6 +24,29 @@ const FOLD_KEY = `${NAME}.fold`
 const HIDE_KEY = `${NAME}.hidden`
 /** The session's log file, so a reload (or one after midnight) keeps writing and counting the same file. */
 const fileKey = (sid: string) => `file:${sid}`
+/** The owner ledger's path and last row number; the rows live in the file, which has no store size limit. */
+const asksKey = (sid: string) => `asks:${sid}`
+const dutiesKey = (sid: string) => `duties:${sid}`
+/** Kept in the store so a hot reload or a relayed turn does not reset an episode's counts. */
+const episodeKey = (sid: string) => `episode:${sid}`
+const QUOTE_ASKS = 'Quote every owner message verbatim in the summary, in order.'
+const FAIL_BLOCKS = 2
+
+/** One owner row's alignment duty: open once the row is delivered, met by the form the classifier asked for. */
+type Duty = { u: number; delivered: boolean; need?: Form; why?: string }
+type Disclose = { kind: 'cap'; problems: string[]; misses: number } | { kind: 'unknown'; reason: string; misses: number }
+type Episode = {
+  k: number
+  /** The first owner row of the episode: rows from here on joined it. */
+  from: number
+  fails: number
+  ids: string[]
+  /** Rows the last audit found open, kept in a cut ledger context. */
+  open: number[]
+  disclose: Disclose | null
+  compacted: boolean
+}
+const episodeAfter = (k: number, u: number): Episode => ({ k, from: u + 1, fails: 0, ids: [], open: [], disclose: null, compacted: false })
 
 type Node = { type?: string; props?: { label?: string }; children?: unknown[] }
 
@@ -82,7 +108,23 @@ type State = {
   file: { path: string; head: string; sid8: string } | null
   // The time of the card last flagged, which its verdict row names.
   flagged: string
-  count: { flagged: number; handled: number }
+  count: Count
+  // The owner ledger: every row, in memory and in its file; `broken` while the last write failed.
+  rows: Row[]
+  u: number
+  asksPath: string | null
+  broken: boolean
+  writing: Promise<void>
+  // A slash command command.run ledgered, so its prompt.submit is not a second row.
+  lastCommand: string | null
+  duties: Duty[]
+  classifying: Map<number, Promise<Form>>
+  ep: Episode
+  // After a compaction: the ledger rides the next main-loop tool result and the next owner prompt.
+  reinjectTool: boolean
+  reinjectPrompt: boolean
+  // Blocks the Stop hook's error handler gave in a row; it gives up after two so an erroring hook cannot loop a turn.
+  caught: number
   // The relayed card, and the turn it was queued behind (its answer is not the verdict).
   // A plugin's submit carries no turnId, so the running main turn is tracked here.
   pending: { over: string | undefined; card: string } | null
@@ -99,9 +141,25 @@ const errText = (err: unknown) => (err instanceof Error ? err.message : String(e
 const project = (s: State) => s.cwd.split('/').pop() || 'unknown'
 const folderOf = (s: State) => `${s.home}/.local/state/${NAME}/${project(s)}`
 
+type Count = ReturnType<typeof countOf>
+
+// Counted back from the log, so a reload shows what the session did. Fail counts episodes (their round 1),
+// so it reads against resolved; tok sums every judge call's usage.
 function countOf(text: string) {
   const rows = text.split('\n')
-  return { flagged: rows.filter(r => r.includes(' · flagged · ')).length, handled: rows.filter(r => / · handled \d/.test(r)).length }
+  const has = (re: RegExp) => rows.filter(r => re.test(r)).length
+  const audits = rows.filter(r => / · audit-(?:pass|fail|unknown)\b/.test(r))
+  return {
+    flagged: rows.filter(r => r.includes(' · flagged · ')).length,
+    handled: has(/ · handled \d/),
+    audits: audits.length,
+    pass: has(/ · audit-pass · /),
+    fail: has(/ · audit-fail .* round 1 · /),
+    resolved: has(/ · audit-resolved /),
+    disclosed: has(/ · audit-disclosed · E\d+ · DISCLOSED$/),
+    unaudited: has(/ · (?:audit-disclosed|disclose-missing) · E\d+ · UNAUDITED$/),
+    tok: audits.reduce((n, r) => n + Number(/ · tok (\d+)$/.exec(r)?.[1] ?? 0), 0),
+  }
 }
 
 function fileFor(s: State, path: string) {
@@ -207,10 +265,276 @@ async function setHidden($: EngineInterface, s: State, hidden: boolean) {
   await $.store.set(HIDE_KEY, hidden ? 'hidden' : 'shown').catch(err => $.ui.toast(`${NAME}: band state not saved (${errText(err)})`))
 }
 
+const auditPart = (c: Count) => (c.audits ? `audits ${c.pass}/${c.audits} · ${c.fail}→${c.resolved} · ${c.tok} tok` : '')
+const warnPart = (s: State) =>
+  [s.count.disclosed ? `${s.count.disclosed} disclosed` : '', s.count.unaudited ? `${s.count.unaudited} unaudited` : '', s.broken ? 'ledger not written' : '']
+    .filter(Boolean)
+    .join(' · ')
+
 function summary(s: State) {
   const where = s.file?.path ?? `${folderOf(s)}/ (no file yet)`
-  return `${s.count.flagged} heads-up · ${s.count.handled} handled this session · log: ${where}`
+  const audits = [auditPart(s.count), warnPart(s)].filter(Boolean).join(' · ')
+  return `${s.count.flagged} heads-up · ${s.count.handled} handled this session${audits ? ` · ${audits}` : ''} · log: ${where}`
 }
+
+// --- A: the owner ledger ---
+
+const flat = (t: string) => t.replace(/\s+/g, ' ').trim()
+
+// The whole ledger is written each time ($.fs has no append): a write after a failed one puts the missed rows
+// back, and writes queue so two rows never race.
+function writeRows($: EngineInterface, s: State): Promise<void> {
+  s.writing = s.writing.then(async () => {
+    try {
+      s.asksPath ??= `${folderOf(s)}/${iso().slice(0, 10)}-${s.sid.slice(0, 8)}.asks.jsonl`
+      await $.fs.write(s.asksPath, `${s.rows.map(r => JSON.stringify(r)).join('\n')}\n`)
+      await $.store.set(asksKey(s.sid), s.asksPath)
+      if (s.broken) $.ui.invalidate('ui.render')
+      s.broken = false
+    } catch (err) {
+      s.broken = true
+      $.ui.invalidate('ui.render')
+      $.ui.toast(`${NAME} v${MOD_VERSION}: owner ledger not written (${errText(err)}); audits read UNKNOWN until a write succeeds`)
+    }
+  })
+  return s.writing
+}
+
+const saveDuties = ($: EngineInterface, s: State) =>
+  $.store.set(dutiesKey(s.sid), s.duties).catch(err => $.ui.toast(`${NAME}: alignment duties not saved (${errText(err)})`))
+const saveEpisode = ($: EngineInterface, s: State) =>
+  $.store.set(episodeKey(s.sid), s.ep).catch(err => $.ui.toast(`${NAME}: audit episode not saved (${errText(err)})`))
+
+async function record($: EngineInterface, s: State, origin: Kind | 'resume', text: string, attachments: string[], turnId?: string) {
+  const row: Row = { u: ++s.u, at: iso(), origin, text, attachments, ...(turnId === undefined ? {} : { turnId }) }
+  const quoted = quotedSpans(text)
+  if (quoted.length) row.quoted = quoted
+  s.rows.push(row)
+  if (owns(row)) {
+    s.duties.push({ u: row.u, delivered: false })
+    await saveDuties($, s)
+  }
+  await writeRows($, s)
+  await logLine($, s, row.at, 'ask', `U${row.u} ${origin} · ${text.length} chars${attachments.length ? ` · ${attachments.join(', ')}` : ''}`)
+}
+
+// A slash command reaches both prompt.submit and command.run, in an order the types do not fix: the first ledgers it.
+// shortcut: the same command typed twice in a row, one of the two events missing, reads as one; upgrade on a turn id in command.run.
+async function recordCommand($: EngineInterface, s: State, kind: Kind, key: string, attachments: string[], turnId?: string) {
+  if (s.lastCommand === key) {
+    s.lastCommand = null
+    return
+  }
+  s.lastCommand = key
+  await record($, s, kind === 'owner' ? 'owner-command' : kind, key, attachments, turnId)
+}
+
+const ledgerFor = (s: State) => ledgerText(s.rows, new Set(s.ep.open), s.asksPath ?? '(not written)')
+const ledgerContext = (s: State) =>
+  `${NAME}: the conversation was compacted. The owner's messages of this session, verbatim (owner ledger):\n\n${ledgerFor(s)}`
+
+// --- B: the alignment hold ---
+
+// Where the row reached the model: the last user message that holds its text.
+// shortcut: a row whose text the transcript reformats never opens a duty; a command row matches on `/name` only.
+function deliveredAt(messages: readonly SessionMessage[], row: Row): number {
+  const probe = row.origin === 'owner-command' ? (row.text.split(/\s/)[0] ?? row.text) : flat(row.text).slice(0, 500)
+  return messages.findLastIndex(m => m.role === 'user' && flat(m.text).includes(probe))
+}
+
+const assistantText = (messages: readonly SessionMessage[], from: number) =>
+  messages
+    .slice(from + 1)
+    .filter(m => m.role === 'assistant')
+    .map(m => m.text)
+    .join('\n')
+
+// Started when the row is first seen delivered; awaited at the first call that writes. Any failure: Retro.
+function classify($: EngineInterface, s: State, d: Duty, previous: string, row: Row): Promise<Form> {
+  let p = s.classifying.get(d.u)
+  if (p === undefined) {
+    p = $.model
+      .complete({ model: 'haiku', prompt: classifierPrompt(previous, row.text), effort: 'low', maxTokens: 20, timeoutMs: 20_000 })
+      .then(
+        r => (r.isAnswered ? { need: classified(r.text), why: r.text.trim() === '' ? 'classifier said nothing' : undefined } : { need: 'retro' as const, why: `classifier ${r.reason}` }),
+        (err: unknown) => ({ need: 'retro' as const, why: `classifier error (${errText(err)})` }),
+      )
+      .then(({ need, why }) => {
+        d.need = need
+        if (why !== undefined) d.why = why
+        void saveDuties($, s)
+        return need
+      })
+    s.classifying.set(d.u, p)
+  }
+  return p
+}
+
+async function hold($: EngineInterface, s: State, e: ToolCallInput): Promise<string | null> {
+  if (s.duties.length === 0) return null
+  let messages: readonly SessionMessage[]
+  try {
+    messages = await $.session.messages()
+  } catch (err) {
+    // Fail open with a trace: a transcript the mod cannot read must not freeze every write.
+    $.ui.toast(`${NAME}: alignment not checked (${errText(err)})`)
+    return null
+  }
+  const isRead = readOnly(e.tool, e as unknown as Record<string, unknown>)
+  for (const d of [...s.duties]) {
+    const row = s.rows.find(r => r.u === d.u)
+    const at = row === undefined ? -1 : deliveredAt(messages, row)
+    if (row === undefined || at === -1) continue
+    if (!d.delivered) {
+      d.delivered = true
+      await saveDuties($, s)
+    }
+    const previous = messages.slice(0, at).findLast(m => m.role === 'assistant' && m.text.trim() !== '')?.text ?? ''
+    const need = d.need ?? classify($, s, d, previous, row)
+    if (isRead) continue
+    const found = formFound(assistantText(messages, at), d.u)
+    const want = await need
+    if (meets(found, want)) {
+      s.duties = s.duties.filter(x => x !== d)
+      await saveDuties($, s)
+      await logLine($, s, iso(), found === 'retro' ? 'retro' : 'align', `U${d.u}${want === 'retro' && d.why ? ` · ${d.why}` : ''}`)
+      continue
+    }
+    await logLine($, s, iso(), `held ${e.tool} U${d.u}`, found === 'align' ? 'align line, Retro needed' : 'no block')
+    const why = want === 'retro' ? (d.why ? ` (Retro needed: ${d.why})` : ' (the message corrects earlier work: Retro needed)') : ''
+    return `${NAME} held ${e.tool}: the owner's message U${d.u} has no alignment block in your text yet${why}. U${d.u} (verbatim): 「${row.text}」 Write ${formText(d.u, want)} in your reply text, then call the tool again. Tools that only read still run.`
+  }
+  return null
+}
+
+// --- C: the self-audit at Stop ---
+
+const usageText = (u: ModelUsage) =>
+  `in ${u.input_tokens} cr ${u.cache_read_input_tokens ?? 0} cw ${u.cache_creation_input_tokens ?? 0} out ${u.output_tokens}`
+const tokOf = (u: ModelUsage) => u.input_tokens + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + u.output_tokens
+const addUsage = (a: ModelUsage, b: ModelUsage): ModelUsage => ({
+  input_tokens: a.input_tokens + b.input_tokens,
+  output_tokens: a.output_tokens + b.output_tokens,
+  cache_read_input_tokens: (a.cache_read_input_tokens ?? 0) + (b.cache_read_input_tokens ?? 0),
+  cache_creation_input_tokens: (a.cache_creation_input_tokens ?? 0) + (b.cache_creation_input_tokens ?? 0),
+})
+const ZERO: ModelUsage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
+
+async function nextEpisode($: EngineInterface, s: State) {
+  s.ep = episodeAfter(s.ep.k + 1, s.u)
+  await saveEpisode($, s)
+}
+
+// The episode's disclose duty: met mechanically, else blocked again; a second miss ends it UNAUDITED.
+async function discloseTurn($: EngineInterface, s: State, need: Disclose, reply: string | undefined): Promise<string | null> {
+  const { k } = s.ep
+  if (reply !== undefined && disclosed(reply, need)) {
+    await logLine($, s, iso(), 'audit-disclosed', `E${k} · ${need.kind === 'cap' ? 'DISCLOSED' : 'UNAUDITED'}`)
+    await nextEpisode($, s)
+    return null
+  }
+  need.misses += 1
+  if (need.misses >= 2) {
+    await logLine($, s, iso(), 'disclose-missing', `E${k} · UNAUDITED`)
+    $.ui.toast(`${NAME}: E${k} ended without its disclosure; logged UNAUDITED`)
+    await nextEpisode($, s)
+    return null
+  }
+  await saveEpisode($, s)
+  return discloseBlock(k, need)
+}
+
+async function audit($: EngineInterface, s: State, reply: string | undefined): Promise<string | null> {
+  const ep = s.ep
+  if (ep.disclose !== null) return discloseTurn($, s, ep.disclose, reply)
+  const t0 = Date.now()
+  let usage = ZERO
+  let path: 'fork' | 'alt' = 'fork'
+  const stamp = () => `${path} · ${Date.now() - t0}ms · ${usageText(usage)} · tok ${tokOf(usage)}`
+  const unknown = async (reason: string) => {
+    await logLine($, s, iso(), 'audit-unknown', `E${ep.k} · ${reason} · ${stamp()}`)
+    ep.disclose = { kind: 'unknown', reason, misses: 0 }
+    await saveEpisode($, s)
+    return discloseBlock(ep.k, ep.disclose)
+  }
+  if (reply === undefined || reply.trim() === '') return unknown('reply-absent')
+  if (s.broken) return unknown('ledger-not-written')
+
+  const coverage: string[] = []
+  let messages: readonly SessionMessage[] = []
+  try {
+    messages = await $.session.messages()
+  } catch (err) {
+    coverage.push(`the transcript (${errText(err)})`)
+  }
+  if (ep.compacted) coverage.push('evidence from before the compaction')
+  const first = s.rows.find(r => r.u >= ep.from && owns(r))
+  const from = first === undefined ? -1 : deliveredAt(messages, first)
+  const asks = ledgerFor(s)
+  const why: string[] = []
+
+  let res: ModelForkResult | null = null
+  try {
+    res = await $.model.fork({
+      prompt: judgePrompt({ asks, episodeFrom: ep.from, reply, evidence: 'The conversation above is the evidence: its tool calls, their ids and their results.', coverage }),
+    })
+  } catch (err) {
+    why.push(`fork threw (${errText(err)})`)
+  }
+  if (res !== null && 'usage' in res) usage = addUsage(usage, res.usage)
+  if (res?.isAnswered !== true) {
+    if (res !== null && !res.isAnswered) why.push(`fork ${res.reason}`)
+    path = 'alt'
+    const ev = evidence(messages, Math.max(0, from))
+    const cover = [...coverage, ...(from === -1 ? ['where this episode starts (the whole transcript is sent)'] : []), ...(ev.isCut ? ['the oldest evidence (cut to size)'] : [])]
+    try {
+      const model = await $.session.model()
+      res = await $.model.complete({ model, prompt: judgePrompt({ asks, episodeFrom: ep.from, reply, evidence: ev.text, coverage: cover }), effort: 'high', maxTokens: 4000, timeoutMs: 120_000 })
+      usage = addUsage(usage, res.usage)
+      if (!res.isAnswered) why.push(`alt ${res.reason}`)
+    } catch (err) {
+      res = null
+      why.push(`alt threw (${errText(err)})`)
+    }
+  }
+  if (res === null || !res.isAnswered) return unknown(why.join('; '))
+
+  const v = parseVerdict(res.text)
+  if (v === null) return unknown(`malformed judge reply (${path})`)
+  if (v.verdict === 'UNKNOWN') return unknown(`the judge answered UNKNOWN (${path})`)
+  if (v.verdict === 'PASS') {
+    await logLine($, s, iso(), 'audit-pass', `E${ep.k} · ${stamp()}`)
+    if (ep.ids.length) await logLine($, s, iso(), `audit-resolved ${ep.ids.join(',')}`, `E${ep.k}`)
+    await nextEpisode($, s)
+    return null
+  }
+  const { valid, invalid } = verify(v.findings, reply, new Set(active(s.rows).map(r => r.u)), toolIds(messages))
+  for (const bad of invalid) await logLine($, s, iso(), 'finding-invalid', `E${ep.k} · ${bad}`)
+  if (valid.length === 0) return unknown(`FAIL with no valid finding (${path})`)
+  ep.fails += 1
+  ep.ids = [...new Set([...ep.ids, ...valid.map(f => f.id)])]
+  ep.open = [...new Set(valid.flatMap(f => (f.ref.kind === 'ask' ? [Number(/\d+/.exec(String(f.ref.id))?.[0])] : [])))]
+  await logLine($, s, iso(), `audit-fail ${valid.map(f => f.id).join(',')}`, `E${ep.k} · round ${ep.fails} · ${stamp()}`)
+  if (ep.fails <= FAIL_BLOCKS) {
+    await saveEpisode($, s)
+    return failBlock(ep.k, valid, v.complete)
+  }
+  ep.disclose = { kind: 'cap', problems: valid.map((f: Finding) => `${f.id}: ${f.problem}`), misses: 0 }
+  await saveEpisode($, s)
+  return discloseBlock(ep.k, ep.disclose)
+}
+
+// At a turn's end with no block, duties of rows the model saw close; so do undelivered rows older than a delivered one.
+async function closeDuties($: EngineInterface, s: State) {
+  const seen = Math.max(0, ...s.duties.filter(d => d.delivered).map(d => d.u))
+  const kept = s.duties.filter(d => !d.delivered && d.u > seen)
+  if (kept.length === s.duties.length) return
+  for (const d of s.duties) if (!kept.includes(d)) s.classifying.delete(d.u)
+  s.duties = kept
+  await saveDuties($, s)
+}
+
+const joinBlocks = (a: string | undefined, b: string) => (a ? `${a}\n\n${b}` : b)
 
 export const register: Register = on => {
   const s: State = {
@@ -219,7 +543,19 @@ export const register: Register = on => {
     home: '',
     file: null,
     flagged: '',
-    count: { flagged: 0, handled: 0 },
+    count: countOf(''),
+    rows: [],
+    u: 0,
+    asksPath: null,
+    broken: false,
+    writing: Promise.resolve(),
+    lastCommand: null,
+    duties: [],
+    classifying: new Map(),
+    ep: episodeAfter(1, 0),
+    reinjectTool: false,
+    reinjectPrompt: false,
+    caught: 0,
     pending: null,
     running: undefined,
     early: null,
@@ -239,7 +575,28 @@ export const register: Register = on => {
       s.file = fileFor(s, path)
       s.count = countOf(await $.fs.read(path).catch(() => ''))
     }
+    // A reload keeps the ledger, the open duties and the episode: the file holds the rows, the store the rest.
+    const asks = (await $.store.get(asksKey(s.sid))) as string | undefined
+    if (asks !== undefined) {
+      s.asksPath = asks
+      try {
+        s.rows = parseRows(await $.fs.read(asks))
+        s.u = s.rows.at(-1)?.u ?? 0
+      } catch (err) {
+        s.broken = true
+        $.ui.toast(`${NAME} v${MOD_VERSION}: owner ledger not read (${errText(err)}); audits read UNKNOWN until a write succeeds`)
+      }
+    }
+    s.duties = ((await $.store.get(dutiesKey(s.sid))) as Duty[] | undefined) ?? []
+    s.ep = ((await $.store.get(episodeKey(s.sid))) as Episode | undefined) ?? episodeAfter(1, s.u)
     await $.command.register({ name: 'heads-up', description: `Agent should know v${MOD_VERSION}: /${COMMAND} shows or hides the band, with this session's heads-up count and log` })
+    return next(e)
+  })
+
+  // Before the heads-up hook, which answers without next: its own run is an owner row too.
+  on('command.run', async ($, e, next) => {
+    const kind = kindOf(e.origin)
+    if (kind !== null) await recordCommand($, s, kind, `/${e.command}${e.args ? ` ${e.args}` : ''}`, [])
     return next(e)
   })
 
@@ -256,17 +613,75 @@ export const register: Register = on => {
   on('prompt.submit', async ($, e, next) => {
     const o = e.origin
     if (o?.kind === 'plugin' && (o.name === NAME || o.name.startsWith(`${NAME}@`))) s.pending = { over: e.turnId ?? s.running, card: s.flagged }
+    const kind = kindOf(o)
+    if (kind === null) return next(e)
+    // The text is kept whole: a cut row would let the audit miss the cut part.
+    const files = attachmentNames(e.attachments)
+    if (e.command !== undefined) await recordCommand($, s, kind, `/${e.command.name}${e.command.args ? ` ${e.command.args}` : ''}`, files, e.turnId)
+    else {
+      s.lastCommand = null
+      await record($, s, kind, e.text, files, e.turnId)
+    }
+    const r = await next(e)
+    if (!s.reinjectPrompt || kind !== 'owner' || r.drop !== undefined) return r
+    s.reinjectPrompt = false
+    return { ...r, context: [...(r.context ?? []), ledgerContext(s)] }
+  })
+
+  // The main loop only: a subagent's call is not the owner's turn, and a plugin's own `$.tool.call`
+  // (origin not engine) reaches no model.
+  on('tool.call', async ($, e, next) => {
+    if (next.origin.plugin !== 'engine' || e.agentId !== undefined) return next(e)
+    const held = await hold($, s, e)
+    if (held !== null) return { deny: held }
+    const r = await next(e)
+    if ('deny' in r) return r
+    const context = [...(r.context ?? [])]
+    if (s.early !== null) context.push(s.early)
+    s.early = null
+    if (s.reinjectTool) context.push(ledgerContext(s))
+    s.reinjectTool = false
+    return context.length === (r.context ?? []).length ? r : { ...r, context }
+  })
+
+  // The summary quotes the owner verbatim; after it the ledger itself rides the next tool result and owner prompt.
+  // shortcut: a precompute compaction counts as applied, so one the engine later drops re-sends the ledger once.
+  on('session.compact', async ($, e, next) => {
+    if (e.agentId !== undefined) return next(e)
+    const r = await next({ ...e, instructions: e.instructions ? `${e.instructions}\n\n${QUOTE_ASKS}` : QUOTE_ASKS })
+    if (r.messages === undefined) return r
+    s.reinjectTool = true
+    s.reinjectPrompt = true
+    s.ep.compacted = true
+    await saveEpisode($, s)
+    return r
+  })
+
+  on('classic.SessionStart', async ($, e, next) => {
+    if (e.source === 'resume') await record($, s, 'resume', RESUME_NOTE, [])
     return next(e)
   })
 
-  // The main loop's next tool result only: a subagent's would not reach the main agent, and
-  // a plugin's own `$.tool.call` (origin not engine) reaches no model.
-  on('tool.call', async ($, e, next) => {
+  // The settings' own Stop hooks run first; their block and the audit's go out as one reason.
+  on('classic.Stop', async ($, e, next) => {
     const r = await next(e)
-    if (s.early === null || next.origin.plugin !== 'engine' || e.agentId !== undefined || 'deny' in r) return r
-    const early = s.early
-    s.early = null
-    return { ...r, context: [...(r.context ?? []), early] }
+    if (e.agent_id !== undefined) return r
+    // shortcut: r folds every settings Stop hook into one verdict; the log cannot say which one blocked.
+    await logLine($, s, iso(), `gate ${r.block === undefined ? 'pass' : 'block'}`, `E${s.ep.k}`)
+    s.caught = 0
+    const block = await audit($, s, e.last_assistant_message)
+    if (block === null) {
+      if (r.block === undefined) await closeDuties($, s)
+      return r
+    }
+    return { ...r, block: joinBlocks(r.block, block) }
+  }).catch(async ($, e, next) => {
+    const r = await next(e)
+    if (e.agent_id !== undefined || s.caught >= 2 || disclosed(e.last_assistant_message ?? '', { kind: 'unknown' })) return r
+    s.caught += 1
+    const reason = `hook error ${next.error.kind}: ${(next.error.message ?? 'no message').split('\n')[0]}`
+    $.ui.toast(`${NAME} v${MOD_VERSION}: self-audit did not run (${reason})`)
+    return { ...r, block: joinBlocks(r.block, discloseBlock(s.ep.k, { kind: 'unknown', reason })) }
   })
 
   on('turn.complete', async ($, e, next) => {
@@ -302,15 +717,21 @@ export const register: Register = on => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const width = e.props.bodyColumns
     const title = `▌agent should know v${MOD_VERSION}`
-    const status = s.count.flagged ? ` · ${s.count.flagged} heads-up · ${s.count.handled} handled ` : ' · no heads-up yet '
+    const audits = auditPart(s.count)
+    const status = `${s.count.flagged ? ` · ${s.count.flagged} heads-up · ${s.count.handled} handled` : ' · no heads-up yet'}${audits ? ` · ${audits}` : ''} `
+    // Disclosed, unaudited and an unwritten ledger matter: never dim, never colour alone (rules 4, 5), and cut last.
+    const warn = warnPart(s) ? `⚠ ${warnPart(s)} ` : ''
     // Buttons say what they do when the header has room for it, else their icon (the workers band's rule).
     // ' [-]' is the engine's collapse control, drawn over the band's last cells: kept clear.
-    const words = cells(title) + cells(status) + cells('[ ⧉ log ][ ▾ fold ][ hide ] [-]') <= width
+    const words = cells(title) + cells(status) + cells(warn) + cells('[ ⧉ log ][ ▾ fold ][ hide ] [-]') <= width
+    const room = Math.max(0, width - cells(title) - (words ? 31 : 19))
+    const warned = fit(warn, room)
     const header = Box({
       flexDirection: 'row',
       children: [
         Text({ bold: true, color: ACCENT, children: title }),
-        Text({ dimColor: true, children: fit(status, Math.max(0, width - cells(title) - (words ? 31 : 19))) }),
+        Text({ dimColor: true, children: fit(status, room - cells(warned)) }),
+        ...(warned ? [Text({ color: 'yellow', children: warned })] : []),
         Button({ key: 'log', label: words ? '⧉ log' : '⧉', onPress: () => void openLog($, s).then(t => $.ui.toast(t), err => $.ui.toast(`${NAME}: ${errText(err)}`)) }),
         // Fold keeps the header (the count still changes); hide takes the band away until /heads-up.
         Button({

@@ -1,8 +1,12 @@
-./register.ts hooks: session.start, command.run{command=heads-up}, turn.start, prompt.submit, tool.call, turn.complete, ui.render{component=AbovePrompt}
+./register.ts hooks: session.start, command.run, command.run{command=heads-up}, turn.start, prompt.submit, tool.call, session.compact, classic.SessionStart, classic.Stop, turn.complete, ui.render{component=AbovePrompt}
 ./register.ts answers its own command: command.run{command=heads-up}
+./register.ts gating hook without .catch: command.run
 ./register.ts gating hook without .catch: prompt.submit
 ./register.ts gating hook without .catch: tool.call
-./register.ts calls: $.command.register, $.env.get, $.fs.exists (via openLog), $.fs.list (via storedCard), $.fs.read, $.fs.write (via logLine), $.process.run (via openLog), $.prompt.submit (via relay), $.session.id, $.store.get, $.store.set, $.ui.invalidate, $.ui.resolve, $.ui.toast
+./register.ts gating hook without .catch: session.compact
+./register.ts gating hook without .catch: classic.SessionStart
+./register.ts gating hook with .catch: classic.Stop
+./register.ts calls: $.command.register, $.env.get, $.fs.exists (via openLog), $.fs.list (via storedCard), $.fs.read, $.fs.write (via logLine, writeRows), $.model.complete (via audit, classify), $.model.fork (via audit), $.process.run (via openLog), $.prompt.submit (via relay), $.session.id, $.session.messages (via audit, hold), $.session.model (via audit), $.store.get, $.store.set, $.ui.invalidate, $.ui.resolve, $.ui.toast
 ./register.ts env writes: nothing
 ./register.ts env reads: HOME
 .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.

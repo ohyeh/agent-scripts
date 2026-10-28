@@ -47,16 +47,34 @@ Above the prompt from the session start, folded to its header until you press `[
 [`../README.md`](../README.md):
 
 ```
-▌agent should know v0.1.8 · 2 heads-up · 1 handled [ ⧉ log ][ ▾ fold ][ hide ]
+▌agent should know v0.2.0 · 2 heads-up · 1 handled · audits 4/6 · 2→1 · 81200 tok ⚠ 1 disclosed [ ⧉ log ][ ▾ fold ][ hide ]
   log: ~/.local/state/agent-should-know/agent_automation/2026-10-20-28d2c553.log
 ```
 
 - The count is this session's: cards flagged, and verdicts logged for them.
+- `audits p/n · f→r · t tok` shows once the first audit ran: audits that passed of all
+  audits, episodes that failed → findings resolved, and the judges' tokens.
+- `⚠ d disclosed · u unaudited` and `⚠ ledger not written` show in yellow, never dim, only
+  when they are not zero; the plain counts are cut first when the line is short.
 - `[ ⧉ log ]` opens the session's log (macOS `open`); before the first card it says
   nothing is logged yet.
 - Open, it shows the log's path; with no card yet, one line on what will be logged where.
 - `[ hide ]` takes the band away; `/heads-up` shows it again and prints the count and
   path. Narrow: `[ ⧉ ][ ▾ ][ ✕ ]`.
+
+## Owner ledger, alignment and self-audit (0.2.0)
+
+| Part | What it does |
+|---|---|
+| Owner ledger | Every prompt you type (`composer`), send from the phone (`bridge`) or queue is one row, kept whole, with its attachment names and the spans you quoted or pasted (material, not a command). A slash command you type is an `owner-command` row. `sdk`, `channel`, `slack-ping` and `unclassified` prompts are `unknown` rows: kept, never an ask. Peers, plugins (`asUser` too) and task notifications are not ledgered. The file is `~/.local/state/agent-should-know/<repo>/<day>-<sid8>.asks.jsonl`; a reload reads it back. A resume adds a row that says the earlier asks are not in this ledger. |
+| Compaction | Each main-loop compaction tells the summarizer to quote every owner message verbatim, in order (after any instructions already given). After it, the next main-loop tool result and your next prompt carry the ledger: whole up to 60,000 characters, else the open rows, the newest 20 and the path. |
+| Alignment hold | Once your message reaches the model, tools that only read run (Read, Grep, Glob, ToolSearch, WebFetch, `rg`/`git log`-style Bash, …). The first other call is denied, with your message quoted, until the agent's text after it holds `U<n> 「…」 → <what I do now>`. When Haiku classifies the message as a correction (or cannot answer), the line is not enough: the text must hold a `Retro U<n>:` block (what was claimed, what the tools show, the rule missed, the corrected act). Subagents and plugin tool calls are not held. |
+| Self-audit | When a main turn ends, a judge reads the reply against the ledger and the evidence: a fork of the session first; when the fork does not answer, an evidence package (texts, tool calls with write bodies elided, results head 1,500 + tail 500 characters) goes to the session's model. Its JSON findings are checked by the mod (each quote must be in the reply, each ref in the ledger or the tool calls). FAIL blocks the stop with the findings, two rounds at most; then the reply must close with a `未解決的稽核項目` section that lists them (DISCLOSED). When no judge answers, or the answer is malformed, the reply must carry `自我稽核未執行：<reason>` (UNAUDITED). A block from a settings Stop hook and the audit's go out as one reason. |
+
+Log rows: `ask`, `align`, `retro`, `held <tool> U<n>`, `gate pass|block`, `audit-pass`,
+`audit-fail <ids>` (with its round), `audit-resolved <ids>`, `audit-disclosed`, `audit-unknown`,
+`finding-invalid`, `disclose-missing`. Each audit row carries the path that answered (`fork` or
+`alt`), its latency and its token usage.
 
 ## Install
 
@@ -92,3 +110,17 @@ The built-in must be on: `/plugin enable cc-plugin-you-should-know@builtin`.
   as the verdict. An unattended night has no such prompt.
 - The repo folder is the last part of the session's start folder, not the git root:
   a session started in a subfolder files under that subfolder's name.
+- The alignment hold reads the agent's text from the transcript at each tool call. If the engine
+  does not show the running turn's text there yet, an Align line written in the same turn is not
+  seen, and the write stays held until the next turn. A message the transcript reformats is never
+  seen as delivered, so it opens no hold; a command row matches on `/name` only.
+- Bash counts as reading only by its first word per pipe segment; `-i` anywhere (also `rg -i`)
+  and redirects hold it. `sed -n` with a `w` command or `git diff --output` still pass.
+- The audit runs at every main-turn end and costs a judge call (high effort). Whether
+  `$.model.fork` answers inside a Stop hook, and what it costs, is measured in the log rows, not
+  promised here.
+- Unledgered origins: `scheduled-trigger`, `auto-continuation`, `observer`, `observer-activity`,
+  `projects-relay` and `peer-send-message` are not ledgered until the owner rules on them.
+- An alignment duty closes when its turn ends without a block, met or not; the audit's checks
+  (c) and (d) judge that turn.
+- The `gate` row folds every settings Stop hook into one verdict; it cannot say which one blocked.
