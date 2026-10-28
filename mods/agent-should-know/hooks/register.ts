@@ -123,6 +123,7 @@ type State = {
   // The gate's generation: bumped at turn.start and on every ledger change.
   gen: number
   projection: Record<string, string>
+  asksOpen: string | null
   dirty: boolean
   duties: Duty[]
   classifying: Map<number, Promise<Form | null>>
@@ -335,6 +336,8 @@ async function checkProjection($: EngineInterface, s: State, rewrite = false) {
   if (s.ledger !== null && await $.fs.read(s.ledger.path).catch(() => null) !== s.ledger.text) {
     bad.push('ledger')
   }
+  // asks-open.md feeds the compaction recall verbatim: an edit there would replace the owner's asks.
+  if (s.asksOpen !== null && await $.fs.read(`${gateDir(s)}/asks-open.md`).catch(() => null) !== s.asksOpen) bad.push('asks-open')
   try {
     for (const f of await $.fs.list(auditDir(s))) {
       if (/\.json$/.test(f.name) && !Object.hasOwn(s.projection, f.name)) {
@@ -369,6 +372,14 @@ async function checkProjection($: EngineInterface, s: State, rewrite = false) {
     } catch (err) {
       $.ui.toast(`${NAME}: ledger not restored (${errClass(err)}); held`)
       await logLine($, s, iso(), 'projection-error', `ledger:${errClass(err)}`)
+    }
+  }
+  if (bad.includes('asks-open') && s.asksOpen !== null) {
+    try {
+      await $.fs.write(`${gateDir(s)}/asks-open.md`, s.asksOpen)
+    } catch (err) {
+      $.ui.toast(`${NAME}: asks-open.md not restored (${errClass(err)}); held`)
+      await logLine($, s, iso(), 'projection-error', `asks-open:${errClass(err)}`)
     }
   }
   if (bad.length || rewrite) {
@@ -420,6 +431,7 @@ function persist($: EngineInterface, s: State, opts: { rows: boolean; bump: bool
       const text = openText(openRows(s), s.asksPath, s.gen)
       await $.fs.write(`${dst}.tmp`, text)
       await run($, ['mv', `${dst}.tmp`, dst])
+      s.asksOpen = text
       s.storeFails = 0
       s.storeErr = null
       s.dirty = false
@@ -903,6 +915,7 @@ export const register: Register = on => {
     writing: Promise.resolve(),
     gen: 0,
     projection: {},
+    asksOpen: null,
     dirty: false,
     duties: [],
     classifying: new Map(),

@@ -91,7 +91,7 @@ function segmentReads(seg: string): boolean {
   if (prog === 'git' && (sub === undefined || sub === null || !GIT_READ.has(sub))) return false
   const opts = words.slice(prog === 'git' ? 2 : 1) as string[]
   const gitFlags = opts.slice(0, opts.indexOf('--') < 0 ? opts.length : opts.indexOf('--'))
-  if (prog === 'git' && (sub === 'log' || sub === 'show') && (!gitFlags.includes('--no-ext-diff') || !gitFlags.includes('--no-textconv'))) return false
+  if (prog === 'git' && (sub === 'log' || sub === 'show' || sub === 'blame') && (sub !== 'blame' && !gitFlags.includes('--no-ext-diff') || !gitFlags.includes('--no-textconv'))) return false
   let paths = 0
   let end = false
   for (let i = 0; i < opts.length; i++) {

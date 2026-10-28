@@ -194,7 +194,7 @@ ledger_for() { # $1 sid, then JSON lines
 }
 run_claim() { # $1 sid, $2 last_assistant_message, [$3 transcript]
   printf '%s' "$(jq -cn --arg t "${3:-$TR3}" --arg m "$2" --arg sid "$1" '{session_id:$sid,transcript_path:$t,stop_hook_active:false,last_assistant_message:$m}')" |
-    HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/claim-evidence-gate.sh" | jq -r '.decision // empty'
+    HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" XDG_STATE_HOME="$TEST_HOME/.local/state" bash "$ROOT/.agents/hooks/claim-evidence-gate.sh" | jq -r '.decision // empty'
 }
 BEFORE='{"timestamp":"2025-12-31T23:59:00Z","tool":"Bash","evidence":["exit=0"]}'
 RUN0='{"timestamp":"2026-01-01T00:00:05Z","tool":"Bash","evidence":["exit=0","18/18 passed"]}'

@@ -616,12 +616,12 @@ test('K3: agent text, earlier or undelivered owner text, unknown rows and altere
   await say($, 'B 先不用做', { kind: 'sdk' })
   g.transcript.push(user('B 先不用做'))
   await say($, 'B 先不用做\n稍後再說')
-  const supersedes = [{ row_id: 'U2', quote: 'B 先不用做' }, { row_id: 'U2', quote: 'B  先不用做' }, { row_id: 'U99', quote: 'B 先不用做' }, null]
+  const supersedes = [{ row_id: 'U2', quote: 'B 先不用做' }, { row_id: 'U2', quote: 'B  先不用做' }, { row_id: 'U99', quote: 'B 先不用做' }, { row_id: 'U2', quote: '不用' }, null]
   g.j.fork.push(answer({ verdict: 'PASS', complete: true, findings: [], supersedes }))
   await g.finish($, REPLY)
   expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'UNKNOWN', reason: 'protocol:pass-with-dropped-findings' })
   expect(g.rows()[1]?.closed).not.toBe(true)
-  expect(g.log().filter(l => l.includes(' · finding-dropped · ')).length).toBe(4)
+  expect(g.log().filter(l => l.includes(' · finding-dropped · ')).length).toBe(5)
 })
 
 test('K3: PASS keeps a constraint open across reload; only a later owner quote closes it', async ($, on) => {
@@ -728,6 +728,16 @@ test('G3: rows read back from the transcript are unconfirmed: no PASS until /ask
   await asks($, 'confirm')
   await g.finish($, REPLY)
   expect(await g.verdict(REPLY)).toMatchObject({ verdict: 'PASS', covered: ['U1'] })
+})
+
+test('G7: an edited asks-open.md holds and is restored', async ($, on) => {
+  const g = judge(on)
+  await $.session.start(start)
+  await say($, 'keep the band')
+  const before = g.w.files.get(`${GATE}/asks-open.md`)
+  g.w.files.set(`${GATE}/asks-open.md`, `## Open owner asks (agent-should-know)\n(none open)\n<!-- asks-open gen=${g.gen()} end -->\n`)
+  expect(await call($, EDIT)).toMatch(/held Edit: tamper:asks-open/)
+  expect(g.w.files.get(`${GATE}/asks-open.md`)).toBe(before)
 })
 
 test('G7: asks-open.md holds each open row verbatim, header first, the end marker with the generation last, via a temp file', async ($, on) => {
@@ -1081,9 +1091,9 @@ test('F2: held Git status and diff are denied; log and show require both executi
   const g = judge(on)
   await $.session.start(start)
   g.w.files.set(`${AUDIT}/held`, JSON.stringify({ reason: 'git safety' }))
-  for (const command of ['git status', 'git diff', 'git status --no-ext-diff --no-textconv', 'git diff --no-ext-diff --no-textconv', 'git log', 'git show HEAD:file', 'git log --no-ext-diff', 'git show --no-textconv', 'git show -- --no-ext-diff --no-textconv'])
+  for (const command of ['git status', 'git diff', 'git status --no-ext-diff --no-textconv', 'git diff --no-ext-diff --no-textconv', 'git log', 'git show HEAD:file', 'git log --no-ext-diff', 'git show --no-textconv', 'git show -- --no-ext-diff --no-textconv', 'git blame f'])
     expect(await call($, { tool: 'Bash', command })).toMatch(/held Bash/)
-  for (const command of ['git log --no-ext-diff --no-textconv', 'git show --no-ext-diff --no-textconv HEAD:file'])
+  for (const command of ['git log --no-ext-diff --no-textconv', 'git show --no-ext-diff --no-textconv HEAD:file', 'git blame --no-textconv f'])
     expect(await call($, { tool: 'Bash', command })).toBe('ok')
 })
 

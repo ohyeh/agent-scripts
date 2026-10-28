@@ -88,7 +88,7 @@ export function superseded(entries: readonly unknown[], rows: readonly Row[], at
     const e = raw as { row_id?: unknown; quote?: unknown } | null
     const row = rows.find(r => r.u === rowOf(e?.row_id) && r.origin !== 'unknown' && !r.closed)
     const start = row === undefined ? undefined : at.get(row.u)
-    if (row !== undefined && start !== undefined && typeof e?.quote === 'string' && e.quote.trim() !== '' && rows.some(r => r.origin !== 'unknown' && r.u > row.u && (at.get(r.u) ?? -1) > start && r.text.includes(e.quote as string))) valid.push(row.u)
+    if (row !== undefined && start !== undefined && typeof e?.quote === 'string' && e.quote.trim().length >= 4 && rows.some(r => r.origin !== 'unknown' && r.u > row.u && (at.get(r.u) ?? -1) > start && r.text.includes(e.quote as string))) valid.push(row.u)
     else dropped.push(`supersedes #${i + 1}: no later delivered owner quote for ${String(e?.row_id)}`)
   })
   return { valid, dropped }
