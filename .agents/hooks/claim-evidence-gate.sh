@@ -106,7 +106,7 @@ if [ -f "$AUDIT_DIR/active" ]; then
       rm -f "$STATE_DIR/held-write-failed"
       jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "${SESSION_ID:-}" --arg r "$audit_hold" '{timestamp:$ts, claim:"audit", session:$sid, blocked:false, held:$r}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
     else
-      hold_error_message="無法寫入 held（$held_error）。agent-should-know 若仍在執行，會由它自己暫停非讀取工具；gate 無法確認這點，請看 band 是否顯示暫停。"
+      hold_error_message="無法寫入 held（${held_error}）。agent-should-know 若仍在執行，會由它自己暫停非讀取工具；gate 無法確認這點，請看 band 是否顯示暫停。"
       audit_reason=""
       audit_hold=""
       jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg error "$held_error" --arg message "$hold_error_message" '{timestamp:$ts, claim:"audit", error:$error, systemMessage:$message}' >> "${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/claim-evidence-stats.jsonl" 2>/dev/null
