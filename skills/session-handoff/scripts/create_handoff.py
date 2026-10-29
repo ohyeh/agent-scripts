@@ -264,9 +264,11 @@ def generate_handoff(
 
 ## Timeline
 
+Filter output for this session: [TODO: the `COUNT <n>` line from the session-log filter (SKILL.md RESUME Step 3b) run on this session's own log]
+
 | Time (UTC) | Who | Event (user quote verbatim, or the state change and its evidence) |
 |------------|-----|------------------------------------------------------------------|
-| [TODO: time] | user | [TODO: every user request, ruling and correction, from the full user-message list (RESUME Step 3b), in order] |
+| [TODO: time] | user | [TODO: one row per line the filter printed, in order] |
 | [TODO: time] | agent | [TODO: commit / push / deploy / worker start or stop, with its evidence] |
 
 ## Codebase Understanding

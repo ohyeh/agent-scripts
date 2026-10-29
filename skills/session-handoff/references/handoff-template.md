@@ -48,6 +48,8 @@ Use this template structure when creating handoff documents. The smart scaffold 
 
 ## Timeline
 
+Filter output for session [SESSION-ID]: `COUNT [n]` (one `user` row below per printed line)
+
 | Time (UTC) | Who | Event (user quote verbatim, or the state change and its evidence) |
 |------------|-----|------------------------------------------------------------------|
 | [TIME] | user | [「verbatim request, ruling or correction」] |

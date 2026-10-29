@@ -40,6 +40,7 @@ REQUIRED_SECTIONS = [
     "Current State Summary",
     "Important Context",
     "Immediate Next Steps",
+    "Timeline",
 ]
 
 # Recommended sections
@@ -92,6 +93,26 @@ def check_required_sections(content: str) -> tuple[bool, list[str]]:
                 missing.append(f"{section} (incomplete)")
 
     return len(missing) == 0, missing
+
+
+def check_timeline(content: str) -> list[str]:
+    """Timeline must hold one `user` row per user message, as counted by the `COUNT <n>` lines."""
+    m = re.search(r'(?:^|\n)(#{2,6})\s*Timeline', content, re.I)
+    if not m:
+        return []  # a missing section is already reported by check_required_sections
+    body = re.split(rf'\n#{{2,{len(m.group(1))}}}\s+', content[m.end():])[0]
+    counts = [int(n) for n in re.findall(r'COUNT\s+(\d+)', body)]
+    if not counts:
+        return ["Timeline has no `COUNT <n>` line from the session-log filter"]
+    rows = sum(
+        1 for line in body.splitlines()
+        if line.lstrip().startswith('|')
+        and len(cells := line.strip().strip('|').split('|')) > 1
+        and cells[1].strip().lower() == 'user'
+    )
+    if rows != sum(counts):
+        return [f"Timeline has {rows} user row(s) but the COUNT line(s) total {sum(counts)}"]
+    return []
 
 
 def check_recommended_sections(content: str) -> list[str]:
@@ -186,6 +207,7 @@ def validate_handoff(filepath: str) -> dict:
     # Run checks
     todos_clear, remaining_todos = check_todos(content)
     required_complete, missing_required = check_required_sections(content)
+    timeline_problems = check_timeline(content)
     missing_recommended = check_recommended_sections(content)
     secrets_found = scan_for_secrets(content)
     existing_files, missing_files = check_file_references(content, str(base_path))
@@ -197,6 +219,7 @@ def validate_handoff(filepath: str) -> dict:
         "todo_count": len(remaining_todos) if not todos_clear else 0,
         "required_complete": required_complete,
         "missing_required": missing_required,
+        "timeline_problems": timeline_problems,
         "missing_recommended": missing_recommended,
         "secrets_found": secrets_found,
         "files_verified": len(existing_files),
@@ -232,6 +255,14 @@ def print_report(result: dict):
         for section in result['missing_required']:
             print(f"       - {section}")
 
+    # Timeline
+    if result['timeline_problems']:
+        print("\n[FAIL] Timeline check:")
+        for problem in result['timeline_problems']:
+            print(f"       - {problem}")
+    else:
+        print("\n[PASS] Timeline user rows match COUNT")
+
     # Secrets
     if not result['secrets_found']:
         print("\n[PASS] No potential secrets detected")
@@ -266,6 +297,7 @@ def print_report(result: dict):
         blockers.append(f"fill {result['todo_count']} remaining [TODO: ...] placeholder(s)")
     if result['missing_required']:
         blockers.append("add required section(s): " + ", ".join(result['missing_required']))
+    blockers.extend(result['timeline_problems'])
 
     if blockers:
         print("Verdict: BLOCKED")
