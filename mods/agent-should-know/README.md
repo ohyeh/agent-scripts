@@ -1,39 +1,6 @@
 # agent-should-know
 
-Version 0.3.2 keeps the card relay below and adds a report-only owner-ask observer.
-It never denies tools or asks the Stop gate to enforce an audit.
-
-- `/asks` shows health, native owner UUIDs, exact item spans and audit details.
-- `/asks off` cancels the current epoch in memory first, then saves the session control.
-- `/asks on` clears degraded state after the cause is resolved. It refuses a second audit while an old request settles.
-- `/asks migrate` is an explicit owner maintenance action. Stop old 0.2 producers first. It inventories old `*.asks.jsonl`, saves byte-preserving backups, then archives them under `_v0.2-archive/`. A second run changes nothing. It preserves new `owner.asks.jsonl` files and all other owner text.
-
-New records live under `~/.local/state/agent-should-know/<fullSid>/`: `owner.asks.jsonl`,
-`audit/<bundle-sha256>.evidence.json`, the matching result JSON, and `diagnostics.jsonl`
-(continued in `diagnostics.1.jsonl`, `diagnostics.2.jsonl`, ... at 256 KiB each).
-The historical compaction index stays at `agent-hooks/<fullSid>/asks-open.md`.
-All records use schema 1. Native composer and bridge rows define owner authority;
-peer, plugin, queued and unclassified text cannot create asks. Each item keeps its exact UUID and span.
-The judge's interpretation stays separate. A PASS can answer tasks with reply and tool references;
-constraints stay open. Missing evidence, protocol errors and timeouts produce UNKNOWN.
-
-The audit starts once from a tracked `clock.after(0, callback)` at turn end. It uses
-the turn's model, high effort, `maxTokens: 16000` and `timeoutMs: 180000` (0.3.1: the 1024-token
-API default left 15 of 17 audits on 2026-10-29 as `empty-reply` or `invalid JSON`). An UNKNOWN
-result file keeps `output_tokens` and the first 500 characters of the reply as `excerpt`. Before implementation, the real
-model wait measured 60013 ms inside a hook (budget 10000 to 9998), and 60023 ms in
-the callback (budget 10000 to 10000); the timer hook returned in 10.4 ms while tools ran.
-Audit notices use `ui.log`, including headless `ui_log`, and never submit prompts.
-Off, clear and a new owner message cancel the epoch; late results cannot close new asks.
-
-At start only `file:`, `asks:`, `off:`, `duties:` and `episode:` are removed with
-`store.delete`. A cleanup error stays visible as `cleanup incomplete`; tools still run.
-Non-empty sid keys are not removed. Resume can use native engine recovery state;
-disk-only history has unknown coverage and cannot restore current authority or a PASS.
-Store read errors leave the observer degraded until explicit `on`.
-Diagnostics warn above 1 MiB and never rotate or delete themselves. Writes compare the
-committed bytes and use temp/replace; a changed file is preserved and reported.
-No remote deployment or full device rollout is implied by local tests.
+Version 0.4.0 restores the 0.2.1 relay code. Owner message indexing lives in the separate owner-asks mod; neither mod depends on the other.
 
 A Claude Code function-hook mod for the built-in **You should know** mod
 (`cc-plugin-you-should-know@builtin`). During a long task, that mod's side agent
@@ -82,7 +49,7 @@ Above the prompt from the session start, folded to its header until you press `[
 [`../README.md`](../README.md):
 
 ```
-▌agent should know v0.3.2 · 2 heads-up · 1 handled [ ⧉ log ][ ▾ fold ][ hide ]
+▌agent should know v0.4.0 · 2 heads-up · 1 handled [ ⧉ log ][ ▾ fold ][ hide ]
   log: ~/.local/state/agent-should-know/agent_automation/2026-10-20-28d2c553.log
 ```
 
