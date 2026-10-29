@@ -15,14 +15,17 @@ export function messageOf(id: Identity, uuid: string, origin: string, door: stri
   const wrapped = door === 'delivery' && rendered.startsWith(head) && rendered.endsWith(tail)
   const start = wrapped ? head.length : 0
   const end = wrapped ? rendered.length - tail.length : rendered.length
-  return { schema_version: 2, sid: id.sid, uuid, origin, door, text: rendered.slice(start, end), owner_body: { start, end } }
+  // Keep source offsets; pasted material is context, not a quote from the owner.
+  const text = rendered.slice(start, end).replace(/<pasted_content\b[^>]*>([\s\S]*?)<\/pasted_content(?:\s+id=[^>]*)?>/g,
+    (_, paste: string) => `[pasted ${paste.length} chars]`)
+  return { schema_version: 2, sid: id.sid, uuid, origin, door, text, owner_body: { start, end } }
 }
 
 export function messagesOf(text: string, id: Identity): Message[] {
   return text.split('\n').filter(Boolean).map(line => {
     const row = JSON.parse(line)
     if (row.sid !== id.sid || typeof row.uuid !== 'string' || typeof row.text !== 'string' || !['composer', 'bridge'].includes(row.origin)) throw new Error('invalid owner message')
-    if (row.schema_version !== 2 || !['prompt', 'delivery', 'command'].includes(row.door) || !Number.isInteger(row.owner_body?.start) || !Number.isInteger(row.owner_body?.end) || row.owner_body.start < 0 || row.owner_body.end - row.owner_body.start !== row.text.length) throw new Error('invalid owner span')
+    if (row.schema_version !== 2 || !['prompt', 'delivery', 'command'].includes(row.door) || !Number.isInteger(row.owner_body?.start) || !Number.isInteger(row.owner_body?.end) || row.owner_body.start < 0 || row.owner_body.end < row.owner_body.start) throw new Error('invalid owner span')
     return row as Message
   })
 }

@@ -7,10 +7,13 @@ task state, classification, supersede, gate, relay or plugin controls.
 
 One record per owner UUID lives in
 `~/.local/state/owner-asks/<session-id>/owner.asks.jsonl`. Each record keeps raw
-owner text, UUID, composer/bridge origin, engine door and the owner-body span in
+owner quote, UUID, composer/bridge origin, engine door and the owner-body span in
 that UUID's transcript rendering. The complete mid-turn delivery wrapper is removed
 once at entry; a wrapper typed as an ordinary prompt stays literal. Plugin rows,
 engine notices, queue records and subagent messages never enter the source.
+`<pasted_content id=…>` spans become `[pasted N chars]`; their contents are not
+owner quotes. The span still points into the transcript rendering, so its length
+can differ from the quote length. Existing records are not rewritten.
 
 `~/.local/state/agent-hooks/<session-id>/asks-open.md` is derived directly from
 those messages. The existing `~/.agents/hooks/compaction-recall.sh` reads it once

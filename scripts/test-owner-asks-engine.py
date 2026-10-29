@@ -16,7 +16,9 @@ print('WARNING: Throwaway sessions run with permissions skipped and can run any 
 REPO = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--asks-plugin', type=Path, default=REPO / 'mods/owner-asks', help='Ask mod directory to test, including a historical extracted mod')
+parser.add_argument('--asks-ref', help='Read the owner-asks source at this local git ref into a disposable fixture')
 parser.add_argument('--regressions', action='store_true', help='Run the four real-incident probes in separate throwaway sessions')
+parser.add_argument('--episode5', choices=['paste', 'capture', 'relay'], help='Run one lifecycle acceptance probe')
 args = parser.parse_args()
 ASKS_PLUGIN = args.asks_plugin.resolve()
 ASKS_NAME = json.loads((ASKS_PLUGIN / '.claude-plugin/plugin.json').read_text())['name']
@@ -26,6 +28,12 @@ if args.regressions:
     # Probe source replacement on a disposable copy, never the checkout or installed plugin.
     shutil.copytree(ASKS_PLUGIN, RUN / 'asks-target', symlinks=True)
     ASKS_PLUGIN = RUN / 'asks-target'
+if args.asks_ref:
+    target = RUN / 'asks-ref'
+    shutil.copytree(ASKS_PLUGIN, target)
+    for path in ['hooks/register.ts', 'hooks/lib/asks.ts']:
+        (target / path).write_bytes(subprocess.check_output(['git', '-C', str(REPO), 'show', args.asks_ref + ':mods/owner-asks/' + path]))
+    ASKS_PLUGIN = target
 FIXTURE = RUN / 'fixture'
 FIXTURE.mkdir()
 SID = str(uuid.uuid4())
@@ -76,12 +84,14 @@ def composer(capture):
     return '' if draft is not None and draft.startswith('Try "') else draft
 
 
-def send(text, paste=False):
+def send(text, paste=False, pasted=None):
     # Printed evidence also satisfies the user's normal completion hook.
     text = text.replace('printf ASK040_', "printf 'exit 0\\n'; printf ASK040_")
     wait('composer-ready', lambda: composer(screen()) == '', 60)
     before = {r.get('uuid') for r in rows()}
     literal = '\x1b[200~' + text + '\x1b[201~' if paste else text
+    if pasted is not None:
+        literal = text.replace(pasted, '\x1b[200~' + pasted + '\x1b[201~', 1)
     tmux('send-keys', '-t', SESSION, '-l', literal)
     wait('draft-rendered', lambda: bool(composer(screen())), 60)
     tmux('send-keys', '-t', SESSION, 'Enter')
@@ -342,8 +352,29 @@ def incident_probes():
     (RUN / 'incidents.json').write_text(json.dumps(observations, ensure_ascii=False, indent=2))
 
 
+def episode5_probe():
+    offer_fixture()
+    launch()
+    if args.episode5 == 'paste':
+        body = 'PASTE_NOT_OWNER_' + 'x' * 2130
+        raw = 'Owner before ' + body + ' Owner after. Reply exactly PASTE_DONE.'
+        send(raw, pasted=body)
+        wait('paste-answer', lambda: answered('PASTE_DONE') and bool(records()))
+        send('/compact')
+        wait('paste-compact', lambda: any(r.get('subtype') == 'compact_boundary' for r in rows()), 240)
+        send('Run Bash command `printf ASK040_PASTE_AFTER`. Then reply DONE_ASK040_PASTE_AFTER.')
+        wait('paste-after', lambda: answered('DONE_ASK040_PASTE_AFTER'))
+        row = records()[0]
+        projection = PROJECTION.read_text()
+        check('episode5 paste', 'Owner before' in row['text'] and 'Owner after' in row['text'] and '[pasted ' in row['text'] and body not in row['text'] and body not in projection,
+              f'owner chars={len(row["text"])}, paste leaked={body in row["text"]}, projection leaked={body in projection}')
+    send('/exit')
+
+
 try:
-    if args.regressions:
+    if args.episode5:
+        episode5_probe()
+    elif args.regressions:
         incident_probes()
     else:
         main()
@@ -355,6 +386,6 @@ finally:
     subprocess.run(['tmux', 'kill-session', '-t', SESSION], capture_output=True)
     (RUN / 'result.json').write_text(json.dumps({'sid': SID, 'source': str(SOURCE), 'projection': str(PROJECTION), 'submissions': submissions, 'results': results}, indent=2))
     print('artifacts: ' + str(RUN), flush=True)
-    code = 0 if len(results) == (4 if args.regressions else 6) and all(ok for ok, _ in results) else 1
+    code = 0 if len(results) == (1 if args.episode5 else 4 if args.regressions else 6) and all(ok for ok, _ in results) else 1
     print('exit code: ' + str(code), flush=True)
     sys.exit(code)
