@@ -17,7 +17,9 @@ The judge's interpretation stays separate. A PASS can answer tasks with reply an
 constraints stay open. Missing evidence, protocol errors and timeouts produce UNKNOWN.
 
 The audit starts once from a tracked `clock.after(0, callback)` at turn end. It uses
-the turn's model, high effort, and `timeoutMs: 60000`. Before implementation, the real
+the turn's model, high effort, `maxTokens: 16000` and `timeoutMs: 180000` (0.3.1: the 1024-token
+API default left 15 of 17 audits on 2026-10-29 as `empty-reply` or `invalid JSON`). An UNKNOWN
+result file keeps `output_tokens` and the first 500 characters of the reply as `excerpt`. Before implementation, the real
 model wait measured 60013 ms inside a hook (budget 10000 to 9998), and 60023 ms in
 the callback (budget 10000 to 10000); the timer hook returned in 10.4 ms while tools ran.
 Audit notices use `ui.log`, including headless `ui_log`, and never submit prompts.

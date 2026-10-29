@@ -418,7 +418,8 @@ test('same-turn-evidence-not-fork-snapshot: final reply, native UUID and host re
   let bundle: Bundle | undefined
   on('turn.complete', () => ({ text: 'done' }))
   on('model.complete', (_, e) => {
-    expect(e.timeoutMs).toBe(60000)
+    expect(e.timeoutMs).toBe(180000)
+    expect(e.maxTokens).toBe(16000)
     expect(e.effort).toBe('high')
     bundle = JSON.parse((e.prompt as string).split('\n').at(-1)!) as Bundle
     return { value: { isAnswered: true, usage, text: JSON.stringify({ verdict: 'FAIL', reason: 'fixture finding', findings: [{ source: 'reply', quote: 'done', problem: 'claim lacks proof' }], items: [] }) } }
@@ -484,6 +485,19 @@ test('audit timeout returns UNKNOWN visibly; no automatic retry', async ($, on) 
   expect(requests).toBe(1)
   expect(w.logs.join('\n')).toContain('audit UNKNOWN: model aborted')
   expect(w.sent).toEqual([])
+})
+
+test('audit invalid JSON keeps the reply excerpt and output tokens in the result file', async ($, on) => {
+  const w = world(on)
+  on('turn.complete', () => ({ text: 'done' }))
+  on('model.complete', () => ({ value: { isAnswered: true, usage: { ...usage, output_tokens: 1024 }, text: '{"verdict":"PASS","reason":"cut' } }))
+  await $.session.start(start)
+  await $.turn.start({ turnId: 'audit-turn', text: 'fixture' })
+  await $.turn.complete(done())
+  await w.clock.settle()
+  await w.waitForLog('audit UNKNOWN: protocol: invalid JSON')
+  const result = [...w.files.entries()].find(([p]) => p.includes('/audit/') && !p.endsWith('.evidence.json'))?.[1] ?? ''
+  expect(JSON.parse(result)).toMatchObject({ verdict: 'UNKNOWN', output_tokens: 1024, excerpt: '{"verdict":"PASS","reason":"cut' })
 })
 
 test('clear-without-start-new-session: old asks and off never move', async ($, on) => {

@@ -1,5 +1,12 @@
 # Changelog
 
+## agent-should-know 0.3.1
+
+Owner 2026-10-29: 「一直亂噴 很煩」 (every turn logged `audit UNKNOWN`).
+
+- The audit `model.complete` sets `maxTokens: 16000` and `timeoutMs: 180000`. Without `maxTokens` the API default is 1024 tokens; with high effort and one `items` row per owner item, 15 of 17 audits across 4 sessions ended `model empty-reply` or `protocol: invalid JSON` (1 more was `api-error`, 1 parsed). Root cause from the API contract (`mods/types/claude-code.d.ts`, `maxTokens` default 1024), not yet confirmed on a live reply.
+- An UNKNOWN result file keeps `output_tokens` and a 500-character `excerpt` of the reply, so the next failure shows its cause.
+
 ## agent-should-know 0.3.0
 
 - Report audit FAIL, UNKNOWN, state errors and incomplete cleanup through `ui.log` and the band. Never deny a tool.

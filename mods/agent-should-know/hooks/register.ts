@@ -538,10 +538,12 @@ export const register: Register = on => {
         const hash = await digest(body)
         const path = `${rootOf(context)}/audit/${hash}`
         await atomic($, `${path}.evidence.json`, body, null)
-        const answer = await $.model.complete({ model, effort: 'high', timeoutMs: 60000, prompt: `${AUDIT_PROMPT}\n${body}` }, { signal })
+        // maxTokens: the API default is 1024; high effort plus the items array overran it (empty-reply / cut JSON).
+        const answer = await $.model.complete({ model, effort: 'high', maxTokens: 16000, timeoutMs: 180000, prompt: `${AUDIT_PROMPT}\n${body}` }, { signal })
         if (at !== epoch || id !== context || !enabled || signal.aborted) return
         const judged = answer.isAnswered ? judgeResult(answer.text, bundle) : { verdict: 'UNKNOWN' as const, reason: `model ${answer.reason}`, owners: rows }
-        await atomic($, `${path}.json`, JSON.stringify({ schema_version: 1, sid: context.sid, epoch: at, instance, digest: hash, verdict: judged.verdict, reason: judged.reason }), null)
+        const detail = judged.verdict === 'UNKNOWN' ? { output_tokens: answer.usage.output_tokens, excerpt: answer.isAnswered ? answer.text.slice(0, 500) : '' } : {}
+        await atomic($, `${path}.json`, JSON.stringify({ schema_version: 1, sid: context.sid, epoch: at, instance, digest: hash, verdict: judged.verdict, reason: judged.reason, ...detail }), null)
         if (at !== epoch || id !== context || !enabled) return
         if (judged.verdict === 'PASS') { rows = judged.owners; await persist($) }
         notice($, `audit ${judged.verdict}: ${judged.reason}; ${path}.json`, judged.verdict === 'UNKNOWN')
