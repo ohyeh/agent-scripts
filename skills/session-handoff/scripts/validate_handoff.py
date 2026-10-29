@@ -260,6 +260,8 @@ def print_report(result: dict):
         print("\n[FAIL] Timeline check:")
         for problem in result['timeline_problems']:
             print(f"       - {problem}")
+    elif "Timeline (missing)" in result['missing_required']:
+        print("\n[SKIP] Timeline check: section missing")
     else:
         print("\n[PASS] Timeline user rows match COUNT")
 

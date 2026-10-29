@@ -143,7 +143,7 @@ A handoff is an agent's summary of a session, not its record. Read the record to
    | CLI | Session log | Cheap read |
    |---|---|---|
    | Claude Code | `~/.claude/projects/<project>/<session-id>.jsonl` | `ctx_execute`, or an `explore-bounded` subagent |
-   | Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-<time>-<session-id>.jsonl` | `ctx_execute` if context-mode is installed; else write the output to a scratch file and read it in pages |
+   | Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-<time>-<session-id>.jsonl` or `.jsonl.zst` | `ctx_execute` if context-mode is installed; else write the output to a scratch file and read it in pages |
    | Cursor CLI | `~/.cursor/projects/<project-slug>/agent-transcripts/<session-id>/<session-id>.jsonl` | `ctx_execute` if context-mode is installed, or an `explore` subagent |
    | agy | `~/.gemini/antigravity-cli/brain/<conversation-id>/.system_generated/logs/transcript.jsonl` | `invoke_subagent` with model `flash`, or `run_command` output into the conversation's `scratch/` |
 
@@ -155,28 +155,28 @@ A handoff is an agent's summary of a session, not its record. Read the record to
    jq -rn 'def txt: if type=="string" then . else (map(if .type=="text" then .text elif .type=="image" then "[image]" else empty end)|join(" ")) end;
      def slash: (capture("<command-name>(?<c>[^<]*)</command-name>")?.c // "") + " " + (capture("<command-args>(?<a>[^<]*)</command-args>")?.a // "");
      [inputs | select(.origin.kind!="plugin" and .isMeta!=true) | .timestamp as $ts
-      | (if (.toolUseResult|type)=="object" and (.toolUseResult|has("answers")) then [.message.content[]|select(.type=="tool_result")|.content|txt]|join(" ")
+      | (if (.toolUseResult|type)=="object" and (.toolUseResult|has("answers")) then (.toolUseResult as $r | [$r.answers|to_entries[] | "Q: \(.key[0:60])… → A: \(.value|tostring)\(($r.annotations[.key].notes? // "") as $n | if $n!="" then " (note: \($n))" else "" end)"] | join("  ||  "))
          elif .type=="user" and ((.message.content|type)=="string" or (.message.content|map(.type)|index("tool_result"))==null) then .message.content|txt
          elif .type=="attachment" and .attachment.type=="queued_command" then .attachment.prompt|txt
          else empty end) as $t
-      | select($t|test("^\\s*<(?!pasted_content|command-|!-- attach)|^Base directory for this skill|^Stop hook feedback|^This session is being continued|^Here is a note offered by a side agent|^Another Claude session sent a message|^The .+ plugin sent a message")|not)
+      | select($t|test("^\\s*<(?!pasted_content|command-|!-- attach)|^Base directory for this skill|^Stop hook feedback|^This session is being continued|^Another Claude session sent a message|^The .+ plugin sent a message")|not)
       | "\($ts[0:19])  \(if ($t|test("^\\s*<command-")) then ($t|slash) else $t end | gsub("[\\r\\n\\t]+";" "))"]
      | (.[]), "COUNT \(length)"' "$LOG"
    jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' "$LOG" | tail -60   # last reply only; never a substitute for the user-message list
    ```
 
-   It keeps typed messages, messages sent while the agent worked (`queued_command`), AskUserQuestion answers (`toolUseResult.answers`), pasted text, quote replies (`<!-- attach -->`), images (`[image]`) and slash commands (`/name args`). It drops plugin rows (`origin.kind=="plugin"`), meta rows, hook feedback, skill bodies, side-agent notes and messages from other sessions. `[Request interrupted by user]` stays: the user stopped the agent.
+   It keeps typed messages, messages sent while the agent worked (`queued_command`), AskUserQuestion answers (`toolUseResult.answers`, printed `Q: … → A: …`), pasted text, quote replies (`<!-- attach -->`), images (`[image]`), slash commands (`/name args`) and side-agent notes the user sent on (they can end with the user's ruling). It drops plugin rows (`origin.kind=="plugin"`), meta rows, hook feedback, skill bodies and messages from other sessions. `[Request interrupted by user]` stays: the user stopped the agent.
 
    Codex:
 
    ```bash
-   jq -rn '[inputs | select(.type=="response_item" and .payload.type=="message" and .payload.role=="user")
+   zstd -dcf "$LOG" | jq -rn '[inputs | select(.type=="response_item" and .payload.type=="message" and .payload.role=="user")
      | ([.payload.content[]? | if .type=="input_text" then .text elif .type=="input_image" then "[image]" else empty end] | join(" ")) as $t
-     | select($t|test("^\\s*(# AGENTS\\.md instructions|<[a-z_]+[ >])")|not)
-     | "\(.timestamp[0:19])  \($t|gsub("[\\r\\n\\t]+";" "))"] | (.[]), "COUNT \(length)"' "$LOG"
+     | select($t|test("^\\s*(# AGENTS\\.md instructions|<(?!image)[a-z_]+[ >])")|not)
+     | "\(.timestamp[0:19])  \($t|gsub("[\\r\\n\\t]+";" "))"] | (.[]), "COUNT \(length)"'
    ```
 
-   User words are `response_item` rows with `payload.role=="user"`; text that starts with a tag or `# AGENTS.md instructions` is injected context. A message sent while Codex worked, or an answer to its own question, was not seen in a Codex log on 2026-10-30 (UNCONFIRMED): if you find user words in another record type, include them and say so.
+   Older Codex logs end in `.jsonl.zst` (225 of 268 on 2026-10-30); `zstd -dcf` reads both forms. Without `zstd`, jq fails on a `.zst` log: that is a failed read, not an empty session. User words are `response_item` rows with `payload.role=="user"`; text that starts with a tag (except `<image`) or `# AGENTS.md instructions` is injected context. A message sent while Codex worked is another such row in the same turn, so the filter keeps it. An answer to Codex's own question was not found in any log: report it as `not recorded in the log`, never as read.
 
    Cursor CLI (no timestamp field: the time is the `<timestamp>` element, the words are the `<user_query>` element):
 
@@ -198,7 +198,7 @@ A handoff is an agent's summary of a session, not its record. Read the record to
      | (.[]), "COUNT \(length)"' "$LOG"
    ```
 
-   Typed messages, messages sent while agy worked, and answers to its questions are all `type=="USER_INPUT"`; images are in `media`.
+   Typed messages are `type=="USER_INPUT"`; images are in `media`. Messages sent while agy worked and answers to its questions are reported to be `USER_INPUT` too, but no log has shown one yet (UNCONFIRMED): if you find them elsewhere, include them and say so.
 3. Where a user message and a handoff differ, the user message wins. Correct the handoff before you state scope.
 4. Build the timeline: merge each handoff's Timeline, every user message, and the live record (`git log`, worker list, deploy output) into one ordered list that ends now. Write it to a file (the task's run dir or scratchpad), not into the chat. Until it exists and its last entry matches the live state, do not dispatch an implementation worker, write a work brief, or edit project files. A read-only subagent that runs the filter for you is allowed.
 
