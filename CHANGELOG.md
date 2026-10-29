@@ -4,6 +4,7 @@
 
 Owner 2026-10-29: sessions froze with the mod on (「根本卡住」).
 
+- Owner 12:20Z: 「但可以不要一直重複發送嗎」. Remove the full `Native owner ask index` from tool results. Each owner prompt and new ask calls `cancel`, which advances the audit epoch and rearmed the old reminder. The SessionStart projection remains the reminder after compaction or resume; audit cancellation stays intact. ASK034 covers five owner turns and compaction, resume and reload recovery without repeated full index blocks.
 - Owner asks from the engine's `delivery` door keep only the owner's lines as items when the complete mid-turn wrapper is present. The original text and item offsets stay intact; a typed copy of the wrapper stays literal.
 - A resumed instance adopts the existing ledger and projection as its write baseline. It keeps historical ledger bytes separately from native owner rows, appends new asks, and projects those new asks without granting disk history owner authority. Later changes by another writer still raise `integrity mismatch`; resume does not archive files.
 - Audit results are reports, not environment warnings: an UNKNOWN result no longer enters the next audit's coverage or nests earlier notices. The notice shows `coverage` for a coverage gap, or at most 120 reason characters, plus the audit file path. The audit JSON keeps the full reason; coverage gaps still force UNKNOWN.

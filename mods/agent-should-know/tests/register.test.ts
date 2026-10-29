@@ -415,6 +415,36 @@ const native = (uuid: string, text: string, kind: 'composer' | 'peer' = 'compose
 const done = (turnId = 'audit-turn') => ({ turnId, answer: 'done', durationMs: 1, isAborted: false, reason: 'answer' as const })
 const usage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
 
+test('ASK034 full index stays bounded across five owner turns and compaction, resume or reload', async ($, on) => {
+  const w = world(on)
+  on('session.end', (_, e) => ({ sessionId: e.sessionId }))
+  const projected = `/h/me/.local/state/agent-hooks/${SID}/asks-open.md`
+  let blocks = 0
+  await $.session.start(start)
+  for (const phase of ['initial', 'compaction', 'resume', 'reload']) {
+    if (phase === 'resume' || phase === 'reload')
+      await $.session.end({ reason: 'clear', sessionId: SID, resume: { id: SID } } as never)
+    if (phase !== 'initial') await $.session.start(start)
+    const before = blocks
+    for (let n = 0; n < 5; n++) {
+      const text = `Keep ask ${phase}-${n}`
+      await $.prompt.submit({ text, origin: { kind: 'composer' }, wait: false })
+      await $.session.append(native(`${phase}-${n}`, text))
+      await $.turn.start({ turnId: `${phase}-${n}`, text })
+      for (let call = 0; call < 3; call++) {
+        const result = await $.tool.call({ tool: 'Bash', command: 'git status', description: 'fixture' })
+        if (!('deny' in result))
+          blocks += (result.context ?? []).filter(text => text.startsWith('Native owner ask index')).length
+      }
+      expect(w.files.get(projected)).toContain(text)
+      expect(w.files.get(projected)).toContain('<!-- asks-open gen=')
+    }
+    expect(blocks - before).toBeLessThanOrEqual(1)
+  }
+  expect(w.files.get(projected)).toContain('Keep ask initial-0')
+  expect(w.logs.join('\n')).not.toContain('integrity mismatch')
+})
+
 test('ASK033 wrapped mid-turn delivery stores only owner lines with native spans', async ($, on) => {
   const w = world(on)
   await $.session.start(start)
