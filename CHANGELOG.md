@@ -4,6 +4,8 @@
 
 Owner 2026-10-30: 「我覺得當初…合併一起的想法太天真 應該拆開」「audit 這件事應該是獨立的ＭＯＤ」「我只知道 專發送出系統內建的 heads-up 以及其他功能 這兩塊」.
 
+Owner clarification, 2026-10-30: 「是同件事 同個 mod」「一個是本來的一個是切出去新增的」. `agent-should-know` is the original mod, for the built-in heads-up relay only. `owner-asks` is the new mod split out of it for every other feature. It holds the ask list now; the audit will be added to this mod after research, not to a third mod. Research notes remain in `evals/retro-metrics/2026-W44/opinions/`.
+
 - Split raw owner messages into an independent mod, with its own state directory and plugin store. One record per owner UUID keeps exact text, origin, engine door and owner-body span. Only committed composer/bridge messages enter the source; plugin notices and other engine rows never do.
 - Derive the existing recall projection directly from the message source. The existing compaction hook reads it once after compact; one engine tool result carries a reminder after resume. No per-turn index, item classification, task state, supersede, judge or gate.
 - Keep a serialized writer and the b893262 staged reload handover: no source IO before swap, drain before explicit reload, and no old writer after swap. Recovery reads disk messages rather than engine-state CAS. Failures do not turn capture off. A small failure record is queryable through read-only `/asks`.

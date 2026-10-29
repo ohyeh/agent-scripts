@@ -9,6 +9,8 @@ import sys
 import time
 import uuid
 
+print('WARNING: Throwaway sessions run with permissions skipped and can run any command on this host.', file=sys.stderr)
+
 REPO = Path(__file__).resolve().parent.parent
 RUN = REPO / '.workflow' / (time.strftime('%Y%m%d%H%M%S') + '-asks040-engine')
 RUN.mkdir(parents=True)
