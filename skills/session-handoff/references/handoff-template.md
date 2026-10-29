@@ -6,6 +6,7 @@ Use this template structure when creating handoff documents. The smart scaffold 
 
 - [Session Metadata](#session-metadata)
 - [Current State Summary](#current-state-summary)
+- [Timeline](#timeline)
 - [Codebase Understanding](#codebase-understanding)
   - [Architecture Overview](#architecture-overview)
   - [Critical Files](#critical-files)
@@ -44,6 +45,13 @@ Use this template structure when creating handoff documents. The smart scaffold 
 ## Current State Summary
 
 [One paragraph: What was being worked on, current status, and where things left off]
+
+## Timeline
+
+| Time (UTC) | Who | Event (user quote verbatim, or the state change and its evidence) |
+|------------|-----|------------------------------------------------------------------|
+| [TIME] | user | [「verbatim request, ruling or correction」] |
+| [TIME] | agent | [commit / push / deploy / worker start or stop, with its evidence] |
 
 ## Codebase Understanding
 

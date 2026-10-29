@@ -262,6 +262,13 @@ def generate_handoff(
 
 [TODO: Write one paragraph describing what was being worked on, current status, and where things left off]
 
+## Timeline
+
+| Time (UTC) | Who | Event (user quote verbatim, or the state change and its evidence) |
+|------------|-----|------------------------------------------------------------------|
+| [TODO: time] | user | [TODO: every user request, ruling and correction, from the full user-message list (RESUME Step 3b), in order] |
+| [TODO: time] | agent | [TODO: commit / push / deploy / worker start or stop, with its evidence] |
+
 ## Codebase Understanding
 
 ### Architecture Overview

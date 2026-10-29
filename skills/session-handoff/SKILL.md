@@ -61,6 +61,7 @@ Open the generated file and fill in all `[TODO: ...]` sections. Prioritize these
    Put your own ideas under "Agent Proposals (not requested)".
 4. **Decisions Made** - Choices with rationale (not just outcomes)
 5. **Mistakes and Corrections** - Wrong turns and user corrections, with evidence; a rule proposal goes to `~/.agents/retro-inbox/pending/` and only its file name goes here
+6. **Timeline** - The session in order: each user request, ruling and correction (UTC time, short verbatim quote) and each state change (commit, push, deploy, worker start/stop) with its evidence. Build it from the full user-message list (Step 3b), not from memory or a summary.
 
 Use the template structure in [references/handoff-template.md](references/handoff-template.md) for guidance.
 
@@ -135,23 +136,25 @@ Read in full every user-reviewed work record the handoff names, in any section. 
 A handoff is an agent's summary of a session, not its record. Read the record too.
 
 1. List the sessions. Take the writer session of every handoff you selected in Step 1 (`Session:` line, or the id in `compact-<id>.md`), every session in their chains, and every session the user names. Several handoffs often point to several sessions.
-2. For each session, read ALL of the user's messages and the agent's last reply. For a Claude Code session (`~/.claude/projects/<project>/<session-id>.jsonl`):
+2. For each session, read ALL of the user's messages, first to last, and the agent's last reply. Count the printed messages: you read every one. `tail`, `head`, a line range, a keyword grep or a compaction summary is a sample, not a read: a session read that way is `partial`. Read a long list in pages until the last message; never cut it. Read it cheaply: the filter below prints only the user's messages, no tool output; for a long session, run it in `ctx_execute` or hand it to an `explore-bounded` subagent that returns the timeline (step 4) with the `N/N` count. A delegated read still covers all N messages. For a Claude Code session (`~/.claude/projects/<project>/<session-id>.jsonl`):
 
    ```bash
    JSONL=~/.claude/projects/<project>/<session-id>.jsonl   # set this first; an empty path makes jq wait on stdin
    jq -r 'def txt: if type=="string" then . else (map(select(.type=="text").text)|join(" ")) end;
-     select((.type=="user" and ((.message.content|type)=="string" or ((.message.content|map(.type)|index("tool_result"))==null)))
+     def answers: if (.message.content|type)=="array" then [.message.content[]|select(.type=="tool_result")|.content|txt|select(test("^(Your questions have been answered|User has answered your questions)"))]|join(" ") else "" end;
+     select((.type=="user" and ((.message.content|type)=="string" or ((.message.content|map(.type)|index("tool_result"))==null) or (answers!="")))
          or (.type=="attachment" and .attachment.type=="queued_command"))
-     | (.message.content // .attachment.prompt | txt) as $t
-     | select($t|test("^\\s*<|^Base directory for this skill|^Stop hook feedback|^This session is being continued|plugin sent a message")|not)
-     | "\(.timestamp[0:19])  \($t)"' "$JSONL"                       # all user messages, mid-turn ones included
-   jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' "$JSONL" | tail -60   # last reply
+     | (if .type=="user" and answers!="" then answers else (.message.content // .attachment.prompt | txt) end) as $t
+     | select($t|test("^\\s*<(?!pasted_content)|^Base directory for this skill|^Stop hook feedback|^This session is being continued|plugin sent a message|^\\[Request interrupted")|not)
+     | "\(.timestamp[0:19])  \($t)"' "$JSONL"                       # all user messages and rulings, mid-turn ones included
+   jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' "$JSONL" | tail -60   # last reply only; never a substitute for the user-message list
    ```
 
-   `queued_command` rows are messages the user sent while the agent worked; a filter on `type=="user"` alone misses them. For another CLI, read its own session log the same way.
+   `queued_command` rows are messages the user sent while the agent worked; a filter on `type=="user"` alone misses them. AskUserQuestion answers are the user's rulings; a message that starts with pasted text is still the user's message. The filter keeps both. For another CLI, read its own session log the same way.
 3. Where a user message and a handoff differ, the user message wins. Correct the handoff before you state scope.
+4. Build the timeline: merge each handoff's Timeline, every user message, and the live record (`git log`, worker list, deploy output) into one ordered list that ends now. Do not dispatch a worker, write a brief, or edit before it exists and its last entry matches the live state.
 
-**Your first status reply lists what you read:** each handoff and each session, marked `full`, `partial (<range>)` or `not read`. Never present a partial read as understanding. If you skipped a session, say so; do not state its content.
+**Your first status reply lists what you read:** each handoff and each session, marked `full (N/N user messages)`, `partial (<range>)` or `not read`, followed by the timeline (every user request, ruling and correction with its time). Never present a partial read as understanding. If you skipped a session, say so; do not state its content.
 
 ### Step 4: Verify Context
 
@@ -172,7 +175,7 @@ Before you state scope or act on the handoff:
 
 ### Step 5: Begin Work
 
-Before "Immediate Next Steps" item #1, check the run's latest human corrections and authorization.
+Before "Immediate Next Steps" item #1, check the timeline's latest human corrections and authorization.
 
 Reference these sections as you work:
 - "Critical Files" for important locations
