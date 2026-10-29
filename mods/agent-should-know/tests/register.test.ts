@@ -1,6 +1,8 @@
 import { expect, mock, test } from 'claude-code/testing'
 import { judgeResult, ownerRow, snapshot } from '../hooks/lib/records.ts'
 import type { Bundle } from '../hooks/lib/records.ts'
+import { register } from '../hooks/register.ts'
+import type { EngineInterface, On as Registrar } from 'claude-code'
 
 const PLUGIN = 'agent-should-know'
 const SID = '28d2c553-6d91'
@@ -183,6 +185,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   const draws = drawCard(on, '兩張單程票被加總了。.')
 
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   // The card shows while a long main turn runs; the relay is queued behind it.
   await $.turn.start({ text: 'long task', turnId: 't0' })
 
@@ -234,6 +237,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   // The band counts it, and a fresh start (a reload) counts the same file again.
   expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.3.2 · 1 heads-up · 1 handled')
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   expect(textOf(await $.ui.render(band()))).toContain('· 1 heads-up · 1 handled')
 })
 
@@ -256,6 +260,7 @@ test('the card alone is hidden too; a store holding another card is not relayed'
     })
   })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
@@ -273,6 +278,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
   const w = world(on, store)
   on('ui.render', ($, e) => $.ui.resolve(e).Box({}))
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
 
   // Empty state, folded from the start: the header alone.
   const wide = textOf(await $.ui.render(band(120)))
@@ -286,10 +292,12 @@ test('the band: header with its version, words or icons by width, fold kept acro
   expect(store.get('agent-should-know.fold')).toBe('open')
   expect(textOf(await $.ui.render(band(120)))).toContain('logged in ~/.local/state/agent-should-know/agent_automation/')
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   expect(textOf(await $.ui.render(band(120)))).toContain('[ ▾ fold ]')
   await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above' })
   expect(store.get('agent-should-know.fold')).toBe('folded')
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   expect(textOf(await $.ui.render(band(120)))).toContain('[ ▸ open ]')
 
   // No log yet: the log button says so and opens nothing.
@@ -300,6 +308,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
   await $.ui.press({ plugin: PLUGIN, key: 'hide', requestId: 'above' })
   expect(textOf(await $.ui.render(band(120)))).not.toContain('agent should know')
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   expect(textOf(await $.ui.render(band(120)))).not.toContain('agent should know')
   const shown = await $.command.run(cmd)
   expect(shown.text).toContain('band shown. 0 heads-up · 0 handled this session')
@@ -311,6 +320,7 @@ test('the log button opens the session log once a card was logged', async ($, on
   const w = world(on)
   drawCard(on, 'Two one-way fares were summed.')
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.ui.render(band(120))
   await $.ui.press({ plugin: PLUGIN, key: 'log', requestId: 'above' })
   expect(w.toasts.some(t => /^opened \/h\/me\/.local\/state\/agent-should-know\/agent_automation\//.test(t))).toBe(true)
@@ -327,6 +337,7 @@ test('startup-cleans-empty-sid-only', async ($, on) => {
   const w = world(on, store)
   w.files.set('/h/me/old.asks.jsonl', 'owner text\n')
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   for (const key of empty) expect(store.has(key)).toBe(false)
   expect(store.get(`asks:${SID}`)).toEqual({ owner: 'resume me' })
   expect(store.get('unrelated:')).toBe('keep')
@@ -339,6 +350,7 @@ test('startup-cleans-empty-sid-only: injected delete failure reports cleanup inc
   const store = new Map<string, unknown>([['file:', 'keep on failure'], ['asks:', 'delete'], [`off:${SID}`, 'keep']])
   const w = world(on, store, { deleteKey: 'file:' })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   expect(store.get('file:')).toBe('keep on failure')
   expect(store.has('asks:')).toBe(false)
   expect(store.get(`off:${SID}`)).toBe('keep')
@@ -350,6 +362,7 @@ test('startup-cleans-empty-sid-only: injected delete failure reports cleanup inc
 test('identity-unready-pass-through: no phantom writes and no empty sid state', async ($, on) => {
   const w = world(on, new Map(), { sid: '' })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.tool.call({ tool: 'Bash', command: 'rg --glob "*.ts" x fixture', description: 'fixture' })
   expect(w.ran).toEqual(['Bash'])
   expect([...w.files]).toEqual([])
@@ -361,6 +374,7 @@ test('all-tools-next-once-including-state-paths: IO faults remain report only', 
   const fault = { write: false }
   const w = world(on, new Map(), fault)
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   fault.write = true
   for (const call of [
     { tool: 'Bash', command: 'git status --short', description: 'fixture' },
@@ -374,6 +388,7 @@ test('all-tools-next-once-including-state-paths: IO faults remain report only', 
 test('off-wins-under-fault: memory stops before control persistence', async ($, on) => {
   const w = world(on, new Map(), { offSave: true })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   const r = await $.command.run({ ...cmd, command: 'asks', args: 'off' })
   expect(r.text).toContain('off in memory; not saved')
   await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
@@ -415,17 +430,20 @@ const native = (uuid: string, text: string, kind: 'composer' | 'peer' = 'compose
 const done = (turnId = 'audit-turn') => ({ turnId, answer: 'done', durationMs: 1, isAborted: false, reason: 'answer' as const })
 const usage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
 
-test('ASK034 full index stays bounded across five owner turns and compaction, resume or reload', async ($, on) => {
+for (const phase of ['initial', 'compaction', 'resume', 'reload']) test(`ASK034 full index stays bounded across five owner turns: ${phase}`, async ($, on) => {
   const w = world(on)
   on('session.end', (_, e) => ({ sessionId: e.sessionId }))
   const projected = `/h/me/.local/state/agent-hooks/${SID}/asks-open.md`
   let blocks = 0
   await $.session.start(start)
-  for (const phase of ['initial', 'compaction', 'resume', 'reload']) {
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
+  if (phase !== 'initial') {
+    await $.session.append(native('initial-0', 'Keep ask initial-0'))
     if (phase === 'resume' || phase === 'reload')
       await $.session.end({ reason: 'clear', sessionId: SID, resume: { id: SID } } as never)
-    if (phase !== 'initial') await $.session.start(start)
-    const before = blocks
+    await $.session.start(start)
+    await $.command.run({ ...cmd, command: 'asks', args: '' })
+  }
     for (let n = 0; n < 5; n++) {
       const text = `Keep ask ${phase}-${n}`
       await $.prompt.submit({ text, origin: { kind: 'composer' }, wait: false })
@@ -439,8 +457,7 @@ test('ASK034 full index stays bounded across five owner turns and compaction, re
       expect(w.files.get(projected)).toContain(text)
       expect(w.files.get(projected)).toContain('<!-- asks-open gen=')
     }
-    expect(blocks - before).toBeLessThanOrEqual(1)
-  }
+  expect(blocks).toBeLessThanOrEqual(1)
   expect(w.files.get(projected)).toContain('Keep ask initial-0')
   expect(w.logs.join('\n')).not.toContain('integrity mismatch')
 })
@@ -448,6 +465,7 @@ test('ASK034 full index stays bounded across five owner turns and compaction, re
 test('ASK033 wrapped mid-turn delivery stores only owner lines with native spans', async ($, on) => {
   const w = world(on)
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   const text = '<system-reminder>\nThe user sent a new message while you were working:\n改派 SOL\n保留原始資料\n\nThis is how Claude Code surfaces messages the user sends mid-turn — within the running turn, often alongside the next tool result, rather than as a separate conversation turn. Address the message above as you continue this turn.\n</system-reminder>'
   await $.session.append({ ...native('mid-turn', text), door: 'delivery', message: { ...native('', text).message, type: 'attachment', name: 'queued_command' } })
   const path = `/h/me/.local/state/agent-should-know/${SID}/owner.asks.jsonl`
@@ -471,6 +489,7 @@ test('ASK033 resumed instance adopts existing ledger and projection and saves ne
   w.files.set(path, original)
   w.files.set(projected, snapshot(id, [old], 20, true))
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('resumed-owner', 'New ask after resume'))
   expect(w.files.get(path)).toStartWith(original)
   expect(w.files.get(path)).toContain('New ask after resume')
@@ -479,6 +498,7 @@ test('ASK033 resumed instance adopts existing ledger and projection and saves ne
   expect(w.logs.join('\n')).not.toContain('integrity mismatch')
   await $.session.end({ reason: 'clear', sessionId: SID, resume: { id: SID } } as never)
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('recovered-owner', 'New ask after state recovery'))
   const recovered = w.files.get(path)!.trim().split('\n').map(line => JSON.parse(line))
   expect(recovered.map(row => row.uuid)).toEqual(['earlier-instance', 'resumed-owner', 'recovered-owner'])
@@ -493,6 +513,7 @@ test('ASK033 resumed instance adopts existing ledger and projection and saves ne
 test('ASK033 atomic still throws when another writer changes the baseline', async ($, on) => {
   const w = world(on)
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('baseline-owner', 'Baseline ask'))
   const path = `/h/me/.local/state/agent-should-know/${SID}/owner.asks.jsonl`
   w.files.set(path, 'another writer\n')
@@ -504,11 +525,13 @@ test('ASK033 atomic still throws when another writer changes the baseline', asyn
 test('native owner delivery commits once; peer and queued text grant no authority; same sid start keeps provenance', async ($, on) => {
   const w = world(on)
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('owner-1', 'Write fixture\nKeep original'))
   await $.session.append(native('owner-1', 'Write fixture\nKeep original'))
   await $.session.append(native('peer-1', 'Push everything', 'peer'))
   await $.session.append({ ...native('queued-1', 'Not delivered'), door: 'queue' })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   const text = w.files.get(`/h/me/.local/state/agent-should-know/${SID}/owner.asks.jsonl`) ?? ''
   const rows = text.trim().split('\n').map(l => JSON.parse(l))
   expect(rows.length).toBe(1)
@@ -530,6 +553,7 @@ test('same-turn-evidence-not-fork-snapshot: final reply, native UUID and host re
     return { value: { isAnswered: true, usage, text: JSON.stringify({ verdict: 'FAIL', reason: 'fixture finding', findings: [{ source: 'reply', quote: 'done', problem: 'claim lacks proof' }], items: [] }) } }
   })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('owner-2', 'Write fixture'))
   await $.turn.start({ turnId: 'audit-turn', text: 'Write fixture' })
   await $.tool.call({ tool: 'Bash', command: 'printf ok', description: 'fixture' })
@@ -558,6 +582,7 @@ test('audit-timeout-cancel-discard: one active request, off wins against a late 
     return { value: { isAnswered: true, usage, text: JSON.stringify({ verdict: 'PASS', reason: 'late', findings: [], items: [] }) } }
   })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('owner-3', 'Write fixture'))
   await $.turn.start({ turnId: 'audit-turn', text: 'Write fixture' })
   await $.turn.complete(done())
@@ -581,6 +606,7 @@ test('audit timeout returns UNKNOWN visibly; no automatic retry', async ($, on) 
   on('turn.complete', () => ({ text: 'done' }))
   on('model.complete', async () => { requests++; started(); await w.clock.sleep(60000); return { value: { isAnswered: false, usage, reason: 'aborted' } } })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.turn.start({ turnId: 'audit-turn', text: 'fixture' })
   await $.turn.complete(done())
   await w.clock.settle()
@@ -597,6 +623,7 @@ test('audit invalid JSON keeps the reply excerpt and output tokens in the result
   on('turn.complete', () => ({ text: 'done' }))
   on('model.complete', () => ({ value: { isAnswered: true, usage: { ...usage, output_tokens: 1024 }, text: '{"verdict":"PASS","reason":"cut' } }))
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.turn.start({ turnId: 'audit-turn', text: 'fixture' })
   await $.turn.complete(done())
   await w.clock.settle()
@@ -610,6 +637,7 @@ test('each audit result is logged once: a later turn end does not post it again'
   on('turn.complete', () => ({ text: 'done' }))
   on('model.complete', () => ({ value: { isAnswered: true, usage, text: 'not json' } }))
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   const posted = () => w.logs.filter(l => l.includes('audit UNKNOWN: protocol')).length
   for (const turnId of ['t1', 't2', 't3']) {
     await $.turn.start({ turnId, text: 'fixture' })
@@ -630,6 +658,7 @@ test('standing warning keeps three UNKNOWN audit notices bounded without nesting
   on('turn.complete', () => ({ text: 'done' }))
   on('model.complete', () => ({ value: { isAnswered: true, usage, text: JSON.stringify({ verdict: 'UNKNOWN', reason: 'fixture', findings: [], items: [] }) } }))
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('owner-standing', 'Write fixture'))
   const notices: string[] = []
   const bundles: Bundle[] = []
@@ -665,6 +694,7 @@ test('clear-without-start-new-session: old asks and off never move', async ($, o
   const w = world(on, new Map(), fault)
   on('session.end', (_, e) => ({ sessionId: e.sessionId }))
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('owner-before-clear', 'Old task'))
   await $.command.run({ ...cmd, command: 'asks', args: 'off' })
   await $.session.end({ reason: 'clear', sessionId: SID, resume: { id: SID } } as never)
@@ -682,6 +712,7 @@ test('failed-write-versus-external-mismatch: original stays intact; failed write
   const fault = { rename: false }
   const w = world(on, new Map(), fault)
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('owner-io', 'First'))
   const path = `/h/me/.local/state/agent-should-know/${SID}/owner.asks.jsonl`
   const original = w.files.get(path)
@@ -697,9 +728,167 @@ test('failed-write-versus-external-mismatch: original stays intact; failed write
   expect(w.logs.join('\n')).toContain('integrity mismatch')
 })
 
+// Two real register closures share the host but keep separate instance state.
+// Invoke retained callbacks after replacement, as an already-started dispatch can do.
+function hooks() {
+  type Run = ($: EngineInterface, e: any, next: any) => any
+  const list: { event: string; matcher?: { command?: string }; run: Run }[] = []
+  const on = ((event: string, ...args: any[]) => {
+    list.push({ event, matcher: args.length === 2 ? args[0] : undefined, run: args.at(-1) })
+    return { catch: () => undefined }
+  }) as Registrar
+  register(on, {})
+  return async (event: string, $: EngineInterface, e: any, result: any = {}, activate = true) => {
+    const selected = list.filter(h => h.event === event && (!h.matcher?.command || h.matcher.command === e.command))
+    const next = Object.assign(async () => typeof result === 'function' ? result() : result, { origin: { plugin: 'engine' } })
+    let answer = result
+    for (const h of selected) answer = await h.run($, e, next)
+    // A separate dispatch follows staging, as the real engine does after swap.
+    if (event === 'session.start' && activate) await list.find(h => h.event === 'command.run' && h.matcher?.command === 'asks')!.run($, { ...cmd, command: 'asks', args: '' }, next)
+    return answer
+  }
+}
+
+function reloadWorld() {
+  const files = new Map<string, string>()
+  const store = new Map<string, unknown>()
+  const logs: string[] = []
+  let state: any
+  let version = 0
+  let beforeSet: (() => Promise<void>) | undefined
+  let timer: (() => void) | undefined
+  const host = {
+    session: { id: async () => SID, cwd: async () => start.cwd, model: async () => 'fixture-model' },
+    env: { get: async () => '/h/me' }, command: { register: async () => ({}) },
+    ui: { log: (s: string) => logs.push(s), invalidate: () => undefined },
+    store: { keys: async () => [...store.keys()], get: async (k: string) => store.get(k), set: async (k: string, v: unknown) => { store.set(k, v) }, delete: async (k: string) => { store.delete(k) } },
+    state: {
+      get: async () => ({ value: structuredClone(state), version }),
+      set: async (_: unknown, value: unknown, options: { ifVersion: number }) => {
+        await beforeSet?.()
+        if (options.ifVersion !== version) return { isSet: false, version }
+        state = structuredClone(value)
+        return { isSet: true, version: ++version }
+      },
+    },
+    fs: {
+      exists: async (p: string) => files.has(p) || [...files.keys()].some(k => k.startsWith(`${p}/`)),
+      read: async (p: string) => { if (!files.has(p)) throw new Error('ENOENT'); return files.get(p)! },
+      write: async (p: string, t: string) => { files.set(p, t) },
+      list: async (p: string) => [...files].filter(([k]) => k.startsWith(`${p}/`)).map(([k, t]) => ({ name: k.slice(p.length + 1), size: new TextEncoder().encode(t).length })),
+    },
+    process: { run: async (argv: string[], options: { stdin: string }) => {
+      const [dst, tmp] = argv.slice(-2)
+      if ((files.get(dst!) ?? null) !== JSON.parse(options.stdin)) return { exitCode: 1, stderr: 'integrity mismatch' }
+      files.set(dst!, files.get(tmp!)!); files.delete(tmp!)
+      return { exitCode: 0, stdout: '', stderr: '' }
+    } },
+    clock: { after: (_: number, fn: () => void) => { timer = fn; return { cancel: () => { timer = undefined } } } },
+    model: { complete: async () => ({ isAnswered: false, usage, reason: 'aborted' }) },
+  } as unknown as EngineInterface
+  return { host, files, logs, set beforeSet(fn: (() => Promise<void>) | undefined) { beforeSet = fn }, fire: () => timer?.(), get state() { return state } }
+}
+
+test('ASK035 overlapping state saves serialize instead of switching the observer off', async () => {
+  const w = reloadWorld()
+  const run = hooks()
+  await run('session.start', w.host, start)
+  let release!: () => void
+  let entered!: () => void
+  const held = new Promise<void>(r => { release = r })
+  const started = new Promise<void>(r => { entered = r })
+  w.beforeSet = async () => { w.beforeSet = undefined; entered(); await held }
+  await run('turn.start', w.host, { turnId: 'audit-turn', text: 'fixture' })
+  await run('turn.complete', w.host, done(), { text: 'done' })
+  w.fire()
+  await started
+  const update = run('command.run', w.host, { ...cmd, command: 'asks', args: 'off' })
+  for (let i = 0; i < 100; i++) await Promise.resolve()
+  release()
+  await update
+  for (let i = 0; i < 100; i++) await Promise.resolve()
+  expect(w.logs.join('\n')).not.toContain('state CAS conflict')
+})
+
+test('ASK035 staging does not write; old diagnostics, ledger, projection and audit state settle before activation', async () => {
+  const w = reloadWorld()
+  const old = hooks()
+  await old('session.start', w.host, start)
+  await old('session.append', w.host, native('before', 'Before staging'), native('before', 'Before staging'))
+  let release!: () => void
+  let entered!: () => void
+  const held = new Promise<void>(r => { release = r })
+  const started = new Promise<void>(r => { entered = r })
+  w.host.model.complete = async () => { entered(); await held; return { isAnswered: false, usage, reason: 'aborted' } }
+  await old('turn.start', w.host, { turnId: 'audit-turn', text: 'fixture' })
+  await old('turn.complete', w.host, done(), { text: 'done' })
+  w.fire()
+  await started
+  const fresh = hooks()
+  const before = [...w.files]
+  const state = structuredClone(w.state)
+  await fresh('session.start', w.host, start, {}, false)
+  expect([...w.files]).toEqual(before)
+  expect(w.state).toEqual(state)
+  // The engine keeps the old instance live until the staged start returns.
+  release()
+  for (let i = 0; i < 100; i++) await Promise.resolve()
+  expect([...w.files.keys()].some(p => p.includes('/audit/') && p.endsWith('.json') && !p.endsWith('.evidence.json'))).toBe(true)
+  await old('session.append', w.host, native('during', 'Late old write'), native('during', 'Late old write'))
+  await fresh('command.run', w.host, { ...cmd, command: 'asks', args: '' })
+  await fresh('session.append', w.host, native('after', 'New instance'), native('after', 'New instance'))
+  const ledger = w.files.get(`/h/me/.local/state/agent-should-know/${SID}/owner.asks.jsonl`)!
+  expect(ledger).toContain('Late old write')
+  expect(ledger).toContain('New instance')
+  expect(w.logs.join('\n')).not.toContain('not saved')
+})
+
+test('ASK035 reload drains the old instance; retained callbacks cannot write into the replacement', async () => {
+  const w = reloadWorld()
+  const host = w.host
+  let unloaded = false
+  const oldHost = { ...host, session: { ...host.session, id: async () => { if (unloaded) throw new Error('environment unloaded'); return SID } } }
+  const old = hooks()
+  await old('session.start', oldHost, start)
+  await old('session.append', oldHost, native('old-ask', 'Old ask'), native('old-ask', 'Old ask'))
+  await old('command.run', oldHost, { ...cmd, command: 'reload-plugins' }, () => { unloaded = true; return {} })
+  const fresh = hooks()
+  await fresh('session.start', host, start)
+  await fresh('session.append', host, native('new-ask', 'New ask'), native('new-ask', 'New ask'))
+  const before = new Map(w.files)
+  await old('session.append', host, native('late-old', 'Stale write'), native('late-old', 'Stale write'))
+  await old('turn.complete', host, done(), { text: 'late reply' })
+  expect([...w.files]).toEqual([...before])
+  await fresh('command.run', host, { ...cmd, command: 'asks', args: '' })
+  expect(w.logs.join('\n')).not.toContain('state CAS conflict')
+  expect(w.logs.join('\n')).not.toContain('diagnostics not saved')
+  const status = await fresh('command.run', host, { ...cmd, command: 'asks', args: '' })
+  expect(status.text).toContain('v0.3.2: on;')
+})
+
+test('ASK035 pending audit recovery stays enabled without restoring a verdict', async () => {
+  const w = reloadWorld()
+  await hooks()('session.start', w.host, start)
+  w.state.pending = true
+  const fresh = hooks()
+  await fresh('session.start', w.host, start)
+  const status = await fresh('command.run', w.host, { ...cmd, command: 'asks', args: '' })
+  expect(status.text).toContain('v0.3.2: on;')
+  expect(w.logs.join('\n')).toContain('audit UNKNOWN: interrupted at reload; no verdict restored; observer remains on')
+})
+
+test('ASK035 diagnostics failure names the error without an absent debug log', async ($, on) => {
+  const w = world(on, new Map(), { write: true })
+  await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
+  expect(w.logs.join('\n')).toContain('diagnostics not saved; HooksError: no implementation for fs.write')
+  expect(w.logs.join('\n')).not.toContain('error in the debug log')
+})
+
 test('state-cas-conflict-no-false-commit and store read errors remain visible without tool holds', async ($, on) => {
   const w = world(on, new Map(), { cas: true })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   expect(w.logs.join('\n')).toContain('state CAS conflict; not saved')
   await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
   expect(w.ran).toEqual(['Bash'])
@@ -708,6 +897,7 @@ test('state-cas-conflict-no-false-commit and store read errors remain visible wi
 test('incident-reads-pass-host-denial-preserved', async ($, on) => {
   const w = world(on, new Map(), { hostDeny: true })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   for (const command of ['rg --glob "*.ts" x fixture', 'git log -15', 'git status', 'git diff']) {
     expect(await $.tool.call({ tool: 'Bash', command, description: 'fixture' })).toEqual({ deny: 'host permission denied fixture' })
   }
@@ -719,11 +909,13 @@ test('startup cleanup keys and read-back failures are visible; no false clean', 
   const store = new Map<string, unknown>([['file:', 'old']])
   const w = world(on, store, fault)
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   expect(store.has('file:')).toBe(true)
   expect(w.logs.some(l => l.includes('cleanup incomplete'))).toBe(true)
   const before = w.logs.filter(l => l.includes('cleanup incomplete')).length
   fault.keys = false; fault.getKey = 'file:'
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   expect(w.logs.filter(l => l.includes('cleanup incomplete')).length).toBe(before + 1)
   await $.tool.call({ tool: 'Bash', command: 'git log -15', description: 'fixture' })
   expect(w.ran).toEqual(['Bash'])
@@ -737,6 +929,7 @@ test('corrupt-cache-not-authority-or-hold and diagnostics size warning never rem
   const original = 'x'.repeat(1024 * 1024 + 1)
   w.files.set(diagnostics, original)
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
   expect(w.files.get(path)).toBe('corrupt owner file\n')
   expect(w.files.get(diagnostics)?.startsWith(original)).toBe(true)
@@ -750,6 +943,7 @@ test('a warning logs once: its own transcript row does not feed it again (ed52ba
   // Just under the engine's 4 MiB cap: over the size warning, and the next row does not fit.
   w.files.set(`/h/me/.local/state/agent-should-know/${SID}/diagnostics.jsonl`, 'x'.repeat(4 * 1024 * 1024 - 64))
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('owner-big', 'Write fixture'))
   await w.quiet()
   expect(w.logs.filter(l => l.includes('diagnostics size warning')).length).toBe(1)
@@ -761,6 +955,7 @@ test('a trace reads one bounded segment and still saves past the 4 MiB fs limit'
   const root = `/h/me/.local/state/agent-should-know/${SID}`
   w.files.set(`${root}/diagnostics.jsonl`, 'x'.repeat(4 * 1024 * 1024 - 64))
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.session.append(native('owner-big', 'Write fixture'))
   await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
   expect(w.files.get(`${root}/diagnostics.jsonl`)).toBe('x'.repeat(4 * 1024 * 1024 - 64))
@@ -775,6 +970,7 @@ test('segments count bytes: a CJK-heavy segment stays within 256 KiB on disk', a
   // 262050 bytes in 87350 characters: one more row passes 256 KiB in bytes, not in characters.
   w.files.set(`${root}/diagnostics.jsonl`, '界'.repeat(87350))
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
   const segments = [...w.files].filter(([p]) => /\/diagnostics(\.\d+)?\.jsonl$/.test(p))
   expect(segments.length).toBeGreaterThan(1)
@@ -784,8 +980,9 @@ test('segments count bytes: a CJK-heavy segment stays within 256 KiB on disk', a
 test('diagnostics not saved shows again in a later turn after a save works and a later save fails', async ($, on) => {
   const fault: { write?: boolean; echo?: NonNullable<Parameters<typeof world>[2]>['echo'] } = { write: true, echo: row => $.session.append(row) }
   const w = world(on, new Map(), fault)
-  const notSaved = () => w.logs.filter(l => l.includes('diagnostics not saved; error in the debug log')).length
+  const notSaved = () => w.logs.filter(l => /v0\.3\.2: diagnostics not saved;/.test(l)).length
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await w.quiet()
   expect(notSaved()).toBe(1)
   fault.write = false
@@ -804,8 +1001,9 @@ test('intermittent write failures show diagnostics not saved once per turn (ASK0
   // Every other write fails: the notice's own echo row traces, and that trace saves.
   const fault = { get write() { return writes++ % 2 === 0 }, echo: (row: Parameters<NonNullable<NonNullable<Parameters<typeof world>[2]>['echo']>>[0]) => $.session.append(row) }
   const w = world(on, new Map(), fault)
-  const notSaved = () => w.logs.filter(l => l.includes('diagnostics not saved; error in the debug log')).length
+  const notSaved = () => w.logs.filter(l => /v0\.3\.2: diagnostics not saved;/.test(l)).length
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await w.quiet()
   const before = notSaved()
   await $.turn.start({ turnId: 't1', text: 'fixture' })
@@ -821,6 +1019,7 @@ test('a segment that a row would push past 256 KiB stays as it is; the row start
   const root = `/h/me/.local/state/agent-should-know/${SID}`
   w.files.set(`${root}/diagnostics.jsonl`, 'x'.repeat(256 * 1024 - 10))
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
   expect(w.files.get(`${root}/diagnostics.jsonl`)).toBe('x'.repeat(256 * 1024 - 10))
   expect(w.files.get(`${root}/diagnostics.1.jsonl`)).toContain('"event"')
@@ -829,6 +1028,7 @@ test('a segment that a row would push past 256 KiB stays as it is; the row start
 test('catch-before-after-next-replay-safe: a host failure never runs the tool twice', async ($, on) => {
   const w = world(on, new Map(), { toolThrow: true })
   await $.session.start(start)
+  await $.command.run({ ...cmd, command: 'asks', args: '' })
   await expect($.tool.call({ tool: 'Bash', command: 'false', description: 'fixture' })).rejects.toThrow()
   expect(w.ran).toEqual(['Bash'])
   expect(w.logs.join('\n')).toContain('hook tool.call UNKNOWN')

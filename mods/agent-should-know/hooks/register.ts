@@ -219,186 +219,245 @@ const STATE = { plugin: 'agent-should-know', key: 'observer-v1' } as const
 type Saved = PluginState['agent-should-know']['observer-v1']
 type Turn = { id: string; model: string; calls: Call[]; expected: Set<string>; messages: unknown[]; coverage: Set<string> }
 
-let instance = crypto.randomUUID()
-let seq = 0
-let epoch = 0
-let version = 0
-let id: Identity | null = null
-let rows: Owner[] = []
-let ledger: string | null = null
-let retained = ''
-let projection: string | null = null
-let enabled = true
-let health = 'initializing'
-let turn: Turn | null = null
-let probe: Promise<void> | null = null
-let writing: Promise<void> = Promise.resolve()
-let diagnostics: Promise<void> = Promise.resolve()
-// Diagnostics rows go to diagnostics.jsonl, then diagnostics.1.jsonl, ...: one trace rewrites at most one segment.
+type Observer = {
+  retired: boolean
+  cleanup: boolean
+  instance: string
+  seq: number
+  epoch: number
+  version: number
+  id: Identity | null
+  rows: Owner[]
+  ledger: string | null
+  retained: string
+  projection: string | null
+  enabled: boolean
+  health: string
+  turn: Turn | null
+  probe: Promise<void> | null
+  writing: Promise<void>
+  diagnostics: Promise<void>
+  states: Promise<void>
+  segment: { root: string; index: number; total: number } | null
+  job: Promise<void> | null
+  controller: AbortController | null
+  timer: ReturnType<EngineInterface['clock']['after']> | null
+  warnings: Set<string>
+}
+
+// Each trace rewrites one segment, counted in bytes as fs.list reports them.
 const SEGMENT = 256 * 1024
 const segmentPath = (root: string, index: number) => `${root}/diagnostics${index ? `.${index}` : ''}.jsonl`
-// Bytes, the unit fs.list reports: a CJK row is 3 bytes per character on disk.
 const bytes = (text: string) => new TextEncoder().encode(text).length
-const NOT_SAVED = 'diagnostics not saved; error in the debug log'
-let segment: { root: string; index: number; total: number } | null = null
-let job: Promise<void> | null = null
-let controller: AbortController | null = null
-let timer: ReturnType<EngineInterface['clock']['after']> | null = null
-const warnings = new Set<string>()
+const NOT_SAVED = 'diagnostics not saved'
 
-const notice = ($: EngineInterface, text: string, warning = true) => {
-  health = text
+const notice = ($: EngineInterface, o: Observer, text: string, warning = true, key = text) => {
+  if (o.retired) return
+  o.health = text
   // A transcript line is a session.append, whose hook traces, and a trace can warn: a warning
   // already shown is not logged again, or it feeds itself (0.3.2: ed52bad5 froze on 13491 rows).
-  if (warning && warnings.has(text)) return
-  if (warning) warnings.add(text)
+  if (warning && o.warnings.has(key)) return
+  if (warning) o.warnings.add(key)
   try { $.ui.log(`agent-should-know v${MOD_VERSION}: ${text}`); $.ui.invalidate('ui.render') } catch { /* The next healthy dispatch repeats the pending notice. */ }
 }
-const cancel = () => {
-  epoch += 1
-  timer?.cancel()
-  timer = null
-  controller?.abort()
+const cancel = (o: Observer) => {
+  o.epoch += 1
+  o.timer?.cancel()
+  o.timer = null
+  o.controller?.abort()
 }
-const trace = ($: EngineInterface, event: string, extra: Record<string, unknown> = {}): Promise<void> => {
-  const row = { instance, seq: ++seq, at: Date.now(), event, epoch, sid: id?.sid ?? null, ...extra }
-  const context = id
-  diagnostics = diagnostics.then(async () => {
+const trace = ($: EngineInterface, o: Observer, event: string, extra: Record<string, unknown> = {}): Promise<void> => {
+  if (o.retired) return Promise.resolve()
+  const row = { instance: o.instance, seq: ++o.seq, at: Date.now(), event, epoch: o.epoch, sid: o.id?.sid ?? null, ...extra }
+  const context = o.id
+  o.diagnostics = o.diagnostics.then(async () => {
     $.ui.log(JSON.stringify(row), { to: 'debug' })
     if (!context) return
     const root = rootOf(context)
-    if (segment?.root !== root) {
+    if (o.segment?.root !== root) {
       // One list at the first trace finds the last segment; an older full file is never read again.
       const found = (await $.fs.exists(root) ? await $.fs.list(root) : []).flatMap(f => {
         const m = /^diagnostics(?:\.(\d+))?\.jsonl$/.exec(f.name)
         return m ? [{ index: Number(m[1] ?? 0), size: f.size }] : []
       })
       const last = found.reduce((a, b) => b.index >= a.index ? b : a, { index: 0, size: 0 })
-      segment = { root, index: last.size >= SEGMENT ? last.index + 1 : last.index, total: found.reduce((n, f) => n + f.size, 0) }
+      o.segment = { root, index: last.size >= SEGMENT ? last.index + 1 : last.index, total: found.reduce((n, f) => n + f.size, 0) }
     }
     const line = `${JSON.stringify(row)}\n`
-    let path = segmentPath(root, segment.index)
+    let path = segmentPath(root, o.segment.index)
     let old = await $.fs.exists(path) ? await $.fs.read(path) : null
-    if (old !== null && bytes(old) + bytes(line) > SEGMENT) { path = segmentPath(root, ++segment.index); old = null }
-    segment.total += bytes(line)
-    if (segment.total > 1024 * 1024) notice($, 'diagnostics size warning; owner decides retention')
+    if (old !== null && bytes(old) + bytes(line) > SEGMENT) { path = segmentPath(root, ++o.segment.index); old = null }
+    o.segment.total += bytes(line)
+    if (o.segment.total > 1024 * 1024) notice($, o, 'diagnostics size warning; owner decides retention')
     await atomic($, path, `${old ?? ''}${line}`, old)
   }).catch(err => {
-    // The error goes to the debug log: an engine error that names a size would differ every time.
     try { $.ui.log(`agent-should-know diagnostics not saved: ${errorText(err)}`, { to: 'debug' }) } catch { /* The notice below still shows. */ }
-    notice($, NOT_SAVED)
+    notice($, o, `${NOT_SAVED}; ${errorText(err).replace(/\s+/g, ' ').slice(0, 160)}`, true, NOT_SAVED)
   })
-  return diagnostics
+  return o.diagnostics
 }
-const saveState = async ($: EngineInterface) => {
-  if (!id) return
-  const value: Saved = { schema_version: 1, sid: id.sid, epoch, rows, ledger, retained, projection, pending: job !== null, instance }
-  const r = await $.state.set(STATE, value, { ifVersion: version })
-  version = r.version
-  if (!r.isSet) {
-    enabled = false
-    cancel()
-    throw new Error('state CAS conflict; not saved; use on after a fresh dispatch')
-  }
+const saveState = ($: EngineInterface, o: Observer): Promise<void> => {
+  const saved = o.states.then(async () => {
+    if (!o.id) return
+    const value: Saved = { schema_version: 1, sid: o.id.sid, epoch: o.epoch, rows: o.rows, ledger: o.ledger, retained: o.retained, projection: o.projection, pending: o.job !== null, instance: o.instance }
+    const r = await $.state.set(STATE, value, { ifVersion: o.version })
+    o.version = r.version
+    if (!r.isSet) {
+      o.enabled = false
+      cancel(o)
+      throw new Error('state CAS conflict; not saved; use on after a fresh dispatch')
+    }
+  })
+  // Keep the queue usable; the caller still receives the original rejection.
+  o.states = saved.catch(() => undefined)
+  return saved
 }
-const persist = ($: EngineInterface): Promise<void> => {
-  const context = id
-  const at = epoch
-  writing = writing.then(async () => {
-    if (!context || id !== context || at !== epoch) return
-    const text = retained + (retained && !retained.endsWith('\n') ? '\n' : '') + (rows.length ? `${rows.map(r => JSON.stringify(r)).join('\n')}\n` : '')
-    await atomic($, `${rootOf(context)}/owner.asks.jsonl`, text, ledger)
-    if (id !== context) return
-    ledger = text
-    if (at !== epoch) return
-    const projected = snapshot(context, rows, epoch, enabled)
-    await atomic($, projectionOf(context), projected, projection)
-    if (id !== context) return
-    projection = projected
-    if (at !== epoch) return
-    await saveState($)
-  }).catch(err => notice($, `storage not saved; coverage UNKNOWN: ${errorText(err)}`))
-  return writing
+const persist = ($: EngineInterface, o: Observer): Promise<void> => {
+  const context = o.id
+  const at = o.epoch
+  o.writing = o.writing.then(async () => {
+    if (!context || o.id !== context || at !== o.epoch) return
+    const text = o.retained + (o.retained && !o.retained.endsWith('\n') ? '\n' : '') + (o.rows.length ? `${o.rows.map(r => JSON.stringify(r)).join('\n')}\n` : '')
+    await atomic($, `${rootOf(context)}/owner.asks.jsonl`, text, o.ledger)
+    if (o.id !== context) return
+    o.ledger = text
+    if (at !== o.epoch) return
+    const projected = snapshot(context, o.rows, o.epoch, o.enabled)
+    await atomic($, projectionOf(context), projected, o.projection)
+    if (o.id !== context) return
+    o.projection = projected
+    if (at !== o.epoch) return
+    await saveState($, o)
+  }).catch(err => notice($, o, `storage not saved; coverage UNKNOWN: ${errorText(err)}`))
+  return o.writing
 }
-const identity = async ($: EngineInterface): Promise<Identity> => {
+const identity = async ($: EngineInterface, o: Observer): Promise<Identity> => {
   let operation = 'session.id'
   try {
     const sid = await $.session.id()
-    await trace($, 'identity.await', { operation, empty: sid === '' })
+    await trace($, o, 'identity.await', { operation, empty: sid === '' })
     operation = 'env.get(HOME)'
     const home = (await $.env.get('HOME')) ?? ''
-    await trace($, 'identity.await', { operation, absolute: home.startsWith('/') })
+    await trace($, o, 'identity.await', { operation, absolute: home.startsWith('/') })
     operation = 'session.cwd'
     const cwd = await $.session.cwd()
-    await trace($, 'identity.await', { operation, absolute: cwd.startsWith('/') })
+    await trace($, o, 'identity.await', { operation, absolute: cwd.startsWith('/') })
     return { sid, home, cwd }
   } catch (err) {
-    await trace($, 'identity.error', { operation, error: errorText(err) })
+    await trace($, o, 'identity.error', { operation, error: errorText(err) })
     throw new Error(`${operation}: ${errorText(err)}`)
   }
 }
-const ready = async ($: EngineInterface) => {
-  if (probe) return probe
-  probe = (async () => {
+const ready = async ($: EngineInterface, o: Observer) => {
+  if (o.retired) return
+  if (o.probe) return o.probe
+  o.probe = (async () => {
     try {
-      const live = await identity($)
-      await trace($, 'identity', { liveSid: live.sid, sidEqual: id?.sid === live.sid, homeEqual: id?.home === live.home, cwdEqual: id?.cwd === live.cwd })
+      if (o.cleanup) {
+        o.cleanup = false
+        try { await cleanupEmptySid($) } catch (err) { notice($, o, `cleanup incomplete: ${errorText(err)}`) }
+      }
+      const live = await identity($, o)
+      await trace($, o, 'identity', { liveSid: live.sid, sidEqual: o.id?.sid === live.sid, homeEqual: o.id?.home === live.home, cwdEqual: o.id?.cwd === live.cwd })
       if (!validIdentity(live)) {
-        cancel(); id = null; enabled = false
-        notice($, 'identity unready; no state write; tools remain available')
+        cancel(o); o.id = null; o.enabled = false
+        notice($, o, 'identity unready; no state write; tools remain available')
         return
       }
-      if (id?.sid === live.sid && id.home === live.home && id.cwd === live.cwd) return
-      cancel()
-      id = null
-      rows = []; ledger = null; retained = ''; projection = null; turn = null; enabled = true
+      if (o.id?.sid === live.sid && o.id.home === live.home && o.id.cwd === live.cwd) return
+      cancel(o)
+      o.id = null
+      o.rows = []; o.ledger = null; o.retained = ''; o.projection = null; o.turn = null; o.enabled = true
       const control = await $.store.get(`control:${live.sid}`)
-      enabled = control !== 'off'
+      o.enabled = control !== 'off'
       const saved = await $.state.get(STATE)
-      version = saved.version
+      o.version = saved.version
       const value = saved.value as Saved | undefined
       if (value?.schema_version === 1 && value.sid === live.sid) {
         if (!Array.isArray(value.rows) || value.rows.some(r => r.schema_version !== 1 || r.sid !== live.sid || !r.uuid || !Array.isArray(r.items) || r.items.some(i => r.text.slice(i.start, i.end) !== i.text))) throw new Error('invalid engine recovery state')
-        rows = value.rows
-        ledger = value.ledger
-        retained = value.retained ?? ''
-        projection = value.projection
-        epoch = Math.max(epoch, value.epoch + 1)
-        if (value.pending) { enabled = false; notice($, 'UNKNOWN interrupted audit at reload; no verdict restored; use on after old environment ends') }
+        o.rows = value.rows
+        o.ledger = value.ledger
+        o.retained = value.retained ?? ''
+        o.projection = value.projection
+        o.epoch = Math.max(o.epoch, value.epoch + 1)
+        if (value.pending) notice($, o, `audit UNKNOWN: interrupted at reload; no verdict restored; observer remains ${o.enabled ? 'on' : 'off'}`, false)
       }
-      id = live
-      if (ledger === null && await $.fs.exists(`${rootOf(live)}/owner.asks.jsonl`)) {
-        retained = ledger = await $.fs.read(`${rootOf(live)}/owner.asks.jsonl`)
-        if (projection === null && await $.fs.exists(projectionOf(live))) projection = await $.fs.read(projectionOf(live))
-        notice($, 'historical ledger retained; native recovery coverage UNKNOWN; disk grants no authority')
+      o.id = live
+      if (o.ledger === null && await $.fs.exists(`${rootOf(live)}/owner.asks.jsonl`)) {
+        o.retained = o.ledger = await $.fs.read(`${rootOf(live)}/owner.asks.jsonl`)
+        if (o.projection === null && await $.fs.exists(projectionOf(live))) o.projection = await $.fs.read(projectionOf(live))
+        notice($, o, 'historical ledger retained; native recovery coverage UNKNOWN; disk grants no authority')
       }
-      if (health === 'initializing') health = enabled ? 'ready' : 'off'
-      await saveState($)
-      await trace($, 'identity-ready')
+      if (o.health === 'initializing') o.health = o.enabled ? 'ready' : 'off'
+      await saveState($, o)
+      await trace($, o, 'identity-ready')
     } catch (err) {
-      enabled = false
-      notice($, `identity/store recovery degraded; explicit on required: ${errorText(err)}`)
+      o.enabled = false
+      notice($, o, `identity/store recovery degraded; explicit on required: ${errorText(err)}`)
     }
-  })().finally(() => { probe = null })
-  return probe
+  })().finally(() => { o.probe = null })
+  return o.probe
 }
-const failed = ($: EngineInterface, event: string, error: unknown) => {
-  notice($, `hook ${event} UNKNOWN: ${errorText(error)}`)
+const failed = ($: EngineInterface, o: Observer, event: string, error: unknown) => {
+  notice($, o, `hook ${event} UNKNOWN: ${errorText(error)}`)
+}
+
+const retire = async (o: Observer) => {
+  if (o.job || o.timer) o.health = 'audit UNKNOWN: interrupted at reload; no verdict restored'
+  o.retired = true
+  cancel(o)
+  // A probe can finish recovery, and an audit can enqueue its final state save.
+  await o.probe
+  cancel(o)
+  await o.job
+  await o.writing
+  await o.diagnostics
+  await o.states
+  o.id = null
 }
 
 export const register: Register = on => {
-  cancel()
-  instance = crypto.randomUUID()
-  seq = 0; epoch = 0; version = 0
-  id = null; rows = []; ledger = null; retained = ''; projection = null
-  enabled = true; health = 'initializing'; turn = null; probe = null
-  writing = Promise.resolve(); diagnostics = Promise.resolve(); segment = null
-  job = null; controller = null; timer = null
-  warnings.clear()
+  // Old callbacks retain their own state; a new registration never resets it.
+  const o: Observer = {
+    retired: false,
+    cleanup: true,
+    instance: crypto.randomUUID(),
+    seq: 0,
+    epoch: 0,
+    version: 0,
+    id: null,
+    rows: [],
+    ledger: null,
+    retained: '',
+    projection: null,
+    enabled: true,
+    health: 'initializing',
+    turn: null,
+    probe: null,
+    writing: Promise.resolve(),
+    diagnostics: Promise.resolve(),
+    states: Promise.resolve(),
+    segment: null,
+    job: null,
+    controller: null,
+    timer: null,
+    warnings: new Set<string>()
+  }
+
+  on('command.run', { command: 'reload-plugins' }, async ($, e, next) => {
+    await retire(o)
+    const result = await next(e)
+    // An unchanged module stays loaded. Only that environment can still call $.
+    try { await $.session.id() } catch { return result }
+    o.retired = false
+    await ready($, o)
+    return result
+  }).catch(($, e, next) => { failed($, o, 'reload', next.error); return next(e) })
 
   on('session.start', async ($, e, next) => {
-    try { await cleanupEmptySid($) } catch (err) { notice($, `cleanup incomplete: ${errorText(err)}`) }
-    await ready($)
+    // The engine stages this instance while the old one can still write. Do not
+    // read recovery baselines or write session storage until a dispatch after swap.
+    o.cleanup = true
     await $.command.register({ name: 'asks', description: 'Owner asks and audit: status, on, off, migrate' })
     s.cwd = e.cwd
     s.sid = await $.session.id()
@@ -409,7 +468,7 @@ export const register: Register = on => {
       const path = (await $.store.get(fileKey(s.sid))) as string | undefined
       if (path !== undefined) {
         if (typeof path !== 'string' || !path.startsWith(`${folderOf(s)}/`) || !path.endsWith(`-${s.sid.slice(0, 8)}.log`) || path.split('/').includes('..')) {
-          notice($, 'relay cache path invalid; ignored; original retained')
+          notice($, o, 'relay cache path invalid; ignored; original retained')
         } else {
           s.file = fileFor(s, path)
           s.count = countOf(await $.fs.read(path))
@@ -417,120 +476,119 @@ export const register: Register = on => {
       }
       await $.command.register({ name: 'heads-up', description: `Agent should know v${MOD_VERSION}: show or hide the card band` })
     }
-    await trace($, 'session.start', { cwdEqual: id?.cwd === e.cwd })
     return next(e)
-  }).catch(($, e, next) => { failed($, 'session.start', next.error); return next(e) })
+  }).catch(($, e, next) => { failed($, o, 'session.start', next.error); return next(e) })
 
-  on('session.attach', async ($, e, next) => { await ready($); await trace($, 'session.attach'); return next(e) })
-    .catch(($, e, next) => { failed($, 'session.attach', next.error); return next(e) })
+  on('session.attach', async ($, e, next) => { await ready($, o); await trace($, o, 'session.attach'); return next(e) })
+    .catch(($, e, next) => { failed($, o, 'session.attach', next.error); return next(e) })
 
   on('session.end', ($, e, next) => {
-    cancel()
-    id = null; turn = null; rows = []; ledger = null; retained = ''; projection = null
+    cancel(o)
+    o.id = null; o.turn = null; o.rows = []; o.ledger = null; o.retained = ''; o.projection = null
     s.sid = ''; s.cwd = ''; s.home = ''; s.file = null
     s.pending = null; s.early = null; s.running = undefined; s.sent.clear()
-    try { $.ui.log(JSON.stringify({ instance, event: 'session.end', sid: e.sessionId, reason: e.reason, epoch }), { to: 'debug' }) } catch { /* No model or repair at session end. */ }
+    try { $.ui.log(JSON.stringify({ instance: o.instance, event: 'session.end', sid: e.sessionId, reason: e.reason, epoch: o.epoch }), { to: 'debug' }) } catch { /* No model or repair at session end. */ }
     return next(e)
-  }).catch(($, e, next) => { failed($, 'session.end', next.error); return next(e) })
+  }).catch(($, e, next) => { failed($, o, 'session.end', next.error); return next(e) })
 
   on('command.run', { command: 'asks' }, async ($, e) => {
-    await ready($)
+    await ready($, o)
     if (e.origin?.kind !== 'composer' && e.origin?.kind !== 'bridge') return { text: 'asks: command origin is not owner authority' }
     const action = e.args.trim()
     if (action === 'off') {
-      const interrupted = job !== null || timer !== null
-      enabled = false; cancel(); health = 'off'
-      if (interrupted) notice($, 'off; audit cancelled; previous verdict unavailable', false)
-      if (!id) return { text: 'off in this instance; identity unready; not saved' }
-      try { await $.store.set(`control:${id.sid}`, 'off'); await persist($) } catch (err) { notice($, `off in memory; not saved: ${errorText(err)}`) }
+      const interrupted = o.job !== null || o.timer !== null
+      o.enabled = false; cancel(o); o.health = 'off'
+      if (interrupted) notice($, o, 'off; audit cancelled; previous verdict unavailable', false)
+      if (!o.id) return { text: 'off in this instance; identity unready; not saved' }
+      try { await $.store.set(`control:${o.id.sid}`, 'off'); await persist($, o) } catch (err) { notice($, o, `off in memory; not saved: ${errorText(err)}`) }
     } else if (action === 'on') {
-      if (!id) return { text: 'identity unready; not enabled' }
-      if (job) return { text: 'UNKNOWN previous request still settling; no new audit started' }
+      if (!o.id) return { text: 'identity unready; not enabled' }
+      if (o.job) return { text: 'UNKNOWN previous request still settling; no new audit started' }
       const state = await $.state.get(STATE)
-      version = state.version
-      cancel(); enabled = true; health = 'ready'; warnings.clear()
-      try { await $.store.set(`control:${id.sid}`, 'on'); await persist($) } catch (err) { notice($, `on not saved: ${errorText(err)}`) }
+      o.version = state.version
+      cancel(o); o.enabled = true; o.health = 'ready'; o.warnings.clear()
+      try { await $.store.set(`control:${o.id.sid}`, 'on'); await persist($, o) } catch (err) { notice($, o, `on not saved: ${errorText(err)}`) }
     } else if (action === 'migrate') {
-      if (!id) return { text: 'migrate: identity unready; no files changed' }
-      try { return { text: await migrate($, id) } } catch (err) { notice($, errorText(err)) }
+      if (!o.id) return { text: 'migrate: identity unready; no files changed' }
+      try { return { text: await migrate($, o.id) } } catch (err) { notice($, o, errorText(err)) }
     }
-    await trace($, 'command', { action: ['on', 'off', 'migrate'].includes(action) ? action : 'status' })
-    return { text: `agent-should-know v${MOD_VERSION}: ${enabled ? 'on' : 'off'}; ${health}\n${rows.flatMap(r => r.items.map(i => `${i.id} [${i.kind}${i.answer ? ', answered' : ', open'}] ${i.text}`)).join('\n')}\n${[...warnings].join('\n')}` }
-  }).catch(($, _e, next) => { failed($, 'command.run', next.error); return { text: `asks UNKNOWN: ${errorText(next.error)}` } })
+    await trace($, o, 'command', { action: ['on', 'off', 'migrate'].includes(action) ? action : 'status' })
+    return { text: `agent-should-know v${MOD_VERSION}: ${o.enabled ? 'on' : 'off'}; ${o.health}\n${o.rows.flatMap(r => r.items.map(i => `${i.id} [${i.kind}${i.answer ? ', answered' : ', open'}] ${i.text}`)).join('\n')}\n${[...o.warnings].join('\n')}` }
+  }).catch(($, _e, next) => { failed($, o, 'command.run', next.error); return { text: `asks UNKNOWN: ${errorText(next.error)}` } })
 
   on('prompt.submit', async ($, e, next) => {
-    await ready($)
+    await ready($, o)
     if (e.origin?.kind === 'composer' || e.origin?.kind === 'bridge') {
-      if (job || timer) notice($, 'audit UNKNOWN: interrupted by new owner message', false)
-      cancel()
+      if (o.job || o.timer) notice($, o, 'audit UNKNOWN: interrupted by new owner message', false)
+      cancel(o)
     }
-    await trace($, 'prompt.submit', { origin: e.origin?.kind ?? 'unknown' })
-    const o = e.origin
-    if (o?.kind === 'plugin' && (o.name === NAME || o.name.startsWith(`${NAME}@`))) s.pending = { over: e.turnId ?? s.running, card: s.flagged }
+    await trace($, o, 'prompt.submit', { origin: e.origin?.kind ?? 'unknown' })
+    const origin = e.origin
+    if (origin?.kind === 'plugin' && (origin.name === NAME || origin.name.startsWith(`${NAME}@`))) s.pending = { over: e.turnId ?? s.running, card: s.flagged }
     return next(e)
-  }).catch(($, e, next) => { failed($, 'prompt.submit', next.error); return next(e) })
+  }).catch(($, e, next) => { failed($, o, 'prompt.submit', next.error); return next(e) })
 
   on('session.append', async ($, e, next) => {
     const result = await next(e)
     if (e.agentId !== undefined || 'deny' in result) return result
-    await ready($)
-    if (turn) {
-      turn.messages.push({ uuid: result.uuid, origin: e.origin, message: result.message })
+    await ready($, o)
+    if (o.turn) {
+      o.turn.messages.push({ uuid: result.uuid, origin: e.origin, message: result.message })
       for (const block of result.message.content) {
-        if (!['text', 'thinking', 'tool_use', 'tool_result'].includes(block.type)) turn.coverage.add(`media or unknown body ${result.uuid}`)
-        if (block.type === 'tool_use' && typeof block.id === 'string') turn.expected.add(block.id)
+        if (!['text', 'thinking', 'tool_use', 'tool_result'].includes(block.type)) o.turn.coverage.add(`media or unknown body ${result.uuid}`)
+        if (block.type === 'tool_use' && typeof block.id === 'string') o.turn.expected.add(block.id)
       }
     }
-    if (enabled && id && ['prompt', 'delivery', 'command'].includes(e.door) && result.message.role !== 'assistant' && (e.origin.kind === 'composer' || e.origin.kind === 'bridge')) {
-      if (!rows.some(r => r.uuid === result.uuid)) {
-        cancel()
+    if (o.enabled && o.id && ['prompt', 'delivery', 'command'].includes(e.door) && result.message.role !== 'assistant' && (e.origin.kind === 'composer' || e.origin.kind === 'bridge')) {
+      if (!o.rows.some(r => r.uuid === result.uuid)) {
+        cancel(o)
         const text = result.message.content.flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
-        rows.push(ownerRow(id, result.uuid, e.origin.kind, text, epoch, instance, e.door === 'delivery'))
-        await persist($)
+        o.rows.push(ownerRow(o.id, result.uuid, e.origin.kind, text, o.epoch, o.instance, e.door === 'delivery'))
+        await persist($, o)
       }
     }
-    await trace($, 'session.append', { uuid: result.uuid, origin: e.origin.kind, agent: e.agentId ?? null })
+    await trace($, o, 'session.append', { uuid: result.uuid, origin: e.origin.kind, agent: e.agentId ?? null })
     return result
-  }).catch(($, e, next) => { failed($, 'session.append', next.error); return next(e) })
+  }).catch(($, e, next) => { failed($, o, 'session.append', next.error); return next(e) })
 
   on('turn.start', async ($, e, next) => {
     if (e.agentId !== undefined) return next(e)
     // Not on a save that works: the notice's own echo row traces, and a save in between would let
     // an intermittent failure show again on every echo (ASK032-03). The mod never starts a turn.
-    warnings.delete(NOT_SAVED)
-    await ready($)
-    turn = { id: e.turnId, model: await $.session.model(), calls: [], expected: new Set(), messages: [], coverage: new Set() }
+    o.warnings.delete(NOT_SAVED)
+    await ready($, o)
+    o.turn = { id: e.turnId, model: await $.session.model(), calls: [], expected: new Set(), messages: [], coverage: new Set() }
     s.running = e.turnId
-    if (id) { s.sid = id.sid; s.home = id.home; s.cwd = id.cwd }
-    await trace($, 'turn.start', { turn: e.turnId })
+    if (o.id) { s.sid = o.id.sid; s.home = o.id.home; s.cwd = o.id.cwd }
+    await trace($, o, 'turn.start', { turn: e.turnId })
     return next(e)
-  }).catch(($, e, next) => { failed($, 'turn.start', next.error); return next(e) })
+  }).catch(($, e, next) => { failed($, o, 'turn.start', next.error); return next(e) })
 
   on('turn.step', async function* ($, e, next) {
-    if (e.agentId === undefined && turn?.id === e.turnId) {
-      turn.model = e.model
-      if (e.messageCount >= 4096) turn.coverage.add('SDK message cap')
-      await trace($, 'turn.step', { turn: e.turnId, step: e.index })
+    if (e.agentId === undefined && o.turn?.id === e.turnId) {
+      o.turn.model = e.model
+      if (e.messageCount >= 4096) o.turn.coverage.add('SDK message cap')
+      await trace($, o, 'turn.step', { turn: e.turnId, step: e.index })
     }
     for await (const chunk of next(e)) {
-      if (e.agentId === undefined && turn?.id === e.turnId && chunk.kind === 'tool') turn.expected.add(chunk.id)
+      if (e.agentId === undefined && o.turn?.id === e.turnId && chunk.kind === 'tool') o.turn.expected.add(chunk.id)
       yield chunk
     }
-  }).catch(async function* ($, e, next) { failed($, 'turn.step', next.error); yield* next(e) })
+  }).catch(async function* ($, e, next) { failed($, o, 'turn.step', next.error); yield* next(e) })
 
   on('tool.call', async ($, e, next) => {
     const result = await next(e)
-    await ready($)
-    await trace($, 'tool.call.enter', { tool: e.tool, call: e.tool_use_id, agent: e.agentId ?? null })
-    if (e.agentId === undefined && next.origin.plugin === 'engine' && turn) turn.calls.push({ id: e.tool_use_id, tool: e.tool, input: e, result })
-    await trace($, 'tool.call.exit', { tool: e.tool, call: e.tool_use_id, denied: 'deny' in result })
+    await ready($, o)
+    await trace($, o, 'tool.call.enter', { tool: e.tool, call: e.tool_use_id, agent: e.agentId ?? null })
+    if (e.agentId === undefined && next.origin.plugin === 'engine' && o.turn) o.turn.calls.push({ id: e.tool_use_id, tool: e.tool, input: e, result })
+    await trace($, o, 'tool.call.exit', { tool: e.tool, call: e.tool_use_id, denied: 'deny' in result })
     if (s.early !== null && next.origin.plugin === 'engine' && e.agentId === undefined && !('deny' in result)) {
       const early = s.early
       s.early = null
       return { ...result, context: [...(result.context ?? []), early] }
     }
     return result
-  }).catch(($, e, next) => { failed($, 'tool.call', next.error); return next(e) })
+  }).catch(($, e, next) => { failed($, o, 'tool.call', next.error); return next(e) })
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
@@ -542,49 +600,49 @@ export const register: Register = on => {
       s.pending = null
       await logLine($, s, iso(), `${e.reason === 'answer' ? 'handled' : e.reason} ${card.slice(11, 19)}`, result.text.trim().replace(/\s+/g, ' ').slice(0, VERDICT_CHARS))
     }
-    await ready($)
-    await trace($, 'turn.complete', { turn: e.turnId, reason: e.reason })
-    if (!id || !enabled || !turn || turn.id !== e.turnId) return result
-    if (job || timer) { notice($, 'UNKNOWN audit already active; no second request'); return result }
-    const current = turn
+    await ready($, o)
+    await trace($, o, 'turn.complete', { turn: e.turnId, reason: e.reason })
+    if (!o.id || !o.enabled || !o.turn || o.turn.id !== e.turnId) return result
+    if (o.job || o.timer) { notice($, o, 'UNKNOWN audit already active; no second request'); return result }
+    const current = o.turn
     for (const call of current.expected) if (!current.calls.some(c => c.id === call)) current.coverage.add(`missing result ${call}`)
-    if (!rows.length) current.coverage.add('no native owner provenance captured')
-    for (const warning of warnings) current.coverage.add(warning)
-    const context = id
-    const at = epoch
-    const bundle: Bundle = JSON.parse(JSON.stringify({ schema_version: 1, sid: context.sid, epoch: at, instance, turn: e.turnId, reply: result.text, owners: rows, calls: current.calls, messages: current.messages, coverage: [...current.coverage] }))
+    if (!o.rows.length) current.coverage.add('no native owner provenance captured')
+    for (const warning of o.warnings) current.coverage.add(warning)
+    const context = o.id
+    const at = o.epoch
+    const bundle: Bundle = JSON.parse(JSON.stringify({ schema_version: 1, sid: context.sid, epoch: at, instance: o.instance, turn: e.turnId, reply: result.text, owners: o.rows, calls: current.calls, messages: current.messages, coverage: [...current.coverage] }))
     const model = e.usage?.model ?? current.model
-    controller = new AbortController()
-    const signal = controller.signal
-    notice($, 'audit UNKNOWN: pending; result follows independently', false)
-    timer = $.clock.after(0, () => {
-      timer = null
-      if (at !== epoch || id !== context || !enabled) return
-      job = Promise.resolve().then(async () => {
-        await saveState($)
+    o.controller = new AbortController()
+    const signal = o.controller.signal
+    notice($, o, 'audit UNKNOWN: pending; result follows independently', false)
+    o.timer = $.clock.after(0, () => {
+      o.timer = null
+      if (at !== o.epoch || o.id !== context || !o.enabled) return
+      o.job = Promise.resolve().then(async () => {
+        await saveState($, o)
         const body = JSON.stringify(bundle)
         const hash = await digest(body)
         const path = `${rootOf(context)}/audit/${hash}`
         await atomic($, `${path}.evidence.json`, body, null)
         // maxTokens: the API default is 1024; high effort plus the items array overran it (empty-reply / cut JSON).
         const answer = await $.model.complete({ model, effort: 'high', maxTokens: 16000, timeoutMs: 180000, prompt: `${AUDIT_PROMPT}\n${body}` }, { signal })
-        if (at !== epoch || id !== context || !enabled || signal.aborted) return
-        const judged = answer.isAnswered ? judgeResult(answer.text, bundle) : { verdict: 'UNKNOWN' as const, reason: `model ${answer.reason}`, owners: rows }
+        if (at !== o.epoch || o.id !== context || !o.enabled || signal.aborted) return
+        const judged = answer.isAnswered ? judgeResult(answer.text, bundle) : { verdict: 'UNKNOWN' as const, reason: `model ${answer.reason}`, owners: o.rows }
         const detail = judged.verdict === 'UNKNOWN' ? { output_tokens: answer.usage.output_tokens, excerpt: answer.isAnswered ? answer.text.slice(0, 500) : '' } : {}
-        await atomic($, `${path}.json`, JSON.stringify({ schema_version: 1, sid: context.sid, epoch: at, instance, digest: hash, verdict: judged.verdict, reason: judged.reason, ...detail }), null)
-        if (at !== epoch || id !== context || !enabled) return
-        if (judged.verdict === 'PASS') { rows = judged.owners; await persist($) }
+        await atomic($, `${path}.json`, JSON.stringify({ schema_version: 1, sid: context.sid, epoch: at, instance: o.instance, digest: hash, verdict: judged.verdict, reason: judged.reason, ...detail }), null)
+        if (at !== o.epoch || o.id !== context || !o.enabled) return
+        if (judged.verdict === 'PASS') { o.rows = judged.owners; await persist($, o) }
         // Audit reports must not become warnings in the next audit's coverage.
         const reason = judged.reason.startsWith('coverage: ') ? 'coverage' : judged.reason.replace(/\s+/g, ' ').slice(0, 120)
-        notice($, `audit ${judged.verdict}: ${reason}; ${path}.json`, false)
-      }).catch(err => notice($, `audit UNKNOWN; not saved: ${errorText(err)}`)).finally(() => {
-        job = null
-        controller = null
-        if (id === context) void saveState($).catch(err => notice($, `audit state not saved: ${errorText(err)}`))
+        notice($, o, `audit ${judged.verdict}: ${reason}; ${path}.json`, false)
+      }).catch(err => notice($, o, `audit UNKNOWN; not saved: ${errorText(err)}`)).finally(() => {
+        o.job = null
+        o.controller = null
+        if (o.id === context) void saveState($, o).catch(err => notice($, o, `audit state not saved: ${errorText(err)}`))
       })
     })
     return result
-  }).catch(($, e, next) => { failed($, 'turn.complete', next.error); return next(e) })
+  }).catch(($, e, next) => { failed($, o, 'turn.complete', next.error); return next(e) })
   const s: State = {
     cwd: '',
     sid: '',
@@ -624,14 +682,14 @@ export const register: Register = on => {
       below = (withoutCard(tree) ?? $.ui.resolve(e).Box({})) as typeof tree
       await relay($, s, line)
     }
-    if (s.hidden && warnings.size === 0) return below
+    if (s.hidden && o.warnings.size === 0) return below
     const budget = e.props.maxRows - rowsOf(below)
     if (budget < 1) return below
 
     const { Box, Text, Button } = $.ui.resolve(e)
     const width = e.props.bodyColumns
     const title = `▌agent should know v${MOD_VERSION}`
-    const status = (s.count.flagged ? ` · ${s.count.flagged} heads-up · ${s.count.handled} handled ` : ' · no heads-up yet ') + (health === 'ready' ? '' : `· ${health} `)
+    const status = (s.count.flagged ? ` · ${s.count.flagged} heads-up · ${s.count.handled} handled ` : ' · no heads-up yet ') + (o.health === 'ready' ? '' : `· ${o.health} `)
     // Buttons say what they do when the header has room for it, else their icon (the workers band's rule).
     // ' [-]' is the engine's collapse control, drawn over the band's last cells: kept clear.
     const words = cells(title) + cells(status) + cells('[ ⧉ log ][ ▾ fold ][ hide ] [-]') <= width
