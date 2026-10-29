@@ -1,5 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
-import { judgeResult, ownerRow } from '../hooks/lib/records.ts'
+import { judgeResult, ownerRow, snapshot } from '../hooks/lib/records.ts'
 import type { Bundle } from '../hooks/lib/records.ts'
 
 const PLUGIN = 'agent-should-know'
@@ -414,6 +414,62 @@ const native = (uuid: string, text: string, kind: 'composer' | 'peer' = 'compose
 })
 const done = (turnId = 'audit-turn') => ({ turnId, answer: 'done', durationMs: 1, isAborted: false, reason: 'answer' as const })
 const usage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }
+
+test('ASK033 wrapped mid-turn delivery stores only owner lines with native spans', async ($, on) => {
+  const w = world(on)
+  await $.session.start(start)
+  const text = '<system-reminder>\nThe user sent a new message while you were working:\n改派 SOL\n保留原始資料\n\nThis is how Claude Code surfaces messages the user sends mid-turn — within the running turn, often alongside the next tool result, rather than as a separate conversation turn. Address the message above as you continue this turn.\n</system-reminder>'
+  await $.session.append({ ...native('mid-turn', text), door: 'delivery', message: { ...native('', text).message, type: 'attachment', name: 'queued_command' } })
+  const path = `/h/me/.local/state/agent-should-know/${SID}/owner.asks.jsonl`
+  const row = JSON.parse(w.files.get(path)!.trim())
+  expect(row.items.map((i: { text: string }) => i.text)).toEqual(['改派 SOL', '保留原始資料'])
+  expect(row.text).toBe(text)
+  for (const item of row.items) expect(text.slice(item.start, item.end)).toBe(item.text)
+  await $.session.append(native('quoted-wrapper', text))
+  const quoted = JSON.parse(w.files.get(path)!.trim().split('\n')[1]!)
+  expect(quoted.items[0].text).toBe('<system-reminder>')
+})
+
+test('ASK033 resumed instance adopts existing ledger and projection and saves new ask', async ($, on) => {
+  const w = world(on)
+  on('session.end', (_, e) => ({ sessionId: e.sessionId }))
+  const id = { sid: SID, home: '/h/me', cwd: start.cwd }
+  const old = ownerRow(id, 'earlier-instance', 'composer', 'Earlier ask')
+  const path = `/h/me/.local/state/agent-should-know/${SID}/owner.asks.jsonl`
+  const projected = `/h/me/.local/state/agent-hooks/${SID}/asks-open.md`
+  const original = `${JSON.stringify(old)}\n`
+  w.files.set(path, original)
+  w.files.set(projected, snapshot(id, [old], 20, true))
+  await $.session.start(start)
+  await $.session.append(native('resumed-owner', 'New ask after resume'))
+  expect(w.files.get(path)).toStartWith(original)
+  expect(w.files.get(path)).toContain('New ask after resume')
+  expect(w.files.get(projected)).toContain('New ask after resume')
+  expect(w.files.get(projected)).not.toContain('Earlier ask')
+  expect(w.logs.join('\n')).not.toContain('integrity mismatch')
+  await $.session.end({ reason: 'clear', sessionId: SID, resume: { id: SID } } as never)
+  await $.session.start(start)
+  await $.session.append(native('recovered-owner', 'New ask after state recovery'))
+  const recovered = w.files.get(path)!.trim().split('\n').map(line => JSON.parse(line))
+  expect(recovered.map(row => row.uuid)).toEqual(['earlier-instance', 'resumed-owner', 'recovered-owner'])
+  expect(w.files.get(projected)).toContain('New ask after state recovery')
+  expect(w.logs.join('\n')).not.toContain('integrity mismatch')
+  w.files.set(path, 'another writer changed this\n')
+  await $.session.append(native('later-owner', 'Do not overwrite'))
+  expect(w.files.get(path)).toBe('another writer changed this\n')
+  expect(w.logs.join('\n')).toContain('integrity mismatch')
+})
+
+test('ASK033 atomic still throws when another writer changes the baseline', async ($, on) => {
+  const w = world(on)
+  await $.session.start(start)
+  await $.session.append(native('baseline-owner', 'Baseline ask'))
+  const path = `/h/me/.local/state/agent-should-know/${SID}/owner.asks.jsonl`
+  w.files.set(path, 'another writer\n')
+  await $.session.append(native('replacement-owner', 'Replacement ask'))
+  expect(w.logs.join('\n')).toContain(`Error: integrity mismatch: ${path}`)
+  expect(w.files.get(path)).toBe('another writer\n')
+})
 
 test('native owner delivery commits once; peer and queued text grant no authority; same sid start keeps provenance', async ($, on) => {
   const w = world(on)

@@ -4,6 +4,8 @@
 
 Owner 2026-10-29: sessions froze with the mod on (「根本卡住」).
 
+- Owner asks from the engine's `delivery` door keep only the owner's lines as items when the complete mid-turn wrapper is present. The original text and item offsets stay intact; a typed copy of the wrapper stays literal.
+- A resumed instance adopts the existing ledger and projection as its write baseline. It keeps historical ledger bytes separately from native owner rows, appends new asks, and projects those new asks without granting disk history owner authority. Later changes by another writer still raise `integrity mismatch`; resume does not archive files.
 - Audit results are reports, not environment warnings: an UNKNOWN result no longer enters the next audit's coverage or nests earlier notices. The notice shows `coverage` for a coverage gap, or at most 120 reason characters, plus the audit file path. The audit JSON keeps the full reason; coverage gaps still force UNKNOWN.
 - `/asks on` clears shown warnings, so a still-present condition shows once more (owner-accepted 2026-10-29).
 - Root cause: a warning fed itself. `notice` writes a transcript line with `ui.log`; the engine keeps that line as a `session.append` row (origin `engine`); the mod's `session.append` hook traces 5 rows; each trace of a diagnostics file over 1 MiB calls `notice` again. Session ed52bad5: 13491 `diagnostics size warning` rows in its transcript from 08:10 to 08:46, and the owner's prompt waited 626 s behind the trace queue.

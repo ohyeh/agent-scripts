@@ -27,12 +27,17 @@ export async function cleanupEmptySid($: EngineInterface): Promise<void> {
 }
 
 // Each item keeps its exact native span. The judge may interpret it, never invent its source.
-export function ownerRow(id: Identity, uuid: string, origin: string, text: string, epoch = 0, instance = 'native'): Owner {
+export function ownerRow(id: Identity, uuid: string, origin: string, text: string, epoch = 0, instance = 'native', delivery = false): Owner {
   const items: Item[] = []
-  const lines = text.matchAll(/[^\n]+/g)
+  // The delivery door identifies the rendering; the hook exposes no separate owner body.
+  const head = '<system-reminder>\nThe user sent a new message while you were working:\n'
+  const tail = '\n\nThis is how Claude Code surfaces messages the user sends mid-turn — within the running turn, often alongside the next tool result, rather than as a separate conversation turn. Address the message above as you continue this turn.\n</system-reminder>'
+  const wrapped = delivery && text.startsWith(head) && text.endsWith(tail)
+  const offset = wrapped ? head.length : 0
+  const lines = (wrapped ? text.slice(offset, -tail.length) : text).matchAll(/[^\n]+/g)
   for (const m of lines) {
     if (!m[0].trim()) continue
-    const start = m.index!
+    const start = offset + m.index!
     items.push({ id: `${uuid}:${start}`, start, end: start + m[0].length, text: m[0], kind: 'unknown' })
   }
   return { schema_version: 1, sid: id.sid, epoch, instance, uuid, origin, text, items }

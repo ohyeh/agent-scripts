@@ -226,6 +226,7 @@ let version = 0
 let id: Identity | null = null
 let rows: Owner[] = []
 let ledger: string | null = null
+let retained = ''
 let projection: string | null = null
 let enabled = true
 let health = 'initializing'
@@ -292,7 +293,7 @@ const trace = ($: EngineInterface, event: string, extra: Record<string, unknown>
 }
 const saveState = async ($: EngineInterface) => {
   if (!id) return
-  const value: Saved = { schema_version: 1, sid: id.sid, epoch, rows, ledger, projection, pending: job !== null, instance }
+  const value: Saved = { schema_version: 1, sid: id.sid, epoch, rows, ledger, retained, projection, pending: job !== null, instance }
   const r = await $.state.set(STATE, value, { ifVersion: version })
   version = r.version
   if (!r.isSet) {
@@ -306,7 +307,7 @@ const persist = ($: EngineInterface): Promise<void> => {
   const at = epoch
   writing = writing.then(async () => {
     if (!context || id !== context || at !== epoch) return
-    const text = rows.length ? `${rows.map(r => JSON.stringify(r)).join('\n')}\n` : ''
+    const text = retained + (retained && !retained.endsWith('\n') ? '\n' : '') + (rows.length ? `${rows.map(r => JSON.stringify(r)).join('\n')}\n` : '')
     await atomic($, `${rootOf(context)}/owner.asks.jsonl`, text, ledger)
     if (id !== context) return
     ledger = text
@@ -351,7 +352,7 @@ const ready = async ($: EngineInterface) => {
       if (id?.sid === live.sid && id.home === live.home && id.cwd === live.cwd) return
       cancel()
       id = null
-      rows = []; ledger = null; projection = null; turn = null; enabled = true
+      rows = []; ledger = null; retained = ''; projection = null; turn = null; enabled = true
       const control = await $.store.get(`control:${live.sid}`)
       enabled = control !== 'off'
       const saved = await $.state.get(STATE)
@@ -361,12 +362,17 @@ const ready = async ($: EngineInterface) => {
         if (!Array.isArray(value.rows) || value.rows.some(r => r.schema_version !== 1 || r.sid !== live.sid || !r.uuid || !Array.isArray(r.items) || r.items.some(i => r.text.slice(i.start, i.end) !== i.text))) throw new Error('invalid engine recovery state')
         rows = value.rows
         ledger = value.ledger
+        retained = value.retained ?? ''
         projection = value.projection
         epoch = Math.max(epoch, value.epoch + 1)
         if (value.pending) { enabled = false; notice($, 'UNKNOWN interrupted audit at reload; no verdict restored; use on after old environment ends') }
       }
       id = live
-      if (await $.fs.exists(`${rootOf(live)}/owner.asks.jsonl`) && ledger === null) notice($, 'historical ledger retained; native recovery coverage UNKNOWN; disk grants no authority')
+      if (ledger === null && await $.fs.exists(`${rootOf(live)}/owner.asks.jsonl`)) {
+        retained = ledger = await $.fs.read(`${rootOf(live)}/owner.asks.jsonl`)
+        if (projection === null && await $.fs.exists(projectionOf(live))) projection = await $.fs.read(projectionOf(live))
+        notice($, 'historical ledger retained; native recovery coverage UNKNOWN; disk grants no authority')
+      }
       if (health === 'initializing') health = enabled ? 'ready' : 'off'
       await saveState($)
       await trace($, 'identity-ready')
@@ -385,7 +391,7 @@ export const register: Register = on => {
   cancel()
   instance = crypto.randomUUID()
   seq = 0; epoch = 0; version = 0
-  id = null; rows = []; ledger = null; projection = null
+  id = null; rows = []; ledger = null; retained = ''; projection = null
   enabled = true; health = 'initializing'; turn = null; probe = null
   writing = Promise.resolve(); diagnostics = Promise.resolve(); segment = null
   job = null; controller = null; timer = null
@@ -422,7 +428,7 @@ export const register: Register = on => {
 
   on('session.end', ($, e, next) => {
     cancel()
-    id = null; turn = null; rows = []; ledger = null; projection = null
+    id = null; turn = null; rows = []; ledger = null; retained = ''; projection = null
     s.sid = ''; s.cwd = ''; s.home = ''; s.file = null
     s.pending = null; s.early = null; s.running = undefined; s.sent.clear()
     try { $.ui.log(JSON.stringify({ instance, event: 'session.end', sid: e.sessionId, reason: e.reason, epoch }), { to: 'debug' }) } catch { /* No model or repair at session end. */ }
@@ -481,7 +487,7 @@ export const register: Register = on => {
       if (!rows.some(r => r.uuid === result.uuid)) {
         cancel()
         const text = result.message.content.flatMap(b => b.type === 'text' ? [b.text] : []).join('\n')
-        rows.push(ownerRow(id, result.uuid, e.origin.kind, text, epoch, instance))
+        rows.push(ownerRow(id, result.uuid, e.origin.kind, text, epoch, instance, e.door === 'delivery'))
         await persist($)
       }
     }

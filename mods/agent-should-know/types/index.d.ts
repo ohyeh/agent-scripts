@@ -25,6 +25,7 @@ declare module 'claude-code' {
           }[]
         }[]
         ledger: string | null
+        retained?: string
         projection: string | null
         pending: boolean
         instance: string
