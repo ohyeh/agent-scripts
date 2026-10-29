@@ -46,7 +46,7 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
 - **`feature-plan-consensus.workflow.js`** — supervised orchestration: turns a
   "new feature brief" into a v1 implementation plan. Escalation ladder (opus worker →
   orchestrator self → second brain: `args.cli` if given, else a fresh Claude opus →
-  escalate to user; floor opus low, sonnet only via `discoverModel`), evidence
+  escalate to user; floor opus high, sonnet only via `discoverModel`), evidence
   doctrine (trust code/logs/actual output, never memory or stale .md/.html),
   internal critic consensus loop followed by external adversarial review from
   the second brain — the plan is only written and committed once both gates

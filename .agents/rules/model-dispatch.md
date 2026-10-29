@@ -22,7 +22,7 @@ version there: pick another runtime or a same-tier model of another family.
 
 | Claude tier | Current ID | Role |
 |---|---|---|
-| `opus` | `claude-opus-5-5` (live 2026-09-24; API default effort `medium`, effort sweep pending) | DEFAULT worker at effort `medium` (user ruling 2026-09-02): implementation, refactor, research, first review; `high` for architecture, hard debugging, adversarial review |
+| `opus` | `claude-opus-5-5` (live 2026-09-24; API default effort `medium`, effort sweep pending) | DEFAULT worker at effort `high`, never lower (owner ruling 2026-10-30「至少 high」): implementation, refactor, research, first review; `xhigh` for architecture, hard debugging, adversarial review |
 | `sonnet` | `claude-sonnet-5-5` (live 2026-10-01) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, solved-pattern batches; effort floor `medium` (user ruling 2026-10-01: at `low` it skips instructions); no planning, synthesis, revision, or verdicts |
 | `fable` | `claude-fable-5-1` | scarce; at `low` often beats opus/sonnet on cost per task — include in any sweep; picker rejection falls back to `opus` |
 | `haiku` | `claude-haiku-5-5` (live 2026-10-10) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, bulk tagging or extraction (including web/community scans); effort floor `medium`; no planning, synthesis, revision, or verdicts |
@@ -68,8 +68,8 @@ sit on several rows at different efforts. `medium+` = that effort or higher.
 | Tier | Job | Claude | Codex | Gemini (agy) | Grok (Cursor) |
 |---|---|---|---|---|---|
 | best | plan, verdict (preferred) | `fable` low / medium | `gpt-6-astra` low / medium | `gemini-4-argon-low` / `-medium` or later | — |
-| better | plan, verdict | `opus` medium+ | `gpt-6.1-sol` medium+ | — | — |
-| exec | implementation | `opus` low / medium; `sonnet` high+ | `gpt-6.1-sol` low / medium; `gpt-6-luna` xhigh / max | `gemini-3.8-flash-medium` or later | `grok-4.7-xhigh-fast` or later |
+| better | plan, verdict | `opus` high+ | `gpt-6.1-sol` medium+ | — | — |
+| exec | implementation | `opus` high; `sonnet` high+ | `gpt-6.1-sol` low / medium; `gpt-6-luna` xhigh / max | `gemini-3.8-flash-medium` or later | `grok-4.7-xhigh-fast` or later |
 | basic | gathering, mechanical | `sonnet` medium; `haiku` high+ | `gpt-6.1-sol` low; `gpt-6-luna` xhigh / max | — | — |
 | cheap | gathering, mechanical | `haiku` medium | — | — | — |
 
@@ -139,8 +139,8 @@ stays.
 |---|---|---|
 | locate/inventory | `sonnet` medium for gathering; `opus`/`fable` for synthesis | Luna xhigh |
 | read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
-| implement/refactor/research | `opus` medium; `sonnet`/`haiku` 5.5+ by commander's call (§1). An implement/refactor round expected to run many turns: `impl-bounded` (opus medium, compacts at 200K, not 450K; 70% of worker cost 10/15–10/16 was above 200K). Pass `model` only to change tier. | Luna xhigh |
-| review/verification | review ladder (§Review ladder below): L1 `sonnet` high → L2 best tier, else `opus` medium+ → stop and ask the user | review ladder: Luna xhigh/max at L1 (opt-in); Astra low/medium or Sol medium+ at L2 |
+| implement/refactor/research | `opus` high; `sonnet`/`haiku` 5.5+ by commander's call (§1). An implement/refactor round expected to run many turns: `impl-bounded` (opus high, compacts at 200K, not 450K; 70% of worker cost 10/15–10/16 was above 200K). Pass `model` only to change tier. | Luna xhigh |
+| review/verification | review ladder (§Review ladder below): L1 `sonnet` high → L2 best tier, else `opus` high+ → stop and ask the user | review ladder: Luna xhigh/max at L1 (opt-in); Astra low/medium or Sol medium+ at L2 |
 | hard debugging after two evidenced failures / architecture | `opus` | Sol high |
 | apply solved pattern | `sonnet` medium | Luna xhigh |
 | dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: proxy runs `assign --detach`, the parent owns the wait (`using-tmux-agent-tools` §ONE OWNER) | same |
@@ -149,7 +149,7 @@ Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above 
 2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
 3.5 h): except for the worker, the L1/TK review roles and mechanical seats (L0 runners and CLI
 conduits: `sonnet` medium; L1/TK `sonnet` high) below, every recipe agent runs at least `opus` effort
-`low`; planning, synthesis, revision, and verdicts NEVER run on `sonnet` or `haiku`. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
+`high` (owner ruling 2026-10-30); planning, synthesis, revision, and verdicts NEVER run on `sonnet` or `haiku`. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
 below (user ruling 2026-10-09); otherwise `sonnet`/`haiku` 5.5+ may run implementation or
 read-only data gathering in a recipe by commander's call (user ruling 2026-10-10). The second-model CLI
 (`cli`) is optional and NOT codex-specific: any agent-tmux profile (codex, claude fable/opus,
@@ -168,7 +168,7 @@ Every other recipe keeps its own loop until the W43 retro decides, and does not 
 | L0 | deterministic | test/build/lint/scrub/grep/checksum before every round, then hash what is under review; a hash change during the round voids it | must PASS before the round |
 | L1 | `sonnet` high (code: `pr-review-toolkit:code-reviewer`); `gemini-3.8-flash-medium` or later (agy); `grok-4.7-xhigh` or later (Cursor); `gpt-6-luna` xhigh/max only on request | adversarial pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
 | TK | code only: `pr-review-toolkit` agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) on `sonnet` high, in parallel | a fixed-form full report of suggestions that sets a floor under L1's blind spots; findings join the ledger, the fixer answers them once; never passes the work. The brief tells `pr-test-analyzer` to also list tests to merge or delete (operator-defaults Test cost) | 1 round |
-| L2 | commander-driven gate: `advisor` (as above). In-script seat: best tier (`fable` / `gpt-6-astra` / `gemini-4-argon`, low / medium), else better tier (`opus` or `gpt-6.1-sol`, medium+) (code: `pr-review-toolkit:code-reviewer`) | the final verdict; always runs | 3 rounds |
+| L2 | commander-driven gate: `advisor` (as above). In-script seat: best tier (`fable` / `gpt-6-astra` / `gemini-4-argon`, low / medium), else better tier (`opus` high+ or `gpt-6.1-sol` medium+) (code: `pr-review-toolkit:code-reviewer`) | the final verdict; always runs | 3 rounds |
 
 No L3 (user ruling 2026-10-16): still blocking after L2 round 3 → stop the gate and ask the
 user. There is no further layer, so a stuck gate cannot keep burning usage.
@@ -287,7 +287,7 @@ Default effort per tier (user ruling 2026-10-10); the commander moves it per tas
 
 | Tier | Start | Floor | Ceiling without evidence |
 |---|---|---|---|
-| `opus` | `medium` | `low` | `high` |
+| `opus` | `high` | `high` (owner ruling 2026-10-30「至少 high」) | `xhigh` |
 | `fable` | `low` | `low` | `high` |
 | `sonnet` | `medium` | `medium` (at `low` it skips instructions) | `high` |
 | `haiku` | `medium` | `medium` | `high` (at `max` it used 440M output tokens on the Artificial Analysis Intelligence Index vs a 100M median, checked 2026-10-10) |

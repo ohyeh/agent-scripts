@@ -29,9 +29,9 @@ const N = Math.max(1, a.hypotheses || 5)
 const VOTES = Math.max(1, a.verifyVotes || 2)
 const hints = (a.scopeHints || []).join(', ')
 // Knobs listed EXPLICITLY on every agent() call below (never omitted) so "no model/effort shown"
-// can't be misread as "unsupported". Default opus/medium; floor opus/low (user ruling 2026-09-02).
+// can't be misread as "unsupported". Default and floor opus/high (owner ruling 2026-10-30).
 const model = a.model || 'opus'
-const effort = a.effort || 'medium'   // default opus/medium (user ruling 2026-09-02); floor opus/low
+const effort = a.effort || 'high'   // default and floor opus/high (owner ruling 2026-10-30)
 // Official agent() opts, listed on every call (none reads as "unsupported"). Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; a missing custom agentType is a HARD error #20931)

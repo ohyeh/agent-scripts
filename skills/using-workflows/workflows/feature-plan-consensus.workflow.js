@@ -16,7 +16,7 @@
 //   Authority/trust ranking (high→low):  USER > EXTERNAL(args.cli, when given) >= ORCHESTRATOR(self) > workers.
 //   If the top automated tier still cannot satisfy the monitor, DO NOT force-proceed —
 //   return needsUser:true and stop short of any commit.
-// MODEL POLICY (user ruling 2026-09-02): floor = opus effort low. Planning, synthesis, revision,
+// MODEL POLICY (owner ruling 2026-10-30): floor = opus effort high. Planning, synthesis, revision,
 //   critique, and review NEVER run on sonnet. sonnet is allowed ONLY for read-only data gathering
 //   (Discover) runs on the explore-bounded definition (sonnet, maxTurns 60, read-only gate) by default; discoverModel overrides it.
 //   The second-model CLI is OPTIONAL: no cli → the external loop runs a fresh Claude opus reviewer.
@@ -40,7 +40,7 @@
 //     cli:        "codex",                        // OPTIONAL second-model CLI; absent → fresh Claude opus reviewer
 //     escalateExternal: true,                     // optional, default true; only effective when cli is given
 //     commit:     false, push: false,             // optional: git gate (= the human approval)
-//     model:      "opus", effort: "low",          // optional worker floor (never below opus low)
+//     model:      "opus", effort: "high",         // optional worker floor (never below opus high)
 //     reviewEffort: "high",                       // optional: critics / external reviewer effort
 //     discoverModel: "opus"                       // optional: overrides the explore-bounded definition's model for Discover only
 //   }})
@@ -69,7 +69,7 @@ for (const k of ['repoPath', 'featureBrief']) if (!a[k]) return { aborted: true,
 
 const repo = a.repoPath
 const model = a.model || 'opus'     // worker floor (user ruling 2026-09-02: never sonnet for plan/synth/revise)
-const effort = a.effort || 'medium'    // worker effort (default medium; floor opus low)
+const effort = a.effort || 'high'    // worker effort (default and floor: opus high)
 const reviewEffort = a.reviewEffort || 'high'   // critics + second reviewer
 const discoverModel = a.discoverModel  // undefined by default: the explore-bounded definition binds model (sonnet); an explicit arg OVERRIDES it (measured 2026-09-04)
 // Official agent() opts, listed on every call. Both default OFF:

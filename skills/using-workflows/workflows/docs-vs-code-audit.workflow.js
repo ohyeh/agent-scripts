@@ -14,7 +14,7 @@
 //     groundTruth: "Code-verified facts the docs MUST reflect (multi-line). Verify in code before trusting any doc claim.",
 //     bannedPatterns: ["yunlin", "docs/work", "date_formatter"],  // optional: rg these in the consistency sweep
 //     docsRoot: "docs/",                          // optional, default "docs/"
-//     model: "opus", effort: "low"                // optional; floor opus low (user ruling 2026-09-02)
+//     model: "opus", effort: "high"               // optional; floor opus high (owner ruling 2026-10-30)
 //   }})
 //
 // NOTE: workflow scripts have no FS/shell — only agents do. All file work happens inside agent() prompts.
@@ -37,7 +37,7 @@ if (!Array.isArray(a.groups) || !a.groups.length) return { aborted: true, reason
 const repo = a.repoPath
 const docsRoot = a.docsRoot || 'docs/'
 const model = a.model || 'opus'     // listed on every agent() below (never omitted); floor opus
-const effort = a.effort || 'medium'    // reasoning effort — "not shown" must not read as "unsupported"
+const effort = a.effort || 'high'    // reasoning effort — "not shown" must not read as "unsupported"
 // Official agent() opts, listed on every call. Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)

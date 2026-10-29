@@ -41,7 +41,7 @@ dispatcher already routed; workers follow their brief.
    root-cause deep-dive / plan→build / research) to a recipe via Q2.
 2. Runtime: see Contracts §Cross-runtime — Claude runs the recipe natively
    with `Workflow`; Codex commands it through `references/codex-adapter.md`
-   (`claude-workflow-runner`) at `opus` effort `low` (the floor); Cursor and
+   (`claude-workflow-runner`) at `opus` effort `high` (the floor); Cursor and
    agy run it by hand when the row has no `stop`. A missing Claude tool or
    model is not a stop by itself: replace it by role (§Cross-runtime).
 3. Write-back duty: every recipe artifact/result lands in the CALLER's
@@ -105,8 +105,8 @@ way; launch or effort flags go in the agent-tmux profile `.conf` that `cli` name
 
 **Model floor (user ruling 2026-09-02).** Except for the worker, the L1/TK
 review roles and mechanical seats (L0 runners and CLI conduits: `sonnet`
-medium) below, every recipe agent runs at least `opus` effort `low`; the
-default worker is `opus` effort `medium`, reviewers `high`. Planning,
+medium) below, every recipe agent runs at least `opus` effort `high`; the
+default worker is `opus` effort `high`, reviewers `high`. Planning,
 synthesis, revision, and verdicts NEVER run on `sonnet` or `haiku` — a plan
 written by either is not a plan. `sonnet` 5.5+ may run the L1 pre-filter of
 the review ladder (`model-dispatch.md` §Review ladder, user ruling

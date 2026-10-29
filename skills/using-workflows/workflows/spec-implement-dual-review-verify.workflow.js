@@ -76,7 +76,7 @@ const a = typeof args === 'string' ? (() => { try { return JSON.parse(args) } ca
 for (const k of ['repoPath', 'spec']) if (!a[k]) return { aborted: true, reason: `missing arg: ${k}` }
 if (a.cli != null) return { aborted: true, reason: 'cli is not a reviewer here any more: the review ladder picks the reviewers (model-dispatch.md §Review ladder); drop cli' }
 if (a.maxReviewRounds != null && !(Number.isInteger(a.maxReviewRounds) && a.maxReviewRounds >= 1 && a.maxReviewRounds <= 3)) return { aborted: true, reason: 'invalid arg: maxReviewRounds must be an integer 1–3 (L2 rounds)' }
-if (a.reviewEffort != null && !['medium', 'high', 'xhigh', 'max'].includes(a.reviewEffort)) return { aborted: true, reason: 'invalid arg: reviewEffort must be medium|high|xhigh|max (L2 is opus medium+)' }
+if (a.reviewEffort != null && !['high', 'xhigh', 'max'].includes(a.reviewEffort)) return { aborted: true, reason: 'invalid arg: reviewEffort must be high|xhigh|max (L2 is opus high+)' }
 if (a.l1Lenses != null) return { aborted: true, reason: 'l1Lenses is gone: the toolkit agents run once as the TK step; pass toolkit' }
 const TK_OK = ['silent-failure-hunter', 'pr-test-analyzer', 'type-design-analyzer', 'comment-analyzer']
 // 2026-10-11: toolkit lenses inside L1 reran every L1 round (80% of toolkit spend); one TK pass gives the full report
@@ -86,7 +86,7 @@ if (!Array.isArray(toolkit) || toolkit.some(l => !TK_OK.includes(l))) return { a
 
 const repo = a.repoPath
 const model = a.model || 'opus'     // IMPLEMENTER / FIXER model only ('sonnet' permitted here)
-const effort = a.effort || 'medium'    // implementer effort (default medium; floor opus low)
+const effort = a.effort || 'high'    // implementer effort (default and floor: opus high)
 const reviewEffort = a.reviewEffort || 'high'
 const maxRounds = a.maxReviewRounds || 3
 const v = (a.verification && typeof a.verification === 'object') ? a.verification : {}

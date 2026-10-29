@@ -98,10 +98,10 @@ const slug = a.slug || 'feature'
 // ponytail: slug guard mirrors the stage workflows — keep the shell's own boundary check.
 if (!/^[a-zA-Z0-9._-]+$/.test(slug) || slug.includes('..')) return { aborted: true, reason: `invalid slug '${slug}'` }
 // model/effort resolved once and forwarded EXPLICITLY to every nested stage + own agent (never
-// omitted — "not shown" must not read as "unsupported"). Defaults: opus / medium (user ruling
-// 2026-09-02: floor opus low; stages keep their reviewers on opus regardless of `model`).
+// omitted — "not shown" must not read as "unsupported"). Defaults: opus / high (owner ruling
+// 2026-10-30: floor opus high; stages keep their reviewers on opus regardless of `model`).
 const model = a.model || 'opus'
-const effort = a.effort || 'medium'   // worker default (user ruling 2026-09-02); reviewers use reviewEffort
+const effort = a.effort || 'high'   // worker default (owner ruling 2026-10-30); reviewers use reviewEffort
 // Official agent() opts, also forwarded to nested stages. Both default OFF:
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)

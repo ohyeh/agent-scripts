@@ -14,7 +14,7 @@
 // The drafter (args.cli through the tmux-agent mod, else opus) answers every round under the fixer contract;
 // args.cli never reviews its own draft. agent() keeps no session, so each round's reviewer gets the
 // whole finding ledger and the before/after snapshot diff in place of kept context.
-// MODEL POLICY: drafter floor opus low; sonnet only as an L1 reviewer (user ruling 2026-10-09).
+// MODEL POLICY: drafter floor opus high (owner ruling 2026-10-30); sonnet only as an L1 reviewer (user ruling 2026-10-09).
 //
 // NOTHING is hardcoded to a project: slug, brief, output paths, review settings all come from
 // `args`. An external CLI drafter runs through the tmux-agent mod tools: completion is the mod's await on
@@ -31,7 +31,7 @@
 //     l0: "scripts/check-docs",                     // OPTIONAL deterministic check run before every review round
 //     snapshotDir: "/tmp/plan-pipeline-<slug>",     // pre-fix copies for the reviewer's diff (default shown)
 //     cli: "codex",                                 // OPTIONAL drafter CLI (agent-tmux profile) via the tmux-agent mod; absent → opus drafter
-//     sessionName: "plan-<slug>", model: "opus", effort: "low", reviewEffort: "high", timeoutSec: 1200, luna: false,
+//     sessionName: "plan-<slug>", model: "opus", effort: "high", reviewEffort: "high", timeoutSec: 1200, luna: false,
 //     skipDirection: false,                         // true → directionPath already exists, start at ②
 //     adrs: [{ slug: "external-idp", title: "..." }],// OPTIONAL: force these ADRs; else ② decides which are needed
 //     commitPush: true, commitMessage: "docs(plan): freeze <slug> planning artifacts"
@@ -65,10 +65,10 @@ const planPath = a.planPath || `.workflow/next-direction/plan-${slug}.md`
 const adrDir = a.adrDir || 'docs/adr'
 // The ladder caps are the contract: L2 runs 1–3 rounds at medium+ effort, never 0 and never more.
 if (a.maxReviewRounds != null && !(Number.isInteger(a.maxReviewRounds) && a.maxReviewRounds >= 1 && a.maxReviewRounds <= 3)) return { aborted: true, reason: 'invalid arg: maxReviewRounds must be an integer 1–3 (L2 rounds)' }
-if (a.reviewEffort != null && !['medium', 'high', 'xhigh', 'max'].includes(a.reviewEffort)) return { aborted: true, reason: 'invalid arg: reviewEffort must be medium|high|xhigh|max (L2 is opus medium+)' }
+if (a.reviewEffort != null && !['high', 'xhigh', 'max'].includes(a.reviewEffort)) return { aborted: true, reason: 'invalid arg: reviewEffort must be high|xhigh|max (L2 is opus high+)' }
 const maxRounds = a.maxReviewRounds || 3
 const session = a.sessionName || `plan-${slug}`
-const effort = a.effort || 'medium'    // drafter / driving agent effort (default medium; floor opus low)
+const effort = a.effort || 'high'    // drafter / driving agent effort (default and floor: opus high)
 const reviewEffort = a.reviewEffort || 'high'   // L2 reviewer effort
 const model = a.model || 'opus'     // drafter never sonnet: this recipe is planning (user ruling 2026-09-02)
 // Official agent() opts, listed on every call. Both default OFF:

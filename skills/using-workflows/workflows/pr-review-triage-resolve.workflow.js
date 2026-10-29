@@ -12,7 +12,7 @@
 //   - Don't rubber-stamp the bot. The brain knows the diff before the bot speaks.
 //   - High-stakes / low-confidence calls escalate: T1 self -> T2 worker panel ->
 //     T3 deciding pass (args.externalAgentType when given, else a FRESH Claude opus agent).
-//   - MODEL POLICY (user ruling 2026-09-02): floor opus low; triage/verify/land never sonnet.
+//   - MODEL POLICY (owner ruling 2026-10-30): floor opus high; triage/verify/land never sonnet.
 //     `fixModel` (default opus) is the only knob where 'sonnet' is permitted — it implements fixes.
 //
 //   Workflow({ scriptPath: "~/.claude/workflows/pr-review-triage-resolve.workflow.js", args: {

@@ -2,7 +2,7 @@
 name: impl-bounded
 description: Implementation worker for one round of a long task. Its context compacts at 200K instead of the session's 450K. Use for implement/refactor work expected to run many turns.
 model: opus
-effort: medium
+effort: high
 autoCompactWindow: 200000
 ---
 One round only (model-dispatch §3 Worker lifespan). Work to the brief's ACCEPTANCE,

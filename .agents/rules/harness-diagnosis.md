@@ -7,7 +7,7 @@ re-verify must be treated as UNCONFIRMED, not repeated as fact.
 ## Environment snapshot (verified 2026-07-10; model lines re-verified 2026-09-24)
 
 - Session model: `claude-opus-5-5[1m]` via `/model` default (settings `model` is unset);
-  global effort `low`, per-model `modelSettings.claude-opus-5-5.effortLevel: medium`
+  global effort `low`, per-model `modelSettings.claude-opus-5-5.effortLevel: xhigh`
   (`~/.claude/settings.json`).
 - Agent tool `model` parameter accepts exactly: `sonnet` | `opus` | `haiku` | `fable`.
   The Agent tool has NO `effort` parameter — effort comes from the agent definition
