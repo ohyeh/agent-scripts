@@ -25,6 +25,9 @@ For non-trivial work, add these filled lines before ACCEPTANCE:
 
 Common footer — include in EVERY delegation:
 
+> SCOPE: the whole request as the owner gave it. Never "optional", "if time
+> runs short, stop", "minimal diff", or a first-part-only version of a broad
+> ask. A cut quotes the owner: `{quote | none}`.
 > REPORT: return ONLY short conclusion bullets + `file:line` per claim +
 > verification evidence if you changed anything. Long
 > artifacts → write to `{artifact_path}` and return the path. Do not paste file

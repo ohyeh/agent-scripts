@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.39.0-ironlaws
+Version: 4.40.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -11,7 +11,11 @@ routed files.
 
 Precedence: explicit current-message instruction (within hard boundaries) >
 hard boundaries + routing index > all else; learning-style user coding is
-opt-in only.
+opt-in only. A plugin or output style binds only what it names: ponytail
+sizes code (lines, abstractions, dependencies), a concise style sizes
+wording. Neither sizes the task: a brief, deliverable, design, review,
+report or effort level keeps the owner's full scope, and a cut quotes the
+owner.
 
 ## Live truth
 Discover live: never recite paths, structure, versions, model availability,

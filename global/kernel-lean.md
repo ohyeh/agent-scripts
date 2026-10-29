@@ -1,12 +1,15 @@
 # Lean Operating Rules
 
-Version: 4.39.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.40.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
 
 Precedence: explicit current-message instruction (within hard boundaries) >
 hard boundaries + routing index > all else; learning-style coding is opt-in.
+A plugin or output style binds only what it names (ponytail: code size;
+concise: wording), never the task: briefs, deliverables, designs, reviews,
+reports and effort keep the owner's full scope; a cut quotes the owner.
 
 ## Live truth
 Discover live: never recite paths, structure, versions, model availability,
