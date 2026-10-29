@@ -40,7 +40,7 @@ For phone or device UI work, the commander relays only secrets and hard-stop ste
 | commander | `gpt-6.1-sol` | `medium` | `xhigh` only for materially large/hard work |
 | plan | `gpt-6-astra` | `medium` | `high`; `xhigh` only for major architecture/security/ambiguity |
 | review/judgment | review ladder (§4 Review ladder): `gpt-6-luna` xhigh/max at L1 on request; `gpt-6-astra` low/medium or `gpt-6.1-sol` medium+ at L2 | per seat | reviewer is not the author; each seat runs its tier row's effort, no step-up |
-| execution | `gpt-6-luna`; explicit Sol; or external | Luna `xhigh`/`max`; Sol low/medium/high | Sol workers stop at `high` (owner ruling 2026-10-30) |
+| execution | `gpt-6-luna`; explicit Sol; or external | Luna `xhigh`/`max`; Sol low/medium | Sol workers stop at `medium` |
 
 Codex models: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna` — no others. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
 for an explicit latency need. Sol `max` needs concrete evidence. Never hard-code context-window
@@ -69,7 +69,7 @@ sit on several rows at different efforts. `medium+` = that effort or higher.
 |---|---|---|---|---|---|
 | best | plan, verdict (preferred) | `fable` low / medium | `gpt-6-astra` low / medium | `gemini-4-argon-low` / `-medium` or later | — |
 | better | plan, verdict | `opus` high+ | `gpt-6.1-sol` medium+ | — | — |
-| exec | implementation | `opus` high; `sonnet` high+ | `gpt-6.1-sol` low / medium / high; `gpt-6-luna` xhigh / max | `gemini-3.8-flash-medium` or later | `grok-4.7-xhigh-fast` or later |
+| exec | implementation | `opus` high; `sonnet` high+ | `gpt-6.1-sol` low / medium; `gpt-6-luna` xhigh / max | `gemini-3.8-flash-medium` or later | `grok-4.7-xhigh-fast` or later |
 | basic | gathering, mechanical | `sonnet` medium; `haiku` high+ | `gpt-6.1-sol` low; `gpt-6-luna` xhigh / max | — | — |
 | cheap | gathering, mechanical | `haiku` medium | — | — | — |
 
@@ -314,7 +314,7 @@ Move it dynamically, one step at a time, and say why in the dispatch record (§7
 Effort names are NOT equivalent across models (Fable 5.1 guide): re-run the sweep when the model
 changes. Before `xhigh`/`max`, prefer bounded same-tier sampling
 plus a judge when cheaper. Workflow `agent()` calls set effort explicitly. Sol workers never
-exceed `high` (owner ruling 2026-10-30); Sol xhigh+ is reserved for the commander.
+exceed `medium`; Sol high+ is reserved for the commander.
 
 Same approach: three rounds total, each one tier UP — worker low/medium → worker high (or a
 stronger model) → advisor (second model, e.g. `consensus-gate`) with the full trail. The same
