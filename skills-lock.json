@@ -24,9 +24,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/callstackincubator/agent-device.git",
       "skillPath": "skills/agent-device/SKILL.md",
-      "skillFolderHash": "15a14ae632df32232e6224a8005b2a633238b777",
+      "skillFolderHash": "f895b564a36ba6d574656136889b6a985e2981a5",
       "installedAt": "2026-07-18T20:47:33.875Z",
-      "updatedAt": "2026-10-23T18:07:23.669Z"
+      "updatedAt": "2026-10-29T17:27:49.537Z"
     },
     "apple-design": {
       "source": "emilkowalski/skills",
@@ -42,9 +42,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/codebase-design/SKILL.md",
-      "skillFolderHash": "07ba1cd60efc12d0d3a083005c1d9651cf15e39a",
+      "skillFolderHash": "4cbe1c131e1ea54109cb1e4e5f3c505810db6606",
       "installedAt": "2026-07-18T20:49:31.166Z",
-      "updatedAt": "2026-09-30T12:34:19.448Z"
+      "updatedAt": "2026-10-29T17:27:51.181Z"
     },
     "codex-cu": {
       "source": "ohyeh/agent-scripts",
@@ -132,9 +132,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/productivity/grilling/SKILL.md",
-      "skillFolderHash": "28aceb4c9567b985cb47f7db88cf23c9f33af8b8",
+      "skillFolderHash": "f551b6e0d219fdda0b6abf277f8f915b3127d1e9",
       "installedAt": "2026-08-10T07:08:45.281Z",
-      "updatedAt": "2026-10-08T19:25:12.142Z"
+      "updatedAt": "2026-10-29T17:27:52.634Z"
     },
     "impeccable": {
       "source": "pbakaus/impeccable",
@@ -150,9 +150,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
-      "skillFolderHash": "39bd9cc130f7dfcc4e3ea0b3613f6ebed0d0ad2b",
+      "skillFolderHash": "587147dd230da299cc5e84971cb0a33f6676f8a6",
       "installedAt": "2026-07-18T20:49:31.167Z",
-      "updatedAt": "2026-09-30T12:34:25.791Z"
+      "updatedAt": "2026-10-29T17:27:54.203Z"
     },
     "pdf": {
       "source": "anthropics/skills",
@@ -251,9 +251,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-decision-tree/SKILL.md",
-      "skillFolderHash": "5ea3bc5cd536dbfc0b0f39664fbc39e4dfa25ed5",
+      "skillFolderHash": "99e15ca8acb050acd7075988ac50c5ff37af60e8",
       "installedAt": "2026-10-23T00:00:00.000Z",
-      "updatedAt": "2026-10-23T00:00:00.000Z"
+      "updatedAt": "2026-10-29T17:27:58.920Z"
     },
     "using-grok-bot-app": {
       "source": "ohyeh/agent-scripts",
@@ -278,9 +278,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/wayfinder/SKILL.md",
-      "skillFolderHash": "32b0ce970b1394ede47116e1d3e07f9ccc87591f",
+      "skillFolderHash": "25da74eadc3e388b2f2a2cc716f3d44b2fb9dfe0",
       "installedAt": "2026-07-18T20:49:31.170Z",
-      "updatedAt": "2026-10-08T19:25:17.889Z"
+      "updatedAt": "2026-10-29T17:27:55.799Z"
     },
     "wizard": {
       "source": "mattpocock/skills",
