@@ -1,0 +1,10 @@
+./register.ts hooks: command.run{command=reload-plugins}, session.start, session.end, command.run{command=asks}, session.append{origin={kind=composer}|{kind=bridge}, door=prompt|delivery|command}, tool.call
+./register.ts answers its own command: command.run{command=asks}
+./register.ts gating hook with .catch: command.run{command=reload-plugins}
+./register.ts gating hook with .catch: session.append{origin={kind=composer}|{kind=bridge}, door=prompt|delivery|command}
+./register.ts gating hook with .catch: tool.call
+./register.ts calls: $.command.register, $.env.get (via failure, ready), $.fs.exists, $.fs.read, $.fs.write (via atomic), $.process.run (via atomic, ready), $.session.cwd (via failure, ready), $.session.id, $.store.get (via ready), $.store.set, $.ui.log (via failure)
+./register.ts env writes: nothing
+./register.ts env reads: HOME
+.claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
+hooks/hooks.json names a hooks module (a code file listed under `modules`). The plugin directory has rules of its own for such code, and these checks apply none of them, so passing here does not mean the directory accepts the plugin. The developer portal's own validation applies those rules.

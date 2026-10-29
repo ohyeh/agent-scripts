@@ -1,5 +1,23 @@
 # Changelog
 
+## owner-asks 0.1.0
+
+Owner 2026-10-30: 「我覺得當初…合併一起的想法太天真 應該拆開」「audit 這件事應該是獨立的ＭＯＤ」「我只知道 專發送出系統內建的 heads-up 以及其他功能 這兩塊」.
+
+- Split raw owner messages into an independent mod, with its own state directory and plugin store. One record per owner UUID keeps exact text, origin, engine door and owner-body span. Only committed composer/bridge messages enter the source; plugin notices and other engine rows never do.
+- Derive the existing recall projection directly from the message source. The existing compaction hook reads it once after compact; one engine tool result carries a reminder after resume. No per-turn index, item classification, task state, supersede, judge or gate.
+- Keep a serialized writer and the b893262 staged reload handover: no source IO before swap, drain before explicit reload, and no old writer after swap. Recovery reads disk messages rather than engine-state CAS. Failures do not turn capture off. A small failure record is queryable through read-only `/asks`.
+- Audit has no runtime code. Research notes remain at `evals/retro-metrics/2026-W44/opinions/`; existing owner files are not moved or deleted.
+- Add `scripts/test-owner-asks-engine.py` to run both independent mods in an interactive throwaway session. No push, install or plugin toggle is part of this candidate.
+
+## agent-should-know 0.4.0
+
+Restore the 0.2.1 relay code from `171a49f` in a new commit. Keep the built-in heads-up relay, Learn more, handled log and `/heads-up` only. Bump the version to 0.4.0. Owner message indexing belongs to the separate `owner-asks` mod. Neither mod depends on the other.
+
+Earlier owner decisions, 2026-10-30: Q1 「那為啥不鎖定 0.2.1 先用就好？ 然後持續開發下去？」; Q2 「從穩定版移除，只做離線研究」 for the online audit; Q3 「relay 穩定後另做下一版」 and 「只存你的原話和出處，在壓縮和重開時各提醒一次，加一個唯讀 /asks 查詢。不需要判官，也不加新的 gate.」. The split above replaces the combined candidate; the owner keeps the local 0.2.1 relay pin while testing.
+
+Historical entries below describe earlier versions, not the current relay scope.
+
 ## agent-should-know 0.3.2
 
 Owner 2026-10-29: sessions froze with the mod on (「根本卡住」).
