@@ -368,6 +368,24 @@ def episode5_probe():
         projection = PROJECTION.read_text()
         check('episode5 paste', 'Owner before' in row['text'] and 'Owner after' in row['text'] and '[pasted ' in row['text'] and body not in row['text'] and body not in projection,
               f'owner chars={len(row["text"])}, paste leaked={body in row["text"]}, projection leaked={body in projection}')
+    elif args.episode5 == 'capture':
+        for n in range(3):
+            marker = f'ASK040_CAPTURE_{n}'
+            send(f'Run Bash command `printf {marker}`. Then reply DONE_{marker}.')
+            wait('capture-answer', lambda: answered('DONE_' + marker))
+        send('/reload-plugins')
+        send('Run Bash command `printf ASK040_CAPTURE_RELOAD`. Then reply DONE_ASK040_CAPTURE_RELOAD.')
+        wait('capture-reload', lambda: answered('DONE_ASK040_CAPTURE_RELOAD'))
+        send('/exit')
+        wait('capture-exit', lambda: subprocess.run(['tmux', 'has-session', '-t', SESSION], capture_output=True).returncode != 0)
+        launch(True)
+        send('Run Bash command `printf ASK040_CAPTURE_RESUME`. Then reply DONE_ASK040_CAPTURE_RESUME.')
+        wait('capture-resume', lambda: answered('DONE_ASK040_CAPTURE_RESUME'))
+        sent = [s for s in submissions if 'printf ASK040_CAPTURE_' in s['text']]
+        captured = [r for r in records() if 'printf ASK040_CAPTURE_' in r['text']]
+        skipped = [r for r in rows() if r.get('type') == 'system' and 'session.append hook was skipped' in str(r.get('content', ''))]
+        check('episode5 capture', len(sent) == 5 and len(captured) == 5 and len({r['uuid'] for r in captured}) == 5,
+              f'sent={len(sent)}, recorded={len(captured)}, skipped notices={len(skipped)}, security named={any("cc-plugin-sec-default" in str(r) for r in skipped)}')
     send('/exit')
 
 
