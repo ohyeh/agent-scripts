@@ -4,7 +4,7 @@ import { cells, fit, rowsOf } from './lib/band.ts'
 import { atomic, AUDIT_PROMPT, cleanupEmptySid, digest, errorText, judgeResult, migrate, ownerRow, projectionOf, rootOf, snapshot, validIdentity } from './lib/records.ts'
 import type { Bundle, Call, Identity, Owner } from './lib/records.ts'
 
-const MOD_VERSION = '0.3.0'
+const MOD_VERSION = '0.3.2'
 const NAME = 'agent-should-know'
 const COMMAND = 'heads-up'
 const ACCENT = 'magenta'
@@ -233,6 +233,13 @@ let turn: Turn | null = null
 let probe: Promise<void> | null = null
 let writing: Promise<void> = Promise.resolve()
 let diagnostics: Promise<void> = Promise.resolve()
+// Diagnostics rows go to diagnostics.jsonl, then diagnostics.1.jsonl, ...: one trace rewrites at most one segment.
+const SEGMENT = 256 * 1024
+const segmentPath = (root: string, index: number) => `${root}/diagnostics${index ? `.${index}` : ''}.jsonl`
+// Bytes, the unit fs.list reports: a CJK row is 3 bytes per character on disk.
+const bytes = (text: string) => new TextEncoder().encode(text).length
+const NOT_SAVED = 'diagnostics not saved; error in the debug log'
+let segment: { root: string; index: number; total: number } | null = null
 let job: Promise<void> | null = null
 let controller: AbortController | null = null
 let timer: ReturnType<EngineInterface['clock']['after']> | null = null
@@ -241,8 +248,11 @@ const warnings = new Set<string>()
 
 const notice = ($: EngineInterface, text: string, warning = true) => {
   health = text
+  // A transcript line is a session.append, whose hook traces, and a trace can warn: a warning
+  // already shown is not logged again, or it feeds itself (0.3.2: ed52bad5 froze on 13491 rows).
+  if (warning && warnings.has(text)) return
   if (warning) warnings.add(text)
-  try { $.ui.log(`agent-should-know v0.3.0: ${text}`); $.ui.invalidate('ui.render') } catch { /* The next healthy dispatch repeats the pending notice. */ }
+  try { $.ui.log(`agent-should-know v${MOD_VERSION}: ${text}`); $.ui.invalidate('ui.render') } catch { /* The next healthy dispatch repeats the pending notice. */ }
 }
 const cancel = () => {
   epoch += 1
@@ -256,11 +266,28 @@ const trace = ($: EngineInterface, event: string, extra: Record<string, unknown>
   diagnostics = diagnostics.then(async () => {
     $.ui.log(JSON.stringify(row), { to: 'debug' })
     if (!context) return
-    const path = `${rootOf(context)}/diagnostics.jsonl`
-    const old = await $.fs.exists(path) ? await $.fs.read(path) : ''
-    if (old.length > 1024 * 1024) notice($, 'diagnostics size warning; owner decides retention')
-    await atomic($, path, `${old}${JSON.stringify(row)}\n`, await $.fs.exists(path) ? old : null)
-  }).catch(err => notice($, `diagnostics not saved: ${errorText(err)}`))
+    const root = rootOf(context)
+    if (segment?.root !== root) {
+      // One list at the first trace finds the last segment; an older full file is never read again.
+      const found = (await $.fs.exists(root) ? await $.fs.list(root) : []).flatMap(f => {
+        const m = /^diagnostics(?:\.(\d+))?\.jsonl$/.exec(f.name)
+        return m ? [{ index: Number(m[1] ?? 0), size: f.size }] : []
+      })
+      const last = found.reduce((a, b) => b.index >= a.index ? b : a, { index: 0, size: 0 })
+      segment = { root, index: last.size >= SEGMENT ? last.index + 1 : last.index, total: found.reduce((n, f) => n + f.size, 0) }
+    }
+    const line = `${JSON.stringify(row)}\n`
+    let path = segmentPath(root, segment.index)
+    let old = await $.fs.exists(path) ? await $.fs.read(path) : null
+    if (old !== null && bytes(old) + bytes(line) > SEGMENT) { path = segmentPath(root, ++segment.index); old = null }
+    segment.total += bytes(line)
+    if (segment.total > 1024 * 1024) notice($, 'diagnostics size warning; owner decides retention')
+    await atomic($, path, `${old ?? ''}${line}`, old)
+  }).catch(err => {
+    // The error goes to the debug log: an engine error that names a size would differ every time.
+    try { $.ui.log(`agent-should-know diagnostics not saved: ${errorText(err)}`, { to: 'debug' }) } catch { /* The notice below still shows. */ }
+    notice($, NOT_SAVED)
+  })
   return diagnostics
 }
 const saveState = async ($: EngineInterface) => {
@@ -360,7 +387,7 @@ export const register: Register = on => {
   seq = 0; epoch = 0; version = 0
   id = null; rows = []; ledger = null; projection = null
   enabled = true; health = 'initializing'; turn = null; probe = null
-  writing = Promise.resolve(); diagnostics = Promise.resolve()
+  writing = Promise.resolve(); diagnostics = Promise.resolve(); segment = null
   job = null; controller = null; timer = null
   warnings.clear()
   remindedEpoch = -1
@@ -424,7 +451,7 @@ export const register: Register = on => {
       try { return { text: await migrate($, id) } } catch (err) { notice($, errorText(err)) }
     }
     await trace($, 'command', { action: ['on', 'off', 'migrate'].includes(action) ? action : 'status' })
-    return { text: `agent-should-know v0.3.0: ${enabled ? 'on' : 'off'}; ${health}\n${rows.flatMap(r => r.items.map(i => `${i.id} [${i.kind}${i.answer ? ', answered' : ', open'}] ${i.text}`)).join('\n')}\n${[...warnings].join('\n')}` }
+    return { text: `agent-should-know v${MOD_VERSION}: ${enabled ? 'on' : 'off'}; ${health}\n${rows.flatMap(r => r.items.map(i => `${i.id} [${i.kind}${i.answer ? ', answered' : ', open'}] ${i.text}`)).join('\n')}\n${[...warnings].join('\n')}` }
   }).catch(($, _e, next) => { failed($, 'command.run', next.error); return { text: `asks UNKNOWN: ${errorText(next.error)}` } })
 
   on('prompt.submit', async ($, e, next) => {
@@ -464,6 +491,9 @@ export const register: Register = on => {
 
   on('turn.start', async ($, e, next) => {
     if (e.agentId !== undefined) return next(e)
+    // Not on a save that works: the notice's own echo row traces, and a save in between would let
+    // an intermittent failure show again on every echo (ASK032-03). The mod never starts a turn.
+    warnings.delete(NOT_SAVED)
     await ready($)
     turn = { id: e.turnId, model: await $.session.model(), calls: [], expected: new Set(), messages: [], coverage: new Set() }
     s.running = e.turnId
@@ -515,7 +545,6 @@ export const register: Register = on => {
     }
     await ready($)
     await trace($, 'turn.complete', { turn: e.turnId, reason: e.reason })
-    for (const warning of warnings) { try { $.ui.log(`agent-should-know turn end: ${warning}`) } catch { /* Retain pending notices. */ } }
     if (!id || !enabled || !turn || turn.id !== e.turnId) return result
     if (job || timer) { notice($, 'UNKNOWN audit already active; no second request'); return result }
     const current = turn
@@ -546,7 +575,9 @@ export const register: Register = on => {
         await atomic($, `${path}.json`, JSON.stringify({ schema_version: 1, sid: context.sid, epoch: at, instance, digest: hash, verdict: judged.verdict, reason: judged.reason, ...detail }), null)
         if (at !== epoch || id !== context || !enabled) return
         if (judged.verdict === 'PASS') { rows = judged.owners; await persist($) }
-        notice($, `audit ${judged.verdict}: ${judged.reason}; ${path}.json`, judged.verdict === 'UNKNOWN')
+        // Audit reports must not become warnings in the next audit's coverage.
+        const reason = judged.reason.startsWith('coverage: ') ? 'coverage' : judged.reason.replace(/\s+/g, ' ').slice(0, 120)
+        notice($, `audit ${judged.verdict}: ${reason}; ${path}.json`, false)
       }).catch(err => notice($, `audit UNKNOWN; not saved: ${errorText(err)}`)).finally(() => {
         job = null
         controller = null

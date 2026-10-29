@@ -1,5 +1,18 @@
 # Changelog
 
+## agent-should-know 0.3.2
+
+Owner 2026-10-29: sessions froze with the mod on (「根本卡住」).
+
+- Audit results are reports, not environment warnings: an UNKNOWN result no longer enters the next audit's coverage or nests earlier notices. The notice shows `coverage` for a coverage gap, or at most 120 reason characters, plus the audit file path. The audit JSON keeps the full reason; coverage gaps still force UNKNOWN.
+- `/asks on` clears shown warnings, so a still-present condition shows once more (owner-accepted 2026-10-29).
+- Root cause: a warning fed itself. `notice` writes a transcript line with `ui.log`; the engine keeps that line as a `session.append` row (origin `engine`); the mod's `session.append` hook traces 5 rows; each trace of a diagnostics file over 1 MiB calls `notice` again. Session ed52bad5: 13491 `diagnostics size warning` rows in its transcript from 08:10 to 08:46, and the owner's prompt waited 626 s behind the trace queue.
+- `notice` logs a warning only the first time its text is seen (the `/asks` status still lists it); the main agent's next `turn.start` clears `diagnostics not saved`, so a failure in a later turn is shown again. A successful save does not clear it: the notice's own echo row traces, and with intermittent write failures each echo showed the notice again (review ASK032-03: 21 notices in 101 writes). A failed diagnostics write logs its error to the debug log, and the band says `diagnostics not saved; error in the debug log`, so an error text that changes on each call cannot start the loop again.
+- The judge reads a reply that is one ```` ```json ```` fence and nothing else. Remote session 797196d8: 11 of 11 audits UNKNOWN, 10 of them `protocol: invalid JSON`; the 0.3.1 one (`output_tokens` 3696) excerpt starts with a fence. `maxTokens` did not fix this.
+- Turn end no longer posts every earlier warning again (797196d8: 7 to 8 `turn end: audit UNKNOWN` lines per turn end). Each audit result is logged once, when it settles.
+- The `notice` and `/asks` text use the mod version; they said v0.3.0 since 0.3.1.
+- Diagnostics rows go to segments of at most 256 KiB (counted in bytes, as `fs.list` reports them): `diagnostics.jsonl`, then `diagnostics.1.jsonl`, `diagnostics.2.jsonl`, and so on. A trace reads and rewrites only the current segment, not the whole history (ed52bad5: 1 to 4 MiB per trace, about 5 traces per row), and rows past the 4 MiB `fs` limit are still saved. The first trace finds the last segment with one `fs.list`; an older full `diagnostics.jsonl` stays as it is and is not read again. No row is deleted; the size warning counts all segments, and retention stays the owner's decision.
+
 ## agent-should-know 0.3.1
 
 Owner 2026-10-29: 「一直亂噴 很煩」 (every turn logged `audit UNKNOWN`).

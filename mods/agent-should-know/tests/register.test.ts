@@ -42,7 +42,7 @@ function textOf(node: unknown): string {
 type On = Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => unknown>>[1]
 
 // The engine beneath the mod: a store, files, prompts and opens it records.
-function world(on: On, store = new Map<string, unknown>(), fault: { deleteKey?: string; keys?: boolean; read?: boolean; write?: boolean; rename?: boolean; sid?: string; offSave?: boolean; cas?: boolean; getKey?: string; hostDeny?: boolean; toolThrow?: boolean } = {}) {
+function world(on: On, store = new Map<string, unknown>(), fault: { deleteKey?: string; keys?: boolean; read?: boolean; write?: boolean; rename?: boolean; sid?: string; offSave?: boolean; cas?: boolean; getKey?: string; hostDeny?: boolean; toolThrow?: boolean; echo?: (row: { uuid: string; origin: { kind: 'engine' }; door: 'notice'; message: { type: 'system'; content: { type: 'text'; text: string }[] } }) => Promise<unknown> } = {}) {
   const clock = mock.clock(on)
   const sent: string[] = []
   const opened: string[] = []
@@ -50,12 +50,18 @@ function world(on: On, store = new Map<string, unknown>(), fault: { deleteKey?: 
   const files = new Map<string, string>()
   const logs: string[] = []
   const listeners: { text: string; resolve: () => void }[] = []
-  const waitForLog = (text: string) => logs.some(l => l.includes(text)) ? Promise.resolve() : new Promise<void>(resolve => { listeners.push({ text, resolve }) })
+  const waitForLog = (text: string, after = 0) => logs.slice(after).some(l => l.includes(text)) ? Promise.resolve() : new Promise<void>(resolve => { listeners.push({ text, resolve }) })
   let state: unknown
   let version = 0
+  const echoed: Promise<unknown>[] = []
+  const reads: number[] = []
   on('ui.log', (_, e) => {
     logs.push(e.text)
     for (const listener of listeners) if (e.text.includes(listener.text)) listener.resolve()
+    // The engine keeps a transcript line as a row and raises session.append for it (ed52bad5:
+    // 13491 such rows). Capped so a feedback loop fails the test instead of hanging it.
+    if (fault.echo && e.to === 'transcript' && echoed.length < 50)
+      echoed.push(fault.echo({ uuid: `log-${echoed.length}`, origin: { kind: 'engine' }, door: 'notice', message: { type: 'system', content: [{ type: 'text', text: e.text }] } }))
     return { value: undefined }
   })
   on('store.keys', () => {
@@ -91,10 +97,13 @@ function world(on: On, store = new Map<string, unknown>(), fault: { deleteKey?: 
     if (fault.read) throw new Error('injected read EACCES')
     const text = files.get(e.path)
     if (text === undefined) throw new Error('ENOENT')
+    reads.push(text.length)
     return { value: text }
   })
   on('fs.write', (_, e) => {
     if (fault.write) throw new Error('injected write EACCES')
+    // The engine's cap (a thrown hook passes to the real write, which fails on /h/me too).
+    if (e.text.length > 4 * 1024 * 1024) throw new Error(`write of ${e.text.length} bytes over 4 MiB`)
     files.set(e.path, e.text)
     return { value: undefined }
   })
@@ -102,7 +111,7 @@ function world(on: On, store = new Map<string, unknown>(), fault: { deleteKey?: 
   on('fs.list', (_, e) => ({
     value: [...files.keys()]
       .filter(p => p.startsWith(`${e.path}/`))
-      .map(p => ({ name: p.slice(e.path.length + 1), kind: 'file' as const, size: 1, mtimeMs: 0, isLink: false })),
+      .map(p => ({ name: p.slice(e.path.length + 1), kind: 'file' as const, size: new TextEncoder().encode(files.get(p)!).length, mtimeMs: 0, isLink: false })),
   }))
   on('process.run', (_, e) => {
     if (e.argv[0] === 'python3' && e.argv[2]?.includes('os.replace')) {
@@ -124,7 +133,9 @@ function world(on: On, store = new Map<string, unknown>(), fault: { deleteKey?: 
     if (fault.toolThrow) throw new Error('injected host tool error')
     return (fault.hostDeny ? { deny: 'host permission denied fixture' } : { result: {}, text: 'ok' }) as never
   })
-  return { sent, opened, files, store, toasts, logs, clock, ran, waitForLog }
+  // Waits until the engine rows the mod's own log lines raised stop raising more.
+  const quiet = async () => { for (let n = -1; n !== echoed.length;) { n = echoed.length; await Promise.all(echoed) } }
+  return { sent, opened, files, store, toasts, logs, clock, ran, waitForLog, echoed, quiet, reads }
 }
 
 // The built-in's offer card beneath the mod; other plugins' bands sit beside it,
@@ -221,7 +232,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   expect([...rows].sort()).toEqual(rows)
 
   // The band counts it, and a fresh start (a reload) counts the same file again.
-  expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.3.0 · 1 heads-up · 1 handled')
+  expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.3.2 · 1 heads-up · 1 handled')
   await $.session.start(start)
   expect(textOf(await $.ui.render(band()))).toContain('· 1 heads-up · 1 handled')
 })
@@ -265,7 +276,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
 
   // Empty state, folded from the start: the header alone.
   const wide = textOf(await $.ui.render(band(120)))
-  expect(wide).toContain('▌agent should know v0.3.0 · no heads-up yet')
+  expect(wide).toContain('▌agent should know v0.3.2 · no heads-up yet')
   expect(wide).toContain('[ ⧉ log ][ ▸ open ][ hide ]')
   expect(wide).not.toContain('logged in')
   expect(textOf(await $.ui.render(band(50)))).toContain('[ ⧉ ][ ▸ ][ ✕ ]')
@@ -292,7 +303,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
   expect(textOf(await $.ui.render(band(120)))).not.toContain('agent should know')
   const shown = await $.command.run(cmd)
   expect(shown.text).toContain('band shown. 0 heads-up · 0 handled this session')
-  expect(textOf(await $.ui.render(band(120)))).toContain('▌agent should know v0.3.0')
+  expect(textOf(await $.ui.render(band(120)))).toContain('▌agent should know v0.3.2')
   expect((await $.command.run(cmd)).text).toContain('band hidden; /heads-up shows it again.')
 })
 
@@ -387,6 +398,14 @@ test('ask-items-have-native-owner-provenance and judge rejects missing evidence'
   const changed = { ...result, items: [...result.items, { id: later.items[0]!.id, kind: 'constraint', answer: 'B kept', evidence: [] }], changes: [{ id: owner.items[0]!.id, by: later.items[0]!.id, quote: 'Drop Do A', action: 'superseded' }] }
   expect(judgeResult(JSON.stringify(changed), { ...b, owners: [owner, later] }).owners[0]!.items[0]!.resolution?.ownerUuid).toBe('later-owner')
   expect(judgeResult(JSON.stringify({ ...changed, changes: [{ ...changed.changes[0], by: owner.items[1]!.id, quote: 'Keep B' }] }), { ...b, owners: [owner, later] }).verdict).toBe('UNKNOWN')
+})
+
+test('judge reads a verdict wrapped in one json code fence (797196d8: 10 of 11 audits)', () => {
+  const owner = ownerRow({ sid: SID, home: '/h/me', cwd: '/work' }, 'native-uuid', 'composer', 'Do A')
+  const b: Bundle = { schema_version: 1, sid: SID, epoch: 1, instance: 'fixture', turn: 't1', reply: 'A done', owners: [owner], calls: [], messages: [], coverage: [] }
+  const fail = { verdict: 'FAIL', reason: 'The reply claims A without proof', findings: [{ source: 'reply', quote: 'A done', problem: 'no call shows it' }], items: [] }
+  expect(judgeResult(`\`\`\`json\n${JSON.stringify(fail)}\n\`\`\`\n`, b).verdict).toBe('FAIL')
+  expect(judgeResult(`Here: \`\`\`json\n${JSON.stringify(fail)}\n\`\`\``, b).reason).toBe('protocol: invalid JSON')
 })
 
 const native = (uuid: string, text: string, kind: 'composer' | 'peer' = 'composer') => ({
@@ -500,6 +519,61 @@ test('audit invalid JSON keeps the reply excerpt and output tokens in the result
   expect(JSON.parse(result)).toMatchObject({ verdict: 'UNKNOWN', output_tokens: 1024, excerpt: '{"verdict":"PASS","reason":"cut' })
 })
 
+test('each audit result is logged once: a later turn end does not post it again', async ($, on) => {
+  const w = world(on)
+  on('turn.complete', () => ({ text: 'done' }))
+  on('model.complete', () => ({ value: { isAnswered: true, usage, text: 'not json' } }))
+  await $.session.start(start)
+  const posted = () => w.logs.filter(l => l.includes('audit UNKNOWN: protocol')).length
+  for (const turnId of ['t1', 't2', 't3']) {
+    await $.turn.start({ turnId, text: 'fixture' })
+    const after = w.logs.length
+    await $.turn.complete(done(turnId))
+    // Each audit settles before the next turn ends, so none is skipped as already active.
+    await w.clock.settle()
+    await w.waitForLog('audit UNKNOWN: protocol', after)
+    await w.clock.settle()
+  }
+  expect(posted()).toBe(3)
+  expect(w.logs.join('\n')).not.toContain('already active')
+})
+
+test('standing warning keeps three UNKNOWN audit notices bounded without nesting', async ($, on) => {
+  const w = world(on, new Map(), { echo: row => $.session.append(row) })
+  w.files.set(`/h/me/.local/state/agent-should-know/${SID}/diagnostics.jsonl`, 'x'.repeat(1024 * 1024 + 1))
+  on('turn.complete', () => ({ text: 'done' }))
+  on('model.complete', () => ({ value: { isAnswered: true, usage, text: JSON.stringify({ verdict: 'UNKNOWN', reason: 'fixture', findings: [], items: [] }) } }))
+  await $.session.start(start)
+  await $.session.append(native('owner-standing', 'Write fixture'))
+  const notices: string[] = []
+  const bundles: Bundle[] = []
+  for (const turnId of ['t1', 't2', 't3']) {
+    await $.turn.start({ turnId, text: 'fixture' })
+    const after = w.logs.length
+    await $.turn.complete(done(turnId))
+    await w.clock.settle()
+    await w.waitForLog('audit UNKNOWN: coverage', after)
+    const [path, text] = [...w.files].find(([p, text]) => p.endsWith('.evidence.json') && JSON.parse(text).turn === turnId)!
+    await w.clock.settle()
+    await w.quiet()
+    bundles.push(JSON.parse(text))
+    const notice = w.logs.find(l => l.endsWith(`${path.slice(0, -'.evidence.json'.length)}.json`))!
+    notices.push(notice)
+    expect(JSON.parse(w.files.get(path.replace('.evidence.json', '.json'))!)).toMatchObject({ verdict: 'UNKNOWN', reason: expect.stringContaining('diagnostics size warning') })
+  }
+  expect(notices[2]!.length).toBeLessThanOrEqual(notices[1]!.length)
+  for (const notice of notices) {
+    expect(notice.split('audit UNKNOWN:').length).toBe(2)
+    expect(notice.length).toBeLessThanOrEqual(320)
+  }
+  for (const bundle of bundles) {
+    expect(bundle.coverage).toContain('diagnostics size warning; owner decides retention')
+    expect(bundle.coverage.some(warning => warning.includes('audit UNKNOWN'))).toBe(false)
+  }
+  expect(w.logs.filter(l => l.includes('audit UNKNOWN: pending')).length).toBe(3)
+  expect(w.logs.filter(l => l.includes('already active')).length).toBe(0)
+})
+
 test('clear-without-start-new-session: old asks and off never move', async ($, on) => {
   const fault = { sid: SID }
   const w = world(on, new Map(), fault)
@@ -583,6 +657,87 @@ test('corrupt-cache-not-authority-or-hold and diagnostics size warning never rem
   expect(w.logs.join('\n')).toContain('diagnostics size warning')
   expect(w.logs.join('\n')).toContain('disk grants no authority')
   expect(w.ran).toEqual(['Bash'])
+})
+
+test('a warning logs once: its own transcript row does not feed it again (ed52bad5 froze)', async ($, on) => {
+  const w = world(on, new Map(), { echo: row => $.session.append(row) })
+  // Just under the engine's 4 MiB cap: over the size warning, and the next row does not fit.
+  w.files.set(`/h/me/.local/state/agent-should-know/${SID}/diagnostics.jsonl`, 'x'.repeat(4 * 1024 * 1024 - 64))
+  await $.session.start(start)
+  await $.session.append(native('owner-big', 'Write fixture'))
+  await w.quiet()
+  expect(w.logs.filter(l => l.includes('diagnostics size warning')).length).toBe(1)
+  expect(w.echoed.length).toBeLessThan(5)
+})
+
+test('a trace reads one bounded segment and still saves past the 4 MiB fs limit', async ($, on) => {
+  const w = world(on)
+  const root = `/h/me/.local/state/agent-should-know/${SID}`
+  w.files.set(`${root}/diagnostics.jsonl`, 'x'.repeat(4 * 1024 * 1024 - 64))
+  await $.session.start(start)
+  await $.session.append(native('owner-big', 'Write fixture'))
+  await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
+  expect(w.files.get(`${root}/diagnostics.jsonl`)).toBe('x'.repeat(4 * 1024 * 1024 - 64))
+  expect(w.files.get(`${root}/diagnostics.1.jsonl`)).toContain('"event"')
+  expect(Math.max(...w.reads)).toBeLessThanOrEqual(256 * 1024)
+  expect(w.logs.join('\n')).not.toContain('diagnostics not saved')
+})
+
+test('segments count bytes: a CJK-heavy segment stays within 256 KiB on disk', async ($, on) => {
+  const w = world(on)
+  const root = `/h/me/.local/state/agent-should-know/${SID}`
+  // 262050 bytes in 87350 characters: one more row passes 256 KiB in bytes, not in characters.
+  w.files.set(`${root}/diagnostics.jsonl`, '界'.repeat(87350))
+  await $.session.start(start)
+  await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
+  const segments = [...w.files].filter(([p]) => /\/diagnostics(\.\d+)?\.jsonl$/.test(p))
+  expect(segments.length).toBeGreaterThan(1)
+  for (const [, text] of segments) expect(new TextEncoder().encode(text).length).toBeLessThanOrEqual(256 * 1024)
+})
+
+test('diagnostics not saved shows again in a later turn after a save works and a later save fails', async ($, on) => {
+  const fault: { write?: boolean; echo?: NonNullable<Parameters<typeof world>[2]>['echo'] } = { write: true, echo: row => $.session.append(row) }
+  const w = world(on, new Map(), fault)
+  const notSaved = () => w.logs.filter(l => l.includes('diagnostics not saved; error in the debug log')).length
+  await $.session.start(start)
+  await w.quiet()
+  expect(notSaved()).toBe(1)
+  fault.write = false
+  await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
+  await w.quiet()
+  fault.write = true
+  await $.turn.start({ turnId: 't2', text: 'fixture' })
+  await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
+  await w.quiet()
+  expect(notSaved()).toBe(2)
+  expect(w.echoed.length).toBeLessThan(50)
+})
+
+test('intermittent write failures show diagnostics not saved once per turn (ASK032-03 looped on its own echo)', async ($, on) => {
+  let writes = 0
+  // Every other write fails: the notice's own echo row traces, and that trace saves.
+  const fault = { get write() { return writes++ % 2 === 0 }, echo: (row: Parameters<NonNullable<NonNullable<Parameters<typeof world>[2]>['echo']>>[0]) => $.session.append(row) }
+  const w = world(on, new Map(), fault)
+  const notSaved = () => w.logs.filter(l => l.includes('diagnostics not saved; error in the debug log')).length
+  await $.session.start(start)
+  await w.quiet()
+  const before = notSaved()
+  await $.turn.start({ turnId: 't1', text: 'fixture' })
+  for (let n = 0; n < 5; n++) await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
+  await w.quiet()
+  expect(before).toBeLessThanOrEqual(1)
+  expect(notSaved() - before).toBeLessThanOrEqual(1)
+  expect(w.echoed.length).toBeLessThan(5)
+})
+
+test('a segment that a row would push past 256 KiB stays as it is; the row starts the next one', async ($, on) => {
+  const w = world(on)
+  const root = `/h/me/.local/state/agent-should-know/${SID}`
+  w.files.set(`${root}/diagnostics.jsonl`, 'x'.repeat(256 * 1024 - 10))
+  await $.session.start(start)
+  await $.tool.call({ tool: 'Bash', command: 'git diff', description: 'fixture' })
+  expect(w.files.get(`${root}/diagnostics.jsonl`)).toBe('x'.repeat(256 * 1024 - 10))
+  expect(w.files.get(`${root}/diagnostics.1.jsonl`)).toContain('"event"')
 })
 
 test('catch-before-after-next-replay-safe: a host failure never runs the tool twice', async ($, on) => {

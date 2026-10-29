@@ -6,7 +6,7 @@ types ./types/index.d.ts declares state: agent-should-know.observer-v1
 ./register.ts gating hook with .catch: prompt.submit
 ./register.ts gating hook with .catch: session.append
 ./register.ts gating hook with .catch: tool.call
-./register.ts calls: $.clock.after, $.command.register, $.env.get, $.fs.exists (via atomic, openLog, ready, trace), $.fs.list (via storedCard), $.fs.read, $.fs.write (via atomic, logLine), $.model.complete, $.process.run (via atomic, migrate, openLog), $.prompt.submit (via relay), $.session.cwd (via identity), $.session.id, $.session.model, $.state.get, $.state.set (via saveState), $.store.delete (via cleanupEmptySid), $.store.get, $.store.keys (via cleanupEmptySid, migrate), $.store.set, $.ui.invalidate, $.ui.log, $.ui.resolve, $.ui.toast
+./register.ts calls: $.clock.after, $.command.register, $.env.get, $.fs.exists (via atomic, openLog, ready, trace), $.fs.list (via storedCard, trace), $.fs.read, $.fs.write (via atomic, logLine), $.model.complete, $.process.run (via atomic, migrate, openLog), $.prompt.submit (via relay), $.session.cwd (via identity), $.session.id, $.session.model, $.state.get, $.state.set (via saveState), $.store.delete (via cleanupEmptySid), $.store.get, $.store.keys (via cleanupEmptySid, migrate), $.store.set, $.ui.invalidate, $.ui.log, $.ui.resolve, $.ui.toast
 ./register.ts env writes: nothing
 ./register.ts env reads: HOME
 ./register.ts state writes: agent-should-know.observer-v1

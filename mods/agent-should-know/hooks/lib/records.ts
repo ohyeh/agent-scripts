@@ -109,7 +109,9 @@ PASS needs every active item addressed and known coverage. Never close or supers
 export function judgeResult(text: string, b: Bundle): { verdict: 'PASS' | 'FAIL' | 'UNKNOWN'; reason: string; owners: Owner[] } {
   const unknown = (reason: string) => ({ verdict: 'UNKNOWN' as const, reason, owners: b.owners })
   let raw: unknown
-  try { raw = JSON.parse(text) } catch { return unknown('protocol: invalid JSON') }
+  // A reply that is one ```json fence and nothing else is read as its JSON (797196d8: 10 of 11 audits).
+  const json = /^\s*```(?:json)?\n([\s\S]*)\n```\s*$/.exec(text)?.[1] ?? text
+  try { raw = JSON.parse(json) } catch { return unknown('protocol: invalid JSON') }
   const v = raw as { verdict?: unknown; reason?: unknown; findings?: unknown; items?: unknown; changes?: unknown } | null
   if (!v || !['PASS', 'FAIL', 'UNKNOWN'].includes(String(v.verdict)) || typeof v.reason !== 'string' || !Array.isArray(v.findings) || !Array.isArray(v.items)) return unknown('protocol: invalid verdict')
   const sources = new Map<string, string>([['reply', b.reply]])

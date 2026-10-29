@@ -1,6 +1,6 @@
 # agent-should-know
 
-Version 0.3.0 keeps the card relay below and adds a report-only owner-ask observer.
+Version 0.3.2 keeps the card relay below and adds a report-only owner-ask observer.
 It never denies tools or asks the Stop gate to enforce an audit.
 
 - `/asks` shows health, native owner UUIDs, exact item spans and audit details.
@@ -9,7 +9,8 @@ It never denies tools or asks the Stop gate to enforce an audit.
 - `/asks migrate` is an explicit owner maintenance action. Stop old 0.2 producers first. It inventories old `*.asks.jsonl`, saves byte-preserving backups, then archives them under `_v0.2-archive/`. A second run changes nothing. It preserves new `owner.asks.jsonl` files and all other owner text.
 
 New records live under `~/.local/state/agent-should-know/<fullSid>/`: `owner.asks.jsonl`,
-`audit/<bundle-sha256>.evidence.json`, the matching result JSON, and `diagnostics.jsonl`.
+`audit/<bundle-sha256>.evidence.json`, the matching result JSON, and `diagnostics.jsonl`
+(continued in `diagnostics.1.jsonl`, `diagnostics.2.jsonl`, ... at 256 KiB each).
 The historical compaction index stays at `agent-hooks/<fullSid>/asks-open.md`.
 All records use schema 1. Native composer and bridge rows define owner authority;
 peer, plugin, queued and unclassified text cannot create asks. Each item keeps its exact UUID and span.
@@ -81,7 +82,7 @@ Above the prompt from the session start, folded to its header until you press `[
 [`../README.md`](../README.md):
 
 ```
-▌agent should know v0.3.0 · 2 heads-up · 1 handled [ ⧉ log ][ ▾ fold ][ hide ]
+▌agent should know v0.3.2 · 2 heads-up · 1 handled [ ⧉ log ][ ▾ fold ][ hide ]
   log: ~/.local/state/agent-should-know/agent_automation/2026-10-20-28d2c553.log
 ```
 
