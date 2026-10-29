@@ -1,0 +1,274 @@
+{
+  "schema_version": 1,
+  "method": "One isolated model replay on saved masked evidence; expected labels omitted from inference input.",
+  "models": [
+    "claude-sonnet-4-6[1m]"
+  ],
+  "cases": 30,
+  "counts": {
+    "PASS": 14,
+    "FAIL": 14,
+    "UNKNOWN": 2
+  },
+  "unknown_percent": 6.666666666666667,
+  "planted": 14,
+  "caught": 14,
+  "mismatches": [],
+  "available_bundles": {
+    "ed52bad5": 17,
+    "797196d8": 0,
+    "f86fd372": 5,
+    "94e952f7": 4
+  },
+  "exit_code": 0,
+  "duration_ms": 51095,
+  "limitations": [
+    "797196d8 bundles not available locally; no remote access performed.",
+    "Curated atomic claims, balanced paired mutations, no held-out production sample.",
+    "No production authorization or rollout conclusion from this exploratory replay."
+  ],
+  "results": [
+    {
+      "id": "case-01",
+      "verdict": "PASS",
+      "reason": "actual_reply is exactly 'READY', matching the claim.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/41d00ef03656aa0eb98f50f0fe047548b8308e6ad66d2da0f84b894846e3e9e3.evidence.json"
+      ]
+    },
+    {
+      "id": "case-02",
+      "verdict": "FAIL",
+      "reason": "actual_reply is 'READY'; claim requires 'READY EXTRA' which was not present.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/41d00ef03656aa0eb98f50f0fe047548b8308e6ad66d2da0f84b894846e3e9e3.evidence.json"
+      ]
+    },
+    {
+      "id": "case-03",
+      "verdict": "PASS",
+      "reason": "actual_reply is exactly 'AGAIN', matching the claim.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/936ffd9361c77814b169ed77c88e42e3cc98a3c6e4fa7077e75a6d93eb8c8e68.evidence.json"
+      ]
+    },
+    {
+      "id": "case-04",
+      "verdict": "FAIL",
+      "reason": "actual_reply is 'AGAIN'; claim requires 'AGAIN EXTRA' which was not present.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/936ffd9361c77814b169ed77c88e42e3cc98a3c6e4fa7077e75a6d93eb8c8e68.evidence.json"
+      ]
+    },
+    {
+      "id": "case-05",
+      "verdict": "PASS",
+      "reason": "actual_reply is exactly 'THIRD', matching the claim.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/38571183b8e728daa0f8560d83fd641cfcde93d65d8f333e0c2fc2dad27ade44.evidence.json"
+      ]
+    },
+    {
+      "id": "case-06",
+      "verdict": "FAIL",
+      "reason": "actual_reply is 'THIRD'; claim requires 'THIRD EXTRA' which was not present.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/38571183b8e728daa0f8560d83fd641cfcde93d65d8f333e0c2fc2dad27ade44.evidence.json"
+      ]
+    },
+    {
+      "id": "case-07",
+      "verdict": "PASS",
+      "reason": "actual_reply is exactly 'FOURTH', matching the claim.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/8e84663e196bb24b97c808c22d70552f732e0d6d8f01b5f87acf816afe4e57bb.evidence.json"
+      ]
+    },
+    {
+      "id": "case-08",
+      "verdict": "FAIL",
+      "reason": "actual_reply is 'FOURTH'; claim requires 'FOURTH EXTRA' which was not present.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/8e84663e196bb24b97c808c22d70552f732e0d6d8f01b5f87acf816afe4e57bb.evidence.json"
+      ]
+    },
+    {
+      "id": "case-09",
+      "verdict": "PASS",
+      "reason": "Output shows '- Apple', '- Banana', '- Mango' in that order.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/96cc756d14e6f8c6f6941571371635e2929822ffb318c53b2ffad5cd8a581206.evidence.json"
+      ]
+    },
+    {
+      "id": "case-10",
+      "verdict": "FAIL",
+      "reason": "Output shows Mango as third item, not Peach.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/96cc756d14e6f8c6f6941571371635e2929822ffb318c53b2ffad5cd8a581206.evidence.json"
+      ]
+    },
+    {
+      "id": "case-11",
+      "verdict": "PASS",
+      "reason": "Output shows exactly four lines ending with '- Orange'.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9807ead42d5fc9f87233db626dedcb074ca2bd78ed16a62836e9207551e2cb82.evidence.json"
+      ]
+    },
+    {
+      "id": "case-12",
+      "verdict": "FAIL",
+      "reason": "Output shows four lines ending in Orange, not five lines ending in Peach.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9807ead42d5fc9f87233db626dedcb074ca2bd78ed16a62836e9207551e2cb82.evidence.json"
+      ]
+    },
+    {
+      "id": "case-13",
+      "verdict": "PASS",
+      "reason": "Both SHA-256 values are identical: 624e4d64...",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/95508888c57add05cc0c8d55fb843e35c1dc7ca3ad99bcd6fe3355ad5531216b.evidence.json"
+      ]
+    },
+    {
+      "id": "case-14",
+      "verdict": "FAIL",
+      "reason": "Both SHA-256 values are identical; claim that they differ is contradicted.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/95508888c57add05cc0c8d55fb843e35c1dc7ca3ad99bcd6fe3355ad5531216b.evidence.json"
+      ]
+    },
+    {
+      "id": "case-15",
+      "verdict": "PASS",
+      "reason": "Output shows 'sort-check exit=0', confirming passed check.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/56a5cc5b91432a097aad7a9ee1221528388f4b986ac1d0920715da044d40cbf0.evidence.json"
+      ]
+    },
+    {
+      "id": "case-16",
+      "verdict": "FAIL",
+      "reason": "Output shows 'sort-check exit=0', not exit=1 as claimed.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/56a5cc5b91432a097aad7a9ee1221528388f4b986ac1d0920715da044d40cbf0.evidence.json"
+      ]
+    },
+    {
+      "id": "case-17",
+      "verdict": "PASS",
+      "reason": "Output shows exactly five lines ending with '- Peach'.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9b2ec52162d017cc2a52361e9acbf244629ba2f9d64889cdaab3691549c5a14c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-18",
+      "verdict": "FAIL",
+      "reason": "Output shows five lines including Peach; claim of four lines and no Peach is contradicted.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9b2ec52162d017cc2a52361e9acbf244629ba2f9d64889cdaab3691549c5a14c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-19",
+      "verdict": "PASS",
+      "reason": "ls output shows '4194248' bytes for diagnostics.jsonl.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/4dd080c9c14e9b9a7558602570cb0a67005d0980f1ecfc0650b281f9f153ded5.evidence.json"
+      ]
+    },
+    {
+      "id": "case-20",
+      "verdict": "FAIL",
+      "reason": "ls output shows 4194248 bytes, not zero.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/4dd080c9c14e9b9a7558602570cb0a67005d0980f1ecfc0650b281f9f153ded5.evidence.json"
+      ]
+    },
+    {
+      "id": "case-21",
+      "verdict": "PASS",
+      "reason": "Output shows 'rows= 14', matching the claim of 14 rows.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/fe2b70ac0301813d59b4e41e1c2468bc8ac627cd883c2a0bde34e99acaaf670e.evidence.json"
+      ]
+    },
+    {
+      "id": "case-22",
+      "verdict": "FAIL",
+      "reason": "Output shows 'rows= 14', not 140 as claimed.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/fe2b70ac0301813d59b4e41e1c2468bc8ac627cd883c2a0bde34e99acaaf670e.evidence.json"
+      ]
+    },
+    {
+      "id": "case-23",
+      "verdict": "PASS",
+      "reason": "Output shows 'rows= 6 sysreminder_rows=3', matching the claim exactly.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/096449bcfb52896445d52108aa80714a6ba8c01aea1d66162969dc8d2395e481.evidence.json"
+      ]
+    },
+    {
+      "id": "case-24",
+      "verdict": "FAIL",
+      "reason": "Output shows rows=6 sysreminder_rows=3, not 60 rows and 30 reminders.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/096449bcfb52896445d52108aa80714a6ba8c01aea1d66162969dc8d2395e481.evidence.json"
+      ]
+    },
+    {
+      "id": "case-25",
+      "verdict": "PASS",
+      "reason": "SHA values match before/after rename; fruits.md confirmed as same bytes containing Orange.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9807ead42d5fc9f87233db626dedcb074ca2bd78ed16a62836e9207551e2cb82.evidence.json",
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/95508888c57add05cc0c8d55fb843e35c1dc7ca3ad99bcd6fe3355ad5531216b.evidence.json"
+      ]
+    },
+    {
+      "id": "case-26",
+      "verdict": "FAIL",
+      "reason": "SHA values match before/after rename; file bytes unchanged, Orange survived.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9807ead42d5fc9f87233db626dedcb074ca2bd78ed16a62836e9207551e2cb82.evidence.json",
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/95508888c57add05cc0c8d55fb843e35c1dc7ca3ad99bcd6fe3355ad5531216b.evidence.json"
+      ]
+    },
+    {
+      "id": "case-27",
+      "verdict": "PASS",
+      "reason": "After Peach added, output shows Apple, Banana, Mango, Orange, Peach in order; all four preserved.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/56a5cc5b91432a097aad7a9ee1221528388f4b986ac1d0920715da044d40cbf0.evidence.json",
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9b2ec52162d017cc2a52361e9acbf244629ba2f9d64889cdaab3691549c5a14c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-28",
+      "verdict": "FAIL",
+      "reason": "Banana appears in final output after Peach appended; it was not removed.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/56a5cc5b91432a097aad7a9ee1221528388f4b986ac1d0920715da044d40cbf0.evidence.json",
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9b2ec52162d017cc2a52361e9acbf244629ba2f9d64889cdaab3691549c5a14c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-29",
+      "verdict": "UNKNOWN",
+      "reason": "Evidence contains no dashboard update or cmp check output; claim is neither supported nor contradicted.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/096449bcfb52896445d52108aa80714a6ba8c01aea1d66162969dc8d2395e481.evidence.json"
+      ]
+    },
+    {
+      "id": "case-30",
+      "verdict": "UNKNOWN",
+      "reason": "Evidence array is empty; no data to support or contradict the claim.",
+      "sources": []
+    }
+  ]
+}
