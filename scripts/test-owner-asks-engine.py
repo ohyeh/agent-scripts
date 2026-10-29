@@ -8,21 +8,34 @@ import subprocess
 import sys
 import time
 import uuid
+import argparse
+import shutil
 
 print('WARNING: Throwaway sessions run with permissions skipped and can run any command on this host.', file=sys.stderr)
 
 REPO = Path(__file__).resolve().parent.parent
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--asks-plugin', type=Path, default=REPO / 'mods/owner-asks', help='Ask mod directory to test, including a historical extracted mod')
+parser.add_argument('--regressions', action='store_true', help='Run the four real-incident probes in separate throwaway sessions')
+args = parser.parse_args()
+ASKS_PLUGIN = args.asks_plugin.resolve()
+ASKS_NAME = json.loads((ASKS_PLUGIN / '.claude-plugin/plugin.json').read_text())['name']
 RUN = REPO / '.workflow' / (time.strftime('%Y%m%d%H%M%S') + '-asks040-engine')
 RUN.mkdir(parents=True)
+if args.regressions:
+    # Probe source replacement on a disposable copy, never the checkout or installed plugin.
+    shutil.copytree(ASKS_PLUGIN, RUN / 'asks-target', symlinks=True)
+    ASKS_PLUGIN = RUN / 'asks-target'
 FIXTURE = RUN / 'fixture'
 FIXTURE.mkdir()
 SID = str(uuid.uuid4())
 SESSION = 'asks040-' + SID[:8]
-ROOT = Path.home() / '.local/state/owner-asks' / SID
+ROOT = Path.home() / '.local/state' / ASKS_NAME / SID
 SOURCE = ROOT / 'owner.asks.jsonl'
 PROJECTION = Path.home() / '.local/state/agent-hooks' / SID / 'asks-open.md'
 TRANSCRIPT = Path.home() / '.claude/projects' / str(FIXTURE).replace('/', '-').replace('.', '-') / (SID + '.jsonl')
 results = []
+submissions = []
 
 
 def tmux(*args):
@@ -57,11 +70,46 @@ def wait(label, predicate, seconds=150):
     raise RuntimeError('timeout: ' + label)
 
 
-def send(text):
+def composer(capture):
+    draft = next((line[1:].strip() for line in reversed(capture.splitlines()) if line.startswith('❯')), None)
+    # The empty editor can show a dim suggestion; fixture prompts never start this way.
+    return '' if draft is not None and draft.startswith('Try "') else draft
+
+
+def send(text, paste=False):
     # Printed evidence also satisfies the user's normal completion hook.
     text = text.replace('printf ASK040_', "printf 'exit 0\\n'; printf ASK040_")
-    tmux('send-keys', '-t', SESSION, '-l', text)
+    wait('composer-ready', lambda: composer(screen()) == '', 60)
+    before = {r.get('uuid') for r in rows()}
+    literal = '\x1b[200~' + text + '\x1b[201~' if paste else text
+    tmux('send-keys', '-t', SESSION, '-l', literal)
+    wait('draft-rendered', lambda: bool(composer(screen())), 60)
     tmux('send-keys', '-t', SESSION, 'Enter')
+    attempt = {'text': text, 'enters': 1, 'confirmed_by': None}
+    last_enter = time.monotonic()
+
+    def accepted():
+        nonlocal last_enter
+        if text == '/exit' and subprocess.run(['tmux', 'has-session', '-t', SESSION], capture_output=True).returncode != 0:
+            attempt['confirmed_by'] = 'session-exited'
+            return True
+        needle = json.dumps(text, ensure_ascii=False)[1:-1]
+        if any(r.get('uuid') not in before and r.get('type') in ['user', 'attachment'] and needle in json.dumps(r, ensure_ascii=False) for r in rows()):
+            attempt['confirmed_by'] = 'transcript'
+            return True
+        draft = composer(screen())
+        if draft == '':
+            attempt['confirmed_by'] = 'composer-cleared'
+            return True
+        # Recheck the visible pending draft before retrying an Enter the TUI ignored.
+        if draft and time.monotonic() - last_enter >= 1:
+            tmux('send-keys', '-t', SESSION, 'Enter')
+            attempt['enters'] += 1
+            last_enter = time.monotonic()
+        return False
+
+    wait('submission-confirmed', accepted, 60)
+    submissions.append(attempt)
 
 
 def assistant_text(row):
@@ -86,24 +134,43 @@ def check(name, ok, detail):
 
 
 def launch(resume=False):
-    command = ['claude', '--plugin-dir', str(REPO / 'mods/owner-asks'), '--plugin-dir', str(REPO / 'mods/agent-should-know'), '--plugin-dir', str(RUN / 'relay-fixture'),
+    command = ['claude', '--plugin-dir', str(ASKS_PLUGIN)]
+    if ASKS_NAME != 'agent-should-know':
+        command += ['--plugin-dir', str(REPO / 'mods/agent-should-know')]
+    else:
+        # The old combined mod occupies both slots; shadow the installed new slot for this session only.
+        command += ['--plugin-dir', str(RUN / 'owner-asks-slot')]
+    command += ['--plugin-dir', str(RUN / 'relay-fixture'),
                '--dangerously-skip-permissions', '--debug-file', str(RUN / ('resume.debug' if resume else 'engine.debug')),
                '--append-system-prompt', 'Acceptance fixture. Follow only the supplied test prompt. Never read owner files, change plugins, delegate, push, or install. Use Bash only for the exact harmless printf/sleep command requested. Reply with the requested marker.']
     command += ['--resume' if resume else '--session-id', SID]
-    shell = 'CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 ' + shlex.join(command)
+    # Clean inside the pane: a persistent tmux server can retain the caller's environment.
+    bootstrap = '''import os, sys
+for name in list(os.environ):
+    if name == 'CLAUDECODE' or name == 'CLAUDE_PID' or name.startswith('CLAUDE_CODE_'):
+        del os.environ[name]
+os.environ['CLAUDE_CODE_ENABLE_FUNCTION_HOOKS'] = '1'
+os.execvp(sys.argv[1], sys.argv[1:])
+'''
+    shell = shlex.join([sys.executable, '-c', bootstrap, *command])
     tmux('new-session', '-d', '-s', SESSION, '-x', '180', '-y', '48', '-c', str(FIXTURE), shell)
     deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
         text = screen()
         if 'trust this folder' in text or 'Yes, I trust' in text or 'accept the risk' in text or 'Yes, I accept' in text:
             tmux('send-keys', '-t', SESSION, 'Enter')
-        if 'bypass permissions on' in text.lower() or '❯' in text:
+        if 'bypass permissions on' in text.lower() and composer(text) == '':
             return
         time.sleep(1)
+    (RUN / 'timeout-startup.txt').write_text(screen())
     raise RuntimeError('engine prompt unavailable')
 
 
-def main():
+def offer_fixture():
+    if ASKS_NAME == 'agent-should-know':
+        slot = RUN / 'owner-asks-slot/.claude-plugin'
+        slot.mkdir(parents=True)
+        (slot / 'plugin.json').write_text(json.dumps({'name': 'owner-asks', 'version': '0.0.0', 'description': 'Empty session-only slot while testing the historical combined mod'}))
     # A deterministic offer, drawn by a fixture plugin through the real UI engine.
     plugin = RUN / 'relay-fixture'
     (plugin / '.claude-plugin').mkdir(parents=True)
@@ -123,6 +190,10 @@ export const register: Register = on => {
   })
 }
 '''.replace('ASK040 relay acceptance card.', 'ASK040 relay acceptance card ' + SID + '.'))
+
+
+def main():
+    offer_fixture()
     launch()
     for n in range(1, 6):
         marker = 'ASK040_TURN_' + str(n)
@@ -141,8 +212,7 @@ export const register: Register = on => {
     wait('queue-tool', lambda: tool_started('ASK040_QUEUE_TOOL'))
     queued = 'ASK040 queued owner line one\nASK040 queued owner line two'
     # Bracketed paste preserves one composer message containing two lines.
-    tmux('send-keys', '-t', SESSION, '-l', '\x1b[200~' + queued + '\x1b[201~')
-    tmux('send-keys', '-t', SESSION, 'Enter')
+    send(queued, paste=True)
     wait('queued-record', lambda: any('queued owner line one' in r['text'] for r in records()))
     row = next(r for r in records() if 'queued owner line one' in r['text'])
     check('b queued owner body', row['text'] == queued and row['door'] == 'delivery', f"door={row['door']}, text={row['text']!r}")
@@ -189,16 +259,102 @@ export const register: Register = on => {
     send('/exit')
 
 
+def incident_probes():
+    offer_fixture()
+    global SID, SESSION, ROOT, SOURCE, PROJECTION, TRANSCRIPT
+    cases = ['diagnostics', 'queued-body', 'resume-write', 'pending-reload']
+    observations = []
+    for case in cases:
+        SID = str(uuid.uuid4())
+        SESSION = 'asks040-' + SID[:8]
+        ROOT = Path.home() / '.local/state' / ASKS_NAME / SID
+        SOURCE = ROOT / 'owner.asks.jsonl'
+        PROJECTION = Path.home() / '.local/state/agent-hooks' / SID / 'asks-open.md'
+        TRANSCRIPT = Path.home() / '.claude/projects' / str(FIXTURE).replace('/', '-').replace('.', '-') / (SID + '.jsonl')
+        detail = {'case': case, 'sid': SID, 'source': str(SOURCE)}
+        try:
+            if case == 'diagnostics':
+                ROOT.mkdir(parents=True)
+                (ROOT / 'diagnostics.jsonl').write_text('{"event":"seed"}\n' * 70000)
+            launch()
+            if case == 'diagnostics':
+                send('Run Bash command `printf ASK040_DIAGNOSTICS`. Then reply DONE_ASK040_DIAGNOSTICS.')
+                deadline = time.monotonic() + 30
+                while time.monotonic() < deadline:
+                    warnings = [r for r in rows() if r.get('type') == 'system' and 'diagnostics size warning' in str(r.get('content', ''))]
+                    if len(warnings) >= 3 or answered('DONE_ASK040_DIAGNOSTICS'):
+                        break
+                    time.sleep(.5)
+                detail.update(size_warnings=len(warnings), answered=answered('DONE_ASK040_DIAGNOSTICS'))
+                check('regression diagnostics', detail['answered'] and len(warnings) < 3, f"seed bytes={(ROOT / 'diagnostics.jsonl').stat().st_size}, size-warning notices={len(warnings)}, answered={detail['answered']}")
+            elif case == 'queued-body':
+                send('Run Bash command `sleep 12; printf ASK040_INCIDENT_TOOL`. Then reply DONE_ASK040_INCIDENT_TOOL.')
+                wait('incident-tool', lambda: tool_started('ASK040_INCIDENT_TOOL'))
+                body = 'ASK040 incident owner line one\nASK040 incident owner line two'
+                send(body, paste=True)
+                wait('incident-owner-record', lambda: any('ASK040 incident owner line one' in r['text'] for r in records()))
+                row = next(r for r in records() if 'ASK040 incident owner line one' in r['text'])
+                polluted = '<system-reminder>' in row['text'] or any('<system-reminder>' in i['text'] for i in row.get('items', []))
+                detail.update(wrapper_in_owner_ask=polluted, owner_uuid=row['uuid'])
+                check('regression queued-body', row['text'] == body and not polluted, f'wrapper in owner ask={polluted}, uuid={row["uuid"]}')
+            else:
+                marker = 'ASK040_' + case.replace('-', '_').upper()
+                send(f'Run Bash command `printf {marker}`. Then reply DONE_{marker}.')
+                wait('incident-baseline', lambda: answered('DONE_' + marker) and len(records()) > 0)
+                before = len(records())
+                if case == 'resume-write':
+                    send('/exit')
+                    wait('incident-exit', lambda: subprocess.run(['tmux', 'has-session', '-t', SESSION], capture_output=True).returncode != 0)
+                    launch(True)
+                else:
+                    if ASKS_NAME == 'agent-should-know':
+                        def pending():
+                            return any(not p.with_name(p.name.replace('.evidence.json', '.json')).exists() for p in (ROOT / 'audit').glob('*.evidence.json'))
+                        wait('audit-pending', pending, 30)
+                        detail['audit_pending_observed'] = True
+                    source = ASKS_PLUGIN / 'hooks/register.ts'
+                    detail['reload_trigger'] = 'Append a comment to the disposable copy; runtime logic is unchanged'
+                    with source.open('a') as output:
+                        output.write('\n// Acceptance fixture: trigger source replacement while work is pending.\n')
+                    send('/reload-plugins')
+                after_marker = marker + '_AFTER'
+                send(f'Run Bash command `printf {after_marker}`. Then reply DONE_{after_marker}.')
+                wait('incident-after', lambda: answered('DONE_' + after_marker), 45)
+                send('/asks')
+                wait('asks-status', lambda: any(t in screen() for t in [': off;', ': on;', 'records:']), 15)
+                capture = screen()
+                off = ': off;' in capture or 'UNKNOWN interrupted audit at reload' in capture or 'explicit on required' in capture
+                after = len(records())
+                evidence = [str(r.get('content', '')) for r in rows() if r.get('type') == 'system' and any(t in str(r.get('content', '')) for t in ['integrity mismatch', 'interrupted audit', 'CAS conflict', 'explicit on required'])]
+                detail.update(before=before, after=after, off=off, notices=evidence)
+                check('regression ' + case, after > before and not off, f'ledger records={before}->{after}, off={off}, notices={json.dumps(evidence, ensure_ascii=False)}')
+        except Exception as error:
+            detail['unconfirmed'] = str(error)
+            check('regression ' + case, False, f'UNCONFIRMED scenario: {type(error).__name__}: {error}')
+        finally:
+            try:
+                (RUN / (case + '-screen.txt')).write_text(screen())
+            except subprocess.CalledProcessError:
+                pass
+            (RUN / (case + '-transcript.json')).write_text(json.dumps(rows(), ensure_ascii=False))
+            subprocess.run(['tmux', 'kill-session', '-t', SESSION], capture_output=True)
+            observations.append(detail)
+    (RUN / 'incidents.json').write_text(json.dumps(observations, ensure_ascii=False, indent=2))
+
+
 try:
-    main()
+    if args.regressions:
+        incident_probes()
+    else:
+        main()
 except Exception as error:
     for name in ['a five owner turns', 'b queued owner body', 'c reload mid-turn', 'd compaction projection', 'e resume reminder', 'f relay handled'][len(results):]:
         check(name, False, f'{type(error).__name__}: {error}')
 finally:
     # Stop only this throwaway test process. Evidence and session state stay on disk.
     subprocess.run(['tmux', 'kill-session', '-t', SESSION], capture_output=True)
-    (RUN / 'result.json').write_text(json.dumps({'sid': SID, 'source': str(SOURCE), 'projection': str(PROJECTION), 'results': results}, indent=2))
+    (RUN / 'result.json').write_text(json.dumps({'sid': SID, 'source': str(SOURCE), 'projection': str(PROJECTION), 'submissions': submissions, 'results': results}, indent=2))
     print('artifacts: ' + str(RUN), flush=True)
-    code = 0 if len(results) == 6 and all(ok for ok, _ in results) else 1
+    code = 0 if len(results) == (4 if args.regressions else 6) and all(ok for ok, _ in results) else 1
     print('exit code: ' + str(code), flush=True)
     sys.exit(code)
