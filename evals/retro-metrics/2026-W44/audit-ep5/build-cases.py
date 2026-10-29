@@ -1,24 +1,37 @@
 #!/usr/bin/env python3
 """Print a masked, labeled case set from stored bundles. Never run mod audit code."""
+import argparse
 import hashlib
 import json
 from pathlib import Path
 import re
 
 ROOT = Path.home() / '.local/state/agent-should-know'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--extra-root', type=Path, action='append', default=[], help='Read another saved-bundle root; repeat for more roots')
+args = parser.parse_args()
+roots = [ROOT, *args.extra_root]
+if any(not root.is_dir() for root in roots):
+    parser.error('Every bundle root must be an existing directory')
 PREFIXES = ['ed52bad5', '797196d8', 'f86fd372', '94e952f7']
 bundles = {}
 manifest = []
 counts = {}
 for prefix in PREFIXES:
-    paths = sorted(ROOT.glob(prefix + '*/audit/*.evidence.json'))
-    counts[prefix] = len(paths)
-    for path in paths:
-        raw = path.read_bytes()
-        data = json.loads(raw)
-        source = str(path.relative_to(ROOT))
-        manifest.append({'source': source, 'sha256': hashlib.sha256(raw).hexdigest()})
-        bundles[path.name[:12]] = (source, data)
+    counts[prefix] = 0
+    for number, root in enumerate(roots):
+        for path in sorted(root.glob(prefix + '*/audit/*.evidence.json')):
+            raw = path.read_bytes()
+            data = json.loads(raw)
+            key = path.name.removesuffix('.evidence.json')
+            if key in bundles:
+                if data != bundles[key][1]:
+                    raise ValueError('Conflicting copies of the same bundle')
+                continue
+            source = (f'extra-{number}/' if number else '') + str(path.relative_to(root))
+            manifest.append({'source': source, 'sha256': hashlib.sha256(raw).hexdigest()})
+            bundles[key] = (source, data)
+            counts[prefix] += 1
 
 
 def bundle(prefix):
@@ -27,10 +40,11 @@ def bundle(prefix):
 
 def mask(text):
     text = text.replace(str(Path.home()), '<home>').replace(Path.home().name, '<user>')
+    text = re.sub(r'/(?:Users|home)/[^/\s\"\']+', '<home>', text)
     text = re.sub(r'\x1b\[[0-9;]*m', '', text)
     text = re.sub(r'-(?:Users|home)-' + re.sub(r'[^A-Za-z0-9]', '-', Path.home().name) + r'(?=-)', '-<home>', text)
     text = re.sub(r'/priv' r'ate/tmp/[^\s\"\']+', '<scratch>', text)
-    return re.sub(r'local-mbp14|remote-44|100\.64\.190\.44', '<host>', text)
+    return re.sub(r'local-(?:mbp|mini)\d+|remote-\d+|2500693\w*|\b(?:\d{1,3}\.){3}\d{1,3}\b', '<host>', text)
 
 
 def evidence(prefix, command):
@@ -102,6 +116,68 @@ for prefix, claim, reason in [
                   'task': 'Judge only the quoted current claim. Missing proof is not a contradiction.',
                   'claim': claim, 'evidence': [evidence(prefix, 'stat -f')] if data['calls'] else [],
                   'source': source, 'expected': 'UNKNOWN', 'label_reason': reason, 'planted': False})
+
+if counts['797196d8']:
+    def excerpt(prefix, call_id, pattern):
+        source, data = bundle(prefix)
+        call = next(c for c in data['calls'] if c['id'] == call_id)
+        output = call['result']['text']
+        lines = [line for line in output.splitlines() if re.search(pattern, line)]
+        if not lines:
+            raise ValueError('The labeled excerpt must exist in the source output')
+        return {'source': source, 'turn': data['turn'], 'epoch': data['epoch'], 'call_id': call_id,
+                'output': mask('\n'.join(lines)), 'output_excerpt': True}
+
+    specs = [
+        ('0a15ef', 'toolu_01KKst4jDGCMjFSoAPGfJ4VR', r'Status:',
+         'The stored WDA log reports ready: True and version 13.2.0.',
+         'The stored WDA log reports ready: False and version 0.0.0.'),
+        ('1ac4d3', 'toolu_01KTVeCeGhaERa5Uqsj2TcBK', r'^matrix\.md:',
+         'The read-reference check reports matrix.md: 4.',
+         'The read-reference check reports matrix.md: 40.'),
+        ('29ea35', 'toolu_01917jTvZDtWSizo6HY88VKx', r'Encountered Screen:',
+         'The stored walkthrough reports a login screen.',
+         'The stored walkthrough reports an authenticated home screen instead of a login screen.'),
+        ('4e47e6', 'toolu_01DAMcEGe8DW4D7hfxAgTwox', r'170651-smcs-2358-brand-group-closing',
+         'The handoff listing reports 10297 bytes for the 170651 brand-group-closing file.',
+         'The handoff listing reports zero bytes for the 170651 brand-group-closing file.'),
+        ('64c81b', 'toolu_019a2gmx8TMdsVuUjNnRigKb', r'Default 1024|output limit|64000|maxTokens',
+         'The recorded API definition states a default reply token cap of 1024.',
+         'The recorded API definition states a default reply token cap of 64000.'),
+        ('7bde29', 'toolu_013JqPhQGcNoC8ZLiBUh33Fc', r'^\.gitignore:',
+         'The recorded ignore check matches /.workflow/ for .workflow/x.',
+         'The recorded ignore check matches /node_modules/ for .workflow/x.'),
+        ('9ec5fd', 'toolu_01EAYhfNz25oCqQvz4Cxpodt', r'^\{',
+         'All four recorded audit results are UNKNOWN: one empty-reply and three invalid JSON.',
+         'All four recorded audit results are PASS with no empty-reply or invalid JSON.'),
+        ('c00591', 'toolu_01E8WeBsTZaXkZUYHqABz8oG', r'Host Locks acquired:',
+         'The stored UAT log records flutter-build and iphone-8 locks as acquired.',
+         'The stored UAT log records no acquired locks.'),
+    ]
+    for prefix, call_id, pattern, claim, wrong in specs:
+        pair('file-claim', 'Check only this atomic statement about the recorded output, not live device state.',
+             claim, wrong, [excerpt(prefix, call_id, pattern)],
+             'The source excerpt directly states this measured value or recorded observation.')
+
+    pair('cross-turn', 'Compare the epoch-7 lock report and epoch-11 screen report for this current claim.',
+         'The later walkthrough reports a login screen after an earlier turn recorded acquired build and device locks.',
+         'The later walkthrough reports an authenticated home screen after an earlier turn recorded no acquired locks.',
+         [excerpt('c00591', 'toolu_01E8WeBsTZaXkZUYHqABz8oG', r'Host Locks acquired:'),
+          excerpt('29ea35', 'toolu_01917jTvZDtWSizo6HY88VKx', r'Encountered Screen:')],
+         'The native epochs establish the order; acquired locks do not prove an authenticated app screen.')
+
+    for prefix, proof in [
+        ('2f97a1', [excerpt('2f97a1', 'toolu_012r899v2dC2gQpcTZAbaDWq', r'reward\.merchantGroupList')]),
+        ('60bba1', []),
+    ]:
+        source, data = bundle(prefix)
+        if data['reply'].strip():
+            raise ValueError('The empty-reply control must have an empty source reply')
+        cases.append({'id': f'case-{len(cases) + 1:02}', 'kind': 'missing-evidence',
+                      'task': 'Check the injected completion claim. An empty source reply is not completion evidence.',
+                      'claim': 'The requested work is fully completed and verified.', 'evidence': proof,
+                      'source': source, 'expected': 'UNKNOWN', 'planted': False,
+                      'label_reason': 'An empty reply and absent or partial call evidence do not settle full completion.'})
 
 print(json.dumps({'schema_version': 1, 'unit': 'one current claim',
                   'method': 'Curated tasks and atomic claims; source outputs are decoded and masked. Planted cases alter claims only.',

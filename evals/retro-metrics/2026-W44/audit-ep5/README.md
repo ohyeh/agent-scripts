@@ -1,6 +1,7 @@
 # Episode 5：逐主張離線研究
 
-一次重播：30 cases；PASS 14、FAIL 14、UNKNOWN 2（6.7%）；planted errors 抓到 14/14；與標註不同 0。
+Episode 1 重播：30 cases；PASS 14、FAIL 14、UNKNOWN 2（6.7%）；planted errors 抓到 14/14；與標註不同 0。
+Episode 2 重播（四份 corpus）：50 cases；PASS 23、FAIL 23、UNKNOWN 4（8%，全是缺證控制組）；planted errors 抓到 23/23；與標註不同 0。
 這是整理過的案例集結果，不是正式流量正確率，也不是上線許可。
 
 ## 資料與重現
@@ -16,7 +17,7 @@
 完整存量列冊：ed52bad5 17、f86fd372 5、94e952f7 4，共 26 份 evidence bundle。
 其中 13 份提供案例來源；不是宣稱每個原始 reply 的所有主張都已 audit。
 797196d8 本機 state 為 0；另搜尋本機 42 個近期 run 目錄的 JSON／JSONL，也沒有存檔命中。
-本次沒有存取遠端。第四個指定 session 的 corpus 尚待提供本機副本。
+Episode 1 沒有存取遠端。Episode 2 已由 commander 提供第四個 session 的本機副本，見下節。
 
 案例分布：純文字 8、檔案主張 16、跨回合 4、證據不足 2。
 前 28 筆含 14 個原始證據支持的主張及 14 個只改主張、不改證據的錯誤變體。
@@ -40,12 +41,37 @@ UNKNOWN 的兩筆不是錯誤漏抓：一筆只有 owner ledger 檢查，沒有 
 
 ## 尚不能據此上線
 
-1. 第四份 corpus 缺席，不能把三個 session 的結果說成四個 session 的完整驗證。
+1. Episode 2 已補齊四份 corpus，但列冊與整理案例仍不等於所有自然 reply 主張都完成驗證。
 2. Claims 由作者事先整理；模型沒有自己從雜亂 reply 抽主張。整體抽取召回率未測。
 3. 成對、平衡且容易對照的變體不是獨立 holdout，也沒有打散同源案例。
 4. 不含 timeout、空回覆、格式錯誤、模型捏造引用、取消及真實長對話成本的獨立測量。
 5. 6.7% 是這 30 筆的量測比例，不是校準機率，也不能與舊全 session judge 的歷史比例作因果比較。
 
-建議先補齊本機第四份 corpus，再凍結一組未用於調 prompt 的自然 reply holdout。
+四份 corpus 現已補齊；接著應凍結一組未用於調 prompt 的自然 reply holdout。
 分開量 claim extraction、證據取得、判定與主線修正效果；不要把 UNKNOWN 改名成 PASS。
 本輪不加線上 audit、gate、hook、排程或第三個 mod。
+
+## Episode 2：四 corpus
+
+唯讀輸入位於 `remote-797196d8/`，沒有複製到 runtime state，也沒有修改該目錄。
+`build-cases.py` 新增可重複的 `--extra-root`；重複同一 root 不會增加分母，衝突副本會直接報錯。
+
+```sh
+python3 evals/retro-metrics/2026-W44/audit-ep5/build-cases.py --extra-root evals/retro-metrics/2026-W44/audit-ep5/remote-797196d8
+```
+
+輸出固定在 `cases-episode2.json`，隔離重播結果在 `results-episode2.json`。
+原 `cases.json`、`results.json` 保留，不覆寫 episode 1 的 30 案比較基準。
+完整 inventory：ed52bad5 17、797196d8 10、f86fd372 5、94e952f7 4，共 36 份。
+50 cases 的前 30 案與原版相同；新增 20 案涵蓋全部 10 份新 bundle。
+新案含八組記錄值／觀察的正反主張、一組跨回合正反主張，以及兩個空 reply 的缺證控制。
+兩個空 reply 的標註都是 UNKNOWN；其中一筆有部分工具輸出，另一筆沒有 calls。
+跨回合案例附 native epoch 7／11，區分取得鎖與稍後仍在 login screen，沒有把鎖當登入證據。
+
+重播結果：PASS 23、FAIL 23、UNKNOWN 4；planted 23/23；與標註不同 0；新增 20 案為 PASS 9、FAIL 9、UNKNOWN 2。
+四筆 UNKNOWN 全是標註為缺證的控制組，所以 8% 是案例組成，不是模型的不確定率。
+
+先前 draft 使用的跨回合順序不夠明確，該次推論結果排除。
+最終案例改用 native epochs 後才重播；judge prompt 未改，沒有依模型答案調整標註。
+新舊數字並列於 `opinions/mod-sol-final.md` A-5 與 `results-episode2.json` 的 previous 欄位。
+本輪仍只做逐主張離線研究；不動 `mods/`，不重跑 commander 正在執行的產品驗收。

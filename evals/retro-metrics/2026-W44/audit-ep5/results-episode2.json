@@ -1,0 +1,446 @@
+{
+  "schema_version": 1,
+  "episode": 2,
+  "method": "Isolated replay of all four saved corpora; expected labels excluded; curated cases, not production validation.",
+  "models": [
+    "claude-sonnet-4-6[1m]"
+  ],
+  "cases": 50,
+  "counts": {
+    "PASS": 23,
+    "FAIL": 23,
+    "UNKNOWN": 4
+  },
+  "unknown_percent": 8,
+  "planted": 23,
+  "caught": 23,
+  "mismatches": [],
+  "available_bundles": {
+    "ed52bad5": 17,
+    "797196d8": 10,
+    "f86fd372": 5,
+    "94e952f7": 4
+  },
+  "exit_code": 0,
+  "duration_ms": 98461,
+  "previous": {
+    "cases": 30,
+    "counts": {
+      "PASS": 14,
+      "FAIL": 14,
+      "UNKNOWN": 2
+    },
+    "unknown_percent": 6.666666666666667,
+    "caught": 14,
+    "planted": 14
+  },
+  "limitations": [
+    "Curated atomic claims and paired mutations; not held-out natural claim extraction.",
+    "Empty-reply controls remain UNKNOWN; no online audit or rollout authorization.",
+    "One draft replay excluded after input temporal provenance was corrected."
+  ],
+  "results": [
+    {
+      "id": "case-01",
+      "verdict": "PASS",
+      "reason": "actual_reply is exactly 'READY', matching the claim.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/41d00ef03656aa0eb98f50f0fe047548b8308e6ad66d2da0f84b894846e3e9e3.evidence.json"
+      ]
+    },
+    {
+      "id": "case-02",
+      "verdict": "FAIL",
+      "reason": "actual_reply is 'READY'; claim requires 'READY EXTRA' — extra word absent.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/41d00ef03656aa0eb98f50f0fe047548b8308e6ad66d2da0f84b894846e3e9e3.evidence.json"
+      ]
+    },
+    {
+      "id": "case-03",
+      "verdict": "PASS",
+      "reason": "actual_reply is exactly 'AGAIN', matching the claim.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/936ffd9361c77814b169ed77c88e42e3cc98a3c6e4fa7077e75a6d93eb8c8e68.evidence.json"
+      ]
+    },
+    {
+      "id": "case-04",
+      "verdict": "FAIL",
+      "reason": "actual_reply is 'AGAIN'; claim requires 'AGAIN EXTRA' — extra word absent.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/936ffd9361c77814b169ed77c88e42e3cc98a3c6e4fa7077e75a6d93eb8c8e68.evidence.json"
+      ]
+    },
+    {
+      "id": "case-05",
+      "verdict": "PASS",
+      "reason": "actual_reply is exactly 'THIRD', matching the claim.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/38571183b8e728daa0f8560d83fd641cfcde93d65d8f333e0c2fc2dad27ade44.evidence.json"
+      ]
+    },
+    {
+      "id": "case-06",
+      "verdict": "FAIL",
+      "reason": "actual_reply is 'THIRD'; claim requires 'THIRD EXTRA' — extra word absent.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/38571183b8e728daa0f8560d83fd641cfcde93d65d8f333e0c2fc2dad27ade44.evidence.json"
+      ]
+    },
+    {
+      "id": "case-07",
+      "verdict": "PASS",
+      "reason": "actual_reply is exactly 'FOURTH', matching the claim.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/8e84663e196bb24b97c808c22d70552f732e0d6d8f01b5f87acf816afe4e57bb.evidence.json"
+      ]
+    },
+    {
+      "id": "case-08",
+      "verdict": "FAIL",
+      "reason": "actual_reply is 'FOURTH'; claim requires 'FOURTH EXTRA' — extra word absent.",
+      "sources": [
+        "94e952f7-a572-4524-a146-035035035002/audit/8e84663e196bb24b97c808c22d70552f732e0d6d8f01b5f87acf816afe4e57bb.evidence.json"
+      ]
+    },
+    {
+      "id": "case-09",
+      "verdict": "PASS",
+      "reason": "Output shows '- Apple\\n- Banana\\n- Mango' in that order.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/96cc756d14e6f8c6f6941571371635e2929822ffb318c53b2ffad5cd8a581206.evidence.json"
+      ]
+    },
+    {
+      "id": "case-10",
+      "verdict": "FAIL",
+      "reason": "Output shows Mango as third item, not Peach.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/96cc756d14e6f8c6f6941571371635e2929822ffb318c53b2ffad5cd8a581206.evidence.json"
+      ]
+    },
+    {
+      "id": "case-11",
+      "verdict": "PASS",
+      "reason": "Output has four lines: Apple, Banana, Mango, Orange — ending in Orange.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9807ead42d5fc9f87233db626dedcb074ca2bd78ed16a62836e9207551e2cb82.evidence.json"
+      ]
+    },
+    {
+      "id": "case-12",
+      "verdict": "FAIL",
+      "reason": "Output has four lines ending in Orange, not five lines ending in Peach.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9807ead42d5fc9f87233db626dedcb074ca2bd78ed16a62836e9207551e2cb82.evidence.json"
+      ]
+    },
+    {
+      "id": "case-13",
+      "verdict": "PASS",
+      "reason": "Both SHA-256 hashes are identical: 624e4d64…ff409 for notes.md and fruits.md.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/95508888c57add05cc0c8d55fb843e35c1dc7ca3ad99bcd6fe3355ad5531216b.evidence.json"
+      ]
+    },
+    {
+      "id": "case-14",
+      "verdict": "FAIL",
+      "reason": "Both SHA-256 hashes are identical; claim requires them to differ.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/95508888c57add05cc0c8d55fb843e35c1dc7ca3ad99bcd6fe3355ad5531216b.evidence.json"
+      ]
+    },
+    {
+      "id": "case-15",
+      "verdict": "PASS",
+      "reason": "Output shows 'sort-check exit=0' confirming the check passed.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/56a5cc5b91432a097aad7a9ee1221528388f4b986ac1d0920715da044d40cbf0.evidence.json"
+      ]
+    },
+    {
+      "id": "case-16",
+      "verdict": "FAIL",
+      "reason": "Output shows 'sort-check exit=0', not exit=1.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/56a5cc5b91432a097aad7a9ee1221528388f4b986ac1d0920715da044d40cbf0.evidence.json"
+      ]
+    },
+    {
+      "id": "case-17",
+      "verdict": "PASS",
+      "reason": "Output shows five lines: Apple, Banana, Mango, Orange, Peach — ending in Peach.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9b2ec52162d017cc2a52361e9acbf244629ba2f9d64889cdaab3691549c5a14c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-18",
+      "verdict": "FAIL",
+      "reason": "Output shows five lines including Peach; claim says four lines and no Peach.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9b2ec52162d017cc2a52361e9acbf244629ba2f9d64889cdaab3691549c5a14c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-19",
+      "verdict": "PASS",
+      "reason": "ls -l output shows diagnostics.jsonl at 4194248 bytes.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/4dd080c9c14e9b9a7558602570cb0a67005d0980f1ecfc0650b281f9f153ded5.evidence.json"
+      ]
+    },
+    {
+      "id": "case-20",
+      "verdict": "FAIL",
+      "reason": "diagnostics.jsonl is 4194248 bytes, not zero.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/4dd080c9c14e9b9a7558602570cb0a67005d0980f1ecfc0650b281f9f153ded5.evidence.json"
+      ]
+    },
+    {
+      "id": "case-21",
+      "verdict": "PASS",
+      "reason": "Output shows 'rows=      14', confirming 14 rows.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/fe2b70ac0301813d59b4e41e1c2468bc8ac627cd883c2a0bde34e99acaaf670e.evidence.json"
+      ]
+    },
+    {
+      "id": "case-22",
+      "verdict": "FAIL",
+      "reason": "Output shows rows=14, not 140.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/fe2b70ac0301813d59b4e41e1c2468bc8ac627cd883c2a0bde34e99acaaf670e.evidence.json"
+      ]
+    },
+    {
+      "id": "case-23",
+      "verdict": "PASS",
+      "reason": "Output shows 'rows=6 sysreminder_rows=3', matching the claim exactly.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/096449bcfb52896445d52108aa80714a6ba8c01aea1d66162969dc8d2395e481.evidence.json"
+      ]
+    },
+    {
+      "id": "case-24",
+      "verdict": "FAIL",
+      "reason": "Output shows rows=6 and sysreminder_rows=3, not 60 and 30.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/096449bcfb52896445d52108aa80714a6ba8c01aea1d66162969dc8d2395e481.evidence.json"
+      ]
+    },
+    {
+      "id": "case-25",
+      "verdict": "PASS",
+      "reason": "SHA match proves bytes unchanged; fruits.md listing contains same content as notes.md which had Orange.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9807ead42d5fc9f87233db626dedcb074ca2bd78ed16a62836e9207551e2cb82.evidence.json",
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/95508888c57add05cc0c8d55fb843e35c1dc7ca3ad99bcd6fe3355ad5531216b.evidence.json"
+      ]
+    },
+    {
+      "id": "case-26",
+      "verdict": "FAIL",
+      "reason": "SHA hashes are identical, proving bytes unchanged; Orange was preserved, not removed.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9807ead42d5fc9f87233db626dedcb074ca2bd78ed16a62836e9207551e2cb82.evidence.json",
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/95508888c57add05cc0c8d55fb843e35c1dc7ca3ad99bcd6fe3355ad5531216b.evidence.json"
+      ]
+    },
+    {
+      "id": "case-27",
+      "verdict": "PASS",
+      "reason": "After Peach append, fruits.md shows Apple, Banana, Mango, Orange, Peach — all four earlier lines preserved in order.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/56a5cc5b91432a097aad7a9ee1221528388f4b986ac1d0920715da044d40cbf0.evidence.json",
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9b2ec52162d017cc2a52361e9acbf244629ba2f9d64889cdaab3691549c5a14c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-28",
+      "verdict": "FAIL",
+      "reason": "Banana is present in the post-Peach output; it was not removed.",
+      "sources": [
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/56a5cc5b91432a097aad7a9ee1221528388f4b986ac1d0920715da044d40cbf0.evidence.json",
+        "f86fd372-f220-4e2f-b80b-1f0adc807d71/audit/9b2ec52162d017cc2a52361e9acbf244629ba2f9d64889cdaab3691549c5a14c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-29",
+      "verdict": "UNKNOWN",
+      "reason": "Evidence shows ledger/integrity data only; no dashboard dataset update or cmp check results are present.",
+      "sources": [
+        "ed52bad5-f815-4e17-9264-ae2a888c668f/audit/096449bcfb52896445d52108aa80714a6ba8c01aea1d66162969dc8d2395e481.evidence.json"
+      ]
+    },
+    {
+      "id": "case-30",
+      "verdict": "UNKNOWN",
+      "reason": "Evidence array is empty; no proof of NOVA's reply time.",
+      "sources": []
+    },
+    {
+      "id": "case-31",
+      "verdict": "PASS",
+      "reason": "Output excerpt states 'ready: True' and 'version: 13.2.0'.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/0a15ef0cf5870e23c5d71c2bcff433e11606166d1417b47ed06e324263edd02c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-32",
+      "verdict": "FAIL",
+      "reason": "Output reports ready: True and version 13.2.0, not False and 0.0.0.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/0a15ef0cf5870e23c5d71c2bcff433e11606166d1417b47ed06e324263edd02c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-33",
+      "verdict": "PASS",
+      "reason": "Output is exactly 'matrix.md: 4'.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/1ac4d37ed6d40a3b27543b8b4931fb36ed3b5ad2bd48875a7f9e816cff83e4e8.evidence.json"
+      ]
+    },
+    {
+      "id": "case-34",
+      "verdict": "FAIL",
+      "reason": "Output is 'matrix.md: 4', not 'matrix.md: 40'.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/1ac4d37ed6d40a3b27543b8b4931fb36ed3b5ad2bd48875a7f9e816cff83e4e8.evidence.json"
+      ]
+    },
+    {
+      "id": "case-35",
+      "verdict": "PASS",
+      "reason": "Output states 'Encountered Screen: Login screen (登入 Health GO…)'.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/29ea35a837c3f1fa619bd8bc74b4f327238e4a3f9f66d196ae7035ab68b5f852.evidence.json"
+      ]
+    },
+    {
+      "id": "case-36",
+      "verdict": "FAIL",
+      "reason": "Output shows a login screen, not an authenticated home screen.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/29ea35a837c3f1fa619bd8bc74b4f327238e4a3f9f66d196ae7035ab68b5f852.evidence.json"
+      ]
+    },
+    {
+      "id": "case-37",
+      "verdict": "PASS",
+      "reason": "Output shows '10297' bytes for the 170651 brand-group-closing file.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/4e47e6a36a43afd4949b107ea2f8bd4c3c27637e61ac6f1959cdc1e24cb2d908.evidence.json"
+      ]
+    },
+    {
+      "id": "case-38",
+      "verdict": "FAIL",
+      "reason": "Output shows 10297 bytes, not zero bytes.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/4e47e6a36a43afd4949b107ea2f8bd4c3c27637e61ac6f1959cdc1e24cb2d908.evidence.json"
+      ]
+    },
+    {
+      "id": "case-39",
+      "verdict": "PASS",
+      "reason": "Output excerpt states 'Default 1024' for the reply token cap.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/64c81b296c015d10cc7d8f6a1b8fb459833c8e522bb9333f598d95ccd63ecaf4.evidence.json"
+      ]
+    },
+    {
+      "id": "case-40",
+      "verdict": "FAIL",
+      "reason": "Default is 1024 per the output; 64000 is the upper ceiling, not the default.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/64c81b296c015d10cc7d8f6a1b8fb459833c8e522bb9333f598d95ccd63ecaf4.evidence.json"
+      ]
+    },
+    {
+      "id": "case-41",
+      "verdict": "PASS",
+      "reason": "Output shows '/.workflow/\\t.workflow/x', confirming /.workflow/ matches .workflow/x.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/7bde29e9a6f0623a96630641e32408b8abaa9bb754d9d2cbebceb7ffa5d8dd8c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-42",
+      "verdict": "FAIL",
+      "reason": "Output shows /.workflow/ as the matching pattern, not /node_modules/.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/7bde29e9a6f0623a96630641e32408b8abaa9bb754d9d2cbebceb7ffa5d8dd8c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-43",
+      "verdict": "PASS",
+      "reason": "Output shows four UNKNOWN verdicts: one 'model empty-reply' and three 'protocol: invalid JSON'.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/9ec5fd30ca661885291a82412883a78d7f3a166425ba2bf150e67d3ec3c4296c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-44",
+      "verdict": "FAIL",
+      "reason": "All four results are UNKNOWN, not PASS.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/9ec5fd30ca661885291a82412883a78d7f3a166425ba2bf150e67d3ec3c4296c.evidence.json"
+      ]
+    },
+    {
+      "id": "case-45",
+      "verdict": "PASS",
+      "reason": "Output states 'Host Locks acquired: flutter-build, iphone-8'.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/c005912f85cbb68248555fce59ae4f9f13acc3918406b28b18465fdd41b2744f.evidence.json"
+      ]
+    },
+    {
+      "id": "case-46",
+      "verdict": "FAIL",
+      "reason": "Output records flutter-build and iphone-8 as acquired; locks were present, not absent.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/c005912f85cbb68248555fce59ae4f9f13acc3918406b28b18465fdd41b2744f.evidence.json"
+      ]
+    },
+    {
+      "id": "case-47",
+      "verdict": "PASS",
+      "reason": "Epoch-7 shows locks acquired; epoch-11 shows login screen. Both parts of the claim match evidence.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/c005912f85cbb68248555fce59ae4f9f13acc3918406b28b18465fdd41b2744f.evidence.json",
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/29ea35a837c3f1fa619bd8bc74b4f327238e4a3f9f66d196ae7035ab68b5f852.evidence.json"
+      ]
+    },
+    {
+      "id": "case-48",
+      "verdict": "FAIL",
+      "reason": "Epoch-7 shows locks acquired (not none); epoch-11 shows login screen (not home). Both sub-claims are wrong.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/c005912f85cbb68248555fce59ae4f9f13acc3918406b28b18465fdd41b2744f.evidence.json",
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/29ea35a837c3f1fa619bd8bc74b4f327238e4a3f9f66d196ae7035ab68b5f852.evidence.json"
+      ]
+    },
+    {
+      "id": "case-49",
+      "verdict": "UNKNOWN",
+      "reason": "Evidence shows only a grep match in a dart stub file; no verification of full completion.",
+      "sources": [
+        "extra-1/797196d8-8f44-4fbc-8dd1-8f1c837dee22/audit/2f97a122ca1c04e5d40e346cd97097e5f634cb981fb6d8fec9037b57259cd176.evidence.json"
+      ]
+    },
+    {
+      "id": "case-50",
+      "verdict": "UNKNOWN",
+      "reason": "Evidence array is empty; no proof of completion.",
+      "sources": []
+    }
+  ]
+}

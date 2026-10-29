@@ -4,7 +4,7 @@
 家目錄一律寫成 `<home>`；主機一律寫成 `<host>`。下列 `.workflow/` 路徑相對 repo。
 
 結論：第 2、3 項已完成；第 4 項已通過真正 module replacement 的紅綠對照。
-第 5 項完成三個 session 的離線案例集與一次重播，但第四個指定 corpus 本機未取得，所以仍是 partial。
+第 5 項 episode 2 已納入四份 corpus（36 份 bundle、50 cases）並重播；它仍只是離線研究，不是上線許可。
 這些結果支持交回 main session 做本機試用驗收，不支持現在 push 或把 audit 接回線上。
 
 ## A. 各項結果與證據
@@ -101,7 +101,7 @@ debug 顯示新 instance 先啟動，舊 instance 隨後才寫 receipt；只在 
 這才是加入「傳送前讀當前 receipt」的原因，並有 late-receipt 單元斷言。
 較早「同內容 reload」的 PASS 不用來代替這份 replacement 證據。
 
-### 5. 逐主張離線研究：partial，已完成可用部分
+### 5. 逐主張離線研究：done（episode 2，四份 corpus），仍只限離線
 
 Commit：`720c1d556985f4f031a5f63446c799b6dffa6e07`。
 Case set：`evals/retro-metrics/2026-W44/audit-ep5/cases.json`；
@@ -127,6 +127,25 @@ case set reproducible True
 原始回傳：`.workflow/20261030-sol-ep5/judge-raw.json`；runner：同目錄 `judge-replay.py`。
 「離線」指對已保存 bundle 做評估；推論使用既有 CLI 服務，沒有查 live 工作 session。
 兩個 UNKNOWN 分別是沒有 dashboard／cmp 證據，以及沒有歷史 NOVA 回覆證據；不是把 UNKNOWN 當 PASS。
+
+#### Episode 2：四份 corpus
+
+Main session 提供 797196d8 的 10 份 bundle 唯讀副本：`audit-ep5/remote-797196d8/`（gitignored，不進 commit）。
+`build-cases.py --extra-root` 把它加入 inventory：ed52bad5 17、797196d8 10、f86fd372 5、94e952f7 4，共 36 份。
+輸出 `cases-episode2.json`（50 cases，前 30 案與 `cases.json` 相同）與 `results-episode2.json`；episode 1 檔案未覆寫。
+
+```text
+cases=50 PASS=23 FAIL=23 UNKNOWN=4 UNKNOWN%=8.0
+planted caught=23/23 mismatches=0 exit_code=0
+new 20 cases: PASS=9 FAIL=9 UNKNOWN=2
+```
+
+Sol 跑完 build check 與 replay 後碰到 Codex 額度上限，沒有寫本節；main session 重算後補寫。
+兩組 case set 由 `build-cases.py` 重建，與存檔 byte-identical（`REBUILD_EP1=identical`、`REBUILD_EP2=identical`）。
+50 筆計數由 `results-episode2.json` 逐筆對 expected 重算，不是抄 summary 欄位。
+四筆 UNKNOWN 全是標註為缺證的控制組（case-29、30、49、50）。所以 8% 來自案例組成，不是模型的不確定率。
+受測模型仍是 `claude-sonnet-4-6[1m]`，duration_ms 98461；原始回傳：`.workflow/20261030-sol-ep5-episode2/judge-raw.json`。
+限制同 episode 1：作者整理的成對變體，不是自然 reply holdout；上線前的條件見 B 表與 `audit-ep5/README.md`。
 
 ### 全體驗收與基本檢查
 
@@ -200,8 +219,8 @@ S1 的自己讀自己、S5 的全 session judge、S6 的 judge 字串契約，�
 
 | ID／狀態 | 問題與證據 | 建議／風險 | Owner 要決定？ |
 |---|---|---|---|
-| S5／promising offline result | A-5 的 30 cases：UNKNOWN 6.7%、14/14 planted caught；純文字不再硬要 tool call，跨回合只查當前 claim。 | 比舊方法更接近可判定問題，但不能用不同 corpus 的歷史 UNKNOWN 比例宣稱因果改善。保持離線。 | 現在不需要啟用決策。 |
-| A2／missing corpus | 797196d8 本機沒有 bundle，26 份 inventory 的第四個 session 計數為 0。 | 需 main session 提供本機副本；不把舊 opinion 的 aggregate 數字充當該 session 的逐案 evidence。 | 是否提供副本／後續研究投入。 |
+| S5／promising offline result | A-5 episode 2 的 50 cases（四份 corpus）：23/23 planted caught、mismatch 0；4 筆 UNKNOWN 全是缺證控制組。純文字不再硬要 tool call，跨回合只查當前 claim。 | 比舊方法更接近可判定問題，但不能用不同 corpus 的歷史 UNKNOWN 比例宣稱因果改善。保持離線。 | 現在不需要啟用決策。 |
+| A2／resolved in episode 2 | 797196d8 的 10 份 bundle 已由 main session 提供本機唯讀副本，納入 36 份 inventory 與 20 個新案。 | 仍不把舊 opinion 的 aggregate 數字充當該 session 的逐案 evidence。 | 不用。 |
 | A3／selection and extraction untested | 13 份來源被整理成原子 claim；成對變體、平衡答案，不是自然 reply holdout。 | 14/14 是這 14 個錯誤，不是泛化偵測率。下一步凍結同源分組的 holdout，分開量 claim extraction 與 judging。 | 要投資完整自然流量評估時再定預算。 |
 | S6／format and source contract still open | 本次用結構化輸出得到 30 個唯一 ID，沒有 mismatch；沒有注入 malformed JSON、捏造 source 或模型空回覆。 | 保存原始回傳與 native call ID；缺證保持 UNKNOWN。不要擴散文 parser、靠更多 token 修判定契約。 | 未達可靠性前不要上線。 |
 | A5／model and runtime scope | 受測 CLI 回傳模型是 sonnet 4.6；不是模型表推定的版本，也不是 signoff reviewer。 | 後續研究需凍結實際 model ID／prompt／cases；本輪結果不能降低既定 review。 | 後續使用何種受測模型與成本。 |
@@ -236,8 +255,9 @@ S1 的自己讀自己、S5 的全 session judge、S6 的 judge 字串契約，�
 1. 針對上述凍結 commit／產品碼 hash 讀本輪結果；不能拿早期普通 reload PASS 代替真正 replacement 結果。
 2. 按既定試用流程在本機安裝與重驗；本輪沒有裝到 `<home>/.local/share/agent-scripts-local`，也沒有假稱 owner 正在跑修正碼。
 3. 觀察到 W45 retro，確認實際使用沒有新增漏記、卡住或重送；保留 B 的已知限制，owner 決定必要的產品損失。
-4. 第 5 項仍 partial：第四個 corpus、自然 claim extraction／holdout、實際校正效果都尚未成立；audit 不納入本次線上候選。
+4. 第 5 項四份 corpus 已補齊；自然 claim extraction／holdout、實際校正效果仍未成立；audit 不納入本次線上候選。
 5. 發布前才查遠端與 branch 狀態、處理既有 tracking divergence、凍結版本與本機發布 checks；本輪沒有 fetch／push／release／Actions。
+6. `scripts/scrub.sh` 對本 stack 是 BLOCK（main session 2026-10-30 實跑，exit 1）：`build-cases.py` 的 mask 沒蓋 Claude project key（`-Users-…`）與一個 HOST_RE 主機名，`cases.json:452`、`cases-episode2.json:492,510,845,864` 命中；mask 自己的 `<scratch-root>/` regex 字面也命中 path 規則（`build-cases.py:45`）。push 前修 mask、重建兩組 case set，並確認計數不變。
 
 產品碼 SHA-256：
 
