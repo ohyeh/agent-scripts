@@ -17,7 +17,7 @@ does that hand-off for you:
 
 | When | What happens |
 |---|---|
-| An offer card shows | The card's whole line and the explanation its Learn more would show go to the main agent as a prompt: "check it against the work; if it holds, fix it only within what the user already approved; a fix that needs the user's approval (a model tier, a push, a deletion, a change of scope) is not made: name it and ask; if it does not hold, say why in one line". Both are read from the built-in's store file, where it writes them with the card. A plugin's prompt waits until the running turn ends, so the agent is not interrupted. The prompt says when the card was flagged. The card is hidden from the band. |
+| An offer card shows | The card's whole line and the explanation its Learn more would show go to the main agent as a prompt: "check it against the work; if it holds, fix it only within what the user already approved; a fix that needs the user's approval (a model tier, a push, a deletion, a change of scope) is not made: name it and ask; if it does not hold, say why in one line". Both are read from the built-in's store file, where it writes them with the card. A plugin's prompt waits until the running turn ends, so the agent is not interrupted. The prompt says when the card was flagged. The card is hidden only after the engine accepts the prompt. |
 | A turn is running when the card shows | That prompt can wait for hours. So the card (line and explanation), its time, and "weigh it in the work still to do" go to the agent at once, after the main loop's next tool result. A subagent's tool result, or another plugin's own tool call, does not carry it. The prompt above still follows when the turn ends, for the logged answer. |
 | That prompt's turn ends | The agent's answer (first 600 characters) is added under the card's row in the log. |
 | The next morning | Read the log: one folder per repo, one file per session in it. |
@@ -69,6 +69,12 @@ Above the prompt from the session start, folded to its header until you press `[
 The built-in must be on: `/plugin enable cc-plugin-you-should-know@builtin`.
 
 ## Limits
+
+- Delivery receipts are stored per session and card line, after prompt acceptance.
+  Drop or rejection keeps the card visible and permits another draw or reload to
+  try it again; there is no retry scheduler. Concurrent draws share an in-flight
+  guard. A failed receipt write is reported; a crash between acceptance and the
+  receipt can still cause a duplicate after reload.
 
 - The line and explanation come from the built-in's own store file,
   `~/.claude/plugins/store/cc-plugin-you-should-know_builtin-*.json`, an internal

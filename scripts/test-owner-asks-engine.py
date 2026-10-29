@@ -17,12 +17,13 @@ REPO = Path(__file__).resolve().parent.parent
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--asks-plugin', type=Path, default=REPO / 'mods/owner-asks', help='Ask mod directory to test, including a historical extracted mod')
 parser.add_argument('--asks-ref', help='Read the owner-asks source at this local git ref into a disposable fixture')
+parser.add_argument('--relay-plugin', type=Path, default=REPO / 'mods/agent-should-know')
 parser.add_argument('--regressions', action='store_true', help='Run the four real-incident probes in separate throwaway sessions')
 parser.add_argument('--episode5', choices=['paste', 'capture', 'relay'], help='Run one lifecycle acceptance probe')
 args = parser.parse_args()
 ASKS_PLUGIN = args.asks_plugin.resolve()
 ASKS_NAME = json.loads((ASKS_PLUGIN / '.claude-plugin/plugin.json').read_text())['name']
-RUN = REPO / '.workflow' / (time.strftime('%Y%m%d%H%M%S') + '-asks040-engine')
+RUN = REPO / '.workflow' / (time.strftime('%Y%m%d%H%M%S') + '-asks040-engine-' + uuid.uuid4().hex)
 RUN.mkdir(parents=True)
 if args.regressions:
     # Probe source replacement on a disposable copy, never the checkout or installed plugin.
@@ -34,6 +35,9 @@ if args.asks_ref:
     for path in ['hooks/register.ts', 'hooks/lib/asks.ts']:
         (target / path).write_bytes(subprocess.check_output(['git', '-C', str(REPO), 'show', args.asks_ref + ':mods/owner-asks/' + path]))
     ASKS_PLUGIN = target
+if args.episode5 == 'relay':
+    shutil.copytree(args.relay_plugin.resolve(), RUN / 'relay-target')
+    args.relay_plugin = RUN / 'relay-target'
 FIXTURE = RUN / 'fixture'
 FIXTURE.mkdir()
 SID = str(uuid.uuid4())
@@ -146,7 +150,7 @@ def check(name, ok, detail):
 def launch(resume=False):
     command = ['claude', '--plugin-dir', str(ASKS_PLUGIN)]
     if ASKS_NAME != 'agent-should-know':
-        command += ['--plugin-dir', str(REPO / 'mods/agent-should-know')]
+        command += ['--plugin-dir', str(args.relay_plugin.resolve())]
     else:
         # The old combined mod occupies both slots; shadow the installed new slot for this session only.
         command += ['--plugin-dir', str(RUN / 'owner-asks-slot')]
@@ -187,7 +191,7 @@ def offer_fixture():
     (plugin / 'hooks').mkdir()
     (plugin / '.claude-plugin/plugin.json').write_text(json.dumps({'name': 'asks040-relay-fixture', 'version': '1.0.0'}))
     (plugin / 'hooks/hooks.json').write_text(json.dumps({'modules': ['./register.ts']}))
-    (plugin / 'hooks/register.ts').write_text('''import type { Register } from 'claude-code'
+    fixture_source = '''import type { Register } from 'claude-code'
 export const register: Register = on => {
   let shown = false
   on('session.start', async ($, e, next) => { await $.command.register({ name: 'seed-heads-up', description: 'Draw the acceptance offer' }); return next(e) })
@@ -199,7 +203,23 @@ export const register: Register = on => {
     return Box({ flexDirection: 'column', children: [below, Box({ children: [Text({ children: 'Heads up · ASK040 relay acceptance card.' }), Button({ key: 'learn', label: 'Learn more', onPress: () => {} }), Button({ key: 'knew', label: 'Knew this already', onPress: () => {} })] })] })
   })
 }
-'''.replace('ASK040 relay acceptance card.', 'ASK040 relay acceptance card ' + SID + '.'))
+'''.replace('ASK040 relay acceptance card.', 'ASK040 relay acceptance card ' + (SID if args.episode5 != 'relay' else 'shared-' + RUN.name) + '.')
+    if args.episode5 == 'relay':
+        fixture_source = fixture_source.replace("let shown = false", "let shown = false; let released = false; let attempts = 0")
+        fixture_source = fixture_source.replace("await $.command.register({ name: 'seed-heads-up'", "shown = (await $.store.get('shown:' + await $.session.id())) === true; released = (await $.store.get('released:' + await $.session.id())) === true; attempts = Number(await $.store.get('attempts:' + await $.session.id()) ?? 0); await $.command.register({ name: 'release-relay', description: 'Release relay failure' }); await $.command.register({ name: 'seed-heads-up'")
+        fixture_source = fixture_source.replace("shown = true; $.ui.invalidate", "shown = true; await $.store.set('shown:' + await $.session.id(), true); $.ui.invalidate")
+        fixture_source = fixture_source.replace("  on('ui.render'", """  on('command.run', { command: 'release-relay' }, async ($) => { released = true; await $.store.set('released:' + await $.session.id(), true); return { text: 'Relay released' } })
+  on('prompt.submit', async ($, e, next) => {
+    if (e.origin.kind !== 'plugin' || !e.origin.name.startsWith('agent-should-know')) return next(e)
+    attempts++
+    await $.store.set('attempts:' + await $.session.id(), attempts)
+    await $.fs.write(TRACE_PATH, JSON.stringify({ attempts, released }))
+    if (!released) return { drop: 'Acceptance fixture: delivery refused' }
+    return next(e)
+  })
+  on('ui.render'""")
+        fixture_source = fixture_source.replace('TRACE_PATH', json.dumps(str(RUN / 'relay-attempts.json')))
+    (plugin / 'hooks/register.ts').write_text(fixture_source)
 
 
 def main():
@@ -353,10 +373,11 @@ def incident_probes():
 
 
 def episode5_probe():
+    global SID, SESSION, ROOT, SOURCE, PROJECTION, TRANSCRIPT
     offer_fixture()
     launch()
     if args.episode5 == 'paste':
-        body = 'PASTE_NOT_OWNER_' + 'x' * 2130
+        body = 'PASTE_NOT_OWNER_' + 'x' * 2080 + '</pasted_content>_PASTE_SECRET_TAIL_'
         raw = 'Owner before ' + body + ' Owner after. Reply exactly PASTE_DONE.'
         send(raw, pasted=body)
         wait('paste-answer', lambda: answered('PASTE_DONE') and bool(records()))
@@ -366,8 +387,10 @@ def episode5_probe():
         wait('paste-after', lambda: answered('DONE_ASK040_PASTE_AFTER'))
         row = records()[0]
         projection = PROJECTION.read_text()
-        check('episode5 paste', 'Owner before' in row['text'] and 'Owner after' in row['text'] and '[pasted ' in row['text'] and body not in row['text'] and body not in projection,
-              f'owner chars={len(row["text"])}, paste leaked={body in row["text"]}, projection leaked={body in projection}')
+        leaked = any(part in row['text'] for part in ['PASTE_NOT_OWNER_', '_PASTE_SECRET_TAIL_'])
+        projection_leaked = any(part in projection for part in ['PASTE_NOT_OWNER_', '_PASTE_SECRET_TAIL_'])
+        check('episode5 paste', 'Owner before' in row['text'] and 'Owner after' in row['text'] and '[pasted ' in row['text'] and not leaked and not projection_leaked,
+              f'owner chars={len(row["text"])}, paste leaked={leaked}, projection leaked={projection_leaked}')
     elif args.episode5 == 'capture':
         for n in range(3):
             marker = f'ASK040_CAPTURE_{n}'
@@ -386,6 +409,47 @@ def episode5_probe():
         skipped = [r for r in rows() if r.get('type') == 'system' and 'session.append hook was skipped' in str(r.get('content', ''))]
         check('episode5 capture', len(sent) == 5 and len(captured) == 5 and len({r['uuid'] for r in captured}) == 5,
               f'sent={len(sent)}, recorded={len(captured)}, skipped notices={len(skipped)}, security named={any("cc-plugin-sec-default" in str(r) for r in skipped)}')
+    elif args.episode5 == 'relay':
+        def replace_relay():
+            path = args.relay_plugin / 'hooks/register.ts'
+            with path.open('a') as output:
+                output.write('\n// Acceptance fixture: replace the relay module.\n')
+        send('/seed-heads-up')
+        trace = RUN / 'relay-attempts.json'
+        wait('relay-drop', trace.exists, 30)
+        (RUN / 'relay-drop-screen.txt').write_text(screen())
+        send('/release-relay')
+        replace_relay()
+        send('/reload-plugins')
+        send('Run Bash command `printf ASK040_RELAY_RELOAD`. Then reply DONE_ASK040_RELAY_RELOAD.')
+        wait('relay-after-reload', lambda: answered('DONE_ASK040_RELAY_RELOAD'))
+        def delivered():
+            return sum(r.get('type') == 'user' and 'A side agent watching this session flagged this for you, the main agent:' in json.dumps(r) and 'ASK040 relay acceptance card shared' in json.dumps(r) for r in rows())
+        time.sleep(3)
+        first = delivered()
+        replace_relay()
+        send('/reload-plugins')
+        send('Run Bash command `printf ASK040_RELAY_DEDUPE`. Then reply DONE_ASK040_RELAY_DEDUPE.')
+        wait('relay-dedupe', lambda: answered('DONE_ASK040_RELAY_DEDUPE'))
+        deduped = delivered()
+        attempts = json.loads(trace.read_text())['attempts']
+        (RUN / 'relay-first-session.json').write_text(json.dumps({'sid': SID, 'rows': rows()}, ensure_ascii=False))
+        send('/exit')
+        wait('relay-first-exit', lambda: subprocess.run(['tmux', 'has-session', '-t', SESSION], capture_output=True).returncode != 0)
+        SID = str(uuid.uuid4())
+        SESSION = 'asks040-' + SID[:8]
+        ROOT = Path.home() / '.local/state' / ASKS_NAME / SID
+        SOURCE = ROOT / 'owner.asks.jsonl'
+        PROJECTION = Path.home() / '.local/state/agent-hooks' / SID / 'asks-open.md'
+        TRANSCRIPT = Path.home() / '.claude/projects' / str(FIXTURE).replace('/', '-').replace('.', '-') / (SID + '.jsonl')
+        launch()
+        send('/release-relay')
+        send('/seed-heads-up')
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline and delivered() == 0:
+            time.sleep(.5)
+        check('episode5 relay', first == 1 and deduped == 1 and delivered() == 1,
+              f'accepted after drop/reload={first}, accepted after second reload={deduped}, attempts={attempts}, same card in new session={delivered()}')
     send('/exit')
 
 
@@ -397,7 +461,8 @@ try:
     else:
         main()
 except Exception as error:
-    for name in ['a five owner turns', 'b queued owner body', 'c reload mid-turn', 'd compaction projection', 'e resume reminder', 'f relay handled'][len(results):]:
+    names = ['episode5 ' + args.episode5] if args.episode5 else ['a five owner turns', 'b queued owner body', 'c reload mid-turn', 'd compaction projection', 'e resume reminder', 'f relay handled']
+    for name in names[len(results):]:
         check(name, False, f'{type(error).__name__}: {error}')
 finally:
     # Stop only this throwaway test process. Evidence and session state stay on disk.

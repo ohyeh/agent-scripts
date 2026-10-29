@@ -40,11 +40,12 @@ function textOf(node: unknown): string {
 type On = Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => unknown>>[1]
 
 // The engine beneath the mod: a store, files, prompts and opens it records.
-function world(on: On, store = new Map<string, unknown>()) {
+function world(on: On, store = new Map<string, unknown>(), fault: { drop?: boolean } = {}) {
+  let sid = SID
   const sent: string[] = []
   const opened: string[] = []
   const files = new Map<string, string>()
-  on('prompt.submit', (_, e) => (sent.push(e.text), { text: e.text }))
+  on('prompt.submit', (_, e) => (sent.push(e.text), fault.drop ? { drop: 'fixture refusal' } : { text: e.text }))
   const toasts: string[] = []
   on('ui.toast', (_, e) => (toasts.push(String((e as { text?: unknown }).text ?? JSON.stringify(e))), { value: undefined }))
   on('ui.invalidate', () => ({ value: undefined }))
@@ -65,11 +66,11 @@ function world(on: On, store = new Map<string, unknown>()) {
   }))
   on('process.run', (_, e) => (opened.push(e.argv.join(' ')), { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
   on('env.get', () => ({ value: '/h/me' }))
-  on('session.id', () => ({ value: SID }))
+  on('session.id', () => ({ value: sid }))
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('turn.start', (_, e) => ({ turnId: e.turnId }))
   on('tool.call', () => ({ result: {}, text: 'ok' }) as never)
-  return { sent, opened, files, store, toasts }
+  return { sent, opened, files, store, toasts, setSid: (next: string) => { sid = next } }
 }
 
 // The built-in's offer card beneath the mod; other plugins' bands sit beside it,
@@ -119,6 +120,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   await $.session.start(start)
   // The card shows while a long main turn runs; the relay is queued behind it.
   await $.turn.start({ text: 'long task', turnId: 't0' })
+  await $.ui.render(band())
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
@@ -127,7 +129,7 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
     await ui.unmount()
   }
 
-  expect(draws()).toBe(2)
+  expect(draws()).toBe(3)
   expect(w.sent.length).toBe(1)
   expect(w.sent[0]).toContain('\n> Heads up · 兩張單程票被加總了。來回票更便宜。\n>\n> **Why it matters**\n> - The plan page lists 2.91 萬.\n')
   expect(w.sent[0]).not.toContain('Only the card')
@@ -191,6 +193,8 @@ test('the card alone is hidden too; a store holding another card is not relayed'
   })
   await $.session.start(start)
 
+  await $.ui.render(band())
+
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
     expect(await ui.find({ type: 'Text', text: /Heads up/ })).toBeUndefined()
@@ -250,4 +254,33 @@ test('the log button opens the session log once a card was logged', async ($, on
   expect(w.toasts.at(-1)).toMatch(/^opened \/h\/me\/.local\/state\/agent-should-know\/agent_automation\//)
   expect(w.opened.length).toBe(1)
   expect(w.opened[0]).toMatch(/^open \/h\/me\/\.local\/state\/agent-should-know\/agent_automation\/\d{4}-\d{2}-\d{2}-28d2c553\.log$/)
+})
+
+test('a refused relay has no receipt; acceptance survives reload and belongs to one session', async ($, on) => {
+  const fault = { drop: true }
+  const w = world(on, new Map(), fault)
+  drawCard(on, 'Delivery receipt boundary.')
+  await $.session.start(start)
+  await $.ui.render(band())
+  await $.ui.render(band())
+  expect(w.store.get(`sent:${SID}`)).toBeUndefined()
+  fault.drop = false
+  await $.ui.render(band())
+  await $.ui.render(band())
+  expect(w.store.get(`sent:${SID}`)).toEqual(['Heads up · Delivery receipt boundary.'])
+  const accepted = w.sent.length
+  await $.session.start(start)
+  await $.ui.render(band())
+  expect(w.sent.length).toBe(accepted)
+  w.setSid('another-session')
+  await $.session.start(start)
+  await $.ui.render(band())
+  await $.ui.render(band())
+  expect(w.sent.length).toBe(accepted + 1)
+  expect(w.store.get('sent:another-session')).toEqual(['Heads up · Delivery receipt boundary.'])
+  w.setSid('late-receipt')
+  await $.session.start(start)
+  w.store.set('sent:late-receipt', ['Heads up · Delivery receipt boundary.'])
+  await $.ui.render(band())
+  expect(w.sent.length).toBe(accepted + 1)
 })

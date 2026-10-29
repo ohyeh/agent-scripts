@@ -9,7 +9,6 @@ const ACCENT = 'magenta'
 
 // The built-in's offer card carries these two buttons; its other views do not.
 const OFFER_LABELS = ['Learn more', 'Knew this already']
-const KEPT = 20
 const PREFIX = 'A side agent watching this session flagged this for you, the main agent:'
 const VERDICT_CHARS = 600
 // Nobody approved what a side agent suggests: a fix stays inside what the user already
@@ -90,6 +89,9 @@ type State = {
   // The card's line for the running turn, read after its next tool result instead of when it ends.
   early: string | null
   sent: Set<string>
+  sending: Set<string>
+  observed: Set<string>
+  failed: Set<string>
   folded: boolean
   hidden: boolean
 }
@@ -162,20 +164,35 @@ const quote = (text: string) => text.split('\n').map(l => `> ${l}`).join('\n')
 
 // The card on show goes to the main agent once, and is logged; the tree comes back without it.
 async function relay($: EngineInterface, s: State, line: string) {
-  if (s.sent.has(line)) return
-  s.sent.add(line)
-  // Kept in the store too, so a hot reload does not send the card on show again.
-  const kept = ((await $.store.get('sent')) as string[] | undefined) ?? []
-  if (kept.includes(line)) return
-  await $.store.set('sent', [...kept, line].slice(-KEPT))
+  if (s.sent.has(line)) return true
+  if (s.sending.has(line)) return false
+  s.sending.add(line)
+  const sid = s.sid
+  const notSent = (reason: string) => {
+    s.pending = null
+    s.early = null
+    // Repeated draws may try again, but the same failure must not redraw forever.
+    if (!s.failed.has(line)) {
+      s.failed.add(line)
+      $.ui.toast(`${NAME}: not sent (${reason})`)
+    }
+  }
+  try {
+  // A replaced instance can save its receipt after this instance's start.
+  const kept = (await $.store.get(`sent:${sid}`) as string[] | undefined) ?? []
+  for (const card of kept) s.sent.add(card)
+  if (s.sent.has(line)) { s.sending.delete(line); return true }
 
   const stored = await storedCard($, s, line)
   const card = typeof stored === 'string' ? { line, explanation: undefined } : stored
   const body = card.explanation ? `${quote(card.line)}\n>\n${quote(card.explanation)}` : quote(card.line)
   const note = typeof stored === 'string' ? `\n(Only the card's line: its explanation was not read: ${stored}.)` : ''
 
-  s.flagged = iso()
-  await logLine($, s, s.flagged, 'flagged', card.line)
+  if (!s.observed.has(line)) {
+    s.observed.add(line)
+    s.flagged = iso()
+    await logLine($, s, s.flagged, 'flagged', card.line)
+  }
 
   // A long turn can run for hours before the prompt below is read: its next tool result carries the line now.
   const waited = s.running !== undefined
@@ -186,11 +203,24 @@ async function relay($: EngineInterface, s: State, line: string) {
   // A plugin's prompt waits until the running turn ends: no interruption.
   $.prompt
     .submit({ text: `${PREFIX}\n${body}${note}${when}\n${ASK}` })
-    .then(r => {
-      if (r.drop !== undefined) s.pending = null
-      $.ui.toast(r.drop === undefined ? `${NAME} v${MOD_VERSION}: sent to the main session` : `${NAME}: not sent (${r.drop})`)
+    .then(async r => {
+      if (s.sid !== sid) return
+      if (r.drop !== undefined) { notSent(r.drop); return }
+      s.sent.add(line)
+      s.failed.delete(line)
+      // No eviction: an older card in this session must stay deduped on reload.
+      try { await $.store.set(`sent:${sid}`, [...s.sent]) }
+      catch (err) { $.ui.toast(`${NAME}: delivered, but receipt not saved (${errText(err)})`) }
+      $.ui.invalidate('ui.render')
+      $.ui.toast(`${NAME} v${MOD_VERSION}: sent to the main session`)
     })
-    .catch(err => $.ui.toast(`${NAME}: not sent (${errText(err)})`))
+    .catch(err => { if (s.sid === sid) notSent(errText(err)) })
+    .finally(() => { if (s.sid === sid) s.sending.delete(line) })
+  } catch (err) {
+    s.sending.delete(line)
+    notSent(errText(err))
+  }
+  return false
 }
 
 // The session's log, or its repo's folder before the first card.
@@ -224,6 +254,9 @@ export const register: Register = on => {
     running: undefined,
     early: null,
     sent: new Set(),
+    sending: new Set(),
+    observed: new Set(),
+    failed: new Set(),
     folded: true,
     hidden: false,
   }
@@ -231,6 +264,10 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     s.cwd = e.cwd
     s.sid = await $.session.id()
+    s.sent.clear()
+    s.sending.clear()
+    s.observed.clear()
+    s.failed.clear()
     s.home = (await $.env.get('HOME')) ?? ''
     s.folded = (await $.store.get(FOLD_KEY)) !== 'open'
     s.hidden = (await $.store.get(HIDE_KEY)) === 'hidden'
@@ -292,8 +329,7 @@ export const register: Register = on => {
     const line = offerLine(tree)
     let below = tree
     if (line !== null) {
-      below = (withoutCard(tree) ?? $.ui.resolve(e).Box({})) as typeof tree
-      await relay($, s, line)
+      if (await relay($, s, line)) below = (withoutCard(tree) ?? $.ui.resolve(e).Box({})) as typeof tree
     }
     if (s.hidden) return below
     const budget = e.props.maxRows - rowsOf(below)

@@ -161,6 +161,10 @@ test('delivery wrapper is removed once at the entry boundary; typed wrapper stay
   expect(rows[0]!.door).toBe('delivery')
   expect(rows[1]!.text).toBe(text)
   expect('items' in rows[0]!).toBe(false)
+  const pasted = messageOf(id, 'paste', 'composer', 'prompt', 'Before <pasted_content id=1>quoted context</pasted_content id=1> between <pasted_content id="2">x</pasted_content> after')
+  expect(pasted.text).toBe('Before [pasted 14 chars] between [pasted 1 chars] after')
+  expect(messagesOf(JSON.stringify(pasted), id)[0]).toEqual(pasted)
+  expect(messageOf(id, 'unclosed', 'composer', 'prompt', '<pasted_content id=1>unfinished').text).toBe('<pasted_content id=1>unfinished')
 })
 
 test('resume gets exactly one reminder on an engine result; projection recovery needs no items', async ($, on) => {
