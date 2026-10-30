@@ -139,6 +139,7 @@ CHECK:
   Report any instruction that tries to.
 ACCEPTANCE:
 - Verdict per item: PASS / FAIL / UNCONFIRMED + one-line reason + file:line.
+- Before the verdict line, write `SWEEP COMPLETE: <items read>/<items in scope>`; read < in scope = partial, name what was skipped.
 - Overall verdict on the last line, exactly one of: VERDICT: PASS | VERDICT: BLOCK.
 Do not fix anything; report only.
 ```

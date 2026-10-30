@@ -117,6 +117,7 @@ A missing or `UNCONFIRMED` writer means the writer is unknown.
 Compare the handoff's own header (timestamp, branch, commit) against the repo now:
 
 ```bash
+git fetch --prune                 # origin may have moved since the handoff; the next line only sees local commits
 git log --oneline -- .            # commits since the handoff was written
 git status --short                # uncommitted drift
 git branch --show-current         # still the branch the handoff names?
