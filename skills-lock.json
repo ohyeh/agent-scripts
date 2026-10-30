@@ -87,9 +87,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/delegation-templates/SKILL.md",
-      "skillFolderHash": "f0437cce4bc19c45051b6d8c6e7291c1ab820f88",
+      "skillFolderHash": "8bbe4f7fce3c06b4f8307e2d23d985c0ace08e00",
       "installedAt": "2026-07-18T20:48:21.471Z",
-      "updatedAt": "2026-10-29T18:43:56.801Z"
+      "updatedAt": "2026-10-30T03:56:14.937Z"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -224,9 +224,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "bc35cd6918497493e5be5e894988f7ccfb8f14ba",
+      "skillFolderHash": "6b92eab8d2a6291dd26e869b66a83c3545abd5d4",
       "installedAt": "2026-07-18T20:48:24.825Z",
-      "updatedAt": "2026-10-29T19:20:19.992Z"
+      "updatedAt": "2026-10-30T03:56:20.092Z"
     },
     "triage": {
       "source": "mattpocock/skills",
@@ -251,9 +251,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-decision-tree/SKILL.md",
-      "skillFolderHash": "e887a4da9ca0f526b23d1fd3064d90b827384bd9",
+      "skillFolderHash": "804734bd7f412cd8e50832eaf06dd46abedeb604",
       "installedAt": "2026-10-23T00:00:00.000Z",
-      "updatedAt": "2026-10-30T02:59:51.406Z"
+      "updatedAt": "2026-10-30T03:56:17.023Z"
     },
     "using-grok-bot-app": {
       "source": "ohyeh/agent-scripts",
@@ -269,9 +269,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/using-tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "293d3e30af1bc250c710512abac301836af3b84a",
+      "skillFolderHash": "32f54f39eb90b74e4ef671c413a7b0576a4a240d",
       "installedAt": "2026-07-18T20:48:24.826Z",
-      "updatedAt": "2026-10-23T00:00:00.000Z"
+      "updatedAt": "2026-10-30T03:56:22.406Z"
     },
     "wayfinder": {
       "source": "mattpocock/skills",
