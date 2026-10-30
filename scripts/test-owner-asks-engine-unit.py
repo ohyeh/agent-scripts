@@ -18,7 +18,8 @@ def functions(**overrides):
                      sys=__import__('sys'), shlex=__import__('shlex'),
                      REPO=SCRIPT.parent.parent, RUN=Path('/fixture'), FIXTURE=Path('/fixture'),
                      SID='fixture', SESSION='fixture', submissions=[],
-                     ASKS_PLUGIN=SCRIPT.parent.parent / 'mods/owner-asks', ASKS_NAME='owner-asks')
+                     ASKS_PLUGIN=SCRIPT.parent.parent / 'mods/owner-asks', ASKS_NAME='owner-asks',
+                     args=__import__('types').SimpleNamespace(relay_plugin=Path('/fixture/relay')))
     # Import only functions: the script's top-level code creates real session files.
     exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n, ast.FunctionDef)], type_ignores=[]), str(SCRIPT), 'exec'), namespace)
     namespace.update(overrides)
