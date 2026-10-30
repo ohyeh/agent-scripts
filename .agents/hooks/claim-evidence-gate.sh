@@ -67,8 +67,14 @@ speech="$(printf '%s' "$last" \
 # false claim costs more than a false block. No CJK inside [...] (byte sets under LC_ALL=C).
 COND_EN='(^|[^a-z])(if|once|when|after|before|until|unless|wait(ing)? (for|on))( [^ ]+){0,6} (pass(es|ing)?|done|complete|finish(es)?|green)([^a-z]|$)|(^|[^a-z])(will|going to|to)( be)? (done|fixed|verified|completed?|finish(ed)?|resolved|shipped|pass)([^a-z]|$)'
 COND_ZH='^ *(等|待).{0,60}(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|(若|如果|假如|要是|一旦).{0,60}(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|(完成|修好|修復|測好|驗證(完|過)|通過|搞定) *((之後|以後|後)(才|再)|才(會|能))'
+# A clause with a past or perfect marker is never a forecast (「等到測試完成了」, 「若干任務已完成」,
+# "before lunch the patch was done", "after I fixed it tests went green"): it keeps its claim words.
+PAST='(^|[^a-z])(was|were|went|got|had|did|already)([^a-z]|$)|已|了'
 claim_text="$(printf '%s\n' "$speech" | tr 'A-Z' 'a-z' | sed -E 's/(，|。|；|！|？|→|[,;!?]|\.( |$))/\
-/g' | sed -E "s/(等|待)了/__past__/g; s/$COND_EN//g; s/$COND_ZH//g")"
+/g' | while IFS= read -r c; do
+  if printf '%s' "$c" | grep -Eq "$PAST"; then printf '%s\n' "$c"
+  else printf '%s\n' "$c" | sed -E "s/$COND_EN//g; s/$COND_ZH//g"; fi
+done)"
 
 claim=""
 # Under LC_ALL=C grep is byte-wise: never put ?/*/+ right after a CJK char (it binds to its last byte); group it.
