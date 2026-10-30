@@ -204,10 +204,15 @@ check('skill-router-table', routerTable.status === 0,
 // committed folder (`rev-parse HEAD:skills/<name>`, what the skills CLI reads from the GitHub
 // trees API). Catch a stale pin before push, not at deploy (W45-14: b539ca1, fixed by c7de5d9).
 // No installed lock: only the tree half runs, so this host's installed set cannot fail it.
-const lockTree = spawnSync('bash', [join(ROOT, 'scripts/sync-skills-lock.sh'), '--check'],
-  { encoding: 'utf8', env: { ...process.env, SKILLS_GLOBAL_LOCK: join(ROOT, '.no-installed-lock') } });
-check('skills-lock-tree', lockTree.status === 0,
-  (lockTree.stdout + lockTree.stderr).trim().split('\n').slice(-1)[0]);
+// Checkout only: deploy runs this on the release tarball before its stale-pin self-repair
+// (deploy.sh), and failing there would block every host instead of repairing the pin.
+const atRepoTop = spawnSync('git', ['-C', ROOT, 'rev-parse', '--show-prefix'], { encoding: 'utf8' });
+if (atRepoTop.status === 0 && atRepoTop.stdout.trim() === '') {
+  const lockTree = spawnSync('bash', [join(ROOT, 'scripts/sync-skills-lock.sh'), '--check'],
+    { encoding: 'utf8', env: { ...process.env, SKILLS_GLOBAL_LOCK: join(ROOT, '.no-installed-lock') } });
+  check('skills-lock-tree', lockTree.status === 0,
+    (lockTree.stdout + lockTree.stderr).trim().split('\n').slice(-1)[0]);
+}
 
 // dead refs: live guidance must not name a retired skill/agent/command
 const deadRefs = spawnSync('bash', [join(ROOT, 'scripts/check-dead-refs.sh')], { encoding: 'utf8' });
