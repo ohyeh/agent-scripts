@@ -11,8 +11,10 @@ You MUST follow this rule in three cases:
 
 - ASD-STE100 governs English terms. Pick one term, one meaning, one form per
   session ("start", never "initiate").
-- The discipline binds English terms only. Traditional Chinese prose stays
-  colloquial and casual.
+- Traditional Chinese prose stays colloquial, with six limits: one point per
+  sentence; condition before action; a concrete verb (修改, not 進行修改); no
+  double negative; 必須／不得／可以 as the only modal words in a Chinese rule
+  or brief; no list that ends in 「等」 or 「之類」.
 - Procedural English (briefs, rules, commits) uses simple verbs and short
   sentences.
 - Procedural English follows "80% of ASD-STE100" (source: asd-ste100.org):

@@ -85,6 +85,15 @@ Chain these for planning and investigation work:
 - When a closing recap lists decisions waiting on the user, list only the ones
   still unanswered: re-check each against later replies, and name each one;
   never "6 decisions are waiting" without the list (W44-6).
+- Status words in a Traditional Chinese report: one word, one meaning.
+  已完成 = done, with a check run this session and quoted (the kernel's done
+  bar); 部分完成 = list what is still open; 未驗證 = the check was not run, say
+  why; 未確認 = you do not know if it ran or what it showed, say how to
+  confirm; 跳過 = skipped on purpose, say why; 受阻 = name the missing
+  condition. 受阻 is a work state; `BLOCK` stays a review verdict.
+- A result report uses these headings in this order when it has the parts:
+  待確認 (user decisions), 改動, 驗證, 未做. Drop an empty heading. `✈` stays
+  the last line.
 - A command handed to the user is one copy-paste line: absolute paths expanded,
   no placeholders left, and it says where to run it (which host, which directory).
 - Use lists or numbered options when the content has many parts or the user must
