@@ -432,14 +432,14 @@ test('args: id and port, then $GROK_BOT_CDP_PORT, then 39231', () => {
  * already open and takes the send. `call` is the line that runs main; `fake`, `std` (the CLI's own role gate) and the
  * role file (front: B) are in scope. stderr ends with CONN=1 when main connected.
  */
-function runMain(call, input) {
+function runMain(call, input, { script = './send.mjs', bot = A, front = B } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'send-main-'))
-  writeFileSync(join(dir, 'roles.json'), JSON.stringify({ front: B }))
+  writeFileSync(join(dir, 'roles.json'), JSON.stringify({ front }))
   const runner = join(dir, 'run.mjs')
-  writeFileSync(runner, `import { main, gate, loadRoles } from ${JSON.stringify(new URL('./send.mjs', import.meta.url).href)}
+  writeFileSync(runner, `import { main, gate, loadRoles } from ${JSON.stringify(new URL(script, import.meta.url).href)}
 let conn = 0
 const fake = async () => { conn = 1; return { close() {}, d: {
-  count: async () => 1, composer: async () => '', current: async () => ${JSON.stringify(A)}, click: async () => {},
+  count: async () => 1, composer: async () => '', current: async () => ${JSON.stringify(bot)}, click: async () => {},
   sleep: async () => {}, submit: async () => ({ state: 'submitted', before: 0 }), sent: async () => 1, unsend: async () => false } } }
 process.on('exit', () => process.stderr.write('CONN=' + conn))
 const std = (id, text) => gate(loadRoles(), id, text)
@@ -461,9 +461,23 @@ test('main: a send merges extra into its one result line and exits 0', () => {
 test('main: the role gate refuses a headerless text before connecting; a check that passes reaches the send', () => {
   const refused = runMain(`main({ id: 'aaaaaaaa', port: 1 }, std, fake)`, 'hi')
   assert.deepEqual([refused.status, refused.out, refused.connected], [2, { state: 'bad-header', port: 1 }, false])
-  const passed = runMain(`main({ id: 'aaaaaaaa', port: 1 }, () => null, fake)`, 'hi')
+  const passed = runMain(`main({ id: 'aaaaaaaa', port: 1 }, () => null, fake)`, HEAD)
   assert.deepEqual([passed.status, passed.out, passed.connected], [0, { state: 'sent', port: 1, bot: 'aaaaaaaa' }, true])
 })
+
+for (const script of ['./send.mjs', '../../../mods/grok-bot-watch/bin/send.mjs']) {
+  for (const check of ['std', '() => null']) {
+    test(`${script}: 168d152a refuses a missing header before connecting with ${check}; a valid header sends`, () => {
+      const id = '168d152a'
+      const call = `main({ id: '${id}', port: 1 }, ${check}, fake)`
+      const opts = { script, bot: id, front: id }
+      const refused = runMain(call, 'hi', opts)
+      assert.deepEqual([refused.status, refused.out, refused.connected], [2, { state: 'bad-header', port: 1 }, false])
+      const passed = runMain(call, HEAD, opts)
+      assert.deepEqual([passed.status, passed.out, passed.connected], [0, { state: 'sent', port: 1, bot: id }, true])
+    })
+  }
+}
 
 test('main: no check refuses (no-gate) and never connects', () => {
   const r = runMain(`main({ id: 'aaaaaaaa', port: 1 }, undefined, fake)`, '[w:b7c4e910] ⟨Claude⟩ hi')

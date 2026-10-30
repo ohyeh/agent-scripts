@@ -242,7 +242,7 @@ export function effects(ev) {
 }
 
 /**
- * One CLI run: read stdin, refuse early (empty, bad-id, bad-port) or by check(id, text), connect, send, then print one
+ * One CLI run: read stdin, refuse early (empty, bad-id, bad-port, bad-header) or by check(id, text), connect, send, then print one
  * JSON line and exit (0 only for "sent"). check(id, text) → null to go on, else { state, ... }; a missing check refuses
  * (no-gate). extra is merged into the result of a send. connect(port) → { d, close }: the app's CDP port by default,
  * a fake in tests. This file's own CLI always passes the role gate.
@@ -258,7 +258,7 @@ export async function main({ id, port, extra = {} }, check, connect = cdp) {
   let text = ''
   for await (const chunk of process.stdin) text += chunk
   // Validated before any connection: the id goes into page scripts.
-  const early = !norm(text) ? 'empty' : !ID_RE.test(id) ? 'bad-id' : !Number.isInteger(port) || port < 1 ? 'bad-port' : null
+  const early = !norm(text) ? 'empty' : !ID_RE.test(id) ? 'bad-id' : !Number.isInteger(port) || port < 1 ? 'bad-port' : !HEADER_RE.test(text) ? 'bad-header' : null
   const refused = early ? null : typeof check !== 'function' ? { state: 'no-gate' } : check(id, text)
   if (early) say(early)
   else if (refused) {
