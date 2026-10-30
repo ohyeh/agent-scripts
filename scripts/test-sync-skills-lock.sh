@@ -45,4 +45,23 @@ lock "$TREE" 2026-10-09T00:00:00Z "$T/tree/skills-lock.json"
 lock "$OLD" 2026-10-01T00:00:00Z "$T/g.json"
 if out="$(run --check)"; then ok "repo moved: exit 0"; else bad "repo moved: exit 1 ($out)"; fi
 
+# skill changed, lock not, nothing installed (b539ca1, W45-14): the tree alone fails it, sync fixes it
+rm -f "$T/g.json" "$T/log"
+lock "$OLD" 2026-10-01T00:00:00Z "$T/tree/skills-lock.json"
+if out="$(run --check)"; then bad "no install: exit 0 ($out)"
+elif grep -q 'lock is stale.* foo' <<<"$out"; then ok "no install: reports lock stale"
+else bad "no install: wrong message ($out)"; fi
+run >/dev/null
+if [ "$(jq -r .skills.foo.skillFolderHash "$T/tree/skills-lock.json")" = "$TREE" ] && run --check >/dev/null; then ok "no install: sync writes the tree hash, then in sync"
+else bad "no install: sync did not converge"; fi
+
+# in a git repo the COMMITTED tree decides, not the working tree
+git -C "$T/tree" init -q
+git -C "$T/tree" add skills/foo
+git -C "$T/tree" -c user.name=t -c user.email=t@t commit -q --no-verify --no-gpg-sign -m foo
+echo '# edited, not committed' >> "$T/tree/skills/foo/SKILL.md"
+if out="$(run --check)"; then ok "git: lock = committed tree passes, working edit ignored"; else bad "git: exit 1 ($out)"; fi
+lock "$OLD" 2026-10-01T00:00:00Z "$T/tree/skills-lock.json"
+if out="$(run --check)"; then bad "git: stale lock exit 0 ($out)"; else ok "git: stale lock vs committed tree fails"; fi
+
 exit "$fail"
