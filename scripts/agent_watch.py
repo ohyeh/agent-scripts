@@ -22,6 +22,9 @@ def is_browser(tool):
     if name.startswith(BROWSER_PREFIXES):
         return True
     command = str((tool.get("input") or {}).get("command", ""))
+    # shortcut: drops quoted strings so a quoted newline or ; is no command boundary; heredocs, $(...) and a
+    # quoted executable path ("$HOME/bin/agent-browser") are missed, use shlex if those show up in transcripts
+    command = re.sub(r"'[^']*'|\"(?:[^\"\\]|\\.)*\"", "''", command)
     # the executable of a pipeline segment, not an argument (`rg agent-browser README.md` is not a browser call)
     return name == "Bash" and re.search(r"(?:^|[;&|(\n])\s*(?:\S*/)?agent-browser(?:\s|$)", command) is not None
 
@@ -87,6 +90,10 @@ def self_test():
         ab = lines[:2] + [row(2, {"type": "tool_use", "id": "c1", "name": "Bash", "input": {"command": cmd}}),
                           row(150, {"type": "tool_result", "tool_use_id": "c1", "content": "ok"})]
         assert idle_gaps(ab, now=at(301)) == [], "leading space or a new line still runs agent-browser: %r" % cmd
+    for cmd in ("printf 'x\nagent-browser open https://example.com'", 'echo "a; agent-browser open x"'):
+        quoted = lines[:2] + [row(2, {"type": "tool_use", "id": "q1", "name": "Bash", "input": {"command": cmd}}),
+                              row(150, {"type": "tool_result", "tool_use_id": "q1", "content": "ok"})]
+        assert len(idle_gaps(quoted, now=at(301))) == 1, "agent-browser inside quotes is an argument: %r" % cmd
     print("self-test: ok")
 
 
