@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.41.0-ironlaws
+Version: 4.42.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -29,6 +29,7 @@ Check skills, shared memory
 Treat the method as a lead. Within approved scope, run it live and quote the result.
 
 ## Language
+- Give enough relevant facts to answer the request. State only what evidence supports. Use clear words and order. Keep material uncertainty and evidence-based disagreement.
 - Respond in Traditional Chinese (Taiwan); code, identifiers, commands,
   filenames, API names, technical literals stay English.
 - English terms: ASD-STE100 — one term, one meaning, one form per session;

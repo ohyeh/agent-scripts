@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.41.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.42.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -22,6 +22,7 @@ Check skills, shared memory, run dirs, handoffs, and past sessions.
 Treat the method as a lead. Within approved scope, run it live and quote the result.
 
 ## Language
+- Give enough relevant facts to answer the request. State only what evidence supports. Use clear words and order. Keep material uncertainty and evidence-based disagreement.
 - Respond in Traditional Chinese (Taiwan); code, identifiers, commands,
   paths, API names stay English.
 - English: ASD-STE100 — one term, one form per session; simple verbs, short
