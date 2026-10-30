@@ -55,6 +55,7 @@ export const meta = {
     { title: 'Orchestrate', detail: 'Step 0: establish supervision doctrine + escalation ladder' },
     { title: 'Decompose', detail: 'split the feature into disjoint discovery areas', model: 'opus' },
     { title: 'Discover', detail: 'parallel read-only Explore per area (code/logs are truth)' },
+    { title: 'Model', detail: 'current system state/data flow before the plan', model: 'opus' },
     { title: 'Synthesize', detail: 'merge findings into a v1 plan draft', model: 'opus' },
     { title: 'InternalConsensus', detail: 'adversarial claude critics, revise until consensus', model: 'opus' },
     { title: 'ExternalReview', detail: 'second adversarial review (args.cli if given, else fresh Claude opus), revise until consensus' },
@@ -108,12 +109,13 @@ if (a.launchEnv != null) return { aborted: true, reason: 'launchEnv is gone: put
 // assign/tell + await). Kept byte-close in consensus-gate, plan-pipeline and feature-plan-consensus (scripts
 // cannot import). worker = the name an earlier call returned; absent = start a new worker. Launch and effort
 // flags live in the agent-tmux profile `profile` names (launch_flags / effort_flags in its .conf).
+let dispatchModel = 'none — pre-model code discovery and goal scoping; no product changes'
 const modConduit = ({ profile, base, dir, worker, out, marker, timeout, task }) =>
   `Drive a ${profile} worker ONLY with the tmux-agent mod tools: ToolSearch "select:mcp__tmux-agent__assign,mcp__tmux-agent__tell,mcp__tmux-agent__await". Never run agent-tmux through Bash.\n` +
   `The worker's instruction: write the full response to ${out}, ending the file with a line exactly: ${marker}; the result.json summary is one line.\n` +
   (worker
     ? `1. mcp__tmux-agent__tell {name: "${worker}", text: the task below plus that instruction}. worker = "${worker}".\n`
-    : `1. mcp__tmux-agent__assign {profile: "${profile}", name: "${base}", dir: the absolute path of ${dir}, brief: "GOAL: " + the task below + that instruction + "\\nACCEPTANCE: ${out} ends with the marker line.\\nREPORT: a one-line summary."}. worker = the name the receipt returns (with its suffix).\n`) +
+    : `1. mcp__tmux-agent__assign {profile: "${profile}", name: "${base}", dir: the absolute path of ${dir}, brief: "GOAL: " + the task below + that instruction + "\\nMODEL: ${dispatchModel}\\nACCEPTANCE: ${out} ends with the marker line.\\nREPORT: a one-line summary."}. worker = the name the receipt returns (with its suffix).\n`) +
   `2. Call mcp__tmux-agent__await {name: worker, max_seconds: ${Math.min(540, timeout)}} until it returns status success, failed or blocked; after ${Math.max(1, Math.ceil(timeout / 540))} pending calls, stop and report the timeout.\n` +
   `3. Read ${out}; it must end with the marker line. Return worker in the worker field.\n\nTASK:\n${task}`
 // One cli worker for the run (escalation rung and external review alike): later calls tell it, so it keeps context.
@@ -281,10 +283,47 @@ if (!findings.length) return { aborted: true, stage: 'discover', needsUser: true
 const undiscoveredAreas = areas.filter((x, i) => rawFindings[i] == null).map(x => x.key)
 if (undiscoveredAreas.length) log(`WARNING: discovery failed for ${undiscoveredAreas.join(', ')} — passed to synthesis as open questions`)
 
+phase('Model')
+const systemModelPath = `${outDir}/system-model.json`
+const modelContext = `${CONTEXT}\nDISCOVERY:\n${JSON.stringify(findings)}`
+const modelSchema = { type: 'object', additionalProperties: false,
+  required: ['path', 'diagram', 'transitions', 'invariants', 'assumptions'],
+  properties: { path: { type: 'string' }, diagram: { type: 'string' },
+    transitions: { type: 'array', items: { type: 'string' } },
+    invariants: { type: 'array', items: { type: 'string' } },
+    assumptions: { type: 'array', items: { type: 'string' } } } }
+let systemModel = null, modelFeedback = ''
+// Same retry in both recipes: worker tier, then opus xhigh; stop before planning on exhaustion.
+for (const [attempt, tier] of [{ model, effort }, { model: 'opus', effort: 'xhigh' }].entries()) {
+  try {
+    systemModel = await agent(
+      `${modelContext}\nModel the CURRENT system from code. Return a Mermaid state or data-flow diagram. ` +
+      `Give transition IDs, actors, events, guards, effects and file:line. List invariants and assumptions. ` +
+      `Include a normal path and a race/failure path. Separate atomic steps from await boundaries. ` +
+      `Create the parent directory. Write this JSON result to ${systemModelPath}. Read it back before returning. ` +
+      `Overwrite this run artifact on retry. Do not change product code or run a model checker.\n${modelFeedback}`,
+      { label: `system-model#${attempt + 1}`, phase: 'Model', ...tier, agentType, schema: modelSchema }
+    )
+  } catch (error) {
+    log(`Model attempt ${attempt + 1} threw: ${error}`)
+    systemModel = null
+  }
+  const text = x => typeof x === 'string' && x.trim().length > 0
+  if (systemModel?.path === systemModelPath && text(systemModel.diagram) &&
+      [systemModel.transitions, systemModel.invariants].every(xs => Array.isArray(xs) && xs.length && xs.every(text)) &&
+      Array.isArray(systemModel.assumptions) && systemModel.assumptions.every(text)) break
+  systemModel = null
+  modelFeedback = 'Previous Model attempt failed or returned incomplete data. Check code and write every required field.'
+  log(`Model attempt ${attempt + 1} rejected: current-system model incomplete`)
+}
+if (!systemModel) return { stage: 'model', passed: false, aborted: true, needsUser: true, reason: 'current-system model incomplete after two attempts' }
+dispatchModel = systemModelPath
+const systemModelInput = `\nUse the current-system model below as input, not as a proposed design. Check it against code. Show proposed transitions in the plan and map their IDs to tasks, INV entries and checks. Review the model, the plan and the map together; flag an omitted or contradicted transition. Keep material uncertainty. Do not edit the model while writing or reviewing the plan.\nMODEL: ${systemModelPath}\n${JSON.stringify(systemModel)}\n`
+
 // ───────────────────────── 3. Synthesize v1 draft ─────────────────────────
 phase('Synthesize')
 const synth = await runEscalated('synthesize', 'Synthesize',
-  (fb) => `${CONTEXT}\nSynthesize the discovery findings into a FIRST-VERSION implementation plan. ${PLAN_SECTIONS}\n` +
+  (fb) => `${CONTEXT}${systemModelInput}\nSynthesize the discovery findings into a FIRST-VERSION implementation plan. ${PLAN_SECTIONS}\n` +
     `Write it to ${planPath} (mkdir -p ${outDir}) AND return the full markdown.\n${fb}\n${undiscoveredAreas.length ? `UNDISCOVERED AREAS (discovery failed — list each as an open question; do NOT plan them from memory): ${undiscoveredAreas.join(', ')}\n` : ''}FINDINGS:\n${JSON.stringify(findings, null, 2)}`,
   { verify: planOk }
 )
@@ -300,7 +339,7 @@ const runCritics = async (tag) => {
   const todo = lenses.map((l, i) => i).filter(i => panel[i] == null)
   const res = await parallel(todo.map(i => () =>
     agent(
-      `${CONTEXT}\nAdversarially critique this v1 plan through ONE lens: ${lenses[i]}. ` +
+      `${CONTEXT}${systemModelInput}\nAdversarially critique this v1 plan through ONE lens: ${lenses[i]}. ` +
       `VERIFY each "current state" claim against the actual code (rg/Read) — flag any claim that rests on docs/memory rather than code. Set verified_against_code honestly. ` +
       `Be skeptical; default consensus=false if you find a blocker. Each issue needs concrete evidence (file:line / log) and a fix. Skip nitpicks. ${READ_ONLY}\n\nPLAN:\n${plan}`,
       { label: `critic:${String(lenses[i]).split(' ')[0]}#${tag}`, phase: 'InternalConsensus', model, effort: reviewEffort, isolation, agentType, schema: CRITIQUE_SCHEMA }
@@ -327,7 +366,7 @@ while (internalRound < maxInternal) {
   if (internalRound >= maxInternal) { log(`internal round ${internalRound}: ${blocking.length} blocking, last round -> no revise`); break }
   log(`internal round ${internalRound}: ${blocking.length} blocking -> revise`)
   const rev = await runEscalated(`revise-internal#${internalRound}`, 'InternalConsensus',
-    (fb) => `${CONTEXT}\nRevise the plan to resolve these critic issues; RE-VERIFY each asserted fact in code. Keep structure (${PLAN_SECTIONS}). Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
+    (fb) => `${CONTEXT}${systemModelInput}\nRevise the plan to resolve these critic issues; RE-VERIFY each asserted fact in code. Keep structure (${PLAN_SECTIONS}). Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
     { verify: planOk }
   )
   if (!rev.ok) return { aborted: true, stage: 'internal-revise', needsUser: true, round: internalRound }
@@ -345,7 +384,7 @@ if (!internalConsensus) log('no internal consensus -> external review skipped')
 while (externalRound < externalRounds) {
   externalRound++
   const extPrompt =
-    `Act as an INDEPENDENT adversarial reviewer for an implementation PLAN. Repo: ${repo}.\n${EVIDENCE}\n` +
+    `Act as an INDEPENDENT adversarial reviewer for an implementation PLAN. Repo: ${repo}.\n${EVIDENCE}\n${systemModelInput}` +
     `INDEPENDENTLY verify the plan's "current state" claims with rg/Read and logs/real runs — do not take the plan's or any doc's word for it. Then judge completeness, sequencing, effort realism, and unverified assumptions. ` +
     `Set verified_against_code + default consensus=false unless genuinely sound. Each issue needs evidence (file:line/log) + fix. ${READ_ONLY}\n\nPLAN:\n${plan}`
   const extOpts = { label: `${externalTier}-review#${externalRound}`, phase: 'ExternalReview', model, effort: reviewEffort, isolation, agentType, schema: cli ? withWorker(CRITIQUE_SCHEMA) : CRITIQUE_SCHEMA }
@@ -360,7 +399,7 @@ while (externalRound < externalRounds) {
   if (externalRound >= externalRounds) { log(`external round ${externalRound}: ${blocking.length} blocking, last round -> no revise`); break }
   log(`external round ${externalRound}: ${blocking.length} blocking -> revise`)
   const rev = await runEscalated(`revise-external#${externalRound}`, 'ExternalReview',
-    (fb) => `${CONTEXT}\nThe independent reviewer (${externalTier}) raised these issues; resolve each and RE-VERIFY facts in code/logs. Keep structure. Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
+    (fb) => `${CONTEXT}${systemModelInput}\nThe independent reviewer (${externalTier}) raised these issues; resolve each and RE-VERIFY facts in code/logs. Keep structure. Overwrite ${planPath}, return full markdown.\n${fb}\nISSUES:\n${JSON.stringify(blocking, null, 2)}\n\nCURRENT PLAN:\n${plan}`,
     { verify: planOk }
   )
   if (!rev.ok) return { aborted: true, stage: 'external-revise', needsUser: true, round: externalRound }
@@ -390,7 +429,7 @@ const COMMIT_SCHEMA = {
   },
 }
 const commit = await agent(
-  `${CONTEXT}\nFinalize the plan artifact in ${outDir}.\n` +
+  `${CONTEXT}${systemModelInput}\nFinalize the plan artifact in ${outDir}.\n` +
   `1) Ensure final plan markdown is at ${planPath} (mkdir -p ${outDir}); write ${outDir}/final-report.md noting internal consensus=${internalConsensus} (rounds ${internalRound}), external consensus=${externalConsensus} (rounds ${externalRound}).\n` +
   (wantCommit
     ? `2) APPROVED: git add ONLY the artifacts under ${outDir} (verify with 'git status --porcelain' that nothing outside ${outDir} is staged; if anything else is staged, unstage it). Commit "docs(plan): ${slug} v1 implementation plan (internal+external consensus)". ${wantPush ? 'Then push current branch.' : 'Do NOT push.'} Report the staged_files list and commit sha.`
@@ -402,6 +441,7 @@ const commit = await agent(
 if (!commit) return { aborted: true, stage: 'commit', needsUser: true, planPath, internal: { consensus: internalConsensus, rounds: internalRound }, external: { consensus: externalConsensus, rounds: externalRound } }
 
 return {
+  systemModelPath,
   planPath,
   areas: areas.map(x => x.key),
   undiscoveredAreas,

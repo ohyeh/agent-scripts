@@ -10,9 +10,11 @@ const body = fs.readFileSync(process.argv[2], 'utf8').replace(/^export const met
 const AsyncFn = Object.getPrototypeOf(async () => {}).constructor
 // Only the cli rung runs (workerTries/selfTries 0); two areas skip Decompose and run Discover in parallel.
 const ARGS = { repoPath: '/r', featureBrief: 'b', cli: 'codex', workerTries: 0, selfTries: 0, areas: [{ key: 'a', scope: 'a' }, { key: 'b', scope: 'b' }] }
+const SYSTEM_MODEL = { path: '/r/.workflow/feature-plan/system-model.json', diagram: 'flowchart LR; A --> B', transitions: ['T1: A to B; src/a:1'], invariants: ['INV-1: one result'], assumptions: [] }
 const run = async (worker) => {
   const st = { assign: 0, tell: 0, order: [], live: 0, overlap: false }
   const agent = async (prompt, o) => {
+    if (o.phase === 'Model') return SYSTEM_MODEL
     const kind = /mcp__tmux-agent__assign \{profile/.test(prompt) ? 'assign' : /mcp__tmux-agent__tell \{name/.test(prompt) ? 'tell' : null
     if (kind) { st[kind]++; st.order.push(kind); if (st.live++) st.overlap = true }
     await new Promise(r => setTimeout(r, 10))   // a cli call that started early would overlap this one
@@ -36,7 +38,9 @@ const full = async (criticOk) => {
   const labels = []
   const agent = async (prompt, o) => {
     labels.push(o.label)
+    if (o.phase === 'Model') return SYSTEM_MODEL
     if (o.label.startsWith('discover:')) return { area: o.label, gaps: [{ task: 't' }] }
+    if (!prompt.includes(SYSTEM_MODEL.path) || !prompt.includes('INV-1')) throw new Error(`model missing from ${o.label}`)
     if (/^(synthesize|revise-)/.test(o.label)) return PLAN
     const issue = [{ issue: 'i', severity: 'blocker', evidence: 'f:1', fix: 'f' }]
     if (o.label.startsWith('critic:')) return criticOk ? { consensus: true, verified_against_code: true, blocking_issues: [] } : { consensus: false, verified_against_code: true, blocking_issues: issue }

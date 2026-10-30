@@ -60,7 +60,7 @@ recipes have no adapter — they stop as `UNAVAILABLE-NATIVE`.
 
 1. Freeze the artifact path, acceptance criteria, and verdict schema; run
    local checks first.
-2. Resolve the literal result path and write one full GOAL / ACCEPTANCE / REPORT
+2. Resolve the literal result path and write one full GOAL / MODEL (`none — read-only review`) / ACCEPTANCE / REPORT
    prompt (delegation-templates REVIEW shape), then use one supervised carrier:
 
 ```bash

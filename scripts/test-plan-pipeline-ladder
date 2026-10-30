@@ -17,6 +17,7 @@ const V = (open = [], extra = {}) => ({ sha256_start: SHA, sha256_end: SHA, open
 const run = async (policy, args = { brief: 'b', skipDirection: true, luna: true }, opts = {}) => {   // luna on: most checks cover the substitute seat too
   const st = { seq: [], prompts: {}, l0: 0, fixes: [] }
   const agent = async (prompt, o) => {
+    if (o.phase === 'Model') return { path: `${args.repoPath || '.'}/.workflow/next-direction/${args.slug || 'next'}/system-model.json`, diagram: 'flowchart LR; A --> B', transitions: ['T1: A to B; src/a:1'], invariants: ['INV-1: one result'], assumptions: [] }
     const m = o.label.match(/:(draft|fix#\d+|L0#\d+|L[123](?:sonnet|luna)?#\d+)$/)
     const k = m ? m[1] : o.label
     if (k === 'draft') { st.draft = prompt; return { ok: true, path: 'x', summary: 's', actions: [], ...(opts.worker ? { worker: opts.worker } : {}) } }
@@ -61,6 +62,7 @@ for (const [bad, val] of [['maxReviewRounds', -1], ['maxReviewRounds', 5], ['rev
 { const { out, seq } = await run(byTier({ L1: block('a'), L2: block('a') }))
   check('all layers block: not frozen, blockers listed', seq.endsWith('fix L2') && !seq.includes('L3') && out.plan.frozen === false && out.plan.blockers.length > 0, seq) }
 { const { st } = await run(clean)
+  check('model reaches the drafter and L2 reviewer', /MODEL: .*system-model.json/.test(st.draft) && /INV-1/.test(st.draft) && /MODEL: .*system-model.json/.test(st.prompts['L2#1']), st.draft)
   check('seats: L1 sonnet high, L2 fable medium (best tier)', st.seats.includes('L1sonnet|sonnet|high') && st.seats.includes('L2|fable|medium') && !st.seats.some(s => s.startsWith('L2|opus')), st.seats.join(' ')) }
 { const { out, st } = await run((seat, r, p, s) => seat === 'L2' && s.model === 'fable' ? null : clean(seat, r, p))
   check('L2 fable gives no verdict → opus at reviewEffort reviews, plan freezes', st.seats.includes('L2|opus|high') && out.plan.frozen === true, st.seats.join(' ')) }

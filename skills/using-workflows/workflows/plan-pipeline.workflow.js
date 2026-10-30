@@ -42,6 +42,7 @@ export const meta = {
   whenToUse: 'When you need FROZEN planning artifacts (goal_doc → plan-<slug>.md → ADRs), each frozen by the review ladder (model-dispatch.md §Review ladder), committed but deliberately NOT built. Complements project-direction-review (that answers "where next"; this freezes "how"). Build afterwards via spec-implement-dual-review-verify.',
   phases: [
     { title: 'Direction', detail: '① draft/refine goal_doc; review ladder → FROZEN', model: 'opus' },
+    { title: 'Model', detail: 'current system state/data flow before the plan', model: 'opus' },
     { title: 'Plan', detail: '② draft plan-<slug>.md; review ladder → FROZEN', model: 'opus' },
     { title: 'ADRs', detail: '③ draft each needed ADR; review ladder → FROZEN', model: 'opus' },
     { title: 'Integrate', detail: 'commit + push the prepared docs (no build)', model: 'opus' },
@@ -97,12 +98,13 @@ const FIXER_CONTRACT = 'Address EVERY Critical and Major finding in this pass: f
 // assign/tell + await). Kept byte-close in consensus-gate, plan-pipeline and feature-plan-consensus (scripts
 // cannot import). worker = the name an earlier call returned; absent = start a new worker. Launch and effort
 // flags live in the agent-tmux profile `profile` names (launch_flags / effort_flags in its .conf).
+let dispatchModel = 'none — pre-model code discovery and goal scoping; no product changes'
 const modConduit = ({ profile, base, dir, worker, out, marker, timeout, task }) =>
   `Drive a ${profile} worker ONLY with the tmux-agent mod tools: ToolSearch "select:mcp__tmux-agent__assign,mcp__tmux-agent__tell,mcp__tmux-agent__await". Never run agent-tmux through Bash.\n` +
   `The worker's instruction: write the full response to ${out}, ending the file with a line exactly: ${marker}; the result.json summary is one line.\n` +
   (worker
     ? `1. mcp__tmux-agent__tell {name: "${worker}", text: the task below plus that instruction}. worker = "${worker}".\n`
-    : `1. mcp__tmux-agent__assign {profile: "${profile}", name: "${base}", dir: the absolute path of ${dir}, brief: "GOAL: " + the task below + that instruction + "\\nACCEPTANCE: ${out} ends with the marker line.\\nREPORT: a one-line summary."}. worker = the name the receipt returns (with its suffix).\n`) +
+    : `1. mcp__tmux-agent__assign {profile: "${profile}", name: "${base}", dir: the absolute path of ${dir}, brief: "GOAL: " + the task below + that instruction + "\\nMODEL: ${dispatchModel}\\nACCEPTANCE: ${out} ends with the marker line.\\nREPORT: a one-line summary."}. worker = the name the receipt returns (with its suffix).\n`) +
   `2. Call mcp__tmux-agent__await {name: worker, max_seconds: ${Math.min(540, timeout)}} until it returns status success, failed or blocked; after ${Math.max(1, Math.ceil(timeout / 540))} pending calls, stop and report the timeout.\n` +
   `3. Read ${out}; it must end with the marker line. Return worker in the worker field.\n\nTASK:\n${task}`
 // The drafter worker, shared by every author call of this run (draft, fixes, every artifact): one context.
@@ -152,6 +154,7 @@ const LADDER = [
 ]
 const BLOCKING = f => f.severity !== 'Minor'
 
+let systemModelInput = ''
 const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
   const GROUND = 'Ground every claim in real code/files (rg/fd/Read) — do NOT trust memory or stale docs; unverifiable claims go under Open Questions.'
   const base = outPath.replace(/[^A-Za-z0-9._-]/g, '_')
@@ -174,7 +177,7 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
   // No isolation, so the prompt is the only guard: a reviewer that runs a check writes into the tree under review.
   const reviewPrompt = (tier, r, max, ledger, prev, l0) =>
     `${tier} REVIEW, round ${r}/${max} (you did not write this). Repo ${repo}. First run \`shasum -a 256 ${outPath}\`; sha256_start = the hash field only. ` +
-    `L0 output (the check evidence; do not rerun checks):\n${l0}\nRead ${outPath} fully, then verify each "current state" claim against the real code. Judge completeness, sequencing, effort realism, unverified assumptions.\n${REVIEWER_CONTRACT}\n` +
+    `L0 output (the check evidence; do not rerun checks):\n${l0}\nRead ${outPath} fully. ${systemModelInput} Then verify each "current state" claim against the real code. Judge completeness, sequencing, effort realism, unverified assumptions.\n${REVIEWER_CONTRACT}\n` +
     (ledger.length ? `FINDING LEDGER (open findings from earlier rounds and layers, with fixer actions):\n${JSON.stringify(ledger, null, 2)}\n` : 'No earlier findings: this is round 1 for this artifact.\n') +
     (prev ? `Before/after diff of the last fix: run \`diff -u ${prev} ${outPath}\`.\n` : '') +
     `Last step: run \`shasum -a 256 ${outPath}\` again; sha256_end = the hash field only. Do not edit any file.`
@@ -200,14 +203,14 @@ const freezeArtifact = async (label, phaseName, what, outPath, extra) => {
       .then(x => x || (log(`${label}: L2 fable gave no verdict; opus ${reviewEffort} reviews`), agent(prompt, { ...opts, model: 'opus', effort: reviewEffort, schema: VERDICT })))
   }
 
-  const draft = await author(`In repo ${repo}: DRAFT ${what}. Write the artifact to ${outPath} (create parent dirs). ${GROUND}${extra || ''}\nReturn ok=true once the file is written; path=${outPath}; summary; actions=[].`, 0)
+  const draft = await author(`In repo ${repo}: DRAFT ${what}. Write the artifact to ${outPath} (create parent dirs). ${GROUND}${systemModelInput}${extra || ''}\nReturn ok=true once the file is written; path=${outPath}; summary; actions=[].`, 0)
   if (!draft || draft.ok !== true) return { ok: false, frozen: false, path: outPath, rounds: 0, calls, summary: 'drafter failed', blockers: ['drafter returned null or ok=false'], requiredAdrs: draft?.requiredAdrs }
   let requiredAdrs = draft.requiredAdrs, rounds = 0, prev = null, nid = 0
   const ledger = new Map()   // id → finding (+ tier, + fixer action); survives layer changes
   const warnings = []
   const fail = (summary, blockers) => ({ ok: false, frozen: false, path: outPath, rounds, calls, summary, blockers, requiredAdrs, warnings })
   const fix = async (task, n) => {
-    const f = await author(`In repo ${repo}: FIX ${what} at ${outPath}. Before editing, run \`mkdir -p ${snapDir} && cp ${outPath} ${snapDir}/${base}-r${n}.prev\`.\n${FIXER_CONTRACT}\n${GROUND}${extra || ''}\n${task}\nReturn ok=true once the file is written; path=${outPath}; summary; actions = one entry per finding id.`, n)
+    const f = await author(`In repo ${repo}: FIX ${what} at ${outPath}. Before editing, run \`mkdir -p ${snapDir} && cp ${outPath} ${snapDir}/${base}-r${n}.prev\`.\n${FIXER_CONTRACT}\n${GROUND}${systemModelInput}${extra || ''}\n${task}\nReturn ok=true once the file is written; path=${outPath}; summary; actions = one entry per finding id.`, n)
     if (!f || f.ok !== true) return false
     prev = `${snapDir}/${base}-r${n}.prev`
     if (f.requiredAdrs) requiredAdrs = f.requiredAdrs
@@ -275,6 +278,44 @@ if (a.skipDirection !== true) {
   if (!direction || direction.frozen !== true) return { stage: 'direction', passed: false, direction, note: 'direction did not freeze' }
   artifacts.push(directionPath)
 }
+
+phase('Model')
+const systemModelPath = `${repo}/.workflow/next-direction/${slug}/system-model.json`
+const modelContext = `Repo: ${repo}. Topic: ${brief}`
+const modelSchema = { type: 'object', additionalProperties: false,
+  required: ['path', 'diagram', 'transitions', 'invariants', 'assumptions'],
+  properties: { path: { type: 'string' }, diagram: { type: 'string' },
+    transitions: { type: 'array', items: { type: 'string' } },
+    invariants: { type: 'array', items: { type: 'string' } },
+    assumptions: { type: 'array', items: { type: 'string' } } } }
+let systemModel = null, modelFeedback = ''
+// Same retry in both recipes: worker tier, then opus xhigh; stop before planning on exhaustion.
+for (const [attempt, tier] of [{ model, effort }, { model: 'opus', effort: 'xhigh' }].entries()) {
+  try {
+    systemModel = await agent(
+      `${modelContext}\nModel the CURRENT system from code. Return a Mermaid state or data-flow diagram. ` +
+      `Give transition IDs, actors, events, guards, effects and file:line. List invariants and assumptions. ` +
+      `Include a normal path and a race/failure path. Separate atomic steps from await boundaries. ` +
+      `Create the parent directory. Write this JSON result to ${systemModelPath}. Read it back before returning. ` +
+      `Overwrite this run artifact on retry. Do not change product code or run a model checker.\n${modelFeedback}`,
+      { label: `system-model#${attempt + 1}`, phase: 'Model', ...tier, agentType, schema: modelSchema }
+    )
+  } catch (error) {
+    log(`Model attempt ${attempt + 1} threw: ${error}`)
+    systemModel = null
+  }
+  const text = x => typeof x === 'string' && x.trim().length > 0
+  if (systemModel?.path === systemModelPath && text(systemModel.diagram) &&
+      [systemModel.transitions, systemModel.invariants].every(xs => Array.isArray(xs) && xs.length && xs.every(text)) &&
+      Array.isArray(systemModel.assumptions) && systemModel.assumptions.every(text)) break
+  systemModel = null
+  modelFeedback = 'Previous Model attempt failed or returned incomplete data. Check code and write every required field.'
+  log(`Model attempt ${attempt + 1} rejected: current-system model incomplete`)
+}
+if (!systemModel) return { stage: 'model', passed: false, aborted: true, needsUser: true, reason: 'current-system model incomplete after two attempts' }
+dispatchModel = systemModelPath
+artifacts.push(systemModelPath)
+systemModelInput = `\nUse the current-system model below as input, not as a proposed design. Check it against code. Show proposed transitions in the plan and map their IDs to tasks, INV entries and checks. Review the model, the plan and the map together; flag an omitted or contradicted transition. Keep material uncertainty. Do not edit the model while writing or reviewing the plan.\nMODEL: ${systemModelPath}\n${JSON.stringify(systemModel)}\n`
 
 // ── ② Frozen plan ──
 phase('Plan')

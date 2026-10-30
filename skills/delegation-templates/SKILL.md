@@ -1,12 +1,12 @@
 ---
 name: delegation-templates
-description: Fill-in-the-blank prompt templates for delegating work to subagents or tmux workers - SEARCH/LOCATE, IMPLEMENT, REFACTOR, RESEARCH, REVIEW/VERIFY. Invoke BEFORE writing any delegation prompt (Agent tool, agent-tmux worker, or fanout task) so the prompt ships with explicit GOAL, ACCEPTANCE, and REPORT sections instead of a vague ask. Not for deciding WHETHER to delegate or for driving workers after launch (see the using-tmux-agent-tools and tmux-agent-tools skills for those).
+description: Fill-in-the-blank prompt templates for delegating work to subagents or tmux workers - SEARCH/LOCATE, IMPLEMENT, REFACTOR, RESEARCH, REVIEW/VERIFY. Invoke BEFORE writing any delegation prompt (Agent tool, agent-tmux worker, or fanout task) so the prompt ships with explicit GOAL, MODEL, ACCEPTANCE, and REPORT sections instead of a vague ask. Not for deciding WHETHER to delegate or for driving workers after launch (see the using-tmux-agent-tools and tmux-agent-tools skills for those).
 ---
 
 # Delegation Prompt Templates
 
 Fill every `{blank}`. Delete a line only if truly inapplicable — never skip the
-ACCEPTANCE or REPORT sections. A delegation without objective acceptance
+MODEL, ACCEPTANCE or REPORT sections. A delegation without objective acceptance
 criteria is a guess you outsourced.
 
 REFERENCES (optional, prefer when they exist): paths to code, tests, rubrics, or
@@ -61,6 +61,7 @@ Each repo declares its own verification values in `.claude/workflows/feature-lif
 
 ```
 GOAL: Find {what} in {repo/dir}. This will be used to {why}.
+MODEL: none — read-only search
 SCOPE: Look in {paths/globs}; also consider {alternative naming/conventions}.
 ACCEPTANCE:
 - Every match listed as file:line with a one-line role description.
@@ -73,6 +74,7 @@ NON-GOALS: Do not review quality, do not propose fixes.
 
 ```
 GOAL: Implement {feature/change} in {files/module}. Motivation: {why}.
+MODEL: {system-model.json path | inline Mermaid with transitions and invariants}
 CONTEXT: {key constraints, existing helpers to reuse, style notes}. Read {files} first.
 TEST RUN (device tests only): {coverage matrix path: commit → check}.
 PREREQUISITES: {build proof for required stub, automation, and dev console; scripts; test materials}.
@@ -89,6 +91,7 @@ VERIFY BEFORE REPORTING: run {command}; include exit code + key lines in the rep
 
 ```
 GOAL: Refactor {target} to {shape}, behavior UNCHANGED. Motivation: {why}.
+MODEL: {system-model.json path | inline Mermaid with transitions and invariants}
 BASELINE FIRST: run {test command} before touching anything; record the result.
 ACCEPTANCE:
 - Same test results after as before (attach both).
@@ -101,6 +104,7 @@ STOP CONDITION: if behavior must change to proceed, stop and report — do not d
 
 ```
 GOAL: Answer: {question}. The answer will drive {decision}.
+MODEL: none — read-only research
 OWNER QUESTION (verbatim): {the owner's latest question, copied, not rephrased}.
 READ FIRST: {the owner's recorded preference or method files, e.g. TRIP.md, METHOD.md}; rank results in their order.
 SOURCES: prefer {official docs/repo/spec}; treat blogs/forums as secondary.
@@ -116,6 +120,7 @@ OUTPUT: findings to {artifact_path}; return path + a ≤10-bullet summary.
 
 ```
 GOAL: Adversarially review {diff/files/claim}. Assume it is broken until proven otherwise.
+MODEL: none — read-only review
 REVIEWED INPUT: {commit sha | file list + sha256} — the verdict binds to this (judgment-rubrics §2).
 READ FIRST: {the owner's recorded preference files and latest request, verbatim}.
 SCOPE CONTRACT: {what the change supports; what it detects and refuses}.
