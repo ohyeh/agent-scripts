@@ -70,9 +70,12 @@ COND_ZH='^ *(等|待).{0,60}(完成|修好|修復|測好|驗證(完|過)|通過|
 # A clause with a past or perfect marker is never a forecast (「等到測試完成了」, 「若干任務已完成」,
 # "before lunch the patch was done", "after I fixed it tests went green"): it keeps its claim words.
 PAST='(^|[^a-z])(was|were|went|got|had|did|already)([^a-z]|$)|已|了'
+# ...unless the clause also looks forward (「如果測試已通過就上傳」, 「等測試完成了再上傳」,
+# "if the task were done, I would deploy"; Sol R7-01); 若干 and 就…了 are not forward markers.
+FWD='(^|[^a-z])(will|would)([^a-z]|$)|^ *(if|unless)([^a-z]|$)|再|才|^ *(如果|假如|要是|倘若)'
 claim_text="$(printf '%s\n' "$speech" | tr 'A-Z' 'a-z' | sed -E 's/(，|。|；|！|？|→|[,;!?]|\.( |$))/\
 /g' | while IFS= read -r c; do
-  if printf '%s' "$c" | grep -Eq "$PAST"; then printf '%s\n' "$c"
+  if printf '%s' "$c" | grep -Eq "$PAST" && ! printf '%s' "$c" | grep -Eq "$FWD"; then printf '%s\n' "$c"
   else printf '%s\n' "$c" | sed -E "s/$COND_EN//g; s/$COND_ZH//g"; fi
 done)"
 

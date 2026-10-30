@@ -157,7 +157,8 @@ claim() { # $1 reply → block | empty; one session per locale, since the gate f
 }
 for loc in en_US.UTF-8 C; do
   for m in '審查 PASS 後才上傳' '等測試完成再上傳。' '測試通過後才上傳' 'After the tests pass, I will publish.' \
-    'Waiting for the reviewer to complete.' '等 worker 完成，再回報。' 'still running, no result yet' 'When done, I will report.'; do
+    'Waiting for the reviewer to complete.' '等 worker 完成，再回報。' 'still running, no result yet' 'When done, I will report.' \
+    '如果測試已通過就上傳。' '等測試完成了再上傳。' 'If the task were done, I would deploy.'; do
     [ -z "$(LC_ALL=$loc claim "$m")" ] && ok "not a claim ($loc): $m" || fail "conditional/wait sentence blocked ($loc): $m"
   done
   for m in '修好了，應該沒問題' 'Fixed after the retry.' '審查 PASS 後才上傳；W45-16 已完成' '等測試完成再上傳，W45-16 已完成' 'A、B 等都已完成' 'Done. Will push next.' \
