@@ -91,6 +91,14 @@ Owner 10-28: 「他會被 queue 住 然後有可能長任務 送出已經不知�
 
 - **A card no longer waits for the long turn**: the relay is a plugin prompt, which runs only once the session is idle, so in a long task the agent read the card long after it showed, without its age. Now, while a main turn runs, the card's line and time go to the agent with the main loop's next tool result (`tool.call` `context`), once. The queued prompt is kept for the explanation and the logged verdict, and says when the card was flagged.
 
+## quick-say 0.5.0
+
+Owner 10-30/31: 「選項要改」「我覺得他應該是 FSD 那樣 可以切換自動、半自動、手動 的哨兵模式」「你沒懂吧 重想過 除了收工 我其他為啥都沒用過」.
+
+- **Combos are the owner's own long texts**: a week of logs (local 837 owner turns, `.workflow/202610310045-quick-say-v05/phrases-week-sonnet.md`) showed only 收工 in use (21 times / 20 sessions). It replaced a long paste the owner already sent; the others replaced chases of 6–14 characters (「繼續」「搞定？」「ＰＵＳＨ啊」) that are faster to type. The keys now hold texts the owner pastes again and again, verbatim: 4 更深的問題, 5 前情提要 (`/session-handoff resume` plus a recap the owner checks), 6 規劃期 (state model first, plan after agreement), 7 指揮, 8 指揮＋loop (with a checkable end condition), 9 驗收, 0 收工 (now records the checkpoint). 接手, 審過再做, 離席照做, 進度續跑 and 做完推送 are gone.
+- **Three modes** replace `[ ⚡ auto ]` and `/quick-say auto`: 手動, 半自動 (the 0.4.0 gates and suggestion), 自動 (also sends 續跑 or 驗收 as the mod; stops on a question, on none, or after four mod prompts in a row until the owner types). A new session starts 半自動 unless 手動 was saved; 自動 never carries over. `/quick-say mode`.
+- **Log**: each shown combo, send, gate and stop goes to `~/.local/state/quick-say/<day>-<sid8>.log`, for the W45 trial.
+
 ## quick-say 0.4.0
 
 Owner 10-23: 「你應該好好的去研究過往我 session 的發言、難處…要分有人在旁的發言 以及可能長時間不在長任務 loop or goal 的發言」; 「最笨就是讓 agy flash 每個 session 去研究說話以及遇到的問題」.
