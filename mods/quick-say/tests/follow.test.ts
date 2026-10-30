@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { PHRASES } from '../hooks/register.ts'
-import { APPROVES_NOTHING, askTail, gitDirOf, isCommit } from '../hooks/lib/follow.ts'
+import { APPROVES_NOTHING, askPrompt, askTail, gitDirOf, gitPrompt, isCommit } from '../hooks/lib/follow.ts'
 
 const PLUGIN = 'quick-say'
 const start = { cwd: '/w/repo', surface: 'terminal' as const, isInteractive: true }
@@ -58,6 +58,12 @@ test('the helpers read a closing request for leave, a commit, and the folder it 
   expect(gitDirOf('git -C /a/b commit -m x', '/w')).toBe('/a/b')
   expect(gitDirOf('cd /a/c && git commit -m x', '/w')).toBe('/a/c')
   expect(gitDirOf('git commit -m x', '/w')).toBe('/w')
+})
+
+// mods/README.md, Mod prompts: a reminder that names an action (push) grants no scope; it ends saying it approves nothing.
+test('a gate reminder that names an action without a scope approves nothing, as its last line', () => {
+  expect(askPrompt('要我現在 push 嗎？').split('\n').at(-1)).toBe(APPROVES_NOTHING)
+  expect(gitPrompt([{ repo: '/w/repo', dirty: ['a.ts'], unpushed: ['abc1234'] }]).split('\n').at(-1)).toBe(APPROVES_NOTHING)
 })
 
 test('git gate: once per state, framed and approving nothing, at most twice until the person types', async ($, on) => {
