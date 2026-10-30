@@ -52,6 +52,10 @@ grep -qF "INFO [hosts] --all from $T/hosts: local box@grok-bot build-node" <<<"$
 grep -q '^REPAIR \[local\] GITHUB_TOKEN=.*upgrade -g -y && scripts/sync-skills-lock.sh' <<<"$out" || fail "local repair"
 grep -q '^REPAIR \[box@grok-bot\] .*scp box@grok-bot:\.agents/\.skill-lock\.json box@grok-bot:.*SKILLS_GLOBAL_LOCK=.*DEPLOY_LOG=.*sync-skills-lock\.sh' <<<"$out" || fail "box@grok-bot repair"
 grep -q '^REPAIR \[build-node\] .*scp build-node:' <<<"$out" || fail "build-node repair"
+# Each printed repair line must paste as one valid shell command (Sol R6-04).
+while IFS= read -r line; do
+  bash -n -c "${line#REPAIR \[*\] }" 2>/dev/null || fail "repair line is not valid shell: $line"
+done < <(grep '^REPAIR \[' <<<"$out")
 heads="$(for f in "$XDG_STATE_HOME"/agent-scripts/fleet-deploy/*.log; do head -n1 "$f"; done | sort)"
 [ "$heads" = $'host=box@grok-bot\nhost=build-node\nhost=local' ] || fail "log headers: $heads"
 

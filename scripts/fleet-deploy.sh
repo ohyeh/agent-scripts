@@ -69,7 +69,7 @@ repair_cmd() { # repair_cmd <host>
   else
     printf '%s' 'd="$(mktemp -d)" && scp '"$q"':.agents/.skill-lock.json '"$q"':.local/state/agent-scripts/deploy-log.jsonl "$d"/ && SKILLS_GLOBAL_LOCK="$d/.skill-lock.json" DEPLOY_LOG="$d/deploy-log.jsonl" scripts/sync-skills-lock.sh'
   fi
-  printf ' ; then commit skills-lock.json, push, rerun: scripts/fleet-deploy.sh %s\n' "$q"
+  printf '  # then commit skills-lock.json, push, rerun: scripts/fleet-deploy.sh %s\n' "$q"
 }
 
 echo "==> Resolving agent-scripts $RELEASE_REF..."
