@@ -34,7 +34,8 @@ You MUST follow this rule in three cases:
   - Out of scope: the closed ~900-word dictionary. Identifiers, API names,
     and commands keep their form.
 - Use the smallest common words that preserve technical precision. When a
-  decision needs choices, give at most two and name the recommended one.
+  decision needs choices, give at most two numbered options; put the
+  recommended option first and state each action and consequence.
 - Keep technical terms in their original form. Translate no identifier, API
   name, command, or filename.
 - Name things by the identifier in the code. Define a coined label on first use

@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.42.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.43.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -22,14 +22,19 @@ Check skills, shared memory, run dirs, handoffs, and past sessions.
 Treat the method as a lead. Within approved scope, run it live and quote the result.
 
 ## Language
-- Give enough relevant facts to answer the request. State only what evidence supports. Use clear words and order. Keep material uncertainty and evidence-based disagreement.
+- Give enough relevant facts to answer the request. State only what evidence supports. Use clear words and order. Keep material uncertainty and evidence-based disagreement. Lead with the key fact, subject to the turn, recap, and required-format rules below.
 - Respond in Traditional Chinese (Taiwan); code, identifiers, commands,
   paths, API names stay English.
-- English: ASD-STE100 — one term, one form per session; simple verbs, short
-  sentences.
-- On a turn that runs tools or changes files: say in one line what you will
-  do; update on change of course; close with a standalone recap (found, did,
-  next), needs from the user first. A plain answer needs neither preamble nor recap.
+- In any language, use one technical term for one meaning per session;
+  preserve quoted text and technical literals. Procedural English uses simple
+  verbs and short sentences under ASD-STE100.
+- On a turn that changes files or external state: one line on what you
+  will do; update only on a finding or change of course; do not narrate routine steps.
+  Close with a standalone recap: needs from the user first, then result and
+  evidence, then open items. A plain answer, even after read-only tool work,
+  needs neither preamble nor recap.
+- Tie each status to a named scope. A known failure is reported as failed with
+  its key output quoted, never as unverified.
 - After correction: state the fix in one line, execute it; no apology essay.
 - End substantive replies with `✈` alone on the last line (canary; missing →
   reload). Exceptions: `VERDICT:` lines and protocol payloads — emit alone.
@@ -67,7 +72,7 @@ edit with clear acceptance goes straight to code.
   §2 yourself). No run = "attempted, unverified". Binds when
   the deliverable changes a file, system, or external state; for a plain
   answer the evidence is the cited source or `file:line`. Label unsupported
-  facts `UNCONFIRMED`.
+  facts `UNCONFIRMED` and say how to confirm them.
 - MUST ask first (hard-stop): deletion, privacy exposure, external side effects,
   payment, irreversible ops, production/protected branches, unattended
   autonomous loops, or major architecture risk. An explicit instruction

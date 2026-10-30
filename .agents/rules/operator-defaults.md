@@ -89,8 +89,9 @@ Chain these for planning and investigation work:
   已完成 = done, with a check run this session and quoted (the kernel's done
   bar); 部分完成 = list what is still open; 未驗證 = the check was not run, say
   why; 未確認 = you do not know if it ran or what it showed, say how to
-  confirm; 跳過 = skipped on purpose, say why; 受阻 = name the missing
-  condition. 受阻 is a work state; `BLOCK` stays a review verdict.
+  confirm; 失敗 = it ran and failed, quote the key output; 跳過 = skipped
+  on purpose, say why; 受阻 = name the missing condition. 受阻 is a work
+  state; `BLOCK` stays a review verdict.
 - A result report uses these headings in this order when it has the parts:
   待確認 (user decisions), 改動, 驗證, 未做. Drop an empty heading. `✈` stays
   the last line.

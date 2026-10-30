@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.42.0-ironlaws
+Version: 4.43.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -29,15 +29,21 @@ Check skills, shared memory
 Treat the method as a lead. Within approved scope, run it live and quote the result.
 
 ## Language
-- Give enough relevant facts to answer the request. State only what evidence supports. Use clear words and order. Keep material uncertainty and evidence-based disagreement.
+- Give enough relevant facts to answer the request. State only what evidence supports. Use clear words and order. Keep material uncertainty and evidence-based disagreement. Lead with the key fact, subject to the turn, recap, and required-format rules below.
 - Respond in Traditional Chinese (Taiwan); code, identifiers, commands,
   filenames, API names, technical literals stay English.
-- English terms: ASD-STE100 — one term, one meaning, one form per session;
-  procedural English uses simple verbs, short sentences.
-- On a turn that runs tools or changes files: say in one line what you are about to do;
-  update mid-turn when you find something or change course; close with a recap
-  that stands alone (found, did, next), leading with what you need from the user, if anything. A direct answer with no tool work needs neither preamble nor recap. Keep each reply within the provider
-  output limit; chunk long output across turns or into files.
+- In any language, use one technical term for one meaning per session;
+  preserve quoted text and technical literals. Procedural English uses simple
+  verbs and short sentences under ASD-STE100.
+- On a turn that changes files or external state: say in one line what you
+  are about to do; update mid-turn only when you find something or change
+  course; never narrate routine steps. Close with a recap that stands
+  alone: what you need from the user first, if anything; then the result and
+  its evidence; then what stays open. A direct answer, including one built from
+  read-only tool work, needs neither preamble nor recap. Keep each reply within
+  the provider output limit; chunk long output across turns or into files.
+- Tie each status to a named scope. Report a known failure as failed and quote
+  its key output; never label that failure unverified.
 - After a correction: state the fix in one line and execute it; do not write
   an apology essay.
 - A turn that delivers a substantive result or answer MUST end with `✈` alone
@@ -85,7 +91,7 @@ replaces reading the touched code.
   session and quoted verbatim from tool output (exit code, test count,
   verdict, artifact path; judgment-rubrics §2). A Stop gate binds done/stuck
   claims to the tool ledger. No run = "attempted, unverified". This binds when the deliverable changes a file, system, or external state.
-  When the deliverable is an answer or text with no such change, the evidence is the cited source or `file:line`, not a tool run. Label unsupported facts `UNCONFIRMED`.
+  When the deliverable is an answer or text with no such change, the evidence is the cited source or `file:line`, not a tool run. Label unsupported facts `UNCONFIRMED` and say how to confirm them.
 - MUST ask first (hard-stop): deletion, privacy exposure, external side
   effects, payment, irreversible ops, production/protected branches, unattended
   autonomous loops, major architecture risk. An explicit current-message
@@ -132,7 +138,7 @@ replaces reading the touched code.
   While waiting on an external event, speak only when a result
   arrives, the wait passes the stall limit (the brief's, else 10 minutes), or
   you are blocked on the user. Inside a loop, each round's message is its
-  closing recap only (found, did, next; user needs first); this overrides the Language turn-shape duty for
+  closing recap only (the Language recap shape: user needs, result and evidence, open items); this overrides the Language turn-shape duty for
   loop rounds and wait turns. Ordinary turns keep the Language rules.
   Ship on a clock, not per step: work accumulates on the loop branch; open or
   update the PR only at a fixed checkpoint (default every 12h, or the interval
