@@ -42,7 +42,8 @@ For phone or device UI work, the commander relays only secrets and hard-stop ste
 | review/judgment | review ladder (§4 Review ladder): `gpt-6-luna` xhigh/max at L1 on request; `gpt-6-astra` low/medium or `gpt-6.1-sol` medium+ at L2 | per seat | reviewer is not the author; each seat runs its tier row's effort, no step-up |
 | execution | `gpt-6-luna`; explicit Sol; or external | Luna `xhigh`/`max`; Sol low/medium | Sol workers stop at `medium` |
 
-Codex models: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna` — no others. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
+Codex dispatch models: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna` — no others. Other catalog models
+(`gpt-6.1-terra` and the rest) are not dispatch targets. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
 for an explicit latency need. Sol `max` needs concrete evidence. Never hard-code context-window
 values; the live catalog is authoritative.
 
