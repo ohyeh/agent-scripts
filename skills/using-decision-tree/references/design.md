@@ -39,7 +39,7 @@ Native screen, existing interface (audit the CURRENT render first), DESIGN.md
 → DIR-NATIVE. Pipeline D, prototypes, diagrams and trivial tweaks → none.
 Never stack two authorities. An unknown skill never becomes an authority.
 
-For web work, apply the local overlay in §Web craft overlay during direction and review.
+Whenever you create or change any web deliverable, apply §Web craft overlay.
 
 **Q3 Specialists (add, load inline).** Any chart → SP-CHART. An Artifact you
 publish → SP-ARTIFACT (mandatory before publishing). UI motion or gesture →
@@ -177,11 +177,15 @@ tree. `recheck` = the fact that makes the row stale, not a new winner.
 
 ## Web craft overlay
 
-Apply this overlay with DIR-WEB and REV-WEB. The user's brief and the project's
-design system take priority. Keep the existing direction and review authority.
+Apply this overlay whenever you create or change a web deliverable: a page, an app
+screen, an Artifact, a dashboard, a chart, or an edit to an existing web interface.
+Apply it to the parts you add or change. Do not sweep past work for it.
+The user's brief and the project's design system take priority. Keep the
+existing direction and review authority.
 
 - Never use Instrument Serif, Space Grotesk, or Bricolage Grotesque, even when
   the authority's library deals one. Use one only when the user names it.
+  No negative letter-spacing on body text or headings.
 - Remove labels, italics, separators, borders, shadows, and explanatory copy
   that carry no information. Keep real data labels, units, and control hints.
 - Use consistent border weights. For rounded nested surfaces, use
