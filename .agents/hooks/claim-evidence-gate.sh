@@ -63,12 +63,12 @@ speech="$(printf '%s' "$last" \
 # (「等測試完成再上傳」, "after the tests pass, I will publish", "waiting for X to complete").
 # One clause per line, then delete only the span from the marker to the claim word, so
 # "Fixed after the retry" and 「…再上傳，W45-16 已完成」 still claim. English past tense after a
-# marker ("After I fixed it, I pushed") and 「修好之後就…」 (Chinese has no tense) stay claims: a missed
+# marker ("After I fixed it, I pushed"), 「修好之後就…」, 「通過後，部署了」 and 「等了…完成」 (Chinese has no tense) stay claims: a missed
 # false claim costs more than a false block. No CJK inside [...] (byte sets under LC_ALL=C).
 COND_EN='(^|[^a-z])(if|once|when|after|before|until|unless|wait(ing)? (for|on))( [^ ]+){0,6} (pass(es|ing)?|done|complete|finish(es)?|green)([^a-z]|$)|(^|[^a-z])(will|going to|to)( be)? (done|fixed|verified|completed?|finish(ed)?|resolved|shipped|pass)([^a-z]|$)'
-COND_ZH='^ *(等|待).{0,60}(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|(若|如果|假如|要是|一旦).{0,60}(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|(完成|修好|修復|測好|驗證(完|過)|通過|搞定) *((之後|以後|後)(才|再|$)|才(會|能))'
+COND_ZH='^ *(等|待).{0,60}(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|(若|如果|假如|要是|一旦).{0,60}(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|(完成|修好|修復|測好|驗證(完|過)|通過|搞定) *((之後|以後|後)(才|再)|才(會|能))'
 claim_text="$(printf '%s\n' "$speech" | tr 'A-Z' 'a-z' | sed -E 's/(，|。|；|！|？|→|[,;!?]|\.( |$))/\
-/g' | sed -E "s/$COND_EN//g; s/$COND_ZH//g")"
+/g' | sed -E "s/(等|待)了/__past__/g; s/$COND_EN//g; s/$COND_ZH//g")"
 
 claim=""
 # Under LC_ALL=C grep is byte-wise: never put ?/*/+ right after a CJK char (it binds to its last byte); group it.

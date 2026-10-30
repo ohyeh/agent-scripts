@@ -161,7 +161,8 @@ for loc in en_US.UTF-8 C; do
     [ -z "$(LC_ALL=$loc claim "$m")" ] && ok "not a claim ($loc): $m" || fail "conditional/wait sentence blocked ($loc): $m"
   done
   for m in '修好了，應該沒問題' 'Fixed after the retry.' '審查 PASS 後才上傳；W45-16 已完成' '等測試完成再上傳，W45-16 已完成' 'A、B 等都已完成' 'Done. Will push next.' \
-    'After I fixed the bug, I pushed.' 'Once I verified it, the suite went green.' '我修好之後就 push 了'; do
+    'After I fixed the bug, I pushed.' 'Once I verified it, the suite went green.' '我修好之後就 push 了' \
+    '測試通過後，部署了' '我把 bug 修好後，push 了' '等了很久終於完成'; do
     [ "$(LC_ALL=$loc claim "$m")" = block ] && ok "real claim, no evidence BLOCKED ($loc): $m" || fail "real claim without evidence passed ($loc): $m"
   done
 done
