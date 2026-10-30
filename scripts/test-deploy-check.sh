@@ -60,6 +60,7 @@ esac
 exec "$REAL_BASH" "$@"
 SH
 chmod +x "$T/bin/"*
+BASE_PATH="$PATH"   # the layer negatives run without the skills shims
 export PATH="$T/bin:$PATH"
 export FIXTURE_REPO="$T/repo" FIXTURE_LOCK="$T/new-lock.json" SHIM_LOG="$T/steps" HARNESS="$T"
 mkdir -p "$T/payload" "$T/hash"
@@ -116,6 +117,14 @@ PY
 }
 fail=0
 assert() { if "$@"; then return; else echo "FAIL assertion: $*"; fail=1; fi; }
+# Missing-payload negative (W45-13): --check exits 1 with a FAIL line naming the layer.
+neg_result() {  # $1 = layer, $2 = FAIL line pattern, $3 = removed payload
+  if [ "$RC" = 1 ] && grep -q "$2" "$T/output"; then
+    echo "PASS [neg:$1] \$HOME/$3 missing -> exit 1, $(grep -m1 "$2" "$T/output" | cut -c1-110)"
+  else
+    echo "FAIL assertion: [neg:$1] \$HOME/$3 missing -> exit $RC"; cat "$T/output"; fail=1
+  fi
+}
 check_stale() {
   snap > "$T/before"
   run 1 "$1"
@@ -169,5 +178,69 @@ for mode in 0 1; do
   assert test "$RC" = 0
   assert test ! -s "$SHIM_LOG"
 done
-[ "$fail" = 1 ] || echo 'deploy-check OK (read-only, repair order, both layouts, both stale-pin entries, step failures, layer-ok)'
+rm "$HOME/.agents/skills/foo/SKILL.md"
+run 1 0 > /dev/null
+neg_result layer_skills '^INFO \[skills\].*not installed: foo' .agents/skills/foo/SKILL.md
+assert grep -q '^FAIL \[skills\]' "$T/output"
+
+# Every other layer with a --check path: seed a fixture HOME with the layer's own deploy path,
+# check it green, then remove one payload file per layer. agy and codex-cu have no --check.
+L="$T/lhome"
+LAYERS_ALL="layer_global layer_rules layer_workflows layer_hooks layer_context_mode layer_cursor layer_agents layer_mods"
+for l in $LAYERS_ALL; do
+  sed -n "/^$l() {/,/^layer $l\$/p" scripts/deploy.sh > "$T/$l"
+  assert test -s "$T/$l"   # a renamed layer fails here, not vacuously
+done
+cat > "$T/layer-run" <<'SH'
+set -euo pipefail
+source "$HARNESS/functions"
+CHECK="$MODE"; SRC="$FIXTURE_REPO"; WORKDIR="$HARNESS/work"; CLONE_TRACKED=0
+for l in $LAYERS; do source "$HARNESS/$l"; done
+exit "$CHECK_RC"
+SH
+lenv() {
+  HOME="$L" XDG_STATE_HOME="$L/.local/state" XDG_DATA_HOME="$L/.local/share" XDG_CONFIG_HOME="$L/.config" \
+    XDG_CACHE_HOME="$L/.cache" TMPDIR="$L/tmp" PATH="$L/.local/bin:$BASE_PATH" "$@"
+}
+lrun() {  # $1 = CHECK, rest = layers
+  local rc=0 mode="$1"; shift
+  lenv env MODE="$mode" LAYERS="$*" "$REAL_BASH" "$T/layer-run" > "$T/output" 2>&1 || rc=$?
+  RC="$rc"
+  [ "$mode" = 1 ] || [ "$rc" = 0 ] || { echo "FAIL assertion: seed $* exit=$rc"; cat "$T/output"; fail=1; }
+}
+mkdir -p "$L/.claude/plugins" "$L/.codex" "$L/tmp" "$T/work"
+printf '[mcp_servers.context-mode]\ncommand = "context-mode"\n' > "$L/.codex/config.toml"   # a Codex host with the MCP
+lrun 0 layer_global layer_rules layer_workflows layer_hooks
+# Not layer_context_mode deploy: its codex-context-mode.py step drives a real codex; --check never runs it.
+lenv "$REAL_BASH" scripts/install-context-mode-dir.sh > "$T/output" 2>&1 || { echo 'FAIL assertion: seed context-mode'; cat "$T/output"; fail=1; }
+lrun 0 layer_cursor layer_agents
+# Not layer_mods deploy (claude plugin update): register every release mod with its files.
+jq --arg c "$L/.claude/plugins/cache" '{plugins: ([.plugins[] | {key: (.name + "@agent-scripts"),
+  value: [{version, installPath: ($c + "/" + .name)}]}] | from_entries)}' .claude-plugin/marketplace.json \
+  > "$L/.claude/plugins/installed_plugins.json"
+for m in $(jq -r '.plugins[].name' .claude-plugin/marketplace.json); do
+  mkdir -p "$L/.claude/plugins/cache/$m/.claude-plugin"; echo '{}' > "$L/.claude/plugins/cache/$m/.claude-plugin/plugin.json"
+done
+# shellcheck disable=SC2086
+lrun 1 $LAYERS_ALL
+assert test "$RC" = 0
+if [ "$RC" = 0 ]; then echo "baseline: $LAYERS_ALL --check exit 0"; else cat "$T/output"; fi
+cp -a "$L" "$T/lbase"
+neg() {  # $1 = layer, $2 = FAIL tag, $3 = payload path under HOME
+  rm -rf "$L"; cp -a "$T/lbase" "$L"
+  assert test -e "$L/$3"
+  rm -f "$L/$3"
+  lrun 1 "$1"
+  neg_result "$1" "^FAIL \[$2\]" "$3"
+}
+first() { (cd "$T/lbase" && find "$1" -type f | LC_ALL=C sort | head -1); }
+neg layer_global global .codex/AGENTS.md
+neg layer_rules rules "$(first .agents/rules)"
+neg layer_workflows workflows .claude/workflows/_lib/safe.js
+neg layer_hooks hooks .agents/hooks/claim-evidence-gate.sh
+neg layer_context_mode context-mode-dir .claude/context-mode-mcp.sh
+neg layer_cursor cursor-runtime .cursor/rules/kernel.mdc
+neg layer_agents agents "$(first .claude/agents)"
+neg layer_mods mods "$(first .claude/plugins/cache)"
+[ "$fail" = 1 ] || echo 'deploy-check OK (read-only, repair order, both layouts, both stale-pin entries, step failures, layer-ok, missing payload per layer)'
 exit "$fail"
