@@ -51,9 +51,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/codex-cu/SKILL.md",
-      "skillFolderHash": "00f4c0d14208a64db0c720bfa2762856c597598b",
+      "skillFolderHash": "b695d4cc17634df461fdd4d3f4295fc435ad6a3d",
       "installedAt": "2026-10-08T17:59:00.705Z",
-      "updatedAt": "2026-10-28T10:19:19.269Z"
+      "updatedAt": "2026-10-30T13:29:28.918Z"
     },
     "codex-dynamic-workflows": {
       "source": "dannymac180/skills",
@@ -87,9 +87,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/delegation-templates/SKILL.md",
-      "skillFolderHash": "066734312f703f3a67ef6812e98422d64cd294ab",
+      "skillFolderHash": "6bc5cd9a9891d87cb5bb8ff4f1270401814b65f3",
       "installedAt": "2026-07-18T20:48:21.471Z",
-      "updatedAt": "2026-10-30T11:05:59.965Z"
+      "updatedAt": "2026-10-30T13:29:31.637Z"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -178,9 +178,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/session-handoff/SKILL.md",
-      "skillFolderHash": "dcc90aeb2f6a8c22e030b006efb23a5c4e295b92",
+      "skillFolderHash": "35ed6447c1fd380e12198393cd098e4254a9cfdd",
       "installedAt": "2026-07-18T20:48:39.017Z",
-      "updatedAt": "2026-10-30T11:06:02.517Z"
+      "updatedAt": "2026-10-30T13:29:34.015Z"
     },
     "shared-memory-intake": {
       "source": "ohyeh/agent-scripts",
