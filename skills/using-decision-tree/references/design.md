@@ -39,6 +39,8 @@ Native screen, existing interface (audit the CURRENT render first), DESIGN.md
 → DIR-NATIVE. Pipeline D, prototypes, diagrams and trivial tweaks → none.
 Never stack two authorities. An unknown skill never becomes an authority.
 
+For web work, apply the local overlay in §Web craft overlay during direction and review.
+
 **Q3 Specialists (add, load inline).** Any chart → SP-CHART. An Artifact you
 publish → SP-ARTIFACT (mandatory before publishing). UI motion or gesture →
 SP-MOTION (it also constrains a `Motion` artifact; the type stays the owner).
@@ -172,3 +174,22 @@ tree. `recheck` = the fact that makes the row stale, not a new winner.
 | SP-MOTION | Q3 | UI motion or gesture | `apple-design` (springs, gestures, interruptible motion) | design router | 2026-10-23 | absent from the lock | mechanical |
 | SP-CHART | Q3 | Any chart, stat tile or dashboard layout | `dataviz` (bundled); if it does not resolve, chart inline and say so | design router | 2026-10-23 | not in this turn's listing | mechanical |
 | SP-ARTIFACT | Q3 | Publishing any Artifact page | `artifact-design` (bundled), mandatory; `artifact-capabilities` only if the page calls connectors | design router | 2026-10-23 | not in this turn's listing | mechanical |
+
+## Web craft overlay
+
+Apply this overlay with DIR-WEB and REV-WEB. The user's brief and the project's
+design system take priority. Keep the existing direction and review authority.
+
+- Never use Instrument Serif, Space Grotesk, or Bricolage Grotesque, even when
+  the authority's library deals one. Use one only when the user names it.
+- Remove labels, italics, separators, borders, shadows, and explanatory copy
+  that carry no information. Keep real data labels, units, and control hints.
+- Use consistent border weights. For rounded nested surfaces, use
+  inner radius = max(0, outer radius - inset) as the starting geometry.
+  Check the rendered corners where border width changes the visible inset.
+- No dropdown chevron on buttons or menu triggers. The only exception is the
+  indicator of a native `<select>`. Keep keyboard access and an accessible name.
+- Check the heading scale, body size, and motion against the content and
+  the design system. Do not add a fourth size or another reveal without a use.
+- Record each applicable item and its screenshot evidence in the existing
+  critique. Keep the shared round cap; do not add an inspector or a new gate.
