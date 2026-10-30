@@ -145,5 +145,26 @@ rm -f "$rundir/ledger.jsonl"
 err="$(jq -cn '{session_id:"abcdef1234567890",trigger:"auto"}' | bash "$ROOT/.agents/hooks/precompact-instructions.sh" 2>&1 >/dev/null)"
 [ "$(cat "$rundir/compacting-thread")" = main ] && [ -z "$err" ] && ok "no ledger → mark main, no stderr" || fail "no-ledger path: mark=$(cat "$rundir/compacting-thread") err=$err"
 
+# --- claim-evidence-gate: a conditional/future or wait-only clause is not a claim (W45-16, retro L42).
+# Window = one Edit after the human prompt and no evidence token, so any positive claim blocks.
+echo "case: claim-evidence-gate conditional claim"
+ctr="$WORK/claim.jsonl"; echo '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"x"}}' > "$ctr"
+claim() { # $1 reply → block | empty; one session per locale, since the gate fires once per (session, reply)
+  local d="$HOME/.local/state/agent-hooks/claim-$LC_ALL"; mkdir -p "$d"
+  echo '{"timestamp":"2026-01-01T00:00:05Z","tool":"Edit","evidence":[]}' > "$d/ledger.jsonl"
+  jq -cn --arg t "$ctr" --arg m "$1" --arg s "claim-$LC_ALL" '{session_id:$s,transcript_path:$t,stop_hook_active:false,last_assistant_message:$m}' |
+    bash "$ROOT/.agents/hooks/claim-evidence-gate.sh" | jq -r '.decision // empty'
+}
+for loc in en_US.UTF-8 C; do
+  for m in '審查 PASS 後才上傳' '等測試完成再上傳。' '測試通過後才上傳' 'After the tests pass, I will publish.' \
+    'Waiting for the reviewer to complete.' '等 worker 完成，再回報。' 'still running, no result yet' 'When done, I will report.'; do
+    [ -z "$(LC_ALL=$loc claim "$m")" ] && ok "not a claim ($loc): $m" || fail "conditional/wait sentence blocked ($loc): $m"
+  done
+  for m in '修好了，應該沒問題' 'Fixed after the retry.' '審查 PASS 後才上傳；W45-16 已完成' '等測試完成再上傳，W45-16 已完成' 'A、B 等都已完成' 'Done. Will push next.' \
+    'After I fixed the bug, I pushed.' 'Once I verified it, the suite went green.' '我修好之後就 push 了'; do
+    [ "$(LC_ALL=$loc claim "$m")" = block ] && ok "real claim, no evidence BLOCKED ($loc): $m" || fail "real claim without evidence passed ($loc): $m"
+  done
+done
+
 echo "summary: $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ]
