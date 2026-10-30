@@ -37,7 +37,10 @@ at the end; that table is the only place a member is chosen.
 New web page or web app screen → DIR-WEB, then REV-WEB as the review stage.
 Native screen, existing interface (audit the CURRENT render first), DESIGN.md
 → DIR-NATIVE. Pipeline D, prototypes, diagrams and trivial tweaks → none.
-Never stack two authorities. An unknown skill never becomes an authority.
+Never stack two authorities, also not across variants: each 比稿 variant is one style
+the authority deals, built with its full run (written critique and look-and-fix rounds);
+peer reviews advise the user, and REV-WEB reviews only the accepted version or mix.
+An unknown skill never becomes an authority.
 
 Whenever you create or change any web deliverable, apply §Web craft overlay.
 
