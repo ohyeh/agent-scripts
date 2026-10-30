@@ -13,7 +13,7 @@ const mode = (args: string) => ({ command: PLUGIN, args: `mode ${args}`, origin:
 type On = Parameters<Extract<Parameters<typeof test>[1], (...args: never[]) => unknown>>[1]
 
 // The engine beneath: one repo at /w/repo whose dirty files and unpushed commits the test sets.
-function world(on: On, pick: (labels: readonly string[]) => string | undefined = () => undefined) {
+function world(on: On, pick: (labels: readonly string[]) => string | undefined = () => undefined, submit?: (text: string) => Promise<{ text: string }>) {
   const git = { dirty: [] as string[], ahead: [] as string[], head: 'abc1234def' }
   const sent: { text: string; origin: { kind: string; asUser?: true } }[] = []
   const suggested: string[] = []
@@ -21,6 +21,7 @@ function world(on: On, pick: (labels: readonly string[]) => string | undefined =
   const files = new Map<string, string>()
   const disk = { fail: false }
   const debug: string[] = []
+  const logged = { written: () => {}, debug: () => {} }
   on('session.id', () => ({ value: '12345678-session' }))
   on('env.get', () => ({ value: '/h/me' }))
   on('fs.exists', (_, e) => ({ value: files.has(e.path) }))
@@ -28,14 +29,15 @@ function world(on: On, pick: (labels: readonly string[]) => string | undefined =
   on('fs.write', (_, e) => {
     if (disk.fail) return { deny: 'disk full' }
     files.set(e.path, e.text)
+    logged.written()
     return { value: undefined }
   })
-  on('prompt.submit', (_, e) => (sent.push({ text: e.text, origin: e.origin as never }), { text: e.text }))
+  on('prompt.submit', (_, e) => (sent.push({ text: e.text, origin: e.origin as never }), submit ? submit(e.text) : { text: e.text }))
   on('prompt.suggest', (_, e) => (suggested.push(e.text), { isShown: true }))
   on('model.classify', (_, e) => ({ value: pick(e.labels) }))
   on('ui.toast', () => ({ value: undefined }))
   on('ui.invalidate', () => ({ value: undefined }))
-  on('ui.log', (_, e) => (debug.push(e.text), { value: undefined }))
+  on('ui.log', (_, e) => (debug.push(e.text), logged.debug(), { value: undefined }))
   on('command.register', (_, e) => ({ value: { command: e.name } }))
   on('store.get', (_, e) => ({ value: store.get(e.key) }))
   on('store.set', (_, e) => (store.set(e.key, e.value), { value: undefined }))
@@ -57,7 +59,7 @@ function world(on: On, pick: (labels: readonly string[]) => string | undefined =
     return { value: { exitCode: 0, stdout: out, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
   })
   const nudges = () => sent.filter(x => x.origin.kind === 'plugin')
-  return { git, sent, nudges, suggested, store, files, disk, debug }
+  return { git, sent, nudges, suggested, store, files, disk, debug, logged }
 }
 
 test('the helpers read a closing request for leave, a commit, and the folder it ran in', () => {
@@ -168,10 +170,10 @@ test('auto sends continue and acceptance as the mod, then stops on none until an
   await $.session.start(start)
   await $.command.run(mode('auto'))
   await $.turn.complete(done('第一步完成。'))
-  expect(w.nudges()[0]!.text).toBe(`quick-say 自動：沒有待決事項就接著做到結束條件達成；已授權範圍內的事直接做，不用問我。\n${APPROVES_NOTHING}`)
+  expect(w.nudges()[0]!.text).toBe(`quick-say 自動：沒有待決事項就接著做到結束條件達成；已授權範圍內的事直接做，不用再問使用者。\n${APPROVES_NOTHING}`)
   pick = '驗收'
   await $.turn.complete(done('可以驗收。'))
-  expect(w.nudges()[1]!.text).toBe(`${PHRASES[5].text}\n${APPROVES_NOTHING}`)
+  expect(w.nudges()[1]!.text).toBe(`${PHRASES.find(p => p.hotkey === '9')!.text}\n${APPROVES_NOTHING}`)
   expect(w.nudges().every(p => p.origin.asUser === undefined && p.text.endsWith(APPROVES_NOTHING))).toBe(true)
   pick = 'none'
   await $.turn.complete(done('停在這。'))
@@ -205,6 +207,55 @@ test('auto stops on a question after gates, and the stopped header is not dim', 
   expect(w.nudges()[0]!.text).toContain('「要我繼續嗎？」')
   await $.turn.complete(done('要我繼續嗎？\n✈'))
   expect(w.nudges().length).toBe(1)
+})
+
+test('a mode change clears auto stop from the header and lets auto send again', async ($, on) => {
+  const w = world(on, labels => labels[0])
+  const band = { surface: 'terminal' as const, component: 'AbovePrompt' as const, requestId: 'above', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 160, scroll: { offset: 0, bodyRows: 19 }, view: {} } }
+  await $.session.start(start)
+  await $.command.run(mode('自動'))
+  await $.turn.complete(done('A 還是 B？'))
+  expect(JSON.stringify(await $.ui.render(band))).toContain('停：agent 在問問題')
+  // The auto button cycles to manual; the command returns directly to auto.
+  await $.ui.press({ plugin: PLUGIN, key: 'mode', requestId: 'above' })
+  const manual = JSON.stringify(await $.ui.render(band))
+  expect(manual).toContain('手動')
+  expect(manual).not.toContain('停：')
+  await $.command.run(mode('自動'))
+  const auto = JSON.stringify(await $.ui.render(band))
+  expect(auto).toContain('自動')
+  expect(auto).not.toContain('停：')
+  await $.turn.complete(done('繼續。'))
+  expect(w.nudges().length).toBe(1)
+})
+
+test('turn.complete returns before either a gate or auto prompt finishes submission', async ($, on) => {
+  let entered = () => {}
+  let release = () => {}
+  const w = world(on, labels => labels[0], text => new Promise(resolve => {
+    release = () => resolve({ text })
+    entered()
+  }))
+  await $.session.start(start)
+  for (const [selected, answer] of [['semi', '要我繼續嗎？'], ['auto', '繼續。']]) {
+    await $.command.run(mode(selected!))
+    const submitting = new Promise<void>(resolve => { entered = resolve })
+    let returned = false
+    const turn = $.turn.complete(done(answer!)).then(() => { returned = true })
+    await submitting
+    // Drain the dispatch microtasks while the next prompt remains pending.
+    for (let i = 0; i < 100; i += 1) await Promise.resolve()
+    const returnedBeforeSubmit = returned
+    const rowsBeforeSubmit = [...w.files.values()].join('')
+    const written = new Promise<void>(resolve => { w.logged.written = resolve })
+    release()
+    await turn
+    await written
+    expect(returnedBeforeSubmit).toBe(true)
+    const rows = [...w.files.values()].join('').trim().split('\n').map(l => JSON.parse(l))
+    expect(rows.filter(r => r.event === 'sent').length).toBe(selected === 'semi' ? 1 : 2)
+    expect(rowsBeforeSubmit.split('"event":"sent"').length - 1).toBe(selected === 'semi' ? 0 : 1)
+  }
 })
 
 test('auto and both gates share four sends; mod prompts do not reset it, owner prompts do', async ($, on) => {
@@ -243,7 +294,9 @@ test('manual sends and suggests nothing; logging failure does not stop an auto s
   expect(w.suggested).toEqual([])
   await $.command.run(mode('auto'))
   w.disk.fail = true
+  const logged = new Promise<void>(resolve => { w.logged.debug = resolve })
   await $.turn.complete(done('繼續。'))
+  await logged
   expect(w.nudges().length).toBe(1)
   expect(w.debug.join('')).toContain('log not written (quick-say: $.fs.write: disk full)')
 })

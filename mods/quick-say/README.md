@@ -24,7 +24,8 @@ A composer or bridge prompt from the owner resets the count and clears the stop 
 
 Auto stops if the last non-✈ line ends in `？` or `?`, if four mod prompts were sent,
 or if the small model picks `none`. Its stop reasons are `agent 在問問題`,
-`連續送滿 4 句`, and `猜不到下一句`. It stays stopped until an owner prompt.
+`連續送滿 4 句`, and `猜不到下一句`. While 自動 is stopped, its gates also pause until the owner types.
+半自動 keeps the gates active. An owner prompt or mode change clears the stop reason.
 The model chooses only 續跑, 驗收 (combo 9), or none. 續跑 uses the mod's short continuation
 text, not a digit combo. Every mod-sent prompt uses plugin origin, never `asUser`, and ends
 with `APPROVES_NOTHING`: it grants no new approval.

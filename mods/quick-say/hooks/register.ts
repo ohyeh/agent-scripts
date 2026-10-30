@@ -75,7 +75,7 @@ ${COMMANDER}
 type Mode = '手動' | '半自動' | '自動'
 const MODES: Mode[] = ['手動', '半自動', '自動']
 const MODE_LABEL = { 手動: '○ 手動', 半自動: '◐ 半自動', 自動: '⚡ 自動' }
-const CONTINUE = 'quick-say 自動：沒有待決事項就接著做到結束條件達成；已授權範圍內的事直接做，不用問我。'
+const CONTINUE = 'quick-say 自動：沒有待決事項就接著做到結束條件達成；已授權範圍內的事直接做，不用再問使用者。'
 
 type State = {
   folded: boolean
@@ -159,7 +159,7 @@ async function nudge($: EngineInterface, s: State, gate: 'git' | 'ask', key: str
   $.ui.toast(`${NAME}: ${toast}`)
   $.ui.invalidate('ui.render')
   await logLine($, s, 'gate', '', gate)
-  await $.prompt
+  void $.prompt
     .submit({ text })
     .then(async r => {
       if (r.drop !== undefined) $.ui.toast(`${NAME}: not sent (${r.drop})`)
@@ -185,14 +185,18 @@ async function autoSend($: EngineInterface, s: State, answer: string) {
   if (s.streak >= MAX_STREAK) return stop($, s, '連續送滿 4 句')
   const picked = await $.model.classify(`使用者上一句：${s.lastHuman.slice(-500)}\nagent 回覆：${answer.slice(-1500)}\n下一句？`, ['續跑', '驗收', 'none'])
   if (picked !== '續跑' && picked !== '驗收') return stop($, s, '猜不到下一句')
-  const text = `${picked === '續跑' ? CONTINUE : PHRASES[5].text}\n${APPROVES_NOTHING}`
+  const text = `${picked === '續跑' ? CONTINUE : PHRASES.find(p => p.hotkey === '9')!.text}\n${APPROVES_NOTHING}`
   s.streak += 1
-  const result = await $.prompt.submit({ text })
-  if (result.drop !== undefined) $.ui.toast(`${NAME}: not sent (${result.drop})`)
-  else {
-    $.ui.toast(`${NAME}: ${picked}`)
-    await logLine($, s, 'sent', picked)
-  }
+  void $.prompt
+    .submit({ text })
+    .then(async r => {
+      if (r.drop !== undefined) $.ui.toast(`${NAME}: not sent (${r.drop})`)
+      else {
+        $.ui.toast(`${NAME}: ${picked}`)
+        await logLine($, s, 'sent', picked)
+      }
+    })
+    .catch(err => $.ui.toast(`${NAME}: not sent (${errText(err)})`))
 }
 
 function say($: EngineInterface, s: State, p: (typeof PHRASES)[number]) {
@@ -216,6 +220,7 @@ const list = () => PHRASES.map(p => `${p.hotkey} ${p.label}: ${p.text}`).join('\
 
 async function setMode($: EngineInterface, s: State, mode: Mode) {
   s.mode = mode
+  s.stopped = ''
   $.ui.invalidate('ui.render')
   await $.store.set(MODE_KEY, mode).catch(err => $.ui.toast(`${NAME}: mode not saved (${errText(err)})`))
 }
