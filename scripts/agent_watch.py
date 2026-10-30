@@ -23,7 +23,7 @@ def is_browser(tool):
         return True
     command = str((tool.get("input") or {}).get("command", ""))
     # the executable of a pipeline segment, not an argument (`rg agent-browser README.md` is not a browser call)
-    return name == "Bash" and re.search(r"(^|[;&|(]\s*)(\S*/)?agent-browser(\s|$)", command) is not None
+    return name == "Bash" and re.search(r"(?:^|[;&|(\n])\s*(?:\S*/)?agent-browser(?:\s|$)", command) is not None
 
 
 def parse_time(stamp):
@@ -83,6 +83,10 @@ def self_test():
     grep = lines[:2] + [row(2, {"type": "tool_use", "id": "g1", "name": "Bash", "input": {"command": "rg -n agent-browser README.md"}}),
                         row(150, {"type": "tool_result", "tool_use_id": "g1", "content": "hit"})]
     assert len(idle_gaps(grep, now=at(301))) == 1, "an agent-browser argument is not a browser call"
+    for cmd in ("  agent-browser open https://example.com", "pwd\nagent-browser open https://example.com"):
+        ab = lines[:2] + [row(2, {"type": "tool_use", "id": "c1", "name": "Bash", "input": {"command": cmd}}),
+                          row(150, {"type": "tool_result", "tool_use_id": "c1", "content": "ok"})]
+        assert idle_gaps(ab, now=at(301)) == [], "leading space or a new line still runs agent-browser: %r" % cmd
     print("self-test: ok")
 
 
