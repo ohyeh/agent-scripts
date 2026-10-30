@@ -1,5 +1,9 @@
 # Changelog
 
+## grok-bot-watch 0.18.1
+
+- **A header-less text is refused before any check or connection** (W45-2): `main()` in `bin/send.mjs` trusted the injected check alone, so a caller whose check returns null (the once wrapper) skipped `HEADER_RE` and could send a text with no `[w:<sid8>] ⟨<agent>⟩` header. `bad-header` is now one of the early refusals, with tests for bot 168d152a. The skill's `scripts/send.mjs` carries the same change.
+
 ## owner-asks 0.1.0
 
 Owner 2026-10-30: 「我覺得當初…合併一起的想法太天真 應該拆開」「audit 這件事應該是獨立的ＭＯＤ」「我只知道 專發送出系統內建的 heads-up 以及其他功能 這兩塊」.

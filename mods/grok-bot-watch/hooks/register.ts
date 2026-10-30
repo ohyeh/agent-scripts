@@ -5,7 +5,7 @@ import { type Msg, type Read, type Row, FULL_UUID_RE, UUID_RE, ago, cells, clean
 // The sidebar read runs in bin/sidebar.mjs (read-only CDP), a reply typed in the
 // band goes out through bin/send.mjs; the mod never talks to the app itself. Design and deviations: agent-scripts run dir design-v1.md.
 
-const MOD_VERSION = '0.18.0'
+const MOD_VERSION = '0.18.1'
 /** 'open' once the person unfolded the band; absent or 'folded': it starts as its header line. */
 const FOLD_KEY = 'grok-bot-watch.fold'
 const POLL_MS = 10_000
