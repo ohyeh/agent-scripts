@@ -87,9 +87,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/delegation-templates/SKILL.md",
-      "skillFolderHash": "8bbe4f7fce3c06b4f8307e2d23d985c0ace08e00",
+      "skillFolderHash": "066734312f703f3a67ef6812e98422d64cd294ab",
       "installedAt": "2026-07-18T20:48:21.471Z",
-      "updatedAt": "2026-10-30T03:56:14.937Z"
+      "updatedAt": "2026-10-30T11:05:59.965Z"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
@@ -141,9 +141,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "d5694e67243eec4c3cf2587ac0e1f8cecddfaab4",
+      "skillFolderHash": "7fd9db92ba3ff2146cf91b8e7006eb3f9ee0f904",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-10-28T17:17:42.828Z"
+      "updatedAt": "2026-10-30T11:06:08.738Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -178,9 +178,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/session-handoff/SKILL.md",
-      "skillFolderHash": "a1ed9630dcb66f5b34fc7bca0a3f993e76ed19fa",
+      "skillFolderHash": "dcc90aeb2f6a8c22e030b006efb23a5c4e295b92",
       "installedAt": "2026-07-18T20:48:39.017Z",
-      "updatedAt": "2026-10-29T20:23:40.302Z"
+      "updatedAt": "2026-10-30T11:06:02.517Z"
     },
     "shared-memory-intake": {
       "source": "ohyeh/agent-scripts",
@@ -224,9 +224,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "6b92eab8d2a6291dd26e869b66a83c3545abd5d4",
+      "skillFolderHash": "35e1d13054ce61e096c5b49c876f234a7e0c8065",
       "installedAt": "2026-07-18T20:48:24.825Z",
-      "updatedAt": "2026-10-30T03:56:20.092Z"
+      "updatedAt": "2026-10-30T11:06:11.899Z"
     },
     "triage": {
       "source": "mattpocock/skills",
@@ -260,9 +260,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-grok-bot-app/SKILL.md",
-      "skillFolderHash": "6fbee1ff3e60d3a08518c4a69f1e0c64710a3894",
+      "skillFolderHash": "5f00b044f60c543a017d2075705dc434a160d4dc",
       "installedAt": "2026-09-04T08:30:33.000Z",
-      "updatedAt": "2026-10-22T16:33:13.000Z"
+      "updatedAt": "2026-10-30T11:06:04.931Z"
     },
     "using-tmux-agent-tools": {
       "source": "ohyeh/tmux-agent-tools",
