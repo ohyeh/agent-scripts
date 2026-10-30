@@ -4,9 +4,14 @@
 # deploy resolved. One command replaces the manual push -> per-host curl|bash
 # -> per-host md5/Version spot-check loop.
 #
-# Usage: scripts/fleet-deploy.sh [--verify-only] <host>...
+# Usage: scripts/fleet-deploy.sh [--verify-only] [--all] [<host>...]
 #   <host>  "local" for this machine, or any ssh destination
 #           (e.g. build-node, deploy@example.internal)
+#   --all   every host in HOSTS_FILE, the one fleet host list (default
+#           ${XDG_CONFIG_HOME:-~/.config}/agent-scripts/fleet-hosts): one host per
+#           line, kept as written; blank lines and # comments skipped.
+#           Never rebuild the list from log file names: they are sanitized
+#           (box@grok-bot -> box_grok-bot.log); each log's first line is host=<raw>.
 #
 # Every host gets the full deploy.sh run (unless --verify-only),
 # then the verify pass checks, per host:
@@ -22,16 +27,27 @@ REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
 RELEASE_REF="refs/heads/main"
 RAW_BASE="https://raw.githubusercontent.com/ohyeh/agent-scripts"
 
+HOSTS_FILE="${HOSTS_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/agent-scripts/fleet-hosts}"
 VERIFY_ONLY=0
+ALL=0
 HOSTS=()
 for arg in "$@"; do
   case "$arg" in
     --verify-only) VERIFY_ONLY=1 ;;
+    --all) ALL=1 ;;
     *) HOSTS+=("$arg") ;;
   esac
 done
+if [ "$ALL" -eq 1 ]; then
+  [ -r "$HOSTS_FILE" ] || { echo "FAIL [hosts] --all needs HOSTS_FILE=$HOSTS_FILE (one host per line)" >&2; exit 2; }
+  while read -r h _ || [ -n "$h" ]; do
+    case "$h" in ''|'#'*) continue ;; esac
+    HOSTS+=("$h")
+  done <"$HOSTS_FILE"
+  echo "INFO [hosts] --all from $HOSTS_FILE: ${HOSTS[*]:-<none>}"
+fi
 if [ "${#HOSTS[@]}" -eq 0 ]; then
-  echo "usage: $0 [--verify-only] <host>...   (host = 'local' or ssh destination)" >&2
+  echo "usage: $0 [--verify-only] [--all] [<host>...]   (host = 'local' or ssh destination; --all reads HOSTS_FILE=$HOSTS_FILE)" >&2
   exit 2
 fi
 
@@ -41,6 +57,19 @@ MD5_SNIPPET='f(){ if command -v md5 >/dev/null; then md5 -q "$1"; else md5sum "$
 
 run_on() { # run_on <host> <command string>
   if [ "$1" = "local" ]; then bash -c "$2"; else ssh -o ConnectTimeout=15 "$1" "$2"; fi
+}
+
+# Stale-pin repair for one host, run from this repo checkout. A remote host's
+# lock is judged against that host's own deploy log (sync-skills-lock.sh reads both).
+# shellcheck disable=SC2016  # $(...) and $d are for the operator's shell
+repair_cmd() { # repair_cmd <host>
+  local q; q="$(printf %q "$1")"
+  if [ "$1" = "local" ]; then
+    printf '%s' 'GITHUB_TOKEN="$(gh auth token --hostname github.com)" npx --yes skills@1.7.2 upgrade -g -y && scripts/sync-skills-lock.sh'
+  else
+    printf '%s' 'd="$(mktemp -d)" && scp '"$q"':.agents/.skill-lock.json '"$q"':.local/state/agent-scripts/deploy-log.jsonl "$d"/ && SKILLS_GLOBAL_LOCK="$d/.skill-lock.json" DEPLOY_LOG="$d/deploy-log.jsonl" scripts/sync-skills-lock.sh'
+  fi
+  printf ' ; then commit skills-lock.json, push, rerun: scripts/fleet-deploy.sh %s\n' "$q"
 }
 
 echo "==> Resolving agent-scripts $RELEASE_REF..."
@@ -69,12 +98,14 @@ for host in "${HOSTS[@]}"; do
     # cause (the 2026-08-28 clone timeout would have been invisible here).
     LOGDIR="${XDG_STATE_HOME:-$HOME/.local/state}/agent-scripts/fleet-deploy"; mkdir -p "$LOGDIR"
     hostlog="$LOGDIR/$(date -u +%Y%m%dT%H%M%SZ)-${host//[^A-Za-z0-9._-]/_}.log"
+    printf 'host=%s\n' "$host" >"$hostlog"
     # Exit status alone lied once (2026-08-28: remote unbound-variable abort
     # reported PASS); the DEPLOY OK line is the contract.
-    if run_on "$host" "SKILLS_CLONE_TIMEOUT_MS=600000 bash -c \"curl -fsSL '$DEPLOY_URL' | bash\"" >"$hostlog" 2>&1 && grep -aq '^==> DEPLOY OK' "$hostlog"; then
+    if run_on "$host" "SKILLS_CLONE_TIMEOUT_MS=600000 bash -c \"curl -fsSL '$DEPLOY_URL' | bash\"" >>"$hostlog" 2>&1 && grep -aq '^==> DEPLOY OK' "$hostlog"; then
       echo "PASS [$host] deploy.sh completed (log: $hostlog)"
     else
       echo "FAIL [$host] deploy.sh exited non-zero — $(grep -m1 -aE '^FAIL|Installation failed|timed out' "$hostlog" || echo 'see log') (log: $hostlog)" >&2
+      if grep -aq 'state=stale-pin' "$hostlog"; then echo "REPAIR [$host] $(repair_cmd "$host")" >&2; fi
       FAILED=1
       continue
     fi
