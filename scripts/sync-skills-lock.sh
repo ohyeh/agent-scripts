@@ -35,12 +35,16 @@ tree_hash() {
     && git --git-dir="$g/.git" write-tree --prefix="$1/"
   rm -rf "$g"
 }
-stale="" fix=""
+stale="" fix="" missing=""
 while IFS=$'\t' read -r k dir hash; do
+  [ -n "$k" ] || continue
   t="$(tree_hash "$dir" || true)"
-  [ -n "$k" ] && [ -n "$t" ] && [ "$t" != "$hash" ] && { stale="$stale $k"; fix="$fix$k"$'\t'"$t"$'\n'; }
+  if [ -z "$t" ]; then missing="$missing $k"
+  elif [ "$t" != "$hash" ]; then stale="$stale $k"; fix="$fix$k"$'\t'"$t"$'\n'; fi
 done < <(jq -r '.skills | to_entries[] | select(.value.source == "ohyeh/agent-scripts")
   | [.key, (.value.skillPath | sub("/SKILL.md$"; "")), .value.skillFolderHash] | @tsv' "$R")
+# A pinned skill of this repo with no committed folder cannot be checked or synced (Sol R6-03).
+[ -z "$missing" ] || { echo "skills-lock: no committed tree for:$missing (remove the lock entry or restore the folder)" >&2; exit 1; }
 
 newer=""
 last="$(tail -n 1 "$LOG" 2>/dev/null | jq -r '.timestamp // empty' 2>/dev/null || true)"
@@ -63,6 +67,13 @@ if [ "${1:-}" = --check ]; then
   [ -z "$local_only" ] || echo "skills-lock: installed is newer than the lock for: $(echo $local_only)"
   exit 1
 fi
+
+# A pinned skill of this repo must equal its committed tree: never copy an installed hash over it (Sol R6-02).
+own_newer=""
+for k in $local_only; do
+  jq -e --arg k "$k" '.skills[$k].source == "ohyeh/agent-scripts"' "$R" >/dev/null && own_newer="$own_newer $k"
+done
+[ -z "$own_newer" ] || { echo "skills-lock: installed differs from the committed tree for:$own_newer; commit or pull that revision, then sync" >&2; exit 1; }
 
 g_src=/dev/null; [ -z "$local_only" ] || g_src="$G"   # no installed lock needed for a tree fix
 out="$(jq --slurpfile g "$g_src" --arg list "$local_only" --arg fix "$fix" '

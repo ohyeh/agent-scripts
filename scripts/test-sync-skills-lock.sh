@@ -39,6 +39,10 @@ lock "$OTHER" 2026-10-12T00:00:00Z "$T/g.json"
 if out="$(run --check)"; then bad "newer: exit 0 ($out)"
 elif grep -q 'installed is newer.* foo' <<<"$out" && ! grep -q 'stale' <<<"$out"; then ok "newer: reports installed newer"
 else bad "newer: wrong message ($out)"; fi
+cp "$T/tree/skills-lock.json" "$T/before.json"
+if out="$(run)"; then bad "newer: sync exit 0 wrote an installed hash over the tree pin ($out)"
+elif cmp -s "$T/before.json" "$T/tree/skills-lock.json" && grep -q 'installed differs from the committed tree for: foo' <<<"$out"; then ok "newer: sync refuses, lock unchanged"
+else bad "newer: sync changed the lock or wrong message ($out)"; fi
 
 # repo moved: installed is the old pin from before the last deploy → deploy's job, not a sync
 lock "$TREE" 2026-10-09T00:00:00Z "$T/tree/skills-lock.json"
@@ -63,5 +67,12 @@ echo '# edited, not committed' >> "$T/tree/skills/foo/SKILL.md"
 if out="$(run --check)"; then ok "git: lock = committed tree passes, working edit ignored"; else bad "git: exit 1 ($out)"; fi
 lock "$OLD" 2026-10-01T00:00:00Z "$T/tree/skills-lock.json"
 if out="$(run --check)"; then bad "git: stale lock exit 0 ($out)"; else ok "git: stale lock vs committed tree fails"; fi
+
+# pinned skill whose folder is gone from the commit: an error, not a silent pass (Sol R6-03)
+git -C "$T/tree" rm -q -r -f skills/foo
+git -C "$T/tree" -c user.name=t -c user.email=t@t commit -q --no-verify --no-gpg-sign -m rm
+if out="$(SKILLS_GLOBAL_LOCK="$T/none" run --check)"; then bad "missing: exit 0 ($out)"
+elif grep -q 'no committed tree for: foo' <<<"$out"; then ok "missing: pinned skill without a committed folder fails"
+else bad "missing: wrong message ($out)"; fi
 
 exit "$fail"
