@@ -141,6 +141,8 @@ Required when any Blocker is listed. The successor must not re-verify these unle
 
 ## Environment State
 
+- Remote hosts holding artifacts: [host:absolute-path, or none; do not infer absence from local disk]
+
 ### Tools/Services Used
 
 - [Tool/Service]: [relevant configuration or state]

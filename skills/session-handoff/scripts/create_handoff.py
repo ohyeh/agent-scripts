@@ -350,6 +350,8 @@ Filter output for this session: [TODO: the `COUNT <n>` line from the session-log
 
 ## Environment State
 
+- Remote hosts holding artifacts: [TODO: host:absolute-path, or none; do not infer absence from local disk]
+
 ### Tools/Services Used
 
 - [TODO: List relevant tools and their configuration]

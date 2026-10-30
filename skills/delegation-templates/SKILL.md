@@ -22,6 +22,7 @@ For non-trivial work, add these filled lines before ACCEPTANCE:
 > accepting done}`.
 > NESTED: allowed — only when the subagent must dispatch its own subagents;
 > without it the gate denies nested dispatch (W42-12).
+> UI REDESIGN: when the task changes a visible interface, compare the visible-element sets before and after; hidden text does not prove that a formerly visible control or table remains visible.
 
 Common footer — include in EVERY delegation:
 

@@ -25,6 +25,8 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
   source. When a tracked row changes status (commit, release, user ruling),
   update the dashboard dataset in the same turn; a page that cites the old
   status is a defect (W44-6).
+  Read and update static page notes and the backlog source in that turn too;
+  a new dataset does not refresh static prose.
 - `Motion` → animated explainer, walkthrough, demo video, motion graphic;
   exports MP4. Verify it with frames at the start, middle, and end.
 - Load `artifact-design` before you publish; load `dataviz` before any chart.
@@ -61,6 +63,7 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 
 ## Motion in an interface
 
+- For a UI or motion decision, attach an image or a readable, slowed video. Caption the video with what changes and the frame time; prose alone is not a visual choice.
 - Use skill `apple-design`. Respond on pointer-down, not on release.
 - Start every animation from the current on-screen value, never the target
   value. Every animation can be grabbed and reversed mid-flight.

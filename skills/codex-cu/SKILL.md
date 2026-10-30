@@ -42,6 +42,10 @@ Tab mechanics (each checked 2026-10-16 with `lsappinfo front` before and after):
   `if application "Google Chrome" is running then …` so the check never starts
   Chrome); a new URL in the after list
   is a leak: close it and report it. A report of "closed my tab" is not a check.
+- For long web corpora, save the source text and process it locally; avoid accumulating huge transcripts in one conversation. Observe external generation on events or at sparse intervals, not tight polls.
+- For SPA searches, use a documented state/query URL when available before trying form controls.
+- Before claiming a viewport limit, list browser capabilities. Await `tab.capabilities.get("viewport")` before using its methods.
+- For a rate-limited HTTP host, use one reader with serial requests, spaced by the host's documented limit or its Retry-After. Stop on the first Access Denied and report it; a serial retry in the same session failed 0/4 (flights, 2026-10-19). A serial schedule for codex-cu scouts does not protect the HTTP host.
 - Click with `tab.playwright.locator(sel).click()`, never `.click()` inside
   `evaluate`: it threw `el.click is not a function` (2026-10-19).
 - After a click that changes data (delete, submit), check the result with rung 1,
