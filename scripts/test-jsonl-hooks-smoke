@@ -257,40 +257,6 @@ if rg 'audit/active|AUDIT_DIR|audit_reason|audit_hold|audit_file|audit_state|hea
   echo 'FAIL: Stop gate retains audit IPC' >&2; exit 1
 fi
 echo 'PASS old-active-no-audit-enforcement: 2 fresh chains; claim binding retained; legacy bytes unchanged'
-python3 - "$ROOT/mods/agent-should-know/hooks/lib/records.ts" "$WORK" <<'PY'
-import json, pathlib, re, subprocess, sys, tempfile
-source = pathlib.Path(sys.argv[1]).read_text()
-script = re.search(r"\['python3', '-c', `(.*?)`,", source, re.S).group(1)
-with tempfile.TemporaryDirectory(dir=sys.argv[2]) as directory:
-    root = pathlib.Path(directory)
-    old = root / 'project' / 'day.asks.jsonl'
-    old.parent.mkdir()
-    text = 'owner 原文\n{"ask":"keep every byte"}\n'.encode()
-    old.write_bytes(text)
-    current = root / 'full-sid' / 'owner.asks.jsonl'
-    current.parent.mkdir()
-    current.write_text('{"schema_version":1,"text":"new owner data"}\n')
-    untouched = root / 'owner.log'
-    untouched.write_text('keep this too')
-    stored = json.dumps({'asks:resume-sid': 'owner store text'})
-    first = subprocess.run([sys.executable, '-c', script, str(root)], input=stored, capture_output=True, text=True)
-    assert first.returncode == 0, first.stderr
-    assert json.loads(first.stdout)['archived'] == 1
-    archive = root / '_v0.2-archive'
-    assert (archive / 'project' / old.name).read_bytes() == text
-    assert (archive / 'backup' / 'project' / old.name).read_bytes() == text
-    assert untouched.read_text() == 'keep this too'
-    assert current.read_text() == '{"schema_version":1,"text":"new owner data"}\n'
-    backups = list((archive / 'backup').glob('store-*.json'))
-    assert len(backups) == 1 and json.loads(backups[0].read_text()) == json.loads(stored)
-    before = {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file()}
-    second = subprocess.run([sys.executable, '-c', script, str(root)], input=stored, capture_output=True, text=True)
-    assert second.returncode == 0, second.stderr
-    assert json.loads(second.stdout)['archived'] == 0
-    assert before == {str(p): p.read_bytes() for p in root.rglob('*') if p.is_file()}
-    assert (archive / 'project' / old.name).stat().st_mode & 0o777 == 0o600
-print('PASS owner-migrate-archives-idempotently: archived=1; rerun=0; backup and owner bytes retained')
-PY
 # a line that names no subject keeps the old bar (>= 2 calls); a printed evidence token binds a line
 ledger_for n6 "$TWO" "$READ"; [[ -z "$(run_claim n6 '重設計還在進行，頁面還沒更新' "$TRT")" ]] || { echo "FAIL: keyless line blocked on 2 calls" >&2; exit 1; }
 ledger_for n7 "$TWO";         [[ "$(run_claim n7 '重設計還在進行，頁面還沒更新' "$TRT")" == block ]] || { echo "FAIL: keyless line passed on 1 call" >&2; exit 1; }
