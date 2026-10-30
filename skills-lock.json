@@ -15,9 +15,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/vercel-labs/agent-browser.git",
       "skillPath": "skills/agent-browser/SKILL.md",
-      "skillFolderHash": "82def67855a0d2aad7794207951820fa5422fdb0",
+      "skillFolderHash": "aee3afd3dd9c879a14816dd6dca77c938f8c9c10",
       "installedAt": "2026-07-18T20:48:45.740Z",
-      "updatedAt": "2026-08-24T01:56:03.906Z"
+      "updatedAt": "2026-10-30T01:22:54.378Z"
     },
     "agent-device": {
       "source": "callstackincubator/agent-device",
