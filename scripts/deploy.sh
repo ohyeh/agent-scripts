@@ -37,6 +37,8 @@
 #                 run from $HOME per the CLI's cwd-relative install path
 #                 (see README.md "Fleet skill restore"); then links
 #                 ~/.claude/skills and (if agy) ~/.gemini/config/skills to it.
+#                 A stale pin triggers upgrade, lock sync, commit, push and recheck.
+#                 --check reports that repair without running it.
 #   5. hooks    - installs the kernel sentinel hooks (.agents/hooks/) into
 #                 ~/.agents/hooks/; registers them in ~/.claude/settings.json
 #                 (Claude events) and ~/.cursor/hooks.json (Cursor events via
@@ -105,6 +107,49 @@ CHECK_RC=0
 layer() {
   if [ "$CHECK" = 0 ]; then "$@"; return; fi
   set +e; ( set -e; "$@" ); [ $? = 0 ] || CHECK_RC=1; set -e
+}
+
+SKILLS_STATE=layer-ok
+skills_step() {
+  local step="$1" rc; shift
+  if "$@"; then return 0; else rc=$?; fi
+  SKILLS_STATE=failed
+  echo "FAIL [skills] state=failed step=$step exit=$rc" >&2
+  return "$rc"
+}
+
+# Both stale-pin checks use this decision for deploy and --check.
+skills_stale_pin() {
+  local reason="$1" token rc repair="$SRC"
+  if [ "${SKILLS_RECHECK:-0}" = 1 ]; then
+    SKILLS_STATE=failed
+    echo "FAIL [skills] state=failed step=recheck: $reason" >&2
+    return 1
+  fi
+  SKILLS_STATE=stale-pin
+  echo "INFO [skills] state=stale-pin: $reason"
+  if [ "$CHECK" = 1 ]; then
+    echo 'FAIL [skills] stale pin; deploy would run: GITHUB_TOKEN="$(gh auth token --hostname github.com)" npx --yes skills@1.7.2 upgrade -g -y -> scripts/sync-skills-lock.sh -> git commit -> git push -> recheck [skills]' >&2
+    return 1
+  fi
+  token="$(skills_step auth gh auth token --hostname github.com)" || { rc=$?; SKILLS_STATE=failed; return "$rc"; }
+  skills_step upgrade env GITHUB_TOKEN="$token" npx --yes skills@1.7.2 upgrade -g -y || return $?
+  if [ "$CLONE_TRACKED" = 0 ]; then
+    repair="$WORKDIR/skills-repair"
+    skills_step clone git clone --single-branch --branch "${RELEASE_REF#refs/heads/}" "$REPO_GIT_URL" "$repair" || return $?
+    # Do not publish a lock against a different release if main moved during deploy.
+    skills_step release-match test "$(git -C "$repair" rev-parse HEAD)" = "$DEPLOYED_SHA" || return $?
+  fi
+  skills_step sync bash "$repair/scripts/sync-skills-lock.sh" || return $?
+  skills_step commit git -C "$repair" commit --only -m 'Sync skill pins after deploy upgrade' -- skills-lock.json || return $?
+  skills_step push git -C "$repair" push origin "HEAD:${RELEASE_REF#refs/heads/}" || return $?
+  if [ "$repair" != "$SRC" ]; then
+    skills_step lock-copy cp "$repair/skills-lock.json" "$SRC/skills-lock.json" || return $?
+  fi
+  DEPLOYED_SHA="$(skills_step revision git -C "$repair" rev-parse HEAD)" || { rc=$?; SKILLS_STATE=failed; return "$rc"; }
+  (SKILLS_RECHECK=1; trap 'rc=$?; if [ "$rc" != 0 ]; then SKILLS_STATE=failed; echo "FAIL [skills] state=failed step=recheck exit=$rc" >&2; fi' EXIT; layer_skills)
+  SKILLS_STATE=repaired
+  echo "PASS [skills] state=repaired"
 }
 
 resolve_release() {
@@ -294,10 +339,10 @@ if [ ! -f "$SRC/skills-lock.json" ]; then
   exit 1
 fi
 # A local `npx skills upgrade -g` leaves installed skills newer than the lock;
-# restoring the lock would silently downgrade them. Stop and name the fix.
+# restoring the lock would silently downgrade them. Repair before restore.
 if ! drift="$(bash "$SRC/scripts/sync-skills-lock.sh" --check)"; then
-  echo "FAIL [skills] $drift — do not ask the user (ruling 2026-10-27): run scripts/sync-skills-lock.sh in the agent-scripts repo, commit, push, then deploy" >&2
-  exit 1
+  skills_stale_pin "$drift"
+  return
 fi
 if [ "$CHECK" = 0 ]; then
 cp "$SRC/skills-lock.json" ~/skills-lock.json
@@ -335,8 +380,8 @@ while IFS=$'\t' read -r k sp h; do
   case "$sp" in */*) [ "$(folder_tree "$d")" = "$h" ] || [ "$(folder_tree "$d" input)" = "$h" ] || skills_differ="$skills_differ $k";; esac
 done < <(jq -r '.skills | to_entries[] | [.key, .value.skillPath, .value.skillFolderHash] | @tsv' "$SRC/skills-lock.json")
 if [ -n "$skills_missing$skills_differ" ]; then
-  echo "FAIL [skills] not installed:${skills_missing:- none}; content differs from the pin:${skills_differ:- none} — the installer takes upstream HEAD, so the pin is stale. Do not ask the user (ruling 2026-10-27): run GITHUB_TOKEN=\"\$(gh auth token --hostname github.com)\" npx --yes skills@1.7.2 upgrade -g -y + scripts/sync-skills-lock.sh, commit, push, deploy again (agent-environment-provisioning.md \"Stale pin\")" >&2
-  exit 1
+  skills_stale_pin "not installed:${skills_missing:- none}; content differs from the pin:${skills_differ:- none}"
+  return
 fi
 
 # `experimental_install` adds/updates the lock roster but retains removed
