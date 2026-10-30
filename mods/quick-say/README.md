@@ -1,67 +1,85 @@
 # quick-say
 
-A Claude Code function-hook mod that does what the owner used to ask for again and again. The
-owner's session logs (2026-10-23, Claude Code and Codex, mined by sol and agy) show runs of 2-4
-prompts in a row on one thing: "順利？" → "繼續處理啊" (52 sessions), "advisor review 過了？" →
-"意見一次說完" → "有共識才執行" (30), "PLAN 都做好了？" → "都有 PUSH？" → "先 PUSH 啊" (19),
-"都搞定？" → the `/session-handoff` wrap-up (10). A second pass read 336 sessions one by one and
-added two more: 接手, for briefs that left the agent to guess the earlier work, and 離席照做, for
-long runs that stopped while the owner was away. Of the 471 rounds those sessions lost, about a
-third are the kind a combo can save; the most rounds went to work that missed the mark or was
-misread (40%), which only a clear deliverable and acceptance in the owner's own words prevents.
+Seven combos for 前情提要 → 規劃期 → 指揮 → 驗收 → 收工, with three modes.
+Digits fill the full combo into the prompt box. Read or edit it, then press Enter to send.
 
-The mod works on three levels:
+## Modes
 
-| Level | When | What happens |
+| Mode | Header button | At the end of a main-agent answer |
 |---|---|---|
-| Gate: git | The main agent's turn ends and files this session edited are not committed, or its commits are not on the upstream | One reminder to the agent: commit what this session changed; push only where its rules allow, else say on the last line what is unpushed and why. |
-| Gate: "shall I?" | The answer ends on a request for leave (`要我…嗎？`, `shall I …?`) | One reminder: if it is inside the approved scope, do it; if the user must decide, ask once with what was searched, and stop. |
-| Suggestion | No gate fired | The small fast model picks the combo the owner would most likely send next; its full text shows dim in the empty prompt. Tab takes it, Enter sends it. |
-| Band | Any time | Digits 5-9 and 0 in an empty prompt fill a combo's whole text into the box. Nothing is sent until you press Enter. |
+| 手動 | ○ 手動 | Send and suggest nothing. |
+| 半自動 | ◐ 半自動 | Check the git gate, then the closing “shall I?” gate; otherwise suggest one of the seven combos, or nothing. Tab takes a suggestion; Enter sends it. |
+| 自動 | ⚡ 自動 | Run the same gates first; otherwise send 續跑 or 驗收, or stop. |
 
-Gate reminders are framed as the mod's ("The quick-say plugin sent a message"), never as your
-words, and each ends with a sentence that it approves nothing. Each gate fires once per state
-(the same dirty files and unpushed commits, the same question), and the mod sends at most 2 in a
-row until you type a prompt yourself, so a gate cannot loop.
+The button cycles 手動 → 半自動 → 自動 → 手動.
+Use `/quick-say mode 手動|半自動|自動` or `manual|semi|auto` to set the mode.
+Use `/quick-say mode` to read it. The choice uses store key `quick-say.mode`.
+A new session keeps 手動; every other stored value starts 半自動. Auto never carries over.
+The old `quick-say.auto` key is ignored.
+
+The git gate checks files this session edited but did not commit, and its commits absent from
+the upstream. The “shall I?” gate reminds the agent to act within scope, or ask once and stop.
+Each gate fires once per state. Gates and auto sends share a cap of four consecutive mod prompts.
+A composer or bridge prompt from the owner resets the count and clears the stop reason.
+
+Auto stops if the last non-✈ line ends in `？` or `?`, if four mod prompts were sent,
+or if the small model picks `none`. Its stop reasons are `agent 在問問題`,
+`連續送滿 4 句`, and `猜不到下一句`. It stays stopped until an owner prompt.
+The model chooses only 續跑, 驗收 (combo 9), or none. 續跑 uses the mod's short continuation
+text, not a digit combo. Every mod-sent prompt uses plugin origin, never `asUser`, and ends
+with `APPROVES_NOTHING`: it grants no new approval.
 
 ## Combos
 
-| Key | Label | Replaces |
+| Key | Name | Purpose |
 |---|---|---|
-| 5 | 接手 | read the named handoff or the latest record, report goal, done, open and next in four lines, go on; never ask where the last session stopped |
-| 6 | 審過再做 | review first by sol + advisor, one round of all objections, act on consensus |
-| 7 | 離席照做 | the owner leaves: run the agreed plan to its acceptance, watch waits with a stall limit, stop only when done, blocked, or a new approval is needed |
-| 8 | 進度續跑 | report progress in four lines, then go on without waiting for 繼續 |
-| 9 | 做完推送 | check the plan item by item, tests and pre-push check, commit, push, deploy, report shas |
-| 0 | 收工 | confirm done and pushed, then handoff, recap, and a shared-memory submission |
+| 4 | 更深的問題 | Find the deeper question behind repeated discussion. |
+| 5 | 前情提要 | Read the handoff and sources, explain the timeline and checkpoint, then wait for confirmation. |
+| 6 | 規劃期 | Show a state model first; add code signatures for cross-module or interface work; write the plan after agreement. |
+| 7 | 指揮 | Direct workers through implementation, review and acceptance. |
+| 8 | 指揮＋loop | Run the agreed work to its recorded end conditions. Reuses the full text of 7. |
+| 9 | 驗收 | Check model transitions and tasks against real product evidence and review. |
+| 0 | 收工 | Check delivery, write the handoff and memory submission, and record the next checkpoint. |
 
-`/quick-say` lists each combo's full text. Edit `PHRASES` in `hooks/register.ts` to change them;
-`when` is what the suggestion's model reads to pick one.
+`/quick-say` shows or hides the band and lists all full texts.
+The owner's exact texts and the model's `when` hints live in `PHRASES` in `hooks/register.ts`.
 
-## Band
+## Band and log
 
 ```
-▌quick say v0.4.0 · 6 combos · auto · 1 nudge     [ ⚡ auto ][ ▾ fold ][ hide ]
-  5: 接手  6: 審過再做  7: 離席照做  8: 進度續跑  9: 做完推送  0: 收工
+▌quick say v0.5.0 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
 ```
 
-Follows the band rules in [`../README.md`](../README.md): folded to its header until you press
-`[ ▸ open ]` (kept for the next sessions); `[ hide ]` takes it away until `/quick-say`. `[ ⚡ auto ]`
-turns the gates and the suggestion on or off (kept; also `/quick-say auto`); the header counts
-this session's reminders. Narrow: `[ ⚡ ][ ▾ ][ ✕ ]`, the combos in two rows of three, and labels cut with `…` when even that does not fit.
+The band starts folded. Open/fold and hide choices persist across sessions.
+Use `/quick-say` to show it after hide. Narrow headers use ○, ◐ or ⚡, plus fold and hide
+icons. Labels use display cells and cut with …; short row budgets remove combo rows first.
+A stopped auto header adds `· 停：<原因>` without dim text.
+
+Each shown combo, sent prompt, gate and stop appends one JSON row to
+`~/.local/state/quick-say/<YYYY-MM-DD>-<sid8>.log`.
+Rows contain `at` (ISO), `mode`, `event` (shown/sent/stopped/gate), `combo`, and `reason`.
+A log write error goes to the debug log and does not hold the prompt.
+
+## Changes from 0.4.0
+
+- Replace the auto on/off button with the three-mode button.
+- Remove `/quick-say auto`; use `/quick-say mode` instead.
+- Replace 5 接手, 6 審過再做, 7 離席照做, 8 進度續跑, and 9 做完推送 with the new combos.
+- Keep 0 收工 and append the checkpoint sentence. Add key 4; remove no digit hotkey.
+- Keep fold, open, hide and the bare `/quick-say` command.
 
 ## Limits
 
-- Edits made through Bash (`sed`, `perl`, a script) are not tracked: the git gate sees only
-  files changed with Edit, Write or NotebookEdit, and commits made with a Bash `git commit`.
-- The folder of a commit is read from `git -C <dir>` or a leading `cd <dir> &&`, else the
-  session's folder. A commit made elsewhere (a quoted path, `pushd`) is missed.
-- A branch with no upstream has nothing unpushed by this check.
-- The suggestion costs one small-model call per main-agent answer while auto is on.
-- A digit presses a band Button only in an empty prompt and while the band fits `maxRows`; while
-  the band is open, a prompt that starts with 0 or 5-9 needs a space first. The digits skip 1-4 because the
-  workers band numbers its rows from 1; with five or more workers, the band drawn later takes the
-  digit (5 is 接手, used before any worker starts).
+- Key 4 can be taken by the workers band with four or more workers; the band drawn later wins.
+- Auto acts only at turn completion. It cannot act while the agent runs mid-turn.
+- Slash-prefixed combos: whether Enter treats the filled text as a slash command is
+  **UNCONFIRMED**, pending a real engine check.
+- The git gate tracks Edit, Write and NotebookEdit, not edits through Bash scripts.
+- Commit paths use `git -C <dir>`, a leading `cd <dir> &&`, or the session folder.
+  Quoted paths and `pushd` can be missed. A branch without an upstream has no unpushed check.
+- Each main-agent answer can use one small-model call in semi-auto or auto mode.
+- Digit buttons need an empty prompt and a band that fits `maxRows`. To type a prompt that
+  starts with 4–9 or 0 while the band is open, put a space first.
 
 ## Install
 

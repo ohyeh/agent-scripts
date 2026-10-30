@@ -1,7 +1,7 @@
 {
   "name": "quick-say",
-  "version": "0.4.0",
-  "description": "Follow-through for the owner's repeated asks: at the end of a main-agent turn, one framed reminder for uncommitted or unpushed work this session made, or for a closing \"shall I?\"; else the likely next combo shows dim in the empty prompt. Digits 5-9 and 0 fill a combo into the prompt.",
+  "version": "0.5.0",
+  "description": "Seven owner combos on digits 4-9 and 0, with manual, semi-auto and auto modes. Gates and auto prompts share a four-message cap and approve nothing. Auto stops on questions or uncertainty and never persists across sessions.",
   "author": {
     "name": "PaulYeh",
     "url": "https://github.com/ohyeh"

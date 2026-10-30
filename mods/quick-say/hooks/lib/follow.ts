@@ -7,6 +7,8 @@ export const APPROVES_NOTHING =
 // A request for permission at the very end of a reply: 要我…嗎？／要不要我…？／shall I …?
 const ASK = /(要我|要不要我|需要我|是否要我|我(?:可以|來)[^。？?\n]*嗎|shall I|should I|want me to|do you want me)[^。\n]*[？?]$/i
 
+export const questionTail = (answer: string) => /[？?]$/.test(answer.split('\n').map(l => l.trim()).filter(l => l && l !== '✈').at(-1) ?? '')
+
 /** The question a reply ends on when it asks leave to act, else undefined. A trailing ✈ line is not the end. */
 export function askTail(answer: string): string | undefined {
   const lines = answer.split('\n').map(l => l.trim()).filter(l => l && l !== '✈')
