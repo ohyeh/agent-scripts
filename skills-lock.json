@@ -69,7 +69,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/defect-first-review/SKILL.md",
-      "skillFolderHash": "2186adeba1cbaca3d201953971f416640611f6b6",
+      "skillFolderHash": "d09eff5ee023fa7da3a0dda3c02006809e8d9bf2",
       "installedAt": "2026-09-03T08:48:35.483Z",
       "updatedAt": "2026-09-17T09:48:23.095Z"
     },
@@ -87,7 +87,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/delegation-templates/SKILL.md",
-      "skillFolderHash": "6bc5cd9a9891d87cb5bb8ff4f1270401814b65f3",
+      "skillFolderHash": "4689d2437c43f6d951434bc795beb641e4ef6180",
       "installedAt": "2026-07-18T20:48:21.471Z",
       "updatedAt": "2026-10-30T13:29:31.637Z"
     },
@@ -178,7 +178,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/session-handoff/SKILL.md",
-      "skillFolderHash": "35ed6447c1fd380e12198393cd098e4254a9cfdd",
+      "skillFolderHash": "a7e28bcf0a52b2ca394e04fc1409f11e0048a829",
       "installedAt": "2026-07-18T20:48:39.017Z",
       "updatedAt": "2026-10-30T13:29:34.015Z"
     },
@@ -251,7 +251,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-decision-tree/SKILL.md",
-      "skillFolderHash": "8c79d1f3d6373c76460049b49557bc949a6f96ef",
+      "skillFolderHash": "6ebd009f996a60505405de0baf85325b707600cc",
       "installedAt": "2026-10-23T00:00:00.000Z",
       "updatedAt": "2026-10-30T03:56:17.023Z"
     },
