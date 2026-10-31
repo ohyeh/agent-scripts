@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { cells, fit, rowsOf } from './lib/band.ts'
 import { APPROVES_NOTHING, askPrompt, askTail, dirOf, gitDirOf, gitPrompt, isCommit, questionTail, type GitGap } from './lib/follow.ts'
 
-const MOD_VERSION = '0.5.0'
+const MOD_VERSION = '0.5.1'
 const NAME = 'quick-say'
 const COMMAND = 'quick-say'
 const ACCENT = 'cyan'
@@ -63,7 +63,7 @@ ${COMMANDER}
     hotkey: '9',
     label: '驗收',
     when: '依已確認的 model 和 task 清單驗收真實產物',
-    text: '驗收：對照規劃期確認的 model 和 plan.md 的 task 清單逐項驗收，每個轉移和每個 task 都要附本 session 實際跑出來的證據，例如指令輸出、exit code、截圖或錄影、commit SHA；單元測試和 smoke 不算能用的證據。專案有 verify skill 就照它的功能地圖跑。沒過的項目列出原因和修法，修完再驗一次。全部通過後，依規則請 reviewer 審驗收結果，有共識才算完成。',
+    text: '驗收：對照規劃期確認的 model 和 plan.md 的 task 清單逐項驗收，每個轉移和每個 task 都要附本 session 實際跑出來的證據，例如指令輸出、exit code、截圖或錄影、commit SHA；單元測試和 smoke 不算能用的證據。專案有 verify skill 就照它的功能地圖跑。沒過的項目列出原因和修法，修完再驗一次。全部通過後，依規則請 reviewer 審驗收結果的客觀問題（bug、安全、證據），有共識才算完成。最後給使用者一張 scope／direction 卡：這次做了哪些、有沒有多做或漏做使用者要的，做法有沒有偏離方向、有哪些取捨要使用者拍板。',
   },
   {
     hotkey: '0',

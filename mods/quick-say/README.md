@@ -39,7 +39,7 @@ with `APPROVES_NOTHING`: it grants no new approval.
 | 6 | 規劃期 | Show a state model first; add code signatures for cross-module or interface work; write the plan after agreement. |
 | 7 | 指揮 | Direct workers through implementation, review and acceptance. |
 | 8 | 指揮＋loop | Run the agreed work to its recorded end conditions. Reuses the full text of 7. |
-| 9 | 驗收 | Check model transitions and tasks against real product evidence and review. |
+| 9 | 驗收 | Check model transitions and tasks against real product evidence; reviewers take objective issues, then a scope／direction card for the owner. |
 | 0 | 收工 | Check delivery, write the handoff and memory submission, and record the next checkpoint. |
 
 `/quick-say` shows or hides the band and lists all full texts.
@@ -48,7 +48,7 @@ The owner's exact texts and the model's `when` hints live in `PHRASES` in `hooks
 ## Band and log
 
 ```
-▌quick say v0.5.0 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
+▌quick say v0.5.1 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
 ```
 
 The band starts folded. Open/fold and hide choices persist across sessions.

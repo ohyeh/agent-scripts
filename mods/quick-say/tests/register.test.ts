@@ -56,7 +56,7 @@ test('the band starts folded, opens, and a combo button fills its whole text int
   await $.session.start(start)
 
   const folded = textOf(await $.ui.render(band()))
-  expect(folded).toContain('▌quick say v0.5.0 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]')
+  expect(folded).toContain('▌quick say v0.5.1 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]')
   expect(folded).not.toContain('0: 收工')
 
   await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above' })
@@ -83,7 +83,7 @@ test('narrow: icons only, labels cut, never wrapped; no room: the phrase row goe
   await $.session.start(start)
 
   const narrow = textOf(await $.ui.render(band(40)))
-  expect(narrow).toContain('▌quick say v0.5.0')
+  expect(narrow).toContain('▌quick say v0.5.1')
   expect(narrow).toContain('[ ◐ ][ ▾ ][ ✕ ]')
   // Seven labels use two rows; each label fits its share.
   expect(narrow).toContain('4: 更深…  5: 前情…  6: 規劃…  7: 指揮')
@@ -114,7 +114,7 @@ test('hide takes the band away across sessions until /quick-say shows it again',
   expect(shown.text).toContain('band shown')
   expect(shown.text).toContain(`0 收工: ${PHRASES[6].text}`)
   expect(w.store.get('quick-say.hidden')).toBe('shown')
-  expect(textOf(await $.ui.render(band()))).toContain('▌quick say v0.5.0')
+  expect(textOf(await $.ui.render(band()))).toContain('▌quick say v0.5.1')
 
   expect((await $.command.run(cmd)).text).toContain('band hidden; /quick-say shows it again.')
 })
@@ -128,7 +128,7 @@ test('all seven owner combos keep their exact keys and texts and only fill the b
     '規劃期：先不要寫 PLAN。先把你理解的系統畫成狀態圖（狀態、轉移、不變條件，用 system model 表示），再依 using-decision-tree 的 design 分支選 motion、diagram 或 canvas 呈現，加上範圍、取捨和還不確定的地方，給我確認我們有共識；會跨模組、動到介面的程式任務，另外附一份程式骨架（型別、簽名、未實作的函式）。我確認以後，才在本任務的 .workflow run dir 寫 plan.md 和 task 清單：每個 task 對應 model 的轉移 ID，並附驗收和驗證方式。',
     '全程指揮模式：所有實作與審查由  workers\n執行（你是大腦：盤點、決策、派發、復驗、定奪），寫少量重要產品code\n\n注意你的主要任务是分析、编排和验证，具体任务尽可能交给 local coding agent cli | grok bot 去执行。\n\n自己只做需求澄清、方案拆解、任务分发和结果验收，实现类工作（读大量代码、写代码、跑测试、批量修改）\n\nDiscover live, never recite from memory.',
     '/loop 完成規劃好的所有內容\n\n全程指揮模式：所有實作與審查由  workers\n執行（你是大腦：盤點、決策、派發、復驗、定奪），寫少量重要產品code\n\n注意你的主要任务是分析、编排和验证，具体任务尽可能交给 local coding agent cli | grok bot 去执行。\n\n自己只做需求澄清、方案拆解、任务分发和结果验收，实现类工作（读大量代码、写代码、跑测试、批量修改）\n\nDiscover live, never recite from memory.\n\n每次ＬＯＯＰ 你要最主動做更多事情\n每一輪不只收尾，而是要主動往下一輪前進\n你要做的是盡可能以完整的完成所有任務為目標 而不是所謂最小 做紮實的修正(而非表面繞過)\n\n請執行，不要隨便停下，不准跟我交談\n\n等待就等待不要一堆廢話 安靜等待 遵守規範\n\n請直接提供最終結果，不需要解釋過程，也不要問我是否需要進一步說明，一次性完成\n所有內容\n\n開跑前在本任務 run dir 的 state 檔寫可檢查的結束條件；達成才停，卡住就換做法繼續，真的走到死路才回報；每輪在 state 檔記一列：改了什麼、結束條件有沒有前進。',
-    '驗收：對照規劃期確認的 model 和 plan.md 的 task 清單逐項驗收，每個轉移和每個 task 都要附本 session 實際跑出來的證據，例如指令輸出、exit code、截圖或錄影、commit SHA；單元測試和 smoke 不算能用的證據。專案有 verify skill 就照它的功能地圖跑。沒過的項目列出原因和修法，修完再驗一次。全部通過後，依規則請 reviewer 審驗收結果，有共識才算完成。',
+    '驗收：對照規劃期確認的 model 和 plan.md 的 task 清單逐項驗收，每個轉移和每個 task 都要附本 session 實際跑出來的證據，例如指令輸出、exit code、截圖或錄影、commit SHA；單元測試和 smoke 不算能用的證據。專案有 verify skill 就照它的功能地圖跑。沒過的項目列出原因和修法，修完再驗一次。全部通過後，依規則請 reviewer 審驗收結果的客觀問題（bug、安全、證據），有共識才算完成。最後給使用者一張 scope／direction 卡：這次做了哪些、有沒有多做或漏做使用者要的，做法有沒有偏離方向、有哪些取捨要使用者拍板。',
     '收工。核對本次目標、驗證及 push 狀態，未完成項目如實列出。用 session-handoff skill 寫可接續的交接，再給 recap：成果、證據、未完成項目與下一步。整理本 session 的錯誤、修正與開發建議，納入 main session、sub-agent 和 tmux worker 的行為，依 shared-memory-intake skill 投稿；附交接與投稿位置。有大任務拆小任務的，交接裡寫明大任務、各小任務狀態、這次停在哪個檢核點與驗證結果、下一個小任務。'
   ]
   expect(PHRASES.map(p => p.hotkey)).toEqual(['4', '5', '6', '7', '8', '9', '0'])
@@ -200,7 +200,7 @@ test('all mode headers fit wide and narrow cells and actionable buttons are not 
       const text = textOf(tree)
       if (width < 36) expect(text).not.toContain('quick say')
       else {
-        expect(text).toContain('▌quick say v0.5.0')
+        expect(text).toContain('▌quick say v0.5.1')
         expect(text).toContain(`[ ${width >= 80 ? label : icon} ]`)
       }
       for (const line of linesOf(tree).filter(l => !l.startsWith('workers v0.46.14'))) expect(cells(line) + (line.includes('▌quick say') ? 4 : 0)).toBeLessThanOrEqual(width)

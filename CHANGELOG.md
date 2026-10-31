@@ -91,6 +91,12 @@ Owner 10-28: 「他會被 queue 住 然後有可能長任務 送出已經不知�
 
 - **A card no longer waits for the long turn**: the relay is a plugin prompt, which runs only once the session is idle, so in a long task the agent read the card long after it showed, without its age. Now, while a main turn runs, the card's line and time go to the agent with the main loop's next tool result (`tool.call` `context`), once. The queued prompt is kept for the explanation and the logged verdict, and says when the card was flagged.
 
+## quick-say 0.5.1
+
+Owner 10-31: 「這個也是我想討論的 reivew 種類分級」「改呀 哪有不同意」.
+
+- **9 驗收 splits review by kind**: reviewers check the objective part (bugs, security, evidence); the combo then asks for a scope／direction card (what was done, anything added or missed, any drift, which trade-offs need the owner). The card speaks of 使用者, so the text stays correct when 自動 sends it as the mod.
+
 ## quick-say 0.5.0
 
 Owner 10-30/31: 「選項要改」「我覺得他應該是 FSD 那樣 可以切換自動、半自動、手動 的哨兵模式」「你沒懂吧 重想過 除了收工 我其他為啥都沒用過」.
