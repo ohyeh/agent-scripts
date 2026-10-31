@@ -46,6 +46,10 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 - Open it at a wide and a narrow width, exercise the controls, read the
   console, and fix clipping, overlap, and overflow.
 - Return the absolute path and one line on the visual and interaction choices.
+- A page served on this host for someone not on this machine: give the tailnet
+  URL that already serves it, opened by you first; never hand `localhost`. Do
+  not run `tailscale serve` unless the user asks, since that publishes a port;
+  with no existing route, report the limit.
 - Plan page: keep the source's commitments recognizable; separate decisions,
   assumptions, and open questions; add no timeline, progress percentage,
   status badge, or summary that the source does not support; show sequence
