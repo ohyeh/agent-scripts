@@ -15,12 +15,10 @@ Since ADR-0001 went ACTIVE, the whole environment deploys from the public
 curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/scripts/deploy.sh | bash
 ```
 
-It downloads the current `main` tarball to a scratch dir and deploys all four
-runtime layers — global files → `~/.claude`/`~/.codex` (md5-verified), rules →
-`~/.agents/rules/` (`rsync -a --delete` — repo is canonical), workflow recipes →
-`~/.claude/workflows/` (install.sh --force), and the skill set (`skills-lock.json`
-→ `npx skills experimental_install`) — each layer printing PASS/FAIL and aborting
-fast on the first failure. This is the primary rebuild path; the per-layer manual
+It downloads the current `main` tarball to a scratch dir and runs the layers
+listed in the `scripts/deploy.sh` header (global files, rules, workflow recipes,
+skills, hooks, Cursor kernel and HUD, agents, and more) — each layer printing
+PASS/FAIL and aborting fast on the first failure. This is the primary rebuild path; the per-layer manual
 procedures below remain the reference for disaster recovery when the script itself
 is unavailable. Live-used on two fleet nodes at W15/W18.
 
@@ -44,7 +42,7 @@ is unavailable. Live-used on two fleet nodes at W15/W18.
 
 ## Rules / Institution
 
-- **Canonical**: routed rules live in `~/.agents/rules/` (both runtimes read them on demand per the global-file routing table); the two global files are native duplicates, `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` (same content, maintained separately, no symlink).
+- **Deployed copy**: routed rules are read from `~/.agents/rules/` (both runtimes read them on demand per the global-file routing table); the two global files are native duplicates, `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` (same content, maintained separately, no symlink).
 - **Rebuild (ADR-0001 ACTIVE)**: rules are version-controlled — the public `agent-scripts` repo's `.agents/rules/` is canonical; machine copies are deployed, direction always repo → machine. Deploy = `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/`. The Fast-path `deploy.sh` does exactly this as its rules layer. Global files are canonical in the repo's `global/` directory, deployed byte-identical to `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`.
 - **Verify**: the `~/.agents/rules/` manifest matches the global-file routing
   table, both global files have the same `Version:` line, `node scripts/check-rules-invariants.mjs`
@@ -61,7 +59,7 @@ From `~/.claude/plugins/known_marketplaces.json`; install: `/plugin marketplace 
 | openai-codex (codex CLI integration) | `openai/codex-plugin-cc` |
 | claude-hud | `jarrodwatts/claude-hud` |
 
-Shared statusline wrapper (Claude Code + Cursor CLI): `scripts/claude-hud-statusline.sh` plus `scripts/cursor-plan-usage.py`. Restore is a manual copy, not a `deploy.sh` layer: `cp scripts/claude-hud-statusline.sh scripts/cursor-plan-usage.py ~/.claude/ && chmod +x ~/.claude/claude-hud-statusline.sh ~/.claude/cursor-plan-usage.py`. Point Claude `settings.json` `statusLine.command` at `bash -c '~/.claude/claude-hud-statusline.sh'` and Cursor `cli-config.json` `statusLine.command` at `~/.claude/claude-hud-statusline.sh` (timeoutMs 5000, updateIntervalMs 1000). Never copy a full `cli-config.json` — it contains auth. Cursor kernel (CLAUDE.md analog): `scripts/install-cursor-kernel.sh` writes `~/.cursor/rules/kernel.mdc` (`alwaysApply: true`) with the same body as `global/AGENTS.md`. Not a `deploy.sh` layer yet — restart the Cursor CLI after install. Do not put the kernel in a project's `AGENTS.md`.
+Shared statusline wrapper (Claude Code + Cursor CLI): `scripts/claude-hud-statusline.sh` plus `scripts/cursor-plan-usage.py`. `deploy.sh` layer 7 installs both and merges the Claude and Cursor `statusLine` (`scripts/install-cursor-hud.sh`); the manual fallback is `cp scripts/claude-hud-statusline.sh scripts/cursor-plan-usage.py ~/.claude/ && chmod +x ~/.claude/claude-hud-statusline.sh ~/.claude/cursor-plan-usage.py`, then point Claude `settings.json` `statusLine.command` at `bash -c '~/.claude/claude-hud-statusline.sh'` and Cursor `cli-config.json` `statusLine.command` at `~/.claude/claude-hud-statusline.sh` (timeoutMs 5000, updateIntervalMs 1000). Never copy a full `cli-config.json` — it contains auth. Cursor kernel (CLAUDE.md analog): `scripts/install-cursor-kernel.sh` writes `~/.cursor/rules/kernel.mdc` (`alwaysApply: true`) with the same body as `global/AGENTS.md`. `deploy.sh` layer 7 runs it; restart the Cursor CLI after deploy. Do not put the kernel in a project's `AGENTS.md`.
 
 ## Skills used by the docs HTML-ification task (commit 6f5ed3b)
 
@@ -70,7 +68,7 @@ Shared statusline wrapper (Claude Code + Cursor CLI): `scripts/claude-hud-status
 | `codex-dynamic-workflows` | workflow orchestration (plan/state/approval gate) | `dannymac180/skills` ✓ installed |
 | `impeccable` | detail-quality gatekeeping | `pbakaus/impeccable` ✓ installed |
 
-> That task also used `design-taste-frontend`, `high-end-visual-design`, `minimalist-ui` and `brandkit`; none is in the lock now (removed 2026-09-27) — **no need** to restore them on rebuild.
+> That task also used `high-end-visual-design`, `minimalist-ui` and `brandkit`; none is in the lock now (removed 2026-09-27) — **no need** to restore them on rebuild. `design-taste-frontend` is back in the lock (restored by the skills layer).
 
 ## Dynamic Workflow Recipes (live-verified 2026-07-10)
 

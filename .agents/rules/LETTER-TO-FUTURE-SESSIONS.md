@@ -79,7 +79,7 @@ the line on is also the cheapest one: with no raw evidence, always say
 1. Load `~/.claude/CLAUDE.md` as usual at session start (Codex uses
    `~/.codex/AGENTS.md`; the routing table lives inside it).
 2. On a non-trivial task → read `rules/model-dispatch.md` first, delegate per
-   the three elements in §3.
+   the §3 assignment contract.
 3. Before declaring completion → go through the `rules/judgment-rubrics.md` §2
    checklist.
 4. Hit a snag → a gate, or a one-line backlog row (maintenance §2), keep working.

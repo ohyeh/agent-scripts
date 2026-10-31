@@ -33,7 +33,7 @@ Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
       only if the reviewer was commissioned against stated acceptance AND you inspect the
       cited live source; otherwise attribute it, relay the verified part, mark the rest `UNCONFIRMED`.
       An exit code quoted as evidence must not pass through a pipe (`cmd | head` reports
-      `head`): use `grep -c`, `${PIPESTATUS[0]}`, or run the command alone. A syntax check
+      `head`): use `grep -c`, `${PIPESTATUS[0]}` (bash; zsh: `${pipestatus[1]}`), or run the command alone. A syntax check
       must match the shebang (`bash -n` does not check a zsh script).
 - [ ] Evidence came from execution THIS session, not from memory or expectation.
 - [ ] Independently verified. Classify by what the change affects, not by file count or diff size. Reversible change: author-run real command/test with quoted exit code suffices (§2b). Irreversible or outward-facing change: a fresh-context agent (not the author) verified it — files: read-back; code: tests or a real run; claims: spot-check.

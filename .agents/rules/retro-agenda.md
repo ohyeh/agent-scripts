@@ -19,7 +19,7 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 - 腳本跑完不等於數字正確（使用者裁定 2026-09-24，W39 F1）：Layer 1 每個值以行內時間戳切窗口，
   不用檔案 mtime；每個 0 值附正例對照，即同一查法在更寬窗口得到 >0；重跑差 0 只證明可重現。
   缺任一項標 UNCONFIRMED，不得進成本表。
-- 產物落在 `agent-scripts/evals/retro-metrics/<ISO-week>/`（gitignored，`.gitignore:14`，只存在執行機），
+- 產物落在 `agent-scripts/evals/retro-metrics/<ISO-week>/`（gitignored：`.gitignore` 的 `evals/retro-metrics/*`，`*.py` 例外進版控；只存在執行機），
   至少三檔：`plan.md`、`retro-report.md`、`next-week-backlog.md`。窗口在 `plan.md` 開跑前寫定，
   終點必須是過去的時間；下一輪從這個終點接續。
 - 公開 repo 衛生：產物只寫機器鍵。`scripts/scrub.sh` 只掃 git index，掃不到 gitignored 的 run dir——

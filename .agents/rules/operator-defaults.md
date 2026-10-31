@@ -85,7 +85,7 @@ Chain these for planning and investigation work:
   owner approved and a stop method that works. A token or time budget is not a money cap.
 - When a round makes the target metric worse, revert that round's change. Do not keep it on
   the branch.
-- Apply the §8 budget across sessions. Stop when the loop meets the outcome.
+- Apply the judgment-rubrics §8 budget across sessions. Stop when the loop meets the outcome.
   Start a new goal only from an approved goal queue.
 
 ## Shape every output
