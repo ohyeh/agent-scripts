@@ -229,6 +229,21 @@ test('a mode change clears auto stop from the header and lets auto send again', 
   expect(w.nudges().length).toBe(1)
 })
 
+test('a mode change after four auto sends gives auto a fresh streak, not an instant stop', async ($, on) => {
+  const w = world(on, () => '續跑')
+  await $.session.start(start)
+  await $.command.run(mode('自動'))
+  for (let i = 0; i < 5; i += 1) await $.turn.complete(done(`第 ${i + 1} 步完成。`))
+  expect(w.nudges().length).toBe(4)
+  const rows = () => [...w.files.values()].join('').trim().split('\n').map(l => JSON.parse(l))
+  expect(rows().at(-1).reason).toBe('連續送滿 4 句')
+  await $.command.run(mode('半自動'))
+  await $.command.run(mode('自動'))
+  await $.turn.complete(done('第 6 步完成。'))
+  expect(w.nudges().length).toBe(5)
+  expect(rows().at(-1).event).toBe('sent')
+})
+
 test('turn.complete returns before either a gate or auto prompt finishes submission', async ($, on) => {
   let entered = () => {}
   let release = () => {}

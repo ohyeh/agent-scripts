@@ -91,6 +91,12 @@ Owner 10-28: 「他會被 queue 住 然後有可能長任務 送出已經不知�
 
 - **A card no longer waits for the long turn**: the relay is a plugin prompt, which runs only once the session is idle, so in a long task the agent read the card long after it showed, without its age. Now, while a main turn runs, the card's line and time go to the agent with the main loop's next tool result (`tool.call` `context`), once. The queued prompt is kept for the explanation and the logged verdict, and says when the card was flagged.
 
+## quick-say 0.5.2
+
+Owner 10-31: 「這要修掉吧」.
+
+- **A mode change gives auto a fresh four-prompt count**: after 4 auto sends, pressing the mode button or running `/quick-say mode` cleared only the stop reason. The header looked resumed, but the next turn stopped again on `連續送滿 4 句` until the owner typed. A mode change now also resets the count, as an owner prompt does.
+
 ## quick-say 0.5.1
 
 Owner 10-31: 「這個也是我想討論的 reivew 種類分級」「改呀 哪有不同意」.

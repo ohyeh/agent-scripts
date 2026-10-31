@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { cells, fit, rowsOf } from './lib/band.ts'
 import { APPROVES_NOTHING, askPrompt, askTail, dirOf, gitDirOf, gitPrompt, isCommit, questionTail, type GitGap } from './lib/follow.ts'
 
-const MOD_VERSION = '0.5.1'
+const MOD_VERSION = '0.5.2'
 const NAME = 'quick-say'
 const COMMAND = 'quick-say'
 const ACCENT = 'cyan'
@@ -220,6 +220,8 @@ const list = () => PHRASES.map(p => `${p.hotkey} ${p.label}: ${p.text}`).join('\
 
 async function setMode($: EngineInterface, s: State, mode: Mode) {
   s.mode = mode
+  // A mode press is the person's own act, like a typed prompt: it ends the streak too.
+  s.streak = 0
   s.stopped = ''
   $.ui.invalidate('ui.render')
   await $.store.set(MODE_KEY, mode).catch(err => $.ui.toast(`${NAME}: mode not saved (${errText(err)})`))
