@@ -9,10 +9,10 @@ re-verify must be treated as UNCONFIRMED, not repeated as fact.
 - Session model: `claude-opus-5-5[1m]` via `/model` default (settings `model` is unset);
   global effort `low`, per-model `modelSettings.claude-opus-5-5.effortLevel: xhigh`
   (`~/.claude/settings.json`).
-- Agent tool `model` parameter accepts exactly: `sonnet` | `opus` | `haiku` | `fable`.
-  The Agent tool has NO `effort` parameter — effort comes from the agent definition
-  (`.claude/agents/*.md` frontmatter) or `Workflow` script `agent(..., {effort})`
-  (`low|medium|high|xhigh|max`), otherwise it inherits the session effort.
+- Claude Code Agent tool: `model` (`sonnet` | `opus` | `haiku` | `fable`) and `effort`
+  (`low|medium|high|xhigh|max`); omitted effort comes from the agent definition
+  (`.claude/agents/*.md` frontmatter), else the session. `Workflow` scripts use
+  `agent(..., {effort})`. Other runtimes' task tools may lack `effort`: read the live schema.
 - Current model IDs: model-dispatch §1 (owner). A flagged Opus 5.5 message moves the session to an
   older model; the `/config` toggle "Switch models when a message is flagged" controls
   it (settings.json key UNCONFIRMED).

@@ -53,21 +53,11 @@ the line on is also the cheapest one: with no raw evidence, always say
 
 ## III. Honesty clause: where my output is least confident
 
-1. **The "task type → model" mapping table in model-dispatch §4.** The model
-   names and parameters are verified live; but "which task gets which model" is
-   my inference from a general capability ladder, not calibrated against your
-   actual quota or real cases. For example, Sonnet 5 may well be enough for most
-   hard debugging, and I have no idea what Opus 4.8 costs against your quota.
-   Revise the table after two weeks of lived experience — as an exact diff to
-   model-dispatch (maintenance §1).
-2. **Whether requests routed to Opus 4.8 consume Fable quota**: couldn't verify
-   this, unconfirmed. Check the usage dashboard on claude.ai and write the
-   conclusion into model-dispatch §1 as an exact diff.
-3. **Diagnosis §2 (style conflicts as one of the main causes of drift)**: the
+1. **Diagnosis §2 (style conflicts as one of the main causes of drift)**: the
    three contradictory injections are a verified fact; "it's the main cause" is
    an inference — no controlled experiment was run. I'm confident in the
    direction, not in the ranking.
-4. **The precedence order itself is a judgment call.** Decomposition and
+2. **The precedence order itself is a judgment call.** Decomposition and
    verification can improve execution quality, but they can't fill in this kind
    of discretion — this is exactly the sort of thing the task's own "honesty
    clause" predicted. My approach: say plainly that it's discretionary, and let

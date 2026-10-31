@@ -157,8 +157,9 @@ retro 開跑時與報告收尾前各一次，以 SSH 收齊每台在編機器的
 
 ### 6.7 更深的問題（2026-10-08 起每週固定）
 問題原文：「在我最近反复讨论的问题背后，有没有一个更深的问题，是我一直在绕着它走，却没有真正问出来的？」
-- 執行：派 opus effort xhigh 的 worker（agent-tmux profile `claude-opus55-xhigh`，per-machine 設定在
-  `~/.config/agent-tmux/profiles/`，不在 repo；機器上沒有就先建），不由主 session 作答。
+- 執行：派 opus effort high 的 worker（agent-tmux profile `claude-opus55-high`，per-machine 設定在
+  `~/.config/agent-tmux/profiles/`，不在 repo；機器上沒有就先建），不由主 session 作答；只有符合
+  `model-dispatch` §5（兩次有證據的 high 失敗，或使用者明確選擇）時才用 xhigh。
 - 輸入：使用者近 4 週三台機器的原話（含 Grok Bot agents）、本週 human-signal、近幾輪 report／backlog／對帳、kernel 與 git log。
 - 產出 `<run dir>/deeper-question.md`：一句主問題（用使用者會問的方式）＋至多 2 個次選；
   主問題 ≥5 句原話引用（跨 ≥2 台、≥2 週）；最強反駁與為何沒勝出；下週可量的驗證訊號與門檻。

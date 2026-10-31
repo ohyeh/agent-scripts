@@ -22,7 +22,7 @@ version there: pick another runtime or a same-tier model of another family.
 
 | Claude tier | Current ID | Role |
 |---|---|---|
-| `opus` | `claude-opus-5-5` (live 2026-09-24; API default effort `medium`, effort sweep pending) | DEFAULT worker at effort `high`, never lower (owner ruling 2026-10-30「至少 high」): implementation, refactor, research, first review; `xhigh` for architecture, hard debugging, adversarial review |
+| `opus` | `claude-opus-5-5` (live 2026-09-24; API default effort `medium`, effort sweep pending) | DEFAULT worker at effort `high`, never lower (owner ruling 2026-10-30「至少 high」): implementation, refactor, research, first review; architecture, hard debugging, adversarial review also start at `high`, `xhigh` only per §5 (two evidenced failures at `high`) |
 | `sonnet` | `claude-sonnet-5-5` (live 2026-10-01) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, solved-pattern batches; effort floor `medium` (user ruling 2026-10-01: at `low` it skips instructions); no planning, synthesis, revision, or verdicts |
 | `fable` | `claude-fable-5-1` | scarce; at `low` often beats opus/sonnet on cost per task — include in any sweep; picker rejection falls back to `opus` |
 | `haiku` | `claude-haiku-5-5` (live 2026-10-10) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, bulk tagging or extraction (including web/community scans); effort floor `medium`; no planning, synthesis, revision, or verdicts |
@@ -40,7 +40,7 @@ For phone or device UI work, the commander relays only secrets and hard-stop ste
 | commander | `gpt-6.1-sol` | `medium` | `xhigh` only for materially large/hard work |
 | plan | `gpt-6-astra` | `medium` | `high`; `xhigh` only for major architecture/security/ambiguity |
 | review/judgment | review ladder (§4 Review ladder): `gpt-6-luna` xhigh/max at L1 on request; `gpt-6-astra` low/medium or `gpt-6.1-sol` medium+ at L2 | per seat | reviewer is not the author; each seat runs its tier row's effort, no step-up |
-| execution | `gpt-6-luna`; explicit Sol; or external | Luna `xhigh`/`max`; Sol low/medium | Sol workers stop at `medium` |
+| execution | `gpt-6-luna`; explicit Sol; or external | Luna `xhigh`/`max`; Sol `medium`+ | Sol never below `medium` |
 
 Codex dispatch models: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna` — no others. Other catalog models
 (`gpt-6.1-terra` and the rest) are not dispatch targets. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
@@ -70,8 +70,8 @@ sit on several rows at different efforts. `medium+` = that effort or higher.
 |---|---|---|---|---|---|
 | best | plan, verdict (preferred) | `fable` low / medium | `gpt-6-astra` low / medium | `gemini-4-argon-low` / `-medium` or later | — |
 | better | plan, verdict | `opus` high+ | `gpt-6.1-sol` medium+ | — | — |
-| exec | implementation | `opus` high; `sonnet` high+ | `gpt-6.1-sol` low / medium; `gpt-6-luna` xhigh / max | `gemini-3.8-flash-medium` or later | `grok-4.7-xhigh-fast` or later |
-| basic | gathering, mechanical | `sonnet` medium; `haiku` high+ | `gpt-6.1-sol` low; `gpt-6-luna` xhigh / max | — | — |
+| exec | implementation | `opus` high; `sonnet` high+ | `gpt-6.1-sol` medium+; `gpt-6-luna` xhigh / max | `gemini-3.8-flash-medium` or later | `grok-4.7-xhigh-fast` or later |
+| basic | gathering, mechanical | `sonnet` medium; `haiku` high+ | `gpt-6.1-sol` medium; `gpt-6-luna` xhigh / max | — | — |
 | cheap | gathering, mechanical | `haiku` medium | — | — | — |
 
 Pending fallback, not active until a §8 sweep passes: `opus` high / xhigh for best; `sonnet`
@@ -288,13 +288,13 @@ Default effort per tier (user ruling 2026-10-10); the commander moves it per tas
 
 | Tier | Start | Floor | Ceiling without evidence |
 |---|---|---|---|
-| `opus` | `high` | `high` (owner ruling 2026-10-30「至少 high」) | `xhigh` |
+| `opus` | `high` | `high` (owner ruling 2026-10-30「至少 high」) | `high` |
 | `fable` | `low` | `low` | `high` |
 | `sonnet` | `medium` | `medium` (at `low` it skips instructions) | `high` |
 | `haiku` | `medium` | `medium` | `high` (at `max` it used 440M output tokens on the Artificial Analysis Intelligence Index vs a 100M median, checked 2026-10-10) |
 
 Move it dynamically, one step at a time, and say why in the dispatch record (§7):
-- Up front, +1: planning, architecture, risky or adversarial review, root-cause convergence.
+- Up front, +1: planning, architecture, risky or adversarial review, root-cause convergence. Claude tiers stop at `high` here; `xhigh` follows the rule below.
 - After an evidenced failure, +1 where the retry ladder below permits it; that ladder controls any
   required jump to worker high or advisor. First fix decomposition or missing context.
 - Down, −1: the hard part is solved and the rest is a mechanical batch with one worked example.
@@ -314,8 +314,8 @@ Move it dynamically, one step at a time, and say why in the dispatch record (§7
 
 Effort names are NOT equivalent across models (Fable 5.1 guide): re-run the sweep when the model
 changes. Before `xhigh`/`max`, prefer bounded same-tier sampling
-plus a judge when cheaper. Workflow `agent()` calls set effort explicitly. Sol workers never
-exceed `medium`; Sol high+ is reserved for the commander.
+plus a judge when cheaper. Workflow `agent()` calls set effort explicitly. Sol runs at
+`medium` or above; raise it by the same ladder as other tiers.
 
 Same approach: three rounds total, each one tier UP — worker low/medium → worker high (or a
 stronger model) → advisor (second model, e.g. `consensus-gate`) with the full trail. The same

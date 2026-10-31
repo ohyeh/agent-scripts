@@ -125,7 +125,7 @@ go to the user (the known-answer test settles the rest without a ladder):
    record cannot answer (cost, risk appetite, priority), or acting would override an
    explicit user instruction.
 Report the decision, who agreed, and the evidence; the user overrides after the fact.
-Guidance edits (maintenance §1) still need the user's approval of the exact diff.
+Guidance edits follow the maintenance §1 matrix: rules settle by consensus and are reported; kernel, settings and skills need the user's approval of the exact diff.
 
 ## §4 Wrong-direction signals — change approach, do not retry
 Apply: after every failed attempt. Any TWO of these → the approach is wrong; the same idea
@@ -174,7 +174,7 @@ Apply: before handing over any artifact (code, doc, config, report).
 - [ ] Code: existing tests pass; new non-trivial logic has one runnable check (assert-based demo or one small test); no placeholder text (`TODO: implement`, `...`, lorem) left; matches surrounding style.
 - [ ] Docs/rules: every path, command, model name, version verified live this session; no rule contradicts CLAUDE.md; concrete enough that a model without this conversation's context could follow it. A doc embedding a computed fingerprint (aggregate hash, count) re-derives it in the same commit that changes any hashed input.
 - [ ] Tests for code that consumes a library's serialized output: at least one fixture is built WITH that library and the test asserts the transform happened (e.g. output strictly smaller than input) — a hand-written literal tests the fixture, not the contract. Never run a build-producing suite while a delegated worker may be building the same tree.
-- [ ] Complex explanations: use the smallest visual only when it materially clarifies mappings, branches, sequence, or hierarchy; otherwise use concise prose.
+- [ ] Complex explanations: structure or dynamics (mappings, branches, sequence, hierarchy, comparisons) get a diagram per operator-defaults Diagram-first; a trivial one-step answer stays prose.
 - [ ] Research: prefer primary/official sources, then authoritative specs; distinguish documented facts from inference and mark unsupported claims `UNCONFIRMED`.
 - [ ] Reports: conclusions first; every claim has evidence or `file:line`; inferred vs verified separated; most likely failure point named.
 - [ ] Analysis: label each number used for a conclusion as measured or proxy.

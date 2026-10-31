@@ -112,14 +112,15 @@ Chain these for planning and investigation work:
   no placeholders left, and it says where to run it (which host, which directory).
 - Use lists or numbered options when the content has many parts or the user must
   choose (the `adhd` output discipline: diverge, then converge). Keep a chat reply
-  or a single idea in prose. Lead with the outcome; make it shorter by choosing
+  in prose only when it is a trivial one-step answer; a reply that introduces or
+  explains a concept follows Diagram-first below. Lead with the outcome; make it shorter by choosing
   content, not by packing sentences.
 - Run the full `adhd` parallel divergence at key, high-stakes, open-ended
   moments. A routine turn keeps the discipline without the parallel fan-out.
 - Diagram-first (user standing preference 2026-08-17): when the deliverable
   explains structure or dynamics — architecture, flows, timelines, comparisons,
-  decision trees, retro/plan reports — proactively render it with
-  `diagram-design` (HTML/SVG) instead of describing it in prose only; send the
+  decision trees, retro/plan reports — proactively render it as a diagram
+  (tool: artifacts-rules §Diagram) instead of describing it in prose only; send the
   file. Skip only for trivial one-step answers or when the user asks for text.
 - Size first (user standing preference 2026-10-13): before you answer, estimate
   the content. Many items, numbers, or statuses to scan and compare → a

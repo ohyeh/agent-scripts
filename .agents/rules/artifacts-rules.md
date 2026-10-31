@@ -9,10 +9,12 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 
 ## Pick the format by size
 
-- One thread the reader takes top to bottom → prose or `md`.
+- A trivial one-step reply, or the user asks for text → prose or `md`. Introducing or
+  explaining a concept, plan, or change → one of the visual rows below (diagram by default).
 - Many items, numbers, or statuses the reader scans and compares (for example
   more than five rows of metrics, or several parallel sections) → a dashboard.
-- Structure, flow, or relationships that prose describes poorly → a diagram.
+- Structure, flow, timelines, comparisons, or relationships → a diagram (operator-defaults
+  Diagram-first), unless the answer is a trivial one-step reply or the user asks for text.
 - Order of steps or change over time IS the point → motion. Motion that does
   not carry order or change is decoration: leave it out.
 - Do this without being asked. The user should not have to request the page.
