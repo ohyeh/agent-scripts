@@ -4,7 +4,7 @@ Verified: 2026-07-10 on Claude Code 2.1.205 (macOS). Facts below were
 looked up live this session, not recited from memory. Anything a future session cannot
 re-verify must be treated as UNCONFIRMED, not repeated as fact.
 
-## Environment snapshot (verified 2026-07-10; model lines re-verified 2026-09-24)
+## Environment snapshot (verified 2026-07-10; model lines re-verified 2026-09-24; Agent tool line re-verified 2026-10-31 on CC 2.1.316)
 
 - Session model: `claude-opus-5-5[1m]` via `/model` default (settings `model` is unset);
   global effort `low`, per-model `modelSettings.claude-opus-5-5.effortLevel: xhigh`
