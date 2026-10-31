@@ -51,6 +51,8 @@ Tab mechanics (each checked 2026-10-16 with `lsappinfo front` before and after):
 - After a click that changes data (delete, submit), check the result with rung 1,
   not the page: `getAXState` timed out on `DOMSnapshot.captureSnapshot` right
   after a delete.
+- A submit that timed out may have landed: read the state with rung 1 before
+  any retry; never resend blind.
 
 ## Quickstart (read first)
 
