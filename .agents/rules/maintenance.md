@@ -61,6 +61,11 @@ availability change. In the same turn, pick exactly one outcome:
   already covered by a gate or rule — cite its `file:line`; if that gate or rule is
   what failed, the outcome is fixing it in place (Rule fix), not a new one.
 
+For a repeated error, look for the fix in this order. First, ask whether the existing data
+flow, types, or interfaces can remove the bad path. Second, use an existing local lint or
+test. Third, fix the skill or rule. Human review is last. Build no speculative platform and
+no cloud CI (GitHub Actions stay banned).
+
 ## §3 Backlog row format
 One file in `~/.agents/retro-inbox/pending/` (`mkdir -p` it if absent), named
 `<UTC>-<slug>.md`, with `kind: proposal` in its YAML frontmatter and this body line:
@@ -87,6 +92,11 @@ rule fix (commit sha), or as dropped (user approval, §1).
   (where the runtime provides them), close every open backlog row with the user,
   turn confirmed frictions into gates or rule fixes, prune rules that stopped earning their place,
   and bump the `Version:` line in CLAUDE.md — all as a PROPOSED diff, per §1.
+- When a rule seems to cause extra work, compare the same task, repo snapshot, and model
+  with and without that rule. Record the cost and the acceptance difference before you
+  propose the change. Never experiment on deployed config.
+- A rule added for a temporary model or tool gap states, in the same sentence, the condition
+  that removes it.
 - Quarterly (first session of each quarter) at minimum: re-verify model-dispatch §1
   and run the periodic review above if it hasn't happened this quarter.
 

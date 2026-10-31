@@ -59,7 +59,7 @@ Open the generated file and fill in all `[TODO: ...]` sections. Prioritize these
    A user quote is the user's verbatim words with a date; a filled `Q-n` `ans:` counts.
    A user-reviewed work record is an artifact page or spec the user reviewed. A handoff or an agent note is not one.
    Put your own ideas under "Agent Proposals (not requested)".
-4. **Decisions Made** - Choices with rationale (not just outcomes)
+4. **Decisions Made** - Choices with rationale (not just outcomes). Record the main rejected options, why each was rejected, and what new evidence would reopen it. Use the task's own decision or handoff file; do not create a standing DECISIONS.md.
 5. **Mistakes and Corrections** - Wrong turns and user corrections, with evidence; a rule proposal goes to `~/.agents/retro-inbox/pending/` and only its file name goes here
 6. **Timeline** - The session in order: each user message, ruling and correction as a `user` row (UTC time, short verbatim quote), and each state change (commit, push, deploy, worker start/stop) with its evidence. Run the RESUME Step 3b filter for your CLI on this session's own log. Copy its `COUNT <n>` line into the section and write one `user` row per printed line, from the full output, not from memory or a summary.
 

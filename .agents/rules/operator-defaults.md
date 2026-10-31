@@ -39,8 +39,17 @@ Chain these for planning and investigation work:
   files under HOME). Each test file runs from a runner the repository names; a test no runner
   reaches is residue: wire it or delete it. Reviewers apply the same bar: a "missing test" finding
   names the regression it detects, and a reviewer may ask to merge or delete a duplicate test.
+  Iterate on the related tests. Before merge or delivery, run each lane the repository requires,
+  in full. A watch-mode result is not full-suite evidence. A valid result on unchanged input may
+  be reused. A migration that keeps behavior: run the old and the new code on the same fixed
+  inputs and compare outputs and side effects. Each difference maps to an accepted contract
+  change. New tests that all pass do not prove equivalence.
   Do not add a gate script for this rule (2026-10-11: tmux-agent-tools smokes grew to
   80 files / 5:32 one file per feature; cut to 33 / 1:08).
+- Bulk change to a device or config: before the change, record the before-values and the
+  restore method. List the functions it affects. After the change, read each value back. "Reversible"
+  does not prove that a restore works. Acceptance includes the user's own daily functions
+  (messages, common apps). List a function you cannot test as UNCONFIRMED.
 - Tool lookup: first, use the tool copy bundled with the skill or script, or the copy at the execution location.
   Use `PATH` only if that copy is absent. Report which copy you use.
   Do not hardcode a single tool path.
@@ -72,6 +81,10 @@ Chain these for planning and investigation work:
   acceptance condition (judgment-rubrics §2/§9). Before the loop starts, show
   that the verifier fails on a broken product, a missing input, and a timeout.
   Do not change the verifier to make a round pass.
+- An unattended loop that calls a paid API: before it starts, record the money cap that the
+  owner approved and a stop method that works. A token or time budget is not a money cap.
+- When a round makes the target metric worse, revert that round's change. Do not keep it on
+  the branch.
 - Apply the §8 budget across sessions. Stop when the loop meets the outcome.
   Start a new goal only from an approved goal queue.
 

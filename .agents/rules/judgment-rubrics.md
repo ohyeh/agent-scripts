@@ -255,6 +255,10 @@ repeat those checks here. This section does not require another judge call.
    Follow the task's review order and reuse unchanged evidence (§2). A judge output cannot
    waive a required check, an approval, or completion evidence (§2/§3); resolve a failing
    required check in the owning workflow before passing the affected gate.
+5. Metric loops. Before a loop optimizes a metric, check whether the time window, the sample
+   mix, or the denominator changed. Record a fixed baseline and a quality guard. Remove noise
+   first (for example, take the median over runs). A better raw number alone is not a better
+   result.
 - Positive: A required triage judge times out. Keep the affected findings unclassified and do
   not send them to auto-fix. Report the timeout and gather the missing evidence within the
   current scope and budget. Ask the user only when §3 or §8 requires it.

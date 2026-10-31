@@ -245,6 +245,11 @@ Workflow({ scriptPath: "<abs path>/feature-plan-consensus.workflow.js", args: {.
   project-local recipe (53 sessions on one host) with the repo-specific
   default removed. **See the file header for args examples.**
 
+## Scheduled or incremental runs
+
+Keep a per-source bookmark of the last successful item. Move the bookmark only after the
+batch succeeds. Dedupe on replay. "The last 24 hours" is not a substitute for a bookmark.
+
 ## Shared helper: `_lib/safe.js`
 
 The **canonical repo source** of the three silent-failure guards

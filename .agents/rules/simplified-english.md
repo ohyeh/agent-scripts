@@ -38,6 +38,9 @@ You MUST follow this rule in three cases:
   recommended option first and state each action and consequence.
 - Keep technical terms in their original form. Translate no identifier, API
   name, command, or filename.
+- A rewrite keeps the source's facts, promises, deadlines, owners, and done-state. Do not
+  turn "refund in progress" into "refunded". A tone fix adds no apology, guarantee, or
+  decision.
 - Name things by the identifier in the code. Define a coined label on first use
   or cut it; never leave a term that only this session understands.
 

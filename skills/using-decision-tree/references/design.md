@@ -142,6 +142,10 @@ discipline. 3. DESIGN.md conformance. 4. The stage's frozen ACCEPTANCE.
 polish no ACCEPTANCE line names is a NOTE: list it, do not BLOCK, do not open
 a fix round. Only NOTEs → `VERDICT: PASS`.
 
+**Form submit:** ACCEPTANCE names two lines. After a failure, the form keeps the filled
+input. Each error that belongs to a field links to that field. Verify with one real failure
+path.
+
 **Report contract:** per item PASS / FAIL / UNCONFIRMED + one-line reason;
 findings tagged persistent/new/regression/evidence-gap; all blockers in one
 pass; final line exactly `VERDICT: PASS` or `VERDICT: BLOCK`, quoted in your

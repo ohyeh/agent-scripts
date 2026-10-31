@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.43.0-ironlaws
+Version: 4.44.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +

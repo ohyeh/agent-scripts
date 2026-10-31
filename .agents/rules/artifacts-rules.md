@@ -50,6 +50,9 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
   URL that already serves it, opened by you first; never hand `localhost`. Do
   not run `tailscale serve` unless the user asks, since that publishes a port;
   with no existing route, report the limit.
+- Dashboards and status pages: show drafts and pending items apart from actions
+  already done outside the page. A done action carries the real action and its
+  read-back evidence.
 - Plan page: keep the source's commitments recognizable; separate decisions,
   assumptions, and open questions; add no timeline, progress percentage,
   status badge, or summary that the source does not support; show sequence
@@ -60,6 +63,9 @@ diagram form by the reader's question, legible labels, `prefers-reduced-motion`
 
 - Owner: the diagram rows of skill `using-decision-tree` (design branch).
 - More than about nine nodes → split into an overview and a detail diagram.
+- Each relation drawn from source text points back to that text or trace. Do not add an
+  edge the source does not support to improve the layout. State what an arrow means: order,
+  data flow, or cause. Do not draw a time sequence as cause.
 - Which diagrams animate, and how: skill `using-decision-tree`, design branch §Contracts.
 - Static first: with JS off, in reduced motion, in print, and in every
   export, the complete labeled figure is visible, except where a member row of
