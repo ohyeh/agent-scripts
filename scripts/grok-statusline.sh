@@ -5,6 +5,7 @@
 # - Grok's stdin is close to Claude's (model, workspace, context_window, cost);
 #   see ~/.grok/docs/user-guide/25-status-line.md "Available data".
 # - transcript_path is Grok's own updates.jsonl, not a Claude transcript: dropped.
+# - session_name is dropped: Grok shows it as the window title.
 # - No rate_limits: the Cursor plan snapshot is not exported, so the HUD shows none.
 # - Footer: session id, compaction threshold, Ponytail badge.
 #
@@ -29,7 +30,8 @@ footer=$(printf '%s' "$input" | jq -r '[
 # Grok omits model when the agent cannot read it: fall back to the config default (agy does the same).
 cfg_model=$(awk -F'"' '/^\[/{s=($0=="[models]")} s && /^default[[:space:]]*=/{print $2; exit}' "${HOME}/.grok/config.toml" 2>/dev/null)
 hud_in=$(printf '%s' "$input" | jq --arg m "$cfg_model" '
-  del(.transcript_path)
+  # session_name is already the Grok window title; in the row it pushed Cost onto its own line.
+  del(.transcript_path, .session_name)
   | .workspace.project_dir = (.workspace.repo_root // .workspace.current_dir // .cwd)
   | if (.model.display_name // "") == "" and $m != "" then .model = {id: $m, display_name: $m} else . end')
 
