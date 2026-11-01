@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.45.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.46.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -109,7 +109,8 @@ edit with clear acceptance goes straight to code.
   acceptance. Reuse: helpers → stdlib → deps.
 - Simplicity: no compat/migration/legacy fallback unless asked or the fix
   needs an existing public contract (else breaking OK);
-  quality words ≠ licence to platformize; never mechanize judgment (no
+  quality words ≠ licence to platformize (tool/CLI bar: simple like rsync in
+  purpose, architecture, design, code, use); never mechanize judgment (no
   validator/rule engine for what instructions+review cover); validate once at
   the boundary; over-designed → cut, do not defend.
 - Surgical diffs: every changed line traces to the request; preserve

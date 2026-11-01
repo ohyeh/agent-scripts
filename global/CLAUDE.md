@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.45.0-ironlaws
+Version: 4.46.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -153,7 +153,10 @@ replaces reading the touched code.
   compatibility, migration shim, legacy fallback, or backfill unless the user
   asks or the requested fix cannot work without preserving an existing
   public contract — otherwise breaking changes are acceptable by default. 完美/長遠/通用/perfect
-  name a quality bar, never authorization to platformize; future extensions
+  name a quality bar, never authorization to platformize. For a tool, script,
+  or CLI, that bar is rsync: a simple purpose, architecture, design,
+  implementation, and use. When one of the five is not simple, make it
+  simpler before you add to it. Future extensions
   are one-line notes in the final message, never extra code, schemas, tiers,
   modes, or config surfaces. Do not mechanize judgment: no hardcoded
   validator, closed error-code set, alias table, or rule engine for what
