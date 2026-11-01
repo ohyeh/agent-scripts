@@ -270,8 +270,13 @@ alwaysApply: true
 # Ponytail fixture
 EOF
 printf '[models]\ndefault = "m"\n\n[ui.status_line]\ntype = "builtin"\n' > "$L/.grok/config.toml"   # old table gets replaced
+# A link into ~/.agents/skills (made by `npx skills upgrade -g`) is removed; a real dir stays.
+mkdir -p "$L/.agents/skills/dup" "$L/.grok/skills/own"
+ln -s ../../.agents/skills/dup "$L/.grok/skills/dup"
 lrun 0 layer_grok
 assert test "$RC" = 0
+assert test ! -L "$L/.grok/skills/dup"
+assert test -d "$L/.grok/skills/own"
 assert test "$(head -1 "$L/.grok/rules/ponytail.md")" = "# Ponytail fixture"
 assert grep -qxF 'command = "~/.grok/statusline.sh"' "$L/.grok/config.toml"
 assert test "$(grep -c '^\[ui\.status_line\]$' "$L/.grok/config.toml")" = 1

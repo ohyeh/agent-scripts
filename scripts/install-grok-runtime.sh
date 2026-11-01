@@ -57,6 +57,19 @@ else
   echo "PASS [grok-own] $dst (body of $src, md5=$dst_md5)"
 fi
 
+# Grok reads ~/.agents/skills itself. `npx skills upgrade -g` also links each updated
+# skill into ~/.grok/skills; such a link duplicates the same skill, so remove it.
+# Only symlinks that resolve into ~/.agents/skills; real dirs and other links stay.
+agents_skills="$(cd "${HOME}/.agents/skills" 2>/dev/null && pwd -P || true)"
+if [ -n "$agents_skills" ] && [ -d "${HOME}/.grok/skills" ]; then
+  for l in "${HOME}/.grok/skills"/*; do
+    [ -L "$l" ] || continue
+    case "$(cd "$l" 2>/dev/null && pwd -P)" in
+      "$agents_skills"/*) rm "$l"; echo "PASS [grok-own] removed duplicate link $l (Grok reads ~/.agents/skills)" ;;
+    esac
+  done
+fi
+
 cfg="${HOME}/.grok/config.toml"
 touch "$cfg"
 # Append a table only when its header is absent; a present table is the user's to tune.
