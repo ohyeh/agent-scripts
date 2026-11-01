@@ -61,8 +61,12 @@ say_warn "inspect has no hook-error field; hook load errors are not checked"
 want_skills=0
 [ ! -d "$HOME/.agents/skills" ] ||
   want_skills="$(find "$HOME/.agents/skills" -mindepth 2 -maxdepth 2 -name SKILL.md | wc -l | tr -d ' ')"
-got_skills="$(q --arg d "$HOME/.agents/skills/" '[.skills[]? | (.source.path? // .path // "")
-  | select(startswith($d) and (ltrimstr($d) | test("^[^/]+/SKILL\\.md$")))] | length')"
+# By realpath: `npx skills upgrade -g` links ~/.grok/skills/<name> -> ~/.agents/skills/<name>,
+# and Grok then reports that skill under the ~/.grok path.
+skills_root="$(realpath "$HOME/.agents/skills" 2>/dev/null || echo "$HOME/.agents/skills")/"
+got_skills="$(q '.skills[]? | (.source.path? // .path // "")' | while IFS= read -r p; do
+  [ -n "$p" ] && realpath "$p" 2>/dev/null
+done | awk -v d="$skills_root" 'index($0, d) == 1 && substr($0, length(d) + 1) ~ /^[^\/]+\/SKILL\.md$/' | sort -u | wc -l | tr -d ' ')"
 if [ "$want_skills" = "$got_skills" ]; then
   say_pass "$got_skills/$want_skills ~/.agents/skills visible"
 else
