@@ -20,6 +20,20 @@ say_warn() { echo "WARN [grok-runtime] $*" >&2; }
 
 inspect="$(cd "$HOME" && grok inspect --json)" || { say_fail "grok inspect --json exit $?"; exit 1; }
 q() { jq -r "$@" <<<"$inspect"; }
+# Value of key under an exact table header. Empty if the key is absent.
+# Scope resets at the next [ — same shape as the [ui.status_line] scan below.
+toml_val() { # $1 file, $2 header, $3 key
+  awk -v table="$2" -v key="$3" '
+    $0 == table { s=1; next }
+    /^\[/ { s=0 }
+    s && $0 ~ ("^" key "[[:space:]]*=") {
+      sub(/^[^=]*=[[:space:]]*/, "")
+      sub(/[[:space:]]+$/, "")
+      print
+      exit
+    }
+  ' "$1"
+}
 
 # 1. Kernel: the global instruction file is ~/.claude/CLAUDE.md (case-insensitive FS may report Claude.md).
 want="$(tr '[:upper:]' '[:lower:]' <<<"$HOME/.claude/claude.md")"
@@ -40,14 +54,8 @@ else
   say_fail "$got_hooks/$want_hooks ~/.claude/settings.json hooks loaded (check [compat.claude] hooks)"
 fi
 
-# 3. Load errors: Cursor hooks.json entries are expected (Grok does not read Cursor replies); any other fails.
-cursor_errs="$(q '[.hookLoadErrors[]? | select(contains("/.cursor/hooks.json"))] | length')"
-other_errs="$(q '.hookLoadErrors[]? | select(contains("/.cursor/hooks.json") | not)')"
-if [ -n "$other_errs" ]; then
-  say_fail "hook load errors:"; printf '  %s\n' "$other_errs" >&2
-else
-  say_pass "no hook load errors outside ~/.cursor/hooks.json ($cursor_errs Cursor entries not run by Grok)"
-fi
+# 3. grok 1.0.70 inspect JSON has no plugin/hook load-error field (no hookLoadErrors).
+say_warn "inspect has no hook-error field; hook load errors are not checked"
 
 # 4. Skills: every ~/.agents/skills/<name>/SKILL.md is visible as a user skill.
 want_skills=0
@@ -132,6 +140,27 @@ if [ -d "$HOME/.grok" ]; then
   for key in '^\[session\]$' '^\[model\."[^"]+"\]$'; do
     grep -Eq "$key" "$cfg" || say_fail "config.toml missing table $key"
   done
+  # Owner policy 2026-11-01: same literals install-grok-runtime.sh appends.
+  if [ -f "$cfg" ]; then
+    found="$(toml_val "$cfg" '[session]' auto_compact_threshold_percent)"
+    if [ "$found" = 90 ]; then
+      say_pass "config.toml [session] auto_compact_threshold_percent=90"
+    else
+      say_fail "config.toml [session] auto_compact_threshold_percent found=${found:-<absent>} expected=90"
+    fi
+    def_model="$(awk -F'"' '/^\[/{s=($0=="[models]")} s && /^default[[:space:]]*=/{print $2; exit}' "$cfg")"
+    if [ -n "$def_model" ]; then
+      model_table="[model.\"${def_model}\"]"
+      found="$(toml_val "$cfg" "$model_table" context_window)"
+      if [ "$found" = 500000 ]; then
+        say_pass "config.toml ${model_table} context_window=500000"
+      else
+        say_fail "config.toml ${model_table} context_window found=${found:-<absent>} expected=500000"
+      fi
+    else
+      say_fail "config.toml [models] default found=<absent> expected=<model id>"
+    fi
+  fi
 fi
 
 exit "$fail"

@@ -287,6 +287,18 @@ lrun 1 layer_grok
 assert test "$RC" != 0
 assert grep -q 'FAIL \[grok-runtime\] 5/6 Cursor' "$T/output"
 cp "$T/grok-cfg" "$L/.grok/config.toml"
+sed -i '' 's/^auto_compact_threshold_percent = 90$/auto_compact_threshold_percent = 80/' "$L/.grok/config.toml"
+lrun 1 layer_grok
+assert test "$RC" != 0
+assert grep -q 'FAIL \[grok-runtime\] config.toml \[session\] auto_compact_threshold_percent found=80 expected=90' "$T/output"
+cp "$T/grok-cfg" "$L/.grok/config.toml"
+sed -i '' 's/^context_window = 500000$/context_window = 256000/' "$L/.grok/config.toml"
+lrun 1 layer_grok
+assert test "$RC" != 0
+assert grep -q 'FAIL \[grok-runtime\] config.toml \[model\."m"\] context_window found=256000 expected=500000' "$T/output"
+cp "$T/grok-cfg" "$L/.grok/config.toml"
+lrun 1 layer_grok
+assert test "$RC" = 0
 rm -f "$L/.grok/rules/ponytail.md"
 lrun 1 layer_grok
 assert test "$RC" != 0
