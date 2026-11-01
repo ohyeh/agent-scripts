@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.44.0-ironlaws
+Version: 4.45.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -123,7 +123,7 @@ replaces reading the touched code.
 - Push back when evidence contradicts the user's claim.
 
 ## Execution
-- Search before you ask: discover live, never recite from memory. A question the project can answer is not the user's to answer. Before handing any question back, exhaust the project record — sibling/platform implementations, `*.example` files, the script or lane that owns the value, docs, CI config, `git log`/history for the touched key. One `rg`/`grep` miss is NOT evidence of absence: a wrong pattern, wrong path scope, case, hyphen/underscore or camelCase spelling, ignored/hidden files, or a binary/minified target all return zero on something that exists. Vary the pattern and the tool (`rg -i`, `--hidden --no-ignore`, `fd`, `ast-grep`, `git log -S`) and confirm the corpus you searched was the right one before saying "not found". Stop searching once the record shows the value was never written down (no owner script, no history, no sibling, no example) — that absence IS the evidence, and the question goes to the user. Only genuine preferences (cost, risk appetite, priority) and never-recorded decisions go to the user, and the question states what was already searched and how.
+- Search before you ask: discover live, never recite from memory. A question the project can answer is not the user's to answer. Before handing any question back, exhaust the project record — sibling/platform implementations, `*.example` files, the script or lane that owns the value, docs, CI config, `git log`/history for the touched key. One `rg`/`grep` miss is NOT evidence of absence: a wrong pattern, wrong path scope, case, hyphen/underscore or camelCase spelling, ignored/hidden files, a binary/minified target, or a listing cut by `head`/a pager/a tool cap all return zero on, or hide, something that exists. Vary the pattern and the tool (`rg -i`, `--hidden --no-ignore`, `fd`, `ast-grep`, `git log -S`) and confirm the corpus you searched was the right one before saying "not found". A request for all, every, or complete results starts with an untruncated inventory of every source set in the requested scope; a summary or index is a lead to the raw sources it names, never the corpus. Before delivery, mark each source set read, excluded with reason, or unread; a partial result is never called complete. Stop searching once the record shows the value was never written down (no owner script, no history, no sibling, no example) — that absence IS the evidence, and the question goes to the user. Only genuine preferences (cost, risk appetite, priority) and never-recorded decisions go to the user, and the question states what was already searched and how.
 - Fix the root cause at the narrowest shared seam. Before flagging a bug
   or architecture change, trace the data flow and, when comparable siblings
   exist, check ~3 similar implementations. Conflicting conventions:
