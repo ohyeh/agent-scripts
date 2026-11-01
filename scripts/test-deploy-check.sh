@@ -186,7 +186,7 @@ assert grep -q '^FAIL \[skills\]' "$T/output"
 # Every other layer with a --check path: seed a fixture HOME with the layer's own deploy path,
 # check it green, then remove one payload file per layer. agy and codex-cu have no --check.
 L="$T/lhome"
-LAYERS_ALL="layer_global layer_rules layer_workflows layer_hooks layer_context_mode layer_cursor layer_agents layer_mods"
+LAYERS_ALL="layer_global layer_rules layer_workflows layer_hooks layer_context_mode layer_cursor layer_grok layer_agents layer_mods"
 for l in $LAYERS_ALL; do
   sed -n "/^$l() {/,/^layer $l\$/p" scripts/deploy.sh > "$T/$l"
   assert test -s "$T/$l"   # a renamed layer fails here, not vacuously
@@ -208,7 +208,18 @@ lrun() {  # $1 = CHECK, rest = layers
   RC="$rc"
   [ "$mode" = 1 ] || [ "$rc" = 0 ] || { echo "FAIL assertion: seed $* exit=$rc"; cat "$T/output"; fail=1; }
 }
-mkdir -p "$L/.claude/plugins" "$L/.codex" "$L/tmp" "$T/work"
+mkdir -p "$L/.claude/plugins" "$L/.codex" "$L/tmp" "$T/work" "$L/.local/bin"
+# A fake grok first on PATH: `inspect --json` reports what the fixture HOME holds, as Grok's
+# Claude compatibility would (kernel file, settings.json hooks, ~/.agents skills).
+cat > "$L/.local/bin/grok" <<'SH'
+#!/usr/bin/env bash
+[ "$*" = "inspect --json" ] || exit 2
+pi='[]'; [ -f "$HOME/.claude/CLAUDE.md" ] && pi="$(jq -n --arg p "$HOME/.claude/CLAUDE.md" '[{scope:"global",path:$p}]')"
+n=0; [ -f "$HOME/.claude/settings.json" ] && n="$(jq '[.hooks // {} | .. | objects | select(has("command"))] | length' "$HOME/.claude/settings.json")"
+s="$(find "$HOME/.agents/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | jq -R '{source:{type:"user",path:.}}' | jq -s .)"
+jq -n --argjson pi "$pi" --argjson n "$n" --argjson s "$s" '{projectInstructions:$pi, hooks:[range($n)|{source:{type:"user"}}], hookLoadErrors:[], skills:$s}'
+SH
+chmod +x "$L/.local/bin/grok"
 printf '[mcp_servers.context-mode]\ncommand = "context-mode"\n' > "$L/.codex/config.toml"   # a Codex host with the MCP
 lrun 0 layer_global layer_rules layer_workflows layer_hooks
 # Not layer_context_mode deploy: its codex-context-mode.py step drives a real codex; --check never runs it.
@@ -240,6 +251,7 @@ neg layer_workflows workflows .claude/workflows/_lib/safe.js
 neg layer_hooks hooks .agents/hooks/claim-evidence-gate.sh
 neg layer_context_mode context-mode-dir .claude/context-mode-mcp.sh
 neg layer_cursor cursor-runtime .cursor/rules/kernel.mdc
+neg layer_grok grok-runtime .claude/CLAUDE.md
 neg layer_agents agents "$(first .claude/agents)"
 neg layer_mods mods "$(first .claude/plugins/cache)"
 [ "$fail" = 1 ] || echo 'deploy-check OK (read-only, repair order, both layouts, both stale-pin entries, step failures, layer-ok, missing payload per layer)'
