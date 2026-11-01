@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Grok Build's own files. Does not read or write ~/.cursor.
 #   ~/.grok/rules/ponytail.md  — markdown body of the installed ponytail rule
-#   ~/.grok/config.toml        — [ui.status_line] type = "builtin" when absent
+#   ~/.grok/config.toml        — status line, compat policy, session compact and the
+#                                default model's context_window; each table only when absent
 # Missing ~/.grok means Grok Build is not installed here. Missing ponytail
 # plugin is a WARN: the rule is third-party, not a kernel file.
 #
@@ -55,12 +56,27 @@ else
 fi
 
 cfg="${HOME}/.grok/config.toml"
-if [ ! -f "$cfg" ]; then
-  printf '[ui.status_line]\ntype = "builtin"\n' > "$cfg"
-  echo "PASS [grok-own] wrote $cfg status line"
-elif grep -q '^\[ui\.status_line\]' "$cfg"; then
-  echo "PASS [grok-own] $cfg already has [ui.status_line]"
+touch "$cfg"
+# Append a table only when its header is absent; a present table is the user's to tune.
+add_table() {  # $1 = header line, $2 = body
+  if grep -qxF "$1" "$cfg"; then
+    echo "PASS [grok-own] $cfg already has $1"
+  else
+    printf '\n%s\n%s\n' "$1" "$2" >> "$cfg"
+    echo "PASS [grok-own] appended $1 to $cfg"
+  fi
+}
+add_table '[ui.status_line]' 'type = "builtin"'
+# Owner policy 2026-11-01: Claude compat on (kernel, hooks, skills, MCP come from it),
+# Cursor compat off, Codex only skills.
+add_table '[compat.claude]' "$(printf '%s = true\n' agents hooks mcps rules skills sessions)"
+add_table '[compat.cursor]' "$(printf '%s = false\n' agents hooks mcps rules skills sessions)"
+add_table '[compat.codex]' 'skills = true'
+# Owner policy 2026-11-01: 500k window on the default model, compact at 90%.
+add_table '[session]' 'auto_compact_threshold_percent = 90'
+default_model="$(awk -F'"' '/^\[/{s=($0=="[models]")} s && /^default[[:space:]]*=/{print $2; exit}' "$cfg")"
+if [ -n "$default_model" ]; then
+  add_table "[model.\"${default_model}\"]" 'context_window = 500000'
 else
-  printf '\n[ui.status_line]\ntype = "builtin"\n' >> "$cfg"
-  echo "PASS [grok-own] appended [ui.status_line] to $cfg"
+  echo "WARN [grok-own] no [models] default in $cfg; context_window not set" >&2
 fi

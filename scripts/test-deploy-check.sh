@@ -219,7 +219,10 @@ cat > "$L/.local/bin/grok" <<'SH'
 pi='[]'; [ -f "$HOME/.claude/CLAUDE.md" ] && pi="$(jq -n --arg p "$HOME/.claude/CLAUDE.md" '[{scope:"global",path:$p}]')"
 n=0; [ -f "$HOME/.claude/settings.json" ] && n="$(jq '[.hooks // {} | .. | objects | select(has("command"))] | length' "$HOME/.claude/settings.json")"
 s="$(find "$HOME/.agents/skills" -mindepth 2 -maxdepth 2 -name SKILL.md 2>/dev/null | jq -R '{source:{type:"user",path:.}}' | jq -s .)"
-jq -n --argjson pi "$pi" --argjson n "$n" --argjson s "$s" '{projectInstructions:$pi, hooks:[range($n)|{source:{type:"user"}}], hookLoadErrors:[], skills:$s}'
+# Compat cells as written in [compat.<vendor>] tables (real Grok also lists defaults).
+c="$(awk -F' *= *' '/^\[/{v=""} /^\[compat\./{v=substr($0,9,length($0)-9)} v && NF==2{print v"\t"$1"\t"$2}' "$HOME/.grok/config.toml" 2>/dev/null |
+  jq -R 'split("\t") | {vendor:.[0], surface:.[1], enabled:(.[2]=="true")}' | jq -s .)"
+jq -n --argjson pi "$pi" --argjson n "$n" --argjson s "$s" --argjson c "${c:-[]}" '{projectInstructions:$pi, hooks:[range($n)|{source:{type:"user"}}], hookLoadErrors:[], skills:$s, externalCompat:{cells:$c}}'
 SH
 chmod +x "$L/.local/bin/grok"
 printf '[mcp_servers.context-mode]\ncommand = "context-mode"\n' > "$L/.codex/config.toml"   # a Codex host with the MCP
@@ -265,10 +268,21 @@ alwaysApply: true
 ---
 # Ponytail fixture
 EOF
+printf '[models]\ndefault = "m"\n' > "$L/.grok/config.toml"
 lrun 0 layer_grok
 assert test "$RC" = 0
 assert test "$(head -1 "$L/.grok/rules/ponytail.md")" = "# Ponytail fixture"
 assert grep -q '^type = "builtin"$' "$L/.grok/config.toml"
+assert grep -qxF 'auto_compact_threshold_percent = 90' "$L/.grok/config.toml"
+cp "$L/.grok/config.toml" "$T/grok-cfg"
+lrun 0 layer_grok   # second run appends nothing
+assert cmp -s "$L/.grok/config.toml" "$T/grok-cfg"
+# Cursor compat turned back on fails the check.
+sed -i '' '/^\[compat\.cursor\]/,/^\[/s/^hooks = false$/hooks = true/' "$L/.grok/config.toml"
+lrun 1 layer_grok
+assert test "$RC" != 0
+assert grep -q 'FAIL \[grok-runtime\] 5/6 Cursor' "$T/output"
+cp "$T/grok-cfg" "$L/.grok/config.toml"
 rm -f "$L/.grok/rules/ponytail.md"
 lrun 1 layer_grok
 assert test "$RC" != 0

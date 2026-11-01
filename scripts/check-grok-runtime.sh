@@ -109,6 +109,20 @@ if [ -d "$HOME/.grok" ]; then
   else
     say_fail "config.toml [ui.status_line] type is not builtin"
   fi
+
+  # Compat policy as Grok resolved it: every Claude cell on, all six Cursor cells off.
+  claude_off="$(q '[.externalCompat.cells[]? | select(.vendor=="claude" and .enabled!=true) | .surface] | join(",")')"
+  cursor_off="$(q '[.externalCompat.cells[]? | select(.vendor=="cursor" and .enabled==false)] | length')"
+  if [ -n "$claude_off" ]; then
+    say_fail "Claude compat off for: $claude_off"
+  elif [ "$cursor_off" != 6 ]; then
+    say_fail "$cursor_off/6 Cursor compat cells off (want [compat.cursor] all false)"
+  else
+    say_pass "compat: Claude on, Cursor 6/6 off"
+  fi
+  for key in '^\[session\]$' '^\[model\."[^"]+"\]$'; do
+    grep -Eq "$key" "$cfg" || say_fail "config.toml missing table $key"
+  done
 fi
 
 exit "$fail"
