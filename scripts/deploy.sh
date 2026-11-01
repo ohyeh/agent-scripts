@@ -50,10 +50,11 @@
 #                 puts the pin back and fails closed if it did not stick.
 #   7. cursor   - kernel.mdc, Ponytail instruction rule (if plugin present),
 #                 HUD scripts + statusLine merge (never copies cli-config).
-#   7b. grok    - Grok Build reads the Claude layout through its default Claude
-#                 compatibility, so nothing is installed: check-grok-runtime.sh
-#                 asserts `grok inspect --json` sees the kernel, every
-#                 settings.json hook and every ~/.agents skill. SKIPs without grok.
+#   7b. grok    - Grok Build's own files: ~/.grok/rules/ponytail.md (plugin body)
+#                 and [ui.status_line] builtin in ~/.grok/config.toml.
+#                 Does not write ~/.cursor. check-grok-runtime.sh also asserts
+#                 `grok inspect --json` sees the kernel, every settings.json
+#                 hook and every ~/.agents skill. SKIPs without grok.
 #   8. agents   - global/agents/<runtime>/ -> that runtime's agent dir
 #                 (claude -> ~/.claude/agents, codex -> ~/.codex/agents),
 #                 rsync --delete + diff, only for sub-dirs present in the repo.
@@ -802,9 +803,10 @@ echo "PASS [cursor] kernel + HUD + ponytail wiring"
 }
 layer layer_cursor
 
-# --- Layer 7b: Grok Build (read-only: it loads the Claude layout) ------------
+# --- Layer 7b: Grok Build (its own rule + status line) -----------------------
 layer_grok() {
-echo "==> [grok] kernel + hooks + skills seen by grok inspect"
+echo "==> [grok] own rule + status line; inspect sees the Claude layout"
+w bash "$SRC/scripts/install-grok-runtime.sh"
 bash "$SRC/scripts/check-grok-runtime.sh"
 }
 layer layer_grok

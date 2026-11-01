@@ -8,6 +8,8 @@ REAL_GIT="$(command -v git)"; export REAL_GIT
 REAL_BASH="$(command -v bash)"; export REAL_BASH
 "$REAL_GIT" clone -q --local "$ROOT" "$T/repo"
 cp "$ROOT/scripts/deploy.sh" "$T/repo/scripts/deploy.sh"
+cp "$ROOT/scripts/check-grok-runtime.sh" "$T/repo/scripts/check-grok-runtime.sh"
+cp "$ROOT/scripts/install-grok-runtime.sh" "$T/repo/scripts/install-grok-runtime.sh"
 cd "$T/repo"
 mkdir -p "$T/bin"
 cat > "$T/bin/gh" <<'SH'
@@ -254,5 +256,22 @@ neg layer_cursor cursor-runtime .cursor/rules/kernel.mdc
 neg layer_grok grok-runtime .claude/CLAUDE.md
 neg layer_agents agents "$(first .claude/agents)"
 neg layer_mods mods "$(first .claude/plugins/cache)"
+
+# Grok's own rule and status line. The fixture writes nothing under ~/.cursor.
+mkdir -p "$L/.grok" "$L/.claude/plugins/cache/ponytail/ponytail/9/.cursor/rules"
+cat > "$L/.claude/plugins/cache/ponytail/ponytail/9/.cursor/rules/ponytail.mdc" <<'EOF'
+---
+alwaysApply: true
+---
+# Ponytail fixture
+EOF
+lrun 0 layer_grok
+assert test "$RC" = 0
+assert test "$(head -1 "$L/.grok/rules/ponytail.md")" = "# Ponytail fixture"
+assert grep -q '^type = "builtin"$' "$L/.grok/config.toml"
+rm -f "$L/.grok/rules/ponytail.md"
+lrun 1 layer_grok
+assert test "$RC" != 0
+assert grep -q 'FAIL \[grok-runtime\]' "$T/output"
 [ "$fail" = 1 ] || echo 'deploy-check OK (read-only, repair order, both layouts, both stale-pin entries, step failures, layer-ok, missing payload per layer)'
 exit "$fail"

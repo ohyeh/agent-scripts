@@ -16,6 +16,7 @@ fi
 fail=0
 say_fail() { echo "FAIL [grok-runtime] $*" >&2; fail=1; }
 say_pass() { echo "PASS [grok-runtime] $*"; }
+say_warn() { echo "WARN [grok-runtime] $*" >&2; }
 
 inspect="$(cd "$HOME" && grok inspect --json)" || { say_fail "grok inspect --json exit $?"; exit 1; }
 q() { jq -r "$@" <<<"$inspect"; }
@@ -58,6 +59,56 @@ if [ "$want_skills" = "$got_skills" ]; then
   say_pass "$got_skills/$want_skills ~/.agents/skills visible"
 else
   say_fail "$got_skills/$want_skills ~/.agents/skills visible (check [compat.claude] skills)"
+fi
+
+# 5. Grok's own files. Absent ~/.grok means this host has no Grok Build.
+# A present install must carry the ponytail rule (when the plugin is installed)
+# and a builtin status line. Cursor paths are not consulted.
+if [ -d "$HOME/.grok" ]; then
+  plugin_mdc=""
+  for root in \
+    "${HOME}/.claude/plugins/cache/ponytail/ponytail" \
+    "${HOME}/.codex/plugins/cache/ponytail/ponytail"
+  do
+    [ -d "$root" ] || continue
+    ver="$(find "$root" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -V | tail -1)"
+    [ -n "$ver" ] || continue
+    cand="${root}/${ver}/.cursor/rules/ponytail.mdc"
+    if [ -f "$cand" ]; then
+      plugin_mdc="$cand"
+      break
+    fi
+  done
+  rule="$HOME/.grok/rules/ponytail.md"
+  if [ -n "$plugin_mdc" ]; then
+    if [ ! -f "$rule" ]; then
+      say_fail "ponytail plugin present but \$HOME/.grok/rules/ponytail.md missing"
+    else
+      body="$(awk 'BEGIN{c=0} /^---$/{c++; next} c>=2{print}' "$plugin_mdc" | md5 -q)"
+      got="$(md5 -q "$rule")"
+      if [ "$body" != "$got" ]; then
+        say_fail "ponytail.md body md5 $got != plugin body $body"
+      else
+        say_pass "ponytail.md matches plugin body"
+      fi
+    fi
+  else
+    say_warn "ponytail plugin cache absent; ~/.grok/rules/ponytail.md not required"
+  fi
+
+  cfg="$HOME/.grok/config.toml"
+  if [ ! -f "$cfg" ]; then
+    say_fail "missing \$HOME/.grok/config.toml"
+  elif awk '
+      /^\[ui\.status_line\]/ { s=1; next }
+      /^\[/ { s=0 }
+      s && /^type[[:space:]]*=[[:space:]]*"builtin"/ { found=1 }
+      END { exit found ? 0 : 1 }
+    ' "$cfg"; then
+    say_pass "config.toml [ui.status_line] type=builtin"
+  else
+    say_fail "config.toml [ui.status_line] type is not builtin"
+  fi
 fi
 
 exit "$fail"
