@@ -93,4 +93,4 @@ if [ "$(md5 -q "${ROOT}/scripts/grok-statusline.sh")" != "$(md5 -q "${HOME}/.gro
 fi
 tmp="$(mktemp)"
 awk '/^\[/{skip=($0=="[ui.status_line]")} !skip{l[++n]=$0} END{while(n&&l[n]=="")n--; for(i=1;i<=n;i++)print l[i]}' "$cfg" > "$tmp" && mv "$tmp" "$cfg"
-add_table '[ui.status_line]' "$(printf 'type = "command"\ncommand = "~/.grok/statusline.sh"')"
+add_table '[ui.status_line]' "$(printf 'type = "command"\ncommand = "~/.grok/statusline.sh"\npadding = 2')"   # padding as Cursor's

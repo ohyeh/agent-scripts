@@ -17,13 +17,19 @@ input=$(cat)
 printf '%s' "$input" | jq -e 'type == "object"' >/dev/null 2>&1 || input='{}'
 
 sid=$(printf '%s' "$input" | jq -r '.session_id // empty')
-# Effort is already in the HUD model badge; the threshold is Grok-only.
-footer=$(printf '%s' "$input" | jq -r 'if .context_window.auto_compact_threshold_percent
-  then "compact \(.context_window.auto_compact_threshold_percent)%" else "" end')
+# Effort is already in the HUD model badge; the threshold is Grok-only; the
+# worktree name matches the Cursor wrapper's extras.
+footer=$(printf '%s' "$input" | jq -r '[
+  (if .context_window.auto_compact_threshold_percent then "compact \(.context_window.auto_compact_threshold_percent)%" else empty end),
+  (if .worktree.name then "wt \(.worktree.name)" else empty end)
+] | join("  ")')
 
-hud_in=$(printf '%s' "$input" | jq '
+# Grok omits model when the agent cannot read it: fall back to the config default (agy does the same).
+cfg_model=$(awk -F'"' '/^\[/{s=($0=="[models]")} s && /^default[[:space:]]*=/{print $2; exit}' "${HOME}/.grok/config.toml" 2>/dev/null)
+hud_in=$(printf '%s' "$input" | jq --arg m "$cfg_model" '
   del(.transcript_path)
-  | .workspace.project_dir = (.workspace.repo_root // .workspace.current_dir // .cwd)')
+  | .workspace.project_dir = (.workspace.repo_root // .workspace.current_dir // .cwd)
+  | if (.model.display_name // "") == "" and $m != "" then .model = {id: $m, display_name: $m} else . end')
 
 dir=$(ls -d ~/.claude/plugins/cache/claude-hud/claude-hud/*/ 2>/dev/null | sort -V | tail -1)
 if [ -n "$dir" ] && [ -x "$HOME/.bun/bin/bun" ]; then
