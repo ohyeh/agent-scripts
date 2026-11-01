@@ -14,6 +14,8 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:${HOME}/.bun/bin:${PATH}"
 unset CURSOR_STATUSLINE_USAGE_SNAPSHOT
 
 input=$(cat)
+# Last payload, for debugging the row against what Grok really sent.
+printf '%s\n' "$input" > "${HOME}/.grok/statusline-last.json" 2>/dev/null
 printf '%s' "$input" | jq -e 'type == "object"' >/dev/null 2>&1 || input='{}'
 
 sid=$(printf '%s' "$input" | jq -r '.session_id // empty')
