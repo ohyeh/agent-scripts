@@ -146,6 +146,27 @@ but its app approvals also go through the proxy (see below).
 `cua.getState()` can return a full `apps` list and a `browsers` error together.
 A metadata error on `browsers` does not mean the computer surface failed.
 
+## After a failure: pick the next step
+
+Ask one question first: can this call have changed state? The error text, a
+timeout, or the word "refused" does not prove that nothing happened. When two
+rows match, `stop` wins.
+
+| Class | When | Next step |
+|---|---|---|
+| `stop` | The app is under [Do not](#do-not) and the user did not name it in the current message; or it is a forbidden target (Terminal, system settings, Codex) and the user has not lifted that gate; or a host gave its first Access Denied; or you are on rung 3 and it cannot do the step. | Send no more input to that target this turn. Tell the user. |
+| `retry` | `getApp` returned `Computer Use was not approved to use X` and `stop` does not match; or a read-only call (`getState`, `getAXState`, `innerText`, `screenshot`) timed out. | `getApp`: add the display name to the approve file, then send it once more; if you cannot add it, use `stop`. Read-only: send it once more, except `getAXState` right after a delete (check with rung 1). |
+| `use_different_tool` | This rung cannot do the step, but another API can: e.g. `.click()` inside `evaluate` threw `el.click is not a function`. | Use the API this skill names on the same rung. Go one rung down only per [Background first](#background-first-hard-rule); never move a web page to `cua.getApp`. |
+| `outcome_unknown` | A call that can change state timed out, hung, or failed after the send: click, submit, delete, `typeText`, `setValue`, `createBrowserTab`, `nameSession`, `close`. | Read the result before any other input: data changes with rung 1; typed text by reading that field's current value. Send the same call again only when the read shows no change, and never for `close` (see below). |
+
+Notes:
+
+- `getState` with an `apps` list and a `browsers` error is not a failure: the computer surface works.
+- Statsig `NetworkError` lines are noise. Do not change rung for them.
+- A tab from another browser session: open a new Chrome tab in this session; do not retry the binding.
+- After a failed or timed-out `createBrowserTab` or `nameSession`: list tab URLs with the osascript check, close only an `about:blank` that was not in the before list, in the same session, and send once more only when the list matches the before list.
+- A `close` that hung and reset the runtime: that call no longer exists. List tab URLs, then start again from Quickstart step 1.
+
 ## Pick the real Google Chrome
 
 Every Chromium browser with the ChatGPT extension reports `name: "Chrome"`.
