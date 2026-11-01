@@ -51,7 +51,8 @@
 #   7. cursor   - kernel.mdc, Ponytail instruction rule (if plugin present),
 #                 HUD scripts + statusLine merge (never copies cli-config).
 #   7b. grok    - Grok Build's own files: ~/.grok/rules/ponytail.md (plugin body)
-#                 and [ui.status_line] builtin in ~/.grok/config.toml.
+#                 ~/.grok/statusline.sh (claude-hud wrapper) as [ui.status_line]
+#                 command, compat policy and 500k/90 in ~/.grok/config.toml.
 #                 Does not write ~/.cursor. check-grok-runtime.sh also asserts
 #                 `grok inspect --json` sees the kernel, every settings.json
 #                 hook and every ~/.agents skill. SKIPs without grok.

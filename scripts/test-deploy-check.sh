@@ -10,6 +10,7 @@ REAL_BASH="$(command -v bash)"; export REAL_BASH
 cp "$ROOT/scripts/deploy.sh" "$T/repo/scripts/deploy.sh"
 cp "$ROOT/scripts/check-grok-runtime.sh" "$T/repo/scripts/check-grok-runtime.sh"
 cp "$ROOT/scripts/install-grok-runtime.sh" "$T/repo/scripts/install-grok-runtime.sh"
+cp "$ROOT/scripts/grok-statusline.sh" "$T/repo/scripts/grok-statusline.sh"
 cd "$T/repo"
 mkdir -p "$T/bin"
 cat > "$T/bin/gh" <<'SH'
@@ -268,11 +269,14 @@ alwaysApply: true
 ---
 # Ponytail fixture
 EOF
-printf '[models]\ndefault = "m"\n' > "$L/.grok/config.toml"
+printf '[models]\ndefault = "m"\n\n[ui.status_line]\ntype = "builtin"\n' > "$L/.grok/config.toml"   # old table gets replaced
 lrun 0 layer_grok
 assert test "$RC" = 0
 assert test "$(head -1 "$L/.grok/rules/ponytail.md")" = "# Ponytail fixture"
-assert grep -q '^type = "builtin"$' "$L/.grok/config.toml"
+assert grep -qxF 'command = "~/.grok/statusline.sh"' "$L/.grok/config.toml"
+assert test "$(grep -c '^\[ui\.status_line\]$' "$L/.grok/config.toml")" = 1
+assert test "$(grep -c 'builtin' "$L/.grok/config.toml")" = 0
+assert test -x "$L/.grok/statusline.sh"
 assert grep -qxF 'auto_compact_threshold_percent = 90' "$L/.grok/config.toml"
 cp "$L/.grok/config.toml" "$T/grok-cfg"
 lrun 0 layer_grok   # second run appends nothing

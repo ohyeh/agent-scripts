@@ -102,12 +102,21 @@ if [ -d "$HOME/.grok" ]; then
   elif awk '
       /^\[ui\.status_line\]/ { s=1; next }
       /^\[/ { s=0 }
-      s && /^type[[:space:]]*=[[:space:]]*"builtin"/ { found=1 }
-      END { exit found ? 0 : 1 }
+      s && /^type[[:space:]]*=[[:space:]]*"command"/ { t=1 }
+      s && /^command[[:space:]]*=[[:space:]]*"~\/\.grok\/statusline\.sh"/ { c=1 }
+      END { exit (t && c) ? 0 : 1 }
     ' "$cfg"; then
-    say_pass "config.toml [ui.status_line] type=builtin"
+    say_pass "config.toml [ui.status_line] command=~/.grok/statusline.sh"
   else
-    say_fail "config.toml [ui.status_line] type is not builtin"
+    say_fail "config.toml [ui.status_line] is not the ~/.grok/statusline.sh command"
+  fi
+  src_sl="$(cd "$(dirname "$0")" && pwd)/grok-statusline.sh"
+  if [ ! -x "$HOME/.grok/statusline.sh" ]; then
+    say_fail "missing executable \$HOME/.grok/statusline.sh"
+  elif [ -f "$src_sl" ] && [ "$(md5 -q "$src_sl")" != "$(md5 -q "$HOME/.grok/statusline.sh")" ]; then
+    say_fail "~/.grok/statusline.sh drifted from $src_sl"
+  else
+    say_pass "~/.grok/statusline.sh installed"
   fi
 
   # Compat policy as Grok resolved it: every Claude cell on, all six Cursor cells off.

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Grok Build's own files. Does not read or write ~/.cursor.
 #   ~/.grok/rules/ponytail.md  — markdown body of the installed ponytail rule
-#   ~/.grok/config.toml        — status line, compat policy, session compact and the
-#                                default model's context_window; each table only when absent
+#   ~/.grok/statusline.sh      — scripts/grok-statusline.sh (claude-hud wrapper)
+#   ~/.grok/config.toml        — [ui.status_line] command (replaced); compat policy,
+#                                session compact, default model's context_window
+#                                (each only when its table is absent)
 # Missing ~/.grok means Grok Build is not installed here. Missing ponytail
 # plugin is a WARN: the rule is third-party, not a kernel file.
 #
@@ -66,7 +68,6 @@ add_table() {  # $1 = header line, $2 = body
     echo "PASS [grok-own] appended $1 to $cfg"
   fi
 }
-add_table '[ui.status_line]' 'type = "builtin"'
 # Owner policy 2026-11-01: Claude compat on (kernel, hooks, skills, MCP come from it),
 # Cursor compat off, Codex only skills.
 add_table '[compat.claude]' "$(printf '%s = true\n' agents hooks mcps rules skills sessions)"
@@ -80,3 +81,16 @@ if [ -n "$default_model" ]; then
 else
   echo "WARN [grok-own] no [models] default in $cfg; context_window not set" >&2
 fi
+
+# Status line: the claude-hud wrapper, like agy and Cursor. This table is owned
+# here: an existing one is replaced, so edit scripts/grok-statusline.sh instead.
+# Last step, so the table always ends the file and a rerun changes nothing.
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+install -m 0755 "${ROOT}/scripts/grok-statusline.sh" "${HOME}/.grok/statusline.sh"
+if [ "$(md5 -q "${ROOT}/scripts/grok-statusline.sh")" != "$(md5 -q "${HOME}/.grok/statusline.sh")" ]; then
+  echo "FAIL [grok-own] statusline.sh md5 mismatch after install" >&2
+  exit 1
+fi
+tmp="$(mktemp)"
+awk '/^\[/{skip=($0=="[ui.status_line]")} !skip{l[++n]=$0} END{while(n&&l[n]=="")n--; for(i=1;i<=n;i++)print l[i]}' "$cfg" > "$tmp" && mv "$tmp" "$cfg"
+add_table '[ui.status_line]' "$(printf 'type = "command"\ncommand = "~/.grok/statusline.sh"')"
