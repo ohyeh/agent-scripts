@@ -42,6 +42,8 @@ if q '.projectInstructions[]? | select(.scope=="global") | .path' | tr '[:upper:
 else
   say_fail "~/.claude/CLAUDE.md not among global instructions (check [compat.claude] agents)"
 fi
+[ "$(head -1 "$HOME/.grok/AGENTS.md" 2>/dev/null)" != "# Lean Operating Rules" ] ||
+  say_fail "~/.grok/AGENTS.md is a stale kernel copy loaded next to ~/.claude/CLAUDE.md; deploy removes it"
 
 # 2. Hooks: every ~/.claude/settings.json command handler is loaded as a user hook.
 want_hooks=0

@@ -308,6 +308,17 @@ rm -f "$L/.grok/rules/ponytail.md"
 lrun 1 layer_grok
 assert test "$RC" != 0
 assert grep -q 'FAIL \[grok-runtime\]' "$T/output"
+# A stale kernel copy in ~/.grok/AGENTS.md fails the check; deploy removes it; a user's own file stays.
+lrun 0 layer_grok
+printf '# Lean Operating Rules\n\nVersion: old\n' > "$L/.grok/AGENTS.md"
+lrun 1 layer_grok
+assert test "$RC" != 0
+assert grep -q 'FAIL \[grok-runtime\] ~/.grok/AGENTS.md is a stale kernel copy' "$T/output"
+lrun 0 layer_grok
+assert test ! -e "$L/.grok/AGENTS.md"
+printf '# My notes\n' > "$L/.grok/AGENTS.md"
+lrun 0 layer_grok
+assert test -f "$L/.grok/AGENTS.md"
 # No Cursor on the host: deploy and --check skip the Cursor parts and never create ~/.cursor.
 rm -rf "$L/.cursor"
 lrun 0 layer_hooks layer_cursor

@@ -5,6 +5,7 @@
 #   ~/.grok/config.toml        — [ui.status_line] command (replaced); compat policy,
 #                                session compact, default model's context_window
 #                                (each only when its table is absent)
+#   ~/.grok/AGENTS.md          — removed when it is a kernel copy (kernel comes via Claude compat)
 # Missing ~/.grok means Grok Build is not installed here. Missing ponytail
 # plugin is a WARN: the rule is third-party, not a kernel file.
 #
@@ -68,6 +69,14 @@ if [ -n "$agents_skills" ] && [ -d "${HOME}/.grok/skills" ]; then
       "$agents_skills"/*) rm "$l"; echo "PASS [grok-own] removed duplicate link $l (Grok reads ~/.agents/skills)" ;;
     esac
   done
+fi
+
+# Grok reads the kernel from ~/.claude/CLAUDE.md (Claude compat). A kernel copy in
+# ~/.grok/AGENTS.md is never refreshed, so Grok loads an old kernel next to the current one.
+# Only a kernel copy (its title line) is removed; any other AGENTS.md is the user's.
+if [ "$(head -1 "${HOME}/.grok/AGENTS.md" 2>/dev/null)" = "# Lean Operating Rules" ]; then
+  rm "${HOME}/.grok/AGENTS.md"
+  echo "PASS [grok-own] removed stale kernel copy ~/.grok/AGENTS.md (Grok reads ~/.claude/CLAUDE.md)"
 fi
 
 cfg="${HOME}/.grok/config.toml"
