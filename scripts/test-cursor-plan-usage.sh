@@ -38,3 +38,10 @@ assert stdout["rate_limits"]["five_hour"]["used_percentage"] == 9
 assert stdout["session_id"] == "claude"
 print("ok claude passthrough")
 PY
+
+# No ~/.cursor (Cursor removed): input passes through unchanged and ~/.cursor is not created.
+rm -rf "$HOME/.cursor"
+out="$(printf '%s' '{"session_id":"x"}' | python3 scripts/cursor-plan-usage.py)"
+[ "$out" = '{"session_id":"x"}' ] || { echo "FAIL no-cursor passthrough: $out"; exit 1; }
+[ ! -e "$HOME/.cursor" ] || { echo "FAIL no-cursor run created ~/.cursor"; exit 1; }
+echo "ok no-cursor passthrough"

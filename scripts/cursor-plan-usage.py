@@ -280,6 +280,12 @@ def write_snapshot(usage: dict) -> None:
 
 
 def main() -> int:
+    # No ~/.cursor = Cursor not installed: never fetch, never create it (a stale keychain token would).
+    if not CACHE_PATH.parent.is_dir():
+        if "--refresh" in sys.argv:
+            return 1
+        sys.stdout.write(sys.stdin.read())
+        return 0
     if "--refresh" in sys.argv:
         return 0 if refresh_cache() is not None else 1
 
