@@ -41,8 +41,8 @@
 #                 --check reports that repair without running it.
 #   5. hooks    - installs the kernel sentinel hooks (.agents/hooks/) into
 #                 ~/.agents/hooks/; registers them in ~/.claude/settings.json
-#                 (Claude events) and ~/.cursor/hooks.json (Cursor events via
-#                 cursor-adapt.sh). Removes the retired tmux dispatch hook
+#                 (Claude events) and, if ~/.cursor exists, ~/.cursor/hooks.json
+#                 (Cursor events via cursor-adapt.sh). Removes the retired tmux dispatch hook
 #                 (workflow-gate hooks live with their owning plugins).
 #   6. context-mode dir - pin CONTEXT_MODE_DIR to ~/.claude/context-mode on
 #                 every present runtime (Codex/Cursor/Gemini/zshrc + Cursor
@@ -50,6 +50,7 @@
 #                 puts the pin back and fails closed if it did not stick.
 #   7. cursor   - kernel.mdc, Ponytail instruction rule (if plugin present),
 #                 HUD scripts + statusLine merge (never copies cli-config).
+#                 SKIPs without ~/.cursor (Cursor not installed).
 #   7b. grok    - Grok Build's own files: ~/.grok/rules/ponytail.md (plugin body)
 #                 ~/.grok/statusline.sh (claude-hud wrapper) as [ui.status_line]
 #                 command, compat policy and 500k/90 in ~/.grok/config.toml.
@@ -772,10 +773,12 @@ fi
 jq -e . "$SETTINGS" >/dev/null || { echo "FAIL [hooks] settings.json is no longer valid JSON" >&2; exit 1; }
 echo "PASS [hooks] sentinel hooks installed + registered, retired dispatch/warn hooks absent"
 
-echo "==> [hooks] registering portable sentinels in ~/.cursor/hooks.json"
-w bash "$SRC/scripts/install-cursor-hooks.sh"
-bash "$SRC/scripts/check-cursor-hooks.sh"
-echo "PASS [hooks] Cursor adapter registry"
+if [ -d ~/.cursor ]; then   # Cursor present (install-context-mode-dir.sh uses the same test)
+  echo "==> [hooks] registering portable sentinels in ~/.cursor/hooks.json"
+  w bash "$SRC/scripts/install-cursor-hooks.sh"
+  bash "$SRC/scripts/check-cursor-hooks.sh"
+  echo "PASS [hooks] Cursor adapter registry"
+else echo "SKIP [hooks] ~/.cursor absent (Cursor not installed)"; fi
 }
 layer layer_hooks
 
@@ -796,6 +799,7 @@ layer layer_context_mode
 # --- Layer 7: Cursor runtime (kernel / ponytail rule / HUD) -------------------
 layer_cursor() {
 echo "==> [cursor] kernel.mdc + ponytail rule + HUD statusLine"
+[ -d ~/.cursor ] || { echo "SKIP [cursor] ~/.cursor absent (Cursor not installed)"; return 0; }
 w bash "$SRC/scripts/install-cursor-kernel.sh"
 w bash "$SRC/scripts/install-cursor-ponytail.sh"
 w bash "$SRC/scripts/install-cursor-hud.sh"

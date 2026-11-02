@@ -211,7 +211,7 @@ lrun() {  # $1 = CHECK, rest = layers
   RC="$rc"
   [ "$mode" = 1 ] || [ "$rc" = 0 ] || { echo "FAIL assertion: seed $* exit=$rc"; cat "$T/output"; fail=1; }
 }
-mkdir -p "$L/.claude/plugins" "$L/.codex" "$L/tmp" "$T/work" "$L/.local/bin"
+mkdir -p "$L/.claude/plugins" "$L/.codex" "$L/.cursor" "$L/tmp" "$T/work" "$L/.local/bin"
 # A fake grok first on PATH: `inspect --json` reports what the fixture HOME holds, as Grok's
 # Claude compatibility would (kernel file, settings.json hooks, ~/.agents skills).
 cat > "$L/.local/bin/grok" <<'SH'
@@ -308,5 +308,13 @@ rm -f "$L/.grok/rules/ponytail.md"
 lrun 1 layer_grok
 assert test "$RC" != 0
 assert grep -q 'FAIL \[grok-runtime\]' "$T/output"
+# No Cursor on the host: deploy and --check skip the Cursor parts and never create ~/.cursor.
+rm -rf "$L/.cursor"
+lrun 0 layer_hooks layer_cursor
+assert test ! -e "$L/.cursor"
+assert grep -q '^SKIP \[hooks\] ~/.cursor absent' "$T/output"
+assert grep -q '^SKIP \[cursor\] ~/.cursor absent' "$T/output"
+lrun 1 layer_hooks layer_cursor
+assert test "$RC" = 0
 [ "$fail" = 1 ] || echo 'deploy-check OK (read-only, repair order, both layouts, both stale-pin entries, step failures, layer-ok, missing payload per layer)'
 exit "$fail"
