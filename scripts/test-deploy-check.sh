@@ -320,9 +320,10 @@ printf '# My notes\n' > "$L/.grok/AGENTS.md"
 lrun 0 layer_grok
 assert test -f "$L/.grok/AGENTS.md"
 # No Cursor on the host: deploy and --check skip the Cursor parts and never create ~/.cursor.
-rm -rf "$L/.cursor"
+rm -rf "$L/.cursor" "$L/.claude/cursor-plan-usage.py"
 lrun 0 layer_hooks layer_cursor
 assert test ! -e "$L/.cursor"
+assert test -f "$L/.claude/cursor-plan-usage.py"   # Claude's status line still installs
 assert grep -q '^SKIP \[hooks\] ~/.cursor absent' "$T/output"
 assert grep -q '^SKIP \[cursor\] ~/.cursor absent' "$T/output"
 lrun 1 layer_hooks layer_cursor

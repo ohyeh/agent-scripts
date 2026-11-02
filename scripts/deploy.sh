@@ -799,10 +799,10 @@ layer layer_context_mode
 # --- Layer 7: Cursor runtime (kernel / ponytail rule / HUD) -------------------
 layer_cursor() {
 echo "==> [cursor] kernel.mdc + ponytail rule + HUD statusLine"
+w bash "$SRC/scripts/install-cursor-hud.sh"   # also Claude's own status line; never creates ~/.cursor
 [ -d ~/.cursor ] || { echo "SKIP [cursor] ~/.cursor absent (Cursor not installed)"; return 0; }
 w bash "$SRC/scripts/install-cursor-kernel.sh"
 w bash "$SRC/scripts/install-cursor-ponytail.sh"
-w bash "$SRC/scripts/install-cursor-hud.sh"
 bash "$SRC/scripts/check-cursor-runtime.sh"
 echo "PASS [cursor] kernel + HUD + ponytail wiring"
 }
