@@ -224,9 +224,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/tmux-agent-tools.git",
       "skillPath": "skills/tmux-agent-tools/SKILL.md",
-      "skillFolderHash": "0e0dd61bb15e247285d21861fb47c46faf99de19",
+      "skillFolderHash": "d6220988694c1fb4d0484a7d6c91eb5644156e8f",
       "installedAt": "2026-07-18T20:48:24.825Z",
-      "updatedAt": "2026-11-01T13:14:58.302Z"
+      "updatedAt": "2026-11-04T12:47:15.801Z"
     },
     "triage": {
       "source": "mattpocock/skills",
