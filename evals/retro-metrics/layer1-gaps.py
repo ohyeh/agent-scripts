@@ -23,6 +23,7 @@ DISPATCH = re.compile(r"GOAL\b.*ACCEPTANCE\b", re.S)
 # and without GOAL/ACCEPTANCE in the pasted line; W42 counted them as human (W43-4).
 TMUX_BRIEF = re.compile(r"Your task is in the file \S*/tmux-agent-tools/\S*\.md|Write final JSON to this exact path: \S*/tmux-agent-tools/")
 PROBE = re.compile(r"^(Reply with just|Run the shell command|echo |say OK|Reply OK)", re.I)
+TEST_PROBE = re.compile(r"ASK0\d\d|DONE_[A-Z]|^Run Bash command")
 
 def text_of(c):
     if isinstance(c, str): return c
@@ -35,13 +36,16 @@ def uclass(r, txt, first_top):
     if r.get("isCompactSummary"): return "compaction"
     if ok == "plugin": return "plugin_injection"
     if ok == "task-notification" or to == "task_notification" or txt.lstrip().startswith("<task-notification>"): return "task_notification"
-    if ok == "peer" or to == "peer": return "plugin_injection"
+    # W45: peer sessions' teammate messages arrive with no origin and were counted as human
+    if ok == "peer" or to == "peer" or txt.lstrip().startswith("Another Claude session sent a message") or "<teammate-message" in txt[:400]: return "plugin_injection"
     if to == "scheduled": return "command_loop"
     if "<command-name>" in txt: return "command_loop" if "<command-name>/loop" in txt else "command_other"
     if r.get("isMeta") or "<local-command-caveat>" in txt or txt.startswith("Stop hook feedback") or txt.startswith("Base directory for this skill"): return None
     if txt.startswith("[Request interrupted"): return None
     if r.get("entrypoint") == "sdk-cli" or to == "sdk": return "sdk"
     if TMUX_BRIEF.search(txt[:4000]) or (first_top and DISPATCH.search(txt[:4000])): return "dispatch_brief"
+    # W45: smoke-test probes (ASK040…) run in cli sessions and were counted as human
+    if PROBE.search(txt.strip()) or TEST_PROBE.search(txt[:300]): return "probe"
     return "human"
 
 if SELF_TEST:
@@ -50,6 +54,9 @@ if SELF_TEST:
     assert uclass({}, "GOAL x\nACCEPTANCE y", True) == "dispatch_brief"
     assert uclass({}, "GOAL x\nACCEPTANCE y", False) == "human"
     assert uclass({}, "看一下做到哪了", True) == "human"
+    assert uclass({}, 'Another Claude session sent a message: <teammate-message teammate_id="x">', False) == "plugin_injection"
+    assert uclass({}, "Run Bash command `printf ASK040_TURN_1`. Then reply exactly DONE_ASK040", False) == "probe"
+    assert uclass({}, "Reply with just OK", True) == "probe"
     print("self-test ok"); sys.exit(0)
 
 def claude():
