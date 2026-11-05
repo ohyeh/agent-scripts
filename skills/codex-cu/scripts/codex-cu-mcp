@@ -67,6 +67,16 @@ def main() -> None:
     if not isinstance(env_extra, dict):
         sys.stderr.write(f"codex-cu-mcp: cua_repl env must be an object in {mcp_path}\n")
         sys.exit(1)
+    # Since 26.1029 the plugin runs the server as
+    #   /bin/sh -c 'export BROWSER_USE_ACCESS_EXECUTOR_ID="${...-}"; exec "$@"' cua-repl <server> [args]
+    # which re-exports the id we drop below as "" ("browser access host is unavailable").
+    # Exec the inner server directly ($0 = args[2], "$@" = args[3:]). Checked before
+    # --resolve so check-codex-cu.sh fails on a wrapper shape we do not know.
+    if command == "/bin/sh" and args[:1] == ["-c"] and "BROWSER_USE_ACCESS_EXECUTOR_ID" in "".join(args[1:2]):
+        if len(args) < 4 or 'exec "$@"' not in args[1]:
+            sys.stderr.write(f"codex-cu-mcp: unknown /bin/sh wrapper in {mcp_path}: {args!r}\n")
+            sys.exit(1)
+        command, args = args[3], args[4:]
     if resolve_only:
         print(latest)
         return
@@ -74,6 +84,7 @@ def main() -> None:
     # inject to enforce BROWSER_USE_ACCESS_EXECUTOR_ID verification (which expects
     # ChatGPT app internal pipe). Outside ChatGPT app, that pipe does not exist;
     # dropping the import allows browser-service.mjs to discover Chromium instances directly.
+    # 26.1029 no longer passes this import; kept for older builds.
     filtered_args = []
     skip_next = False
     for i, arg in enumerate(args):

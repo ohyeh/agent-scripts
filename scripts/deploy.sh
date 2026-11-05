@@ -243,7 +243,7 @@ echo "PASS [invariants] all checks green"
 # test gets its own HOME/XDG/TMPDIR so a fixture never writes the real home.
 # Budget: ~30s total on the operator host.
 layer0_tests=(
-  test-rm-home-gate.sh test-codex-cu-chrome-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
+  test-rm-home-gate.sh test-codex-cu-chrome-gate.sh test-codex-cu-mcp.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
   test-review-dispatch-gate.sh test-workflow-agent-cap.sh
   test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke test-idevicesyslog-guard.sh
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate test-round-cost-gate.sh test-worker-followup-gate.sh
