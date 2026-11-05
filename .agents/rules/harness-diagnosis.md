@@ -71,10 +71,10 @@ ID without checking).
 Fix:
 - Completion claims require raw evidence (CLAUDE.md Hard Rules); the executable
   checklist is `rules/judgment-rubrics.md` §2.
-- Above model-dispatch §6's triviality threshold (multi-file / risky / user-facing),
-  verification is performed by a FRESH-context subagent, never the author; trivial
-  single-file changes may be author-verified by running the real command and quoting
-  exit code + key lines — see `rules/model-dispatch.md` §6.
+- Who verifies follows `rules/judgment-rubrics.md` §2/§2b (classified by effect, not file
+  count): a reversible change is author-verified by running the real command and quoting
+  exit code + key lines; an irreversible or outward-facing change is verified by a
+  FRESH-context agent, never the author — reviewer models in `rules/model-dispatch.md` §6.
 - Any model name, version, parameter, or path stated to the user must come from a
   lookup made THIS session (tool schema, `--version`, file read, dashboard). If it
   cannot be looked up, write `UNCONFIRMED` next to it. No exceptions.

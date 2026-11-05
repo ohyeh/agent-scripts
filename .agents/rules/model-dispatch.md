@@ -89,7 +89,7 @@ xhigh / max for better.
 The commander decomposes, decides, integrates, and talks to the user. Delegate or sandbox when
 any applies: more than three files must be read, ownership is unknown, or synthesis needs an
 isolated context; output is unpredictable/over 20 lines; one solved edit repeats across at least
-three files; verification exceeds the trivial single-file threshold.
+three files; the change needs independent verification (§6: irreversible or outward-facing).
 
 Do not delegate one-tool-call facts or work whose coordination costs exceed execution. Project
 files read in full are files about to be edited; gate files and user-mandated reads are exempt.
@@ -326,11 +326,12 @@ not a fourth retry. Once the hard part is solved, drop to the cheap execution ti
 
 ## §6 Reviewer independence
 
-Above the trivial single-file/low-risk threshold, the author is not the verifier. Files need
+When `judgment-rubrics.md` §2/§2b requires independent verification (an irreversible or
+outward-facing change, classified by effect, not by file count), the author is not the verifier. Files need
 fresh read-back (Claude `sonnet` medium; Codex cheap fresh worker); code needs the real
 test/build/flow; high-risk judgment needs Claude `opus`, Codex fresh Astra, or 2–3 candidates plus
-an independent judge. At the trivial threshold, the author's real command with quoted exit
-code/key lines suffices. Completion/quality criteria: `judgment-rubrics.md` §2/§5, read before reporting.
+an independent judge. For a reversible change, the author's real command with quoted exit
+code/key lines suffices (`judgment-rubrics.md` §2b). Completion/quality criteria: `judgment-rubrics.md` §2/§5, read before reporting.
 
 ## §7 Dispatch records
 

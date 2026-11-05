@@ -49,7 +49,7 @@ the line on is also the cheapest one: with no raw evidence, always say
 | The model table goes stale, dispatch keeps using it anyway | dispatch §8 quarterly re-verification + silent fable→opus fallback |
 | A free-text lesson list turns into a junk drawer | Retired 2026-10-09: no lesson list; each friction becomes a gate, a backlog row that names a file and a failing case, or nothing (maintenance §2/§3) |
 | The user bypasses the institution under time pressure | Normal, no guilt needed; adding a backlog row afterward is the institution working as intended |
-| Verification degrades into self-verification by the author | dispatch §6 states in black and white: past the triviality threshold, the author's own "I verified it" is not evidence |
+| Verification degrades into self-verification by the author | dispatch §6 states in black and white: for an irreversible or outward-facing change, the author's own "I verified it" is not evidence |
 
 ## III. Honesty clause: where my output is least confident
 
