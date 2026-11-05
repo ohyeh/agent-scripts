@@ -15,18 +15,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/vercel-labs/agent-browser.git",
       "skillPath": "skills/agent-browser/SKILL.md",
-      "skillFolderHash": "aee3afd3dd9c879a14816dd6dca77c938f8c9c10",
+      "skillFolderHash": "29ba9c12789b1c54ab76ad40e2472e646d141b85",
       "installedAt": "2026-07-18T20:48:45.740Z",
-      "updatedAt": "2026-10-30T01:22:54.378Z"
+      "updatedAt": "2026-11-04T01:31:13.489Z"
     },
     "agent-device": {
       "source": "callstackincubator/agent-device",
       "sourceType": "github",
       "sourceUrl": "https://github.com/callstackincubator/agent-device.git",
       "skillPath": "skills/agent-device/SKILL.md",
-      "skillFolderHash": "f895b564a36ba6d574656136889b6a985e2981a5",
+      "skillFolderHash": "797a4bc2a6ff3837d3a9f3c3e2780c981cf53865",
       "installedAt": "2026-07-18T20:47:33.875Z",
-      "updatedAt": "2026-10-29T17:27:49.537Z"
+      "updatedAt": "2026-11-04T01:31:13.811Z"
     },
     "apple-design": {
       "source": "emilkowalski/skills",
@@ -51,7 +51,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/codex-cu/SKILL.md",
-      "skillFolderHash": "14e47603f5d242333834560acc65d65b91b266bf",
+      "skillFolderHash": "90cf6b31d686ba08958dc7ed7300cfbe12684f6f",
       "installedAt": "2026-10-08T17:59:00.705Z",
       "updatedAt": "2026-10-31T09:40:00.000Z"
     },
@@ -105,9 +105,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "bcecaf90a9082b1820d32c9416665bec0d9d713e",
+      "skillFolderHash": "0d0f10932e394ea9cc8d0c9bbd0dd6d95d7de943",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-10-28T05:40:05.186Z"
+      "updatedAt": "2026-11-04T01:31:18.089Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -141,9 +141,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "1f8ac53994435e13418a083940ab7c461c8c1dd5",
+      "skillFolderHash": "c08b2590d2be1bef41ca44be540584a1324a09d3",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-11-01T14:28:30.343Z"
+      "updatedAt": "2026-11-04T01:31:19.662Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
