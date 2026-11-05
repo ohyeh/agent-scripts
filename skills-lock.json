@@ -141,9 +141,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "c08b2590d2be1bef41ca44be540584a1324a09d3",
+      "skillFolderHash": "19470d8fe1076165c96dafc9cd3fe27b8d8bc5ed",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-11-04T01:31:19.662Z"
+      "updatedAt": "2026-11-05T04:29:00.313Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -314,9 +314,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
       "skillPath": "skills/taste-skill/SKILL.md",
-      "skillFolderHash": "844f3cf223d25a29e75f7965d095a093938282df",
+      "skillFolderHash": "5743b6eb4d005c5bbe51aa4ecae701eb052d6198",
       "installedAt": "2026-10-23T05:53:48.470Z",
-      "updatedAt": "2026-10-27T02:09:37.700Z"
+      "updatedAt": "2026-11-05T04:29:28.424Z"
     },
     "create-verification-skill": {
       "source": "backnotprop/pstack",
