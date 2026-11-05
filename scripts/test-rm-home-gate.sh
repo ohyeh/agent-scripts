@@ -47,9 +47,9 @@ j() { # $1 = name, $2 = want (deny|ask|warn|pass), $3 = payload, $4 = AGENT_HOOK
 }
 b() { jq -cn --arg c "$1" --arg d "${2:-$PWD}" '{tool_name:"Bash",cwd:$d,tool_input:{command:$c}}'; }
 GC='Google Chrome'; MAC='.app/Contents/MacOS'; HL='--head''less'; WA='worktree a''dd'
-j "chrome headless (ask CLI)"   ask  "$(b "\"/Applications/$GC$MAC/$GC\" $HL=new --screenshot=x.png file:///tmp/a.html")" 1
+j "chrome headless (ask CLI)"   deny "$(b "\"/Applications/$GC$MAC/$GC\" $HL=new --screenshot=x.png file:///tmp/a.html")" 1
 j "chrome headless (no ask)"    deny "$(b "\"/Applications/$GC$MAC/$GC\" $HL=new --screenshot=x.png file:///tmp/a.html")"
-j "open -a chrome headless"     ask  "$(b "open -a \"$GC\" --args $HL")" 1
+j "open -a chrome headless"     deny "$(b "open -a \"$GC\" --args $HL")" 1
 j "chrome headed"               pass "$(b "open -a \"$GC\" https://example.com")" 1
 j "chrome binary no headless"   pass "$(b "\"/Applications/$GC$MAC/$GC\" --version")" 1
 j "arc binary"                  deny "$(b "/Applications/Arc$MAC/Arc --version")" 1

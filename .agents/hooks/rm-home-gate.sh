@@ -4,8 +4,9 @@
 #   test fixture ran `rm -rf ~` on the real HOME for ~30 s);
 # - deny: launching a Chromium browser other than Google Chrome (Arc, Dia, Playwright's
 #   chromium, ...) from Bash (2026-10-23: agents opened other Chromium browsers);
-# - ask: Google Chrome with --headless, and creating a git worktree (Bash, EnterWorktree,
-#   Agent isolation) — the owner never approved either (2026-10-16, 2026-10-23);
+# - deny: Google Chrome with --headless (2026-11-05 W45 D3: the ask prompt kept landing on the owner);
+# - ask: creating a git worktree (Bash, EnterWorktree, Agent isolation) — the owner never
+#   approved it (2026-10-16, 2026-10-23);
 # - warn: a command that starts with cd to a dir other than the repo root (session cwd drift).
 #
 # Ask only where the CLI shows a prompt: AGENT_HOOK_ASK_OK=1 (set by claude-only.sh and
@@ -89,7 +90,9 @@ if [[ "$flat" =~ $OTHER\.app/Contents/MacOS/|$OPENA$OTHER($S|$)|ms-playwright/ch
 fi
 if [[ "$flat" =~ Google\ Chrome\.app/Contents/MacOS/Google\ Chrome|${OPENA}Google\ Chrome ]] &&
    [[ "$flat" =~ (^|$S)--headless(=[^[:space:]]*)?($S|$) ]]; then
-  ask "Headless Google Chrome needs the owner's OK first (owner: 「又是你們開一堆無頭 CHROME」). The default route is codex-cu (background tab) or the repo's scripts/probes/."
+  # deny, not ask: the ask prompt landed on the owner every time (W45 D3: 「還不是一直要權限 煩都煩死了」)
+  echo "BLOCKED: headless Google Chrome is not allowed (owner: 「又是你們開一堆無頭 CHROME」). Do not ask the owner for it: use codex-cu (background tab) or the repo's scripts/probes/." >&2
+  exit 2
 fi
 while IFS= read -r seg; do
   [[ "$seg" =~ (^|[^[:alnum:]_-])git($S.*)?$S+worktree$S+add($S|$) ]] && ask "$WT"
