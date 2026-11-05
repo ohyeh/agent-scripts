@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.19.0（2026-11-05 W45 W46-12：§6.6 概念卡審查）；1.18.0（2026-11-05 W45 D1：盤點分工、brief 附儀表板快照、scrub 用 find、收件匣上限、Grok Bot rule5 全量讀、L2 意見落檔）；1.17.0（2026-10-23 W44-4：§7 backlog 配對指標必含一項使用者面數字）；1.16.0（2026-10-22 W43：§8 固定區塊加漏斗推進、打斷率、上週 backlog 落地；使用者「這些的落地、推進比較重要吧」）；1.15.0（2026-10-19：§6.5 收 global 化候選，投稿不設門檻，採用與否在 retro 決定）；1.14.0（2026-10-16 W42 收尾：§6.5 收尾前再收一次 inbox；§8 `updated.at` 記錄寫入當下的 UTC、backlog 狀態收尾重查）；1.13.0（2026-10-16 W42：§Layer1 加分項與忙碌度三支 collector 與 advisor 補算；§8 儀表板固定區塊不得默默拿掉）；1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+Version: 1.20.0（2026-11-06 W46-11：§8 行為稽核 digest 用 session-digest.py）；1.19.0（2026-11-05 W45 W46-12：§6.6 概念卡審查）；1.18.0（2026-11-05 W45 D1：盤點分工、brief 附儀表板快照、scrub 用 find、收件匣上限、Grok Bot rule5 全量讀、L2 意見落檔）；1.17.0（2026-10-23 W44-4：§7 backlog 配對指標必含一項使用者面數字）；1.16.0（2026-10-22 W43：§8 固定區塊加漏斗推進、打斷率、上週 backlog 落地；使用者「這些的落地、推進比較重要吧」）；1.15.0（2026-10-19：§6.5 收 global 化候選，投稿不設門檻，採用與否在 retro 決定）；1.14.0（2026-10-16 W42 收尾：§6.5 收尾前再收一次 inbox；§8 `updated.at` 記錄寫入當下的 UTC、backlog 狀態收尾重查）；1.13.0（2026-10-16 W42：§Layer1 加分項與忙碌度三支 collector 與 advisor 補算；§8 儀表板固定區塊不得默默拿掉）；1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
 ＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
 1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
@@ -203,6 +203,7 @@ files/index.html；URL 以 Artifact list 現場查，標題固定；不再另開
 dataset 的 `updated.at` 填寫入當下的 UTC（W42 兩次把台灣時間當 UTC，寫成未來時間）。
 收尾前依 judgment-rubrics §2／§5 重查本輪 backlog 狀態，再更新報告；未查證的項目保留並標 `UNCONFIRMED`，不得列為「還沒做」（W42 使用者：「你也不查證做了沒 只會一直複誦」）。
 L2（advisor）的意見當輪寫進 run dir 的 `l2-review.md`：transcript 裡 advisor 回覆是加密內容，沒落檔就無從核對（W45 deepseek NO-SOURCE）。
+行為稽核的 digest 用 `evals/retro-metrics/session-digest.py <transcript> <out>` 產生；手寫 digest 會漏掉 advisor 的 `server_tool_use`（W45 agy 因此誤判沒有 advisor 呼叫）。
 資料源 repo 與各自量測層：
 
 | Repo | 量測層 |
