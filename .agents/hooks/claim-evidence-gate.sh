@@ -234,7 +234,7 @@ fi
 recap_reason=""
 # W46-18: a `full` recap line is bound to what tools PRINTED, never to what a tool input names.
 # `resume_pack.py` prints a summary line per pack, and `resume_pack.py --read FILE --page N` prints
-# a page followed by `READ <abs path> page N/T lines A-B sha256=<file sha>`. Three checks, no more:
+# a page followed by `READ <abs path> page N/T lines A-B body=<page sha> sha256=<file sha>`. Three checks, no more:
 # (a) the summary line for <pack>/<sid8> with the same COUNT/TOOLS; (b) every page of user.txt;
 # (c) per scout group of every manifest, every page of scout-<range>.md or of each of its slices.
 # A stamp counts only with its page's lines above it (`| tail -1` keeps the stamp, not the body) and
