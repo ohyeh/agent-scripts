@@ -1,6 +1,9 @@
 # regex (grep -E, case-insensitive)	kind	owner
 # kind: skill → ~/.agents/skills/<owner>/SKILL.md ; recipe → ~/.claude/workflows/<owner>.workflow.js
 # First match wins. Validated by scripts/check-skill-router-table.sh (invariants: skill-router-table).
+# Name rows: the owner typed the skill name mid-sentence (the harness expands only a leading "/x"). First, so a broad row below cannot shadow them.
+session-handoff	skill	session-handoff
+using-decision-tree	skill	using-decision-tree
 (讀|填|read|fill|parse)[^。]{0,10}\.?pdf\b	skill	pdf
 domain model|領域模型|glossary|術語表|名詞定義|\badr\b|決策紀錄|context\.md	skill	domain-modeling
 (架構|architecture)[^。]{0,6}(設計|審|評|review|design)	skill	codebase-design
