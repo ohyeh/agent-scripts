@@ -1,5 +1,9 @@
 # Changelog
 
+## grok-bot-watch 0.18.2
+
+- **The main bot's pinned row no longer reads as the open bot** (2026-11-06): the app nests a `Pinned Bots` group inside `Bot list`, and the main bot's pinned row keeps `aria-current="page"` with the same UUID while another bot is open. `send.mjs` refused with `not-open`, `transcript.mjs` restored the wrong bot, and the sidebar listed the main bot twice with `current: true`. Every row read now skips the pinned row (`ROW`/`CUR` in `bin/send.mjs`, the sidebar READ). 77 skill tests pass; the old selector fails 9.
+
 ## grok-bot-watch 0.18.1
 
 - **A header-less text is refused before any check or connection** (W45-2): `main()` in `bin/send.mjs` trusted the injected check alone, so a caller whose check returns null (the once wrapper) skipped `HEADER_RE` and could send a text with no `[w:<sid8>] ⟨<agent>⟩` header. `bad-header` is now one of the early refusals, with tests for bot 168d152a. The skill's `scripts/send.mjs` carries the same change.
