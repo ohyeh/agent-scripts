@@ -18,7 +18,7 @@
 
 import { realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { cdp, parseArgs, restore } from './send.mjs'
+import { CUR, cdp, parseArgs, restore } from './send.mjs'
 
 const ID_RE = /^[0-9a-f-]{8,36}$/
 const WAIT_MS = 5000
@@ -33,7 +33,7 @@ export function parseCli(argv, env = process.env) {
 
 /** In-page: the last n characters of the open transcript, or null when id is not the open bot or there is no transcript. */
 export const TAIL = (id, n) => `(() => {
-  if (!(document.querySelector('button[aria-current=page]')?.getAttribute('data-agent-id') ?? '').startsWith(${JSON.stringify(id)})) return null;
+  if (!(document.querySelector('${CUR}')?.getAttribute('data-agent-id') ?? '').startsWith(${JSON.stringify(id)})) return null;
   const l = document.querySelector('[role=log][aria-label="Conversation transcript"]');
   return l ? l.innerText.slice(-${n}) : null;
 })()`

@@ -12,7 +12,7 @@ const RENDERER = /app\.asar\/dist\/renderer\/index\.html$/
 
 // convo: the last 5 messages of the bot open in the app, parsed from its transcript text
 // (0.59.1: sender line, body, then a "9:58 PM" line; no per-message node). Read, never clicked open.
-const READ = `(() => ({ rows: [...document.querySelectorAll("button[data-agent-id]")].map(b => {
+const READ = `(() => ({ rows: [...document.querySelectorAll('button[data-agent-id]:not([aria-label="Pinned Bots"] button)')].map(b => {
   const label = b.getAttribute("aria-label") || "";
   return {
     id: b.getAttribute("data-agent-id"),

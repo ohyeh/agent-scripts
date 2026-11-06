@@ -276,7 +276,9 @@ function page({ bots = [A, B], current = B, drafts = {}, log = {}, accepts = tru
   }
   const document = {
     querySelector(sel) {
-      if (sel === 'button[aria-current=page]') return { getAttribute: () => p.current }
+      // 11-06 live: the main bot's row under Pinned Bots (inside Bot list) also carries aria-current and comes first.
+      if (sel === 'button[aria-current=page]') return { getAttribute: () => 'pinned-main' }
+      if (sel === 'button[data-agent-id]:not([aria-label="Pinned Bots"] button)[aria-current=page]') return { getAttribute: () => p.current }
       if (sel === 'div[contenteditable=true]') return composer
       // An entry is a string (from You) or { who, text }; no transcript at all while p.noLog.
       if (sel.startsWith('[role=log]')) return p.noLog ? null : { innerText: (p.log[p.current] ?? []).map(m => `${m.who ?? 'You'}\n\n${m.text ?? m}\n\n1:58 PM`).join('\n\n') }

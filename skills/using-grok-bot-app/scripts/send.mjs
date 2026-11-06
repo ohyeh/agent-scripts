@@ -42,6 +42,10 @@ import { fileURLToPath } from 'node:url'
 
 const RENDERER = /app\.asar\/dist\/renderer\/index\.html$/
 const ID_RE = /^[0-9a-f-]{8,36}$/
+// The main bot also has a row under Pinned Bots (inside Bot list) that keeps aria-current=page
+// while another bot is open (seen 2026-11-06): every row read skips it.
+export const ROW = 'button[data-agent-id]:not([aria-label="Pinned Bots"] button)'
+export const CUR = `${ROW}[aria-current=page]`
 /** How long the app gets to open the bot, and to show the message in its transcript. */
 const WAIT_MS = 5000
 
@@ -161,7 +165,7 @@ export const MINE = text => `(() => {
   }
   return n;
 })()`
-const OPEN = id => `(document.querySelector('button[aria-current=page]')?.getAttribute('data-agent-id') ?? '').startsWith(${JSON.stringify(id)})`
+const OPEN = id => `(document.querySelector('${CUR}')?.getAttribute('data-agent-id') ?? '').startsWith(${JSON.stringify(id)})`
 
 /**
  * The in-page send. Its checks and the paste are one synchronous run, and so are the re-checks and the
@@ -173,7 +177,7 @@ const SUBMIT = (id, text) => `window.__grokBotSend = (async () => {
   const norm = s => s.replace(/\\s+/g, ' ').trim();
   const want = ${JSON.stringify(norm(text))};
   const mine = () => ${MINE(text)};
-  const open = () => (document.querySelector('button[aria-current=page]')?.getAttribute('data-agent-id') ?? '').startsWith(${JSON.stringify(id)});
+  const open = () => (document.querySelector('${CUR}')?.getAttribute('data-agent-id') ?? '').startsWith(${JSON.stringify(id)});
   const box = () => document.querySelector('div[contenteditable=true]');
   let c = box();
   if (!c || !open()) return { state: 'not-open' };
@@ -227,12 +231,12 @@ export async function cdp(port) {
 
 /** The send's effects as page expressions, over ev(expression) → value: CDP here, a fake DOM in the test. */
 export function effects(ev) {
-  const row = id => `document.querySelectorAll('button[data-agent-id^=${JSON.stringify(id)}]')`
+  const row = id => `document.querySelectorAll('button[data-agent-id^=${JSON.stringify(id)}]:not([aria-label="Pinned Bots"] button)')`
   const box = `document.querySelector('div[contenteditable=true]')`
   return {
     count: id => ev(`${row(id)}.length`),
     composer: () => ev(`${box}?.innerText ?? null`),
-    current: () => ev(`document.querySelector('button[aria-current=page]')?.getAttribute('data-agent-id') ?? null`),
+    current: () => ev(`document.querySelector('${CUR}')?.getAttribute('data-agent-id') ?? null`),
     click: id => ev(`${row(id)}[0].click()`),
     submit: (id, text) => ev(SUBMIT(id, text)),
     sent: (id, text) => ev(`(() => { if (!${OPEN(id)}) return null; const n = ${MINE(text)}; return n < 0 ? null : n })()`),
