@@ -238,7 +238,7 @@ def build(logs, out):
 PAGE_BYTES = 16 * 1024  # Claude Code keeps a tool result whole only up to ~30 KB, then shows a 2 KB preview.
 
 
-def pages_of(text):
+def pages_of(text):  # claim-evidence-gate.sh read_whole repeats this paging; change both
     """Split at line boundaries into pages of at most PAGE_BYTES; a longer line (a pasted message)
     is cut into 4,000-character pieces first, so no page outgrows the transcript's limit."""
     pages, page, size = [], [], 0

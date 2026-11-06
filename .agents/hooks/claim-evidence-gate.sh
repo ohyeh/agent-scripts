@@ -261,19 +261,36 @@ if [ -n "$recap_full" ]; then
     | .out[] | . as $o | (.s | capture("^READ (?<p>/\\S+) page (?<n>[0-9]+)/(?<t>[0-9]+) lines (?<a>[0-9]+)-(?<b>[0-9]+) body=(?<d>[0-9a-f]{64}) sha256=(?<h>[0-9a-f]{64})$")?) as $m
     | select($m != null) | (($m.b | tonumber) - ($m.a | tonumber) + 1) as $k | select($o.to - $o.from >= $k)
     | [$m.p, $m.n, $m.t, $m.h, $m.d, ($l[($o.to - $k):$o.to] | join("\n") | @base64)] | @tsv' 2>/dev/null)"
-  # path TAB page TAB total TAB sha, for stamps whose body= matches the lines above them
+  # path TAB page TAB total TAB sha TAB body sha, for stamps whose body= matches the lines above them
   stamps="$(while IFS=$'\t' read -r p n t h d b; do
       [ -n "$p" ] || continue
       [ "$(printf '%s' "$b" | base64 -d 2>/dev/null | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)" = "$d" ] \
-        && printf '%s\t%s\t%s\t%s\n' "$p" "$n" "$t" "$h"
+        && printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$n" "$t" "$h" "$d"
     done <<<"$cand" | sort -u)"
-  read_whole() { # $1 file: every page 1..T stamped with the file's current sha
-    local h t
-    h="$( { sha256sum "$1" 2>/dev/null || shasum -a 256 "$1" 2>/dev/null; } | cut -d' ' -f1)"
-    [ -n "$h" ] || return 1
-    t="$(awk -F'\t' -v p="$1" -v h="$h" '$1 == p && $4 == h { print $3 }' <<<"$stamps" | sort -u)"
-    [ -n "$t" ] && [ "$(printf '%s\n' "$t" | wc -l)" -eq 1 ] || return 1
-    [ "$(awk -F'\t' -v p="$1" -v h="$h" '$1 == p && $4 == h { print $2 }' <<<"$stamps" | sort -un | wc -l)" -eq "$t" ]
+  read_whole() { # $1 file: every page 1..T of the file on disk, each stamped with its real page sha
+    local want
+    # shortcut: repeats resume_pack.py pages_of (4000-char pieces, 16 KiB pages); a change there must change this too.
+    want="$(python3 - "$1" 2>/dev/null <<'EOF'
+import hashlib, sys
+raw = open(sys.argv[1], "rb").read()
+pages, page, size = [], [], 0
+for whole in raw.decode("utf-8").splitlines():
+    for i in range(0, max(len(whole), 1), 4000):
+        piece = whole[i:i + 4000]
+        n = len(piece.encode("utf-8")) + 1
+        if page and size + n > 16 * 1024:
+            pages.append(page)
+            page, size = [], 0
+        page.append(piece)
+        size += n
+pages = pages + [page] if page else pages or [[]]
+file_sha = hashlib.sha256(raw).hexdigest()
+for k, p in enumerate(pages, 1):
+    print(k, len(pages), file_sha, hashlib.sha256("\n".join(p).encode("utf-8")).hexdigest(), sep="\t")
+EOF
+)" || return 1
+    [ -n "$want" ] && [ -z "$(comm -23 <(printf '%s\n' "$want" | sort) \
+      <(awk -F'\t' -v p="$1" '$1 == p { print $2 "\t" $3 "\t" $4 "\t" $5 }' <<<"$stamps" | sort -u))" ]
   }
   while IFS= read -r line; do
     sid="$(printf '%s' "$line" | cut -d' ' -f2)"
