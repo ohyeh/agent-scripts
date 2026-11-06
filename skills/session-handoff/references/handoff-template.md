@@ -63,6 +63,13 @@ Use this template structure when creating handoff documents. The smart scaffold 
 | [TIME] | user | [「verbatim request, ruling or correction」] |
 | [TIME] | agent | [commit / push / deploy / worker start or stop, with its evidence] |
 
+## Sources Read
+
+[This session's resume status lines, exactly as its reply printed them. The next resume skips every session marked `full` or `inherited full` here.]
+
+- [SID8] full · COUNT [n] · TOOLS [n] · pack [dir]
+- [SID8] inherited full (from [handoff file])
+
 ## Codebase Understanding
 
 ### Architecture Overview

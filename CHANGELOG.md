@@ -1,5 +1,11 @@
 # Changelog
 
+## quick-say 0.6.1
+
+Owner 11-06: 「交接要讀最近兩天同一條工作線的每一份 太多了啊 理論上接續不就是更之前分析到哪？ 然後補空洞嗎」「最笨 24 hr 內啊」「然後 內部 agent first」.
+
+- **5 前情提要 reads the newest handoff's session plus the holes**: the chain is read as handoff text; a reading pack is built only for the newest handoff's writer session and for chain sessions from the last 24 hours that no handoff's "Sources Read" marks `full`. The same change lands in session-handoff (RESUME Step 1, Step 3b.1, Handoff Chaining; CREATE item 7 and the template's new `## Sources Read`). Scouts use the CLI's built-in subagent first and stay within the live cap.
+
 ## quick-say 0.6.0
 
 Owner 11-06: 「目前使用上 我覺得用字、交代、細節不夠好 尤其是前情提要 使用下來 agent 都在偷懶」「quick-say 為啥不能分離出選項 config … 現在寫死很難測也」.

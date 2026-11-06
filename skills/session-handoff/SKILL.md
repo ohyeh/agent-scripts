@@ -62,6 +62,7 @@ Open the generated file and fill in all `[TODO: ...]` sections. Prioritize these
 4. **Decisions Made** - Choices with rationale (not just outcomes). Record the main rejected options, why each was rejected, and what new evidence would reopen it. Use the task's own decision or handoff file; do not create a standing DECISIONS.md.
 5. **Mistakes and Corrections** - Wrong turns and user corrections, with evidence; a rule proposal goes to `~/.agents/retro-inbox/pending/` and only its file name goes here
 6. **Timeline** - First the nodes: one row per stretch of work from a user request to its verified outcome — time span, what was asked (user quote), what was achieved (files, behavior), the evidence that closed it (sha, test output, page), and status (`verified` / `open` / `dropped`). A resuming agent reads the nodes as the map and checks them against the rows below. Then the rows: each user message, ruling and correction as a `user` row (UTC time, short verbatim quote), and each state change (commit, push, deploy, worker start/stop) with its evidence. Run `resume_pack.py` (RESUME Step 3b) on this session's own log, or the Step 3b filter for a CLI it does not cover. Copy the `COUNT <n>` line of `user.txt` into the section and write one `user` row per line, from the full output, not from memory or a summary.
+7. **Sources Read** - Copy this session's resume status lines exactly as the reply printed them (`full · COUNT …` / `partial (…)` / `not read (…)` / `inherited full (from …)`). Never rewrite an `inherited full` line as `full`. The next resume skips every session marked `full` or `inherited full` here.
 
 Use the template structure in [references/handoff-template.md](references/handoff-template.md) for guidance.
 
@@ -105,8 +106,8 @@ ls -lt .claude/handoffs/*.md | head -10              # newest first
 grep -H -E '^- (Written by|Session|CLI|Model|Host):' .claude/handoffs/*.md   # writer: manual and compact handoffs
 ```
 
-Read every handoff from the last two days whose task or files overlap yours.
-Also read the handoff named by the user or linked by the task's handoff chain, even if it is older.
+Read the newest handoff for your task, then follow its "Continues from" chain back and read each handoff's text.
+Also read the handoff named by the user.
 Select the handoff for your task by its task, files, and chain links.
 `Written by:` and `compact-<session id>.md` identify the writer, which may be a previous session.
 Do not treat a different writer as proof of concurrent work.
@@ -138,7 +139,7 @@ Read in full every user-reviewed work record the handoff names, in any section. 
 
 A handoff is an agent's summary of a session, not its record. Read the record too.
 
-1. List the sessions. Take the writer session of every handoff you selected in Step 1 (`Session:` line, or the id in `compact-<id>.md`), every session in their chains, and every session the user names. Several handoffs often point to several sessions.
+1. List the sessions: the writer session of the newest handoff (`Session:` line, or the id in `compact-<id>.md`), every session the user names, and the holes. A hole is a session in the chain whose handoff file timestamp is within the last 24 hours and that no handoff's "Sources Read" marks `full` or `inherited full`. A session marked so there was read by an earlier resume: do not pack it again; open only the cited lines the next step depends on. Older sessions are read as handoff text only.
 2. For each session, read what the user said AND what the agent did. The user's messages show what was asked and corrected; only the agent's tool calls show what was built (W46 audit: 10 of 15 resumes read only the user's side). Claude Code and Codex: build the session's reading pack.
 
    ```bash
@@ -150,7 +151,7 @@ A handoff is an agent's summary of a session, not its record. Read the record to
    Read every pack file with `resume_pack.py --read <file> --page <n>`, for each page 1 to T (the first page's last line, `READ <path> page 1/T lines … sha256=…`, names T). Each page stays under the transcript's 30 KB limit and ends with that stamp, which the claim gate checks; the Read tool, `cat` or a piped `| tail` leave no valid stamp, so they do not count.
 
    a. Read `user.txt` yourself, every page; the user's words are never delegated. `tail`, `head`, a line range, a keyword grep, a tool's output preview or a compaction summary is a sample, not a read: a session read that way is `partial`.
-   b. Read the agent's side: for each scout group in `manifest.json`, read its slices yourself, or dispatch one basic-tier scout (model-dispatch: Claude `haiku`/`sonnet` medium, Codex `gpt-6.1-sol` medium, agy flash) with exactly that range. Scout brief: read every line of slices `<range>`; write `<dir of that manifest>/scout-<range>.md` with (1) what was built or changed, (2) every failed or unresolved call, (3) every commit, page and evidence file produced; every line cites `S<NN>:<line>`. Read every report yourself, every page.
+   b. Read the agent's side: for each scout group in `manifest.json`, read its slices yourself, or dispatch one basic-tier scout (model-dispatch: Claude `haiku`/`sonnet` medium, Codex `gpt-6.1-sol` medium, agy flash) with exactly that range. Use the CLI's own built-in subagent first; start an external worker (tmux) only when no built-in subagent can run. Keep live scouts within the host's cap: dispatch the next one when a slot frees, do not retry a blocked call. Scout brief: read every line of slices `<range>`; write `<dir of that manifest>/scout-<range>.md` with (1) what was built or changed, (2) every failed or unresolved call, (3) every commit, page and evidence file produced; every line cites `S<NN>:<line>`. Read every report yourself, every page.
    c. Fill the gaps: open the cited lines the next step depends on, every failure a scout lists, the diff of each commit the work continues from (`git show --stat`, then the hunks), and the text of each page it wrote (a version number or an existing file is not a read).
 
    | CLI | Session log | Cheap read |
@@ -195,6 +196,7 @@ A handoff is an agent's summary of a session, not its record. Read the record to
 - `- <sid8> full · COUNT <n> · TOOLS <n> · pack <dir>` — only after 2a–2c; COUNT and TOOLS are the manifest's, and every scout group's report or slices were read by you.
 - `- <sid8> partial (<what is missing>)`
 - `- <sid8> not read (<why>)`
+- `- <sid8> inherited full (from <handoff file>)` — a session an earlier resume read, skipped here by Step 3b.1. It is not your read: never write it as `full`.
 
 Then name the timeline file and state the latest correction and authorization in it. Never present a partial read as understanding. If you skipped a session, say so; do not state its content.
 
@@ -248,7 +250,7 @@ Each handoff in the chain:
 - Can mark older handoffs as superseded
 - Provides context breadcrumbs for new agents
 
-When resuming from a chain, read the most recent handoff first, then every predecessor and its session with RESUME Step 3b. Do not stop at the newest handoff.
+When resuming from a chain, read the most recent handoff first, then each predecessor's text. Run Step 3b only on the writer session of the newest handoff and on the holes (Step 3b.1).
 
 ## Storage Location
 

@@ -4,7 +4,7 @@ import { cells, fit, rowsOf } from './lib/band.ts'
 import { APPROVES_NOTHING, askPrompt, askTail, dirOf, gitDirOf, gitPrompt, isCommit, questionTail, type GitGap } from './lib/follow.ts'
 import rawPhrases from './phrases.ts'
 
-const MOD_VERSION = '0.6.0'
+const MOD_VERSION = '0.6.1'
 const NAME = 'quick-say'
 const COMMAND = 'quick-say'
 const ACCENT = 'cyan'

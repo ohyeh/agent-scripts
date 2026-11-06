@@ -12,7 +12,7 @@ export default [
     hotkey: "5",
     label: "前情提要",
     when: "接續前一段工作，先讀來源並確認前情",
-    text: `/session-handoff resume 前情提要：照 RESUME 流程讀，然後像看劇的前情提要一樣講給我聽。每個 session 都跑 Step 3b 的 resume_pack.py，閱讀包裡的檔案一律用 resume_pack.py --read 逐頁讀（Read 工具讀的不算）：user.txt 你自己每一頁都讀；agent 做了什麼，照 manifest 的 scout 分組，自己讀 slices 或派 basic tier 的 scouts 讀，每份 scout 報告你都要讀；再打開下一步依賴的引用行、失敗的 call、commit diff 和頁面內文補漏。交接要讀最近兩天同一條工作線的每一份，不是只讀最新一份；分不出是哪條線就寫進第 4 點，不要自己挑。html／artifact 要讀內文，Artifact 工具不能用時改用 codex-cu 或讀本機檔。
+    text: `/session-handoff resume 前情提要：照 RESUME 流程讀，然後像看劇的前情提要一樣講給我聽。要讀的 session 都跑 Step 3b 的 resume_pack.py，閱讀包裡的檔案一律用 resume_pack.py --read 逐頁讀（Read 工具讀的不算）：user.txt 你自己每一頁都讀；agent 做了什麼，照 manifest 的 scout 分組，自己讀 slices 或派 basic tier 的 scouts 讀，每份 scout 報告你都要讀；再打開下一步依賴的引用行、失敗的 call、commit diff 和頁面內文補漏。交接讀最新一份，沿接續鏈往前讀交接文字；閱讀包只跑最新交接的 session，加上鏈上 24 小時內、「讀過的來源」沒標 full 的 session（補空洞），已標 full 的不重讀；分不出是哪條線就寫進第 4 點，不要自己挑。html／artifact 要讀內文，Artifact 工具不能用時改用 codex-cu 或讀本機檔。
 講的時候分四段：
 1. 照交接的節點講，沒有節點就自己整理：每個節點是我的哪個要求、實際做出了什麼（改了哪些檔、行為怎麼變）、證據在哪、狀態（已驗證／未完成／放棄），卡在哪裡，被我糾正了什麼。
 2. 讀過的來源：每個 session 一行，照 skill 的格式寫 \`- <sid8> full · COUNT <n> · TOOLS <n> · pack <dir>\` 或 \`- <sid8> partial (<缺什麼>)\`；html／artifact 連結、commit SHA 各用一句話說它講了什麼。
