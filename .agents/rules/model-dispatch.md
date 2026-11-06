@@ -258,6 +258,14 @@ a loop. Per-host tuning: `HOST_LOAD_WARN`, `HOST_LOAD_DENY` (× cores),
 `HOST_LOAD_OFFLOAD_HOST` (ssh target named in the offload hint); `HOST_LOAD_GATE=off`
 disables it.
 
+tmux worker cap (2026-11-06 user ruling: 「cli agent 開太多 電腦超卡」「走內部 sub-agent |
+worker 就好像不會那麼嚴重」): a tmux worker is a whole CLI on this host; a native subagent runs
+inside the parent CLI. Use a native subagent first; start a tmux worker only for a different
+model family, a seat the parent cannot run, or a long job that must outlive this session. At
+most 2 live tmux workers per host, all sessions together (`TMUX_WORKER_MAX`), enforced by
+`host-load-gate.sh` on `agent-tmux` launches and the mod's `mcp__tmux-agent__assign`. Stop a
+worker as soon as its result is read and no follow-up is planned.
+
 | Parent CLI | native subagent | `agent-tmux` start/resume/assign in a shell |
 |---|---|---|
 | Claude | `Agent` (PreToolUse) | `Bash` (PreToolUse) |

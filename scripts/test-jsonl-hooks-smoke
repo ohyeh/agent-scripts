@@ -561,7 +561,8 @@ case "$2" in
   kern.memorystatus_vm_pressure_level) echo "$FAKE_MP" ;;
 esac
 EOF
-chmod +x "$WORK/fakebin/uname" "$WORK/fakebin/sysctl"
+printf '#!/bin/sh\nprintf "%%s" "$FAKE_TMUX_SESSIONS"\n' > "$WORK/fakebin/tmux"
+chmod +x "$WORK/fakebin/uname" "$WORK/fakebin/sysctl" "$WORK/fakebin/tmux"
 HIGH='{ 1.00 21.00 1.00 }'
 host_payload() { # $1 tool_name, $2 command
   jq -cn --arg t "$1" --arg c "${2:-}" '{tool_name:$t,session_id:"hlg",tool_input:{command:$c,prompt:"p"}}'
@@ -595,6 +596,17 @@ for c in 'agent-tmux codex start-ssh w host /tmp' 'agent-tmux codex start --dry-
   run_host "$HIGH" 1 "$(host_payload Bash "$c")" || { echo "FAIL: non-launch command was gated: $c" >&2; exit 1; }
 done
 run_host "$HIGH" 1 "$(host_payload Read)" || { echo "FAIL: unrelated tool was gated" >&2; exit 1; }
+# tmux worker cap (2026-11-06): at low load, 2 live workers deny a third tmux launch; a native subagent is not capped
+LOW='{ 1.00 1.00 1.00 }'
+TWO="$(printf 'main\nclaude-ds-review.cxq0u\ncodex-sol-fix.ab12c\n')"
+if FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload mcp__tmux-agent__assign)"; then echo "FAIL: mod assign over the worker cap was allowed" >&2; exit 1; fi
+grep -q 'live tmux workers on this host (cap 2)' "$WORK/host-err" && grep -q 'native subagent' "$WORK/host-err" || { echo "FAIL: worker-cap deny lacks count or next steps" >&2; exit 1; }
+if FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux codex start w /tmp')"; then echo "FAIL: agent-tmux start over the worker cap was allowed" >&2; exit 1; fi
+FAKE_TMUX_SESSIONS="$(printf 'main\nclaude-ds-review.cxq0u\n')" run_host "$LOW" 1 "$(host_payload mcp__tmux-agent__assign)" || { echo "FAIL: mod assign under the worker cap was denied" >&2; exit 1; }
+FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux codex start w /tmp')" && [[ ! -s "$WORK/host-out" ]] || { echo "FAIL: launch with no live worker was not silently allowed" >&2; exit 1; }
+FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$AGENT" || { echo "FAIL: native subagent was blocked by the tmux worker cap" >&2; exit 1; }
+FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux codex start-ssh w host /tmp')" || { echo "FAIL: remote start-ssh was blocked by the tmux worker cap" >&2; exit 1; }
+echo "PASS tmux worker cap: 2 live workers deny a 3rd mod assign or agent-tmux start; native subagent, start-ssh and 1 live worker pass"
 # the deny reaches Cursor (subagentStart, preToolUse Shell) and agy (run_command) through their adapters
 run_adapted() { # $1 adapter command..., stdin payload
   PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="${ADAPT_LOADAVG:-$HIGH}" FAKE_MP=1 HOME="$TEST_HOME" \

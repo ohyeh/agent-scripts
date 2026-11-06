@@ -28,10 +28,12 @@ command -v jq >/dev/null 2>&1 || { echo "host-load-gate: jq missing; not checked
 tool="$(printf '%s' "$IN" | jq -r '.tool_name // empty')"
 case "$tool" in
   Agent|collaborationspawn_agent|invoke_subagent) ;;
+  mcp__tmux-agent__assign) tmux_launch=1 ;;
   Bash)
     cmd="$(printf '%s' "$IN" | jq -r '.tool_input.command // empty')"
     printf '%s' "$cmd" | grep -Eq -- '(^|[^[:alnum:]_-])(agent-tmux[[:space:]]+[^[:space:]]+[[:space:]]+(start|resume|assign)([[:space:]]|$)|tmux-agent-(fanout|dialogue|commander)([[:space:]]|$))' || exit 0
     printf '%s' "$cmd" | grep -Eq -- '--dry-run' && exit 0
+    tmux_launch=1
     ;;
   *) exit 0 ;;
 esac
@@ -41,6 +43,20 @@ STATS="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks/host-load-stats.jsonl"
 log_stat() { mkdir -p "${STATS%/*}" && jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg tool "$tool" \
   --arg d "$1" --arg l1 "${l1:-}" --arg l5 "${l5:-}" --arg n "${ncpu:-}" --arg mp "${mp:-}" \
   '{timestamp:$ts, tool:$tool, decision:$d, load1:$l1, load5:$l5, ncpu:$n, pressure:$mp}' >> "$STATS" 2>/dev/null; }
+
+# tmux worker cap (owner 2026-11-06: 「cli agent 開太多 電腦超卡」): each tmux worker is a whole
+# CLI process tree; a native subagent runs inside the parent. Count live worker sessions on this
+# host, all sessions and CLIs together. shortcut: a worker is a tmux session whose name ends in
+# the dispatch suffix .<5 chars>; a worker started by hand without it is not counted.
+if [ "${tmux_launch:-}" = 1 ]; then
+  max=${TMUX_WORKER_MAX:-2}
+  live=$(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep -Ec '\.[a-z0-9]{5}$')
+  if [ "${live:-0}" -ge "$max" ]; then
+    log_stat deny-workers
+    printf 'BLOCKED by host-load-gate: %s live tmux workers on this host (cap %s).\nNext, in this order:\n1. Stop a worker whose result is in (mcp__tmux-agent__stop, or agent-tmux <cli> stop <name>).\n2. Feed a live worker (tell / send-wait) instead of starting a new one.\n3. Use a native subagent (Agent tool): it runs inside this CLI.\n4. Offload to a remote host with agent-tmux <cli> start-ssh.\n' "$live" "$max" >&2
+    exit 2
+  fi
+fi
 
 if [ "$(uname)" != Darwin ]; then
   log_stat skip-os

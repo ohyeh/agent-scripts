@@ -622,7 +622,9 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensure("PostCompact"; $postcompact)
   | ensure("Stop"; $claim)
   | ensureMatched("PreToolUse"; "Agent"; $conc)
-  | ensureMatched("PreToolUse"; "Agent|Bash"; $hostload)
+  | ensureMatched("PreToolUse"; "Agent|Bash|mcp__tmux-agent__assign"; $hostload)
+  # earlier deploys registered "Agent|Bash"; widen it in place so the mod assign tool is gated too
+  | .hooks.PreToolUse |= map(if any(.hooks[]?; .command == ($only + " " + $hostload)) then .matcher = "Agent|Bash|mcp__tmux-agent__assign" else . end)
   | ensureMatched("PreToolUse"; "*"; $deny)
   | ensureMatched("PreToolUse"; "Artifact"; $arttitle)
   | ensure("UserPromptSubmit"; $router)
