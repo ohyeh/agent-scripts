@@ -11,13 +11,13 @@
 //     sessionName: "arch1",             // worker base name for round 1 (the mod adds a suffix)
 //     worker: "arch1.k3x9a",            // round 2+: the `worker` the previous round returned (same reviewer context)
 //     round: 1,                         // round number inside the layer (names OUT; earlier OUT files are kept)
-//     layer: "L2",                      // L1 | L2 (model-dispatch.md §Review ladder); L1 can never pass the gate
+//     layer: "L2",                      // REQUIRED: L1 | L2 (model-dispatch.md §Review ladder); L1 can never pass the gate
 //     freeze: ["/abs/file.md"],         // files hashed into the round manifest (default: proposalFile)
 //     l0: "scripts/test-x",             // OPTIONAL deterministic check run before the review; non-zero = gate fails
 //     effort: "medium",                 // low|medium|high: the conduit agent's effort (reviewer effort = profile effort_flags)
 //     marker: "=== REVIEWER VERDICT END ===",  // just a sentinel; pass "=== CODEX VERDICT END ===" for legacy byte-compat
 //     outDir: "/abs/run-dir",           // where the reviewer writes its report (default: <repoPath>/.workflow/consensus-gate)
-//     timeoutSec: 600
+//     timeoutSec: 1500                  // default 1500; on a timeout the result has timedOut: true
 //   }})
 //
 // PRESET — multi-round push gate. One call = one round of one ladder layer
@@ -36,7 +36,7 @@
 export const meta = {
   name: 'consensus-gate',
   description: 'Get a high-effort second-model consensus verdict on a proposal via any agent-tmux profile',
-  whenToUse: 'When a decision, diff, or proposal needs an independent second-model verdict before acting — the reusable gate primitive other recipes call. args.cli is REQUIRED and picks the reviewer (codex / claude / agy / any agent-tmux profile — heterogeneous reviewers are a config concern, not a recipe concern). For push gates, see the multi-round preset in the header.',
+  whenToUse: 'When a decision, diff, or proposal needs an independent second-model verdict before acting — the reusable gate primitive other recipes call. args.cli is REQUIRED and picks the reviewer (codex / claude / agy / any agent-tmux profile — heterogeneous reviewers are a config concern, not a recipe concern). args.layer is REQUIRED (L1 | L2): a proposal and a code diff are both valid inputs, and they differ by layer, not by recipe: L1 is a pre-filter that can never pass, only an L2 agree passes. A timeout returns timedOut: true. For push gates, see the multi-round preset in the header.',
   phases: [{ title: 'Consult', detail: 'drive the reviewer CLI via the tmux-agent mod, capture verdict', model: 'sonnet' }],
 }
 const a = typeof args === 'string' ? (() => { try { return JSON.parse(args) } catch { return {} } })() : (args || {})
@@ -49,7 +49,7 @@ const model = a.model || 'sonnet'   // the driving Claude agent's model: a mecha
 const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit (NOT false/'none')
 const agentType = a.agentType || undefined  // off = default workflow agent. NEVER hardcode a custom one — a missing agentType is a HARD error (#20931), breaks portability
 const marker = a.marker || '=== REVIEWER VERDICT END ==='
-const timeout = a.timeoutSec || 600
+const timeout = a.timeoutSec || 1500
 // Second-model CLI is REQUIRED and neutral — NO built-in default. Launch flags come from the CLI's
 // own profile (a.launchEnv is gone: put extra flags in a profile .conf and pass its name as cli).
 // charset guard blocks injection (cli and worker are interpolated into tool calls).
@@ -59,8 +59,8 @@ if (a.launchEnv != null) return { aborted: true, reason: 'launchEnv is gone: put
 if (a.worker != null && !/^[A-Za-z0-9_.-]{1,64}$/.test(a.worker)) return { aborted: true, reason: 'invalid arg: worker' }
 const round = a.round == null ? 1 : a.round
 if (!(Number.isInteger(round) && round >= 1)) return { aborted: true, reason: 'invalid arg: round must be an integer >= 1' }
-const layer = a.layer || 'L2'
-if (!['L1', 'L2'].includes(layer)) return { aborted: true, reason: 'invalid arg: layer must be L1 | L2 (no L3: after L2 round 3, ask the user)' }
+const layer = a.layer
+if (!['L1', 'L2'].includes(layer)) return { aborted: true, reason: 'missing/invalid arg: layer is required and must be L1 | L2 (no L3: after L2 round 3, ask the user)' }
 const freeze = a.freeze || (a.proposalFile ? [a.proposalFile] : [])
 // Paths go into shell commands single-quoted, so any path without a NUL or newline works
 // (Unicode included); l0 is caller-owned.
@@ -96,7 +96,7 @@ const OUT = `${outDir}/${cli}-${session}-r${round}.md`
 
 const SCHEMA = {
   type: 'object', additionalProperties: false,
-  required: ['ok', 'verdict', 'consensus', 'notes', 'manifest_before', 'manifest_after', 'l0_rc', 'l0_output'],
+  required: ['ok', 'verdict', 'consensus', 'notes', 'manifest_before', 'manifest_after', 'l0_rc', 'l0_output', 'timed_out'],
   properties: {
     ok: { type: 'boolean' },
     manifest_before: { type: 'string', description: 'output of the manifest command in step 1' },
@@ -107,6 +107,7 @@ const SCHEMA = {
     consensus: { type: 'string', enum: ['agree', 'agree_with_changes', 'disagree', 'unclear'] },
     notes: { type: 'string' },
     worker: { type: 'string', description: 'the worker name (pass it as args.worker for the next round)' },
+    timed_out: { type: 'boolean', description: 'true when step 2 stopped on the timeout (no verdict in OUT); else false' },
   },
 }
 
@@ -119,7 +120,7 @@ Steps:
    L0 (run checks, then hash): ${l0 ? `run \`${l0}\` in ${repo} → l0_rc (exit code) and l0_output (last 40 lines).` : 'no l0 command: l0_rc = 0, l0_output = "no l0 command".'} Then run this manifest command exactly as written (no cd, no shortened paths) \`${MANIFEST}\` → manifest_before (its three lines, verbatim).${l0 ? ' If l0_rc is not 0, stop here: skip steps 2–3, verdict = "", consensus = unclear, and still fill manifest_after by re-running the manifest command.' : ''}
 2. Get the review (task = the proposal plus the reviewer contract below):
 ${modConduit({ profile: cli, base: session, dir: repo, worker: a.worker, out: OUT, marker, timeout, task: `the proposal above, then the L0 result from step 1 (l0_rc and l0_output, verbatim), then this reviewer contract: ${REVIEWER_CONTRACT}` })}
-3. Run the same manifest command again, exactly as written → manifest_after (three lines, verbatim). Return: verdict = the verdict text read from OUT (trimmed, drop the trailing marker line); consensus = your classification (agree / agree_with_changes / disagree / unclear); notes = key objections or required changes; worker.
+3. Run the same manifest command again, exactly as written → manifest_after (three lines, verbatim). Return: verdict = the verdict text read from OUT (trimmed, drop the trailing marker line); consensus = your classification (agree / agree_with_changes / disagree / unclear); notes = key objections or required changes; worker; timed_out = true only if step 2 stopped on the timeout (then verdict = "", consensus = unclear), else false.
 Return only the structured fields.`,
   { label: `${cli}:${session}`, phase: 'Consult', model, effort, isolation, agentType, schema: SCHEMA }
 )
@@ -136,7 +137,8 @@ const before = parts(r?.manifest_before), after = parts(r?.manifest_after)
 const changed = before && after ? KEYS.filter(k => before[k] !== after[k]) : ['invalid-manifest']
 const voided = !!r && changed.length > 0
 const l0Failed = !!r && r.l0_rc !== 0
+const timedOut = r?.timed_out === true
 return {
-  gate: r, consensus: r?.consensus, worker: r?.worker, layer, round, voided, voidedBy: voided ? changed : [], l0Failed, prefilter: layer === 'L1', out: OUT,
-  passed: layer !== 'L1' && r?.ok === true && r?.consensus === 'agree' && !voided && !l0Failed,
+  gate: r, consensus: r?.consensus, worker: r?.worker, layer, round, voided, voidedBy: voided ? changed : [], l0Failed, timedOut, prefilter: layer === 'L1', out: OUT,
+  passed: layer !== 'L1' && r?.ok === true && r?.consensus === 'agree' && !voided && !l0Failed && !timedOut,
 }

@@ -80,6 +80,7 @@ The validator checks:
 - [ ] No potential secrets detected (API keys, passwords, tokens)
 - [ ] Referenced files exist
 - [ ] The Timeline has one `user` row per message its `COUNT <n>` line(s) counted
+- [ ] Each Sources Read `full` line's pack dir exists and its `manifest.json` has the same COUNT and TOOLS (dir name = sid8); each `inherited full (from <file>)` names an existing handoff
 
 **Do not finalize a handoff while the validator reports BLOCKED.** It blocks on
 secrets, remaining `[TODO: ...]` placeholders, missing required sections, or a

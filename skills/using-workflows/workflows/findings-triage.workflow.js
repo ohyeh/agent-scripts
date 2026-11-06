@@ -1,6 +1,6 @@
 // LOOP CONNECTOR (connector 1): turns audit output into the next cycle's input.
 // Position in the closed loop:
-//   docs/design-vs-code-audit | root-cause-audit  →  THIS  →  feature-lifecycle-auto (briefs)
+//   design-vs-code-audit  →  THIS  →  plan + build (briefs)
 //                                                          →  partitioned fix run    (small fixes)
 //                                                          →  the human              (ask-user)
 // Routing table = _lib/findings-schema.js semantics (severity × action are orthogonal;
@@ -10,7 +10,7 @@
 //   auto-fix, singleton root cause  → directFix list (partitioned-fix doctrine: disjoint file
 //                                     ownership, SKIP+report on missing assets, never invent)
 //   auto-fix, clustered root cause  → one mini-PRD per cluster (problem / why-now / scope /
-//                                     non-goals / done-criteria) ready for feature-lifecycle-auto
+//                                     non-goals / done-criteria) ready to turn into a plan
 // Cluster-vs-singleton is the "duplication count → abstraction level" rule replayed on fixes: N independent nits
 // get N parallel patches; N findings sharing one bad abstraction get ONE plan.
 // Re-audit stop condition (connector 2, lives in the CALLER): after fixes/build, re-run the SAME
@@ -28,7 +28,7 @@
 export const meta = {
   name: 'findings-triage',
   description: 'Loop connector: route confirmed audit findings — clustered root causes become mini-PRD briefs, singletons become a partitioned-fix list, intent questions go to the human',
-  whenToUse: 'Immediately after any *-audit recipe returns confirmed findings and you want the loop to keep moving without hand-writing briefs: normalizes findings onto the findings-schema action semantics, clusters by root cause, writes one mini-PRD per cluster (feed feature-lifecycle-auto), lists singleton fixes for a partitioned fix run, and surfaces intent-challenging findings to the human. Thin by design — all heavy work is delegated downstream.',
+  whenToUse: 'Immediately after any *-audit recipe returns confirmed findings and you want the loop to keep moving without hand-writing briefs: normalizes findings onto the findings-schema action semantics, clusters by root cause, writes one mini-PRD per cluster (feed a plan), lists singleton fixes for a partitioned fix run, and surfaces intent-challenging findings to the human. Thin by design — all heavy work is delegated downstream.',
   phases: [
     { title: 'Cluster', detail: 'normalize action per finding + group by shared root cause', model: 'opus' },
     { title: 'Brief', detail: 'one mini-PRD per qualifying cluster (problem/why-now/scope/non-goals/done)' },
@@ -124,7 +124,7 @@ const directFix = clustered.normalized
 phase('Brief')
 const briefs = briefClusters.length ? await parallel(briefClusters.map(c => () =>
   agent(
-    `${CONTEXT ? CONTEXT + '\n\n' : ''}Write ONE mini-PRD (a brief for feature-lifecycle-auto's args.brief) that fixes this root cause, in ${OUT_LANG}. Five short sections, prose not headings-heavy: Problem (root cause＋symptoms) | Why now (severity/user impact) | Scope (files/components in scope) | Non-goals (explicit non-goals) | Done criteria (how a re-audit proves it closed — cite the concrete findings below as the checklist). Ground every claim in the findings; do NOT invent scope beyond them.
+    `${CONTEXT ? CONTEXT + '\n\n' : ''}Write ONE mini-PRD (a brief a planner can start from) that fixes this root cause, in ${OUT_LANG}. Five short sections, prose not headings-heavy: Problem (root cause＋symptoms) | Why now (severity/user impact) | Scope (files/components in scope) | Non-goals (explicit non-goals) | Done criteria (how a re-audit proves it closed — cite the concrete findings below as the checklist). Ground every claim in the findings; do NOT invent scope beyond them.
 
 Root cause: ${c.rootCause}
 Member findings (JSON):
@@ -140,7 +140,7 @@ if (unbriefed.length) log(`WARNING: ${unbriefed.length} brief writer(s) died —
 
 log(`triage done: ${okBriefs.length} brief(s), ${directFix.length} direct-fix, ${askUser.length} ask-user, ${noOp.length} no-op`)
 return {
-  briefs: okBriefs,                     // → feature-lifecycle-auto, one call per brief
+  briefs: okBriefs,                     // → one plan per brief
   directFix,                            // → partitioned fix run (disjoint ownership, SKIP+report, never invent — see design-vs-code-audit header)
   askUser,                              // → the human; the machine never decides intent
   noOp,

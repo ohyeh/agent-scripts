@@ -160,7 +160,7 @@ resume (skill `using-decision-tree`, `references/loops.md` §Contracts, advisor 
 
 ### Review ladder (user ruling 2026-10-09)
 
-Review/verdict loops run this ladder. Wired now: `plan-pipeline` (in-script), `consensus-gate`
+Review/verdict loops run this ladder. Wired now: `consensus-gate`
 (`layer`, `round`, `freeze`, `l0` args) and `spec-implement-dual-review-verify` (the build review).
 Every other recipe keeps its own loop until the W43 retro decides, and does not claim the ladder.
 
@@ -262,7 +262,7 @@ tmux worker cap (2026-11-06 user ruling: 「cli agent 開太多 電腦超卡」�
 worker 就好像不會那麼嚴重」): a tmux worker is a whole CLI on this host; a native subagent runs
 inside the parent CLI. Use a native subagent first; start a tmux worker only for a different
 model family, a seat the parent cannot run, or a long job that must outlive this session. At
-most 2 live tmux workers per host, all sessions together (`TMUX_WORKER_MAX`), enforced by
+most 3 live tmux workers per host, all sessions together (`TMUX_WORKER_MAX`), enforced by
 `host-load-gate.sh` on `agent-tmux` launches and the mod's `mcp__tmux-agent__assign`. Stop a
 worker as soon as its result is read and no follow-up is planned.
 

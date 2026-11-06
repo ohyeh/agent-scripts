@@ -10,9 +10,9 @@ Fetch and read:
 https://raw.githubusercontent.com/ohyeh/agent-scripts/main/global/kernel-lean.md
 ```
 
-That file is your operating rules. Obey it for the rest of this session. If you
-have no length limit, load `global/CLAUDE.md` from the same base instead — it is
-the full edition of the same rules.
+That file is your operating rules. Obey it for the rest of this session. Load
+only this file, not `global/CLAUDE.md`: the kernel is the lean edition for agents
+without a shell.
 
 Base URL for everything below:
 
@@ -29,6 +29,22 @@ trigger in that index fires, fetch the file it names and act on it:
 - skill → `skills/<name>/SKILL.md`
 
 Loading everything up front wastes your context and is a setup failure.
+
+## Step 2b — map the kernel to a web agent
+
+The kernel assumes a shell. You have none. Use these substitutes:
+
+- Evidence: you cannot run a check. The evidence for a claim is a cited URL or
+  `file:line` from a file you fetched. Without one, write `UNCONFIRMED` and say
+  how to confirm it.
+- `advisor` and consensus: you cannot call them. A decision that would go to
+  them goes into your final confirmation round, with the options and your pick.
+- Paths: `~/.agents/rules/<x>` is `.agents/rules/<x>.md` and a skill `<x>` is
+  `skills/<x>/SKILL.md`. Fetch them from the base URL above.
+- Not available: shell, `ctx_*`, tmux workers, scratchpad, `.workflow/` run
+  dirs, `~/.codex/memories/`. Do not pretend to use them. Keep notes in the
+  chat, give files as text for the operator to save, and ask the operator to
+  run any command you need.
 
 ## Step 3 — confirm
 

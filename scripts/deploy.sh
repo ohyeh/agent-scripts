@@ -249,7 +249,7 @@ layer0_tests=(
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate test-round-cost-gate.sh test-worker-followup-gate.sh
   test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-recipe-usage-stats.sh test-docs-audit-ownership test-behavior-runner
   test-consensus-gate-ladder test-plan-pipeline-ladder test-haiku-research-round
-  test-feature-plan-consensus-ladder test-review-gate-smoke.mjs
+  test-feature-plan-consensus-ladder test-review-gate-smoke.mjs test-skill-router-nudge.sh
 )
 for t in "${layer0_tests[@]}"; do
   th="$WORKDIR/t-$t"; mkdir -p "$th/tmp"
@@ -324,7 +324,7 @@ w bash "$SRC/skills/using-workflows/scripts/install.sh" --previous-manifest "$ma
 # The installer's fixpoint: manifest = the shipped file set, and each shipped file byte-equal.
 # User files outside the manifest are not ours to check.
 wsrc="$SRC/skills/using-workflows/workflows"
-shipped="$(cd "$wsrc" && find . -type f | sed 's#^\./##' | LC_ALL=C sort -u)"
+shipped="$(cd "$wsrc" && find . -path ./archive -prune -o -type f -print | sed 's#^\./##' | LC_ALL=C sort -u)"
 if [ "$shipped" != "$(LC_ALL=C sort -u "$manifest")" ]; then
   echo "FAIL [workflows] $manifest is not the shipped file set; deploy rewrites it" >&2
   exit 1

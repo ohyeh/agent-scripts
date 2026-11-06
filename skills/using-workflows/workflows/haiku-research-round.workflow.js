@@ -2,8 +2,7 @@
 // answer the questions in args.scouts in parallel and return sourced, structured findings.
 // The loop lives in the COMMANDER, not here: read the findings, discuss them with `advisor`,
 // pick the next batch of questions, call this recipe again with round+1 (RSI research loop).
-// Maturity: WORKING (harvested from the 2026-10-10 haiku-decide experiment, 4+ rounds);
-// browser scouts via args.tools: UNTESTED until the first run.
+// Maturity: WORKING (harvested from the 2026-10-10 haiku-decide experiment, 4+ rounds).
 //
 //   Workflow({ name: "haiku-research-round", args: {
 //     round: "r1",                      // label only; shows as `<round>:<key>` in the progress tree
@@ -38,7 +37,7 @@
 
 export const meta = {
   name: 'haiku-research-round',
-  description: 'One research round: N read-only Haiku scouts answer the given questions with sourced findings',
+  description: 'One research round: N read-only Haiku scouts answer the given questions with sourced findings. args is an OBJECT, not a string: { context: string (required: topic, settled facts, scope), scouts: [{ key, prompt }] (required, 1-5 per round), round?: label, model?, effort?, fields?: { name: description }, maxFindings?, scratchDir?, tools?: string }. Missing context or scouts, or more than 5 scouts, fails at once.',
   whenToUse: 'A research loop where the commander reads each round, consults advisor, and picks the next questions',
   phases: [{ title: 'Research', detail: 'parallel read-only scouts: web, browser (codex-cu + Chrome), local docs' }],
 }

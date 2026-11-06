@@ -11,16 +11,18 @@
 #
 # Contract: silent on no match, silent on a false hit (the injected line says
 # to ignore, never to explain — kernel 4.29.0 forbids process narration).
-# Skips pasted content (>400 chars, teammate messages, tool echoes) and never
-# names a file that is absent on this host.
+# Matches the first 2000 chars of the owner's own words: <pasted_content>
+# blocks are cut out first, so a long or pasted prompt still routes (since
+# 10-15 consensus-gate matched 46 times but ran 12; owner prompts are long).
+# Skips teammate messages, other-session text and system/tool echoes, and
+# never names a file that is absent on this host.
 set -u
 IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
-P="$(printf '%s' "$IN" | jq -r '.prompt // empty')"
-[ -n "$P" ] || exit 0
-case "$P" in /*|\<*) exit 0;; esac
-[ "${#P}" -le 400 ] || exit 0
-printf '%s' "$P" | grep -Eq 'teammate-message|^Another Claude session|Ran [0-9]+ shell|^\[skill-router\]' && exit 0
+P="$(printf '%s' "$IN" | jq -r '(.prompt // "") | gsub("<pasted_content[^>]*>[\\s\\S]*?</pasted_content>"; "")')"
+P="${P:0:2000}"
+[ -n "${P//[[:space:]]/}" ] || exit 0
+printf '%s' "$P" | grep -Eq 'teammate-message|^Another Claude session|Ran [0-9]+ shell|^\[skill-router\]|^<(task-notification|system-reminder|command-|local-command)' && exit 0
 
 TABLE="${SKILL_ROUTER_TABLE:-$(dirname "$0")/skill-router-table.tsv}"
 [ -r "$TABLE" ] || exit 0

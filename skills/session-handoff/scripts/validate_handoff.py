@@ -7,12 +7,14 @@ Checks:
 - Required sections present and populated
 - No potential secrets detected
 - Referenced files exist
+- Sources Read `full` lines match their pack's manifest.json; `inherited full` names an existing handoff
 
 Usage:
     python validate_handoff.py <handoff-file>
     python validate_handoff.py .claude/handoffs/2024-01-15-143022-auth.md
 """
 
+import json
 import os
 import re
 import sys
@@ -115,6 +117,37 @@ def check_timeline(content: str) -> list[str]:
     return []
 
 
+def check_sources_read(content: str, handoff_dir: Path, base_path: Path) -> list[str]:
+    """A copied `full` mark would let the next resume skip a re-read: re-check it against the pack.
+
+    resume_pack.py writes <out>/<sid8>/manifest.json with count and tools but no sid, so the
+    sid8 is checked against the pack directory's name.
+    """
+    m = re.search(r'(?:^|\n)(#{2,6})\s*Sources Read', content, re.I)
+    if not m:
+        return []
+    body = re.split(rf'\n#{{2,{len(m.group(1))}}}\s+', content[m.end():])[0]
+    problems = []
+    for sid, count, tools, pack in re.findall(
+            r'^\s*[-*]\s*([0-9a-f]{8}) full · COUNT (\d+) · TOOLS (\d+) · pack (\S+)', body, re.M):
+        directory = Path(pack).expanduser()
+        if not directory.is_absolute() and not directory.is_dir():
+            directory = base_path / directory
+        try:
+            manifest = json.loads((directory / "manifest.json").read_text())
+        except (OSError, ValueError) as e:
+            problems.append(f"Sources Read: {sid} full — pack {pack} has no readable manifest.json ({type(e).__name__})")
+            continue
+        if directory.name != sid or (manifest.get("count"), manifest.get("tools")) != (int(count), int(tools)):
+            problems.append(
+                f"Sources Read: {sid} full COUNT {count} TOOLS {tools} does not match pack {pack} "
+                f"(dir {directory.name}, COUNT {manifest.get('count')}, TOOLS {manifest.get('tools')})")
+    for sid, name in re.findall(r'^\s*[-*]\s*([0-9a-f]{8}) inherited full \(from ([^)]+)\)', body, re.M):
+        if not any((d / name.strip()).is_file() for d in (handoff_dir, base_path / ".claude" / "handoffs")):
+            problems.append(f"Sources Read: {sid} inherited full names handoff {name} that does not exist")
+    return problems
+
+
 def check_recommended_sections(content: str) -> list[str]:
     """Check which recommended sections are missing."""
     missing = []
@@ -208,6 +241,7 @@ def validate_handoff(filepath: str) -> dict:
     todos_clear, remaining_todos = check_todos(content)
     required_complete, missing_required = check_required_sections(content)
     timeline_problems = check_timeline(content)
+    sources_problems = check_sources_read(content, path.parent, base_path)
     missing_recommended = check_recommended_sections(content)
     secrets_found = scan_for_secrets(content)
     existing_files, missing_files = check_file_references(content, str(base_path))
@@ -220,6 +254,7 @@ def validate_handoff(filepath: str) -> dict:
         "required_complete": required_complete,
         "missing_required": missing_required,
         "timeline_problems": timeline_problems,
+        "sources_problems": sources_problems,
         "missing_recommended": missing_recommended,
         "secrets_found": secrets_found,
         "files_verified": len(existing_files),
@@ -265,6 +300,14 @@ def print_report(result: dict):
     else:
         print("\n[PASS] Timeline user rows match COUNT")
 
+    # Sources Read
+    if result['sources_problems']:
+        print("\n[FAIL] Sources Read check:")
+        for problem in result['sources_problems']:
+            print(f"       - {problem}")
+    else:
+        print("\n[PASS] Sources Read marks match their packs")
+
     # Secrets
     if not result['secrets_found']:
         print("\n[PASS] No potential secrets detected")
@@ -300,6 +343,7 @@ def print_report(result: dict):
     if result['missing_required']:
         blockers.append("add required section(s): " + ", ".join(result['missing_required']))
     blockers.extend(result['timeline_problems'])
+    blockers.extend(result['sources_problems'])
 
     if blockers:
         print("Verdict: BLOCKED")
@@ -313,7 +357,37 @@ def print_report(result: dict):
     return True
 
 
+def self_test():
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / ".claude" / "handoffs").mkdir(parents=True)
+        (root / ".claude" / "handoffs" / "older.md").write_text("x")
+        pack = root / "pack" / "abcd1234"
+        pack.mkdir(parents=True)
+        (pack / "manifest.json").write_text(json.dumps({"count": 5, "tools": 7}))
+
+        def problems(*lines):
+            text = "## Sources Read\n\n" + "\n".join(lines) + "\n\n## Next\n- abcd1234 full · COUNT 1 · TOOLS 1 · pack /nope\n"
+            return check_sources_read(text, root / ".claude" / "handoffs", root)
+
+        good = f"- abcd1234 full · COUNT 5 · TOOLS 7 · pack {pack}"
+        assert problems(good) == []
+        assert problems(good.replace("COUNT 5", "COUNT 4"))      # copied mark, other COUNT
+        assert problems(good.replace("TOOLS 7", "TOOLS 8"))
+        assert problems(good.replace("abcd1234", "ffff0000"))     # another session's pack
+        assert problems("- abcd1234 full · COUNT 5 · TOOLS 7 · pack /nope")  # pack gone
+        assert problems("- abcd1234 full · COUNT 5 · TOOLS 7 · pack pack/abcd1234") == []  # repo-relative
+        assert problems("- abcd1234 inherited full (from older.md)") == []
+        assert problems("- abcd1234 inherited full (from gone.md)")
+        assert problems("- abcd1234 partial (agent side not read)") == []
+        assert check_sources_read("no such section", root, root) == []
+    print("self-test ok")
+
+
 def main():
+    if sys.argv[1:] == ["--self-test"]:
+        return self_test()
     if len(sys.argv) < 2:
         print("Usage: python validate_handoff.py <handoff-file>")
         print("Example: python validate_handoff.py .claude/handoffs/2024-01-15-auth.md")

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
-const root = new URL('../skills/using-workflows/workflows/', import.meta.url)
+const root = new URL('../skills/using-workflows/workflows/archive/', import.meta.url)
 const recipes = ['plan-pipeline', 'feature-plan-consensus']
 const area = { key: 'core', scope: 'entry point' }
 

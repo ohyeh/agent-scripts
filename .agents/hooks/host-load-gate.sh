@@ -49,7 +49,7 @@ log_stat() { mkdir -p "${STATS%/*}" && jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%
 # host, all sessions and CLIs together. shortcut: a worker is a tmux session whose name ends in
 # the dispatch suffix .<5 chars>; a worker started by hand without it is not counted.
 if [ "${tmux_launch:-}" = 1 ]; then
-  max=${TMUX_WORKER_MAX:-2}
+  max=${TMUX_WORKER_MAX:-3}
   live=$(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep -Ec '\.[a-z0-9]{5}$')
   if [ "${live:-0}" -ge "$max" ]; then
     log_stat deny-workers

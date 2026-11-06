@@ -55,23 +55,20 @@ The inner loop (the ONLY loop — there is no scheduling outer ring; do not
 invent one):
 
 ```
-audit (docs-vs-code | design-vs-code | root-cause-deep-dive)
+audit (design-vs-code-audit)
   → findings-triage        connector ①: askUser → human VERBATIM ·
-  │                        briefs → lifecycle · directFix → partitioned run
-  → feature-lifecycle-auto thin shell: feature-plan-consensus | plan-pipeline
-  │                        → gate ✋ (autoBuild=false: human reads the plan)
-  │                        → spec-implement-dual-review-verify
+  │                        briefs → you write the plan · directFix → partitioned run
+  → plan, gated ✋          you write it; the human reads it before the build
+  │                        (the plan-maker recipes are in workflows/archive/)
+  → spec-implement-dual-review-verify
   → re-run the ORIGINATING audit, SAME args
   │                        connector ②: lives in YOU, not in code
   → confirmed == 0 AND no unverified/unaudited (§9.2) → converged, report · else → back to findings-triage / re-check
 ```
 
 Entry points off the loop:
-- weird bug → `root-cause-deep-dive-audit` · docs/design drifted → the matching audit
 - ONE artifact needs a second-model verdict → `consensus-gate` — ONE round,
   irreversible/behavior-tier changes only; NOT a default station
-- "what should this project do next" → `project-direction-review`
-- recipe fleet inventory / machine drift → `workflow-manifest`
 - research (facts, prices, sources; often several rounds) → `haiku-research-round`
   per round; you stay the commander: read each round, pick the next questions.
   When the user names the tool (e.g. codex-cu), run ONE target yourself to get a
@@ -81,9 +78,8 @@ Entry points off the loop:
   X", a scout checks one other path to X. When your tool steps cause the
   error, fix them. Then re-run the scout.
 
-Stage recipes (`feature-plan-consensus`, `plan-pipeline`,
-`spec-implement-dual-review-verify`) are normally reached THROUGH
-`feature-lifecycle-auto`; call one directly only when you want just that stage.
+Retired recipes live in `skills/using-workflows/workflows/archive/` (not
+deployed); they never ran in the 14-day audit of 2026-11-06.
 Args auto-fill: `cli` is OPTIONAL (user ruling 2026-09-02: never depend on
 codex). Any installed agent-tmux profile is a valid review gate — `codex`,
 `claude-fable-opus` / `claude-fable-gate*`, `cursor` (grok), `agy*` — pick
@@ -98,8 +94,7 @@ round 2+ must pass it as `worker`, else a new worker starts), then `mcp__tmux-ag
 result, which comes back to that agent (live 2026-10-11, tmux-agent-tools ≥ a68ecd4).
 The collector still sends the main session one notice for the same result. A
 `runtime: tmux/<profile>` line inside `agent()` is not intercepted. The `cli`
-recipes (`consensus-gate`, `plan-pipeline`, `feature-plan-consensus`) work this
-way; launch or effort flags go in the agent-tmux profile `.conf` that `cli` names.
+recipe `consensus-gate` works this way; launch or effort flags go in the agent-tmux profile `.conf` that `cli` names.
 
 ## Contracts
 
@@ -110,14 +105,13 @@ default worker is `opus` effort `high`, reviewers `high`. Planning,
 synthesis, revision, and verdicts NEVER run on `sonnet` or `haiku` — a plan
 written by either is not a plan. `sonnet` 5.5+ may run the L1 pre-filter of
 the review ladder (`model-dispatch.md` §Review ladder, user ruling
-2026-10-09; `plan-pipeline` and `spec-implement-dual-review-verify` do this
-in-script, the latter plus a one-pass `pr-review-toolkit` TK step); the
+2026-10-09; `spec-implement-dual-review-verify` does this
+in-script, plus a one-pass `pr-review-toolkit` TK step); the
 verdict stays with L2 (`fable`, else `opus`); no L3 — still blocking after L2
 round 3, stop and ask the user.
 Otherwise `sonnet`/`haiku` 5.5+ may run implementation and read-only data
 gathering by commander's call (user ruling 2026-10-10); recipe args carry the
-choice: `spec-implement…` `model`, `pr-review-triage-resolve` `fixModel`,
-`feature-plan-consensus` `discoverModel`.
+choice: `spec-implement…` `model`.
 
 **Advisor gate (user ruling 2026-09-02; every runtime).** Recipes cannot call
 tools; the gate lives in YOU, the commander. The verdict MUST be independent.
@@ -174,11 +168,10 @@ the loop. Do not claim completion.
 
 | Recipe | Codex | Cursor, agy |
 |---|---|---|
-| 3 audits, `findings-triage`, `project-direction-review`, `workflow-manifest` (6, no tmux inside) | `ADAPTED: claude-workflow-runner` | `UNAVAILABLE` |
+| `design-vs-code-audit`, `findings-triage` (2, no tmux inside) | `ADAPTED: claude-workflow-runner` | `UNAVAILABLE` |
 | `haiku-research-round` (no tmux) | `UNTESTED` natively; by hand: ≤5 scouts a round, ≤3 rounds | `UNAVAILABLE` natively; by hand: ≤5 scouts a round, ≤3 rounds |
-| `pr-review-triage-resolve` (no tmux; T3 rung = fresh Claude opus unless `externalAgentType` is set) | `UNTESTED` — only run natively on Claude so far; stop and report | `UNAVAILABLE` |
 | `consensus-gate` (simple verdict outcome only) | `ADAPTED: direct-claude-review` — `references/codex-adapter.md` | `UNAVAILABLE` |
-| `consensus-gate` (as recipe), lifecycle + its 3 stages when `cli` IS set (5, they drive tmux-agent mod workers inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise | `UNAVAILABLE` |
+| `consensus-gate` (as recipe; it drives a tmux-agent mod worker inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise | `UNAVAILABLE` |
 
 **Defer.**
 - Chain recipes from the TOP level only — `workflow()` nesting cap is 1, and

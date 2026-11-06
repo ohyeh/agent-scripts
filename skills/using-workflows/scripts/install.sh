@@ -42,13 +42,15 @@ if [ -z "$previous_manifest" ] || [ ! -f "$previous_manifest" ]; then
 fi
 
 src="$(cd "$(dirname "$0")/../workflows" && pwd)"
+# archive/ holds retired recipes: never shipped, so a previously deployed copy goes stale and --force removes it.
+src_files() { find "$src" -path "$src/archive" -prune -o -type f -print; }
 
 # --- validation-only phase: no DEST path is created or written below until
 #     this whole block passes. $tmp is a scratch dir for computing sets, not
 #     part of DEST, so writing into it is not a DEST mutation. ---
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-find "$src" -type f -print | sed "s#^$src/##" | LC_ALL=C sort -u > "$tmp/current-set.txt"
+src_files | sed "s#^$src/##" | LC_ALL=C sort -u > "$tmp/current-set.txt"
 LC_ALL=C sort -u "$previous_manifest" > "$tmp/previous-set.txt"
 comm -23 "$tmp/previous-set.txt" "$tmp/current-set.txt" > "$tmp/stale-candidates.txt"
 : > "$tmp/stale-present.txt"
@@ -68,7 +70,7 @@ while IFS= read -r f; do
   if [ -f "$dest/$rel" ] && ! cmp -s "$f" "$dest/$rel"; then
     conflicts+=("$rel")
   fi
-done < <(find "$src" -type f)
+done < <(src_files)
 
 if [ "${#conflicts[@]}" -gt 0 ] && [ "$force" -ne 1 ]; then
   echo "REFUSED: these files exist at $dest with DIFFERENT content:" >&2
@@ -93,10 +95,10 @@ while IFS= read -r f; do
   mkdir -p "$dest/$(dirname "$rel")"
   cp "$f" "$dest/$rel"
   echo "installed: $dest/$rel"
-done < <(find "$src" -type f)
+done < <(src_files)
 
 sidecar_tmp="$dest/.using-workflows-managed-files.tmp.$$"
 cp "$tmp/current-set.txt" "$sidecar_tmp"
 mv "$sidecar_tmp" "$dest/.using-workflows-managed-files"
 
-echo "done: $(find "$src" -type f | wc -l | tr -d ' ') file(s) → $dest"
+echo "done: $(src_files | wc -l | tr -d ' ') file(s) → $dest"

@@ -356,7 +356,7 @@ if (hex(fixed.manifest) !== hex(lastL0.manifest)) return { aborted: true, stage:
 // Gate on BOTH the boolean AND any amendment-needed deviation — a finalizer that sets the flag false
 // while classifying a deviation as amendment-needed must NOT slip through (fail closed).
 const amendmentNeeded = fixed.amendment_needed === true || (fixed.deviations || []).some(d => d && d.classification === 'amendment-needed')
-if (amendmentNeeded) return { aborted: true, stage: 'finalize', reason: 'build contradicts a frozen spec/ADR line — escalate to an ADR amendment (re-freeze via plan-pipeline) before continuing; do not edit through', needsUser: true, deviations: fixed.deviations, impl, rounds, warnings }
+if (amendmentNeeded) return { aborted: true, stage: 'finalize', reason: 'build contradicts a frozen spec/ADR line — escalate to an ADR amendment (re-freeze the plan) before continuing; do not edit through', needsUser: true, deviations: fixed.deviations, impl, rounds, warnings }
 // Fail closed on verification: a finalizer that did not get verify passing is not a success.
 if (fixed.verified !== true) return { aborted: true, stage: 'finalize', reason: 'verification did not pass (verified!=true) — not finalizing as success', needsUser: true, fixed, impl, rounds, warnings }
 

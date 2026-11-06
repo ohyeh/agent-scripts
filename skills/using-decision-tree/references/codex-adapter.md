@@ -9,11 +9,9 @@ The recipe executes NATIVELY on Claude runtime; Codex commands and supervises.
 `claude-workflow-runner` is this adapter protocol label, not an installed command;
 the executable runner path is `agent-tmux claude`.
 Day-one eligible (no tmux inside): `design-vs-code-audit`,
-`docs-vs-code-audit`, `findings-triage`, `project-direction-review`,
-`root-cause-deep-dive-audit`, `workflow-manifest`. The five recipes that
+`findings-triage`. The recipes that
 launch tmux or need Claude-only agent types (`consensus-gate` as recipe,
-`feature-plan-consensus`, `plan-pipeline`, `spec-implement-dual-review-verify`
-— `pr-review-toolkit` lenses —, `feature-lifecycle-auto`) stay
+`spec-implement-dual-review-verify` — `pr-review-toolkit` lenses —) stay
 UNAVAILABLE until nested-runner depth-2 tests pass.
 
 Sequence:

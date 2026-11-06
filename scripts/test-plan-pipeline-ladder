@@ -4,7 +4,7 @@
 # and the direction gate. No model is called.
 set -u
 W="$(CDPATH= cd -- "$(dirname -- "$0")/../skills/using-workflows/workflows" && pwd)"
-node --input-type=module - "$W/plan-pipeline.workflow.js" <<'EOF'
+node --input-type=module - "$W/archive/plan-pipeline.workflow.js" <<'EOF'
 import fs from 'node:fs'
 const body = fs.readFileSync(process.argv[2], 'utf8').replace(/^export const meta/m, 'const meta')
 const AsyncFn = Object.getPrototypeOf(async () => {}).constructor
