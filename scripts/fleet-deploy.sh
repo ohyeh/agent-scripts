@@ -92,17 +92,29 @@ EXPECTED_RULES="$(bash -c "$RULES_SNIPPET; r '$TMPD/agent-scripts-$SHA/.agents/r
 echo "PASS [resolve] $RELEASE_REF -> $SHA (global md5=$EXPECTED_MD5, rules sha=$EXPECTED_RULES, $EXPECTED_VERSION)"
 
 FAILED=0
-for host in "${HOSTS[@]}"; do
-  if [ "$VERIFY_ONLY" -eq 0 ]; then
+# All hosts deploy at once (owner 2026-11-06: one host after another took 3-5 min each);
+# results and verification are then reported per host, in list order.
+declare -a LOGS PIDS
+if [ "$VERIFY_ONLY" -eq 0 ]; then
+  # W35 retro F2: never discard deploy output — a FAIL with no log has no
+  # cause (the 2026-08-28 clone timeout would have been invisible here).
+  LOGDIR="${XDG_STATE_HOME:-$HOME/.local/state}/agent-scripts/fleet-deploy"; mkdir -p "$LOGDIR"
+  for i in "${!HOSTS[@]}"; do
+    host="${HOSTS[$i]}"
     echo "==> [$host] deploying @ $SHA"
-    # W35 retro F2: never discard deploy output — a FAIL with no log has no
-    # cause (the 2026-08-28 clone timeout would have been invisible here).
-    LOGDIR="${XDG_STATE_HOME:-$HOME/.local/state}/agent-scripts/fleet-deploy"; mkdir -p "$LOGDIR"
-    hostlog="$LOGDIR/$(date -u +%Y%m%dT%H%M%SZ)-${host//[^A-Za-z0-9._-]/_}.log"
-    printf 'host=%s\n' "$host" >"$hostlog"
+    LOGS[$i]="$LOGDIR/$(date -u +%Y%m%dT%H%M%SZ)-${host//[^A-Za-z0-9._-]/_}.log"
+    printf 'host=%s\n' "$host" >"${LOGS[$i]}"
+    run_on "$host" "SKILLS_CLONE_TIMEOUT_MS=600000 bash -c \"curl -fsSL '$DEPLOY_URL' | bash\"" >>"${LOGS[$i]}" 2>&1 </dev/null &
+    PIDS[$i]=$!
+  done
+fi
+for i in "${!HOSTS[@]}"; do
+  host="${HOSTS[$i]}"
+  if [ "$VERIFY_ONLY" -eq 0 ]; then
+    hostlog="${LOGS[$i]}"
     # Exit status alone lied once (2026-08-28: remote unbound-variable abort
     # reported PASS); the DEPLOY OK line is the contract.
-    if run_on "$host" "SKILLS_CLONE_TIMEOUT_MS=600000 bash -c \"curl -fsSL '$DEPLOY_URL' | bash\"" >>"$hostlog" 2>&1 && grep -aq '^==> DEPLOY OK' "$hostlog"; then
+    if wait "${PIDS[$i]}" && grep -aq '^==> DEPLOY OK' "$hostlog"; then
       echo "PASS [$host] deploy.sh completed (log: $hostlog)"
     else
       echo "FAIL [$host] deploy.sh exited non-zero — $(grep -m1 -aE '^FAIL|Installation failed|timed out' "$hostlog" || echo 'see log') (log: $hostlog)" >&2
