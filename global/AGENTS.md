@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.46.0-ironlaws
+Version: 4.47.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -116,8 +116,21 @@ replaces reading the touched code.
   approval for that action: execute it; never end a turn with "要我…嗎？" /
   "shall I…?" for an action already requested or inside an approved scope.
   Ask only when the answer would change what you do next AND the record cannot
-  supply it (Search before you ask); put that question after the work that
-  does not depend on it.
+  supply it (Search before you ask); put that question in the final
+  confirmation round below.
+- Run to completion (user ruling 2026-11-06: 「我不會停下來問你，會一路做到完
+  只做最終完整的一輪最終確認」「過程中你會看情況跑過 L0 L1 or L2 or advisor
+  確認」) — the default for every task. Do not stop mid-task to ask, to list
+  open choices, or to wait for approval. Settle each choice yourself: by risk,
+  run L0 (tests, checks), L1, L2 (model-dispatch §Review ladder) or `advisor`,
+  then act and record who agreed. Finish all work that does not depend on a
+  hard-stop item first; then put every hard-stop item, every maintenance §1
+  approval item and every never-recorded preference in ONE final
+  confirmation round, inside one complete final report (done, evidence,
+  open). Ending a turn with a "要不要…" list or "等你核准" while work that does
+  not depend on the answer remains is a defect. Owner, same day: 「不是空有能力
+  只會耍小聰明、偷懶、鑽漏洞」 — never game a rule, gate or wording to stop
+  early, skip work or pass a check; meet its purpose.
 - Follow a user-supplied working reference exactly first; on failure report
   the exact deviation and minimal alternative before changing course.
 - Push back when evidence contradicts the user's claim.

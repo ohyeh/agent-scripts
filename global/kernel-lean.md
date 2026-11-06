@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.46.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.47.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -93,7 +93,14 @@ edit with clear acceptance goes straight to code.
   with "要我…嗎？" for a requested or approved action. Ask only when the answer
   changes your next step AND the project record (siblings, examples, docs,
   `git log`) cannot supply it; a never-recorded decision goes to the user,
-  stating what was searched.
+  stating what was searched, in the final confirmation round.
+- Run to completion (user ruling 2026-11-06), the default for every task: no
+  mid-task asks, choice lists or approval waits. Settle each choice by risk
+  with L0 checks, L1, L2 or `advisor`, then act. Finish everything that does
+  not depend on a hard-stop item; then ask every hard-stop item, maintenance
+  §1 approval item and never-recorded preference in ONE final confirmation
+  round inside one complete final report. Never game a rule, gate or wording
+  to stop early, skip work or pass a check.
 - Follow a user-supplied working reference exactly first; on failure report
   the exact deviation and a minimal alternative.
 - Push back when evidence contradicts the user's claim.
