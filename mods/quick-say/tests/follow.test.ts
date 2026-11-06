@@ -137,15 +137,15 @@ test('ask gate and the suggestion: a closing "shall I?" is answered once; else t
   expect(w.suggested).toEqual([])
 
   // No gate: the model's pick shows dim; 'none' shows nothing.
-  label = PHRASES[1].label
+  label = PHRASES[1]!.label
   await $.turn.complete(done('第一步做完了，接著做第二步之前先回報。'))
-  expect(w.suggested).toEqual([PHRASES[1].text])
+  expect(w.suggested).toEqual([PHRASES[1]!.text])
   label = 'none'
   await $.turn.complete(done('都好了。'))
   expect(w.suggested.length).toBe(1)
 
   // A subagent's turn, an aborted turn, and manual mode: nothing at all.
-  label = PHRASES[0].label
+  label = PHRASES[0]!.label
   await $.turn.complete(done('要我繼續嗎？', { agentId: 'a1' }))
   await $.turn.complete(done('要我繼續嗎？', { reason: 'aborted', isAborted: true }))
   await $.ui.render({ surface: 'terminal', component: 'AbovePrompt', requestId: 'above', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 120, scroll: { offset: 0, bodyRows: 19 }, view: {} } })

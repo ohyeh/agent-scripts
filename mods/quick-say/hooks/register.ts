@@ -2,8 +2,9 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { cells, fit, rowsOf } from './lib/band.ts'
 import { APPROVES_NOTHING, askPrompt, askTail, dirOf, gitDirOf, gitPrompt, isCommit, questionTail, type GitGap } from './lib/follow.ts'
+import rawPhrases from './phrases.ts'
 
-const MOD_VERSION = '0.5.2'
+const MOD_VERSION = '0.6.0'
 const NAME = 'quick-say'
 const COMMAND = 'quick-say'
 const ACCENT = 'cyan'
@@ -11,67 +12,30 @@ const ACCENT = 'cyan'
 const FOLD_KEY = `${NAME}.fold`
 const HIDE_KEY = `${NAME}.hidden`
 
-// A digit fills the box; only the owner sends it. Combo 8 reuses the owner's command text.
-const COMMANDER = '全程指揮模式：所有實作與審查由  workers\n執行（你是大腦：盤點、決策、派發、復驗、定奪），寫少量重要產品code\n\n注意你的主要任务是分析、编排和验证，具体任务尽可能交给 local coding agent cli | grok bot 去执行。\n\n自己只做需求澄清、方案拆解、任务分发和结果验收，实现类工作（读大量代码、写代码、跑测试、批量修改）\n\nDiscover live, never recite from memory.'
-export const PHRASES = [
-  {
-    hotkey: '4',
-    label: '更深的問題',
-    when: '反覆討論同一件事，需要找出一直沒問的更深問題',
-    text: '在最近反复讨论的问题背后，有没有一个更深的问题，是一直在绕着它走，却没有真正问出来的？',
-  },
-  {
-    hotkey: '5',
-    label: '前情提要',
-    when: '接續前一段工作，先讀來源並確認前情',
-    text: '/session-handoff resume 前情提要：照 RESUME 流程讀完交接、相關 session、html 報告與 commits，然後像看劇的前情提要一樣講給我聽。\n1. 之前做了什麼、發生了什麼，照時間順序，包括卡住和被我糾正的地方。\n2. 你讀了哪些來源：session id、html／artifact 連結、commit SHA，每個用一句話說它講了什麼。\n3. 現在停在哪，分兩種情況：上一段工作已經收完、沒有未完成的，就直接說，然後等我給新目標，照規劃期的做法先畫圖確認共識，再寫 PLAN；如果是大任務拆成小任務、上次停在某個檢核點收尾，就列出大任務、每個小任務的狀態（已驗證完成／未完成），上次停在哪個檢核點、當時驗證的結果，以及下一個小任務。\n4. 你沒讀到或不確定的地方。\n挑幾個繼承來的關鍵說法，在真實產物上驗一次；已驗證且沒變的不重做。講完先停，等我確認你讀懂了再開工。',
-  },
-  {
-    hotkey: '6',
-    label: '規劃期',
-    when: '新目標需要先畫狀態圖確認共識，再寫計畫',
-    text: '規劃期：先不要寫 PLAN。先把你理解的系統畫成狀態圖（狀態、轉移、不變條件，用 system model 表示），再依 using-decision-tree 的 design 分支選 motion、diagram 或 canvas 呈現，加上範圍、取捨和還不確定的地方，給我確認我們有共識；會跨模組、動到介面的程式任務，另外附一份程式骨架（型別、簽名、未實作的函式）。我確認以後，才在本任務的 .workflow run dir 寫 plan.md 和 task 清單：每個 task 對應 model 的轉移 ID，並附驗收和驗證方式。',
-  },
-  {
-    hotkey: '7',
-    label: '指揮',
-    when: '目標已確定，要由主 agent 指揮 workers 實作與審查',
-    text: COMMANDER,
-  },
-  {
-    hotkey: '8',
-    label: '指揮＋loop',
-    when: '規劃已確認，要持續指揮直到所有結束條件達成',
-    text: `/loop 完成規劃好的所有內容
-
-${COMMANDER}
-
-每次ＬＯＯＰ 你要最主動做更多事情
-每一輪不只收尾，而是要主動往下一輪前進
-你要做的是盡可能以完整的完成所有任務為目標 而不是所謂最小 做紮實的修正(而非表面繞過)
-
-請執行，不要隨便停下，不准跟我交談
-
-等待就等待不要一堆廢話 安靜等待 遵守規範
-
-請直接提供最終結果，不需要解釋過程，也不要問我是否需要進一步說明，一次性完成
-所有內容
-
-開跑前在本任務 run dir 的 state 檔寫可檢查的結束條件；達成才停，卡住就換做法繼續，真的走到死路才回報；每輪在 state 檔記一列：改了什麼、結束條件有沒有前進。`,
-  },
-  {
-    hotkey: '9',
-    label: '驗收',
-    when: '依已確認的 model 和 task 清單驗收真實產物',
-    text: '驗收：對照規劃期確認的 model 和 plan.md 的 task 清單逐項驗收，每個轉移和每個 task 都要附本 session 實際跑出來的證據，例如指令輸出、exit code、截圖或錄影、commit SHA；單元測試和 smoke 不算能用的證據。專案有 verify skill 就照它的功能地圖跑。沒過的項目列出原因和修法，修完再驗一次。全部通過後，依規則請 reviewer 審驗收結果的客觀問題（bug、安全、證據），有共識才算完成。最後給使用者一張 scope／direction 卡：這次做了哪些、有沒有多做或漏做使用者要的，做法有沒有偏離方向、有哪些取捨要使用者拍板。',
-  },
-  {
-    hotkey: '0',
-    label: '收工',
-    when: '任務已收尾，需要交接、投稿與下一個檢核點',
-    text: '收工。核對本次目標、驗證及 push 狀態，未完成項目如實列出。用 session-handoff skill 寫可接續的交接，再給 recap：成果、證據、未完成項目與下一步。整理本 session 的錯誤、修正與開發建議，納入 main session、sub-agent 和 tmux worker 的行為，依 shared-memory-intake skill 投稿；附交接與投稿位置。有大任務拆小任務的，交接裡寫明大任務、各小任務狀態、這次停在哪個檢核點與驗證結果、下一個小任務。',
-  },
-] as const
+// A digit fills the box; only the owner sends it. The texts live in ./phrases.ts;
+// a text may embed another combo's text as {{<hotkey>}} (combo 8 reuses 7).
+type Phrase = { hotkey: string; label: string; when: string; text: string }
+export function phrasesOf(raw: unknown): Phrase[] {
+  if (!Array.isArray(raw) || raw.length === 0) throw new Error('phrases.json: expected a non-empty array')
+  const list = raw.map((p, i) => {
+    for (const k of ['hotkey', 'label', 'when', 'text'] as const) {
+      if (typeof p?.[k] !== 'string' || p[k].trim() === '') throw new Error(`phrases.json: entry ${i} needs a non-empty "${k}"`)
+    }
+    return { hotkey: p.hotkey, label: p.label, when: p.when, text: p.text } as Phrase
+  })
+  const keys = list.map(p => p.hotkey)
+  const dup = keys.find((k, i) => keys.indexOf(k) !== i)
+  if (dup) throw new Error(`phrases.json: hotkey "${dup}" appears twice`)
+  return list.map(p => ({
+    ...p,
+    text: p.text.replace(/\{\{(\w+)\}\}/g, (_, k: string) => {
+      const ref = list.find(q => q.hotkey === k)
+      if (!ref) throw new Error(`phrases.json: "${p.hotkey}" embeds unknown hotkey {{${k}}}`)
+      return ref.text
+    }),
+  }))
+}
+export const PHRASES = phrasesOf(rawPhrases)
 type Mode = '手動' | '半自動' | '自動'
 const MODES: Mode[] = ['手動', '半自動', '自動']
 const MODE_LABEL = { 手動: '○ 手動', 半自動: '◐ 半自動', 自動: '⚡ 自動' }

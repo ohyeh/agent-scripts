@@ -1,5 +1,13 @@
 # Changelog
 
+## quick-say 0.6.0
+
+Owner 11-06: 「目前使用上 我覺得用字、交代、細節不夠好 尤其是前情提要 使用下來 agent 都在偷懶」「quick-say 為啥不能分離出選項 config … 現在寫死很難測也」.
+
+- **The combo texts live in `hooks/phrases.ts`, data only**: `register.ts` checks the list once on load (non-empty fields, unique hotkeys, `{{<hotkey>}}` embeds; combo 8 embeds 7). A hooks module may import only code files, so the list is a `.ts` data file, not `.json`. Tests check behavior (each combo fills its own text, the checks throw on a bad list) instead of pinning every text, so a wording change no longer touches the tests.
+- **5 前情提要 closes the shortcuts a 15-use audit found** (`.workflow/202611060900-w46-backlog/w46-17-recap-audit.md`, 6 owner corrections): run both Step 3b filters, read every handoff of the work line and page text, label reads with the skill's `full`／`partial`／`not read`, sort open items into answered / asked-not-done / agent proposal, at least 3 named verifications (HEAD = origin is an environment check), stop without a menu and ask through AskUserQuestion.
+- **0 收工 keeps agent proposals out of the owner's questions**; 4, 7 and 8 read as Traditional Chinese (Taiwan) with the same meaning.
+
 ## grok-bot-watch 0.18.2
 
 - **The main bot's pinned row no longer reads as the open bot** (2026-11-06): the app nests a `Pinned Bots` group inside `Bot list`, and the main bot's pinned row keeps `aria-current="page"` with the same UUID while another bot is open. `send.mjs` refused with `not-open`, `transcript.mjs` restored the wrong bot, and the sidebar listed the main bot twice with `current: true`. Every row read now skips the pinned row (`ROW`/`CUR` in `bin/send.mjs`, the sidebar READ). 77 skill tests pass; the old selector fails 9.

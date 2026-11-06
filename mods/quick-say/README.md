@@ -43,12 +43,12 @@ with `APPROVES_NOTHING`: it grants no new approval.
 | 0 | 收工 | Check delivery, write the handoff and memory submission, and record the next checkpoint. |
 
 `/quick-say` shows or hides the band and lists all full texts.
-The owner's exact texts and the model's `when` hints live in `PHRASES` in `hooks/register.ts`.
+The owner's texts and the model's `when` hints live in `hooks/phrases.ts` (data only; `{{<hotkey>}}` embeds another combo's text). `register.ts` checks the list once on load.
 
 ## Band and log
 
 ```
-▌quick say v0.5.2 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
+▌quick say v0.6.0 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
 ```
 
 The band starts folded. Open/fold and hide choices persist across sessions.
