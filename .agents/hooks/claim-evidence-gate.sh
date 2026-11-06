@@ -129,7 +129,7 @@ tail3="$(printf '%s\n' "$last" | sed -E '/^```/,/^```/d; s/「[^」]*」//g' | g
   | grep -vE '^[[:space:]]*(✈[[:space:]]*)?$' | tail -n 3)"
 ask_back=""
 printf '%s' "$tail3" | grep -Eqi "$HARDSTOP_RE" \
-  || ask_back="$(printf '%s\n' "$tail3" | sed -E 's/`[^`]*`//g' | grep -Ei "$ASK_RE" | head -1 | cut -c1-100)"
+  || ask_back="$(printf '%s\n' "$tail3" | sed -E 's/`[^`]*`//g; s/(沒有?|不用|不需要|無[須需])[^，。,]{0,8}你(決定|選)//g' | grep -Ei "$ASK_RE" | head -1 | cut -c1-100)"
 [ -n "$claim" ] || [ -n "$reload_ask$live_say$ask_back" ] || exit 0
 
 csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
