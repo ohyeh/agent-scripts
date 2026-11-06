@@ -241,6 +241,8 @@ ledger_for n7 "$TWO" "$READ"; [[ "$(run_claim n7 '自我稽核未執行：fork a
 # a requirement, a scope note or a forecast, not a claim. The ledger has one Edit and no token, so a claim blocks.
 # The 2 misses (a claim next to a bound 還沒 line) and the 2 true violations must block.
 W46_PASS=('- 修正前的版本要測出失敗，修正後要通過。'
+  '修正後需要通過 CI'
+  '只要測試通過就上傳'
   '做完之後，五個畫面要在 1440、768、390 三個寬度都通過 `npm run check:ui`，0 個 FAIL。接著另找一個 reviewer 用 `codex` 審，最後發成 Artifact 給你看。builder 回報時我會通知你。'
   'worker 一多，一輪就會超過 2 秒；上一輪還沒跑完，下一輪就直接跳過（`tui.node.ts:1112`）。而且只有內容真的變了才重畫，畫面上也沒有任何地方告訴你上次更新是什麼時候。'
   '**這一票的限制**：依據是 `DIRECTION.md`、lint 結果和評審檔，F、G 的實際畫面我還沒看過截圖。要讓票更有份量，可以派 agy 和 cursor 用同一套四軸評分看 F、G。'
