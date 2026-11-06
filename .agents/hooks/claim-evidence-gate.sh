@@ -116,7 +116,14 @@ reload_ask="$(printf '%s' "$last" | sed -E '/^```/,/^```/d; /^>/d; s/「[^」]*�
   | grep -Ei '/reload-plugins|重新載入 *plugin' | grep -Eqi '請|(^|[ ，。])要[ /]|(^|[.!?] *)(run|execute|you (must|need to)) |(^|[^a-z])please([^a-z]|$)' && echo 1)"
 # A page claim: live/published after a page noun, "it is/went live", "published it", live before an artifact URL, 已上線/已發布.
 live_say="$(printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(page|artifact|dashboard)( is| went| has gone| has been| is now|:) (now )?(live|published)|(^|[^a-z])it(.s| is| went| has gone| has been| is now) (now )?(live|published)|(^|[^a-z])(published|deployed)( it| the page| the artifact| and live)|(live|published)[^a-z]{0,4}(at |:)? *https://claude\.ai/artifact|已上線|上線了|已發布|(頁面|網頁|儀表板|頁).{0,15}(上線|發布)' && echo 1)"
-[ -n "$claim" ] || [ -n "$reload_ask$live_say" ] || exit 0
+# W46-15: a reply that ends by handing a decision to the owner needs a consensus-ladder call this turn
+# (judgment-rubrics §3). Read the last 3 non-empty lines, outside code and 「」 quotes, without the ✈ line.
+# An ask that names a hard-stop item (kernel MUST-ask list) is allowed.
+ASK_RE='要不要|要我.{0,40}嗎|你選|你決定|請決定|還是.{0,40}(？|\?)|(^|[^a-z])(shall i|should i|do you want me to|which (one|option) do you prefer)([^a-z]|$)'
+HARDSTOP_RE='delete|刪除|payment|付款|credential|憑證|密碼|token|production|正式環境|force push|irreversible|不可逆|your (device|hands)|你的裝置|你親自'
+ask_back="$(printf '%s\n' "$last" | sed -E '/^```/,/^```/d; s/`[^`]*`//g; s/「[^」]*」//g' | grep -viE 'judgment-rubrics|claim-evidence-gate' \
+  | grep -vE '^[[:space:]]*(✈[[:space:]]*)?$' | tail -n 3 | grep -Ei "$ASK_RE" | grep -Eiv "$HARDSTOP_RE" | head -1 | cut -c1-100)"
+[ -n "$claim" ] || [ -n "$reload_ask$live_say$ask_back" ] || exit 0
 
 csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
 MARKER="$STATE_DIR/claim-checked-$csha"
@@ -135,9 +142,12 @@ calls="$(printf '%s\n' "$window" | grep -c '"tool"')"
 
 handback_reason=""
 # Claude transcripts only: other formats (Codex, adapters) carry no readable tool_use rows here.
-if [ -n "$reload_ask$live_say" ] && grep -q '"type":"assistant"' "$TRANSCRIPT"; then
+if [ -n "$reload_ask$live_say$ask_back" ] && grep -q '"type":"assistant"' "$TRANSCRIPT"; then
+  # advisor is a server_tool_use row, not a tool_use row
   uses="$(jq -r --arg s "$since" 'select((.timestamp // "")[0:19] >= $s) | .message.content? | arrays | .[]
-    | select(.type == "tool_use") | "\(.name) \(.input | tostring)"' "$TRANSCRIPT" 2>/dev/null)"
+    | select(.type == "tool_use" or .type == "server_tool_use") | "\(.name) \(.input | tostring)"' "$TRANSCRIPT" 2>/dev/null)"
+  [ -n "$ask_back" ] && ! grep -qE '^(advisor|Agent|AskUserQuestion|mcp__tmux-agent__(assign|tell)) ' <<<"$uses" \
+    && handback_reason="${handback_reason:+$handback_reason }Decision handed to the owner without a consensus call: the reply ends with an ask (${ask_back}), but this turn made no advisor, Agent, tmux-agent assign/tell or AskUserQuestion call (judgment-rubrics §3; maintenance §1 for gates). Run advisor or a reviewer and act on its answer, or say which hard-stop item needs the owner."
   [ -n "$reload_ask" ] && ! grep -q '^mcp__tmux-agent__reload ' <<<"$uses" \
     && handback_reason="Hand-back without own try: the reply asks the user to reload plugins, but this turn made no mcp__tmux-agent__reload call. Call mcp__tmux-agent__reload first; hand back only if it reports the old version."
   pub="$(grep -n '^Artifact ' <<<"$uses" | grep -vE '"action":"(read|list|open|delete|pin|unpin|quickstart)"|"asset":true' | tail -1 | cut -d: -f1)"

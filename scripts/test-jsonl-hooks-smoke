@@ -310,7 +310,7 @@ ledger_for c12 "$RUN0";            [[ -z "$(run_claim c12 'exit=0' "$TR4")" ]]  
 trh() { # $1 file, then tool_use objects ({name,input}) made this turn
   local f="$WORK/$1"; shift
   printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"go"}}' > "$f"
-  for u in "$@"; do jq -cn --argjson u "$u" '{type:"assistant",timestamp:"2026-01-01T00:00:03.000Z",message:{content:[$u + {type:"tool_use"}]}}' >> "$f"; done
+  for u in "$@"; do jq -cn --argjson u "$u" '{type:"assistant",timestamp:"2026-01-01T00:00:03.000Z",message:{content:[{type:"tool_use"} + $u]}}' >> "$f"; done
   printf '%s' "$f"
 }
 BASHU='{"name":"Bash","input":{"command":"git pull"}}'
@@ -342,6 +342,33 @@ PUBU='{"name":"Artifact","input":{"file_path":"/s/page.html","icon":"chart"}}'
 ```' "$(trh h14.jsonl "$BASHU")")" ]] || { echo "FAIL: W44-7 fenced /reload-plugins blocked" >&2; exit 1; }
 [[ -z "$(run_claim h15 '先前執行 `/reload-plugins` 後，工具恢復正常。' "$(trh h15.jsonl "$BASHU")")" ]] || { echo 'FAIL: historical reload counted as a hand-back' >&2; exit 1; }
 [[ -z "$(run_claim h16 '舊訊息寫著「請執行 /reload-plugins 再試」。' "$(trh h16.jsonl "$BASHU")")" ]] || { echo 'FAIL: quoted reload counted as a hand-back' >&2; exit 1; }
+# W46-15: a reply that ends by handing a decision to the owner needs a consensus call this turn.
+# Real case: session c9213e9e, 2026-11-06T02:55Z.
+ASKB='**還開著**
+- 儀表板的計數和標籤要不要修（這次沒寫入），以及 P1、P3、P5、L2、L3、L4、L12 要不要補去向。
+- claim gate 詞表誤擋和漏洞要不要開新列。
+- 儀表板上 W46-2 還寫「部分」，等 retro 驗收後再改。
+
+✈'
+ADV='{"type":"server_tool_use","name":"advisor","input":{}}'
+w46b=""
+[[ "$(run_claim a1 "$ASKB" "$(trh a1.jsonl "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 ask-back with no consensus call passed"
+[[ -z "$(run_claim a2 "$ASKB" "$(trh a2.jsonl "$BASHU" "$ADV")")" ]] || w46b="$w46b
+FAIL: W46-15 ask-back after an advisor call blocked"
+[[ -z "$(run_claim a3 '舊的 log 檔已經沒用了，要不要刪除？' "$(trh a3.jsonl "$BASHU")")" ]] || w46b="$w46b
+FAIL: W46-15 a hard-stop ask (delete) blocked"
+[[ -z "$(run_claim a4 '原文寫著「要不要修？」。
+```
+should I deploy?
+```' "$(trh a4.jsonl "$BASHU")")" ]] || w46b="$w46b
+FAIL: W46-15 a quoted or fenced question blocked"
+[[ -z "$(run_claim a5 '已更新 README 的安裝步驟，並改了範例指令。
+
+✈' "$(trh a5.jsonl "$BASHU")")" ]] || w46b="$w46b
+FAIL: W46-15 a plain recap blocked"
+[[ -z "$w46b" ]] || { echo "$w46b" >&2; exit 1; }
+echo 'PASS W46-15: ask-back with no consensus call blocks; advisor call, hard-stop ask, quoted ask and plain recap pass'
 [[ "$(run_claim h8 '頁面已上線：https://claude.ai/artifact/x' "$(trh h8.jsonl "$PUBU" '{"name":"Bash","input":{"command":"echo take a screenshot later"}}')")" == block ]] || { echo "FAIL: W44-7 a Bash line naming a screenshot passed as a render check" >&2; exit 1; }
 
 # bol: prose shape is no longer judged (runnable-check heuristic retired
