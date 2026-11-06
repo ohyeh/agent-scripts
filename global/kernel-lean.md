@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.47.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.48.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -57,7 +57,7 @@ ritual or quoting.
   plan step; a test change → operator-defaults Test cost.
 - Write procedural English, or simplify/re-explain → simplified-english.
   Plan/investigate or output → operator-defaults; many items/numbers to compare,
-  or any page, diagram, chart, motion, or Artifact → artifacts-rules, unasked. Hard task, stalled, or final answer → judgment-rubrics §8.
+  or any page, diagram, chart, motion, or Artifact → artifacts-rules, unasked; before the first build also skill using-decision-tree (design). Hard task, stalled, or final answer → judgment-rubrics §8.
 - Edit rules or skills → maintenance §1: exact diff, then approval.
 - Friction found → maintenance §2: a gate, or a backlog row naming the file;
   no free-text lesson list.

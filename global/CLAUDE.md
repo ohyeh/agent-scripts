@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.47.0-ironlaws
+Version: 4.48.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -71,7 +71,8 @@ ritual, no quoting; tooling enforces critical gates.
 - Write procedural English (brief, rule, commit, skill text), or a
   simplify/re-explain request → simplified-english.
 - Plan/investigate or output → operator-defaults; many items/numbers to compare,
-  or any page, diagram, chart, motion, or Artifact → artifacts-rules, unasked.
+  or any page, diagram, chart, motion, or Artifact → artifacts-rules, unasked; before the first build also skill
+  using-decision-tree (design).
 - Hard task, stalled progress, or final answer → judgment-rubrics §8 (persist within
   caps: same approach ≤3 rounds, each one tier up; every call counts).
 - Edit guidance, rules, or skills → maintenance §1: exact diff, then

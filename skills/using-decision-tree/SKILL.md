@@ -1,6 +1,6 @@
 ---
 name: using-decision-tree
-description: "Which skill or recipe owns this task, in what order. Invoke BEFORE doing by hand any task the kernel routing index does not name (.pdf read or fill, test plan, architecture improvement, docs writing, prose cleanup, 「有沒有 skill」, 「用哪個」); BEFORE any visual output (web page, landing page, dashboard, product UI, mobile screen, HTML report, diagram, chart, plan page, artifact, motion, redesign, 「做個頁面」, 「畫圖」, 「報告做成網頁」, module or API interface design); and BEFORE loop-shaped work (audit, second-model review, findings triage, PR review comments, feature brief to plan, spec to implement, research or price comparison over rounds, 「跑一輪審查」, 「幫我 plan」, 「把 findings 處理掉」). Walks one decision table per branch, binds one owner per role, closes with an evidence check."
+description: "Which skill or recipe owns this task, in what order. Invoke BEFORE doing by hand any task the kernel routing index does not name (.pdf read or fill, test plan, architecture improvement, docs writing, prose cleanup, 「有沒有 skill」, 「用哪個」); BEFORE any visual output (web page, landing page, dashboard, product UI, mobile screen, HTML report, diagram, chart, plan page, artifact, motion, redesign, 「做個頁面」, 「畫圖」, 「報告做成網頁」, module or API interface design); and BEFORE loop-shaped work (audit, second-model review, findings triage, PR review comments, feature brief to plan, spec to implement, research or price comparison over rounds, 「跑一輪審查」, 「幫我 plan」, 「把 findings 處理掉」). Walks one decision table per branch, binds one owner per role."
 ---
 
 # using-decision-tree
@@ -29,8 +29,8 @@ branch file plus one index row; this file does not change for it.
 5. Read the chosen member's `SKILL.md`, then run the branch's contracts. Do
    not come back to this trunk mid-task.
 
-A worker on one assigned task does not enter this tree; its brief already
-binds the members.
+A worker on one assigned task enters this tree only when its brief names it;
+otherwise its brief already binds the members.
 
 ## Changing the tree
 

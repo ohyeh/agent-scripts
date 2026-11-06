@@ -17,8 +17,10 @@ at the end; that table is the only place a member is chosen.
 **Q1 Deliverable — who owns the output?**
 - Diagram → DG-REPO when it is one of that member's native types drawn from a
   real repo or trace; else DG-HOUSE.
-- Report, plan, comparison or explainer page → you build one self-contained
-  HTML file under rule `artifacts-rules`.
+- Report, plan, comparison or explainer page → skill `writing-artifacts`
+  first (one page, one topic), then build one self-contained HTML file under
+  rule `artifacts-rules`. Exception: the page arrives from `writing-artifacts`
+  Stage 4 with frozen text → build directly. One pass, no loop.
 - Web page or web app screen, native screen, existing interface → the target
   stack; direction from Q2.
 - Metrics, KPIs, status, a data file, or a large scan-and-compare page →
@@ -51,8 +53,8 @@ A bundled specialist that does not resolve this turn → say so and skip it.
 
 **Q4 Executor per stage** → the executor table below.
 
-**Q5 Verifier.** A render in scope → the quality loop below (for `Motion`,
-frames at start, middle and end). DESIGN.md only → document evidence (file
+**Q5 Verifier.** A render in scope → the quality loop below, screenshots per
+Gate 0 (for `Motion`, frames at start, middle and end). DESIGN.md only → document evidence (file
 hash or commit, token completeness, contrast math). Pipeline D → a design
 comparison judged against PD-DEPTH criteria by a fresh reviewer, verdict
 PASS or BLOCK. PROTO → none.
@@ -110,7 +112,10 @@ uncropped. Desktop AND mobile for responsive work. Missing, stale or cropped
 evidence → UNCONFIRMED → overall BLOCK; never PASS on code-only review. A
 DESIGN.md-only deliverable records file hash or commit instead; the moment a
 render exists, the full contract applies. Scroll the page before a full-page
-capture so lazy images load.
+capture so lazy images load. Choose the screenshot tool by host capability:
+`codex-cu` where it runs, else `agent-browser` (`references/map.md` §drive a
+browser). A headless screenshot is denied. A worker that cannot take a
+screenshot hands Gate 0 back to the main session.
 
 **Quality bar:** award level — work that could win at Awwwards, the Webby
 Awards, or FWA. "Correct and clean" is not the bar.
