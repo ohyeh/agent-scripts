@@ -141,9 +141,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "222d025e21448db16e207fd82ea1331cd15b93e1",
+      "skillFolderHash": "eeeb1278f50bf1a21da42907f01648809ac6d807",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-11-05T11:32:58.216Z"
+      "updatedAt": "2026-11-06T02:18:43.098Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -260,7 +260,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-grok-bot-app/SKILL.md",
-      "skillFolderHash": "5f00b044f60c543a017d2075705dc434a160d4dc",
+      "skillFolderHash": "d66e806790ca7d9457b6ffae3e887a0e64b270bf",
       "installedAt": "2026-09-04T08:30:33.000Z",
       "updatedAt": "2026-10-30T11:06:04.931Z"
     },
