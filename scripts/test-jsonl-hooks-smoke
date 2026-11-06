@@ -402,6 +402,15 @@ LG="$WORK/logs/abcd1234-0000.jsonl"; mkdir -p "$WORK/logs/abcd1234-0000/subagent
   jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:01Z",message:{content:[{type:"tool_use",id:"s1",name:"Read",input:{file_path:"x"}}]}}'; } > "$WORK/logs/abcd1234-0000/subagents/agent-a1.jsonl"
 PK="$(mkdir -p "$WORK/pack" && cd "$WORK/pack" && pwd -P)"
 SUMMARY="$(python3 "$RP" --out "$PK" "$LG")" || { echo "FAIL: W46-18 resume_pack.py could not build the smoke pack" >&2; exit 1; }
+# A plain JSONL pack must build with no zstd. A .zst log still fails closed when zstd is absent.
+if ! command -v zstd >/dev/null 2>&1; then
+  printf 'not a zstd frame\n' > "$WORK/logs/no-zstd.jsonl.zst"
+  if python3 "$RP" --out "$WORK/zst-out" "$WORK/logs/no-zstd.jsonl.zst" >"$WORK/zst.stdout" 2>"$WORK/zst.stderr"; then
+    echo "FAIL: W46-18 a .zst log exited 0 without zstd" >&2; exit 1
+  fi
+  grep -qx 'missing binary: zstd' "$WORK/zst.stderr" || { echo "FAIL: W46-18 .zst without zstd: $(cat "$WORK/zst.stderr")" >&2; exit 1; }
+  [[ ! -e "$WORK/zst-out" ]] || { echo "FAIL: W46-18 .zst failure created output" >&2; exit 1; }
+fi
 SUB="$(cd "$PK/abcd1234" && ls -d sub-*)"
 rdp() { python3 "$RP" --read "$PK/$1"; }
 printf 'scout report\nS01:1 make ok\n' > "$PK/abcd1234/scout-S01-S01.md"

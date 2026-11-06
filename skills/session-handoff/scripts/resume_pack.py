@@ -14,8 +14,9 @@ from pathlib import Path
 
 
 # Exact RESUME Step 3b filters from session-handoff/SKILL.md.
+# `capture(re) // {}` is the jq 1.7 spelling of `capture(re)?.field`: `)?.` does not parse on jq 1.7.
 CLAUDE_USER = r'''def txt: if type=="string" then . else (map(if .type=="text" then .text elif .type=="image" then "[image]" else empty end)|join(" ")) end;
-     def slash: (capture("<command-name>(?<c>[^<]*)</command-name>")?.c // "") + " " + (capture("<command-args>(?<a>[^<]*)</command-args>")?.a // "");
+     def slash: ((capture("<command-name>(?<c>[^<]*)</command-name>") // {}) | .c // "") + " " + ((capture("<command-args>(?<a>[^<]*)</command-args>") // {}) | .a // "");
      [inputs | select(.origin.kind!="plugin" and .isMeta!=true) | .timestamp as $ts
       | (if (.toolUseResult|type)=="object" and (.toolUseResult|has("answers")) then (.toolUseResult as $r | [$r.answers|to_entries[] | "Q: \(.key[0:60])… → A: \(.value|tostring)\(($r.annotations[.key].notes? // "") as $n | if $n!="" then " (note: \($n))" else "" end)"] | join("  ||  "))
          elif .type=="user" and ((.message.content|type)=="string" or (.message.content|map(.type)|index("tool_result"))==null) then .message.content|txt
@@ -381,9 +382,13 @@ def main():
     if not args.self_test and (not args.out or not args.logs):
         parser.error("expected --out DIR LOG [LOG...]")
     try:
-        for binary in ("jq", "zstd"):
-            if not shutil.which(binary):
-                raise ValueError(f"missing binary: {binary}")
+        # jq filters every log. zstd is only for a .zst log (load) and --self-test's compressed fixture.
+        if not shutil.which("jq"):
+            raise ValueError("missing binary: jq")
+        needs_zstd = args.self_test or any(
+            log.expanduser().resolve().suffix == ".zst" for log in args.logs)
+        if needs_zstd and not shutil.which("zstd"):
+            raise ValueError("missing binary: zstd")
         if args.self_test:
             self_test()
         else:
