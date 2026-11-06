@@ -166,17 +166,17 @@ Every other recipe keeps its own loop until the W43 retro decides, and does not 
 
 | Layer | Who | Job | Cap |
 |---|---|---|---|
-| L0 | deterministic | test/build/lint/scrub/grep/checksum before every round, then hash what is under review; a hash change during the round voids it | must PASS before the round |
-| L1 | `sonnet` high (code: `pr-review-toolkit:code-reviewer`); `gemini-3.8-flash-medium` or later (agy); `grok-4.7-xhigh` or later (Cursor); `gpt-6-luna` xhigh/max only on request | adversarial pre-filter; 0 blockers only admits the work to L2 | 2 rounds |
-| TK | code only: `pr-review-toolkit` agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) on `sonnet` high, in parallel | a fixed-form full report of suggestions that sets a floor under L1's blind spots; findings join the ledger, the fixer answers them once; never passes the work. The brief tells `pr-test-analyzer` to also list tests to merge or delete (operator-defaults Test cost) | 1 round |
-| L2 | commander-driven gate: `advisor` (as above). In-script seat: best tier (`fable` / `gpt-6-astra` / `gemini-4-argon`, low / medium), else better tier (`opus` high+ or `gpt-6.1-sol` medium+) (code: `pr-review-toolkit:code-reviewer`) | the final verdict; always runs | 3 rounds |
+| L0 | deterministic | test/build/lint/scrub/grep/checksum when the tree changed since the last green L0 (not again on an unchanged hash), then hash what is under review; a hash change during the round voids it; negative cases (old code must fail) run once | must PASS before the round |
+| L1 | `sonnet` high (code: `pr-review-toolkit:code-reviewer`); `gemini-3.8-flash-medium` or later (agy); `grok-4.7-xhigh` or later (Cursor); `gpt-6-luna` xhigh/max only on request | adversarial review; each layer loops to convergence before the next (owner 2026-11-06: 「l0 l0 l0 l1 l1 l1」); 0 blockers passes the work when L2 is off, else admits it to L2 | 2 rounds |
+| TK | code only: `pr-review-toolkit` agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) on `sonnet` high, seated in L1 round 1 beside the code-reviewer so one fix answers both | a fixed-form full report of suggestions that sets a floor under L1's blind spots; findings join the ledger, the fixer answers them once; never passes the work. The brief tells `pr-test-analyzer` to also list tests to merge or delete (operator-defaults Test cost) | 1 round |
+| L2 | commander-driven gate: `advisor` (as above). In-script seat: best tier (`fable` / `gpt-6-astra` / `gemini-4-argon`, low / medium), else better tier (`opus` high+ or `gpt-6.1-sol` medium+) (code: `pr-review-toolkit:code-reviewer`) | the final verdict; optional (owner 2026-11-06: 「他是選填 不是必須」): runs on request (`l2: true`) or for the high tier | 3 rounds |
 
 No L3 (user ruling 2026-10-16): still blocking after L2 round 3 → stop the gate and ask the
 user. There is no further layer, so a stuck gate cannot keep burning usage.
 
 - Depth by risk: L0 sets the tier from all changed paths against the repository's path list.
   Include committed, staged, unstaged, and untracked changes. A mixed diff takes the highest tier.
-  An unknown path is high. The author can raise a tier, never lower it. high = the full ladder, a
+  An unknown path is high. The author can raise a tier, never lower it. high = the full ladder with L2, a
   security lens in L2, and owner approval of the exact diff. normal = the full ladder. low = prose
   docs only; executable, test, skill, rule, and config files cannot be low. Low uses the full
   ladder until outcome evidence for that workload supports L0 + L2. Cite that evidence before the

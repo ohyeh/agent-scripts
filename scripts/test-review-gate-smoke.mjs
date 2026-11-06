@@ -28,7 +28,7 @@ async function run(policy, extraArgs = {}, opts = {}) {
     calls.push(`${o.label}|${o.model || ''}|${o.agentType || ''}|${o.effort || ''}`)
     if (o.label === 'implement') return 'IMPL_DONE'
     if (o.label.startsWith('fix#')) { seen.fix = prompt; return { ok: true, summary: 's', actions: [] } }
-    if (o.label.startsWith('L0#')) { seen.l0 = prompt; return { manifest: `${M}  -`, rc: 0, output: 'L0-OUT-42' } }
+    if (o.label.startsWith('L0#')) { seen.l0 = prompt; return { manifest: `${M}  -`, rc: 0, output: 'L0-OUT-42', ...(prompt.includes('NEGCMD-77') ? { negative_ok: true, negative_exits: [1] } : {}) } }
     if (o.label === 'verify-and-classify') { seen.finalize = prompt; return { summary: 'ok', manifest: opts.finalManifest ?? M, verified: opts.verified ?? true, amendment_needed: false, deviations: opts.deviations || [] } }
     const [, seat, r] = o.label.match(/^((?:L[123]|TK)(?::[a-z-]+)?)#(\d+)$/)
     seen[`${seat}#${r}`] = prompt
@@ -48,11 +48,12 @@ const check = (m, cond, got) => { if (cond) { console.log(`  ok   ${m}`); pass++
 const clean = (s, r, p) => V([], { resolved: known(p) })
 const seq = calls => calls.filter(c => /^(L[123]|TK|fix)/.test(c)).map(c => c.split('|')[0].replace(/#\d+$/, '')).join(' ')
 
+const L2 = { l2: true }   // L2 is opt-in (owner 2026-11-06: 「他是選填 不是必須」)
 const TWO = { toolkit: ['silent-failure-hunter', 'pr-test-analyzer'], luna: true }
 const TK4 = 'TK:silent-failure-hunter TK:pr-test-analyzer TK:type-design-analyzer TK:comment-analyzer'
 { const { result } = await run((s, r, p) => s === 'TK:pr-test-analyzer' ? 'THROW' : clean(s, r, p))
   check('a TK seat that throws is a warning, not a silent skip', result.verified === true && result.warnings.some(w => /pr-test-analyzer: threw/.test(w)), JSON.stringify(result.warnings)) }
-{ const { seen } = await run((s, r, p) => s === 'L1:code-reviewer' && r === 1 ? V([MAJOR]) : clean(s, r, p))
+{ const { seen } = await run((s, r, p) => s === 'L1:code-reviewer' && r === 1 ? V([MAJOR]) : clean(s, r, p), L2)
   const p2 = seen['L1:code-reviewer#2'] || ''
   check('round 2 gets the fix diff by pipe, no shared file', /\| diff -u \S+r1\.prev\.diff -/.test(p2) && !/now\.diff/.test(p2), p2.slice(0, 200))
   const l2 = seen['L2#1'] || ''
@@ -71,30 +72,37 @@ for (const [k, v] of [['cli', 'codex'], ['l1Lenses', []], ['toolkit', ['code-rev
   const { result } = await run(clean, { [k]: v })
   check(`rejects ${k}=${JSON.stringify(v)}`, result.aborted === true && !result.stage, JSON.stringify(result))
 }
-{ const { result, calls, seen } = await run(clean)
-  check('default: L1 sonnet high code-reviewer → TK all four toolkit agents once (sonnet high) → L2 code-reviewer', seq(calls) === `L1:code-reviewer ${TK4} L2` && calls.some(c => c.startsWith('L1:code-reviewer#1|sonnet|pr-review-toolkit:code-reviewer|high')) && calls.some(c => c.startsWith('TK:comment-analyzer#1|sonnet|pr-review-toolkit:comment-analyzer|high')), calls.join('\n'))
+{ const { result, calls } = await run(clean)
+  check('default: L1 round 1 seats the code-reviewer and all four toolkit agents together; no L2', seq(calls) === `L1:code-reviewer ${TK4}` && result.verified === true, seq(calls))
+  check('a clean ladder runs L0 once (no rerun on an unchanged tree)', calls.filter(c => c.startsWith('L0#')).length === 1, calls.join('\n')) }
+{ const { result, calls, seen } = await run(clean, L2)
+  check('l2: L1 sonnet high code-reviewer + toolkit agents (sonnet high) → L2 code-reviewer', seq(calls) === `L1:code-reviewer ${TK4} L2` && calls.some(c => c.startsWith('L1:code-reviewer#1|sonnet|pr-review-toolkit:code-reviewer|high')) && calls.some(c => c.startsWith('TK:comment-analyzer#1|sonnet|pr-review-toolkit:comment-analyzer|high')), calls.join('\n'))
   check('L0 runs on sonnet medium, not opus', calls.some(c => /^L0#1\|sonnet\|[^|]*\|medium$/.test(c)), calls.join('\n'))
   check('TK reviewers are asked for the full report in their own area', /full report/.test(seen['TK:pr-test-analyzer#1'] || '') && !/full report/.test(seen['L2#1'] || ''), (seen['TK:pr-test-analyzer#1'] || '').slice(0, 300))
   check('L2 uses pr-review-toolkit:code-reviewer on fable medium (best tier), no opus when fable answers', calls.some(c => c === 'L2#1|fable|pr-review-toolkit:code-reviewer|medium') && !calls.some(c => c.startsWith('L2#1|opus')), calls.join('\n'))
   check('clean ladder reaches a no-edit finalizer and verifies', result.verified === true && /do NOT edit any file/.test(seen.finalize), JSON.stringify(result)) }
-{ const { result } = await run((s, r, p) => s === 'L2' ? null : clean(s, r, p))
+{ const { result } = await run((s, r, p) => s === 'L2' ? null : clean(s, r, p), L2)
   check('L2 reviewer missing aborts at review (P2-A5)', result.aborted === true && result.stage === 'review', JSON.stringify(result)) }
-{ const { result } = await run((s, r, p) => s.startsWith('L1') ? null : clean(s, r, p))
-  check('every L1 seat missing aborts at review', result.aborted === true && result.stage === 'review', JSON.stringify(result)) }
-{ const { calls } = await run(clean, { toolkit: [] })
-  check('toolkit: [] skips the TK step', seq(calls) === 'L1:code-reviewer L2', seq(calls)) }
+{ const { result } = await run((s, r, p) => /^(L1|TK)/.test(s) ? null : clean(s, r, p))
+  check('every L1 seat (code-reviewer and toolkit) missing aborts at review', result.aborted === true && result.stage === 'review', JSON.stringify(result)) }
+{ const { calls } = await run(clean, { toolkit: [], ...L2 })
+  check('toolkit: [] seats no toolkit agent', seq(calls) === 'L1:code-reviewer L2', seq(calls)) }
 { const { result, calls } = await run((s, r, p) => s === 'TK:silent-failure-hunter' ? V([MAJOR]) : clean(s, r, p))
-  check('TK runs one round: its Major goes to the fixer once, then L2 clears it', result.verified === true && seq(calls) === `L1:code-reviewer ${TK4} fix L2`, seq(calls)) }
+  check('toolkit seats sit in L1 round 1 only: their Major goes to one fix, L1 round 2 (code-reviewer alone) clears it', result.verified === true && seq(calls) === `L1:code-reviewer ${TK4} fix L1:code-reviewer`, seq(calls))
+  check('L0 reruns only after the fix changed the tree', calls.filter(c => c.startsWith('L0#')).length === 2, calls.join('\n')) }
+{ const neg = { negativeCases: [{ name: 'old-fails', command: 'NEGCMD-77', expectedExit: 1 }] }
+  const { calls, seen } = await run((s, r, p) => s === 'L1:code-reviewer' && r === 1 ? V([MAJOR]) : clean(s, r, p), neg)
+  check('negative cases run in the first L0 only', calls.filter(c => c.startsWith('L0#')).length === 2 && !seen.l0.includes('NEGCMD-77'), seen.l0.slice(0, 300)) }
 { const MINOR = { ...MAJOR, severity: 'Minor', issue: 'minor' }
-  const { result, calls, seen } = await run((s, r, p) => s === 'TK:comment-analyzer' ? V([MINOR]) : clean(s, r, p))
-  check('a TK-only Minor still goes to the fixer once, and L2 sees it', result.verified === true && seq(calls) === `L1:code-reviewer ${TK4} fix L2` && /"id": "TK-1"/.test(seen.fix) && /"id": "TK-1"/.test(seen['L2#1'] || ''), seq(calls)) }
-{ const { calls } = await run(clean, TWO)
+  const { result, calls, seen } = await run((s, r, p) => s === 'TK:comment-analyzer' ? V([MINOR]) : clean(s, r, p), L2)
+  check('with l2, a toolkit-only Minor still goes to the fixer once, and L2 sees it', result.verified === true && seq(calls) === `L1:code-reviewer ${TK4} fix L2` && /"id": "L1-1"/.test(seen.fix) && /"id": "L1-1"/.test(seen['L2#1'] || ''), seq(calls)) }
+{ const { calls } = await run(clean, { ...TWO, ...L2 })
   check('luna joins L1 and toolkit picks the TK agents', seq(calls) === 'L1:code-reviewer L1:luna TK:silent-failure-hunter TK:pr-test-analyzer L2' && calls.some(c => c.startsWith('TK:pr-test-analyzer#1|sonnet|pr-review-toolkit:pr-test-analyzer')), calls.join('\n')) }
 { const { result } = await run((s, r, p) => s === 'L1:luna' ? null : clean(s, r, p), TWO)
   check('one L1 seat missing is a warning, review continues', result.verified === true && result.warnings.some(w => /luna/.test(w)), JSON.stringify(result.warnings)) }
-{ const { result, calls } = await run((s, r, p, m) => s === 'L2' && m === 'fable' ? null : clean(s, r, p))
+{ const { result, calls } = await run((s, r, p, m) => s === 'L2' && m === 'fable' ? null : clean(s, r, p), L2)
   check('L2 fable gives no verdict → opus at reviewEffort reviews', result.verified === true && calls.some(c => c.startsWith('L2#1|opus|pr-review-toolkit:code-reviewer|high')), calls.join('\n')) }
-{ const { result, calls } = await run((s, r, p) => s === 'L2' ? V([MAJOR]) : clean(s, r, p))
+{ const { result, calls } = await run((s, r, p) => s === 'L2' ? V([MAJOR]) : clean(s, r, p), L2)
   check('L2 blocks 3 rounds: no L3, stops and needs the user', result.aborted === true && result.needsUser === true && /ask the user/.test(result.reason || result.summary || JSON.stringify(result)) && !calls.some(c => c.startsWith('L3')), JSON.stringify(result)) }
 { const { result } = await run((s) => V([MAJOR]))
   check('every layer blocks: aborted at review, needs the user', result.aborted === true && result.stage === 'review' && result.needsUser === true && result.blockers.length > 0, JSON.stringify(result)) }

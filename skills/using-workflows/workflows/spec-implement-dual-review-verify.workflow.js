@@ -12,32 +12,33 @@
 //     spec:      "Full implementation spec (multi-line): what file to write/edit, style to match, exact behavior...",
 //     targetFile:"scripts/foo/bar.sh",            // optional: file under review (repo-relative or absolute)
 //     reviewFocus:"bash quoting under set -euo pipefail, curl error handling, edge cases",  // optional
-//     verifyCommands: [                            // optional: the L0 checks, run before every review round (Finalize reuses the last run)
+//     verifyCommands: [                            // optional: the L0 checks, run when the tree changed since the last green L0 (Finalize reuses the last run)
 //       "bash -n scripts/foo/bar.sh",
 //       "shellcheck scripts/foo/bar.sh",
 //       "./scripts/foo/bar.sh --help"
 //     ],
 //     model: "opus",                               // optional, implementer/fixer model (default opus; 'sonnet' allowed HERE only — implementation)
 //     effort: "low",                               // optional, implementer effort (default medium)
+//     l2: true,                                    // optional: run L2 after L1 converges (default off; owner 2026-11-06 「他是選填 不是必須」)
 //     reviewEffort: "high",                        // optional, L2 effort: medium|high|xhigh|max (default high)
 //     maxReviewRounds: 3,                          // optional, L2 rounds, integer 1–3 (L1 2 is fixed)
 //     luna: true,                                  // optional: add gpt-6-luna to L1 as a substitute seat (default off)
-//     toolkit: ["silent-failure-hunter"],          // optional pr-review-toolkit agents for the TK step (default all
+//     toolkit: ["silent-failure-hunter"],          // optional pr-review-toolkit agents that join L1 round 1 (default all
 //                                                  // four: + pr-test-analyzer, type-design-analyzer, comment-analyzer;
 //                                                  // [] skips the step)
 //     timeoutSec: 1200, slug: "c1",                // optional: Luna run timeout; snapshot dir name
 //   }})
 //
-// REVIEW LADDER (the Review phase):
-//   L0  verifyCommands + a manifest hash (HEAD, `git diff HEAD`, untracked files) before every round;
-//       a failing check goes to the fixer first; a manifest change during the round voids it.
+// REVIEW LADDER (the Review phase). Each layer loops to convergence before the next starts
+// (owner 2026-11-06: 「l0 l0 l0 l1 l1 l1」):
+//   L0  verifyCommands + a manifest hash (HEAD, `git diff HEAD`, untracked files), run only when the tree
+//       changed since the last green L0 (a fix sets it dirty); negativeCases run once, in the first L0, since
+//       they test the old code. A failing check goes to the fixer first; a manifest change during a round voids it.
 //   L1  pr-review-toolkit:code-reviewer on sonnet high (+ gpt-6-luna xhigh when args.luna), adversarial,
-//       ≤2 rounds; cannot pass the change.
-//   TK  the pr-review-toolkit agents (args.toolkit) on sonnet high, in parallel, ONE round: a full
-//       report of suggestions in each agent's area. Findings join the ledger, the fixer answers them
-//       once, then L2. Cannot pass the change.
-//   L2  pr-review-toolkit:code-reviewer on fable medium (best tier), opus at reviewEffort if fable
-//       fails; always runs, ≤maxReviewRounds. No L3: still blocking after the last L2 round → stop,
+//       ≤2 rounds. Round 1 also seats the pr-review-toolkit agents (args.toolkit), in parallel, so one fix
+//       answers both. Without args.l2, an L1 round with 0 Critical/Major passes the change.
+//   L2  opt-in (args.l2: true): pr-review-toolkit:code-reviewer on fable medium (best tier), opus at
+//       reviewEffort if fable fails; ≤maxReviewRounds. No L3: still blocking after the last L2 round → stop,
 //       needsUser. One finding ledger runs through every round and layer; the
 //       implementer model fixes under the fixer contract (_lib/worker-doctrine.md §7–§9).
 //
@@ -63,11 +64,11 @@
 
 export const meta = {
   name: 'spec-implement-dual-review-verify',
-  description: 'Implement a spec, review it through the ladder (L0 → sonnet code-reviewer → pr-review-toolkit report → fable/opus code-reviewer; still blocking → ask the user), verify (param via args)',
+  description: 'Implement a spec, review it through the ladder (L0 → sonnet code-reviewer + pr-review-toolkit seats, each layer to convergence → optional fable/opus L2; still blocking → ask the user), verify (param via args)',
   whenToUse: 'When a written spec must become code with laddered independent review and command-verified evidence — the main build pipeline. When a consensus-frozen plan.md already exists, pass a plan POINTER as the spec (see the frozen-plan preset in the header).',
   phases: [
     { title: 'Implement', detail: 'write/edit the target per spec', model: 'opus' },
-    { title: 'Review', detail: 'review ladder: L0 → sonnet code-reviewer → toolkit report → fable/opus code-reviewer' },
+    { title: 'Review', detail: 'review ladder: L0 → sonnet code-reviewer + toolkit seats → optional fable/opus L2' },
     { title: 'Finalize', detail: 'run verify commands and classify deviations; no further edits' },
   ],
 }
@@ -187,17 +188,19 @@ if (!impl) return { aborted: true, stage: 'implement', reason: 'implementation a
 log('implementation done, starting the review ladder')
 
 phase('Review')
+// Each layer loops to convergence before the next starts (owner 2026-11-06: 「l0 l0 l0 l1 l1 l1」). The toolkit seats review in
+// L1 round 1 beside code-reviewer, so one fix answers both. L2 is opt-in (owner 2026-11-06: 「他是選填 不是必須」).
+const useL2 = a.l2 === true
 const LADDER = [
-  { tier: 'L1', max: 2, freezes: false },   // pre-filter: 0 blockers here only admits the change to L2
-  ...(toolkit.length ? [{ tier: 'TK', max: 1, freezes: false }] : []),   // one-pass toolkit report; never passes the change
-  { tier: 'L2', max: maxRounds, freezes: true },   // last layer: no L3 (user ruling 2026-10-16)
+  { tier: 'L1', max: 2, freezes: !useL2 },
+  ...(useL2 ? [{ tier: 'L2', max: maxRounds, freezes: true }] : []),   // last layer: no L3 (user ruling 2026-10-16)
 ]
 const BLOCKING = f => f.severity !== 'Minor'
-const runL0 = n => agent(
+const runL0 = (n, withNeg) => agent(
   `In repo ${repo}: deterministic L0 before a review round. Do not edit any file.\n` +
   `0. ${SOURCES_HASH ? `Record sources_before = the verbatim output of \`${SOURCES_HASH}\`. It must match the pre-implementation frozen baseline:\n${frozenSourcesDigest}` : 'No sources were given: set sources_before = "".'}\n` +
   `1. ${verifyCommands.length ? `Run each wrapped verify command below in order, stopping at the first non-zero exit (each command is wrapped with a process-group perl alarm ${timeout}s; exit 142 = TIMEOUT):\n${verifyCommands.map(c => `  - ${wrapTimeout(c)}`).join('\n')}\nIf any command exits 142, set timed_out = true, rc = 142, and prepend "TIMEOUT (exit 142)" to output. Otherwise timed_out = false and rc = the first non-zero exit code, or 0; output = the last 40 lines verbatim.` : `No verifyCommands were given: choose and run the narrowest relevant checks wrapped with \`${PERL_TIMEOUT} ${timeout} bash -c '<cmd>'\` that write nothing into the repo; exit 142 = TIMEOUT (set timed_out = true, rc = 142); otherwise timed_out = false, rc = the first non-zero exit code, or 0.`}\n` +
-  `2. ${normNeg.length ? `Run each wrapped negativeCases command below and record its actual exit code in negative_exits[] in order:\n${normNeg.map(n => `  - [${n.name}] (expectedExit=${n.expectedExit}): ${n.wrapped}`).join('\n')}\nFor each entry: exit 142 = TIMEOUT (set timed_out = true, negative_ok = false, rc = 142); exit 126 or 127 or any exit != expectedExit = ERROR (set negative_ok = false, rc = 1). Set negative_ok = true ONLY if every entry exited with its exact expectedExit.` : 'No negativeCases were given: set negative_exits = [] and negative_ok = true.'}\n` +
+  `2. ${withNeg ? `Run each wrapped negativeCases command below and record its actual exit code in negative_exits[] in order:\n${normNeg.map(n => `  - [${n.name}] (expectedExit=${n.expectedExit}): ${n.wrapped}`).join('\n')}\nFor each entry: exit 142 = TIMEOUT (set timed_out = true, negative_ok = false, rc = 142); exit 126 or 127 or any exit != expectedExit = ERROR (set negative_ok = false, rc = 1). Set negative_ok = true ONLY if every entry exited with its exact expectedExit.` : 'No negativeCases were given: set negative_exits = [] and negative_ok = true.'}\n` +
   `3. ${SOURCES_HASH ? `Record sources_after = the verbatim output of \`${SOURCES_HASH}\`. If sources_before or sources_after differs from the frozen baseline above, set rc = 1 (changed digest voids PASS).` : 'Set sources_after = "".'}\n` +
   `4. Then run \`${MANIFEST}\`; manifest = its output.`,
   { label: `L0#${n}`, phase: 'Review', model: 'sonnet', effort: 'medium', agentType, schema: L0 })   // manifest AFTER verify: checks that rewrite files must not void the round
@@ -236,7 +239,7 @@ const review = (tier, who, r, max, ledger, prev, l0) => {
     .catch(e => { log(`L2 fable threw (${e}); falling back to opus`); return null })
     .then(x => x || (log(`L2 fable gave no verdict; opus ${reviewEffort} reviews`), l2('opus', reviewEffort)))
 }
-let calls = 0, prev = null, nid = 0, rounds = 0, frozen = false, lastL0 = null
+let calls = 0, prev = null, nid = 0, rounds = 0, frozen = false, lastL0 = null, dirty = true, negDone = false
 const ledger = new Map()   // id → finding (+ tier, + fixer action); survives layer changes
 const warnings = []
 const fix = async (task, n) => {
@@ -245,7 +248,7 @@ const fix = async (task, n) => {
     `In repo ${repo}: FIX the change you implemented. Before editing, run \`mkdir -p ${snapDir} && ${CHANGE} > ${snapDir}/r${n}.prev.diff\`. Do NOT commit.\n${FIXER_CONTRACT}\n${task}\n${SPEC}\nReturn ok=true once the edits are made; summary; actions = one entry per finding id.`,
     { label: `fix#${n}`, phase: 'Review', model, effort, agentType, schema: FIX })
   if (!f || f.ok !== true) return false
-  prev = `${snapDir}/r${n}.prev.diff`
+  prev = `${snapDir}/r${n}.prev.diff`; dirty = true
   for (const act of f.actions || []) { const e = ledger.get(act.id); if (e) e.fixer = { action: act.action, evidence: act.evidence } }
   return true
 }
@@ -253,15 +256,17 @@ const stop = (reason, blockers) => ({ aborted: true, stage: 'review', reason, bl
 ladder: for (const [li, L] of LADDER.entries()) {
   let r = 0, voids = 0, l0Fails = 0
   while (r < L.max) {
-    calls++
-    const pre = await runL0(rounds + 1)
+    // L0 runs only when the tree changed since the last green L0; the negative cases need the old code only, so they run once
+    const negNow = normNeg.length > 0 && !negDone
+    if (dirty) calls++
+    const pre = dirty ? await runL0(rounds + 1, negNow) : lastL0
     if (!pre) return stop('L0 agent failed (returned null)', [])
     const norm = s => String(s || '').trim()
     const digestChanged = SOURCES_HASH
       ? (norm(pre.sources_before) !== frozenSourcesDigest || norm(pre.sources_after) !== frozenSourcesDigest)
       : false
     const timedOut = pre.timed_out === true || pre.rc === 142 || (pre.negative_exits || []).includes(142)
-    const negExitError = normNeg.length > 0 && (
+    const negExitError = dirty && negNow && (
       !Array.isArray(pre.negative_exits) ||
       pre.negative_exits.length !== normNeg.length ||
       normNeg.some((n, i) => {
@@ -269,22 +274,22 @@ ladder: for (const [li, L] of LADDER.entries()) {
         return code === 126 || code === 127 || code === 142 || code !== n.expectedExit
       })
     )
-    const negFailed = pre.negative_ok === false || negExitError
+    const negFailed = (dirty && negNow && pre.negative_ok === false) || negExitError
     if (pre.rc !== 0 || digestChanged || timedOut || negFailed) {   // deterministic failure: fix first, the review round has not started
       const why = timedOut ? `TIMEOUT (exit 142 after ${timeout}s)` : digestChanged ? 'sources sha256 drifted from pre-implementation frozen baseline (voids PASS)' : negFailed ? `negativeCases ERROR/mismatch (exits=${JSON.stringify(pre.negative_exits || [])}, expected=${JSON.stringify(normNeg.map(n => n.expectedExit))})` : `rc=${pre.rc}`
       if (++l0Fails >= 2) return stop(`L0 failed twice in a row (${why})`, [`${why}: ${pre.output.slice(-400)}`])
       if (!(await fix(`L0 FAILED (${why}). Output:\n${pre.output}\nFix the cause; also keep every open ledger finding in mind:\n${JSON.stringify([...ledger.values()], null, 2)}`, rounds + 1))) return stop('fixer failed on an L0 fix', [])
       continue
     }
-    l0Fails = 0; lastL0 = pre
+    l0Fails = 0; lastL0 = pre; dirty = false; if (negNow) negDone = true
     const known = [...ledger.values()]
-    const seats = L.tier === 'L1' ? ['code-reviewer', ...(a.luna ? ['luna'] : [])] : L.tier === 'TK' ? toolkit : ['']   // Claude by default; Luna is a substitute seat
+    const seats = L.tier === 'L1' ? ['code-reviewer', ...(a.luna ? ['luna'] : []), ...(r === 0 ? toolkit : [])] : ['']   // Claude by default; Luna is a substitute seat
     calls += seats.length
-    const verdicts = await parallel(seats.map(w => () => review(L.tier, w, r + 1, L.max, known, prev, pre.output)))
+    const verdicts = await parallel(seats.map(w => () => review(toolkit.includes(w) ? 'TK' : L.tier, w, r + 1, L.max, known, prev, pre.output)))
     verdicts.filter(v => v && v.seatFailed).forEach(v => warnings.push(`${L.tier} ${v.seatFailed}`))
     const ran = verdicts.filter(v => v && !v.seatFailed)
-    // L1/TK tolerate a failed seat; L2 does not
-    if (!ran.length || (L.freezes && ran.length !== seats.length)) return stop(`${L.tier} reviewer failed (returned null) — no silent degradation`, [])
+    // L1 (with its toolkit seats) tolerates a failed seat; L2 does not
+    if (!ran.length || (L.tier === 'L2' && ran.length !== seats.length)) return stop(`${L.tier} reviewer failed (returned null) — no silent degradation`, [])
     if (ran.some(v => hex(v.manifest_start) !== hex(pre.manifest) || hex(v.manifest_end) !== hex(pre.manifest))) {   // the change moved during the round
       if (++voids >= 2) return stop('the change moved during review twice', ['void round: manifest drifted during review'])
       log(`${L.tier} round ${r + 1} void (the change moved during review); rerun`)
@@ -303,8 +308,8 @@ ladder: for (const [li, L] of LADDER.entries()) {
     }
     if (![...ledger.values()].some(BLOCKING)) {
       if (L.freezes) { frozen = true; log(`${L.tier} verdict: 0 Critical / 0 Major`); break ladder }
-      // TK's report is suggestions too: the fixer answers its Minors (fixed | deferred) before L2
-      if (L.tier === 'TK' && ledger.size && !(await fix(`Findings (ledger, every open one):\n${JSON.stringify([...ledger.values()], null, 2)}`, rounds))) return stop('fixer failed on a fix', [])
+      // the toolkit report is suggestions too: the fixer answers its Minors (fixed | deferred) before L2
+      if (useL2 && ledger.size && !(await fix(`Findings (ledger, every open one):\n${JSON.stringify([...ledger.values()], null, 2)}`, rounds))) return stop('fixer failed on a fix', [])
       break
     }
     if (li === LADDER.length - 1 && r === L.max) break   // last round of the top layer: no reviewer left for a fix
