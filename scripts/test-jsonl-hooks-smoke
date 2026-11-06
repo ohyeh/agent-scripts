@@ -458,6 +458,13 @@ CB="$WORK/r14.jsonl"; { jq -cn '{type:"response_item",timestamp:"2026-01-01T00:0
   for o in "$SUMMARY" "${ALL[@]}"; do jq -cn --arg o "$o" '{type:"response_item",timestamp:"2026-01-01T00:00:01.000Z",payload:{type:"custom_tool_call_output",call_id:"c",output:[{type:"input_text",text:$o}]}}'; done; } > "$CB"
 [[ -z "$(run_claim r14 "$FULL" "$CB")" ]] || w46r="$w46r
 FAIL: W46-18 a Codex content-block output list blocked"
+U="$PK/abcd1234/user.txt"; python3 -c 'import sys; open(sys.argv[1], "w").write("".join("U%03d: %s\n" % (i, "x" * 120) for i in range(300)) + "L" * 5000 + "\n")' "$U"
+UT="$(python3 "$RP" --read "$U" --page 1 | tail -1 | sed -E 's/.* page 1\/([0-9]+) .*/\1/')"; UP=()
+for n in $(seq 1 "$UT"); do UP+=("$(python3 "$RP" --read "$U" --page "$n")"); done
+[[ "$UT" -ge 3 && -z "$(run_claim r16 "$FULL" "$(rtr r16.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")")" ]] || w46r="$w46r
+FAIL: W46-18 every page of a multi-page user.txt (one line over 4000 chars) blocked: gate and resume_pack.py page differently"
+[[ "$(run_claim r17 "$FULL" "$(rtr r17.jsonl "${UP[@]:0:$((UT - 1))}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a multi-page user.txt with its last page unread passed"
 printf 'edited\n' >> "$PK/abcd1234/user.txt"
 [[ "$(run_claim r12 "$FULL" "$(rtr r12.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a stamp whose sha no longer matches user.txt counted"

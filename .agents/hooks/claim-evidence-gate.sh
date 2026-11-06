@@ -303,7 +303,7 @@ EOF
       miss=" no manifest.json for $sid under the named pack;"
     else
       printf '%s\n' "$outs" | jq -r 'strings' 2>/dev/null \
-        | grep -qxF "$sid COUNT $count TOOLS $tools slices $(jq -r '.slices | length' "$pack/$sid/manifest.json") groups $(jq -r '.scout_groups | length' "$pack/$sid/manifest.json") -> $pack/$sid" \
+        | grep -xF "$sid COUNT $count TOOLS $tools slices $(jq -r '.slices | length' "$pack/$sid/manifest.json") groups $(jq -r '.scout_groups | length' "$pack/$sid/manifest.json") -> $pack/$sid" >/dev/null \
         || miss="$miss no resume_pack.py summary for $pack/$sid with COUNT $count TOOLS $tools;"
       read_whole "$pack/$sid/user.txt" || miss="$miss $sid/user.txt not read in full with resume_pack.py --read;"
       while IFS=$'\t' read -r dir range slices; do
