@@ -32,12 +32,14 @@ class Codex:
         try:
             os.killpg(self.process.pid, signal.SIGTERM)
             self.process.wait(timeout=3)
-        except (ProcessLookupError, subprocess.TimeoutExpired):
+        except (ProcessLookupError, PermissionError, subprocess.TimeoutExpired):
             pass
         finally:
             try:
                 os.killpg(self.process.pid, signal.SIGKILL)
-            except ProcessLookupError:
+            # macOS: a group left with only zombies (exited children not yet reaped by launchd)
+            # returns EPERM; nothing is left to kill (remote-44 deploy 2026-11-06).
+            except (ProcessLookupError, PermissionError):
                 pass
             self.process.wait()
             for stream in (self.process.stdin, self.process.stdout, self.process.stderr):
