@@ -18,6 +18,8 @@
 # shortcut: a grep for the literal is also denied; search with `rm -rf [~]`,
 # `worktree [a]dd`, `Arc\.app/Contents/[M]acOS`.
 # Not covered: a command that a script or test runner starts as a child process.
+# Headless Google Chrome from such a child is refused by Chrome itself: deploy layer_chrome
+# sets the HeadlessMode=2 policy (2026-11-06, grok_bot/pub test/lib/cdp.mjs went around this gate).
 #
 # MODE: DENY exit 2 / ASK / WARN (additionalContext).
 set -u

@@ -821,6 +821,23 @@ bash "$SRC/scripts/check-grok-runtime.sh"
 }
 layer layer_grok
 
+# --- Layer 7c: Chrome headless policy ------------------------------------------
+# Owner 2026-11-06: agents kept opening headless Chrome through npm/node children that no
+# Bash text gate can see (grok_bot/pub test/lib/cdp.mjs). Chrome's HeadlessMode=2 policy makes
+# Chrome itself refuse --headless from any launcher; tested on this host: "Headless mode is
+# disallowed by the system admin.", codex-cu-chrome-id still PASS. rm-home-gate stays as a fast filter.
+layer_chrome() {
+echo "==> [chrome] HeadlessMode policy = 2 (disallowed)"
+if [ "$(uname -s)" != Darwin ] || [ ! -d "/Applications/Google Chrome.app" ]; then
+  echo "SKIP [chrome] Google Chrome not installed (macOS only)"; return
+fi
+w defaults write com.google.Chrome HeadlessMode -int 2
+got="$(defaults read com.google.Chrome HeadlessMode 2>/dev/null || true)"
+[ "$got" = 2 ] || { echo "FAIL [chrome] HeadlessMode=${got:-<absent>}, expected 2" >&2; exit 1; }
+echo "PASS [chrome] HeadlessMode=2: Chrome refuses headless launches"
+}
+layer layer_chrome
+
 # --- Layer 7b: Antigravity runtime (statusline) --------------------------------
 layer_agy() {
 echo "==> [agy] statusline script + settings.json"
