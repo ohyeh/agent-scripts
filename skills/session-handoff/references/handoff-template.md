@@ -48,7 +48,15 @@ Use this template structure when creating handoff documents. The smart scaffold 
 
 ## Timeline
 
-Filter output for session [SESSION-ID]: `COUNT [n]` (one `user` row below per printed line)
+### Nodes
+
+| # | Time (UTC) | Asked (user quote) | Achieved (files, behavior) | Evidence | Status |
+|---|------------|--------------------|----------------------------|----------|--------|
+| 1 | [START–END] | [「verbatim request」] | [what changed] | [sha / test output / page] | [verified / open / dropped] |
+
+### Rows
+
+`user.txt` of session [SESSION-ID]: `COUNT [n]` (one `user` row below per line)
 
 | Time (UTC) | Who | Event (user quote verbatim, or the state change and its evidence) |
 |------------|-----|------------------------------------------------------------------|

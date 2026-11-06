@@ -61,7 +61,7 @@ Open the generated file and fill in all `[TODO: ...]` sections. Prioritize these
    Put your own ideas under "Agent Proposals (not requested)".
 4. **Decisions Made** - Choices with rationale (not just outcomes). Record the main rejected options, why each was rejected, and what new evidence would reopen it. Use the task's own decision or handoff file; do not create a standing DECISIONS.md.
 5. **Mistakes and Corrections** - Wrong turns and user corrections, with evidence; a rule proposal goes to `~/.agents/retro-inbox/pending/` and only its file name goes here
-6. **Timeline** - The session in order: each user message, ruling and correction as a `user` row (UTC time, short verbatim quote), and each state change (commit, push, deploy, worker start/stop) with its evidence. Run the RESUME Step 3b filter for your CLI on this session's own log. Copy its `COUNT <n>` line into the section and write one `user` row per printed line, from the full output, not from memory or a summary.
+6. **Timeline** - First the nodes: one row per stretch of work from a user request to its verified outcome — time span, what was asked (user quote), what was achieved (files, behavior), the evidence that closed it (sha, test output, page), and status (`verified` / `open` / `dropped`). A resuming agent reads the nodes as the map and checks them against the rows below. Then the rows: each user message, ruling and correction as a `user` row (UTC time, short verbatim quote), and each state change (commit, push, deploy, worker start/stop) with its evidence. Run `resume_pack.py` (RESUME Step 3b) on this session's own log, or the Step 3b filter for a CLI it does not cover. Copy the `COUNT <n>` line of `user.txt` into the section and write one `user` row per line, from the full output, not from memory or a summary.
 
 Use the template structure in [references/handoff-template.md](references/handoff-template.md) for guidance.
 
@@ -139,7 +139,19 @@ Read in full every user-reviewed work record the handoff names, in any section. 
 A handoff is an agent's summary of a session, not its record. Read the record too.
 
 1. List the sessions. Take the writer session of every handoff you selected in Step 1 (`Session:` line, or the id in `compact-<id>.md`), every session in their chains, and every session the user names. Several handoffs often point to several sessions.
-2. For each session, read ALL of the user's messages, first to last, and the agent's last reply. Run the filter for your CLI below. It prints one line per user message (newlines become spaces), oldest first, and ends with `COUNT <n>`: jq counts, not you. `tail`, `head`, a line range, a keyword grep, a tool's output preview or a compaction summary is a sample, not a read: a session read that way is `partial`. Read the whole output, in pages if it is long; never cut it. It holds no tool output, so it is small (one 26,000-row Claude Code log: 99 messages, 32 KB). To keep it out of your own context, run it in `ctx_execute` and print every line, or give it to a read-only subagent that returns every line and the `COUNT` line; check that the first line it returns is the first line of your own run. A predecessor handoff whose Timeline has a `COUNT` line counts as the read of its session up to the handoff's time; run the filter for anything after that time.
+2. For each session, read what the user said AND what the agent did. The user's messages show what was asked and corrected; only the agent's tool calls show what was built (W46 audit: 10 of 15 resumes read only the user's side). Claude Code and Codex: build the session's reading pack.
+
+   ```bash
+   python3 <this skill's dir>/scripts/resume_pack.py --out <run dir or scratchpad>/pack "$LOG" [more logs]
+   ```
+
+   Per log, and per Claude Code subagent log beside it, it writes `<sid8>/user.txt` (one line per user message, oldest first, ending `COUNT <n>`), `tools.txt` (one line per tool call, ending `TOOLS <n>`), `slices/S01.txt`… (every tool call with its input and result, each line prefixed `S<NN>:<line>`) and `manifest.json` (counts and scout groups). A log it cannot parse exits 1: that session is `not read`, never empty. Then:
+
+   a. Read `user.txt` yourself, every line, in pages if it is long; the user's words are never delegated. `tail`, `head`, a line range, a keyword grep, a tool's output preview or a compaction summary is a sample, not a read: a session read that way is `partial`.
+   b. Read the agent's side: for each scout group in `manifest.json`, read its slices yourself, or dispatch one basic-tier scout (model-dispatch: Claude `haiku`/`sonnet` medium, Codex `gpt-6.1-sol` medium, agy flash) with exactly that range. Scout brief: read every line of slices `<range>`; write `<dir of that manifest>/scout-<range>.md` with (1) what was built or changed, (2) every failed or unresolved call, (3) every commit, page and evidence file produced; every line cites `S<NN>:<line>`. Read every report yourself.
+   c. Fill the gaps: open the cited lines the next step depends on, every failure a scout lists, the diff of each commit the work continues from (`git show --stat`, then the hunks), and the text of each page it wrote (a version number or an existing file is not a read).
+
+   A predecessor handoff whose Timeline has a `COUNT` line covers the user-message read of its session up to the handoff's time; it never covers b or c.
 
    | CLI | Session log | Cheap read |
    |---|---|---|
@@ -150,34 +162,9 @@ A handoff is an agent's summary of a session, not its record. Read the record to
 
    Set `LOG` to the session log first; an empty path makes jq wait on stdin.
 
-   Claude Code:
+   `user.txt` keeps typed messages, messages sent while the agent worked, AskUserQuestion answers (`Q: … → A: …`), pasted text, quote replies, images (`[image]`), slash commands and side-agent notes the user sent on; it drops plugin and meta rows, hook feedback, skill bodies and messages from other sessions. The filters live in `resume_pack.py` only. An answer to Codex's own question was not found in any Codex log: report it as `not recorded in the log`, never as read.
 
-   ```bash
-   jq -rn 'def txt: if type=="string" then . else (map(if .type=="text" then .text elif .type=="image" then "[image]" else empty end)|join(" ")) end;
-     def slash: (capture("<command-name>(?<c>[^<]*)</command-name>")?.c // "") + " " + (capture("<command-args>(?<a>[^<]*)</command-args>")?.a // "");
-     [inputs | select(.origin.kind!="plugin" and .isMeta!=true) | .timestamp as $ts
-      | (if (.toolUseResult|type)=="object" and (.toolUseResult|has("answers")) then (.toolUseResult as $r | [$r.answers|to_entries[] | "Q: \(.key[0:60])… → A: \(.value|tostring)\(($r.annotations[.key].notes? // "") as $n | if $n!="" then " (note: \($n))" else "" end)"] | join("  ||  "))
-         elif .type=="user" and ((.message.content|type)=="string" or (.message.content|map(.type)|index("tool_result"))==null) then .message.content|txt
-         elif .type=="attachment" and .attachment.type=="queued_command" then .attachment.prompt|txt
-         else empty end) as $t
-      | select($t|test("^\\s*<(?!pasted_content|command-|!-- attach)|^Base directory for this skill|^Stop hook feedback|^This session is being continued|^Another Claude session sent a message|^The .+ plugin sent a message")|not)
-      | "\($ts[0:19])  \(if ($t|test("^\\s*<command-")) then ($t|slash) else $t end | gsub("[\\r\\n\\t]+";" "))"]
-     | (.[]), "COUNT \(length)"' "$LOG"
-   jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' "$LOG" | tail -60   # last reply only; never a substitute for the user-message list
-   ```
-
-   It keeps typed messages, messages sent while the agent worked (`queued_command`), AskUserQuestion answers (`toolUseResult.answers`, printed `Q: … → A: …`), pasted text, quote replies (`<!-- attach -->`), images (`[image]`), slash commands (`/name args`) and side-agent notes the user sent on (they can end with the user's ruling). It drops plugin rows (`origin.kind=="plugin"`), meta rows, hook feedback, skill bodies and messages from other sessions. `[Request interrupted by user]` stays: the user stopped the agent.
-
-   Codex:
-
-   ```bash
-   zstd -dcf "$LOG" | jq -rn '[inputs | select(.type=="response_item" and .payload.type=="message" and .payload.role=="user")
-     | ([.payload.content[]? | if .type=="input_text" then .text elif .type=="input_image" then "[image]" else empty end] | join(" ")) as $t
-     | select($t|test("^\\s*(# AGENTS\\.md instructions|<(?!image)[a-z_]+[ >])")|not)
-     | "\(.timestamp[0:19])  \($t|gsub("[\\r\\n\\t]+";" "))"] | (.[]), "COUNT \(length)"'
-   ```
-
-   Older Codex logs end in `.jsonl.zst` (225 of 268 on 2026-10-30); `zstd -dcf` reads both forms. Without `zstd`, jq fails on a `.zst` log: that is a failed read, not an empty session. User words are `response_item` rows with `payload.role=="user"`; text that starts with a tag (except `<image`) or `# AGENTS.md instructions` is injected context. A message sent while Codex worked is another such row in the same turn, so the filter keeps it. An answer to Codex's own question was not found in any log: report it as `not recorded in the log`, never as read.
+   Cursor CLI and agy have no pack yet: run the filter below for the user's side, and mark the session `partial (agent side not read)` unless you read its tool rows another way and say how.
 
    Cursor CLI (no timestamp field: the time is the `<timestamp>` element, the words are the `<user_query>` element):
 
@@ -203,7 +190,13 @@ A handoff is an agent's summary of a session, not its record. Read the record to
 3. Where a user message and a handoff differ, the user message wins. Correct the handoff before you state scope.
 4. Build the timeline: merge each handoff's Timeline, every user message, and the live record (`git log`, worker list, deploy output) into one ordered list that ends now. Write it to a file (the task's run dir or scratchpad), not into the chat. Until it exists and its last entry matches the live state, do not dispatch an implementation worker, write a work brief, or edit project files. A read-only subagent that runs the filter for you is allowed.
 
-**Your first status reply lists what you read:** each handoff and each session, marked `full`, `partial (<range>)` or `not read`. For each `full` session, quote three lines verbatim from the filter output: the first line, the last message line, and the `COUNT` line. A tail cannot supply the first line. Then name the timeline file and state the latest correction and authorization in it. Never present a partial read as understanding. If you skipped a session, say so; do not state its content.
+**Your first status reply lists what you read:** each handoff marked `full`, `partial (<range>)` or `not read`, and one line per session in exactly one of these shapes (the claim gate matches them):
+
+- `- <sid8> full · COUNT <n> · TOOLS <n> · pack <dir>` — only after 2a–2c; COUNT and TOOLS are the manifest's, and every scout group's report or slices were read by you.
+- `- <sid8> partial (<what is missing>)`
+- `- <sid8> not read (<why>)`
+
+Then name the timeline file and state the latest correction and authorization in it. Never present a partial read as understanding. If you skipped a session, say so; do not state its content.
 
 ### Step 4: Verify Context
 

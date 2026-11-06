@@ -1,0 +1,347 @@
+#!/usr/bin/env python3
+"""Build cited reading packs from Claude Code and Codex JSONL logs."""
+
+import argparse
+import hashlib
+import json
+import math
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+# Exact RESUME Step 3b filters from session-handoff/SKILL.md.
+CLAUDE_USER = r'''def txt: if type=="string" then . else (map(if .type=="text" then .text elif .type=="image" then "[image]" else empty end)|join(" ")) end;
+     def slash: (capture("<command-name>(?<c>[^<]*)</command-name>")?.c // "") + " " + (capture("<command-args>(?<a>[^<]*)</command-args>")?.a // "");
+     [inputs | select(.origin.kind!="plugin" and .isMeta!=true) | .timestamp as $ts
+      | (if (.toolUseResult|type)=="object" and (.toolUseResult|has("answers")) then (.toolUseResult as $r | [$r.answers|to_entries[] | "Q: \(.key[0:60])… → A: \(.value|tostring)\(($r.annotations[.key].notes? // "") as $n | if $n!="" then " (note: \($n))" else "" end)"] | join("  ||  "))
+         elif .type=="user" and ((.message.content|type)=="string" or (.message.content|map(.type)|index("tool_result"))==null) then .message.content|txt
+         elif .type=="attachment" and .attachment.type=="queued_command" then .attachment.prompt|txt
+         else empty end) as $t
+      | select($t|test("^\\s*<(?!pasted_content|command-|!-- attach)|^Base directory for this skill|^Stop hook feedback|^This session is being continued|^Another Claude session sent a message|^The .+ plugin sent a message")|not)
+      | "\($ts[0:19])  \(if ($t|test("^\\s*<command-")) then ($t|slash) else $t end | gsub("[\\r\\n\\t]+";" "))"]
+     | (.[]), "COUNT \(length)"'''
+CODEX_USER = r'''[inputs | select(.type=="response_item" and .payload.type=="message" and .payload.role=="user")
+     | ([.payload.content[]? | if .type=="input_text" then .text elif .type=="input_image" then "[image]" else empty end] | join(" ")) as $t
+     | select($t|test("^\\s*(# AGENTS\\.md instructions|<(?!image)[a-z_]+[ >])")|not)
+     | "\(.timestamp[0:19])  \($t|gsub("[\\r\\n\\t]+";" "))"] | (.[]), "COUNT \(length)"'''
+USER_FILTERS = {"claude-code": CLAUDE_USER, "codex": CODEX_USER}
+CALL_TYPES = {"function_call", "custom_tool_call", "local_shell_call"}
+TARGET_KEYS = "command file_path path pattern url description query skill prompt code message brief text name".split()
+KEEP_WHOLE = {"Agent", "Task", "SendMessage", "AskUserQuestion", "Workflow"}
+SLICE_BYTES = 256 * 1024
+
+
+def run(command, data=None):
+    result = subprocess.run(command, input=data, capture_output=True)
+    if result.returncode:
+        raise ValueError(f"{command[0]} exited {result.returncode}: "
+                         f"{result.stderr.decode('utf-8', errors='replace').strip()}")
+    return result.stdout
+
+
+def serialized(value):
+    return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+
+
+def result_text(value):
+    if isinstance(value, list):
+        return "\n".join(result_text(item) for item in value)
+    if isinstance(value, dict) and isinstance(value.get("text"), str):
+        metadata = {k: v for k, v in value.items() if k != "text"}
+        return serialized(metadata) + "\n" + value["text"]
+    return serialized(value)
+
+
+def object_args(value):
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return {}
+    return value if isinstance(value, dict) else {}
+
+
+def blocks(row):
+    content = row.get("message", {}).get("content", [])
+    return [b for b in content if isinstance(b, dict)] if isinstance(content, list) else []
+
+
+def load(log):
+    raw = log.read_bytes()
+    data = run(["zstd", "-dcf", str(log)]) if log.suffix == ".zst" else raw
+    try:
+        rows = [json.loads(line) for line in data.splitlines() if line.strip()]
+    except ValueError as exc:
+        raise ValueError(f"unsupported CLI: {log} (invalid JSONL)") from exc
+    if not all(isinstance(r, dict) for r in rows):
+        raise ValueError(f"unsupported CLI: {log}")
+    if any(r.get("type") == "session_meta" and isinstance(r.get("payload"), dict)
+           and r["payload"].get("id") for r in rows) or any(
+               r.get("type") == "response_item" and isinstance(r.get("payload"), dict)
+               and r["payload"].get("type") in CALL_TYPES | {"message"} for r in rows):
+        cli = "codex"
+        sid = next((r["payload"]["id"] for r in rows
+                    if r.get("type") == "session_meta" and r.get("payload", {}).get("id")), None)
+        if not sid:
+            match = re.search(r"([0-9a-f]{8}-[0-9a-f-]{27,})\.jsonl", log.name)
+            sid = match[1] if match else log.stem
+    elif any(r.get("type") in {"user", "assistant"}
+             and isinstance(r.get("message"), dict) for r in rows):
+        cli = "claude-code"
+        sid = next((r["sessionId"] for r in rows if r.get("sessionId")), log.stem)
+    else:
+        raise ValueError(f"unsupported CLI: {log}")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", str(sid)):
+        raise ValueError(f"invalid session ID: {log}")
+    return data, rows, cli, str(sid)[:8], hashlib.sha256(raw).hexdigest()
+
+
+def tool_calls(rows, cli):
+    calls, results = [], {}
+    for row in rows:
+        timestamp = row.get("timestamp", "")
+        if cli == "claude-code":
+            for block in blocks(row):
+                kind = block.get("type", "")
+                if row.get("type") == "assistant" and kind in {"tool_use", "server_tool_use"}:
+                    calls.append((timestamp, block.get("name", kind), block.get("id"),
+                                  block.get("input", {})))
+                if row.get("type") in {"user", "assistant"} and kind.endswith("tool_result"):
+                    results.setdefault(block.get("tool_use_id"), []).append(block)
+        elif row.get("type") == "response_item":
+            p = row.get("payload", {})
+            kind = p.get("type", "")
+            if kind in CALL_TYPES:
+                value = p.get("arguments", p.get("input", p.get("action", {})))
+                calls.append((timestamp, p.get("name", kind), p.get("call_id", p.get("id")), value))
+            elif kind in {t + "_output" for t in CALL_TYPES}:
+                results.setdefault(p.get("call_id"), []).append(p)
+    return calls, results
+
+
+def is_error(value):
+    if isinstance(value, dict):
+        return (bool(value.get("is_error")) or bool(value.get("error"))
+                or value.get("status") in {"error", "failed"}
+                or value.get("exit_code", 0) not in (None, 0)
+                or str(value.get("type", "")).endswith("_error")
+                or any(is_error(v) for v in value.values()))
+    if isinstance(value, list):
+        return any(is_error(v) for v in value)
+    if isinstance(value, str):
+        try:
+            decoded = json.loads(value)
+        except ValueError:
+            decoded = None
+        return ((decoded is not None and not isinstance(decoded, str) and is_error(decoded))
+                or bool(re.search(r"(?im)(?:^|\n)(?:error\b|traceback\b|.*(?:exited with code|exit code|Process exited with code)\s*[:=]?\s*[1-9]\d*)", value)))
+    return False
+
+
+def call_text(call, results):
+    timestamp, name, call_id, value = call
+    encoded = serialized(value).encode("utf-8")
+    text = encoded[:2000].decode("utf-8", errors="ignore")
+    if len(encoded) > 2000:
+        text += f"\n[… {len(encoded) - 2000} input bytes cut]"
+    lines = [f"CALL {call_id} {timestamp} {name}", "INPUT", *text.splitlines(), "RESULT"]
+    matched = results.get(call_id, []) if call_id is not None else []
+    if not matched:
+        lines.append("[no matching result recorded]")
+    for result in matched:
+        # Keep metadata as well as the body so exit status and error flags remain visible.
+        body = dict(result)
+        content = body.pop("content", body.pop("output", ""))
+        output = (json.dumps(body, ensure_ascii=False) + "\n" + result_text(content)).splitlines()
+        if name not in KEEP_WHOLE and not name.startswith("mcp__tmux-agent__") and not is_error(result) and len(output) > 40:
+            output = output[:20] + [f"[… {len(output) - 40} lines cut]"] + output[-20:]
+        lines.extend(output)
+    return lines + [""]
+
+
+def prepare(log, relative):
+    data, rows, cli, sid, digest = load(log)
+    user = run(["jq", "-rn", USER_FILTERS[cli]], data).decode("utf-8")
+    count = int(user.splitlines()[-1].removeprefix("COUNT "))
+    calls, results = tool_calls(rows, cli)
+    tools, slices, lines = [], [], []
+    size = 0
+    for call in calls:
+        timestamp, name, _, value = call
+        args = object_args(value)
+        target = next((args[k] for k in TARGET_KEYS if k in args), value)
+        tools.append(f"{timestamp}  {name}  " + re.sub(r"[\r\n\t]+", " ", serialized(target))[:120])
+        chunk = call_text(call, results)
+        n = len(slices) + 1
+        # Prefix overhead counts toward the target; never split a call.
+        chunk_size = sum(len(f"S{n:02}:{len(lines) + i}:".encode()) + len(line.encode()) + 1
+                         for i, line in enumerate(chunk, 1))
+        if lines and size + chunk_size > SLICE_BYTES:
+            slices.append(lines)
+            lines, size = [], 0
+        lines.extend(chunk)
+        size += chunk_size
+    if lines:
+        slices.append(lines)
+    names = [f"slices/S{i:02}.txt" for i in range(1, len(slices) + 1)]
+    width = max(1, math.ceil(len(names) / 10))
+    groups = [{"range": f"{Path(names[i]).stem}-{Path(names[min(i + width, len(names)) - 1]).stem}",
+               "slices": names[i:i + width]} for i in range(0, len(names), width)]
+    manifest = dict(log=str(log), sha256=digest, cli=cli, count=count,
+                    tools=len(calls), slices=names, scout_groups=groups)
+    files = {"user.txt": user, "tools.txt": "\n".join(tools + [f"TOOLS {len(calls)}", ""])}
+    for i, (name, content) in enumerate(zip(names, slices), 1):
+        files[name] = "".join(f"S{i:02}:{j}:{line}\n" for j, line in enumerate(content, 1))
+    files["manifest.json"] = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+    return relative or Path(sid), files, manifest
+
+
+def build(logs, out):
+    pending, seen = [], set()
+    for log in logs:
+        log = log.expanduser().resolve()
+        if log in seen:
+            continue
+        _, _, cli, sid, _ = load(log)
+        pending.append((log, Path(sid)))
+        seen.add(log)
+        if cli == "claude-code":
+            for sub in sorted(log.with_suffix("").glob("subagents/*.jsonl")):
+                if sub in seen:
+                    continue
+                agent = sub.stem.removeprefix("agent-")
+                pending.append((sub, Path(sid) / f"sub-{agent}"))
+                seen.add(sub)
+    # Preflight all logs and extraction before creating any output directories.
+    packs = [prepare(log, relative) for log, relative in pending]
+    destinations = [out / relative for relative, _, _ in packs]
+    if len(set(destinations)) != len(destinations):
+        raise ValueError("session prefix collision in output directories")
+    for dest in destinations:
+        if dest.exists():
+            raise ValueError(f"output already exists: {dest}")
+    for (relative, files, manifest), dest in zip(packs, destinations):
+        dest.mkdir(parents=True)
+        for name, content in files.items():
+            path = dest / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        print(f"{relative.parts[0]} COUNT {manifest['count']} TOOLS {manifest['tools']} "
+              f"slices {len(manifest['slices'])} groups {len(manifest['scout_groups'])} -> {dest}")
+    return destinations
+
+
+def self_test():
+    with tempfile.TemporaryDirectory(prefix="resume-pack-test-") as tmp:
+        root = Path(tmp)
+
+        def fixture(path, rows):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+            return path
+
+        def claude(kind, content, **extra):
+            return dict(type=kind, sessionId="cccccccc-session", timestamp="2026-11-06T00:00:00Z",
+                        message={"content": content}, **extra)
+
+        long = "\n".join(f"line-{i}" for i in range(60))
+        main = fixture(root / "cccccccc-session.jsonl", [
+            claude("user", "hello"), claude("user", "hidden", isMeta=True),
+            claude("assistant", [{"type": "tool_use", "id": "a", "name": "Read", "input": {"path": "file"}},
+                                  {"type": "server_tool_use", "id": "b", "name": "Agent", "input": {"prompt": "é" * 1200}}]),
+            claude("user", [{"type": "tool_result", "tool_use_id": "b", "content": long},
+                             {"type": "tool_result", "tool_use_id": "a", "content": long}])])
+        fixture(main.with_suffix("") / "subagents/agent-test.jsonl", [claude("user", "subagent")])
+        rows = [{"type": "session_meta", "payload": {"id": "dddddddd-session"}},
+                {"type": "response_item", "timestamp": "2026-11-06", "payload": {
+                    "type": "message", "role": "user", "content": [{"type": "input_text", "text": "hello"}]}}]
+        for i, kind in enumerate(sorted(CALL_TYPES)):
+            rows.append({"type": "response_item", "payload": {"type": kind, "call_id": str(i),
+                         "name": "exec", "arguments": '[1,2]' if i == 0 else 'null'}})
+        for i, kind in reversed(list(enumerate(sorted(CALL_TYPES)))):
+            rows.append({"type": "response_item", "payload": {"type": kind + "_output", "call_id": str(i),
+                         "output": "Error: failure\n" + long}})
+        plain = fixture(root / "codex.jsonl", rows)
+        zipped = root / "codex.jsonl.zst"
+        zipped.write_bytes(run(["zstd", "-q", "-c", str(plain)]))
+        dirs = build([main, plain], root / "pack")
+        compressed = build([zipped], root / "compressed")[0]
+        assert len(dirs) == 3
+        assert (dirs[0] / "user.txt").read_text().endswith("COUNT 1\n")
+        assert (dirs[1] / "user.txt").read_text().endswith("COUNT 1\n")
+        content = (dirs[0] / "slices/S01.txt").read_text()
+        assert content.count(":CALL ") == 2 and "[… 21 lines cut]" in content
+        assert "414 input bytes cut" in content and content.count("line-30") == 1
+        assert result_text([{"type": "text", "text": long}]).count("\n") == 60
+        for name in KEEP_WHOLE | {"mcp__tmux-agent__wait"}:
+            assert "line-30" in "\n".join(call_text(("", name, "a", {}), {
+                "a": [{"content": long}]}))
+        for result in [{"is_error": True, "content": long},
+                       {"output": json.dumps({"exit_code": 1, "text": long})},
+                       {"output": "Process exited with code 2\n" + long}]:
+            assert is_error(result)
+            assert "lines cut" not in "\n".join(call_text(("", "Read", "a", {}), {"a": [result]}))
+        assert "no matching result recorded" in "\n".join(call_text(("", "Read", "missing", {}), {}))
+        for directory in [dirs[2], compressed]:
+            manifest = json.loads((directory / "manifest.json").read_text())
+            assert manifest['tools'] == 3 and manifest['count'] == 1
+            text = (directory / "slices/S01.txt").read_text()
+            assert text.count(":CALL ") == 3 and text.count("line-30") == 3
+        for directory in dirs:
+            manifest = json.loads((directory / "manifest.json").read_text())
+            assert [s for g in manifest['scout_groups'] for s in g['slices']] == manifest['slices']
+            for name in manifest['slices']:
+                for n, line in enumerate((directory / name).read_text().splitlines(), 1):
+                    assert line.startswith(f"{Path(name).stem}:{n}:")
+        assert (dirs[2] / "user.txt").read_bytes() == (compressed / "user.txt").read_bytes()
+        # Large preserved results force >10 slices; groups must still cover every call once.
+        large_rows = [claude("assistant", [{"type": "tool_use", "id": str(i), "name": "Task", "input": {}}])
+                      for i in range(12)]
+        large_rows += [claude("user", [{"type": "tool_result", "tool_use_id": str(i), "content": "x" * SLICE_BYTES}])
+                       for i in range(12)]
+        large = fixture(root / "large.jsonl", large_rows)
+        _, files, manifest = prepare(large, Path("large"))
+        assert len(manifest['slices']) == 12 and len(manifest['scout_groups']) <= 10
+        assert sum(files[s].count(":CALL ") for s in manifest['slices']) == 12
+        unknown = fixture(root / "unknown.jsonl", [{"role": "user", "content": "other CLI"}])
+        for inputs in [[plain, unknown], [main, unknown]]:
+            try:
+                build(inputs, root / "unsupported")
+            except ValueError as exc:
+                assert str(exc).startswith("unsupported CLI:")
+            else:
+                raise AssertionError("unsupported log accepted")
+            assert not (root / "unsupported").exists()
+    print("self-test ok")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--out", type=Path)
+    parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("logs", nargs="*", type=Path)
+    args = parser.parse_args()
+    if args.self_test and (args.out or args.logs):
+        parser.error("--self-test cannot be combined with --out or LOG")
+    if not args.self_test and (not args.out or not args.logs):
+        parser.error("expected --out DIR LOG [LOG...]")
+    try:
+        for binary in ("jq", "zstd"):
+            if not shutil.which(binary):
+                raise ValueError(f"missing binary: {binary}")
+        if args.self_test:
+            self_test()
+        else:
+            build(args.logs, args.out.expanduser().resolve())
+    except (OSError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

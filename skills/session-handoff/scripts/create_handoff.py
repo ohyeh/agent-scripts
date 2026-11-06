@@ -264,7 +264,15 @@ def generate_handoff(
 
 ## Timeline
 
-Filter output for this session: [TODO: the `COUNT <n>` line from the session-log filter (SKILL.md RESUME Step 3b) run on this session's own log]
+### Nodes
+
+| # | Time (UTC) | Asked (user quote) | Achieved (files, behavior) | Evidence | Status |
+|---|------------|--------------------|----------------------------|----------|--------|
+| 1 | [TODO: start–end] | [TODO: 「verbatim request」] | [TODO: what changed] | [TODO: sha / test output / page] | [TODO: verified / open / dropped] |
+
+### Rows
+
+`user.txt` of this session: [TODO: the `COUNT <n>` line from `resume_pack.py` (SKILL.md RESUME Step 3b) run on this session's own log]
 
 | Time (UTC) | Who | Event (user quote verbatim, or the state change and its evidence) |
 |------------|-----|------------------------------------------------------------------|

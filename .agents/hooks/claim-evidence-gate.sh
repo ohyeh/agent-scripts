@@ -130,7 +130,10 @@ tail3="$(printf '%s\n' "$last" | sed -E '/^```/,/^```/d; s/「[^」]*」//g' | g
 ask_back=""
 printf '%s' "$tail3" | grep -Eqi "$HARDSTOP_RE" \
   || ask_back="$(printf '%s\n' "$tail3" | sed -E 's/`[^`]*`//g; s/(沒有?要|不用|不需要|無須|無需)你(來)?(決定|選)//g' | grep -Ei "$ASK_RE" | head -1 | cut -c1-100)"
-[ -n "$claim" ] || [ -n "$reload_ask$live_say$ask_back" ] || exit 0
+# W46-18: a resume recap marks a session read with one line shape (session-handoff RESUME):
+#   - <sid8> full · COUNT <n> · TOOLS <n> · pack <dir>
+recap_full="$(printf '%s\n' "$last" | grep -E '^- [0-9a-f]{8} full · COUNT [0-9]+ · TOOLS [0-9]+ · pack [^ ]+$')"
+[ -n "$claim" ] || [ -n "$reload_ask$live_say$ask_back$recap_full" ] || exit 0
 
 csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
 MARKER="$STATE_DIR/claim-checked-$csha"
@@ -228,7 +231,49 @@ if [ -n "$negative_lines" ]; then
   [ -n "$neg_reason" ] && reason="${reason:+$reason }Negative claim (not done/stuck/failed/missing) fails the absence rule (judgment-rubrics §2): $neg_reason. Check that item now and name it (\`file\`, W-id, sha) in the line, or mark the line UNCONFIRMED and name the unchecked channel."
 fi
 
-reason="${reason:+$reason }$handback_reason"
+recap_reason=""
+# W46-18: a `full` recap line is bound to the reads that make it true. The resume flow spans turns
+# (pack and scout dispatch, then the collector's prompt), so the window opens at the last human
+# `/session-handoff resume` prompt. Coverage comes from the pack's manifest, never from report prose.
+if [ -n "$recap_full" ] && grep -q '"type":"assistant"' "$TRANSCRIPT"; then
+  rsince="$(jq -rR 'fromjson? | select(.type == "user" and .isMeta != true and (.origin.kind // "human") == "human")
+    | (.message.content | if type == "string" then . else (map(.text? // empty) | join(" ")) end) as $t
+    | select($t | test("^\\s*/session-handoff resume|<command-name>/?session-handoff</command-name>\\s*<command-args>\\s*resume"))
+    | .timestamp // empty' "$TRANSCRIPT" 2>/dev/null | tail -1 | cut -c1-19)"
+  rsince="${rsince:-$since}"
+  # Reads only: a dispatch brief that names a file is not a read of it.
+  reads="$(jq -r --arg s "$rsince" 'select((.timestamp // "")[0:19] >= $s) | .message.content? | arrays | .[]
+    | select(.type == "tool_use" and (.name | test("^(Read|Bash|mcp__plugin_context-mode_context-mode__ctx_(execute|execute_file|batch_execute))$")))
+    | .input | tostring' "$TRANSCRIPT" 2>/dev/null)"
+  while IFS= read -r line; do
+    sid="$(printf '%s' "$line" | cut -d' ' -f2)"
+    count="$(printf '%s' "$line" | sed -E 's/.*COUNT ([0-9]+).*/\1/')"
+    tools="$(printf '%s' "$line" | sed -E 's/.*TOOLS ([0-9]+).*/\1/')"
+    pack="$(printf '%s' "$line" | sed -E 's/.* pack ([^ ]+)$/\1/')"; pack="${pack/#\~/$HOME}"
+    miss=""
+    if [ ! -f "$pack/$sid/manifest.json" ]; then
+      miss=" no $pack/$sid/manifest.json;"
+    else
+      grep -F 'resume_pack.py' <<<"$reads" | grep -qF "$sid" || miss="$miss resume_pack.py was not run on $sid;"
+      grep -qF "$sid/user.txt" <<<"$reads" || miss="$miss $sid/user.txt was not read;"
+      [ "$(jq -r '.count' "$pack/$sid/manifest.json")" = "$count" ] || miss="$miss COUNT $count is not the manifest's;"
+      [ "$(jq -r '.tools' "$pack/$sid/manifest.json")" = "$tools" ] || miss="$miss TOOLS $tools is not the manifest's;"
+      # Each scout group: its report was read, or every slice in it was read.
+      while IFS=$'\t' read -r dir range slices; do
+        [ -n "$range" ] || continue
+        rel="${dir#"$pack"/}"
+        grep -qF "$rel/scout-$range.md" <<<"$reads" && continue
+        all=1; for s in $slices; do grep -qF "$rel/slices/$s.txt" <<<"$reads" || { all=""; break; }; done
+        [ -n "$all" ] || miss="$miss $rel/scout-$range.md (or its slices) was not read;"
+      done < <(find "$pack/$sid" -maxdepth 2 -name manifest.json 2>/dev/null | while IFS= read -r m; do
+        jq -r --arg d "$(dirname "$m")" '.scout_groups[]? | [$d, .range, (.slices | map(sub("^slices/"; "") | sub("\\.txt$"; "")) | join(" "))] | @tsv' "$m"; done)
+    fi
+    [ -z "$miss" ] || recap_reason="$recap_reason $sid:$miss"
+  done <<<"$recap_full"
+  [ -z "$recap_reason" ] || recap_reason="Resume recap marks a session full without the reads behind it (session-handoff RESUME, W46-18):$recap_reason Read what is missing, or mark the line \`- <sid8> partial (<what is missing>)\`."
+fi
+
+reason="${reason:+$reason }$handback_reason${recap_reason:+ $recap_reason}"
 
 # W35 retro F8: the gate had no stats file, so its hit rate was unmeasurable.
 STATS_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/agent-hooks"; mkdir -p "$STATS_DIR"

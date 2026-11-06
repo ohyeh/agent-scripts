@@ -391,6 +391,37 @@ FAIL: W46-15 a final-round ask blocked: $m"; done
 FAIL: W46-15 'evidence token' read as a credential"
 [[ -z "$w46b" ]] || { echo "$w46b" >&2; exit 1; }
 echo 'PASS W46-15: ask-back with no consensus call blocks; advisor call, hard-stop ask, final-round ask, quoted ask and plain recap pass'
+# W46-18: a `full` resume recap line is bound to the pack reads, across the turns of one resume.
+PK="$WORK/pack"; mkdir -p "$PK/abcd1234/sub-a1"
+# resume_pack.py writes slice paths as slices/S01.txt
+jq -cn '{count:3, tools:10, scout_groups:[{range:"S01-S02", slices:["slices/S01.txt","slices/S02.txt"]}]}' > "$PK/abcd1234/manifest.json"
+jq -cn '{count:1, tools:2, scout_groups:[{range:"S01-S01", slices:["slices/S01.txt"]}]}' > "$PK/abcd1234/sub-a1/manifest.json"
+rtr() { # $1 file, then tool_use objects made after the second prompt; the pack ran after the resume prompt
+  local f="$WORK/$1"; shift
+  { jq -cn '{type:"user",timestamp:"2026-01-01T00:00:00.000Z",message:{content:"/session-handoff resume 前情提要：照 RESUME 流程讀"}}'
+    jq -cn --arg c "python3 resume_pack.py --out $PK ~/.claude/projects/p/abcd1234-0000.jsonl" '{type:"assistant",timestamp:"2026-01-01T00:00:01.000Z",message:{content:[{type:"tool_use",name:"Bash",input:{command:$c}}]}}'
+    jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:02.000Z",message:{content:[{type:"tool_use",name:"mcp__tmux-agent__assign",input:{brief:"read slices S01-S02, write abcd1234/scout-S01-S02.md and abcd1234/sub-a1/scout-S01-S01.md"}}]}}'
+    jq -cn '{type:"user",timestamp:"2026-01-01T00:00:05.000Z",message:{content:"繼續"}}'
+    for u in "$@"; do jq -cn --argjson u "$u" '{type:"assistant",timestamp:"2026-01-01T00:00:06.000Z",message:{content:[{type:"tool_use"} + $u]}}'; done; } > "$f"
+  printf '%s' "$f"
+}
+rd() { jq -cn --arg p "$PK/$1" '{name:"Read",input:{file_path:$p}}'; }
+FULL="- abcd1234 full · COUNT 3 · TOOLS 10 · pack $PK"
+w46r=""
+[[ "$(run_claim r1 "$FULL" "$(trh r1.jsonl "$BASHU")")" == block ]] || w46r="$w46r
+FAIL: W46-18 full with no pack reads passed"
+[[ -z "$(run_claim r2 "$FULL" "$(rtr r2.jsonl "$(rd abcd1234/user.txt)" "$(rd abcd1234/scout-S01-S02.md)" "$(rd abcd1234/sub-a1/scout-S01-S01.md)")")" ]] || w46r="$w46r
+FAIL: W46-18 pack + user.txt + scout reports across two prompts blocked"
+[[ -z "$(run_claim r3 "$FULL" "$(rtr r3.jsonl "$(rd abcd1234/user.txt)" "$(rd abcd1234/slices/S01.txt)" "$(rd abcd1234/slices/S02.txt)" "$(rd abcd1234/sub-a1/slices/S01.txt)")")" ]] || w46r="$w46r
+FAIL: W46-18 every slice read directly blocked"
+[[ "$(run_claim r4 "$FULL" "$(rtr r4.jsonl "$(rd abcd1234/user.txt)" "$(rd abcd1234/scout-S01-S02.md)")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a subagent scout report named only in the dispatch brief counted as read"
+[[ "$(run_claim r5 "- abcd1234 full · COUNT 9 · TOOLS 10 · pack $PK" "$(rtr r5.jsonl "$(rd abcd1234/user.txt)" "$(rd abcd1234/scout-S01-S02.md)" "$(rd abcd1234/sub-a1/scout-S01-S01.md)")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a typed COUNT that is not the manifest's passed"
+[[ -z "$(run_claim r6 '- abcd1234 partial (slices S03-S09 not read)' "$(trh r6.jsonl "$BASHU")")" ]] || w46r="$w46r
+FAIL: W46-18 a partial line blocked"
+[[ -z "$w46r" ]] || { echo "$w46r" >&2; exit 1; }
+echo 'PASS W46-18: a full recap needs resume_pack.py, user.txt and every scout group read (report or slices) since the resume prompt; partial passes'
 [[ "$(run_claim h8 '頁面已上線：https://claude.ai/artifact/x' "$(trh h8.jsonl "$PUBU" '{"name":"Bash","input":{"command":"echo take a screenshot later"}}')")" == block ]] || { echo "FAIL: W44-7 a Bash line naming a screenshot passed as a render check" >&2; exit 1; }
 
 # bol: prose shape is no longer judged (runnable-check heuristic retired

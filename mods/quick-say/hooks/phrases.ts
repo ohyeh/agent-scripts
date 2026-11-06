@@ -12,10 +12,10 @@ export default [
     hotkey: "5",
     label: "前情提要",
     when: "接續前一段工作，先讀來源並確認前情",
-    text: `/session-handoff resume 前情提要：照 RESUME 流程讀（Step 3b 的兩個 filter 都要跑：我的訊息，加上 agent 的 tool call），然後像看劇的前情提要一樣講給我聽。交接要讀最近兩天同一條工作線的每一份，不是只讀最新一份；分不出是哪條線就寫進第 4 點，不要自己挑。html／artifact 要讀內文，Artifact 工具不能用時改用 codex-cu 或讀本機檔。
+    text: `/session-handoff resume 前情提要：照 RESUME 流程讀，然後像看劇的前情提要一樣講給我聽。每個 session 都跑 Step 3b 的 resume_pack.py：user.txt 你自己從頭讀到尾；agent 做了什麼，照 manifest 的 scout 分組，自己讀 slices 或派 basic tier 的 scouts 讀，每份 scout 報告你都要讀；再打開下一步依賴的引用行、失敗的 call、commit diff 和頁面內文補漏。交接要讀最近兩天同一條工作線的每一份，不是只讀最新一份；分不出是哪條線就寫進第 4 點，不要自己挑。html／artifact 要讀內文，Artifact 工具不能用時改用 codex-cu 或讀本機檔。
 講的時候分四段：
-1. 照時間順序講每一段實際做出了什麼（改了哪些檔、行為怎麼變、證據在哪），卡在哪裡，被我糾正了什麼。
-2. 讀過的來源：session id、html／artifact 連結、commit SHA，每個用一句話說它講了什麼，並照 skill 標 \`full\`／\`partial (<範圍>)\`／\`not read\`。
+1. 照交接的節點講，沒有節點就自己整理：每個節點是我的哪個要求、實際做出了什麼（改了哪些檔、行為怎麼變）、證據在哪、狀態（已驗證／未完成／放棄），卡在哪裡，被我糾正了什麼。
+2. 讀過的來源：每個 session 一行，照 skill 的格式寫 \`- <sid8> full · COUNT <n> · TOOLS <n> · pack <dir>\` 或 \`- <sid8> partial (<缺什麼>)\`；html／artifact 連結、commit SHA 各用一句話說它講了什麼。
 3. 現在停在哪。先對照交接的待辦、plan.md 的 task 清單和我最後幾則訊息，再判斷是不是已經收完。收完了就直接說，然後等我給新目標，之後走規劃期。如果是大任務拆成小任務，就列出大任務、每個小任務的狀態（已驗證完成／未完成）、上次停在哪個檢核點、當時的驗證結果，以及下一個小任務。待決事項分三類列：我已經答過的（引用原話，不再問）；我交代了但還沒做的；agent 自己提的（標「agent 提案，你沒要求」，不做也不問）。
 4. 只放兩種：讀了但無法確認的；試過但讀不到的（附錯誤訊息和試過的替代方法）。能讀而沒讀的，先讀完再講，不能放在這裡交差。
 驗證：至少驗 3 個繼承來的說法，必須包括上次檢核點的驗證結果、交接說「已完成」裡最重要的一項、下一步要依賴的前提。每個都附本 session 跑的指令和輸出。HEAD 與 origin 一致、檔案存在、版本號相同只是環境檢查，不算驗證。說「沒變、不用重做」要附 SHA 或 mtime。
