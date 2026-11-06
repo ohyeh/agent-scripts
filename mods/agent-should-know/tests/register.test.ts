@@ -102,7 +102,7 @@ function drawCard(on: On, line: string) {
   return () => draws
 }
 
-test('an offer card is sent once with its Learn more, hidden, and logged with its verdict', async ($, on) => {
+test('a card shown while a turn runs rides the early read once; no prompt follows', async ($, on) => {
   const w = world(on)
   // The built-in's store holds the whole line (two sentences here) and its explanation.
   w.files.set(
@@ -122,19 +122,8 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   await $.turn.start({ text: 'long task', turnId: 't0' })
   await $.ui.render(band())
 
-  for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ ...BAND, surface })
-    expect(await ui.find({ type: 'Text', text: /Heads up/ })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: /workers/ })).toBeDefined()
-    await ui.unmount()
-  }
-
-  expect(draws()).toBe(3)
-  expect(w.sent.length).toBe(1)
-  expect(w.sent[0]).toContain('\n> Heads up · 兩張單程票被加總了。來回票更便宜。\n>\n> **Why it matters**\n> - The plan page lists 2.91 萬.\n')
-  expect(w.sent[0]).not.toContain('Only the card')
-  expect(w.sent[0]).toMatch(/needs the user's approval .* is not made: name it and ask\./)
-  expect(w.sent[0]).toMatch(/\nFlagged at \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z, while a turn ran: check it against the work as it stands now\.\n/)
+  // The turn runs: the card is held, not submitted (a prompt would only repeat it after the early read).
+  expect(w.sent).toEqual([])
 
   // The long turn reads the line after its next main-loop tool result, once; a subagent's result does not carry it.
   const bash = { tool: 'Bash', command: 'ls', description: 'list' }
@@ -144,6 +133,16 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
   expect(early.length).toBe(1)
   expect(early[0]).toMatch(/^A side agent .*\(at \d{4}-\d{2}-\d{2}T[\d:]{8}Z, while this turn runs\)\n> Heads up · 兩張單程票被加總了。來回票更便宜。\n>\n> \*\*Why it matters\*\*\n> - The plan page lists 2\.91 萬\.\n.*approves nothing/)
   expect(await contextOf(bash)).toEqual([])
+  expect(w.store.get(`sent:${SID}`)).toEqual(['Heads up · 兩張單程票被加總了。'])
+
+  // The early read was the delivery: the card leaves the band.
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({ ...BAND, surface })
+    expect(await ui.find({ type: 'Text', text: /Heads up/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /workers/ })).toBeDefined()
+    await ui.unmount()
+  }
+  expect(draws()).toBe(3)
 
   // One file for this session: <project>/<day>-<sid8>.log
   const fileName = /^\/h\/me\/\.local\/state\/agent-should-know\/agent_automation\/\d{4}-\d{2}-\d{2}-28d2c553\.log$/
@@ -151,26 +150,57 @@ test('an offer card is sent once with its Learn more, hidden, and logged with it
 
   await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't0', reason: 'answer' })
   expect(logOf()).not.toContain('Long task reply.')
-  await $.turn.start({ text: w.sent[0] ?? '', turnId: 't1' })
-  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+  // The early read was the delivery: the turn's end sends nothing, and no verdict row is owed.
+  expect(w.sent).toEqual([])
   expect([...w.files.keys()].filter(p => p.includes('/agent-should-know/')).length).toBe(1)
   const log = logOf()
   expect(log).toContain('# agent_automation · 28d2c553-6d91 · /work/agent_automation\n')
-  // Each row leads with its ISO time and sid8, so files of one project sort into one timeline;
-  // the verdict names its card by the card's time.
+  // Each row leads with its ISO time and sid8, so files of one project sort into one timeline.
   const rows = log.split('\n').filter(r => r !== '' && !r.startsWith('#'))
-  expect(rows.length).toBe(2)
-  const flagged = /^(\d{4}-\d{2}-\d{2}T(\d{2}:\d{2}:\d{2})Z) · 28d2c553 · flagged · Heads up · 兩張單程票被加總了。來回票更便宜。$/.exec(rows[0] ?? '')
-  expect(flagged).not.toBeNull()
-  expect(rows[1]).toMatch(
-    new RegExp(`^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z · 28d2c553 · handled ${flagged?.[2]} · Fixed: the fare now uses the round-trip price\\.$`),
-  )
-  expect([...rows].sort()).toEqual(rows)
+  expect(rows.length).toBe(1)
+  expect(rows[0]).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z · 28d2c553 · flagged · Heads up · 兩張單程票被加總了。來回票更便宜。$/)
 
   // The band counts it, and a fresh start (a reload) counts the same file again.
-  expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.4.0 · 1 heads-up · 1 handled')
+  expect(textOf(await $.ui.render(band()))).toContain('▌agent should know v0.4.1 · 1 heads-up · 0 handled')
   await $.session.start(start)
-  expect(textOf(await $.ui.render(band()))).toContain('· 1 heads-up · 1 handled')
+  expect(textOf(await $.ui.render(band()))).toContain('· 1 heads-up · 0 handled')
+})
+
+test('a card shown while a turn runs and not read by it goes as one prompt when the turn ends, hidden, and logged with its verdict', async ($, on) => {
+  const w = world(on)
+  w.files.set(
+    `${STORE}/${BUILTIN}`,
+    JSON.stringify({
+      sessions: [{ id: SID, tag: 'Heads up', view: { kind: 'offer', line: '兩張單程票被加總了。來回票更便宜。.', explanation: '**Why it matters**\n- The plan page lists 2.91 萬.' } }],
+    }),
+  )
+  on('turn.complete', (_, e) => ({ text: e.turnId === 't0' ? 'Long task reply.' : 'Fixed: the fare now uses the round-trip price.' }))
+  drawCard(on, '兩張單程票被加總了。.')
+
+  await $.session.start(start)
+  await $.turn.start({ text: 'long task', turnId: 't0' })
+  await $.ui.render(band())
+  // Held: nothing is submitted while the turn runs, and the card stays on the band.
+  expect(w.sent).toEqual([])
+  expect(textOf(await $.ui.render(band()))).toContain('Heads up')
+
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't0', reason: 'answer' })
+  await $.ui.render(band())
+  expect(w.sent.length).toBe(1)
+  expect(w.sent[0]).toContain('\n> Heads up · 兩張單程票被加總了。來回票更便宜。\n>\n> **Why it matters**\n> - The plan page lists 2.91 萬.\n')
+  expect(w.sent[0]).not.toContain('Only the card')
+  expect(w.sent[0]).toMatch(/needs the user's approval .* is not made: name it and ask\./)
+  expect(w.sent[0]).toMatch(/\nFlagged at \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z, while a turn ran: check it against the work as it stands now\.\n/)
+  expect(w.store.get(`sent:${SID}`)).toEqual(['Heads up · 兩張單程票被加總了。'])
+  expect(textOf(await $.ui.render(band()))).not.toContain('Heads up ·')
+
+  // The prompt's own turn ends: its answer is the verdict.
+  await $.turn.start({ text: w.sent[0] ?? '', turnId: 't1' })
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
+  const log = [...w.files].find(([path]) => path.includes('/agent-should-know/'))?.[1] ?? ''
+  const rows = log.split('\n').filter(r => r !== '' && !r.startsWith('#'))
+  expect(rows.length).toBe(2)
+  expect(rows[1]).toMatch(/ · 28d2c553 · handled \d{2}:\d{2}:\d{2} · Fixed: the fare now uses the round-trip price\.$/)
 })
 
 test('the card alone is hidden too; a store holding another card is not relayed', async ($, on) => {
@@ -214,7 +244,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
 
   // Empty state, folded from the start: the header alone.
   const wide = textOf(await $.ui.render(band(120)))
-  expect(wide).toContain('▌agent should know v0.4.0 · no heads-up yet')
+  expect(wide).toContain('▌agent should know v0.4.1 · no heads-up yet')
   expect(wide).toContain('[ ⧉ log ][ ▸ open ][ hide ]')
   expect(wide).not.toContain('logged in')
   expect(textOf(await $.ui.render(band(50)))).toContain('[ ⧉ ][ ▸ ][ ✕ ]')
@@ -241,7 +271,7 @@ test('the band: header with its version, words or icons by width, fold kept acro
   expect(textOf(await $.ui.render(band(120)))).not.toContain('agent should know')
   const shown = await $.command.run(cmd)
   expect(shown.text).toContain('band shown. 0 heads-up · 0 handled this session')
-  expect(textOf(await $.ui.render(band(120)))).toContain('▌agent should know v0.4.0')
+  expect(textOf(await $.ui.render(band(120)))).toContain('▌agent should know v0.4.1')
   expect((await $.command.run(cmd)).text).toContain('band hidden; /heads-up shows it again.')
 })
 

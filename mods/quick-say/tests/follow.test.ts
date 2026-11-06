@@ -110,6 +110,13 @@ test('git gate: once per state, framed and approving nothing, at most four times
   expect(w.nudges()[1]!.text).toContain('未 push 的 commit：abc1234')
   expect(w.nudges()[1]!.text).not.toContain('ffff000')
 
+  // A further commit of its own (the nudge's doing) is not a new state: the key is the dirty files only.
+  w.git.head = '9999999aaa'
+  w.git.ahead = ['9999999aaa', 'abc1234def']
+  await $.tool.call({ tool: 'Bash', command: 'git commit -q -m "b"', description: 'commit' } as never)
+  await $.turn.complete(done('又 commit 了。'))
+  expect(w.nudges().length).toBe(2)
+
   for (const file of ['b.ts', 'c.ts']) {
     await $.tool.call({ tool: 'Edit', file_path: `/w/repo/${file}` } as never)
     w.git.dirty = [file]
@@ -124,7 +131,7 @@ test('git gate: once per state, framed and approving nothing, at most four times
   expect(w.nudges().length).toBe(5)
 })
 
-test('ask gate and the suggestion: a closing "shall I?" is answered once; else the likely combo shows dim', async ($, on) => {
+test('ask gate: a closing "shall I?" is answered once; 半自動 shows no suggestion', async ($, on) => {
   let label: string | undefined
   const w = world(on, labels => labels.find(l => label !== undefined && l.startsWith(label)))
   await $.session.start(start)
@@ -136,13 +143,10 @@ test('ask gate and the suggestion: a closing "shall I?" is answered once; else t
   expect(w.nudges()[0]!.text).toContain(APPROVES_NOTHING)
   expect(w.suggested).toEqual([])
 
-  // No gate: the model's pick shows dim; 'none' shows nothing.
+  // No gate: 半自動 suggests nothing, even when the model would pick a combo.
   label = PHRASES[1]!.label
   await $.turn.complete(done('第一步做完了，接著做第二步之前先回報。'))
-  expect(w.suggested).toEqual([PHRASES[1]!.text])
-  label = 'none'
-  await $.turn.complete(done('都好了。'))
-  expect(w.suggested.length).toBe(1)
+  expect(w.suggested).toEqual([])
 
   // A subagent's turn, an aborted turn, and manual mode: nothing at all.
   label = PHRASES[0]!.label
@@ -154,7 +158,7 @@ test('ask gate and the suggestion: a closing "shall I?" is answered once; else t
   expect(w.store.get('quick-say.mode')).toBe('手動')
   await $.turn.complete(done('要我把它部署上去嗎？'))
   expect(w.nudges().length).toBe(1)
-  expect(w.suggested.length).toBe(1)
+  expect(w.suggested).toEqual([])
 
   // Manual persists; the next press returns to semi-auto.
   await $.session.start(start)

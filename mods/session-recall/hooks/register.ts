@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import { type Asset, MAX_ENTRIES, type Entry, type StoredUse, ago, nameOf, assetsOf, bucketOf, labelOf, assetsOfText, assetsOfTranscript, testUrlsOf, cells, clean, cut, findAssets, fit, githubRepoOf, glyphOf, localPort, merge, parseCwd, parseListen, pushedOf, pushRemoteOf, refsIn, rowsOf, sessionIdsIn, shasIn, shortDir, subagentMade } from './lib/assets.ts'
 import { answerId, findExcerpt, itemsOf, locate, plain, quoteOf, quoteRefsIn } from './lib/items.ts'
 
-const MOD_VERSION = '0.14.2'
+const MOD_VERSION = '0.14.3'
 /** The model calls it as this: `mcp__<plugin>__<name>`. */
 const TOOL = 'mcp__session-recall__recall'
 /** Checks run per answer at most: each local URL is two `lsof` runs. */
@@ -809,8 +809,8 @@ export const register: Register = on => {
           notes.push(`${FROM}the user's #qN point at lines of your own earlier replies:\n${lines.join('\n')}`)
         }
         if (runs.length) {
-          const quotes = await Promise.all(runs.map(r => recordQuote(s, $, [r.lines.join('\n').trim()], now, r.from)))
-          notes.push(`${FROM}the user pasted lines of your own earlier replies into the prompt (kept as #qN):\n${quotes.map(q => describeQuote(q, now)).join('\n')}`)
+          // Kept as #qN for a later `#qN` or `[ ↩ ]`; no note to the model: the pasted lines are already in the prompt.
+          await Promise.all(runs.map(r => recordQuote(s, $, [r.lines.join('\n').trim()], now, r.from)))
         }
         const kn = pasted ? await known(s, $, e.text, now) : []
         if (kn.length) notes.push(`${FROM}what is known of the commit hashes and session ids in the prompt:\n${kn.join('\n')}`)

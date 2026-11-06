@@ -79,7 +79,7 @@ compactions="${compactions:-0}"
 prompts="$(jq -r --arg max "$MAX_PROMPT_CHARS" --arg hdr "$HEADER" --arg tr "$TRANSCRIPT" '
   ($max | tonumber) as $m
   | input_line_number as $ln
-  | select(.type=="user" and .isCompactSummary!=true)
+  | select(.type=="user" and .isCompactSummary!=true and ((.origin.kind // "human") == "human"))
   | .message.content
   | if type=="string" then . else ([.[]? | select(.type=="text") | .text] | join(" ")) end
   | select(length > 0 and (startswith("<") | not) and (contains($hdr) | not))

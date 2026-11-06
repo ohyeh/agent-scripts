@@ -1,5 +1,26 @@
 # Changelog
 
+## session-recall 0.14.3
+
+Owner 11-06, mod audit (`.workflow/202611061900-tree-workflow-mod-audit/consensus.md` M3): the "pasted lines of your own earlier replies" note was 122 of 193 injections, and 78% of the lines it quoted were already in the prompt.
+
+- **A pasted run of your own reply lines is still kept as `#qN`, with no note to the model** (`recordQuote` stays; the `notes.push` is gone). A later `#qN` in a prompt still finds the reply and lines. The commit hash and session id note is unchanged.
+- **`compaction-recall.sh` lists human prompts only** (`.origin.kind` absent or `human`): plugin and task-notification rows were 40% of the recalled "verbatim user prompts" (`The quick-say plugin sent a message: ...`). Worker transcripts have no `origin`, so they still count.
+- Not changed: `owner-asks` `snapshot()` stays uncapped. It writes the full `owner.asks.jsonl` projection (a test pins the equality) and the recall hook appends it after the byte cap on purpose, because a dropped ask is the failure it guards against. A cap needs a decision on where (the resume reminder only?).
+
+## agent-should-know 0.4.1
+
+Owner 11-06, mod audit M1: 45 of 45 early context reads were followed by the same card as a prompt.
+
+- **A card shown while a turn runs is sent once.** The prompt is held. If the turn reads the early line (the next main-loop tool result), that read is the delivery: the receipt is saved, the card leaves the band, no prompt follows, and no verdict row is logged. If the turn ends first, `turn.complete` sends the prompt then (it reads `s.early` before clearing it). A second card in the same turn sends the first one's prompt at once. A card shown while no turn runs is sent as before.
+
+## quick-say 0.6.2
+
+Owner 11-06, mod audit M2: the git gate fired 20 times in one session (8 within 30 s of the last), and the semi-auto suggestion was accepted 0 of 45 times.
+
+- **The git gate key is the dirty files only.** A commit the gate asked for no longer makes a new state, so it does not fire again. The first commit after a dirty state still gives one "not pushed" reminder.
+- **半自動 no longer suggests a combo** (`suggest()`, `$.prompt.suggest`, the model pick are removed; `permissions.txt` loses `$.prompt.suggest`). The default mode is unchanged: 手動 returns before the git gate, so making it the default would also turn off the git and "shall I?" gates. 自動 is unchanged.
+
 ## quick-say 0.6.1
 
 Owner 11-06: 「交接要讀最近兩天同一條工作線的每一份 太多了啊 理論上接續不就是更之前分析到哪？ 然後補空洞嗎」「最笨 24 hr 內啊」「然後 內部 agent first」.

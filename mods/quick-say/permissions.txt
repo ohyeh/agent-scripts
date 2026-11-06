@@ -2,7 +2,7 @@
 ./register.ts gating hook without .catch: command.run{command=quick-say}
 ./register.ts gating hook with .catch: prompt.submit
 ./register.ts gating hook without .catch: tool.call
-./register.ts calls: $.command.register, $.env.get, $.fs.exists (via logLine), $.fs.read (via logLine), $.fs.write (via logLine), $.model.classify (via autoSend, suggest), $.process.run (via run), $.prompt.fill (via say), $.prompt.submit (via autoSend, nudge), $.prompt.suggest (via suggest), $.session.id, $.store.get, $.store.set, $.ui.invalidate, $.ui.log, $.ui.resolve, $.ui.toast
+./register.ts calls: $.command.register, $.env.get, $.fs.exists (via logLine), $.fs.read (via logLine), $.fs.write (via logLine), $.model.classify (via autoSend), $.process.run (via run), $.prompt.fill (via say), $.prompt.submit (via autoSend, nudge), $.session.id, $.store.get, $.store.set, $.ui.invalidate, $.ui.log, $.ui.resolve, $.ui.toast
 ./register.ts env writes: nothing
 ./register.ts env reads: HOME
 .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.

@@ -24,7 +24,7 @@
       "name": "session-recall",
       "source": "./mods/session-recall",
       "description": "Function-hook mod: a numbered list of what a session made (URLs, artifacts, files, images, commits). Write #aN in a prompt to hand Claude the exact ref and whether it is still up; Claude looks them up with its assets tool, even after compaction. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.14.2",
+      "version": "0.14.3",
       "author": {
         "name": "PaulYeh"
       },
@@ -34,8 +34,8 @@
     {
       "name": "agent-should-know",
       "source": "./mods/agent-should-know",
-      "description": "Function-hook mod: sends each card of the built-in You should know mod (cc-plugin-you-should-know), with its Learn more explanation, to the main agent (its line after the running turn's next tool result, then the whole card as a prompt once that turn ends), hides the card, and logs the card with the agent's verdict in one file per session under ~/.local/state/agent-should-know/. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.4.0",
+      "description": "Function-hook mod: sends each card of the built-in You should know mod (cc-plugin-you-should-know), with its Learn more explanation, to the main agent (while a turn runs: its line after that turn's next tool result, or the whole card as a prompt when the turn ends if no tool result came; otherwise the whole card as a prompt), hides the card, and logs the card with the agent's verdict in one file per session under ~/.local/state/agent-should-know/. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.4.1",
       "author": {
         "name": "PaulYeh"
       },
@@ -62,8 +62,8 @@
     {
       "name": "quick-say",
       "source": "./mods/quick-say",
-      "description": "Function-hook mod: seven owner combos on digits 4-9 and 0 (前情提要 → 規劃期 → 指揮 → 驗收 → 收工) and three modes. 手動 only fills combos; 半自動 adds the git and \"shall I?\" gates and a dim suggestion; 自動 also sends 續跑 or 驗收 itself and stops on a question, a guess it cannot make, or four mod prompts in a row. Every mod prompt approves nothing. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.6.1",
+      "description": "Function-hook mod: seven owner combos on digits 4-9 and 0 (前情提要 → 規劃期 → 指揮 → 驗收 → 收工) and three modes. 手動 only fills combos; 半自動 adds the git and \"shall I?\" gates; 自動 also sends 續跑 or 驗收 itself and stops on a question, a guess it cannot make, or four mod prompts in a row. Every mod prompt approves nothing. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.6.2",
       "author": {
         "name": "PaulYeh"
       },

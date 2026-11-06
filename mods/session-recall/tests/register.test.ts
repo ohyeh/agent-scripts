@@ -1075,6 +1075,7 @@ describe('the TUI', () => {
     expect(snap.assets.map((x: { ref: string }) => x.ref)).toEqual(['http://localhost:5173/'])
     expect(snap.answers).toBeUndefined()
     await $.prompt.submit({ text: 'an older answer, read back from the transcript', wait: false, origin: { kind: 'composer' } } as never)
+    await $.prompt.submit({ text: '#q1 which reply?', wait: false, origin: { kind: 'composer' } } as never)
     expect(w.contexts.at(-1)?.join('\n')).toContain('#q1 = line 1 of your reply from before the last reload')
     await $.prompt.submit({ text: 'not mine at all, a prompt', wait: false, origin: { kind: 'composer' } } as never)
     expect(w.contexts.at(-1), 'a prompt is not a reply').toBeUndefined()
@@ -1231,18 +1232,19 @@ describe('the TUI', () => {
     expect(textOf(await $.ui.render(band())), 'a sent prompt leaves no quote bar').not.toContain('↩ #q2')
   })
 
-  test('lines pasted from a reply are told to the model as a quote of it; typed text is not', async ($, on) => {
+  test('lines pasted from a reply are kept as a #qN without a note to the model; typed text is not', async ($, on) => {
     const w = world(on)
     await $.session.start(start)
     await w.clock.advance(1_000)
     await $.turn.complete({ ...turn, answer: '1. 把 retro 提案集中到 inbox 一個地方\n2. handoff 不再重抄提案內容\n3. other' } as never)
     await $.prompt.submit({ text: '這兩點：\n把 retro 提案集中到 inbox 一個地方\nhandoff 不再重抄提案內容\n我覺得第二點要改', wait: false, origin: { kind: 'composer' } } as never)
-    const ctx = w.contexts.at(-1)?.join('\n') ?? ''
-    expect(ctx).toContain('the user pasted lines of your own earlier replies')
-    expect(ctx).toContain('#q1 = lines 1, 2 of your reply of ')
-    expect(ctx).not.toContain('#q2')
+    expect(w.contexts.at(-1), 'the pasted lines are already in the prompt: no note').toBeUndefined()
+    await $.prompt.submit({ text: '#q1 where is this from?', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)?.join('\n'), 'the paste was kept as #q1').toContain('#q1 = lines 1, 2 of your reply of ')
     await $.prompt.submit({ text: 'where is this from?   2. handoff 不再重抄提案內容', wait: false, origin: { kind: 'composer' } } as never)
-    expect(w.contexts.at(-1)?.join('\n'), 'typed words before a paste on one line').toContain('#q2 = line 2 of your reply of ')
+    expect(w.contexts.at(-1), 'typed words before a paste on one line: still no note').toBeUndefined()
+    await $.prompt.submit({ text: '#q2 where is this from?', wait: false, origin: { kind: 'composer' } } as never)
+    expect(w.contexts.at(-1)?.join('\n'), 'kept as #q2').toContain('#q2 = line 2 of your reply of ')
     expect(w.contexts.at(-1)?.join('\n')).toContain('  > 2. handoff 不再重抄提案內容')
     const doc = Array.from({ length: 300 }, (_, i) => `log line ${i}: 把 retro 提案集中到 inbox 一個地方`).join('\n')
     const t0 = Date.now()

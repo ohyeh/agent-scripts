@@ -143,7 +143,7 @@ there the keyboard way is the commands.
   read a selection that was not copied, so the button cannot say what it will quote before the press.
 - Paste: lines copied from a reply and pasted into the prompt are recognized when you send it. Words typed before or
   after the paste on the same line, cut at a space, are left out. Each run of pasted lines from one answer is kept
-  as a `#qN`, and the model is told where the lines came from. A line under 12 characters (with marks and spaces
+  as a `#qN` for a later `#qN` in a prompt; the model gets no note at the paste, because the lines are already in the prompt. A line under 12 characters (with marks and spaces
   removed), a line starting with `>`, and text that two answers both hold are not read as a paste.
 - `#qN` is numbered for the session's life. The mod keeps which reply the quote came from, the time of that reply,
   its first line, and which lines were quoted. A prompt with `#q3` gives the model that place and those lines beside

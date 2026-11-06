@@ -4,7 +4,7 @@ import { cells, fit, rowsOf } from './lib/band.ts'
 import { APPROVES_NOTHING, askPrompt, askTail, dirOf, gitDirOf, gitPrompt, isCommit, questionTail, type GitGap } from './lib/follow.ts'
 import rawPhrases from './phrases.ts'
 
-const MOD_VERSION = '0.6.1'
+const MOD_VERSION = '0.6.2'
 const NAME = 'quick-say'
 const COMMAND = 'quick-say'
 const ACCENT = 'cyan'
@@ -67,8 +67,6 @@ type State = {
 const errText = (err: unknown) => (err instanceof Error ? err.message : String(err))
 const MODE_KEY = `${NAME}.mode`
 const MAX_STREAK = 4
-const NONE = 'none：使用者這時不會用上面任何一句，或要說的是別的事'
-const labelOf = (p: (typeof PHRASES)[number]) => `${p.label}：${p.when}`
 
 function logLine($: EngineInterface, s: State, event: 'shown' | 'sent' | 'stopped' | 'gate', combo = '', reason = '') {
   const at = new Date().toISOString()
@@ -133,17 +131,6 @@ async function nudge($: EngineInterface, s: State, gate: 'git' | 'ask', key: str
     })
     .catch(err => $.ui.toast(`${NAME}: not sent (${errText(err)})`))
   return true
-}
-
-// No gate fired: the small fast model picks the combo the owner would send next, shown dim in the empty box.
-async function suggest($: EngineInterface, s: State, answer: string) {
-  const text = `使用者上一句：${s.lastHuman.slice(-500)}\n\nagent 這回合回覆的結尾：${answer.slice(-1500)}\n\n使用者接下來最可能說哪一句？`
-  const picked = await $.model.classify(text, [...PHRASES.map(labelOf), NONE])
-  const p = PHRASES.find(x => labelOf(x) === picked)
-  if (p) {
-    const shown = await $.prompt.suggest({ text: p.text })
-    if (shown.isShown) await logLine($, s, 'shown', p.label)
-  }
 }
 
 async function autoSend($: EngineInterface, s: State, answer: string) {
@@ -274,18 +261,18 @@ export const register: Register = on => {
     return r
   })
 
-  // The main agent's turn ended with an answer: gates first (facts), then the suggestion (a guess).
+  // The main agent's turn ended with an answer: the gates (facts); 自動 then sends or stops (a guess). 半自動 suggests nothing: 0 of 45 were taken.
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
     if (s.mode === '手動' || e.agentId !== undefined || e.reason !== 'answer' || (s.mode === '自動' && s.stopped)) return r
     try {
       const gaps = await gitGaps($, s)
-      const key = gaps.map(g => `${g.repo}:${g.dirty.join(',')}:${g.unpushed.join(',')}`).join(';')
+      // Dirty files only: a commit the nudge itself caused must not be a new state (20 re-fires in one session).
+      const key = gaps.map(g => `${g.repo}:${g.dirty.join(',')}`).join(';')
       if (gaps.length && await nudge($, s, 'git', key, gitPrompt(gaps), 'reminded the agent of unfinished git work')) return r
       const ask = askTail(e.answer)
       if (ask && await nudge($, s, 'ask', ask, askPrompt(ask), 'reminded the agent not to ask leave for approved work')) return r
       if (s.mode === '自動') await autoSend($, s, e.answer)
-      else await suggest($, s, e.answer)
     } catch (err) {
       $.ui.log(`${NAME}: follow-through skipped (${errText(err)})`, { to: 'debug' })
     }

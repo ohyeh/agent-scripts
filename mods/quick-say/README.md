@@ -7,8 +7,8 @@ Digits fill the full combo into the prompt box. Read or edit it, then press Ente
 
 | Mode | Header button | At the end of a main-agent answer |
 |---|---|---|
-| 手動 | ○ 手動 | Send and suggest nothing. |
-| 半自動 | ◐ 半自動 | Check the git gate, then the closing “shall I?” gate; otherwise suggest one of the seven combos, or nothing. Tab takes a suggestion; Enter sends it. |
+| 手動 | ○ 手動 | Send nothing. |
+| 半自動 | ◐ 半自動 | Check the git gate, then the closing “shall I?” gate; otherwise nothing. The dim combo suggestion was removed in 0.6.2 (0 of 45 were taken). |
 | 自動 | ⚡ 自動 | Run the same gates first; otherwise send 續跑 or 驗收, or stop. |
 
 The button cycles 手動 → 半自動 → 自動 → 手動.
@@ -18,7 +18,8 @@ A new session keeps 手動; every other stored value starts 半自動. Auto neve
 The old `quick-say.auto` key is ignored.
 
 The git gate checks files this session edited but did not commit, and its commits absent from
-the upstream. The “shall I?” gate reminds the agent to act within scope, or ask once and stop.
+the upstream. Its once-per-state key is the dirty files only, so the commit the gate asked for
+does not fire it again. The “shall I?” gate reminds the agent to act within scope, or ask once and stop.
 Each gate fires once per state. Gates and auto sends share a cap of four consecutive mod prompts.
 A composer or bridge prompt from the owner, or a mode change, resets the count and clears the stop reason.
 
@@ -48,7 +49,7 @@ The owner's texts and the model's `when` hints live in `hooks/phrases.ts` (data 
 ## Band and log
 
 ```
-▌quick say v0.6.1 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
+▌quick say v0.6.2 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
 ```
 
 The band starts folded. Open/fold and hide choices persist across sessions.

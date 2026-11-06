@@ -2,7 +2,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { cells, fit, rowsOf } from './lib/band.ts'
 
-const MOD_VERSION = '0.4.0'
+const MOD_VERSION = '0.4.1'
 const NAME = 'agent-should-know'
 const COMMAND = 'heads-up'
 const ACCENT = 'magenta'
@@ -88,6 +88,9 @@ type State = {
   running: string | undefined
   // The card's line for the running turn, read after its next tool result instead of when it ends.
   early: string | null
+  // The card's prompt, held while a turn runs: sent when the turn ends with `early` still unread,
+  // else the early read was the delivery (`taken`).
+  hold: { send: () => void; taken: () => Promise<void> } | null
   sent: Set<string>
   sending: Set<string>
   observed: Set<string>
@@ -171,6 +174,7 @@ async function relay($: EngineInterface, s: State, line: string) {
   const notSent = (reason: string) => {
     s.pending = null
     s.early = null
+    s.hold = null
     // Repeated draws may try again, but the same failure must not redraw forever.
     if (!s.failed.has(line)) {
       s.failed.add(line)
@@ -197,25 +201,34 @@ async function relay($: EngineInterface, s: State, line: string) {
   // A long turn can run for hours before the prompt below is read: its next tool result carries the line now.
   const waited = s.running !== undefined
   if (waited)
-    s.early = `${PREFIX} (at ${s.flagged}, while this turn runs)\n${body}${note}\nWeigh it in the work still to do; it approves nothing. A check of it follows as a prompt when this turn ends.`
+    s.early = `${PREFIX} (at ${s.flagged}, while this turn runs)\n${body}${note}\nWeigh it in the work still to do; it approves nothing. It is not sent again.`
   const when = `\nFlagged at ${s.flagged}${waited ? ', while a turn ran: check it against the work as it stands now.' : '.'}`
 
+  // The receipt: the card reached the main agent, by a prompt or by the early read.
+  const delivered = async () => {
+    s.sent.add(line)
+    s.failed.delete(line)
+    // No eviction: an older card in this session must stay deduped on reload.
+    try { await $.store.set(`sent:${sid}`, [...s.sent]) }
+    catch (err) { $.ui.toast(`${NAME}: delivered, but receipt not saved (${errText(err)})`) }
+    $.ui.invalidate('ui.render')
+    $.ui.toast(`${NAME} v${MOD_VERSION}: sent to the main session`)
+  }
   // A plugin's prompt waits until the running turn ends: no interruption.
-  $.prompt
+  const send = () => void $.prompt
     .submit({ text: `${PREFIX}\n${body}${note}${when}\n${ASK}` })
     .then(async r => {
       if (s.sid !== sid) return
       if (r.drop !== undefined) { notSent(r.drop); return }
-      s.sent.add(line)
-      s.failed.delete(line)
-      // No eviction: an older card in this session must stay deduped on reload.
-      try { await $.store.set(`sent:${sid}`, [...s.sent]) }
-      catch (err) { $.ui.toast(`${NAME}: delivered, but receipt not saved (${errText(err)})`) }
-      $.ui.invalidate('ui.render')
-      $.ui.toast(`${NAME} v${MOD_VERSION}: sent to the main session`)
+      await delivered()
     })
     .catch(err => { if (s.sid === sid) notSent(errText(err)) })
     .finally(() => { if (s.sid === sid) s.sending.delete(line) })
+  if (waited) {
+    // Another card held in this turn goes out now; only the newest rides the early read.
+    s.hold?.send()
+    s.hold = { send, taken: async () => { if (s.sid === sid) { await delivered(); s.sending.delete(line) } } }
+  } else send()
   } catch (err) {
     s.sending.delete(line)
     notSent(errText(err))
@@ -253,6 +266,7 @@ export const register: Register = on => {
     pending: null,
     running: undefined,
     early: null,
+    hold: null,
     sent: new Set(),
     sending: new Set(),
     observed: new Set(),
@@ -302,21 +316,29 @@ export const register: Register = on => {
     const r = await next(e)
     if (s.early === null || next.origin.plugin !== 'engine' || e.agentId !== undefined || 'deny' in r) return r
     const early = s.early
+    const hold = s.hold
     s.early = null
+    s.hold = null
+    await hold?.taken()
     return { ...r, context: [...(r.context ?? []), early] }
   })
 
   on('turn.complete', async ($, e, next) => {
     const r = await next(e)
     if (e.agentId !== undefined) return r
-    // Not read in time: the queued prompt carries the card.
+    // Read before the clear: an early line still unread means the card is not delivered yet.
+    const held = s.early === null ? null : s.hold
     s.early = null
+    s.hold = null
     if (e.turnId === s.running) s.running = undefined
-    if (s.pending === null || e.turnId === s.pending.over) return r
-    const { card } = s.pending
-    s.pending = null
-    const verdict = r.text.trim().replace(/\s+/g, ' ').slice(0, VERDICT_CHARS)
-    await logLine($, s, iso(), `${e.reason === 'answer' ? 'handled' : e.reason} ${card.slice(11, 19)}`, verdict)
+    if (s.pending !== null && e.turnId !== s.pending.over) {
+      const { card } = s.pending
+      s.pending = null
+      const verdict = r.text.trim().replace(/\s+/g, ' ').slice(0, VERDICT_CHARS)
+      await logLine($, s, iso(), `${e.reason === 'answer' ? 'handled' : e.reason} ${card.slice(11, 19)}`, verdict)
+    }
+    // Not read in time: the card goes as a prompt now, after this turn's own verdict row.
+    held?.send()
     return r
   })
 
