@@ -19,7 +19,7 @@
 set -u
 IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
-P="$(printf '%s' "$IN" | jq -r '(.prompt // "") | gsub("<pasted_content[^>]*>[\\s\\S]*?</pasted_content>"; "")')"
+P="$(printf '%s' "$IN" | jq -r '(.prompt // "") | gsub("<pasted_content[^>]*>[\\s\\S]*?</pasted_content[^>]*>"; "")')"
 P="${P:0:2000}"
 [ -n "${P//[[:space:]]/}" ] || exit 0
 printf '%s' "$P" | grep -Eq 'teammate-message|^Another Claude session|Ran [0-9]+ shell|^\[skill-router\]|^<(task-notification|system-reminder|command-|local-command)' && exit 0

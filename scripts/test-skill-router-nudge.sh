@@ -19,9 +19,9 @@ run() { jq -cn --arg p "$1" '{prompt:$p,session_id:"s1"}' | bash "$HOOK"; }
 hit() { grep -q 'owned by skill zzdemo' <<<"$1"; }
 pad="$(printf 'filler words %.0s' $(seq 1 60))"   # 780 chars
 long="$(printf 'filler words %.0s' $(seq 1 160))"  # 2080 chars
-blob="<pasted_content>
+blob="<pasted_content id=\"ab12\">
 zzkeyword inside a paste
-</pasted_content>"
+</pasted_content id=\"ab12\">"
 
 out="$(run 'please zzkeyword this')"; hit "$out" && ok || fail "short prompt: expected hit"
 out="$(run "zzkeyword $pad")"; [ "${#pad}" -gt 400 ] && hit "$out" && ok || fail ">400-char prompt: expected hit"
