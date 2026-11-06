@@ -237,6 +237,34 @@ ledger_for n4 "$TWO" "$READ"; [[ "$(run_claim n4 'foo.sh:12 還沒修' "$TRT")" 
 ledger_for n5 "$TWO" "$READ"; [[ "$(run_claim n5 'W43-3 done in 2ad6a5a
 W43-22 未開始' "$TRT")" == block ]] || { echo "FAIL: unbound negative line passed next to a positive claim" >&2; exit 1; }
 ledger_for n7 "$TWO" "$READ"; [[ "$(run_claim n7 '自我稽核未執行：fork api-error，W43-18 還沒驗' "$TRT")" == block ]] || { echo "FAIL: the unaudited label exempted a line with no audit state behind it" >&2; exit 1; }
+# W46-16 (evals/retro-metrics/2026-W46/claim-gate-sample-w45.md): the 9 non-probe false blocks are a plan,
+# a requirement, a scope note or a forecast, not a claim. The ledger has one Edit and no token, so a claim blocks.
+# The 2 misses (a claim next to a bound 還沒 line) and the 2 true violations must block.
+W46_PASS=('- 修正前的版本要測出失敗，修正後要通過。'
+  '做完之後，五個畫面要在 1440、768、390 三個寬度都通過 `npm run check:ui`，0 個 FAIL。接著另找一個 reviewer 用 `codex` 審，最後發成 Artifact 給你看。builder 回報時我會通知你。'
+  'worker 一多，一輪就會超過 2 秒；上一輪還沒跑完，下一輪就直接跳過（`tui.node.ts:1112`）。而且只有內容真的變了才重畫，畫面上也沒有任何地方告訴你上次更新是什麼時候。'
+  '**這一票的限制**：依據是 `DIRECTION.md`、lint 結果和評審檔，F、G 的實際畫面我還沒看過截圖。要讓票更有份量，可以派 agy 和 cursor 用同一套四軸評分看 F、G。'
+  '好，順序是：修好、部署上線、確認線上沒問題，然後寫交接、recap，並把這次的錯誤和建議投稿到 shared memory。'
+  '- **Hard boundaries §Done**（[CLAUDE.md:90-94](file:///x/CLAUDE.md#L90-L94)）：沒有當場執行的 tool 輸出驗證（exit code, test count, artifact），宣稱 done 直接視為無效；Stop gate 會強制攔截。'
+  '這個修改只是本地模擬的調整，通過與否不等於正式 CI 的結果，只用來提前抓四個 Compile bundle 的問題。'
+  '- 我只對 sit 格讀了詳細內容，其他 3 格只看了通過／失敗的結果。'
+  '所以實際用的是 Android Studio 內建的 JBR：你本機是 21，可以 build。mini 的 Android Studio 比較新，內建 JBR 25，而 Gradle 8.11.1 跑不了 Java 25，mini 上用預設環境就會失敗在 `assembleUat`。這是 mini 和你本機環境不一樣造成的，不是 App 的問題。')
+W46_BLOCK=('UAT 的 IPA 已上傳 TestFlight，APK 也已上傳 Firebase，兩邊都完成了。
+- **還沒處理的事：** 0902 密碼找不到確切值（UNCONFIRMED：沒查 STG 後台）'
+  'W46-16 已完成。
+P3 根本還沒做完：sol 還在調查，`deploy.sh` 不存在'
+  '我不推送，因為推的話會把本機 main 上 F worker 的 5 個 commit（`513a328` `351695c`）一起推上去。那 5 個是 worker 沒經授權做的，要不要留是 Q-5，還沒決定。另外本機也落後 origin 1 個 commit（`8723db1`），推之前要先 rebase。')
+w46=""
+for loc in en_US.UTF-8 C; do
+  i=0; for m in "${W46_PASS[@]}"; do i=$((i+1)); s="w46p$i${loc%%.*}"; ledger_for "$s" "$EDIT0"
+    [[ -z "$(LC_ALL=$loc run_claim "$s" "$m" "$TRT")" ]] || w46="$w46
+FAIL ($loc): W46-16 not a claim, but blocked: $m"; done
+  i=0; for m in "${W46_BLOCK[@]}"; do i=$((i+1)); s="w46b$i${loc%%.*}"; ledger_for "$s" "$EDIT0" "$READ"
+    [[ "$(LC_ALL=$loc run_claim "$s" "$m" "$TRT")" == block ]] || w46="$w46
+FAIL ($loc): W46-16 claim with no token passed: $m"; done
+done
+[[ -z "$w46" ]] || { echo "$w46" >&2; exit 1; }
+echo 'PASS W46-16: 9 sample false blocks pass, 2 misses and 1 true violation block (en_US.UTF-8 and C)'
 # Legacy audit files have no effect on independent claim binding.
 gate_out() {
   printf '%s' "$(jq -cn --arg t "$TRT" --arg m "$2" --arg sid "$1" --argjson a "${3:-false}" '{session_id:$sid,transcript_path:$t,stop_hook_active:$a,last_assistant_message:$m}')" |
@@ -291,6 +319,8 @@ PUBU='{"name":"Artifact","input":{"file_path":"/s/page.html","icon":"chart"}}'
 [[ -z "$(run_claim h2 '已更新 plugin，請執行 `/reload-plugins` 再試。' "$(trh h2.jsonl "$BASHU" '{"name":"mcp__tmux-agent__reload","input":{}}')")" ]] || { echo "FAIL: W44-7 reload hand-back after a reload call blocked" >&2; exit 1; }
 [[ -z "$(run_claim h3 'The tmux-agent plugin is at v0.46.19; its plugins list is unchanged.' "$(trh h3.jsonl "$BASHU")")" ]] || { echo "FAIL: W44-7 a plain plugin mention blocked" >&2; exit 1; }
 [[ "$(run_claim h4 'The page is live: https://claude.ai/artifact/x' "$(trh h4.jsonl "$PUBU")")" == block ]] || { echo "FAIL: W44-7 live page with no screenshot passed" >&2; exit 1; }
+# W46-16 sample #17, a true violation: still blocks
+[[ "$(run_claim w46t17 '四版比稿頁已經發布，請選一版，也可以混搭：https://claude.ai/artifact/U7fG95TKypYF8DG88onjyX' "$(trh w46t17.jsonl "$PUBU")")" == block ]] || { echo "FAIL: W46-16 sample #17 (published, no render check) passed" >&2; exit 1; }
 [[ -z "$(run_claim h5 'The page is live: https://claude.ai/artifact/x' "$(trh h5.jsonl "$PUBU" '{"name":"mcp__claude-in-chrome__computer","input":{"action":"screenshot"}}')")" ]] || { echo "FAIL: W44-7 live page after a screenshot blocked" >&2; exit 1; }
 # L1 false blocks: "live"/"published" in another sense, /reload-plugins as history or a quote, a Bash line naming a screenshot
 [[ -z "$(run_claim h6 'I checked the live source and the file; the page is saved to the artifact URL. The skill was published in 2025 by the vendor.' "$(trh h6.jsonl "$PUBU")")" ]] || { echo "FAIL: W44-7 live in another sense blocked" >&2; exit 1; }

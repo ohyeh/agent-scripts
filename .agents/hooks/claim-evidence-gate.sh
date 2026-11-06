@@ -58,7 +58,7 @@ title="$(grep -o '"customTitle":"[^"]*"' "$TRANSCRIPT" 2>/dev/null | tail -1 | c
 speech="$(printf '%s' "$last" \
   | sed -E '/^```/,/^```/d' \
   | sed -E 's/`[^`]*`//g; s/「[^」]*」//g' \
-  | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告' )"
+  | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告|宣稱' )"
 # W45-16 (retro L42): a conditional, future or wait clause names a claim word without asserting it
 # (「等測試完成再上傳」, "after the tests pass, I will publish", "waiting for X to complete").
 # One clause per line, then delete only the span from the marker to the claim word, so
@@ -73,11 +73,25 @@ PAST='(^|[^a-z])(was|were|went|got|had|did|already)([^a-z]|$)|已|了'
 # Known limit (Sol R7-01/R8-01): a forward word does not cancel a past marker, since
 # "the patch was done and I will deploy" is a real claim. So conditionals with a past marker
 # still block: 「如果測試已通過就上傳」, 「等測試完成了再上傳」, "If the task were done, I would deploy".
-claim_text="$(printf '%s\n' "$speech" | tr 'A-Z' 'a-z' | sed -E 's/(，|。|；|！|？|→|[,;!?]|\.( |$))/\
-/g' | while IFS= read -r c; do
-  if printf '%s' "$c" | grep -Eq "$PAST"; then printf '%s\n' "$c"
-  else printf '%s\n' "$c" | sed -E "s/$COND_EN//g; s/$COND_ZH//g"; fi
-done)"
+# W46-16: a requirement, plan or forecast names a claim word without asserting it (「修正後要通過」,
+# 「順序是：修好、部署」, 「就會失敗」, "acceptance: tests pass"). Delete the span from the marker to the word.
+# shortcut: 要/會/將 also start 主要/重要/會議, so 「主要問題修好」 loses its claim; add those words if one is missed.
+PLAN='(要|會|將|下一步|驗收|順序是|acceptance:?|next step:?).{0,60}(完成|修好|修復|測好|驗證(完|過)|通過|搞定|失敗|done|fixed|verified|completed?|pass(es|ed)?|failed)'
+# Both outcomes named together claim neither: 「通過與否」, 「通過／失敗的結果」, "pass/fail".
+PAIR='(通過|pass(ed)?) *(與否|(／|/) *(失敗|fail(ed)?))'
+# 「上一輪還沒跑完，下一輪就直接跳過」 states a rule, not a state: 還沒 in a clause whose next clause says 就會/就直接.
+RULE='(還沒|尚未)(.{0,30}，.{0,15}就(會|直接))'
+unasserted() { # text on stdin → one clause per line, with the spans that assert nothing removed
+  tr 'A-Z' 'a-z' | sed -E "s#$PAIR##g; s/$RULE/\\2/g" | sed -E 's/(，|。|；|！|？|→|[,;!?]|\.( |$))/\
+/g' | while IFS= read -r c || [ -n "$c" ]; do
+    if printf '%s' "$c" | grep -Eq "$PAST"; then printf '%s\n' "$c"
+    else printf '%s\n' "$c" | sed -E "s/$COND_EN//g; s/$COND_ZH//g; s/$PLAN//g"; fi
+  done
+}
+# W46-16: a label exempts its own line only, as the negative rule does (W43-18). A whole-reply
+# exemption let 「兩邊都完成了」 pass because another line said 「還沒處理的事」.
+EXEMPT_RE='unverified|UNCONFIRMED|attempted|not observed|not (yet )?(done|fixed|verified)|未驗證|未觀測|尚未|還沒|未完成'
+claim_text="$(printf '%s\n' "$speech" | grep -Eiv "$EXEMPT_RE" | unasserted)"
 
 claim=""
 # Under LC_ALL=C grep is byte-wise: never put ?/*/+ right after a CJK char (it binds to its last byte); group it.
@@ -85,16 +99,15 @@ case "$title" in ✅*) claim="positive";; esac
 if [ -z "$claim" ] && printf '%s' "$claim_text" | grep -Eqi '(^|[^a-z])(done|fixed|verified|shipped|completed?|resolved|all green|tests? pass(ed|ing)?)([^a-z]|$)|(完成|修好|修復|測好|驗證(完|過)|通過|搞定)|✅|VERDICT: *PASS'; then
   claim="positive"
 fi
-# Completion claims keep the whole-reply exemption (unchanged). Negative lines do not: a label
-# exempts its own line only (W43-18: one 「還沒」 let a reply list "not done" items it never checked).
-printf '%s' "$speech" | grep -Eqi 'unverified|UNCONFIRMED|attempted|not observed|not (yet )?(done|fixed|verified)|未驗證|未觀測|尚未|還沒|未完成' && claim=""
-LABEL_RE='unverified|UNCONFIRMED|attempted|not observed|not checked|未驗證|未觀測|未查|沒(有)?查|不確定'
+# Negative lines: a label exempts its own line only (W43-18: one 「還沒」 let a reply list "not done"
+# items it never checked). 「我還沒看過截圖」 states what was not observed (W46-16), so it is a label.
+LABEL_RE='unverified|UNCONFIRMED|attempted|not observed|not checked|未驗證|未觀測|未查|沒(有)?查|不確定|還沒看|沒(有)?看過'
 # A "not done" state is a negative claim too (W43-18): 還沒/尚未/未完成 assert what is not there.
 NEG_RE='(^|[^a-z])(stuck|failed|missing|not implemented|not (yet )?(done|fixed|started)|no (reply|response)|never (reported|responded)|hung|dead)([^a-z]|$)|卡住|受阻|失敗|缺少|不存在|尚未|還沒|未完成|未開始|沒(有)?回(覆|應)|掛了'
 # Kept raw (code spans intact): a line's `code`, file, W-id or sha is the subject it must be bound to.
 negative_lines="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' \
-  | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告' | grep -Eiv "$LABEL_RE" \
-  | while IFS= read -r l; do printf '%s' "$l" | sed -E 's/`[^`]*`//g; s/「[^」]*」//g' | grep -Eqi "$NEG_RE" && printf '%s\n' "$l"; done)"
+  | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告|宣稱' | grep -Eiv "$LABEL_RE" \
+  | while IFS= read -r l; do printf '%s\n' "$l" | sed -E 's/`[^`]*`//g; s/「[^」]*」//g' | unasserted | grep -Eqi "$NEG_RE" && printf '%s\n' "$l"; done)"
 [ -n "$claim" ] || [ -z "$negative_lines" ] || claim="negative"
 # W44-7: hand-backs checked against this turn's tool calls — a reload the agent can run itself,
 # and a page called live with no render check (artifacts-rules §Quality, screenshot evidence).
