@@ -75,7 +75,7 @@ Bot roster and folder structure, no clicking required:
 
 ```sh
 agent-browser eval '(() => JSON.stringify({
-  bots: [...document.querySelectorAll("button[data-agent-id]")]
+  bots: [...document.querySelectorAll("button[data-agent-id]:not([aria-label=\"Pinned Bots\"] button)")]
     .map(b => ({id: b.getAttribute("data-agent-id").slice(0,8), name: b.getAttribute("aria-label")})),
   sidebar: document.querySelector("[aria-label=\"Bot list\"]")?.innerText.replace(/\n+/g,"|").slice(0,800)
 }))()'
@@ -124,7 +124,7 @@ without guessing. Substitute the target UUID prefix for `<uuid8>`:
 agent-browser eval '(async () => {
   const prev = document.querySelector("button[data-agent-id][aria-current=\"page\"]:not([aria-label=\"Pinned Bots\"] button)")
     ?.getAttribute("data-agent-id");
-  document.querySelector("button[data-agent-id^=\"<uuid8>\"]").click();
+  document.querySelector("button[data-agent-id^=\"<uuid8>\"]:not([aria-label=\"Pinned Bots\"] button)").click();
   await new Promise(r => setTimeout(r, 2500));
   const log = document.querySelector("[role=log][aria-label=\"Conversation transcript\"]");
   return JSON.stringify({prev, tail: (log?.innerText || "").slice(-1500)});
@@ -146,7 +146,7 @@ Confirm with the whole panel's text instead:
 
 ```sh
 agent-browser eval '(async () => {
-  document.querySelector("button[data-agent-id^=\"<prev8>\"]").click();
+  document.querySelector("button[data-agent-id^=\"<prev8>\"]:not([aria-label=\"Pinned Bots\"] button)").click();
   await new Promise(r => setTimeout(r, 1500));
   return (document.querySelector("main")?.innerText || "").replace(/\s+/g," ").slice(0,80);
 })()'
