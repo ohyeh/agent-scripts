@@ -264,13 +264,13 @@ if [ -n "$recap_full" ]; then
   # path TAB page TAB total TAB sha TAB body sha, for stamps whose body= matches the lines above them
   stamps="$(while IFS=$'\t' read -r p n t h d b; do
       [ -n "$p" ] || continue
-      [ "$(printf '%s' "$b" | base64 -d 2>/dev/null | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)" = "$d" ] \
+      [ "$(printf '%s' "$b" | base64 -d 2>/dev/null | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -d' ' -f1)" = "$d" ] \
         && printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$n" "$t" "$h" "$d"
     done <<<"$cand" | sort -u)"
   read_whole() { # $1 file: every page 1..T of the file on disk, each stamped with its real page sha
     local want
     # shortcut: repeats resume_pack.py pages_of (4000-char pieces, 16 KiB pages); a change there must change this too.
-    want="$(python3 - "$1" 2>/dev/null <<'EOF'
+    want="$(/usr/bin/python3 - "$1" 2>/dev/null <<'EOF'
 import hashlib, sys
 raw = open(sys.argv[1], "rb").read()
 pages, page, size = [], [], 0
