@@ -115,6 +115,31 @@ for line in sys.stdin:
     assert run({**entry, "hooks": [{**hook, "trustStatus": "modified"}]}).returncode == 1
     assert run({**entry, "hooks": [{**hook, "enabled": False}]}).returncode == 1
     assert run({**entry, "hooks": []}).returncode == 1
+    # --trust writes this host's own fingerprint, only for the pinned fork, never through --check.
+    cfg = home / ".codex/config.toml"
+    cfg.parent.mkdir(parents=True, exist_ok=True)
+    key = "context-mode@context-mode:.codex-plugin/hooks.json:pre_tool_use:0:0"
+    cfg.write_text(f'[features]\nhooks = true\n\n[hooks.state."{key}"]\ntrusted_hash = "sha256:old"\ntrusted_content_hash = "sha256:stale"\n\n[other]\nx = 1\n')
+    modified = {**hook, "key": key, "trustStatus": "modified", "currentHash": "sha256:aaa/sha256:bbb"}
+    def run_trust(**extra):
+        fixture.write_text(json.dumps({"entry": {**entry, "hooks": [modified]}, **extra}))
+        if sys.platform == "darwin":
+            module.set_locked(root, True)
+        try:
+            return subprocess.run([sys.executable, str(helper), "--trust"], capture_output=True, text=True, timeout=5)
+        finally:
+            if sys.platform == "darwin":
+                module.set_locked(root, False)
+    refused = run_trust(source="https://github.com/mksglu/context-mode.git")
+    assert refused.returncode == 1 and "sha256:old" in cfg.read_text()
+    checked = run({**entry, "hooks": [modified]})
+    assert checked.returncode == 1 and "sha256:old" in cfg.read_text()
+    trusted = run_trust()
+    text = cfg.read_text()
+    assert trusted.returncode == 0 and "TRUSTED [codex-context-mode] 1 hooks" in trusted.stdout, trusted.stderr
+    assert f'[hooks.state."{key}"]\ntrusted_hash = "sha256:aaa"\ntrusted_content_hash = "sha256:bbb"\n' in text
+    assert "sha256:old" not in text and "sha256:stale" not in text and "[other]\nx = 1" in text
+    print("PASS: --trust records the host fingerprint for the pinned fork only; --check never writes trust")
     link.unlink()
     link.symlink_to("../package space/cli's $name")
     warning = f"skipping plugin hook in {manifest}/hooks.json: failed to fingerprint plugin contents: unsupported plugin entry type: {link}"

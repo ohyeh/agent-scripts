@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check, repair, lock or unlock the active Codex context-mode plugin."""
+"""Check, repair, lock, unlock or trust the active Codex context-mode plugin."""
 import collections
 import json
 import os
@@ -174,6 +174,35 @@ def set_locked(root, locked):
     print(f"{action} [codex-context-mode] {len(paths)} entries: {root}; hook trust unchanged")
 
 
+def trust(cfg_path, hooks):
+    """Record each hook's current Codex fingerprint as trusted, as /hooks approval does.
+
+    currentHash is "<hook hash>/<plugin content hash>"; config.toml keeps them as
+    trusted_hash and trusted_content_hash. The content hash depends on this host's
+    build (macmini compiles better-sqlite3 for node 26), so trust is never copied
+    between hosts. Called only after the source is the pinned fork and the plugin
+    is locked, so the content cannot change after it is trusted.
+    """
+    pending = [h for h in hooks if h["trustStatus"] not in ("trusted", "managed")]
+    if not pending:
+        print(f"PASS [codex-context-mode] {len(hooks)} hooks already trusted")
+        return
+    cfg = cfg_path.read_text()
+    for h in pending:
+        hook_hash, content_hash = h["currentHash"].split("/")
+        header = f'[hooks.state."{h["key"]}"]'
+        lines = f'trusted_hash = "{hook_hash}"\ntrusted_content_hash = "{content_hash}"\n'
+        section = re.compile(r"(?m)^" + re.escape(header) + r"[ \t]*\n((?:(?!\[).*\n?)*)")
+        found = section.search(cfg)
+        if not found:
+            cfg = cfg.rstrip("\n") + "\n\n" + header + "\n" + lines
+            continue
+        body = re.sub(r"(?m)^trusted_(content_)?hash[ \t]*=.*\n?", "", found.group(1))
+        cfg = cfg[:found.start(1)] + lines + body + cfg[found.end(1):]
+    cfg_path.write_text(cfg)
+    print(f"TRUSTED [codex-context-mode] {len(pending)} hooks: {', '.join(h['eventName'] for h in pending)}")
+
+
 def check_locked(root):
     if sys.platform != "darwin":
         return
@@ -186,8 +215,8 @@ def check_locked(root):
 
 
 def main():
-    if sys.argv[1:] not in ([], ["--check"], ["--repair"], ["--lock"], ["--unlock"]):
-        raise RuntimeError("usage: python3 scripts/codex-context-mode.py [--check|--repair|--lock|--unlock]")
+    if sys.argv[1:] not in ([], ["--check"], ["--repair"], ["--lock"], ["--unlock"], ["--trust"]):
+        raise RuntimeError("usage: python3 scripts/codex-context-mode.py [--check|--repair|--lock|--unlock|--trust]")
     codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex")))
     if not shutil.which("codex"):
         if (codex_home / "config.toml").exists():
@@ -227,6 +256,10 @@ def main():
                                "reinstall deps, rerun deploy, then approve /hooks again")
         print(f"PASS [codex-context-mode] marketplace source {FORK}")
         check_locked(root)
+        if "--trust" in sys.argv:
+            # A fresh app-server reads the new config: check-deploy-drift.sh runs --check after this.
+            trust(codex_home / "config.toml", [h for h in entry["hooks"] if h.get("pluginId") == enabled[0]])
+            return
         check_hooks(root, entry, enabled[0])
 
 

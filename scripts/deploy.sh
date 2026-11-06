@@ -794,6 +794,9 @@ echo "PASS [context-mode] canonical store ~/.claude/context-mode"
 if [ "$CHECK" = 0 ]; then
   python3 "$SRC/scripts/codex-context-mode.py" --repair
   if [ "$(uname -s)" = Darwin ]; then python3 "$SRC/scripts/codex-context-mode.py" --lock; fi
+  # Trust the locked, fork-sourced plugin's hooks with this host's own fingerprint (owner 11-06:
+  # a /hooks click per host and per plugin build blocked every deploy).
+  python3 "$SRC/scripts/codex-context-mode.py" --trust
 fi
 }
 layer layer_context_mode
