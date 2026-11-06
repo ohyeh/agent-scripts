@@ -126,6 +126,9 @@ test('phrasesOf checks the list once: fields, unique hotkeys, and {{hotkey}} emb
   expect(() => phrasesOf([{ ...p('1'), when: ' ' }])).toThrow('entry 0 needs a non-empty "when"')
   expect(() => phrasesOf([p('1'), p('1')])).toThrow('hotkey "1" appears twice')
   expect(() => phrasesOf([p('1', '{{9}}')])).toThrow('unknown hotkey {{9}}')
+  expect(() => phrasesOf([p('1', '{{2}}'), p('2', '{{3}}'), p('3')])).toThrow('one level only')
+  expect(() => phrasesOf([p('1', 'a{{1}}')])).toThrow('one level only')
+  expect(() => phrasesOf([p('7', '{{8}}'), p('8', '{{7}}')])).toThrow('one level only')
 })
 
 test('every combo in phrases.ts fills its own whole text into the box, unsent', async ($, on) => {

@@ -232,41 +232,62 @@ if [ -n "$negative_lines" ]; then
 fi
 
 recap_reason=""
-# W46-18: a `full` recap line is bound to the reads that make it true. The resume flow spans turns
-# (pack and scout dispatch, then the collector's prompt), so the window opens at the last human
-# `/session-handoff resume` prompt. Coverage comes from the pack's manifest, never from report prose.
-if [ -n "$recap_full" ] && grep -q '"type":"assistant"' "$TRANSCRIPT"; then
-  rsince="$(jq -rR 'fromjson? | select(.type == "user" and .isMeta != true and (.origin.kind // "human") == "human")
-    | (.message.content | if type == "string" then . else (map(.text? // empty) | join(" ")) end) as $t
-    | select($t | test("^\\s*/session-handoff resume|<command-name>/?session-handoff</command-name>\\s*<command-args>\\s*resume"))
-    | .timestamp // empty' "$TRANSCRIPT" 2>/dev/null | tail -1 | cut -c1-19)"
-  rsince="${rsince:-$since}"
-  # Reads only: a dispatch brief that names a file is not a read of it.
-  reads="$(jq -r --arg s "$rsince" 'select((.timestamp // "")[0:19] >= $s) | .message.content? | arrays | .[]
-    | select(.type == "tool_use" and (.name | test("^(Read|Bash|mcp__plugin_context-mode_context-mode__ctx_(execute|execute_file|batch_execute))$")))
-    | .input | tostring' "$TRANSCRIPT" 2>/dev/null)"
+# W46-18: a `full` recap line is bound to what tools PRINTED, never to what a tool input names.
+# `resume_pack.py` prints a summary line per pack, and `resume_pack.py --read FILE --page N` prints
+# a page followed by `READ <abs path> page N/T lines A-B sha256=<file sha>`. Three checks, no more:
+# (a) the summary line for <pack>/<sid8> with the same COUNT/TOOLS; (b) every page of user.txt;
+# (c) per scout group of every manifest, every page of scout-<range>.md or of each of its slices.
+# A stamp counts only with its page's lines above it (`| tail -1` keeps the stamp, not the body) and
+# a sha equal to the file on disk. The window is the transcript rows after the last human
+# `/session-handoff resume` prompt (the flow spans turns); rows, not timestamps. Claude and Codex.
+if [ -n "$recap_full" ]; then
+  rrow="$(jq -rR 'input_line_number as $n | (fromjson? // {}) as $r
+    | (if $r.type == "user" and $r.isMeta != true and (($r.origin.kind // "human") == "human")
+         then ($r.message.content | if type == "string" then . else (map(.text? // empty) | join(" ")) end)
+       elif $r.type == "response_item" and $r.payload.type == "message" and $r.payload.role == "user"
+         then ([$r.payload.content[]? | .text? // empty] | join(" "))
+       else empty end)
+    | select(test("^\\s*/session-handoff resume|<command-name>/?session-handoff</command-name>\\s*<command-args>\\s*resume")) | $n' "$TRANSCRIPT" 2>/dev/null | tail -1)"
+  # Tool output only (Claude tool_result, Codex *_output), one JSON string per result.
+  outs="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -cR 'fromjson? // {} | (.message.content? | arrays | .[] | select(.type == "tool_result") | .content
+      | if type == "string" then . else (map(.text? // empty) | join("\n")) end),
+    (select(.type == "response_item" and ((.payload.type // "") | endswith("_output"))) | .payload.output
+      | if type == "string" then ((fromjson? | .output? // empty | strings) // .) else tostring end)' 2>/dev/null)"
+  # path TAB page TAB total TAB sha, for stamps whose body lines precede them
+  stamps="$(printf '%s\n' "$outs" | jq -r 'strings | split("\n") as $l
+    | reduce range(0; $l | length) as $i ({prev: -1, out: []};
+        if ($l[$i] | test("^READ /")) then .out += [{s: $l[$i], body: ($i - .prev - 1)}] | .prev = $i else . end)
+    | .out[] | (.s | capture("^READ (?<p>/\\S+) page (?<n>[0-9]+)/(?<t>[0-9]+) lines (?<a>[0-9]+)-(?<b>[0-9]+) sha256=(?<h>[0-9a-f]{64})$")?) as $m
+    | select($m != null and .body >= (($m.b | tonumber) - ($m.a | tonumber) + 1)) | [$m.p, $m.n, $m.t, $m.h] | @tsv' 2>/dev/null | sort -u)"
+  read_whole() { # $1 file: every page 1..T stamped with the file's current sha
+    local h t
+    h="$( { sha256sum "$1" 2>/dev/null || shasum -a 256 "$1" 2>/dev/null; } | cut -d' ' -f1)"
+    [ -n "$h" ] || return 1
+    t="$(awk -F'\t' -v p="$1" -v h="$h" '$1 == p && $4 == h { print $3 }' <<<"$stamps" | sort -u)"
+    [ -n "$t" ] && [ "$(printf '%s\n' "$t" | wc -l)" -eq 1 ] || return 1
+    [ "$(awk -F'\t' -v p="$1" -v h="$h" '$1 == p && $4 == h { print $2 }' <<<"$stamps" | sort -un | wc -l)" -eq "$t" ]
+  }
   while IFS= read -r line; do
     sid="$(printf '%s' "$line" | cut -d' ' -f2)"
     count="$(printf '%s' "$line" | sed -E 's/.*COUNT ([0-9]+).*/\1/')"
     tools="$(printf '%s' "$line" | sed -E 's/.*TOOLS ([0-9]+).*/\1/')"
     pack="$(printf '%s' "$line" | sed -E 's/.* pack ([^ ]+)$/\1/')"; pack="${pack/#\~/$HOME}"
+    pack="$(cd "$pack" 2>/dev/null && pwd -P)"
     miss=""
-    if [ ! -f "$pack/$sid/manifest.json" ]; then
-      miss=" no $pack/$sid/manifest.json;"
+    if [ -z "$pack" ] || [ ! -f "$pack/$sid/manifest.json" ]; then
+      miss=" no manifest.json for $sid under the named pack;"
     else
-      grep -F 'resume_pack.py' <<<"$reads" | grep -qF "$sid" || miss="$miss resume_pack.py was not run on $sid;"
-      grep -qF "$sid/user.txt" <<<"$reads" || miss="$miss $sid/user.txt was not read;"
-      [ "$(jq -r '.count' "$pack/$sid/manifest.json")" = "$count" ] || miss="$miss COUNT $count is not the manifest's;"
-      [ "$(jq -r '.tools' "$pack/$sid/manifest.json")" = "$tools" ] || miss="$miss TOOLS $tools is not the manifest's;"
-      # Each scout group: its report was read, or every slice in it was read.
+      printf '%s\n' "$outs" | jq -r 'strings' 2>/dev/null \
+        | grep -qxF "$sid COUNT $count TOOLS $tools slices $(jq -r '.slices | length' "$pack/$sid/manifest.json") groups $(jq -r '.scout_groups | length' "$pack/$sid/manifest.json") -> $pack/$sid" \
+        || miss="$miss no resume_pack.py summary for $pack/$sid with COUNT $count TOOLS $tools;"
+      read_whole "$pack/$sid/user.txt" || miss="$miss $sid/user.txt not read in full with resume_pack.py --read;"
       while IFS=$'\t' read -r dir range slices; do
         [ -n "$range" ] || continue
-        rel="${dir#"$pack"/}"
-        grep -qF "$rel/scout-$range.md" <<<"$reads" && continue
-        all=1; for s in $slices; do grep -qF "$rel/slices/$s.txt" <<<"$reads" || { all=""; break; }; done
-        [ -n "$all" ] || miss="$miss $rel/scout-$range.md (or its slices) was not read;"
+        read_whole "$dir/scout-$range.md" && continue
+        all=1; for s in $slices; do read_whole "$dir/$s" || { all=""; break; }; done
+        [ -n "$all" ] || miss="$miss ${dir#"$pack"/}/scout-$range.md (or its slices) not read in full;"
       done < <(find "$pack/$sid" -maxdepth 2 -name manifest.json 2>/dev/null | while IFS= read -r m; do
-        jq -r --arg d "$(dirname "$m")" '.scout_groups[]? | [$d, .range, (.slices | map(sub("^slices/"; "") | sub("\\.txt$"; "")) | join(" "))] | @tsv' "$m"; done)
+        jq -r --arg d "$(dirname "$m")" '.scout_groups[]? | [$d, .range, (.slices | join(" "))] | @tsv' "$m"; done)
     fi
     [ -z "$miss" ] || recap_reason="$recap_reason $sid:$miss"
   done <<<"$recap_full"

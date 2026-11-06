@@ -16,24 +16,26 @@ const HIDE_KEY = `${NAME}.hidden`
 // a text may embed another combo's text as {{<hotkey>}} (combo 8 reuses 7).
 type Phrase = { hotkey: string; label: string; when: string; text: string }
 export function phrasesOf(raw: unknown): Phrase[] {
-  if (!Array.isArray(raw) || raw.length === 0) throw new Error('phrases.json: expected a non-empty array')
+  if (!Array.isArray(raw) || raw.length === 0) throw new Error('phrases.ts: expected a non-empty array')
   const list = raw.map((p, i) => {
     for (const k of ['hotkey', 'label', 'when', 'text'] as const) {
-      if (typeof p?.[k] !== 'string' || p[k].trim() === '') throw new Error(`phrases.json: entry ${i} needs a non-empty "${k}"`)
+      if (typeof p?.[k] !== 'string' || p[k].trim() === '') throw new Error(`phrases.ts: entry ${i} needs a non-empty "${k}"`)
     }
     return { hotkey: p.hotkey, label: p.label, when: p.when, text: p.text } as Phrase
   })
   const keys = list.map(p => p.hotkey)
   const dup = keys.find((k, i) => keys.indexOf(k) !== i)
-  if (dup) throw new Error(`phrases.json: hotkey "${dup}" appears twice`)
-  return list.map(p => ({
-    ...p,
-    text: p.text.replace(/\{\{(\w+)\}\}/g, (_, k: string) => {
+  if (dup) throw new Error(`phrases.ts: hotkey "${dup}" appears twice`)
+  // One level of embeds: after one pass no {{…}} may remain (rejects chains, self-embeds and cycles).
+  return list.map(p => {
+    const text = p.text.replace(/\{\{(\w+)\}\}/g, (_, k: string) => {
       const ref = list.find(q => q.hotkey === k)
-      if (!ref) throw new Error(`phrases.json: "${p.hotkey}" embeds unknown hotkey {{${k}}}`)
+      if (!ref) throw new Error(`phrases.ts: "${p.hotkey}" embeds unknown hotkey {{${k}}}`)
       return ref.text
-    }),
-  }))
+    })
+    if (/\{\{\w+\}\}/.test(text)) throw new Error(`phrases.ts: "${p.hotkey}" embeds a text that embeds again; one level only`)
+    return { ...p, text }
+  })
 }
 export const PHRASES = phrasesOf(rawPhrases)
 type Mode = '手動' | '半自動' | '自動'

@@ -391,37 +391,66 @@ FAIL: W46-15 a final-round ask blocked: $m"; done
 FAIL: W46-15 'evidence token' read as a credential"
 [[ -z "$w46b" ]] || { echo "$w46b" >&2; exit 1; }
 echo 'PASS W46-15: ask-back with no consensus call blocks; advisor call, hard-stop ask, final-round ask, quoted ask and plain recap pass'
-# W46-18: a `full` resume recap line is bound to the pack reads, across the turns of one resume.
-PK="$WORK/pack"; mkdir -p "$PK/abcd1234/sub-a1"
-# resume_pack.py writes slice paths as slices/S01.txt
-jq -cn '{count:3, tools:10, scout_groups:[{range:"S01-S02", slices:["slices/S01.txt","slices/S02.txt"]}]}' > "$PK/abcd1234/manifest.json"
-jq -cn '{count:1, tools:2, scout_groups:[{range:"S01-S01", slices:["slices/S01.txt"]}]}' > "$PK/abcd1234/sub-a1/manifest.json"
-rtr() { # $1 file, then tool_use objects made after the second prompt; the pack ran after the resume prompt
+# W46-18: a `full` resume recap line is bound to what resume_pack.py PRINTED after the resume prompt:
+# its summary line, and READ stamps (with their page body) for user.txt and each scout group.
+RP="$ROOT/skills/session-handoff/scripts/resume_pack.py"
+LG="$WORK/logs/abcd1234-0000.jsonl"; mkdir -p "$WORK/logs/abcd1234-0000/subagents"
+{ jq -cn '{type:"user",timestamp:"2026-01-01T00:00:00Z",message:{content:"do it"}}'
+  jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:01Z",message:{content:[{type:"tool_use",id:"t1",name:"Bash",input:{command:"make"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:02Z",message:{content:[{type:"tool_result",tool_use_id:"t1",content:"ok"}]}}'; } > "$LG"
+{ jq -cn '{type:"user",timestamp:"2026-01-01T00:00:00Z",message:{content:"sub"}}'
+  jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:01Z",message:{content:[{type:"tool_use",id:"s1",name:"Read",input:{file_path:"x"}}]}}'; } > "$WORK/logs/abcd1234-0000/subagents/agent-a1.jsonl"
+PK="$(mkdir -p "$WORK/pack" && cd "$WORK/pack" && pwd -P)"
+SUMMARY="$(python3 "$RP" --out "$PK" "$LG")" || { echo "FAIL: W46-18 resume_pack.py could not build the smoke pack" >&2; exit 1; }
+SUB="$(cd "$PK/abcd1234" && ls -d sub-*)"
+rdp() { python3 "$RP" --read "$PK/$1"; }
+printf 'scout report\nS01:1 make ok\n' > "$PK/abcd1234/scout-S01-S01.md"
+res() { jq -cn --arg c "$1" '{type:"user",timestamp:"2026-01-01T00:00:06.000Z",message:{content:[{type:"tool_result",tool_use_id:"r",content:$c}]}}'; }
+rtr() { # $1 file, then tool outputs printed after the second prompt; the pack ran after the resume prompt
   local f="$WORK/$1"; shift
   { jq -cn '{type:"user",timestamp:"2026-01-01T00:00:00.000Z",message:{content:"/session-handoff resume 前情提要：照 RESUME 流程讀"}}'
-    jq -cn --arg c "python3 resume_pack.py --out $PK ~/.claude/projects/p/abcd1234-0000.jsonl" '{type:"assistant",timestamp:"2026-01-01T00:00:01.000Z",message:{content:[{type:"tool_use",name:"Bash",input:{command:$c}}]}}'
-    jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:02.000Z",message:{content:[{type:"tool_use",name:"mcp__tmux-agent__assign",input:{brief:"read slices S01-S02, write abcd1234/scout-S01-S02.md and abcd1234/sub-a1/scout-S01-S01.md"}}]}}'
+    res "$SUMMARY"
     jq -cn '{type:"user",timestamp:"2026-01-01T00:00:05.000Z",message:{content:"繼續"}}'
-    for u in "$@"; do jq -cn --argjson u "$u" '{type:"assistant",timestamp:"2026-01-01T00:00:06.000Z",message:{content:[{type:"tool_use"} + $u]}}'; done; } > "$f"
+    for o in "$@"; do res "$o"; done; } > "$f"
   printf '%s' "$f"
 }
-rd() { jq -cn --arg p "$PK/$1" '{name:"Read",input:{file_path:$p}}'; }
-FULL="- abcd1234 full · COUNT 3 · TOOLS 10 · pack $PK"
+C="$(jq -r .count "$PK/abcd1234/manifest.json")"; T="$(jq -r .tools "$PK/abcd1234/manifest.json")"
+FULL="- abcd1234 full · COUNT $C · TOOLS $T · pack $PK"
+ALL=("$(rdp abcd1234/user.txt)" "$(rdp abcd1234/scout-S01-S01.md)" "$(rdp "abcd1234/$SUB/slices/S01.txt")")
 w46r=""
 [[ "$(run_claim r1 "$FULL" "$(trh r1.jsonl "$BASHU")")" == block ]] || w46r="$w46r
-FAIL: W46-18 full with no pack reads passed"
-[[ -z "$(run_claim r2 "$FULL" "$(rtr r2.jsonl "$(rd abcd1234/user.txt)" "$(rd abcd1234/scout-S01-S02.md)" "$(rd abcd1234/sub-a1/scout-S01-S01.md)")")" ]] || w46r="$w46r
-FAIL: W46-18 pack + user.txt + scout reports across two prompts blocked"
-[[ -z "$(run_claim r3 "$FULL" "$(rtr r3.jsonl "$(rd abcd1234/user.txt)" "$(rd abcd1234/slices/S01.txt)" "$(rd abcd1234/slices/S02.txt)" "$(rd abcd1234/sub-a1/slices/S01.txt)")")" ]] || w46r="$w46r
-FAIL: W46-18 every slice read directly blocked"
-[[ "$(run_claim r4 "$FULL" "$(rtr r4.jsonl "$(rd abcd1234/user.txt)" "$(rd abcd1234/scout-S01-S02.md)")")" == block ]] || w46r="$w46r
-FAIL: W46-18 a subagent scout report named only in the dispatch brief counted as read"
-[[ "$(run_claim r5 "- abcd1234 full · COUNT 9 · TOOLS 10 · pack $PK" "$(rtr r5.jsonl "$(rd abcd1234/user.txt)" "$(rd abcd1234/scout-S01-S02.md)" "$(rd abcd1234/sub-a1/scout-S01-S01.md)")")" == block ]] || w46r="$w46r
-FAIL: W46-18 a typed COUNT that is not the manifest's passed"
+FAIL: W46-18 full with no pack output passed"
+[[ -z "$(run_claim r2 "$FULL" "$(rtr r2.jsonl "${ALL[@]}")")" ]] || w46r="$w46r
+FAIL: W46-18 summary + user.txt + scout report + subagent slice across two prompts blocked"
+[[ -z "$(run_claim r3 "$FULL" "$(rtr r3.jsonl "${ALL[0]}" "$(rdp abcd1234/slices/S01.txt)" "${ALL[2]}")")" ]] || w46r="$w46r
+FAIL: W46-18 a slice read in place of its scout report blocked"
+[[ "$(run_claim r4 "$FULL" "$(rtr r4.jsonl "$(printf '%s\n' "${ALL[0]}" | tail -1)" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a READ stamp with no page body (| tail -1) counted"
+[[ "$(run_claim r5 "- abcd1234 full · COUNT 9 · TOOLS $T · pack $PK" "$(rtr r5.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a typed COUNT that is not the pack's passed"
 [[ -z "$(run_claim r6 '- abcd1234 partial (slices S03-S09 not read)' "$(trh r6.jsonl "$BASHU")")" ]] || w46r="$w46r
 FAIL: W46-18 a partial line blocked"
+[[ "$(run_claim r7 "$FULL" "$(rtr r7.jsonl "${ALL[0]}" "${ALL[1]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a subagent scout group left unread passed"
+[[ "$(run_claim r8 "$FULL" "$(rtr r8.jsonl "File does not exist." "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a failed read of user.txt counted"
+OLD="$WORK/r9.jsonl"; { res "$SUMMARY"; for o in "${ALL[@]}"; do res "$o"; done
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:09.000Z",message:{content:"/session-handoff resume 前情提要"}}'; } > "$OLD"
+[[ "$(run_claim r9 "$FULL" "$OLD")" == block ]] || w46r="$w46r
+FAIL: W46-18 reads from before the latest resume prompt counted"
+CX="$WORK/r10.jsonl"; { jq -cn '{timestamp:"2026-01-01T00:00:00.000Z",type:"event_msg",payload:{type:"item_completed",item:{type:"UserMessage"}}}'
+  jq -cn '{type:"response_item",timestamp:"2026-01-01T00:00:00.000Z",payload:{type:"message",role:"user",content:[{type:"input_text",text:"/session-handoff resume 前情提要"}]}}'
+  for o in "$SUMMARY" "${ALL[@]}"; do jq -cn --arg o "$o" '{type:"response_item",timestamp:"2026-01-01T00:00:01.000Z",payload:{type:"function_call_output",call_id:"c",output:$o}}'; done; } > "$CX"
+[[ -z "$(run_claim r10 "$FULL" "$CX")" ]] || w46r="$w46r
+FAIL: W46-18 a Codex transcript with the pack output blocked"
+printf '%s\n' '{"timestamp":"2026-01-01T00:00:00.000Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage"}}}' > "$WORK/r11.jsonl"
+[[ "$(run_claim r11 "$FULL" "$WORK/r11.jsonl")" == block ]] || w46r="$w46r
+FAIL: W46-18 a Codex transcript with no pack output passed"
+printf 'edited\n' >> "$PK/abcd1234/user.txt"
+[[ "$(run_claim r12 "$FULL" "$(rtr r12.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a stamp whose sha no longer matches user.txt counted"
 [[ -z "$w46r" ]] || { echo "$w46r" >&2; exit 1; }
-echo 'PASS W46-18: a full recap needs resume_pack.py, user.txt and every scout group read (report or slices) since the resume prompt; partial passes'
+echo 'PASS W46-18: a full recap needs the pack summary and READ-stamped pages of user.txt and every scout group after the latest resume prompt (Claude and Codex); tail -1, failed reads, old reads, edited files block'
 [[ "$(run_claim h8 '頁面已上線：https://claude.ai/artifact/x' "$(trh h8.jsonl "$PUBU" '{"name":"Bash","input":{"command":"echo take a screenshot later"}}')")" == block ]] || { echo "FAIL: W44-7 a Bash line naming a screenshot passed as a render check" >&2; exit 1; }
 
 # bol: prose shape is no longer judged (runnable-check heuristic retired

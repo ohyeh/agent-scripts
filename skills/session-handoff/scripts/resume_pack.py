@@ -235,9 +235,48 @@ def build(logs, out):
     return destinations
 
 
+PAGE_BYTES = 16 * 1024  # Claude Code keeps a tool result whole only up to ~30 KB, then shows a 2 KB preview.
+
+
+def pages_of(text):
+    """Split at line boundaries into pages of at most PAGE_BYTES; a longer line (a pasted message)
+    is cut into 4,000-character pieces first, so no page outgrows the transcript's limit."""
+    pages, page, size = [], [], 0
+    for line in (piece for whole in text.splitlines() for piece in (whole[i:i + 4000] for i in range(0, max(len(whole), 1), 4000))):
+        n = len(line.encode("utf-8")) + 1
+        if page and size + n > PAGE_BYTES:
+            pages.append(page)
+            page, size = [], 0
+        page.append(line)
+        size += n
+    return pages + [page] if page else pages or [[]]
+
+
+def read_page(path, number):
+    """Print one page of a pack file, then the stamp the claim gate checks: the page's lines come
+    before it, so `| tail -1` leaves a stamp with no body, and the sha binds the file on disk."""
+    path = path.expanduser().resolve()
+    raw = path.read_bytes()
+    pages = pages_of(raw.decode("utf-8"))
+    if not 1 <= number <= len(pages):
+        raise ValueError(f"{path}: page {number} is outside 1-{len(pages)}")
+    first = sum(len(p) for p in pages[:number - 1]) + 1
+    body = pages[number - 1]
+    return "\n".join(body + [f"READ {path} page {number}/{len(pages)} lines {first}-{first + len(body) - 1} "
+                             f"sha256={hashlib.sha256(raw).hexdigest()}"])
+
+
 def self_test():
     with tempfile.TemporaryDirectory(prefix="resume-pack-test-") as tmp:
         root = Path(tmp)
+        paged = root / "paged.txt"
+        paged.write_text("".join(f"{i:05d} " + "y" * 100 + "\n" for i in range(400)), encoding="utf-8")
+        one, last = read_page(paged, 1).splitlines(), read_page(paged, 3).splitlines()
+        assert one[-1].startswith(f"READ {paged.resolve()} page 1/3 lines 1-") and len("\n".join(one).encode()) < 30000
+        assert last[-1].split(" lines ")[1].split("-")[1].startswith("400 ")
+        assert sum(len(read_page(paged, n).splitlines()) - 1 for n in (1, 2, 3)) == 400
+        paged.write_text("短" * 20000 + "\nend\n", encoding="utf-8")  # one 60 KB pasted line
+        assert all(len(read_page(paged, n).encode()) < 30000 for n in range(1, 6)) and "page 5/5" in read_page(paged, 5)
 
         def fixture(path, rows):
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -323,8 +362,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--read", type=Path, help="print one page of a pack file with its READ stamp")
+    parser.add_argument("--page", type=int, default=1)
     parser.add_argument("logs", nargs="*", type=Path)
     args = parser.parse_args()
+    if args.read:
+        try:
+            print(read_page(args.read, args.page))
+        except (OSError, ValueError, UnicodeDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        return 0
     if args.self_test and (args.out or args.logs):
         parser.error("--self-test cannot be combined with --out or LOG")
     if not args.self_test and (not args.out or not args.logs):
