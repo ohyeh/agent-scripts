@@ -253,6 +253,10 @@ W46_BLOCK=('UAT 的 IPA 已上傳 TestFlight，APK 也已上傳 Firebase，兩�
 - **還沒處理的事：** 0902 密碼找不到確切值（UNCONFIRMED：沒查 STG 後台）'
   'W46-16 已完成。
 P3 根本還沒做完：sol 還在調查，`deploy.sh` 不存在'
+  '重要的測試都通過'
+  '主要的 bug 都修好'
+  '需要改的三個檔案都完成'
+  '會議前測試都通過'
   '我不推送，因為推的話會把本機 main 上 F worker 的 5 個 commit（`513a328` `351695c`）一起推上去。那 5 個是 worker 沒經授權做的，要不要留是 Q-5，還沒決定。另外本機也落後 origin 1 個 commit（`8723db1`），推之前要先 rebase。')
 w46=""
 for loc in en_US.UTF-8 C; do
@@ -264,7 +268,7 @@ FAIL ($loc): W46-16 not a claim, but blocked: $m"; done
 FAIL ($loc): W46-16 claim with no token passed: $m"; done
 done
 [[ -z "$w46" ]] || { echo "$w46" >&2; exit 1; }
-echo 'PASS W46-16: 9 sample false blocks pass, 2 misses and 1 true violation block (en_US.UTF-8 and C)'
+echo 'PASS W46-16: 9 sample false blocks pass; 2 misses, 4 compound-word claims and 1 true violation block (en_US.UTF-8 and C)'
 # Legacy audit files have no effect on independent claim binding.
 gate_out() {
   printf '%s' "$(jq -cn --arg t "$TRT" --arg m "$2" --arg sid "$1" --argjson a "${3:-false}" '{session_id:$sid,transcript_path:$t,stop_hook_active:$a,last_assistant_message:$m}')" |
@@ -367,8 +371,15 @@ FAIL: W46-15 a quoted or fenced question blocked"
 
 ✈' "$(trh a5.jsonl "$BASHU")")" ]] || w46b="$w46b
 FAIL: W46-15 a plain recap blocked"
+# L2 (2026-11-06): the kernel 4.47.0 final confirmation round names its item on the asking line or next to it.
+i=0; for m in '待你確認（maintenance §1）：kernel 4.48.0 diff 要不要套用？' '要我把 hooks 部署到其他主機（mini、grok-bot）嗎？' 'Shall I apply the CLAUDE.md diff?' '預算上限你決定：100 還是 200 美元？' '屬不可逆操作。
+要不要繼續？'; do i=$((i+1))
+  [[ -z "$(run_claim "f$i" "$m" "$(trh "f$i.jsonl" "$BASHU")")" ]] || w46b="$w46b
+FAIL: W46-15 a final-round ask blocked: $m"; done
+[[ "$(run_claim f9 '要不要把 evidence token 加進表格？' "$(trh f9.jsonl "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 'evidence token' read as a credential"
 [[ -z "$w46b" ]] || { echo "$w46b" >&2; exit 1; }
-echo 'PASS W46-15: ask-back with no consensus call blocks; advisor call, hard-stop ask, quoted ask and plain recap pass'
+echo 'PASS W46-15: ask-back with no consensus call blocks; advisor call, hard-stop ask, final-round ask, quoted ask and plain recap pass'
 [[ "$(run_claim h8 '頁面已上線：https://claude.ai/artifact/x' "$(trh h8.jsonl "$PUBU" '{"name":"Bash","input":{"command":"echo take a screenshot later"}}')")" == block ]] || { echo "FAIL: W44-7 a Bash line naming a screenshot passed as a render check" >&2; exit 1; }
 
 # bol: prose shape is no longer judged (runnable-check heuristic retired

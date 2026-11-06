@@ -75,7 +75,8 @@ PAST='(^|[^a-z])(was|were|went|got|had|did|already)([^a-z]|$)|已|了'
 # still block: 「如果測試已通過就上傳」, 「等測試完成了再上傳」, "If the task were done, I would deploy".
 # W46-16: a requirement, plan or forecast names a claim word without asserting it (「修正後要通過」,
 # 「順序是：修好、部署」, 「就會失敗」, "acceptance: tests pass"). Delete the span from the marker to the word.
-# shortcut: 要/會/將 also start 主要/重要/會議, so 「主要問題修好」 loses its claim; add those words if one is missed.
+# 要/會 also sit inside 主要/重要/需要/必要/只要/會議: mask those words first, so 「重要的測試都通過」 still claims (L2).
+COMPOUND='主要|重要|需要|必要|只要|會議'
 PLAN='(要|會|將|下一步|驗收|順序是|acceptance:?|next step:?).{0,60}(完成|修好|修復|測好|驗證(完|過)|通過|搞定|失敗|done|fixed|verified|completed?|pass(es|ed)?|failed)'
 # Both outcomes named together claim neither: 「通過與否」, 「通過／失敗的結果」, "pass/fail".
 PAIR='(通過|pass(ed)?) *(與否|(／|/) *(失敗|fail(ed)?))'
@@ -85,7 +86,7 @@ unasserted() { # text on stdin → one clause per line, with the spans that asse
   tr 'A-Z' 'a-z' | sed -E "s#$PAIR##g; s/$RULE/\\2/g" | sed -E 's/(，|。|；|！|？|→|[,;!?]|\.( |$))/\
 /g' | while IFS= read -r c || [ -n "$c" ]; do
     if printf '%s' "$c" | grep -Eq "$PAST"; then printf '%s\n' "$c"
-    else printf '%s\n' "$c" | sed -E "s/$COND_EN//g; s/$COND_ZH//g; s/$PLAN//g"; fi
+    else printf '%s\n' "$c" | sed -E "s/($COMPOUND)/_/g; s/$COND_EN//g; s/$COND_ZH//g; s/$PLAN//g"; fi
   done
 }
 # W46-16: a label exempts its own line only, as the negative rule does (W43-18). A whole-reply
@@ -118,11 +119,15 @@ reload_ask="$(printf '%s' "$last" | sed -E '/^```/,/^```/d; /^>/d; s/「[^」]*�
 live_say="$(printf '%s' "$speech" | grep -Eqi '(^|[^a-z])(page|artifact|dashboard)( is| went| has gone| has been| is now|:) (now )?(live|published)|(^|[^a-z])it(.s| is| went| has gone| has been| is now) (now )?(live|published)|(^|[^a-z])(published|deployed)( it| the page| the artifact| and live)|(live|published)[^a-z]{0,4}(at |:)? *https://claude\.ai/artifact|已上線|上線了|已發布|(頁面|網頁|儀表板|頁).{0,15}(上線|發布)' && echo 1)"
 # W46-15: a reply that ends by handing a decision to the owner needs a consensus-ladder call this turn
 # (judgment-rubrics §3). Read the last 3 non-empty lines, outside code and 「」 quotes, without the ✈ line.
-# An ask that names a hard-stop item (kernel MUST-ask list) is allowed.
+# An ask is allowed when the last 3 lines name a hard-stop item or a kernel 4.47.0 final-round item
+# (maintenance §1 approval: kernel, skills, settings; another host; a never-recorded preference).
 ASK_RE='要不要|要我.{0,40}嗎|你選|你決定|請決定|還是.{0,40}(？|\?)|(^|[^a-z])(shall i|should i|do you want me to|which (one|option) do you prefer)([^a-z]|$)'
-HARDSTOP_RE='delete|刪除|payment|付款|credential|憑證|密碼|token|production|正式環境|force push|irreversible|不可逆|your (device|hands)|你的裝置|你親自'
-ask_back="$(printf '%s\n' "$last" | sed -E '/^```/,/^```/d; s/`[^`]*`//g; s/「[^」]*」//g' | grep -viE 'judgment-rubrics|claim-evidence-gate' \
-  | grep -vE '^[[:space:]]*(✈[[:space:]]*)?$' | tail -n 3 | grep -Ei "$ASK_RE" | grep -Eiv "$HARDSTOP_RE" | head -1 | cut -c1-100)"
+HARDSTOP_RE='delete|刪除|payment|付款|credential|憑證|密碼|(api|access|auth) token|secret|production|正式環境|protected branch|force push|irreversible|不可逆|your (device|hands)|你的裝置|你親自|maintenance §1|kernel|CLAUDE\.md|AGENTS\.md|SKILL\.md|settings\.json|fleet|other hosts?|其他主機|偏好|預算|budget|最終確認|final confirmation'
+tail3="$(printf '%s\n' "$last" | sed -E '/^```/,/^```/d; s/「[^」]*」//g' | grep -viE 'judgment-rubrics|claim-evidence-gate' \
+  | grep -vE '^[[:space:]]*(✈[[:space:]]*)?$' | tail -n 3)"
+ask_back=""
+printf '%s' "$tail3" | grep -Eqi "$HARDSTOP_RE" \
+  || ask_back="$(printf '%s\n' "$tail3" | sed -E 's/`[^`]*`//g' | grep -Ei "$ASK_RE" | head -1 | cut -c1-100)"
 [ -n "$claim" ] || [ -n "$reload_ask$live_say$ask_back" ] || exit 0
 
 csha="$(printf '%s%s' "$title" "$last" | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -c1-16)"
@@ -149,7 +154,7 @@ if [ -n "$reload_ask$live_say$ask_back" ] && grep -q '"type":"assistant"' "$TRAN
   [ -n "$ask_back" ] && ! grep -qE '^(advisor|Agent|AskUserQuestion|mcp__tmux-agent__(assign|tell)) ' <<<"$uses" \
     && handback_reason="${handback_reason:+$handback_reason }Decision handed to the owner without a consensus call: the reply ends with an ask (${ask_back}), but this turn made no advisor, Agent, tmux-agent assign/tell or AskUserQuestion call (judgment-rubrics §3; maintenance §1 for gates). Run advisor or a reviewer and act on its answer, or say which hard-stop item needs the owner."
   [ -n "$reload_ask" ] && ! grep -q '^mcp__tmux-agent__reload ' <<<"$uses" \
-    && handback_reason="Hand-back without own try: the reply asks the user to reload plugins, but this turn made no mcp__tmux-agent__reload call. Call mcp__tmux-agent__reload first; hand back only if it reports the old version."
+    && handback_reason="${handback_reason:+$handback_reason }Hand-back without own try: the reply asks the user to reload plugins, but this turn made no mcp__tmux-agent__reload call. Call mcp__tmux-agent__reload first; hand back only if it reports the old version."
   pub="$(grep -n '^Artifact ' <<<"$uses" | grep -vE '"action":"(read|list|open|delete|pin|unpin|quickstart)"|"asset":true' | tail -1 | cut -d: -f1)"
   [ -n "$live_say" ] && [ -n "$pub" ] && ! tail -n "+$((pub + 1))" <<<"$uses" | grep -qE '^[^ ]*([Ss]creenshot|ArtifactCheck)[^ ]* |"action":"screenshot"|^mcp__codex-cu__js .*\.screenshot\(|^Bash .*(agent-browser|screencapture)[^"]* screenshot|^Bash .*screencapture ' \
     && handback_reason="${handback_reason:+$handback_reason }Page called live after an Artifact publish with no render check: take a screenshot of the published page (artifacts-rules §Quality, screenshot evidence) before you say it is live."
@@ -184,7 +189,7 @@ if [ "$claim" = "positive" ]; then
       case "$last" in *"$(basename "$f")"*) reason="$(basename "$f") was edited after the run that printed the quoted evidence — that evidence no longer covers it; re-run the check";; esac
     done <<< "$stale"
   fi
-  [ -n "$reason" ] && reason="Completion claim fails judgment-rubrics §2: $reason. Run the verification and quote its output verbatim, or downgrade to \"attempted, unverified\" (title ⏳)."
+  [ -n "$reason" ] && reason="Completion claim fails judgment-rubrics §2: $reason. Run the verification and quote its output verbatim, or put \"attempted, unverified\" on the claim line itself (a label exempts only its own line; title ⏳)."
   fi
 fi
 
