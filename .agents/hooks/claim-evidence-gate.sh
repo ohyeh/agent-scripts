@@ -252,13 +252,21 @@ if [ -n "$recap_full" ]; then
   outs="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -cR 'fromjson? // {} | (.message.content? | arrays | .[] | select(.type == "tool_result") | .content
       | if type == "string" then . else (map(.text? // empty) | join("\n")) end),
     (select(.type == "response_item" and ((.payload.type // "") | endswith("_output"))) | .payload.output
-      | if type == "string" then ((fromjson? | .output? // empty | strings) // .) else tostring end)' 2>/dev/null)"
-  # path TAB page TAB total TAB sha, for stamps whose body lines precede them
-  stamps="$(printf '%s\n' "$outs" | jq -r 'strings | split("\n") as $l
+      | if type == "string" then ((fromjson? | .output? // empty | strings) // .)
+        elif type == "array" then (map(.text? // empty) | join("\n")) else tostring end)' 2>/dev/null)"
+  # Each stamp with the exact lines printed above it: its page length, base64 of that body.
+  cand="$(printf '%s\n' "$outs" | jq -r 'strings | split("\n") as $l
     | reduce range(0; $l | length) as $i ({prev: -1, out: []};
-        if ($l[$i] | test("^READ /")) then .out += [{s: $l[$i], body: ($i - .prev - 1)}] | .prev = $i else . end)
-    | .out[] | (.s | capture("^READ (?<p>/\\S+) page (?<n>[0-9]+)/(?<t>[0-9]+) lines (?<a>[0-9]+)-(?<b>[0-9]+) sha256=(?<h>[0-9a-f]{64})$")?) as $m
-    | select($m != null and .body >= (($m.b | tonumber) - ($m.a | tonumber) + 1)) | [$m.p, $m.n, $m.t, $m.h] | @tsv' 2>/dev/null | sort -u)"
+        if ($l[$i] | test("^READ /")) then .out += [{s: $l[$i], from: (.prev + 1), to: $i}] | .prev = $i else . end)
+    | .out[] | . as $o | (.s | capture("^READ (?<p>/\\S+) page (?<n>[0-9]+)/(?<t>[0-9]+) lines (?<a>[0-9]+)-(?<b>[0-9]+) body=(?<d>[0-9a-f]{64}) sha256=(?<h>[0-9a-f]{64})$")?) as $m
+    | select($m != null) | (($m.b | tonumber) - ($m.a | tonumber) + 1) as $k | select($o.to - $o.from >= $k)
+    | [$m.p, $m.n, $m.t, $m.h, $m.d, ($l[($o.to - $k):$o.to] | join("\n") | @base64)] | @tsv' 2>/dev/null)"
+  # path TAB page TAB total TAB sha, for stamps whose body= matches the lines above them
+  stamps="$(while IFS=$'\t' read -r p n t h d b; do
+      [ -n "$p" ] || continue
+      [ "$(printf '%s' "$b" | base64 -d 2>/dev/null | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)" = "$d" ] \
+        && printf '%s\t%s\t%s\t%s\n' "$p" "$n" "$t" "$h"
+    done <<<"$cand" | sort -u)"
   read_whole() { # $1 file: every page 1..T stamped with the file's current sha
     local h t
     h="$( { sha256sum "$1" 2>/dev/null || shasum -a 256 "$1" 2>/dev/null; } | cut -d' ' -f1)"

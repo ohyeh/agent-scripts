@@ -262,7 +262,10 @@ def read_page(path, number):
         raise ValueError(f"{path}: page {number} is outside 1-{len(pages)}")
     first = sum(len(p) for p in pages[:number - 1]) + 1
     body = pages[number - 1]
+    # body= binds the stamp to the lines printed above it: padding plus `| tail -1` does not match.
+    text = "\n".join(body)
     return "\n".join(body + [f"READ {path} page {number}/{len(pages)} lines {first}-{first + len(body) - 1} "
+                             f"body={hashlib.sha256(text.encode('utf-8')).hexdigest()} "
                              f"sha256={hashlib.sha256(raw).hexdigest()}"])
 
 
@@ -272,7 +275,7 @@ def self_test():
         paged = root / "paged.txt"
         paged.write_text("".join(f"{i:05d} " + "y" * 100 + "\n" for i in range(400)), encoding="utf-8")
         one, last = read_page(paged, 1).splitlines(), read_page(paged, 3).splitlines()
-        assert one[-1].startswith(f"READ {paged.resolve()} page 1/3 lines 1-") and len("\n".join(one).encode()) < 30000
+        assert one[-1].startswith(f"READ {paged.resolve()} page 1/3 lines 1-") and " body=" in one[-1] and len("\n".join(one).encode()) < 30000
         assert last[-1].split(" lines ")[1].split("-")[1].startswith("400 ")
         assert sum(len(read_page(paged, n).splitlines()) - 1 for n in (1, 2, 3)) == 400
         paged.write_text("短" * 20000 + "\nend\n", encoding="utf-8")  # one 60 KB pasted line

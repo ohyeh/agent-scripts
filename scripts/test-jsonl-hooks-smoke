@@ -446,11 +446,18 @@ FAIL: W46-18 a Codex transcript with the pack output blocked"
 printf '%s\n' '{"timestamp":"2026-01-01T00:00:00.000Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage"}}}' > "$WORK/r11.jsonl"
 [[ "$(run_claim r11 "$FULL" "$WORK/r11.jsonl")" == block ]] || w46r="$w46r
 FAIL: W46-18 a Codex transcript with no pack output passed"
+PAD="$(printf '%s\n' "${ALL[0]}" | sed '$!s/.*/padding/')"
+[[ "$(run_claim r13 "$FULL" "$(rtr r13.jsonl "$PAD" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a READ stamp under padding lines (not the page body) counted"
+CB="$WORK/r14.jsonl"; { jq -cn '{type:"response_item",timestamp:"2026-01-01T00:00:00.000Z",payload:{type:"message",role:"user",content:[{type:"input_text",text:"/session-handoff resume 前情提要"}]}}'
+  for o in "$SUMMARY" "${ALL[@]}"; do jq -cn --arg o "$o" '{type:"response_item",timestamp:"2026-01-01T00:00:01.000Z",payload:{type:"custom_tool_call_output",call_id:"c",output:[{type:"input_text",text:$o}]}}'; done; } > "$CB"
+[[ -z "$(run_claim r14 "$FULL" "$CB")" ]] || w46r="$w46r
+FAIL: W46-18 a Codex content-block output list blocked"
 printf 'edited\n' >> "$PK/abcd1234/user.txt"
 [[ "$(run_claim r12 "$FULL" "$(rtr r12.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a stamp whose sha no longer matches user.txt counted"
 [[ -z "$w46r" ]] || { echo "$w46r" >&2; exit 1; }
-echo 'PASS W46-18: a full recap needs the pack summary and READ-stamped pages of user.txt and every scout group after the latest resume prompt (Claude and Codex); tail -1, failed reads, old reads, edited files block'
+echo 'PASS W46-18: a full recap needs the pack summary and READ-stamped pages of user.txt and every scout group after the latest resume prompt (Claude and Codex, string or content blocks); tail -1, padding above a stamp, failed reads, old reads, edited files block'
 [[ "$(run_claim h8 '頁面已上線：https://claude.ai/artifact/x' "$(trh h8.jsonl "$PUBU" '{"name":"Bash","input":{"command":"echo take a screenshot later"}}')")" == block ]] || { echo "FAIL: W44-7 a Bash line naming a screenshot passed as a render check" >&2; exit 1; }
 
 # bol: prose shape is no longer judged (runnable-check heuristic retired
