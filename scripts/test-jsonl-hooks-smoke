@@ -379,6 +379,9 @@ i=0; for m in '目前沒有要你決定的事。' '不用你選，我照 advisor
 FAIL: W46-15 a negated ask blocked: $m"; done
 [[ "$(run_claim n9 '沒問題的話，你決定哪一個？' "$(trh n9.jsonl "$BASHU")")" == block ]] || w46b="$w46b
 FAIL: W46-15 an ask after a negated condition passed"
+# L2 sol (2026-11-06): 不用 negates 問, not the owner's choice; only the direct phrase is stripped.
+[[ "$(run_claim n8 '不用問你選一個。' "$(trh n8.jsonl "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 a negation of another verb hid the ask"
 # L2 (2026-11-06): the kernel 4.47.0 final confirmation round names its item on the asking line or next to it.
 i=0; for m in '待你確認（maintenance §1）：kernel 4.48.0 diff 要不要套用？' '要我把 hooks 部署到其他主機（mini、grok-bot）嗎？' 'Shall I apply the CLAUDE.md diff?' '預算上限你決定：100 還是 200 美元？' '屬不可逆操作。
 要不要繼續？'; do i=$((i+1))
