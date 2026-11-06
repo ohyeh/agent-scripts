@@ -1,6 +1,6 @@
 ---
 name: delegation-templates
-description: Fill-in-the-blank prompt templates for delegating work to subagents or tmux workers - SEARCH/LOCATE, IMPLEMENT, REFACTOR, RESEARCH, REVIEW/VERIFY. Invoke BEFORE writing any delegation prompt (Agent tool, agent-tmux worker, or fanout task) so the prompt ships with explicit GOAL, MODEL, ACCEPTANCE, and REPORT sections instead of a vague ask. Not for deciding WHETHER to delegate or for driving workers after launch (see the using-tmux-agent-tools and tmux-agent-tools skills for those).
+description: Fill-in-the-blank prompt templates for delegating work to subagents or tmux workers - SEARCH/LOCATE, IMPLEMENT, REFACTOR, RESEARCH, REVIEW/VERIFY. Invoke BEFORE writing any delegation prompt (Agent tool, agent-tmux worker, or fanout task), including when the user names a model or worker for a job (「派 sol」「讓 agy 跑」「deepseek 審」「haiku 一起」), so the prompt ships with explicit GOAL, MODEL, ACCEPTANCE, and REPORT sections instead of a vague ask. Not for deciding WHETHER to delegate or for driving workers after launch (see the using-tmux-agent-tools and tmux-agent-tools skills for those).
 ---
 
 # Delegation Prompt Templates

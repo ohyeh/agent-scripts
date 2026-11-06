@@ -249,7 +249,7 @@ layer0_tests=(
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate test-round-cost-gate.sh test-worker-followup-gate.sh
   test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-recipe-usage-stats.sh test-docs-audit-ownership test-behavior-runner
   test-consensus-gate-ladder test-plan-pipeline-ladder test-haiku-research-round
-  test-feature-plan-consensus-ladder test-review-gate-smoke.mjs test-skill-router-nudge.sh
+  test-feature-plan-consensus-ladder test-review-gate-smoke.mjs test-skill-router-nudge.sh test-running-script-edit-gate.sh
 )
 for t in "${layer0_tests[@]}"; do
   th="$WORKDIR/t-$t"; mkdir -p "$th/tmp"
@@ -500,6 +500,7 @@ hook_install "$SRC/.agents/hooks/review-dispatch-gate.sh"
 hook_install "$SRC/.agents/hooks/workflow-agent-cap.sh"
 hook_install "$SRC/.agents/hooks/pr-create-gate.sh"
 hook_install "$SRC/.agents/hooks/rm-home-gate.sh"
+hook_install "$SRC/.agents/hooks/running-script-edit-gate.sh"
 hook_install "$SRC/.agents/hooks/codex-cu-chrome-gate.sh"
 hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
 hook_install "$SRC/.agents/hooks/claude-only.sh"
@@ -536,6 +537,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
    --arg wfcap "\"\$HOME/.agents/hooks/workflow-agent-cap.sh\"" \
    --arg rmhome "\"\$HOME/.agents/hooks/rm-home-gate.sh\"" \
    --arg cuchrome "\"\$HOME/.agents/hooks/codex-cu-chrome-gate.sh\"" \
+   --arg runedit "\"\$HOME/.agents/hooks/running-script-edit-gate.sh\"" \
    --arg prcreate "\"\$HOME/.agents/hooks/pr-create-gate.sh\"" \
    --arg recall "\"\$HOME/.agents/hooks/compaction-recall.sh\"" \
    --arg precompact "\"\$HOME/.agents/hooks/precompact-instructions.sh\"" \
@@ -615,6 +617,8 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | .permissions.ask = (((.permissions.ask // []) + ["EnterWorktree", "Bash(git worktree add *)",
       "Bash(git -C * worktree add *)", "Bash(*Google Chrome* --headless*)"]) | unique)
   | ensureMatched("PreToolUse"; "mcp__codex-cu__js"; $cuchrome)
+  # 2026-11-06: an edit to a script a live process runs corrupts that run
+  | ensureMatched("PreToolUse"; "Edit|Write|MultiEdit"; $runedit)
   | ensureMatched("PreToolUse"; "Bash"; $prcreate)
   | ensureMatched("PostToolUse"; "*"; $ledger)
   | ensureMatched("SessionStart"; "compact"; $recall)
@@ -755,7 +759,7 @@ if [ -d ~/.gemini/config ]; then
   apply "$t" "$AGY_PLUGIN/hooks.json" hooks
 fi
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate running-script-edit-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1

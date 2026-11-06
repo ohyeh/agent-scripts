@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.48.0-ironlaws
+Version: 4.49.0-ironlaws
 Canonical: public `ohyeh/agent-scripts` — `global/` = kernel; `.agents/rules/`
 → `~/.agents/rules/` (bare names = rules files); skill <name> =
 `~/.agents/skills/<name>/SKILL.md`. Runtime `~/.codex/AGENTS.md` +
@@ -179,6 +179,12 @@ replaces reading the touched code.
   abstraction layer, a new config surface, >5 new files, or any speculative
   option → present the minimal version and the additions as separate items,
   default to minimal. User says over-designed → cut it, do not defend.
+- A defect you see on your own path (tool output, a file you read, a gate
+  comment that says "not covered", a slow or serial step) is fixed in the
+  same turn within approved scope, or listed with file:line in that reply.
+  Working around it or rerunning past it without either is a defect (owner
+  2026-11-06: 「永遠都要人家講 你都知道問題 故意不修正？」). When one host
+  fails and a sibling works, diff the two before guessing.
 - Two wrong-direction signals (error moved not removed / special cases
   piling / diff grows, acceptance no closer; full signal list:
   judgment-rubrics §4) → no third retry; form a new hypothesis.

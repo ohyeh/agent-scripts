@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.48.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.49.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`;
 skills `~/.agents/skills/<name>/SKILL.md`. Project-local overrides. Lean =
 iron laws only; detail in routed files.
@@ -106,6 +106,12 @@ edit with clear acceptance goes straight to code.
 - Push back when evidence contradicts the user's claim.
 
 ## Execution
+- A defect you see on your own path (tool output, a file you read, a gate
+  comment that says "not covered", a slow or serial step) is fixed in the
+  same turn within approved scope, or listed with file:line in that reply.
+  Working around it or rerunning past it without either is a defect (owner
+  2026-11-06: 「永遠都要人家講 你都知道問題 故意不修正？」). When one host
+  fails and a sibling works, diff the two before guessing.
 - Fix the root cause at the narrowest shared seam. Conflicting conventions:
   take the newer or better-tested one, flag the other — never blend.
 - Fail first: error class, evidence, impact before proposing; never log

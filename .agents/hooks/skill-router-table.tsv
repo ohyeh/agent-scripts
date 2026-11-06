@@ -4,6 +4,10 @@
 # Name rows: the owner typed the skill name mid-sentence (the harness expands only a leading "/x"). First, so a broad row below cannot shadow them.
 session-handoff	skill	session-handoff
 using-decision-tree	skill	using-decision-tree
+# Organic rows (2026-11-06 coverage eval, scripts/skill-router-coverage.py): held-out organic recall 0/25 -> 6/25.
+(派|讓|拉|叫|出動|用)[^。]{0,10}(sol|agy|deepseek|argon|flash|haiku|sonnet|luna)\b|\b(sol|agy|deepseek|haiku|sonnet|argon)\b[^。]{0,8}(跑|審|讀|一起|確認|也)	skill	delegation-templates
+\bnova\b|grok ?bot	skill	using-grok-bot-app
+haiku[^。]{0,10}(research|研究|大軍)|跑[^。]{0,4}[三幾两2-9] ?輪	recipe	haiku-research-round
 (讀|填|read|fill|parse)[^。]{0,10}\.?pdf\b	skill	pdf
 domain model|領域模型|glossary|術語表|名詞定義|\badr\b|決策紀錄|context\.md	skill	domain-modeling
 (架構|architecture)[^。]{0,6}(設計|審|評|review|design)	skill	codebase-design
