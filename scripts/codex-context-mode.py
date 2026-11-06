@@ -174,32 +174,38 @@ def set_locked(root, locked):
     print(f"{action} [codex-context-mode] {len(paths)} entries: {root}; hook trust unchanged")
 
 
-def trust(cfg_path, hooks):
+def trust(cli, hooks):
     """Record each hook's current Codex fingerprint as trusted, as /hooks approval does.
 
-    currentHash is "<hook hash>/<plugin content hash>"; config.toml keeps them as
-    trusted_hash and trusted_content_hash. The content hash depends on this host's
-    build (macmini compiles better-sqlite3 for node 26), so trust is never copied
-    between hosts. Called only after the source is the pinned fork and the plugin
-    is locked, so the content cannot change after it is trusted.
+    currentHash is "<declaration hash>/<content hash>" (codex-rs discovery.rs); config.toml keeps
+    them as trusted_hash and trusted_content_hash. The content hash is per host (a host on node 26
+    compiles better-sqlite3 itself), so trust is never copied between hosts.
+    Policy (owner 2026-11-06): the owner accepts this host's install of the pinned fork. The
+    caller checked the marketplace source of this exact plugin identity; on macOS the plugin is
+    also locked. Codex re-checks content at run time, so a later change still needs new trust.
+    Writes go through Codex's own config/batchWrite: it edits only these keys, keeps the rest of
+    the TOML, writes atomically and refuses a stale expectedVersion (another writer in between).
     """
     pending = [h for h in hooks if h["trustStatus"] not in ("trusted", "managed")]
     if not pending:
         print(f"PASS [codex-context-mode] {len(hooks)} hooks already trusted")
         return
-    cfg = cfg_path.read_text()
+    edits = []
     for h in pending:
-        hook_hash, content_hash = h["currentHash"].split("/")
-        header = f'[hooks.state."{h["key"]}"]'
-        lines = f'trusted_hash = "{hook_hash}"\ntrusted_content_hash = "{content_hash}"\n'
-        section = re.compile(r"(?m)^" + re.escape(header) + r"[ \t]*\n((?:(?!\[).*\n?)*)")
-        found = section.search(cfg)
-        if not found:
-            cfg = cfg.rstrip("\n") + "\n\n" + header + "\n" + lines
-            continue
-        body = re.sub(r"(?m)^trusted_(content_)?hash[ \t]*=.*\n?", "", found.group(1))
-        cfg = cfg[:found.start(1)] + lines + body + cfg[found.end(1):]
-    cfg_path.write_text(cfg)
+        declaration, content = h["currentHash"].split("/")
+        key = "hooks.state." + json.dumps(h["key"])
+        edits += [{"keyPath": key + ".trusted_hash", "value": declaration, "mergeStrategy": "replace"},
+                  {"keyPath": key + ".trusted_content_hash", "value": content, "mergeStrategy": "replace"}]
+    for attempt in range(3):
+        layers = cli.rpc("config/read", {"includeLayers": True})["layers"]
+        version = next(layer["version"] for layer in layers if layer["name"]["type"] == "user")
+        try:
+            cli.rpc("config/batchWrite", {"edits": edits, "expectedVersion": version})
+            break
+        except RuntimeError as error:
+            if "configVersionConflict" not in str(error) or attempt == 2:
+                raise
+            print(f"RETRY [codex-context-mode] config.toml changed during trust write ({error})")
     print(f"TRUSTED [codex-context-mode] {len(pending)} hooks: {', '.join(h['eventName'] for h in pending)}")
 
 
@@ -248,9 +254,11 @@ def main():
             print("OK [codex-context-mode] plugin entries compatible; hook trust still needs deployment verification")
             return
         # Pinned fork: upstream moved Insight to a hosted product after 1.0.162.
-        source = config.get("marketplaces", {}).get("context-mode", {}).get("source")
+        # The source of the marketplace this exact plugin identity comes from (sol R1, 11-06).
+        marketplace = enabled[0].split("@", 1)[1] if "@" in enabled[0] else ""
+        source = config.get("marketplaces", {}).get(marketplace, {}).get("source")
         if source != FORK:
-            raise RuntimeError(f"context-mode marketplace source is {source}, not {FORK}; "
+            raise RuntimeError(f"{enabled[0]} comes from marketplace {marketplace or '<none>'} with source {source}, not {FORK}; "
                                "run `codex plugin marketplace remove context-mode && "
                                "codex plugin marketplace add ohyeh/context-mode --ref main`, "
                                "reinstall deps, rerun deploy, then approve /hooks again")
@@ -258,7 +266,7 @@ def main():
         check_locked(root)
         if "--trust" in sys.argv:
             # A fresh app-server reads the new config: check-deploy-drift.sh runs --check after this.
-            trust(codex_home / "config.toml", [h for h in entry["hooks"] if h.get("pluginId") == enabled[0]])
+            trust(cli, [h for h in entry["hooks"] if h.get("pluginId") == enabled[0]])
             return
         check_hooks(root, entry, enabled[0])
 

@@ -84,9 +84,18 @@ for line in sys.stdin:
         time.sleep(60)
     method=request["method"]
     if method=="initialize": result={}
-    elif method=="config/read": result={"config":{"plugins":{"context-mode@context-mode":{"enabled":fixture.get("enabled",True)}},
-        "marketplaces":{"context-mode":{"source":fixture.get("source","https://github.com/ohyeh/context-mode.git")}}}}
+    elif method=="config/read": result={"config":{"plugins":{fixture.get("identity","context-mode@context-mode"):{"enabled":fixture.get("enabled",True)}},
+        "marketplaces":{"context-mode":{"source":fixture.get("source","https://github.com/ohyeh/context-mode.git")}}},
+        "layers":[{"name":{"type":"user","file":"config.toml"},"version":"v1"}]}
     elif method=="hooks/list": result={"data":[fixture["entry"]]}
+    elif method=="config/batchWrite":
+        with open(home/"writes.jsonl","a") as log: log.write(json.dumps(request["params"])+"\\n")
+        conflicts=home/"conflicts"
+        if conflicts.exists() and int(conflicts.read_text())>0:
+            conflicts.write_text(str(int(conflicts.read_text())-1))
+            print(json.dumps({"id":request["id"],"error":{"code":-32600,"data":{"config_write_error_code":"configVersionConflict"},"message":"modified"}}),flush=True)
+            continue
+        result={"status":"ok"}
     else: raise RuntimeError("unexpected RPC: "+method)
     print(json.dumps({"id":request["id"],"result":result}),flush=True)
 ''')
@@ -115,14 +124,13 @@ for line in sys.stdin:
     assert run({**entry, "hooks": [{**hook, "trustStatus": "modified"}]}).returncode == 1
     assert run({**entry, "hooks": [{**hook, "enabled": False}]}).returncode == 1
     assert run({**entry, "hooks": []}).returncode == 1
-    # --trust writes this host's own fingerprint, only for the pinned fork, never through --check.
-    cfg = home / ".codex/config.toml"
-    cfg.parent.mkdir(parents=True, exist_ok=True)
+    # --trust approves through Codex's own config/batchWrite, only for a plugin whose own marketplace is the fork.
+    writes = home / "writes.jsonl"
     key = "context-mode@context-mode:.codex-plugin/hooks.json:pre_tool_use:0:0"
-    cfg.write_text(f'[features]\nhooks = true\n\n[hooks.state."{key}"]\ntrusted_hash = "sha256:old"\ntrusted_content_hash = "sha256:stale"\n\n[other]\nx = 1\n')
     modified = {**hook, "key": key, "trustStatus": "modified", "currentHash": "sha256:aaa/sha256:bbb"}
-    def run_trust(**extra):
-        fixture.write_text(json.dumps({"entry": {**entry, "hooks": [modified]}, **extra}))
+    def run_trust(hooks, **extra):
+        writes.unlink(missing_ok=True)
+        fixture.write_text(json.dumps({"entry": {**entry, "hooks": hooks}, **extra}))
         if sys.platform == "darwin":
             module.set_locked(root, True)
         try:
@@ -130,16 +138,29 @@ for line in sys.stdin:
         finally:
             if sys.platform == "darwin":
                 module.set_locked(root, False)
-    refused = run_trust(source="https://github.com/mksglu/context-mode.git")
-    assert refused.returncode == 1 and "sha256:old" in cfg.read_text()
-    checked = run({**entry, "hooks": [modified]})
-    assert checked.returncode == 1 and "sha256:old" in cfg.read_text()
-    trusted = run_trust()
-    text = cfg.read_text()
+    def written():
+        return [json.loads(line) for line in writes.read_text().splitlines()] if writes.exists() else []
+    refused = run_trust([modified], source="https://github.com/mksglu/context-mode.git")
+    assert refused.returncode == 1 and not written()
+    # sol R1: the fork marketplace exists, but the enabled identity comes from another marketplace.
+    other = {**modified, "pluginId": "context-mode@other"}
+    refused = run_trust([other], identity="context-mode@other")
+    assert refused.returncode == 1 and "marketplace other" in refused.stderr and not written(), refused.stderr
+    assert run({**entry, "hooks": [modified]}).returncode == 1 and not written()
+    trusted = run_trust([modified])
     assert trusted.returncode == 0 and "TRUSTED [codex-context-mode] 1 hooks" in trusted.stdout, trusted.stderr
-    assert f'[hooks.state."{key}"]\ntrusted_hash = "sha256:aaa"\ntrusted_content_hash = "sha256:bbb"\n' in text
-    assert "sha256:old" not in text and "sha256:stale" not in text and "[other]\nx = 1" in text
-    print("PASS: --trust records the host fingerprint for the pinned fork only; --check never writes trust")
+    assert written() == [{"edits": [
+        {"keyPath": f'hooks.state."{key}".trusted_hash', "value": "sha256:aaa", "mergeStrategy": "replace"},
+        {"keyPath": f'hooks.state."{key}".trusted_content_hash', "value": "sha256:bbb", "mergeStrategy": "replace"}],
+        "expectedVersion": "v1"}], written()
+    (home / "conflicts").write_text("1")
+    retried = run_trust([modified])
+    assert retried.returncode == 0 and "RETRY" in retried.stdout and len(written()) == 2
+    (home / "conflicts").write_text("3")
+    assert run_trust([modified]).returncode == 1 and len(written()) == 3
+    (home / "conflicts").unlink()
+    assert "already trusted" in run_trust([hook]).stdout and not written()
+    print("PASS: --trust writes via config/batchWrite with expectedVersion, retries a version conflict, binds the source to the plugin identity; --check never writes")
     link.unlink()
     link.symlink_to("../package space/cli's $name")
     warning = f"skipping plugin hook in {manifest}/hooks.json: failed to fingerprint plugin contents: unsupported plugin entry type: {link}"
@@ -147,11 +168,12 @@ for line in sys.stdin:
     checked = run(skipped)
     assert checked.returncode == 1 and "incompatible bin links" in checked.stderr
     assert link.is_symlink()
+    writes.unlink(missing_ok=True)
     repaired = run(skipped, check=False)
     assert repaired.returncode == 0 and "REPAIRED" in repaired.stdout
     assert not link.is_symlink()
     assert run({**entry, "hooks": [{**hook, "trustStatus": "modified"}]}).returncode == 1
-    assert "config/batchWrite" not in fake.read_text()
+    assert not writes.exists()  # neither --repair nor --check wrote trust
     print("PASS: RPC checks trusted, modified, disabled and missing hooks; --check preserves symlinks; repair never approves trust")
 
     if sys.platform == "darwin":
