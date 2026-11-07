@@ -1,5 +1,12 @@
 # Changelog
 
+## byo-provider 0.2.0
+
+Owner 11-08: cc-switch is the owner's own manager, most users do not have it; the mod needs plain gateway options and a view of what it routes.
+
+- **Gateway options are `url`, `token` and `model`.** The `ccSwitchProvider` option and its sqlite read are gone. `model` is the default for `/provider-switch use` and `agent` when no model is typed.
+- **A `byo-provider` pane** lists each loop on your provider, its model and last gate step, the new-subagent mode and the redacted gateway. It opens on `/provider-switch status` and while a loop is on your provider.
+
 ## byo-provider 0.1.0
 
 Owner 11-07/11-08: switch between the Claude subscription and a self-hosted Anthropic-format gateway inside one session, with no reverse proxy carrying the Claude credential.

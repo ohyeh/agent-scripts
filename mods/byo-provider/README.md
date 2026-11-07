@@ -32,22 +32,24 @@ Built and tested on Claude Code 2.1.319.
 
 ## Commands
 
+A pane (`byo-provider`) lists each loop on your provider with its model and last gate step
+(`#index ok <stop>` or the failure text), the new-subagent mode and the gateway (redacted). It opens
+on `/provider-switch status` and whenever a loop is on your provider.
+
 | Command | Effect |
 | --- | --- |
-| `/provider-switch status` | Shows which loops use your provider, the new-subagent mode, the gate config (redacted), and running agents. |
-| `/provider-switch use <model>` | The main loop uses your provider `<model>` from its next step. |
+| `/provider-switch status` | Shows which loops use your provider, the new-subagent mode, the gate config (redacted), and running agents, and opens the pane. |
+| `/provider-switch use [model]` | The main loop uses your provider `<model>` (default: the `model` option) from its next step. |
 | `/provider-switch off [agentId]` | That loop (default `main`) goes back to Claude from its next step. |
-| `/provider-switch agent <agentId> <model>` | A running subagent uses your provider from its next step. The id must be in `$.agent.list()`. |
+| `/provider-switch agent <agentId> [model]` | A running subagent uses your provider from its next step. The id must be in `$.agent.list()`. |
 | `/provider-switch agents follow\|claude` | New subagents follow their parent loop onto your provider (`follow`, default), or always use Claude (`claude`). |
 
 ## Setup
 
 1. Gate target: plugin options (`userConfig`), kept in your settings, never in this repo.
    Set them once with `claude plugin configure byo-provider@<marketplace>` (or `/config`):
-   - `ccSwitchProvider`: a provider row in `~/.cc-switch/cc-switch.db`; its `env.ANTHROPIC_BASE_URL`
-     and `env.ANTHROPIC_AUTH_TOKEN` are the gate, read for each gated step. The query names only the
-     provider; the token comes back on stdout, never in argv.
-   - or `url` + `token` (the token is `sensitive`, kept in secure storage). These win over the provider.
+   - `url` + `token`: the gateway base URL and its bearer token (`sensitive`, kept in secure storage).
+   - `model`: the default gateway model for `use` and `agent` when none is typed.
    - `timeoutSeconds` (default 120), `agents` (`follow` default, or `claude`).
 2. Env overrides of the claude process, ahead of the options (tests): `GATE_URL` + `GATE_TOKEN`,
    `GATE_TIMEOUT_MS`.
@@ -98,7 +100,8 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
 
 ## Files
 
-- `hooks/register.ts`: hooks `session.start`, `command.run{gate}`, `agent.spawn`, `turn.step`.
+- `hooks/register.tsx`: hooks `session.start`, `command.run{provider-switch}`, `ui.render{Pane}`, `agent.spawn`, `turn.step`.
+- `types/index.d.ts`: the pane's `$.state` contract.
 - `hooks/map.ts`: pure helpers (`toStep`, `failStep`, `forGate`, `loadedTools`, `deferredTools`,
   `deadline`, `redact`).
 - `hooks/schemas.ts`: generated built-in tool input schemas.

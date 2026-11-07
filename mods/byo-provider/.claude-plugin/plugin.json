@@ -1,26 +1,26 @@
 {
   "name": "byo-provider",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Answer chosen loops (main, a subagent, a fork) with a model on your own Anthropic-format gateway by answering turn.step; every other loop stays on Claude. Env is never touched and the Claude credential is never sent to the gateway.",
   "author": {
     "name": "PaulYeh",
     "url": "https://github.com/ohyeh"
   },
   "repository": "https://github.com/ohyeh/agent-scripts",
-  "keywords": ["gateway", "routing", "turn.step", "mod"],
+  "keywords": [
+    "gateway",
+    "routing",
+    "turn.step",
+    "mod"
+  ],
   "displayName": "Bring Your Own Provider",
   "license": "MIT",
+  "types": "./types/index.d.ts",
   "userConfig": {
-    "ccSwitchProvider": {
-      "type": "string",
-      "title": "cc-switch provider",
-      "description": "Name of a provider row in ~/.cc-switch/cc-switch.db; its env ANTHROPIC_BASE_URL and ANTHROPIC_AUTH_TOKEN are the gateway. Used when URL and token are empty.",
-      "default": ""
-    },
     "url": {
       "type": "string",
       "title": "Gateway URL",
-      "description": "Base URL of the Anthropic-format gateway (the mod posts to <url>/v1/messages). Takes precedence over the cc-switch provider.",
+      "description": "Base URL of the Anthropic-format gateway (the mod posts to <url>/v1/messages).",
       "default": ""
     },
     "token": {
@@ -30,18 +30,27 @@
       "sensitive": true,
       "default": ""
     },
+    "model": {
+      "type": "string",
+      "title": "Default model",
+      "description": "Gateway model used by /provider-switch use and agent when no model is typed.",
+      "default": ""
+    },
     "timeoutSeconds": {
       "type": "number",
       "title": "Request timeout (seconds)",
-      "description": "How long one gateway request may take before the step fails with a visible [llm-gate: ...] message.",
+      "description": "How long one gateway request may take before the step fails with a visible [byo-provider: ...] message.",
       "default": 120
     },
     "agents": {
       "type": "string",
       "title": "New subagents",
-      "description": "follow: a subagent or fork started by a loop on the gateway goes there too. claude: new subagents always run on Claude. /gate agents changes it per session.",
+      "description": "follow: a subagent or fork started by a loop on the gateway goes there too. claude: new subagents always run on Claude. /provider-switch agents changes it per session.",
       "default": "follow",
-      "options": ["follow", "claude"]
+      "options": [
+        "follow",
+        "claude"
+      ]
     }
   }
 }

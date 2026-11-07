@@ -1,7 +1,9 @@
+import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
 import { deadline, deferredTools, failStep, forGate, loadedTools, redact, toStep } from './map'
 import { SCHEMAS } from './schemas'
 import type { GateTool, Msg, Step } from './map'
+import type { View } from '../types'
 
 // byo-provider: chosen loops are answered by the owner's Anthropic-format gateway by
 // answering `turn.step` without `next(e)`. Env is never touched; the OAuth credential is never
@@ -16,11 +18,11 @@ import type { GateTool, Msg, Step } from './map'
 //   GATE_LOG=<path>           routing log (never a URL or token value)
 //   GATE_URL + GATE_TOKEN     gateway, ahead of the plugin options
 //   GATE_TIMEOUT_MS=<ms>      request timeout, ahead of the timeoutSeconds option
-// Everything private (gateway URL, token, cc-switch provider name) lives in the plugin's userConfig
+// Everything private (gateway URL, token, model) lives in the plugin's userConfig
 // (settings.json pluginConfigs, the token in secure storage), never in this repo.
 
-let options: { url: string; token: string; ccSwitchProvider: string; timeoutSeconds: number; agents: string } =
-  { url: '', token: '', ccSwitchProvider: '', timeoutSeconds: 120, agents: 'follow' }
+let options: { url: string; token: string; model: string; timeoutSeconds: number; agents: string } =
+  { url: '', token: '', model: '', timeoutSeconds: 120, agents: 'follow' }
 // shortcut: fixed output cap, make it a /provider-switch option if a gate model rejects it or cuts answers.
 const MAX_TOKENS = 16384
 const ROLE = '\n\nYou are running as a subagent. Your task is the first user message. The agent that started you ' +
@@ -43,6 +45,17 @@ let testSteps: number | undefined
 let timeoutMs = 120_000
 let logPath: string | undefined
 const lines: string[] = []
+const last = new Map<string, string>() // loop → its last gate step, for the pane
+
+const PANE = 'byo-provider'
+const view = atom({ plugin: 'byo-provider', key: 'view' } as const, { rows: [], agents: 'follow', gate: '' } as View, { shape: 'view-1' })
+
+/** Copies the routing state into the atom the pane reads. */
+async function sync($: EngineInterface) {
+  const cfg = await gateConfig($)
+  const gate = typeof cfg === 'string' ? cfg : `${cfg.from} ${redact(cfg.url)}`
+  await update($, view, () => ({ rows: [...loops].map(([loop, model]) => ({ loop, model, last: last.get(loop) ?? '-' })), agents: agentsMode, gate }))
+}
 
 async function log($: EngineInterface, r: Record<string, unknown>) {
   lines.push(JSON.stringify({ t: Date.now(), ...r }))
@@ -54,16 +67,7 @@ async function gateConfig($: EngineInterface): Promise<{ url: string; token: str
   const token = await $.env.get('GATE_TOKEN')
   if (url && token) return { url, token, from: 'env' }
   if (options.url && options.token) return { url: options.url, token: options.token, from: 'options' }
-  const provider = options.ccSwitchProvider
-  if (!provider) return 'no gateway configured: set url + token or ccSwitchProvider (claude plugin configure byo-provider)'
-  const db = `${(await $.env.get('HOME')) ?? ''}/.cc-switch/cc-switch.db`
-  // The query names the provider only; the token comes back on stdout, never in argv.
-  const r = await $.process.run(['sqlite3', db, `select settings_config from providers where name = '${provider.replaceAll("'", "''")}';`])
-  try {
-    const env = (JSON.parse(r.stdout) as { env?: Record<string, string> }).env ?? {}
-    if (env.ANTHROPIC_BASE_URL && env.ANTHROPIC_AUTH_TOKEN) return { url: env.ANTHROPIC_BASE_URL, token: env.ANTHROPIC_AUTH_TOKEN, from: 'cc-switch' }
-  } catch { /* reported below */ }
-  return `no gateway in cc-switch provider '${provider}' (sqlite3 exit ${r.exitCode})`
+  return 'no gateway configured: set url + token (claude plugin configure byo-provider)'
 }
 
 /** The tools the real API request carries for this loop: every tool of the loop except those the engine
@@ -146,7 +150,10 @@ async function* answer($: EngineInterface, e: TurnStepInput, model: string, sign
   } catch (err) {
     step = failStep(e.turnId, e.index, err instanceof Error ? err.message : String(err))
   }
-  if (step.result.usage === null) await log($, { ev: 'gate-fail', loop: e.agentId ?? 'main', index: e.index, answer: step.result.answer.slice(0, 300) })
+  const loop = e.agentId ?? 'main'
+  if (step.result.usage === null) await log($, { ev: 'gate-fail', loop, index: e.index, answer: step.result.answer.slice(0, 300) })
+  last.set(loop, `#${e.index} ${step.result.usage === null ? step.result.answer.slice(0, 80) : `ok ${step.result.stopReason}`}`)
+  await sync($)
   for (const c of step.chunks) yield c
   return step.result
 }
@@ -154,15 +161,18 @@ async function* answer($: EngineInterface, e: TurnStepInput, model: string, sign
 async function command($: EngineInterface, args: string): Promise<string> {
   const [word, a, b] = args.trim().split(/\s+/)
   switch (word) {
-    case 'use':
-      if (!a) return 'usage: /provider-switch use <model>'
-      loops.set('main', a)
-      return `main loop: ${a} on your provider from its next step. /provider-switch off goes back to Claude.`
+    case 'use': {
+      const m = a ?? options.model
+      if (!m) return 'usage: /provider-switch use <model> (or set the model option)'
+      loops.set('main', m)
+      return `main loop: ${m} on your provider from its next step. /provider-switch off goes back to Claude.`
+    }
     case 'agent': {
-      if (!a || !b) return 'usage: /provider-switch agent <agentId> <model>'
+      const m = b ?? options.model
+      if (!a || !m) return 'usage: /provider-switch agent <agentId> <model> (or set the model option)'
       if (!(await $.agent.list()).some(x => x.id === a)) return `no running agent ${a}; /provider-switch status lists them`
-      loops.set(a, b)
-      return `agent ${a}: ${b} on your provider from its next step.`
+      loops.set(a, m)
+      return `agent ${a}: ${m} on your provider from its next step.`
     }
     case 'agents':
       if (a !== 'follow' && a !== 'claude') return `new subagents: ${agentsMode}. usage: /provider-switch agents follow|claude`
@@ -182,7 +192,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
       return `on your provider: ${on} · new subagents: ${agentsMode} · provider: ${gate} · running agents: ${agents}`
     }
     default:
-      return 'usage: /provider-switch use <model> | agent <agentId> <model> | agents follow|claude | off [agentId] | status'
+      return 'usage: /provider-switch use [model] | agent <agentId> [model] | agents follow|claude | off [agentId] | status'
   }
 }
 
@@ -194,6 +204,7 @@ export const register: Register = (on, opts) => {
     logPath = await $.env.get('GATE_LOG')
     const main = await $.env.get('GATE_TEST_MAIN')
     if (main) loops.set('main', main)
+    await sync($)
     testAgents = (await $.env.get('GATE_TEST_AGENTS')) || undefined
     const k = await $.env.get('GATE_TEST_STEPS')
     testSteps = k ? Number(k) : undefined
@@ -203,21 +214,38 @@ export const register: Register = (on, opts) => {
     const reg = await $.command.register({
       name: 'provider-switch',
       description: 'Answer the main loop or a subagent with a model on your own provider, or go back to Claude (byo-provider)',
-      argumentHint: 'use <model> | agent <agentId> <model> | agents follow|claude | off [agentId] | status',
+      argumentHint: 'use [model] | agent <agentId> [model] | agents follow|claude | off [agentId] | status',
       immediate: true,
     })
     await log($, { ev: 'session-start', commandRegister: reg, testMain: main ?? null, testAgents: testAgents ?? null, testSteps: testSteps ?? null, agentsMode, timeoutMs })
     return started
   })
 
-  on('command.run', { command: 'provider-switch' }, async ($, e) => ({ text: await command($, String(e.args ?? '')) }))
+  on('command.run', { command: 'provider-switch' }, async ($, e) => {
+    const text = await command($, String(e.args ?? ''))
+    await sync($)
+    if (loops.size > 0 || /^\s*(status)?\s*$/.test(String(e.args ?? ''))) await $.ui.open({ id: PANE, title: 'byo-provider' })
+    return { text }
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+    const { Box, Text } = $.ui.resolve(e)
+    const v = await read($, view)
+    return (
+      <Box flexDirection="column">
+        {v.rows.length === 0 && <Text dimColor>Every loop is on Claude.</Text>}
+        {v.rows.map(r => <Text>{r.loop} → {r.model} <Text dimColor>{r.last}</Text></Text>)}
+        <Text dimColor>new subagents: {v.agents} · {v.gate}</Text>
+      </Box>
+    )
+  })
 
   // New subagents/forks are marked by the agentId the spawn resolves to.
   on('agent.spawn', async ($, e, next) => {
     const model = testAgents ?? (agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : undefined)
     const r = await next(e)
     const agentId = r && 'agentId' in r ? r.agentId : undefined
-    if (model && agentId) loops.set(agentId, model)
+    if (model && agentId) { loops.set(agentId, model); await sync($).catch(() => undefined) }
     else if (model) $.ui.toast(`[byo-provider] spawn gave no agent id; that agent runs on Claude, not ${model}`)
     // A failing log write must not fail the hook: the engine would skip it after the spawn.
     await log($, { ev: model && agentId ? 'spawn-marked' : 'spawn-claude', agentId, model: model ?? null, fork: e.fork,
@@ -235,6 +263,7 @@ export const register: Register = (on, opts) => {
     const loop = e.agentId ?? 'main'
     if (testSteps !== undefined && loops.has(loop) && e.index >= testSteps) {
       loops.delete(loop)
+      await sync($)
       await log($, { ev: 'test-switch-back', loop, index: e.index })
     }
     const model = loops.get(loop)
