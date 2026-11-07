@@ -55,7 +55,8 @@ availability change. In the same turn, pick exactly one outcome:
   A new gate retires or merges one existing gate or rule paragraph in the same commit,
   unless the user approves the addition by name (W43: hooks 21→32 in four weeks, nearly
   all proposed by agents; user 2026-10-22 「ＨＯＯＫ 也你說的啊」「和 advisor 確認可以改啊」).
-- Rule fix: the rule text is wrong or missing → exact diff to that file (§1).
+- Rule fix: the rule text is wrong or missing → exact diff to that file (§1); in the same turn close the
+  matching `retro-inbox/pending/` row on this host (§3; another host's row: retro §6.5).
 - Backlog row (§3): worth enforcing, but no gate yet.
 - Nothing: one-off trivia, project-specific detail (goes to that project's notes), or
   already covered by a gate or rule — cite its `file:line`; if that gate or rule is
@@ -73,6 +74,17 @@ One file in `~/.agents/retro-inbox/pending/` (`mkdir -p` it if absent), named
 A row with no file name, or with no case that must FAIL before the fix, is not a row.
 Retro §6.5 collects every host's `pending/` over SSH, moves each file to `done/`, and drains it into `next-week-backlog.md`; a row closes as a gate or a
 rule fix (commit sha), or as dropped (user approval, §1).
+One row per file. A row closes in the turn its fix lands, on the host that holds the file (another
+host's row is closed by retro §6.5 with the same checks): append `closed: <sha> <file:line> (<date>)`
+and move the file to `done/`. A duplicate row closes by citing the kept row's filename. Any other row
+closes only when all three hold: (1) the commit that first adds the cited text
+(`git log -S'<text of the cited line>'`, earliest) is dated on or after the row's date; a rule that
+was already live is a rule that failed, so fix it in place (§2), and only a row whose rule or gate
+predates it and already met the acceptance (§2 Nothing) skips (1); (2) the row's negative case passes
+with the fix, output quoted; (3) every clause of the acceptance has its own live `file:line`. A file
+that holds several rows moves only when each row is closed; split the open rows into their own
+`pending/` files first. Friction that belongs to a product repo goes to that
+repo's backlog, not here; a reusable fact goes to `~/.agents/shared-memory-inbox/` (retro §6.5).
 
 ## §4 Size limits and pruning
 - No size cap and no byte budget. The line cap went 2026-08-25 (line counts measure

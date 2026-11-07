@@ -1,6 +1,6 @@
 # Weekly Retro Agenda
 
-Version: 1.21.0（2026-11-06 W46-8：真人訊號 brief 允許唯讀讀 remote-44 transcript）；1.20.0（2026-11-06 W46-11：§8 行為稽核 digest 用 session-digest.py）；1.19.0（2026-11-05 W45 W46-12：§6.6 概念卡審查）；1.18.0（2026-11-05 W45 D1：盤點分工、brief 附儀表板快照、scrub 用 find、收件匣上限、Grok Bot rule5 全量讀、L2 意見落檔）；1.17.0（2026-10-23 W44-4：§7 backlog 配對指標必含一項使用者面數字）；1.16.0（2026-10-22 W43：§8 固定區塊加漏斗推進、打斷率、上週 backlog 落地；使用者「這些的落地、推進比較重要吧」）；1.15.0（2026-10-19：§6.5 收 global 化候選，投稿不設門檻，採用與否在 retro 決定）；1.14.0（2026-10-16 W42 收尾：§6.5 收尾前再收一次 inbox；§8 `updated.at` 記錄寫入當下的 UTC、backlog 狀態收尾重查）；1.13.0（2026-10-16 W42：§Layer1 加分項與忙碌度三支 collector 與 advisor 補算；§8 儀表板固定區塊不得默默拿掉）；1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
+Version: 1.22.0（2026-11-07 retro-inbox 收口規則、20 件門檻、remote-44 納入）；1.21.0（2026-11-06 W46-8：真人訊號 brief 允許唯讀讀 remote-44 transcript）；1.20.0（2026-11-06 W46-11：§8 行為稽核 digest 用 session-digest.py）；1.19.0（2026-11-05 W45 W46-12：§6.6 概念卡審查）；1.18.0（2026-11-05 W45 D1：盤點分工、brief 附儀表板快照、scrub 用 find、收件匣上限、Grok Bot rule5 全量讀、L2 意見落檔）；1.17.0（2026-10-23 W44-4：§7 backlog 配對指標必含一項使用者面數字）；1.16.0（2026-10-22 W43：§8 固定區塊加漏斗推進、打斷率、上週 backlog 落地；使用者「這些的落地、推進比較重要吧」）；1.15.0（2026-10-19：§6.5 收 global 化候選，投稿不設門檻，採用與否在 retro 決定）；1.14.0（2026-10-16 W42 收尾：§6.5 收尾前再收一次 inbox；§8 `updated.at` 記錄寫入當下的 UTC、backlog 狀態收尾重查）；1.13.0（2026-10-16 W42：§Layer1 加分項與忙碌度三支 collector 與 advisor 補算；§8 儀表板固定區塊不得默默拿掉）；1.12.0（2026-10-15 W42：收件處拆成兩個、固定在 `~/.agents/`——反省進 `retro-inbox/`、筆記進 `shared-memory-inbox/`，§6.5 以 SSH 收齊各台）；1.11.0（2026-10-09 lessons option B：lessons.md 退役，對策去向改為 gate／backlog 列／棄案，§5 盤點去掉 lessons）；1.10.0（2026-10-08 W41 A9：§8 舊頁原地更新、相關報告表後續欄不得空白）；1.9.0（2026-10-08 W41：store 覆蓋表、可達性以實測為準、scrub 涵蓋 gitignored 產物、hook 可執行性、run dir／inbox 路徑改為實際位置、新增 §6.7 更深的問題）；1.8.0 為 2026-09-11 §Layer1 token 正式量尺指向 usage-dedupe.py midkey；1.7.0 為 2026-08-28 §Layer1 加入第四個 CLI cursor（含 withoutMeta 退回規則與「無 token 記帳」限制）；1.6.0 為 2026-08-21 §Layer1 token／成本面改為每輪必收，指定 session-report analyzer
 ＋Codex `total_token_usage` 雙側口徑，並定額收 cache-break 與 0 輪高消耗兩個訊號；
 1.5.0 為 2026-08-08 §8 收尾更新入章、資料源 repo 點名；1.4.0 為使用者逐條裁決後轉正式版。
 每次 retro 後若議程本身有缺陷，先改這份再改流程。）
@@ -125,7 +125,9 @@ ohyeh/context-mode-local-insight 三 repo 是核心；產品 repo（如 healthgo
 - `~/.agents/shared-memory-inbox/pending/`：未消化的筆記 submissions 數量與積齡；
   積壓 = finding，消化走 shared-memory-intake（Codex 寫 ad_hoc note 交給 Codex 本體整合）。
   任一台 pending 超過 20 件：retro 開跑前先派一個 worker 照 shared-memory-intake 消化（W45：本機 94、remote-44 55）。
-- `~/.agents/retro-inbox/pending/`：未倒的反省數量與積齡（§6.5 會倒空；只在這裡記數量）。
+- `~/.agents/retro-inbox/pending/`：機隊每台在編機器（本節「機隊」條）的反省檔數量與積齡。任一台超過 20 件：retro 開跑前先把 `kind: note`
+  依 §6.5 轉 Layer 2，其餘按「目標檔」分批，每個目標檔一個合併 diff，走 maintenance §1 核准；
+  W47 retro 收尾後任一台仍超過 20 件，W48 backlog 加一列「inbox 收割腳本」。
 - `~/.codex/memories/`（MEMORY.md、rollout_summaries/）：本週新增的官方摘要，
   對照 retro findings 有無矛盾。
 - hook stats（bol-prompt-stats.jsonl、context ledger）已由漏斗 Layer 1 收，勿重算。
@@ -153,8 +155,9 @@ skill 提及次數；`--agent codex|claude` 可分側）。**零用量 skill ＝
 同一件事不兩邊抄，handoff 只寫檔名。一件一檔：`pending/<UTC>-<slug>.md`（沒有 `pending/` 就 `mkdir -p`），
 `kind: proposal`（議題）或 `kind: note`（隨手記：collector 撈不到的人為觀察；或當下覺得可 global 化、還寫不成 §3 row 的候選，引用它的 shared-memory 投稿檔名）。
 投稿不設門檻，採用與否在這裡決定。
+2026-11-07 使用者裁示「remote-44 也要算」，取代 2026-10-30「管好本機就好」：機隊每台在編機器的 `pending/` 同樣計數、同樣處理。
 retro 開跑時與報告收尾前各一次，以 SSH 收齊每台在編機器的 `pending/`（W42：peer session 的 3 件在開跑後才投）（可達性同 §5），逐件處理後移到 `done/`
-（只搬檔，不改內容；去向記在 `motions.md` 與 backlog 列號）；議題與 global 化候選逐條討論、決定採用與否，其他隨手記餵給 §2–4 當 Layer 2 線索。
+（只搬檔，不改原文，唯一例外是結案時追加的 `closed:` 尾行（maintenance §3）；去向記在 `motions.md` 與 backlog 列號）；議題與 global 化候選逐條討論、決定採用與否，其他隨手記餵給 §2–4 當 Layer 2 線索。
 本輪 session 中使用者的動議、提醒、糾正，同步記在 run dir `motions.md`。
 再問一次「還有沒有臨時動議或訴求？」使用者隨時可插入，
 不受固定清單限制：
