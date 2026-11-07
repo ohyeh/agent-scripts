@@ -314,9 +314,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/Leonxlnx/taste-skill.git",
       "skillPath": "skills/taste-skill/SKILL.md",
-      "skillFolderHash": "5743b6eb4d005c5bbe51aa4ecae701eb052d6198",
+      "skillFolderHash": "90f92ba7a3ce514cf85a2809583712dbd14106ea",
       "installedAt": "2026-10-23T05:53:48.470Z",
-      "updatedAt": "2026-11-05T04:29:28.424Z"
+      "updatedAt": "2026-11-07T13:03:13.799Z"
     },
     "create-verification-skill": {
       "source": "backnotprop/pstack",
