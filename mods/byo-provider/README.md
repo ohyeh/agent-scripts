@@ -88,9 +88,8 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
    decision and is not built.
 2. MCP and plugin tools are not offered to the gate: there is no schema source at run time.
    Built-in schemas come from `hooks/schemas.ts` and go stale on a Claude Code update.
-3. The deferred set is parsed from the engine's reminder text (2.1.319 wording). A subagent's
-   allowed tools for a custom agent type (its own `tools` list) are not known at run time; the
-   main-loop-only set (`ScheduleWakeup`, `Workflow`) is a measured constant.
+3. The deferred set is parsed from the engine's reminder text (2.1.319 wording). The main-loop-only
+   set (`ScheduleWakeup`, `Workflow`) is a measured constant.
 4. Non-streaming: text shows only when the full answer arrives. On a timeout or an interrupt the
    step ends, but the mod cannot cancel the HTTP request (`$.http.fetch` takes no signal); a late
    answer is ignored. Whether the host closes the connection on an interrupt is unconfirmed.
@@ -98,7 +97,12 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
    100 kB here) and the system prompt to your provider. A gated fork sends the parent's context.
 6. Spawn marking happens after `agent.spawn`'s `next(e)` resolves. Every test saw the mark before
    the subagent's step 0, but the docs do not promise this order.
-7. A gated subagent gets the main system prompt plus one paragraph, not its agent definition's prompt.
+7. A gated subagent of a custom type answers with its definition file's prompt (plus one paragraph),
+   and a `tools:` line in its frontmatter narrows its tools: `<plugin>:<name>` is read from the plugin's
+   install folder (`~/.claude/plugins/installed_plugins.json`), `<name>` from `.claude/agents/` then
+   `~/.claude/agents/`. The engine's own types (`general-purpose`, `Explore`, `Plan`) and types a plugin
+   registers in code have no file: they get the main system prompt plus that paragraph and every tool.
+   The definition's `model:` is ignored (the profile picks the model). A fork keeps the main prompt.
 8. `SubagentHandback`'s schema (`{ message }`) comes from the engine's nudge text, not from a type.
 9. `max_tokens` is fixed at 16384.
 

@@ -124,3 +124,13 @@ export function parseConf(text: string): Record<string, string> {
   }
   return kv
 }
+
+/** An agent definition file: `---` frontmatter, then the prompt. `tools` only when the frontmatter
+ *  names them (`tools: A, B`); absent means the agent gets every tool. */
+export function parseAgentDef(text: string): { body: string; tools?: string[] } {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text)
+  if (!m) return { body: text.trim() }
+  const line = m[1]!.split(/\r?\n/).find(l => /^tools\s*:/.test(l))
+  const tools = line?.replace(/^tools\s*:/, '').split(',').map(s => s.trim()).filter(Boolean)
+  return { body: text.slice(m[0].length).trim(), ...(tools?.length ? { tools } : {}) }
+}

@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
-import { deadline, deferredTools, failStep, forGate, loadedTools, parseConf, redact, toStep } from './map'
+import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, toStep } from './map'
 import { SCHEMAS } from './schemas'
 import type { GateTool, Msg, Step } from './map'
 import type { View } from '../types'
@@ -46,6 +46,7 @@ const HANDBACK: GateTool = {
 const MAIN_ONLY = new Set(['ScheduleWakeup', 'Workflow'])
 
 const loops = new Map<string, string>() // 'main' or an agentId → profile name
+const types = new Map<string, string>() // a gated agentId → its subagentType (none for a fork)
 let agentsMode = 'follow' // follow | claude | a profile name every new subagent uses
 let testSteps: number | undefined
 let envTimeoutMs = 0
@@ -113,6 +114,28 @@ async function toolsFor($: EngineInterface, available: readonly ToolInfo[], mess
   return tools
 }
 
+/** The definition file of an agent type: `<plugin>:<name>` from the plugin's install folder, else
+ *  `<name>` from .claude/agents then ~/.claude/agents. null for the engine's own types (general-purpose,
+ *  Explore, Plan) and types registered in code: their prompt is not a file. */
+async function agentDef($: EngineInterface, type: string | undefined): Promise<{ path: string; body: string; tools?: string[] } | null> {
+  if (!type || !/^[\w.-]+(:[\w.-]+)?$/.test(type)) return null
+  const home = (await $.env.get('HOME')) ?? ''
+  const [plugin, name] = type.includes(':') ? type.split(':') as [string, string] : [undefined, type]
+  const paths: string[] = []
+  if (plugin) {
+    try {
+      const installed = JSON.parse(String(await $.fs.read(`${home}/.claude/plugins/installed_plugins.json`))) as { plugins?: Record<string, Array<{ installPath?: string }>> }
+      const key = Object.keys(installed.plugins ?? {}).find(k => k.startsWith(`${plugin}@`))
+      const dir = key ? installed.plugins![key]![0]?.installPath : undefined
+      if (dir) paths.push(`${dir}/agents/${name}.md`)
+    } catch { /* no plugin list: treated as not found */ }
+  } else paths.push(`.claude/agents/${name}.md`, `${home}/.claude/agents/${name}.md`)
+  for (const path of paths) {
+    try { return { path, ...parseAgentDef(String(await $.fs.read(path))) } } catch { /* next */ }
+  }
+  return null
+}
+
 async function gateStep($: EngineInterface, e: TurnStepInput, name: string, signal: AbortSignal): Promise<Step> {
   const cfg = await loadProfile($, name)
   if (typeof cfg === 'string') return failStep(e.turnId, e.index, cfg)
@@ -126,11 +149,14 @@ async function gateStep($: EngineInterface, e: TurnStepInput, name: string, sign
     return failStep(e.turnId, e.index, `this loop's conversation cannot be read (${JSON.stringify(raw)}); /provider-switch off it`)
   }
   const messages = raw as unknown as Msg[]
-  const tools = await toolsFor($, available, messages, e.agentId !== undefined)
-  const system = composed.sections.map(s => s.text).join('\n\n') + (e.agentId ? ROLE : '')
+  const def = e.agentId ? await agentDef($, types.get(e.agentId)) : null
+  // A custom agent answers with its own prompt (as on Claude), not the main loop's; its `tools` list narrows the set.
+  const all = await toolsFor($, available, messages, e.agentId !== undefined)
+  const tools = def?.tools ? all.filter(t => def.tools!.includes(t.name) || t.name === HANDBACK.name) : all
+  const system = (def ? def.body : composed.sections.map(s => s.text).join('\n\n')) + (e.agentId ? ROLE : '')
   const model = cfg.model
   const body = { model, max_tokens: MAX_TOKENS, stream: false, system, messages: forGate(messages), tools, ...(cfg.effort ? { thinking: THINKING[cfg.effort] } : {}) }
-  await log($, { ev: 'gate-request', loop: e.agentId ?? 'main', index: e.index, profile: name, model, effort: cfg.effort || null, url: redact(cfg.url),
+  await log($, { ev: 'gate-request', loop: e.agentId ?? 'main', index: e.index, profile: name, model, effort: cfg.effort || null, url: redact(cfg.url), agentType: e.agentId ? types.get(e.agentId) ?? null : null, agentDef: def?.path ?? null,
     messages: messages.length, messageCount: e.messageCount, tools: tools.length, toolNames: tools.map(t => t.name), systemChars: system.length })
   // Failure text reaches the transcript and the log: the URL and token only ever in redacted form.
   const fail = (why: string) => failStep(e.turnId, e.index, why.split(cfg.url).join(redact(cfg.url)).split(cfg.token).join(redact(cfg.token)))
@@ -271,7 +297,11 @@ export const register: Register = (on, opts) => {
     const model = agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : agentsMode === 'claude' ? undefined : agentsMode
     const r = await next(e)
     const agentId = r && 'agentId' in r ? r.agentId : undefined
-    if (model && agentId) { loops.set(agentId, model); await sync($).catch(() => undefined) }
+    if (model && agentId) {
+      loops.set(agentId, model)
+      if (!e.fork) types.set(agentId, e.subagentType)
+      await sync($).catch(() => undefined)
+    }
     else if (model) $.ui.toast(`[byo-provider] spawn gave no agent id; that agent runs on Claude, not ${model}`)
     // A failing log write must not fail the hook: the engine would skip it after the spawn.
     await log($, { ev: model && agentId ? 'spawn-marked' : 'spawn-claude', agentId, profile: model ?? null, fork: e.fork,

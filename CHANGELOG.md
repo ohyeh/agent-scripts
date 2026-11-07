@@ -1,5 +1,11 @@
 # Changelog
 
+## byo-provider 0.4.0
+
+Owner 11-08: a gated `pr-review-toolkit:code-reviewer` got the main prompt, not the reviewer's; the definition is a file the mod can read.
+
+- **A gated custom subagent uses its own definition.** At spawn the mod keeps the agent's `subagentType`; at each gated step it reads the definition file (`<plugin>:<name>` from the plugin's install folder, `<name>` from `.claude/agents/` then `~/.claude/agents/`), sends its body as the system prompt and narrows the tools to its `tools:` line. The engine's own types (`general-purpose`, `Explore`, `Plan`) have no file and keep the main prompt. The route log's `gate-request` carries `agentType` and `agentDef`.
+
 ## byo-provider 0.3.1
 
 Owner 11-08: ship an example profile and keep it current with each new key.

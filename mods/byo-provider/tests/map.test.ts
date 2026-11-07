@@ -1,6 +1,6 @@
 // Unit check of the gate response → TurnStepChunk mapping. Run: bun test <run dir>/test/map.test.ts
 import { expect, test } from 'claude-code/testing'
-import { deadline, deferredTools, failStep, forGate, loadedTools, parseConf, toStep } from '../hooks/map'
+import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, toStep } from '../hooks/map'
 import { SCHEMAS } from '../hooks/schemas'
 
 const resp = {
@@ -80,4 +80,10 @@ test('deadline: answer in time, timeout, interrupt, and a rejection passes throu
 test('parseConf: key=value, comments and blanks skipped, = kept in the value', () => {
   const kv = parseConf('# gate\nurl = http://h:1\n\ntoken=a=b\nnoequals\n=novalue\nmodel=m\neffort=low\n')
   expect(kv).toEqual({ url: 'http://h:1', token: 'a=b', model: 'm', effort: 'low' })
+})
+
+test('parseAgentDef: frontmatter tools list, body without frontmatter, no tools line', () => {
+  expect(parseAgentDef('---\nname: x\ntools: Read, Bash\nmodel: opus\n---\n\nYou review.\n')).toEqual({ body: 'You review.', tools: ['Read', 'Bash'] })
+  expect(parseAgentDef('---\nname: x\nmodel: opus\n---\nBody')).toEqual({ body: 'Body' })
+  expect(parseAgentDef('No frontmatter')).toEqual({ body: 'No frontmatter' })
 })
