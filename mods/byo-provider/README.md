@@ -67,7 +67,7 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
 ## Verified (Claude Code 2.1.319; run logs kept outside this repo)
 
 - Load and validate: PASS, `env writes: nothing`.
-- Main loop and subagents on the gate, real your provider: tool execution, parallel subagents,
+- Main loop and subagents on the gate, your real provider: tool execution, parallel subagents,
   switch back to Claude mid-loop, reversed case (main on gate, subagents on Claude): PASS.
 - Tool list: main 12 tools and subagent 11 tools, the same as the real API request without its
   two non-callable entries (`DeferredToolPlaceholder`, the server tool `advisor`).
@@ -115,8 +115,8 @@ python3 scripts/gen-schemas.py <plugin-authoring skill>/types/claude-code.d.ts h
 ## Tests
 
 ```
-claude plugin test mods/your provider      # unit: response mapping, tool sets, deadline
-claude plugin validate mods/your provider
+claude plugin test mods/byo-provider      # unit: response mapping, tool sets, deadline
+claude plugin validate mods/byo-provider
 ```
 
 The live tests (a loopback fake Anthropic server that logs request shapes, never secrets, and runs
