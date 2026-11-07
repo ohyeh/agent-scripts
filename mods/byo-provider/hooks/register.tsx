@@ -248,6 +248,16 @@ async function command($: EngineInterface, args: string): Promise<string> {
   }
 }
 
+const SWITCH_TOOL = 'mcp__byo-provider__switch'
+
+/** Runs one /provider-switch command, updates the pane, and opens it while a loop is routed or on status. */
+async function switchAndShow($: EngineInterface, args: string): Promise<string> {
+  const text = await command($, args)
+  await sync($)
+  if (loops.size > 0 || agentsMode !== 'follow' || /^\s*(status)?\s*$/.test(args)) await $.ui.open({ id: PANE, title: 'byo-provider' })
+  return text
+}
+
 export const register: Register = (on, opts) => {
   options = { ...options, ...(opts as Partial<typeof options>) }
   on('session.start', async ($, e, next) => {
@@ -269,16 +279,27 @@ export const register: Register = (on, opts) => {
       argumentHint: 'use [profile] | agent <agentId> [profile] | agents follow|claude|<profile> | off [agentId] | status',
       immediate: true,
     })
+    await $.tool.register({
+      name: 'switch',
+      description: 'Route loops of this session to a profile on the owner\'s own Anthropic-format provider, or back to Claude; ' +
+        'the same as the owner typing /provider-switch <args>. Use only when the owner asks. ' +
+        'args: "agents <profile>" (new subagents use that profile; this loop stays on Claude), "agents follow|claude", ' +
+        '"agent <agentId> [profile]", "off [agentId]", "use [profile]" (moves THIS main loop off Claude), "status".',
+      inputSchema: { type: 'object', properties: { args: { type: 'string', description: 'the /provider-switch arguments' } }, required: ['args'] },
+    })
     await log($, { ev: 'session-start', commandRegister: reg, testMain: main ?? null, testSteps: testSteps ?? null, agentsMode })
     return started
   })
 
-  on('command.run', { command: 'provider-switch' }, async ($, e) => {
-    const text = await command($, String(e.args ?? ''))
-    await sync($)
-    if (loops.size > 0 || /^\s*(status)?\s*$/.test(String(e.args ?? ''))) await $.ui.open({ id: PANE, title: 'byo-provider' })
-    return { text }
+  // The same switch as a tool the main loop can call (as tmux-agent's reload): the owner can say
+  // "put new subagents on default" without typing the command. A subagent may not move loops.
+  on('tool.call', { tool: SWITCH_TOOL }, async ($, e) => {
+    if ((e as { agentId?: string }).agentId) return { deny: 'only the main loop can switch providers' }
+    const args = String((e.input as { args?: unknown } | undefined)?.args ?? '')
+    return { result: await switchAndShow($, args) }
   })
+
+  on('command.run', { command: 'provider-switch' }, async ($, e) => ({ text: await switchAndShow($, String(e.args ?? '')) }))
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Text } = $.ui.resolve(e)

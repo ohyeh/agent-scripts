@@ -1,5 +1,11 @@
 # Changelog
 
+## byo-provider 0.4.1
+
+Owner 11-08: the main agent should switch routing itself, the way tmux-agent's `reload` tool runs `/reload-plugins`.
+
+- **Tool `mcp__byo-provider__switch`** (`{ args }`) runs the same code as `/provider-switch <args>` and updates the pane. A subagent's call is denied, so a gateway model cannot move loops.
+
 ## byo-provider 0.4.0
 
 Owner 11-08: a gated `pr-review-toolkit:code-reviewer` got the main prompt, not the reviewer's; the definition is a file the mod can read.
