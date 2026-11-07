@@ -128,7 +128,8 @@ Report the decision, who agreed, and the evidence; the user overrides after the 
 Guidance edits follow the maintenance §1 matrix: rules settle by consensus and are reported; kernel, settings and skills need the user's approval of the exact diff.
 
 ## §4 Wrong-direction signals — change approach, do not retry
-Apply: after every failed attempt. Any TWO of these → the approach is wrong; the same idea
+Apply: after every failed attempt (a user rejection is one): write three possible causes,
+check each against the rules and files the call touched, correct for the one that holds. Any TWO of these → the approach is wrong; the same idea
 at the same tier is never rerun, and an approach ends after three tiers — every call at the
 same goal counts as a round (retry ladder in `rules/model-dispatch.md` §5):
 - [ ] Each "fix" moves the error somewhere else instead of removing it.
@@ -148,6 +149,7 @@ same goal counts as a round (retry ladder in `rules/model-dispatch.md` §5):
       inputs is a retry.
 - [ ] The user re-pastes the same correction they already gave — hard signal the last
       fix never landed: stop the current path, read the named asset in full, then answer.
+- [ ] The user rejects a tool call.
 When triggered: stop; write down (a) what was assumed, (b) which assumption the evidence now
 contradicts; form a NEW hypothesis that explains ALL observations, or escalate with the trail.
 - Positive: two CSS fixes each broke a different browser → stop patching, check layout model assumption, discover flexbox/grid mismatch, rewrite container. Correct.

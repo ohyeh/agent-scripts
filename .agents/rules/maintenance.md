@@ -57,6 +57,8 @@ availability change. In the same turn, pick exactly one outcome:
   all proposed by agents; user 2026-10-22 「ＨＯＯＫ 也你說的啊」「和 advisor 確認可以改啊」).
 - Rule fix: the rule text is wrong or missing → exact diff to that file (§1); in the same turn close the
   matching `retro-inbox/pending/` row on this host (§3; another host's row: retro §6.5).
+  A fix aimed at the kernel (`global/`) follows its "Editing this file" section first: the official
+  standard outranks the feedback, so a fix that would break it goes to a routed file or a hook.
 - Backlog row (§3): worth enforcing, but no gate yet.
 - Nothing: one-off trivia, project-specific detail (goes to that project's notes), or
   already covered by a gate or rule — cite its `file:line`; if that gate or rule is
