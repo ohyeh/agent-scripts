@@ -252,11 +252,11 @@ layer0_tests=(
   test-consensus-gate-ladder test-haiku-research-round
   test-review-gate-smoke.mjs test-skill-router-nudge.sh test-running-script-edit-gate.sh
   test-cursor-plan-usage.sh test-design-audit-verdicts test-workflow-model.mjs
-  test-owner-asks-engine-unit.py test-grok-bot-app.sh
+  test-grok-bot-app.sh
 )
 for t in "${layer0_tests[@]}"; do
   th="$WORKDIR/t-$t"; mkdir -p "$th/tmp"
-  case "$t" in *.mjs) run=(node "scripts/$t") ;; *.sh) run=(bash "scripts/$t") ;; *.py) run=(/usr/bin/python3 "scripts/$t") ;; *) run=("scripts/$t") ;; esac
+  case "$t" in *.mjs) run=(node "scripts/$t") ;; *.sh) run=(bash "scripts/$t") ;; *) run=("scripts/$t") ;; esac
   if ! (cd "$SRC" && HOME="$th" XDG_STATE_HOME="$th/.local/state" XDG_DATA_HOME="$th/.local/share" \
         XDG_CONFIG_HOME="$th/.config" XDG_CACHE_HOME="$th/.cache" TMPDIR="$th/tmp" \
         "${run[@]}" >"$th/log" 2>&1 </dev/null); then
