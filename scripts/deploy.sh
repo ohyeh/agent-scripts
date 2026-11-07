@@ -241,7 +241,8 @@ echo "PASS [invariants] all checks green"
 # Hook and recipe regressions, on the release tree before any layer mutates ~.
 # Explicit list (no glob: installers and live-model evals must not run here); each
 # test gets its own HOME/XDG/TMPDIR so a fixture never writes the real home.
-# Budget: ~30s total on the operator host.
+# Budget: ~30s total on the operator host. Each test must pass in a git-archive tree (no .git);
+# test-deploy-check.sh needs a checkout, so it runs by hand, not here.
 layer0_tests=(
   test-rm-home-gate.sh test-codex-cu-chrome-gate.sh test-codex-cu-mcp.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
   test-review-dispatch-gate.sh test-workflow-agent-cap.sh
@@ -250,7 +251,7 @@ layer0_tests=(
   test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-recipe-usage-stats.sh test-docs-audit-ownership
   test-consensus-gate-ladder test-plan-pipeline-ladder test-haiku-research-round
   test-feature-plan-consensus-ladder test-review-gate-smoke.mjs test-skill-router-nudge.sh test-running-script-edit-gate.sh
-  test-cursor-plan-usage.sh test-deploy-check.sh test-design-audit-verdicts test-fleet-deploy.sh test-workflow-model.mjs
+  test-cursor-plan-usage.sh test-design-audit-verdicts test-fleet-deploy.sh test-workflow-model.mjs
   test-owner-asks-engine-unit.py test-grok-bot-app.sh
 )
 for t in "${layer0_tests[@]}"; do
