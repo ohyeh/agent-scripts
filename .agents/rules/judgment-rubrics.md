@@ -76,7 +76,7 @@
   remote reports no branch protection) that nothing deploys from without a human step, after the
   repo's pre-push check and tests pass this session; (2) deploying or reloading own tooling on this
   host.
-- Still ask for other hosts, fleet-deploy, force push, history rewrite, deletion, or messages to
+- Still ask for other hosts, force push, history rewrite, deletion, or messages to
   people or outside services.
 - Before changing any file or external state outside run-dir records, identify the authorizing
   sentence and exact target in the request; answer how-to, diagnostic, review, or hypothetical

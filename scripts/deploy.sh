@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Clone-free fleet deploy: downloads the current agent-scripts main tarball
+# Clone-free deploy: downloads the current agent-scripts main tarball
 # to a scratch dir and deploys every runtime layer from it. No git
 # clone, no working copy left behind on the target machine — the repo is
 # canonical, machines are deployed copies only.
@@ -248,10 +248,10 @@ layer0_tests=(
   test-review-dispatch-gate.sh test-workflow-agent-cap.sh
   test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke test-idevicesyslog-guard.sh
   test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate test-round-cost-gate.sh test-worker-followup-gate.sh
-  test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-recipe-usage-stats.sh test-docs-audit-ownership
-  test-consensus-gate-ladder test-plan-pipeline-ladder test-haiku-research-round
-  test-feature-plan-consensus-ladder test-review-gate-smoke.mjs test-skill-router-nudge.sh test-running-script-edit-gate.sh
-  test-cursor-plan-usage.sh test-design-audit-verdicts test-fleet-deploy.sh test-workflow-model.mjs
+  test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-recipe-usage-stats.sh
+  test-consensus-gate-ladder test-haiku-research-round
+  test-review-gate-smoke.mjs test-skill-router-nudge.sh test-running-script-edit-gate.sh
+  test-cursor-plan-usage.sh test-design-audit-verdicts test-workflow-model.mjs
   test-owner-asks-engine-unit.py test-grok-bot-app.sh
 )
 for t in "${layer0_tests[@]}"; do

@@ -59,8 +59,6 @@
   contract, noting the CLI version at each use site and re-verifying after upgrades.
 - Do not trust `tailscale status` for node liveness because a Fortinet-blocked coordination server
   marks reachable nodes offline; check own IP via `ifconfig` and remote liveness via an SSH probe.
-- The managed fleet has two nodes (local and one configured remote workstation); exclude the third
-  unmanaged machine with stale `~/.agents` from deploys and audits.
 - Resolve hostnames, addresses, and SSH users from private machine config; never publish fleet
   topology in this public repository.
 
