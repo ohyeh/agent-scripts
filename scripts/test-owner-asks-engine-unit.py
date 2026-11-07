@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -38,9 +39,11 @@ class SubmissionTests(unittest.TestCase):
         namespace = functions(tmux=lambda *args: shells.append(args[-1]) if args[0] == 'new-session' else '',
                               screen=lambda: '❯\n⏵⏵ bypass permissions on')
         namespace['launch']()
-        with tempfile.TemporaryDirectory(dir=SCRIPT.parent.parent / '.workflow') as folder:
+        # TMPDIR, not a repo dir: deploy layer0 runs this in a release tarball with no .workflow.
+        with tempfile.TemporaryDirectory() as folder:
             binary = Path(folder) / 'claude'
-            binary.write_text('#!/usr/bin/env python3\nimport json,os\nprint(json.dumps(dict(os.environ)))\n')
+            # Pin the interpreter: `env python3` can hit a pyenv shim that rewrites PATH in the child.
+            binary.write_text('#!' + sys.executable + '\nimport json,os\nprint(json.dumps(dict(os.environ)))\n')
             binary.chmod(0o700)
             dirty = dict(os.environ, PATH=folder + os.pathsep + os.environ['PATH'],
                          CLAUDECODE='1', CLAUDE_PID='999999', CLAUDE_CODE_SESSION_ID='parent',
