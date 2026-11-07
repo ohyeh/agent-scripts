@@ -159,10 +159,10 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/anthropics/skills.git",
       "skillPath": "skills/pdf/SKILL.md",
-      "skillFolderHash": "6369f4649de69bd6857c9bc3b058a77206009238",
+      "skillFolderHash": "4b1916c1b9362c466332fbd36108fab908801268",
       "pluginName": "document-skills",
       "installedAt": "2026-07-18T20:45:54.145Z",
-      "updatedAt": "2026-07-18T20:45:54.145Z"
+      "updatedAt": "2026-11-07T04:05:33.591Z"
     },
     "prototype": {
       "source": "mattpocock/skills",
@@ -335,6 +335,15 @@
       "skillFolderHash": "35325a9f380b1dc6d79d7502b5667feba00b752b",
       "installedAt": "2026-10-23T10:44:31.765Z",
       "updatedAt": "2026-10-23T10:44:31.765Z"
+    },
+    "security-audit": {
+      "source": "cloudflare/security-audit-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/cloudflare/security-audit-skill.git",
+      "skillPath": "skills/security-audit/SKILL.md",
+      "skillFolderHash": "ccbc33ed119b28c3ef7b44a7e2081ab191ad63af",
+      "installedAt": "2026-11-07T04:16:13.381Z",
+      "updatedAt": "2026-11-07T04:16:13.381Z"
     }
   },
   "dismissed": {
