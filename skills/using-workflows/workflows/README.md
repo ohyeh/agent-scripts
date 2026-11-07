@@ -113,7 +113,7 @@ Workflow({ scriptPath: "<abs path>/consensus-gate.workflow.js", args: {...} })
   original audit with the **same args**; confirmed findings hitting zero =
   converged. **See the file header for args examples.**
 
-Retired recipes are in `archive/` (never deployed; `install.sh` and `deploy.sh` skip it): `feature-plan-consensus`, `pr-review-triage-resolve`, `plan-pipeline`, `feature-lifecycle-auto`, `docs-vs-code-audit`, `root-cause-deep-dive-audit`, `project-direction-review`, `workflow-manifest`. None of them ran in the 14-day audit of 2026-11-06. To use one, run it by an absolute `scriptPath` into `archive/`.
+Retired recipes are in `archive/` (never deployed; `install.sh` and `deploy.sh` skip it): `feature-plan-consensus`, `plan-pipeline`, `feature-lifecycle-auto`, `docs-vs-code-audit` (layer0 tests still read them). None of them ran in the 14-day audit of 2026-11-06. To use one, run it by an absolute `scriptPath` into `archive/`.
 
 ## Scheduled or incremental runs
 

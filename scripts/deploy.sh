@@ -251,7 +251,7 @@ layer0_tests=(
   test-consensus-gate-ladder test-plan-pipeline-ladder test-haiku-research-round
   test-feature-plan-consensus-ladder test-review-gate-smoke.mjs test-skill-router-nudge.sh test-running-script-edit-gate.sh
   test-cursor-plan-usage.sh test-deploy-check.sh test-design-audit-verdicts test-fleet-deploy.sh test-workflow-model.mjs
-  test-owner-asks-engine-unit.py
+  test-owner-asks-engine-unit.py test-grok-bot-app.sh
 )
 for t in "${layer0_tests[@]}"; do
   th="$WORKDIR/t-$t"; mkdir -p "$th/tmp"
