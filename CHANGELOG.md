@@ -1,5 +1,13 @@
 # Changelog
 
+## byo-provider 0.1.0
+
+Owner 11-07/11-08: switch between the Claude subscription and a self-hosted Anthropic-format gateway inside one session, with no reverse proxy carrying the Claude credential.
+
+- **New mod `byo-provider`.** `/provider-switch use|agent|agents|off|status` picks which loops (main, a subagent, a fork) are answered by a gateway model; it answers `turn.step` without `next(e)`, so env is never touched and every other loop stays on Claude. Verified on 2.1.319: tool execution through the gateway, parallel gated subagents beside a Claude main loop, the reversed case, switch back to Claude without a 400, timeout and interrupt as a visible `[byo-provider: …]` failure.
+- **Private settings are plugin options** (`userConfig`: `ccSwitchProvider`, or `url` + `token` with the token in secure storage, `timeoutSeconds`, `agents`), never in this repo.
+- Limits: auto mode refuses non-read-only tool calls a gateway model makes (use `default`/`acceptEdits`); MCP and plugin tools are not offered; non-streaming; a gated loop sends its full context to the gateway.
+
 ## session-recall 0.14.3
 
 Owner 11-06, mod audit (`.workflow/202611061900-tree-workflow-mod-audit/consensus.md` M3): the "pasted lines of your own earlier replies" note was 122 of 193 injections, and 78% of the lines it quoted were already in the prompt.
