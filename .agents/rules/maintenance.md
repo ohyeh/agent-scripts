@@ -1,139 +1,114 @@
 # Maintenance Protocol for the Rules System
 
-Governance pair (user ruling 2026-08-18): the agent-scripts sessions (one per
-machine: local `~/github/agent-scripts`, .44 `~/git/agent-scripts`) are
-DEDICATED to this repo — kernel/rules/skills/hooks/deploy only. Cross-machine
-coordination goes ONLY between these two counterparts. Other projects'
-sessions and their workers are out of scope: never contact, supervise, or
-take over their work unless the user explicitly assigns it.
-
-Governs the routed rules at `~/.agents/rules/` and the two native global files
-(`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md` — maintained separately, never symlinked).
-This §1 matrix is the SINGLE authority on edit permissions for every agent —
-no other file grants or denies edit rights; "agent guidance" in CLAUDE.md means this
-file set plus installed skills. If you are unsure which row applies, use the stricter one.
+- Dedicate each agent-scripts session to kernel, rules, skills, hooks, and deployment work.
+- Coordinate only with its counterpart: local `~/github/agent-scripts`, .44 `~/git/agent-scripts`.
+- Do not contact or manage other projects' sessions or workers without the user's assignment.
+- This §1 matrix alone sets edit rights for routed rules, both global files, and installed skills.
+- If the applicable permission is unclear, use the stricter row.
 
 ## §1 Edit permission matrix
 
-| File | Agent may (no approval)… | Approval path |
-|---|---|---|
-| `rules/model-dispatch.md` §1 table | Update model values after LIVE verification (schema/`/model`), quote the check in the commit message | Changing the ladder or contracts (§2–§7) |
-| Other `rules/*.md` | Fix objectively broken paths/commands (verify first, quote the check in the commit message) | Any semantic change — exact diff, settled by the consensus ladder (advisor + a second-model reviewer, judgment-rubrics §3), applied, and reported to the user in the same turn with the diff and who agreed (user 2026-10-22 「你和 advisor + sol 確認就好啊」) |
-| Companion docs in `rules/` (letter, provisioning runbook) | Fix verified-broken facts/paths (quote the check in the commit message) | Semantic/content changes — same consensus path as the row above |
-| Backlog rows (§3) | Add rows freely | Closing a row as dropped |
-| Global files (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`) | Nothing | Everything (edit BOTH in the same change; `Version:` lines must stay identical). Content contract (user rulings 2026-08-08 + 2026-08-16 two-edition scheme): iron laws only; the solid edition (`global/CLAUDE.md`/`global/AGENTS.md`, deployed) has NO size cap — the budget baseline gate governs growth; `global/kernel-lean.md` (fetched by `WEB-AGENTS.md` for network-only agents) carries no hard character cap — keep it terse by review, not by a number; detail lives in routed files; imperative modality (MUST/never/ask-first) is part of the norm and must never be softened by compression |
-| Installed skills (`~/.agents/skills/*`, `~/.claude/skills/*`, plugin skills) | Nothing | Everything — never edit a skill without an approved diff |
-| `~/.claude/settings.json`, plugins | Nothing | Everything (user decided 2026-07-10 to keep current plugin set) |
-| Hooks and gates (`.agents/hooks/`, `scripts/` checks) | Nothing | A change to an existing hook or gate, or a new gate that §2 allows — same consensus path as `rules/*.md` (user 2026-10-22 「你都知道和 advisor 討論好就加一加啊」) |
-| `.workflow/*` task artifacts (per project) | Free | — |
-
-"Show the exact diff" means: print the proposed old→new text and the triggering
-incident. For a row that requires user approval, STOP until the user approves; never
-apply-then-ask. For a consensus row, apply after the consensus and report. Quote the old text
-from the saved file at proposal time; if the pre-edit text is unavailable, say so rather
-than treating HEAD as the original. Before changing a rule whose text cites a lesson,
-ops/evidence note, or commit as its trigger, read that source first and confirm the change
-cannot reopen the failure.
-
-Before proposing a rule, hook, or gate after a violation: name the controlling
-rule and the action that violated it, correct the current action or claim, then
-assess enforcement. A mechanism is eligible for its §1 approval path only when (a) two
-verified incidents repeat the same prohibited action after the rule was clear,
-(b) one incident's recurrence risks a hard-stop boundary, security, privacy, or
-data loss, or (c) the user explicitly requests enforcement. Cite the incidents
-and state the mechanism's false-positive and false-negative boundary. Enforcement
-supplements compliance; it does not excuse the incident.
+- Model-dispatch §1 values: update after a live schema or `/model` check; quote it in the commit.
+- Model-dispatch §2–§7 contracts or ladder: use the approval path below.
+- Other rules: fix verified broken paths or commands; quote the check in the commit message.
+- Semantic rule changes: settle the exact diff with advisor and a second-model reviewer.
+  Use judgment-rubrics §3; apply and report the diff and who agreed in the same turn.
+- Companion letter and runbook: fix verified broken facts or paths with evidence in the commit.
+  Content changes use the semantic rule approval path.
+- Backlog rows (§3): add freely; ask the user before closing a row as dropped.
+- Global files: get approval for every edit; change both files together with identical `Version:`.
+  Keep iron laws only; the deployed solid edition has no size cap and uses the growth budget gate.
+  Keep `global/kernel-lean.md` terse by review, without a hard character cap.
+  `WEB-AGENTS.md` fetches the lean edition for network-only agents; route detail to rules.
+  Preserve imperative force when compressed, including prohibitions and approval requirements.
+- Installed skills, including plugin skills: get approval of the exact diff before any edit.
+- `~/.claude/settings.json` and plugins: get approval for every change; keep the current set.
+- Hooks and gates: use the semantic rule approval path for edits or eligible new gates (§2).
+- `.workflow/*` task artifacts: write freely.
+- Show the exact old→new text and the trigger when proposing an edit.
+- For user approval rows, stop before applying.
+- For consensus rows, apply after consensus and report.
+- Quote the saved pre-edit file; if unavailable, say so instead of treating HEAD as the original.
+- Before changing a rule with a cited lesson, evidence note, or commit, read that source.
+  Check that the change cannot reopen the failure.
+- After a violation, name the controlling rule and action; correct the action or claim first.
+- Use the §1 approval path for enforcement only for two verified repeats after a clear rule,
+  an explicit user request,
+  or one incident whose repeat risks a hard-stop boundary, security, privacy, or data loss.
+- Cite the incidents and state false-positive and false-negative limits for enforcement.
+- Treat enforcement as a supplement to compliance, never an excuse for the violation.
 
 ## §2 Friction → a gate, a backlog row, or nothing
-There is no free-text lesson list (`lessons.md` retired 2026-10, option B; old entries:
-`git show a3992bd:.agents/rules/lessons.md`). Triggers: the user corrects a behavior
-(one correction suffices); the same friction appears twice; a verified fact contradicts
-rules/; a delegation failed for a reason a check would have caught; a model/tool
-availability change. In the same turn, pick exactly one outcome:
-- Gate: a hook or check under `.agents/hooks/` or `scripts/` that fails on the bad
-  case. It follows the eligibility test above and the §1 row of each file it touches.
-  A new gate retires or merges one existing gate or rule paragraph in the same commit,
-  unless the user approves the addition by name (W43: hooks 21→32 in four weeks, nearly
-  all proposed by agents; user 2026-10-22 「ＨＯＯＫ 也你說的啊」「和 advisor 確認可以改啊」).
-- Rule fix: the rule text is wrong or missing → exact diff to that file (§1); in the same turn close the
-  matching `retro-inbox/pending/` row on this host (§3; another host's row: retro §6.5).
-  A fix aimed at the kernel (`global/`) follows its "Editing this file" section first: the official
-  standard outranks the feedback, so a fix that would break it goes to a routed file or a hook.
-- Backlog row (§3): worth enforcing, but no gate yet.
-- Nothing: one-off trivia, project-specific detail (goes to that project's notes), or
-  already covered by a gate or rule — cite its `file:line`; if that gate or rule is
-  what failed, the outcome is fixing it in place (Rule fix), not a new one.
 
-For a repeated error, look for the fix in this order. First, ask whether the existing data
-flow, types, or interfaces can remove the bad path. Second, use an existing local lint or
-test. Third, fix the skill or rule. Human review is last. Build no speculative platform and
-no cloud CI (GitHub Actions stay banned).
+- Do not keep a free-text lesson list.
+- Act in the same turn after one user correction, two repeats, a fact that contradicts rules,
+  a delegation failure a check could catch, or a change in model or tool availability.
+- Pick exactly one outcome: gate, rule fix, backlog row, or nothing.
+- Gate: add a hook or check in `.agents/hooks/` or `scripts/` that fails on the bad case.
+  Apply §1 eligibility and each touched file's approval path.
+  Retire or merge one gate or rule paragraph in that commit unless the user names the addition.
+- Rule fix: propose the exact diff under §1; close its local pending row in the same turn (§3).
+  Close another host's row through retro §6.5 (row collection).
+- For kernel fixes, follow its Editing this file standard before feedback.
+  Put a fix that breaks that standard in a routed file or hook.
+- Backlog row: use §3 when enforcement is worthwhile but no gate exists.
+- Nothing: use for one-off trivia, project detail, or behavior already covered; cite `file:line`.
+  Put project detail in project notes; fix a failed existing rule or gate in place.
+- For repeated errors, try data flow, types, or interfaces first; then local lint or tests;
+  then a skill or rule fix; use human review last.
+- Build no speculative platform or cloud CI; GitHub Actions remain banned.
 
 ## §3 Backlog row format
-One file in `~/.agents/retro-inbox/pending/` (`mkdir -p` it if absent), named
-`<UTC>-<slug>.md`, with `kind: proposal` in its YAML frontmatter and this body line:
-`YYYY-MM-DD | friction (evidence) | file to change | acceptance + one negative case`.
-A row with no file name, or with no case that must FAIL before the fix, is not a row.
-Retro §6.5 collects every host's `pending/` over SSH, moves each file to `done/`, and drains it into `next-week-backlog.md`; a row closes as a gate or a
-rule fix (commit sha), or as dropped (user approval, §1).
-One row per file. A row closes in the turn its fix lands, on the host that holds the file (another
-host's row is closed by retro §6.5 with the same checks): append `closed: <sha> <file:line> (<date>)`
-and move the file to `done/`. A duplicate row closes by citing the kept row's filename. Any other row
-closes only when all three hold: (1) the commit that first adds the cited text
-(`git log -S'<text of the cited line>'`, earliest) is dated on or after the row's date; a rule that
-was already live is a rule that failed, so fix it in place (§2), and only a row whose rule or gate
-predates it and already met the acceptance (§2 Nothing) skips (1); (2) the row's negative case passes
-with the fix, output quoted; (3) every clause of the acceptance has its own live `file:line`. A file
-that holds several rows moves only when each row is closed; split the open rows into their own
-`pending/` files first. Friction that belongs to a product repo goes to that
-repo's backlog, not here; a reusable fact goes to `~/.agents/shared-memory-inbox/` (retro §6.5).
+
+- Put one row per `<UTC>-<slug>.md` in `~/.agents/retro-inbox/pending/`; create the directory.
+- Set YAML frontmatter `kind: proposal` and use this body format:
+  `YYYY-MM-DD | friction (evidence) | file to change | acceptance + one negative case`.
+- Name the target file and a case that fails before the fix; otherwise the row is invalid.
+- Retro §6.5 collects all hosts' pending files over SSH, moves them to `done/`, and drains
+  them into `next-week-backlog.md`.
+- Close a row as a gate or rule fix with a commit sha, or as dropped with user approval (§1).
+- In the fix turn, append `closed: <sha> <file:line> (<date>)` and move the row to `done/`.
+  Do this on the host that holds it; retro §6.5 uses the same checks for other hosts.
+- Close duplicates with the kept row's filename.
+- For other closures, find the earliest commit that adds the cited text with `git log -S`.
+  Its date must be on or after the row's date; fix an older failed rule in place (§2).
+  Skip this date check only if an older rule or gate already met acceptance (§2 Nothing).
+- Quote a passing run of the row's negative case with the fix.
+- Cite live `file:line` evidence for every acceptance clause.
+- Move a file with several rows only after all close; split open rows into pending files first.
+- Put product friction in that repo's backlog.
+- Put reusable facts in `~/.agents/shared-memory-inbox/` (retro §6.5).
 
 ## §4 Size limits and pruning
-- No size cap and no byte budget. The line cap went 2026-08-25 (line counts measure
-  wrapping, not content, and were passed by reflowing prose); the byte budget went
-  2026-09-01 for the same class of reason — bytes were a proxy for context cost the
-  runtime already reports directly (`/context`, statusline), and `rulesBytes` counted
-  routed files that are read on demand and cost nothing per session. Growth is governed
-  by review. Never trim unrelated rules to make room for an addition — that is the
-  reflow trick again. `~/.claude/CLAUDE.md` stays index +
-  hard rules only — detail moves to a rules/ file behind one routing line.
-- `Version:` is a policy EDITION label bumped by the periodic review below,
-  NOT a drift signal: it held at `4.24.0-ironlaws` across 8 commits while a
-  host ran 3-day-old kernels (session 76409ec8). Provenance drift →
-  `scripts/check-deploy-drift.sh` vs `deploy-log.jsonl`; content drift stays
-  with the full-file comparison. Neither replaces the other.
-- Periodic review — ~monthly or every ~50 sessions: run `/insights` and `/doctor`
-  (where the runtime provides them), close every open backlog row with the user,
-  turn confirmed frictions into gates or rule fixes, prune rules that stopped earning their place,
-  and bump the `Version:` line in CLAUDE.md — all as a PROPOSED diff, per §1.
-- When a rule seems to cause extra work, compare the same task, repo snapshot, and model
-  with and without that rule. Record the cost and the acceptance difference before you
-  propose the change. Never experiment on deployed config.
-- A rule added for a temporary model or tool gap states, in the same sentence, the condition
-  that removes it.
-- Quarterly (first session of each quarter) at minimum: re-verify model-dispatch §1
-  and run the periodic review above if it hasn't happened this quarter.
+
+- Govern growth by review, without a size cap or byte budget.
+- Do not trim unrelated rules to fit additions or reflow text to evade review.
+- Keep `~/.claude/CLAUDE.md` to an index and hard rules; route detail through one line.
+- Treat `Version:` as a policy edition, not a drift signal.
+- Check provenance with `scripts/check-deploy-drift.sh` against `deploy-log.jsonl`.
+- Check content with full-file comparison; neither drift check replaces the other.
+- About monthly or every 50 sessions, run `/insights` and `/doctor` where available.
+- In that review, close all open rows with the user, turn confirmed friction into gates or fixes,
+  prune rules that no longer help, and propose a `Version:` bump under §1.
+- Before changing a costly rule, compare the same task, snapshot, and model with and without it.
+  Record cost and acceptance differences; never experiment on deployed config.
+- A temporary rule states its removal condition in the same sentence.
+- On the first session each quarter, recheck model-dispatch §1 and run any outstanding review.
 
 ## §5 Canonical home & multi-device discipline
-- Canonical source (ADR-0001, ACTIVE) = the public `agent-scripts` repo's
-  `.agents/rules/`. `~/.agents/rules/` on each machine is a deployed copy, read
-  on demand by both runtimes per the routing table in the global files.
-- Deploy = `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/`. Nothing
-  under `~/.agents/rules/` is machine-local: `--delete` removes any file the repo
-  does not carry.
-- Deploy hygiene (each learned from a real drift incident): after any institution
-  pivot, grep every rules/global file for the old mechanism's tokens and fix them
-  in one pass; periodically diff native `~/.claude/CLAUDE.md`/`~/.codex/AGENTS.md`
-  against repo `global/` in FULL (not just Version + touched lines); every skill
-  named in the global files or routed rules must have a fleet `skills-lock.json`
-  entry; treat any `skills update`-family subcommand as mutating (never pass it
-  `--help`).
-- The two global files are canonical in the repo's `global/` directory,
-  deployed to their runtime paths (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`)
-  byte-identical, kept content-identical (same `Version:` line), never
-  symlinked, never stored under `~/.agents/rules/`.
-- Machine verification: each machine's runtime `~/.agents/rules/` and global
-  files match the repo's md5 for the same paths, and both global files show
-  the same `Version:`. Before deployment, `node scripts/check-rules-invariants.mjs` must pass;
-  after deployment, a new session reply must end with `✈` unless its required
-  format fixes the final line (see `rules/agent-environment-provisioning.md`).
+
+- Use public agent-scripts `.agents/rules/` as canonical; deploy copies to `~/.agents/rules/`.
+- Both runtimes read deployed rules on demand through the global routing table.
+- Deploy rules with `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/`.
+- Keep no machine-local files there; `--delete` removes files absent from the repo.
+- After a system change, search all rules and global files for old tokens and fix them together.
+- Periodically diff both native global files against repo `global/` in full.
+- Give every skill named by global files or rules a fleet `skills-lock.json` entry.
+- Treat every `skills update`-family command as a mutation; never pass it `--help`.
+- Keep global sources in repo `global/`; deploy byte-identical native files to
+  `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` with the same `Version:`.
+- Do not symlink global files or store them under `~/.agents/rules/`.
+- Match each machine's rule and global-file md5 values against the corresponding repo paths.
+- Before deployment, pass `node scripts/check-rules-invariants.mjs`.
+- After deployment, check that a new session reply ends with `✈`, unless its format fixes the end.
+  See `rules/agent-environment-provisioning.md`.

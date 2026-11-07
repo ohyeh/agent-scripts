@@ -1,80 +1,93 @@
 # Agent Environment Provisioning (Cross-Machine Rebuild)
 
-Runbook for rebuilding the AI workflow environment (rules institution, skills,
-plugins, workflow recipes) on another machine. Not needed during normal task
-execution — only when provisioning a new machine or during disaster recovery.
-Skill/plugin paths below were live-verified 2026-07-10; the canonical-home and
-deploy model was updated 2026-07-19 (ADR-0001 now ACTIVE, see below).
+- Use this runbook only for a new machine or disaster recovery.
 
-## Fast path (clone-free, one command) — added 2026-07-19
+## Fast path (clone-free, one command)
 
-Since ADR-0001 went ACTIVE, the whole environment deploys from the public
-`agent-scripts` repo with no clone left behind:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/scripts/deploy.sh | bash
-```
-
-It downloads the current `main` tarball to a scratch dir and runs the layers
-listed in the `scripts/deploy.sh` header (global files, rules, workflow recipes,
-skills, hooks, Cursor kernel and HUD, agents, and more) — each layer printing
-PASS/FAIL and aborting fast on the first failure. This is the primary rebuild path; the per-layer manual
-procedures below remain the reference for disaster recovery when the script itself
-is unavailable. Live-used on two fleet nodes at W15/W18.
+- Use the primary rebuild command:
+  `curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/scripts/deploy.sh | bash`
+- The script downloads `main` to scratch without a retained clone and runs its header's layers.
+- Expect PASS/FAIL per layer and a stop at the first failure.
+- Use the manual procedures below only when the script is unavailable.
 
 ## Agent Skills
 
-- **Layout**: skills live in `~/.agents/skills/<name>/` (each with `SKILL.md`); `~/.claude/skills` is ONE directory symlink → `../.agents/skills` (no per-skill links; `deploy.sh` converges it).
-- **Provenance**: managed by `npx skills` (vercel-labs/skills CLI); lockfile `~/.agents/.skill-lock.json` records `source`/`sourceUrl`/`skillPath`. Check with `npx skills list -g` (global skills MUST use `-g`; without it, only project-level skills show).
-- **Rebuild (preferred = the repo `skills-lock.json` restore)**: the fleet converges on the repo-root `skills-lock.json` (union contract). Run from `$HOME` so the CLI installs globally (it restores into `.agents/skills/` relative to cwd): `cd ~ && curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/skills-lock.json -o skills-lock.json && npx -y skills experimental_install && rm skills-lock.json`. This is Layer 4 of the Fast-path `deploy.sh` above. With the lock file present in the cwd, `experimental_install` performs the global restore. Two manual-only items stay excluded from the lock by design: `commit-commands` (a Claude Code plugin, not a skill) and hand-copied skills with no tool-resolvable source. Fallbacks: `npx skills add <repo> -g` repo by repo (installs under the repo's original name; local renames need manual renaming per the table below), or the offline tar below (preserves local renames exactly).
-- **Stale pin (do not ask; user ruling 2026-10-27)**: `experimental_install` installs upstream HEAD, not the pinned hash. So when `deploy.sh` reports `[skills] content differs from the pin`, the pin is stale, not the install. Do not ask the user and do not delete the folder. Run `GITHUB_TOKEN="$(gh auth token --hostname github.com)" npx --yes skills upgrade -g -y`, then `scripts/sync-skills-lock.sh`, commit the lock, push, and deploy again.
-- **Offline tar (fallback; preserves local renames exactly)**:
-
-  ```bash
-  # source machine
-  tar -czf agent-skills.tgz -C ~/.agents skills .skill-lock.json
-  # target machine
-  mkdir -p ~/.agents && tar -xzf agent-skills.tgz -C ~/.agents
-  rm -rf ~/.claude/skills && ln -s ../.agents/skills ~/.claude/skills
-  ```
-
-- Other skills: `npx skills list -g`; process-type skills mostly from `vercel-labs/skills`; the lockfile is authoritative.
+- Keep skills at `~/.agents/skills/<name>/SKILL.md`.
+- Use one directory symlink, `~/.claude/skills` → `../.agents/skills`, without per-skill links.
+  `deploy.sh` converges this layout.
+- Use vercel-labs/skills `npx skills`; provenance lives in `~/.agents/.skill-lock.json` fields
+  `source`, `sourceUrl`, and `skillPath`.
+- List global skills with `npx skills list -g`; without `-g`, it lists project skills only.
+- Prefer repo-root `skills-lock.json` as the fleet union contract and restore from `$HOME`:
+  `cd ~`
+  `curl -fsSL -O https://raw.githubusercontent.com/ohyeh/agent-scripts/main/skills-lock.json`
+  `npx -y skills experimental_install`
+  `rm skills-lock.json`
+- Keep the lock in the current directory; restore installs `.agents/skills/` relative to it.
+  Fast-path layer 4 performs this restore.
+- Exclude `commit-commands` (a plugin) and hand-copied skills without a resolvable source.
+- For manual fallback, use `npx skills add <repo> -g` per repo; rename local skill names manually.
+- For offline fallback that preserves names, archive on the source machine:
+  `tar -czf agent-skills.tgz -C ~/.agents skills .skill-lock.json`
+- On the target, restore the archive and directory symlink:
+  `mkdir -p ~/.agents && tar -xzf agent-skills.tgz -C ~/.agents`
+  `rm -rf ~/.claude/skills && ln -s ../.agents/skills ~/.claude/skills`
+- If deploy reports `[skills] content differs from the pin`, treat the pin as stale:
+  `experimental_install` installs upstream HEAD, not the pinned hash.
+- For a stale pin, do not ask or delete the folder; run
+  `GITHUB_TOKEN="$(gh auth token --hostname github.com)" npx --yes skills upgrade -g -y`,
+  then `scripts/sync-skills-lock.sh`, commit the lock, push, and deploy again.
+- Use the lock as authority for other skills; process skills mostly come from vercel-labs/skills.
 
 ## Rules / Institution
 
-- **Deployed copy**: routed rules are read from `~/.agents/rules/` (both runtimes read them on demand per the global-file routing table); the two global files are native duplicates, `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md` (same content, maintained separately, no symlink).
-- **Rebuild (ADR-0001 ACTIVE)**: rules are version-controlled — the public `agent-scripts` repo's `.agents/rules/` is canonical; machine copies are deployed, direction always repo → machine. Deploy = `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/`. The Fast-path `deploy.sh` does exactly this as its rules layer. Global files are canonical in the repo's `global/` directory, deployed byte-identical to `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`.
-- **Verify**: the `~/.agents/rules/` manifest matches the global-file routing
-  table, both global files have the same `Version:` line, `node scripts/check-rules-invariants.mjs`
-  passes before deployment, and a new session reply ends with `✈`.
+- Use public agent-scripts `.agents/rules/` as canonical; deploy only repo → machine.
+- Both runtimes read `~/.agents/rules/` on demand through their global routing table.
+- Deploy rules with `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/`.
+  The fast-path rules layer does this.
+- Deploy repo `global/` byte-identically to native `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`.
+- Maintain both global files separately; do not symlink them.
+- Check that the rules manifest matches the routing table and both `Version:` lines match.
+- Pass `node scripts/check-rules-invariants.mjs` before deployment.
+- Check that a new session reply ends with `✈`.
 
 ## Plugins / Marketplaces
 
-From `~/.claude/plugins/known_marketplaces.json`; install: `/plugin marketplace add <repo>` → `/plugin install <name>@<marketplace>`:
+- Read `~/.claude/plugins/known_marketplaces.json` for marketplace state.
+- Install with `/plugin marketplace add <repo>`, then `/plugin install <name>@<marketplace>`.
+- `claude-plugins-official`: `anthropics/claude-plugins-official`.
+- `context-mode`: `mksglu/context-mode`.
+- `openai-codex` (Codex CLI integration): `openai/codex-plugin-cc`.
+- `claude-hud`: `jarrodwatts/claude-hud`.
+- Use `scripts/claude-hud-statusline.sh` and `scripts/cursor-plan-usage.py` for both CLIs' HUD.
+- Let deploy layer 7 install them and merge both `statusLine` settings through
+  `scripts/install-cursor-hud.sh`.
+- For manual install, copy both scripts to `~/.claude/` and make both executable.
+- Set Claude `settings.json` `statusLine.command` to `bash -c '~/.claude/claude-hud-statusline.sh'`.
+- Set Cursor `cli-config.json` `statusLine.command` to `~/.claude/claude-hud-statusline.sh`,
+  `timeoutMs` to 5000, and `updateIntervalMs` to 1000.
+- Never copy a whole `cli-config.json`; it contains auth.
+- Use `scripts/install-cursor-kernel.sh` for `~/.cursor/rules/kernel.mdc` with `alwaysApply: true`
+  and the same body as `global/AGENTS.md`; deploy layer 7 runs it.
+- Restart Cursor CLI after deploy; do not put the kernel in a project's `AGENTS.md`.
 
-| marketplace | GitHub repo |
-| --- | --- |
-| claude-plugins-official | `anthropics/claude-plugins-official` |
-| context-mode | `mksglu/context-mode` |
-| openai-codex (codex CLI integration) | `openai/codex-plugin-cc` |
-| claude-hud | `jarrodwatts/claude-hud` |
+## Skills used by the docs HTML-ification task
 
-Shared statusline wrapper (Claude Code + Cursor CLI): `scripts/claude-hud-statusline.sh` plus `scripts/cursor-plan-usage.py`. `deploy.sh` layer 7 installs both and merges the Claude and Cursor `statusLine` (`scripts/install-cursor-hud.sh`); the manual fallback is `cp scripts/claude-hud-statusline.sh scripts/cursor-plan-usage.py ~/.claude/ && chmod +x ~/.claude/claude-hud-statusline.sh ~/.claude/cursor-plan-usage.py`, then point Claude `settings.json` `statusLine.command` at `bash -c '~/.claude/claude-hud-statusline.sh'` and Cursor `cli-config.json` `statusLine.command` at `~/.claude/claude-hud-statusline.sh` (timeoutMs 5000, updateIntervalMs 1000). Never copy a full `cli-config.json` — it contains auth. Cursor kernel (CLAUDE.md analog): `scripts/install-cursor-kernel.sh` writes `~/.cursor/rules/kernel.mdc` (`alwaysApply: true`) with the same body as `global/AGENTS.md`. `deploy.sh` layer 7 runs it; restart the Cursor CLI after deploy. Do not put the kernel in a project's `AGENTS.md`.
+- Restore `codex-dynamic-workflows` from `dannymac180/skills` for workflow orchestration.
+- Restore `impeccable` from `pbakaus/impeccable` for detail review.
+> Do not restore `high-end-visual-design`, `minimalist-ui`, or `brandkit` on rebuild.
+- Restore `design-taste-frontend` through the skills layer; use the lock as authority.
 
-## Skills used by the docs HTML-ification task (commit 6f5ed3b)
+## Dynamic Workflow Recipes
 
-| skill | role | status per `~/.agents/.skill-lock.json` (live-checked 2026-07-10) |
-| --- | --- | --- |
-| `codex-dynamic-workflows` | workflow orchestration (plan/state/approval gate) | `dannymac180/skills` ✓ installed |
-| `impeccable` | detail-quality gatekeeping | `pbakaus/impeccable` ✓ installed |
-
-> That task also used `high-end-visual-design`, `minimalist-ui` and `brandkit`; none is in the lock now (removed 2026-09-27) — **no need** to restore them on rebuild. `design-taste-frontend` is back in the lock (restored by the skills layer).
-
-## Dynamic Workflow Recipes (live-verified 2026-07-10)
-
-Reusable cross-project Workflow scripts. **The Workflow tool's per-run script copies under `~/.claude/projects/<slug>/<session-id>/workflows/` are run artifacts, never the source of truth.**
-
-- **Source of truth**: the workflow bundle — `skills/using-workflows/workflows/*.workflow.js` (including `_lib/` and `README.md`) in the public `agent-scripts` repo, the sole canonical copy; `npx skills` lockfile source = `ohyeh/agent-scripts` (`https://github.com/ohyeh/agent-scripts.git`).
-- **Deployed / invocation**: recipes must live under `~/.claude/workflows/` (regular files) to be discovered by Claude Code and invokable via `/<name>` or `Workflow({name})`; a project-level `.claude/workflows/` shadows a same-named recipe → name new recipes to avoid collisions with names already used in a project. See `workflows/README.md` in the bundle for details.
-- **Rebuild**: first restore skills per the Agent Skills flow above (preferred = the `skills-lock.json` restore) → then deploy `*.workflow.js` + `_lib/` to `~/.claude/workflows/` per the bundle's `workflows/README.md`.
-- **Parameters**: run targets (repoPath/appId/deeplink/flavor/…) + flags + non-secret config → `args`. **Secrets never enter `args`/prompt/transcript** — pass a `args.credsFile` path and the env key name instead; machine-local values (Xcode/UDID/FVM path) → env/config.
+- Use public agent-scripts `skills/using-workflows/workflows/` as the sole recipe source,
+  including `*.workflow.js`, `_lib/`, and `README.md`.
+- Keep the npx skills source `ohyeh/agent-scripts` (`https://github.com/ohyeh/agent-scripts.git`).
+- Treat `~/.claude/projects/<slug>/<session-id>/workflows/` copies as run artifacts only.
+- Deploy regular recipe files to `~/.claude/workflows/` for `/<name>` or `Workflow({name})`.
+- Avoid recipe name collisions: a project's `.claude/workflows/` shadows global recipes.
+- Restore skills first, preferably from `skills-lock.json`; then deploy recipes and `_lib/`
+  as the bundle's `workflows/README.md` specifies.
+- Pass targets, flags, and non-secret config through `args`.
+- Keep secrets out of `args`, prompts, and transcripts; pass `args.credsFile` and the env key name.
+- Put machine-local values, such as Xcode, UDID, and FVM paths, in env or config.

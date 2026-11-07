@@ -1,269 +1,230 @@
 # Judgment Rubrics — high-level judgment as executable checklists
-
-Each rubric: WHEN to apply, a checklist, one positive and
-one negative example. If a checklist and your instinct disagree, follow the checklist
-and note the disagreement in your report.
-
-Before acting on or reporting from a rule, specification, or source, read the
-complete controlling sentence or section. A permitting or "already done" clause
-does not override adjacent constraints, exceptions, scope, or unfinished clauses.
-
-When a user or evidence identifies a possible rule violation, first name
-the controlling rule and the action that violated it, then correct the current
-action or claim. Do not narrow a higher-level rule to excuse conduct it covers;
-assess any rule or enforcement gap only after that correction.
+- Each rubric gives when to apply, a checklist, one positive example, and one negative example.
+- Follow the checklist when it disagrees with instinct and note the disagreement in the report.
+- Read the full controlling sentence or section before acting on or reporting from a source; a
+  permitting or "already done" clause never overrides adjacent constraints, exceptions, or scope.
+- On a possible rule violation, name the controlling rule and violating action first, then fix the
+  action or claim before assessing any rule gap; never narrow a higher-level rule to excuse it.
 
 ## §1 When to escalate to a stronger model
-Apply: whenever a subtask fails or you feel "stuck".
-Escalate (per `rules/model-dispatch.md` §5) when ANY holds:
-- [ ] Same subtask failed twice with genuinely different attempts.
-- [ ] The task requires weighing >2 interacting constraints (perf vs compat vs deadline) and you cannot articulate the trade-off in two sentences.
+- Apply when a subtask fails or feels stuck; escalate (`rules/model-dispatch.md` §5) if any holds:
+- [ ] The same subtask failed twice with genuinely different attempts.
+- [ ] The task weighs >2 interacting constraints (perf, compat, deadline) beyond two sentences.
 - [ ] You are about to make an irreversible or architecture-level choice.
-- [ ] Your confidence in a factual claim is below "I could show the user evidence".
-Do NOT escalate when the failure is a typo-level bug, missing import, wrong path, or you have
-not yet read the error message carefully. Escalation without the full failure trail is wasted budget.
-- Positive: sonnet twice failed to fix a race condition, each fix moving the failure elsewhere → escalate to opus with both diffs + test output. Correct.
-- Negative: a low-effort sonnet worker got a `ModuleNotFoundError`, the session escalates to opus "because it errored". Wrong — read the error; it's a missing install, fix it directly.
+- [ ] Confidence in a factual claim is below showing the user evidence.
+- Do not escalate for a typo-level bug, missing import, wrong path, or unread error; include the
+  full failure trail when escalating.
+- Positive: sonnet twice failed a race fix, moving the bug → escalate to opus with diffs + output.
+- Negative: sonnet hit `ModuleNotFoundError` and escalated to opus instead of installing the module.
 
 ## §2 When it is actually DONE (completion checklist)
-Apply: before saying done/fixed/verified/PASS to the user. ALL boxes required:
-- [ ] The originally requested outcome exists (not a partial or adjacent outcome).
-- [ ] Raw evidence in hand: command + exit code + key output lines, or artifact path.
-      A peer, reviewer, or handoff conclusion is a lead, not raw evidence: it corroborates
-      only if the reviewer was commissioned against stated acceptance AND you inspect the
-      cited live source; otherwise attribute it, relay the verified part, mark the rest `UNCONFIRMED`.
-      An exit code quoted as evidence must not pass through a pipe (`cmd | head` reports
-      `head`): use `grep -c`, `${PIPESTATUS[0]}` (bash; zsh: `${pipestatus[1]}`), or run the command alone. A syntax check
-      must match the shebang (`bash -n` does not check a zsh script).
-- [ ] Evidence came from execution THIS session, not from memory or expectation.
-- [ ] Independently verified. Classify by what the change affects, not by file count or diff size. Reversible change: author-run real command/test with quoted exit code suffices (§2b). Irreversible or outward-facing change: a fresh-context agent (not the author) verified it — files: read-back; code: tests or a real run; claims: spot-check.
-- [ ] A review or verification verdict names the exact input it judged: a commit sha, or for
-      uncommitted work the file list plus each file's sha256. A verdict on content that changed
-      afterwards does not count for the new content.
-- [ ] `git status`/`git diff` shown; work committed or the uncommitted state explicitly flagged.
-- [ ] Anything inferred-but-unverified is labeled `UNCONFIRMED` in the report.
-- [ ] Claims about file contents rest on full, non-truncated auditable reads — a grep/rg
-      hit alone is never evidence (it may be documentation, not behavior); read the context
-      it points at. Identity/drift is judged by `diff`, never by hash mismatch alone; an
-      untracked file needs `git ls-files` / `git log -- <path>` (`git diff --stat` cannot see it).
-- [ ] Runtime claims: "Restarted", port in LISTEN, or exit 0 prove nothing about NEW
-      behavior — evidence is an observable difference (screen/output diff, or a
-      fresh install's first run).
-- [ ] Delegated-worker verdicts read from the result.json body (`status`), never
-      from the supervise/wait exit code. Exit≠0 with a missing/invalid
-      result.json is a protocol failure — inspect `result --path` + pane capture
-      before re-dispatching or reporting the task as failed; pane PASS without a
-      valid result.json stays `UNCONFIRMED` (specialised form of the absence rule below).
-Evidence is idempotent: one green run on an unchanged tree is enough. Before repeating or
-broadening a passing run, name the uncovered risk or the changed input/runtime/environment;
-without one, reuse the evidence.
-Missing any box → report "attempted, unverified" and say which box is open.
-- Positive: "Fixed. `npm test` exit 0 (14 passed), fresh sonnet read-back PASS on all 3 files, diff shown above, committed as abc1234." Done.
-- Negative: "I've updated the config so the timeout issue should be resolved." No run, no evidence — this is "attempted, unverified", not done.
-
-A negative claim INFERRED FROM ABSENCE (stuck/failed/missing/no reply/never reported;
-卡住／受阻／失敗／缺少／不存在／尚未實作／沒有回覆／似乎掛了) carries the same bar — unlike a
-false "done", nobody re-checks it. A pending status, empty result, silent worker or zero-hit
-search reads two ways: the thing is absent, or your view of it is. Say which your evidence
-shows, or say "not observed" and name the unchecked channel. Corroborate from an authoritative
-source or one independent channel (`git diff --stat`/mtimes, pane capture, varied pattern+tool
-— one `rg` miss ≠ absence) BEFORE any re-dispatch, revert, rewrite or escalation; never reason
-further on an uncorroborated negative. A DIRECTLY observed failure is reported at once:
-fail-first and the hard-stop boundary outrank every check here.
+- Apply before saying done, fixed, verified, or PASS to the user; every box is required:
+- [ ] The originally requested outcome exists, not a partial or adjacent outcome.
+- [ ] Raw evidence is in hand: command + exit code + key output lines, or artifact path.
+- [ ] Peer, reviewer, or handoff conclusions corroborate only when commissioned against stated
+  acceptance and after inspecting the cited live source; else attribute, relay verified parts, and
+  mark the rest `UNCONFIRMED`.
+- [ ] Quote exit codes without pipes (`cmd | head` reports `head`); use `grep -c`,
+  `${PIPESTATUS[0]}` (bash) / `${pipestatus[1]}` (zsh), or run alone, and match syntax checks to the
+  shebang (`bash -n` does not check zsh).
+- [ ] Evidence came from execution this session, not memory or expectation.
+- [ ] Verify independently by effect, not file count or diff size: author-run command/test with
+  quoted exit code suffices for reversible changes (§2b); a fresh-context agent verifies
+  irreversible or outward-facing changes (files: read-back; code: tests/run; claims: spot-check).
+- [ ] A review or verification verdict names the exact input judged (commit sha, or uncommitted file
+  list + sha256 per file) and does not carry over after content changes.
+- [ ] Show `git status`/`git diff` and commit the work or explicitly flag the uncommitted state.
+- [ ] Label anything inferred-but-unverified as `UNCONFIRMED` in the report.
+- [ ] Base file-content claims on full, non-truncated reads rather than `grep`/`rg` hits alone;
+  judge identity or drift by `diff` rather than hash mismatch alone, and check untracked files via
+  `git ls-files` / `git log -- <path>`.
+- [ ] Prove runtime claims with an observable difference (screen/output diff or a fresh install's
+  first run) rather than "Restarted", a listening port, or exit 0.
+- [ ] Read delegated-worker verdicts from `result.json` (`status`), not the supervise/wait exit
+  code; on exit≠0 with missing/invalid `result.json`, inspect `result --path` and pane capture
+  before re-dispatching or reporting failure, keeping pane PASS without valid JSON `UNCONFIRMED`.
+- Reuse one green run on an unchanged tree unless you name an uncovered risk or changed
+  input/runtime/environment.
+- If any box is open, report "attempted, unverified" and name the open box.
+- Positive: "Fixed. `npm test` exit 0 (14 passed), fresh sonnet read-back PASS on all 3 files, diff
+  shown above, committed as abc1234."
+- Negative: "Updated config so timeout should be resolved" with no run ("attempted, unverified").
+- Apply the same bar to negative claims inferred from absence (stuck, failed, missing, no reply,
+  never reported; 卡住／受阻／失敗／缺少／不存在／尚未實作／沒有回覆／似乎掛了): state whether the
+  item is absent or only unobserved, naming the unchecked channel.
+- Corroborate via an authoritative source or independent channel (`git diff --stat`/mtimes, pane
+  capture, varied pattern+tool) before re-dispatching, reverting, rewriting, or escalating; never
+  reason further on an uncorroborated negative.
+- Report a directly observed failure at once; fail-first and hard-stop boundaries outrank these.
 
 ### §2b Verification budget — enough evidence is a stopping condition too
-The evidence bar above is a floor, not a licence to keep checking. Verification scales with
-how much a wrong answer costs, not with how much more could be checked.
-- Verify what ACCEPTANCE names, once, with one check that would fail if the claim were false.
-  A finding the acceptance does not name is a NOTE in the report — never a new fix round.
-- A fresh second-opinion review is a costly action (minutes of wall-clock per round); spend it
-  only on irreversible or outward-facing changes (deploy, delete, publish, architecture). For
-  a reversible edit the author's own executed check with quoted evidence is the whole bar.
-- Verification turns or wall-time exceeding the build itself is a wrong-direction signal (§4):
-  stop, report the evidence gathered so far, and let the user decide whether to keep checking.
-- A malformed report (missing `VERDICT:` line, missing evidence token) is a format defect of
-  that reviewer: re-ask the SAME reviewer for the missing line; never spawn another to get it.
-(2026-08-28: one polish request spent 2 min building and 28 min on 5 reviewers that each
-minted new non-acceptance findings; the screen did not change.)
+- Scale verification with the cost of a wrong answer: verify ACCEPTANCE once with one check that
+  would fail if false, and record non-acceptance findings as NOTEs rather than a new fix round.
+- Reserve fresh second-opinion reviews for irreversible or outward-facing changes (deploy, delete,
+  publish, architecture); for reversible edits, the author's executed check with quoted evidence is
+  the whole bar.
+- Treat verification turns or wall-time exceeding the build as a wrong-direction signal (§4): stop,
+  report gathered evidence, and let the user decide whether to keep checking.
+- On a malformed report (missing `VERDICT:` or evidence token), re-ask the same reviewer rather than
+  spawning another.
 
 ## §3 When to stop and ask the user
-Apply: continuously. Ask FIRST (hard-stop list): data deletion, privacy exposure,
-external side effects (emails, tickets, deploys, payments), irreversible operations,
-production/protected-branch changes, major architectural risk. Kernel auto mode
-exempts two items: push to an unprotected branch ("unprotected" = the remote reports
-no branch protection) that nothing deploys from without a human step, after the repo's
-pre-push check and tests PASS this session; and deploy or reload own tooling on this
-host. Other hosts, fleet-deploy, force push, history rewrite, deletion, and messages
-to people or outside services still ask.
-Before any change to a file or external state other than run-dir records, identify the
-sentence in the request that authorizes it and its exact target. A how-to, diagnostic,
-review, or hypothetical question authorizes no change — answer it instead of editing.
-Also stop and ask when:
-- [ ] Two interpretations of the request lead to substantially different work, and picking wrong would touch >2 files or change a schema/API/public interface.
-- [ ] Acceptance criteria cannot be stated objectively even after reading the code.
-- [ ] You are about to override an explicit earlier instruction from the user.
-Otherwise: pick the most reasonable interpretation, state it in one line, proceed.
-Exception: a USER-INVOKED interview (the user explicitly asked to be interviewed, per
-`~/.agents/skills/unknowns-discovery/SKILL.md` §4) may run multi-question — one per turn,
-architecture-changing first. Absent that explicit invocation, every question — discovery or
-execution — must satisfy a stop-and-ask condition above; the one-question cap stands.
-- Positive: "Migrate the users table" could mean schema migration or data backfill; both are hours of work → ask once with a recommendation. Correct.
-- Negative: asking "should I also update the tests?" after changing a function's behavior. Wrong — updating affected tests is in scope; just do it.
-Known-answer test, BEFORE every question: name your own best answer first. If you have one
-and being wrong is reversible, the question is a decision handed back — state the answer and
-act. A menu with a recommendation per option is still a question (the user redoes your ranking).
-Every other use of their turn carries a decision they own, a result, or a blocker; confirming
-authorized work, recapping, or asking to take a reversible in-scope step is dead weight — do the work.
-- Negative: offering three defaults, each with "recommended: X", then waiting. Wrong — those recommendations ARE the decision; apply them and report.
-Consensus ladder — only for a decision that, after the known-answer test, would still
-go to the user (the known-answer test settles the rest without a ladder):
-1. Default: up to 3 adversarial rounds of your own (state the answer, attack it,
-   revise), or one `advisor` call.
-2. High risk (kernel or rules semantics, public contract, data shape, hard to undo):
-   add one external reviewer from the model-dispatch §1 Advisor row, through the mod.
-3. Ask the user only when the ladder splits, the question is a genuine preference the
-   record cannot answer (cost, risk appetite, priority), or acting would override an
-   explicit user instruction.
-Report the decision, who agreed, and the evidence; the user overrides after the fact.
-Guidance edits follow the maintenance §1 matrix: rules settle by consensus and are reported; kernel, settings and skills need the user's approval of the exact diff.
+- Apply continuously; ask first on hard-stop items: data deletion, privacy exposure, external side
+  effects (emails, tickets, deploys, payments), irreversible operations, production or
+  protected-branch changes, and major architectural risk.
+- Kernel auto mode exempts two items: (1) pushing to an unprotected branch ("unprotected" = the
+  remote reports no branch protection) that nothing deploys from without a human step, after the
+  repo's pre-push check and tests pass this session; (2) deploying or reloading own tooling on this
+  host.
+- Still ask for other hosts, fleet-deploy, force push, history rewrite, deletion, or messages to
+  people or outside services.
+- Before changing any file or external state outside run-dir records, identify the authorizing
+  sentence and exact target in the request; answer how-to, diagnostic, review, or hypothetical
+  questions without editing.
+- Also stop and ask when any holds (else pick the best reading, state it in one line, and proceed):
+- [ ] Two readings lead to very different work and picking wrong touches >2 files or changes a
+  schema, API, or public interface.
+- [ ] Acceptance criteria cannot be stated objectively after reading the code.
+- [ ] Acting would override an explicit earlier instruction from the user.
+- Exception: an explicitly user-invoked interview (`~/.agents/skills/unknowns-discovery/SKILL.md`
+  §4) may ask one question per turn, architecture-changing first; otherwise every question must
+  satisfy a stop-and-ask condition above under the one-question cap.
+- Known-answer test before every question: if you have a best answer and being wrong is reversible,
+  state the answer and act rather than handing the decision or a recommended menu back.
+- Every other use of the user's turn carries a decision they own, a result, or a blocker; confirming
+  authorized work, bare recaps, or asking to take a reversible in-scope step is dead weight — act.
+- Positive: "Migrate users table" (schema vs backfill) → ask once with a recommendation.
+- Negative: asking "update tests too?" after a change, or waiting on 3 recommended defaults.
+- For decisions remaining after the known-answer test, run the consensus ladder:
+  1. Default: run up to 3 adversarial self-rounds (state, attack, revise) or one `advisor` call.
+  2. High risk (kernel/rules semantics, public contract, data shape, hard to undo): add one external
+     reviewer from `model-dispatch` §1 Advisor row via the mod.
+  3. Ask the user only when the ladder splits, the question is an unrecorded preference (cost, risk
+     appetite, priority), or acting overrides an explicit user instruction.
+- Report the decision, who agreed, and the evidence so the user can override after the fact.
+- Follow `maintenance` §1 for guidance edits: settle rules by consensus and report; get user
+  approval of the exact diff for kernel, settings, and skills.
 
 ## §4 Wrong-direction signals — change approach, do not retry
-Apply: after every failed attempt (a user rejection is one): write three possible causes,
-check each against the rules and files the call touched, correct for the one that holds. Any TWO of these → the approach is wrong; the same idea
-at the same tier is never rerun, and an approach ends after three tiers — every call at the
-same goal counts as a round (retry ladder in `rules/model-dispatch.md` §5):
-- [ ] Each "fix" moves the error somewhere else instead of removing it.
-- [ ] You are adding special cases to make the solution hold (2+ special cases = smell).
-- [ ] The diff keeps growing but the acceptance criteria get no closer.
-- [ ] You are fighting the framework/library (patching internals, copying private code).
-- [ ] The explanation of why it will work this time requires more than 3 sentences.
-- [ ] You dispatched another agent while the last one's finding sits unaddressed.
-- [ ] Fresh evidence already proves the path dead (missing external dependency, a measured
-      ceiling) and you have not refuted that evidence — rerunning it is forbidden; report the
-      gap as BLOCK, the missing piece is not compute.
-- [ ] The same command or action with materially identical inputs gives the same failure
-      or unmet expected result twice — hard signal: do not run it a third time; change hypothesis. Repeated
-      condition checks within one wait that meets the pre-call terminal-condition
-      and deadline rule in `rules/model-dispatch.md` §4 count as one wait, not
-      retries. After expiry, starting the same wait again with materially identical
-      inputs is a retry.
-- [ ] The user re-pastes the same correction they already gave — hard signal the last
-      fix never landed: stop the current path, read the named asset in full, then answer.
+- Apply after every failed attempt or user rejection: write three possible causes, check each
+  against touched rules and files, and fix the one that holds.
+- Any two signals below mean the approach is wrong; never rerun the same idea at the same tier, and
+  end after three tiers where every call at the same goal counts as a round
+  (`rules/model-dispatch.md` §5):
+- [ ] Each fix moves the error elsewhere instead of removing it.
+- [ ] You are adding 2+ special cases to make the solution hold.
+- [ ] The diff keeps growing while acceptance criteria get no closer.
+- [ ] You are fighting the framework or library by patching internals or copying private code.
+- [ ] Explaining why it will work this time takes more than 3 sentences.
+- [ ] You dispatched another agent while the last agent's finding sits unaddressed.
+- [ ] Fresh, unrefuted evidence proves the path dead (missing dependency, measured ceiling) → BLOCK.
+- [ ] The same command or action with materially identical inputs fails or misses the expected
+  result twice — hard signal: do not run it a third time; change hypothesis (condition checks within
+  one valid wait per `rules/model-dispatch.md` §4 count as one wait, but restarting an expired wait
+  with identical inputs is a retry).
+- [ ] The user re-pastes a prior correction: stop, read the named asset in full, then answer.
 - [ ] The user rejects a tool call.
-When triggered: stop; write down (a) what was assumed, (b) which assumption the evidence now
-contradicts; form a NEW hypothesis that explains ALL observations, or escalate with the trail.
-- Positive: two CSS fixes each broke a different browser → stop patching, check layout model assumption, discover flexbox/grid mismatch, rewrite container. Correct.
-- Negative: third attempt adding another `if (edgeCase)` to the same parser function. Forbidden by the two-signal rule (special cases + growing diff).
-
-No agent shopping. A delegate is a teammate, not a slot machine pulled until a nicer answer
-drops. You owe every dispatched agent a response: read its finding, then act on it or say why
-not. The retry budget counts every agent dispatched at the same goal, whatever its name, lens,
-or persona; splitting one goal into per-topic agents to dodge the cap is shopping. With a result
-in hand, fix the brief for the SAME agent — a fresh one only when its context is provably
-poisoned (wrong repo, corrupted state) or an independent reviewer is required
-(`rules/model-dispatch.md` §6). That panel is the one exception and it binds: declare the full
-roster and judge BEFORE the first result arrives, run one round, then decide; adding a lens after
-an answer you disliked is shopping. Dispatch spends the user's wall-clock — unbounded fan-out is
-their cost decision, not yours.
-Reviewer shopping is the same offence: the re-check of fixes for a reviewer's findings goes back
-to THAT reviewer (`tell` / resume the same worker), every round, until it returns its verdict. A
-fresh reviewer per fix round is shopping even when every finding was fixed — it drops the
-reviewer's context and reads as hunting for a PASS. (2026-10-03: batch B sent each re-check to a
-new Sol worker — sol-review-midturn, sol-review-b, sol-recheck-b — until the user flagged it.)
+- When triggered, stop and record (a) what was assumed and (b) which assumption evidence refutes,
+  then form a new hypothesis explaining all observations or escalate with the trail.
+- Positive: two CSS fixes broke different browsers → find flexbox/grid mismatch, rewrite container.
+- Negative: adding a third `if (edgeCase)` to the same parser (special cases + growing diff).
+- Never shop for agents: read every dispatched agent's finding and act on it or explain why not.
+- Count every agent at the same goal toward the retry budget regardless of name, lens, or persona,
+  and never split one goal into per-topic agents to dodge the cap.
+- Fix the brief for the same agent unless context is provably poisoned (wrong repo, corrupted state)
+  or an independent reviewer is required (`rules/model-dispatch.md` §6).
+- For an independent panel, declare the full roster and judge before the first result arrives, run
+  one round, and decide without adding lenses after a disliked answer; unbounded fan-out is the
+  user's cost decision, not yours.
+- Never shop for reviewers: send fix re-checks back to the same reviewer (`tell`/resume) every round
+  until it returns a verdict rather than spawning a fresh worker per round.
 
 ## §5 Quality floor — the minimum bar and how to check it
-Apply: before handing over any artifact (code, doc, config, report).
-- [ ] Code: existing tests pass; new non-trivial logic has one runnable check (assert-based demo or one small test); no placeholder text (`TODO: implement`, `...`, lorem) left; matches surrounding style.
-- [ ] Docs/rules: every path, command, model name, version verified live this session; no rule contradicts CLAUDE.md; concrete enough that a model without this conversation's context could follow it. A doc embedding a computed fingerprint (aggregate hash, count) re-derives it in the same commit that changes any hashed input.
-- [ ] Tests for code that consumes a library's serialized output: at least one fixture is built WITH that library and the test asserts the transform happened (e.g. output strictly smaller than input) — a hand-written literal tests the fixture, not the contract. Never run a build-producing suite while a delegated worker may be building the same tree.
-- [ ] Complex explanations: structure or dynamics (mappings, branches, sequence, hierarchy, comparisons) get a diagram per operator-defaults Diagram-first; a trivial one-step answer stays prose.
-- [ ] Research: prefer primary/official sources, then authoritative specs; distinguish documented facts from inference and mark unsupported claims `UNCONFIRMED`.
-- [ ] Reports: conclusions first; every claim has evidence or `file:line`; inferred vs verified separated; most likely failure point named.
-- [ ] Analysis: label each number used for a conclusion as measured or proxy.
-      Before you use a proxy for a conclusion, use a known case to show it can reject a bad result.
-      A proxy that holds by construction, such as a certain 100% overlap, proves nothing.
-- [ ] Before you state a cause in a named app or terminal, run a probe there. Quote the output.
-      Without that probe, label the cause `UNCONFIRMED`.
-- [ ] Everything: the deliverable answers the ORIGINAL request, not the sub-problem you got absorbed in.
-- [ ] Measurement/inventory (logs, usage, counts): script-full-coverage only — sampling is forbidden at the measurement layer; LLM deep-read covers the COMPLETE script-flagged set (triage, not sampling); every reported number carries its producing command; two conflicting "full" sweeps are adjudicated by the commander re-running one shared method — never by picking a report.
-- Positive: a migration script delivered with `--dry-run` output attached showing 42 rows would change, plus one assert-based self-check. Meets floor.
-- Negative: a README documenting a `make deploy` target that was never run to confirm it exists. Below floor — verify or mark `UNCONFIRMED`.
+- Apply before handing over any artifact (code, doc, config, report):
+- [ ] Code: existing tests pass, new non-trivial logic has a runnable check (assert demo or small
+  test), no placeholder text (`TODO: implement`, `...`, lorem) remains, and style matches.
+- [ ] Docs/rules: verify every path, command, model name, and version live this session; keep
+  CLAUDE.md consistent; make instructions concrete without session context; re-derive any embedded
+  fingerprint (aggregate hash, count) in the same commit that changes inputs.
+- [ ] Tests for library-serialized output: build at least one fixture with that library and assert
+  the transform happened (e.g. output smaller than input); never run a build-producing suite while a
+  delegated worker may be building the same tree.
+- [ ] Complex explanations: include a diagram for structure or dynamics (mappings, branches,
+  sequence, hierarchy, comparisons) per `operator-defaults` Diagram-first; keep trivial ones prose.
+- [ ] Research: prefer primary/official sources and authoritative specs, separate facts from
+  inference, and mark unsupported claims `UNCONFIRMED`.
+- [ ] Reports: put conclusions first, back every claim with evidence or `file:line`, separate
+  inferred from verified, and name the most likely failure point.
+- [ ] Analysis: label each conclusion number as measured or proxy, and prove any proxy can reject a
+  bad result on a known case rather than holding by construction.
+- [ ] Probe and quote output before stating a cause in a named app/terminal, else `UNCONFIRMED`.
+- [ ] Everything: answer the original request rather than a sub-problem.
+- [ ] Measurement/inventory (logs, usage, counts): use full-coverage scripts without sampling,
+  deep-read the complete script-flagged set, attach the producing command to every number, and
+  adjudicate conflicting full sweeps by the commander re-running one shared method, never by picking
+  a report.
+- Positive: migration script with `--dry-run` output (42 rows) and an assert-based self-check.
+- Negative: README with an unverified `make deploy` target not marked `UNCONFIRMED`.
 
 ## §6 Decision rubric (for non-obvious trade-offs)
-Apply: choosing among approaches where the best option is not obvious.
-1. List 2–4 real candidates (no strawmen).
-2. Score each 1–5 on 5–8 weighted axes: impact, risk, reversibility, maintainability, implementation cost, dependency footprint (+ task-specific axes).
-3. Stress-test: recompute with one alternate weighting (e.g. risk doubled). If the winner flips, say so — the decision is weight-sensitive and deserves a user check-in when stakes are high.
-4. Output: primary choice + fallback + the FIRST validation step that would prove the choice wrong fastest.
-Keep it to ~15 lines: the point is explicit trade-offs, not a spreadsheet.
-- Positive: choosing a queue: compares Redis Streams vs SQS vs Postgres `SKIP LOCKED` on 6 axes, notes the winner flips if ops burden is weighted 2×, picks Postgres with SQS fallback, first validation = load test at 2× expected volume.
-- Negative: "I chose Redis because it's popular and fast." No axes, no fallback, no validation step — redo.
+- Apply when choosing among approaches where the best option is not obvious (~15 lines max):
+  1. List 2–4 real candidates without strawmen.
+  2. Score each 1–5 on 5–8 weighted axes: impact, risk, reversibility, maintainability,
+     implementation cost, dependency footprint, plus task-specific axes.
+  3. Stress-test with an alternate weighting (e.g. 2× risk); if the winner flips, say so and check
+     in with the user when stakes are high.
+  4. Output primary choice, fallback, and the first validation step that proves it wrong fastest.
+- Positive: compares Redis Streams, SQS, Postgres `SKIP LOCKED` on 6 axes, notes 2× ops flip, picks
+  Postgres with SQS fallback, validates with 2× load test.
+- Negative: "I chose Redis because it's popular and fast" without axes, fallback, or validation.
 
 ## §7 Task-specific quality gates (apply when relevant, not by default)
-Apply: before shipping code that touches security-sensitive input, performance-critical
-paths, or user-facing UI — do not run these unconditionally on every task.
-- [ ] Security-sensitive (auth, input parsing, secrets, deps): run a dependency/secret
-  scan and note the result; do not ship an unreviewed new dependency.
-- [ ] Performance-critical path touched: capture a before/after number (latency,
-  query count, bundle size) — a claim without a number is not a perf claim.
-- [ ] User-facing UI touched: keyboard nav + contrast spot-check (see skill
-  `impeccable` audit), not a full audit unless requested.
-- [ ] User-facing terminal UI or CLI control touched: the §2 runtime-claim evidence is one
-  real PTY run showing visible input, output, exit status, and the resulting file or
-  configuration state; unit or headless tests do not substitute.
-Skip silently when none apply — a gate for relevant work, not a checklist tax on every task.
+- Apply when shipping code touching security, performance, or UI (skip silently otherwise):
+- [ ] Security-sensitive (auth, parsing, secrets, deps): run a dep/secret scan and note the result;
+  do not ship an unreviewed new dependency.
+- [ ] Performance-critical path: capture a before/after metric (latency, query count, bundle size).
+- [ ] User-facing UI: run keyboard nav + contrast spot-check (skill `impeccable` audit), not a full
+  audit unless requested.
+- [ ] Terminal UI / CLI control: verify runtime claims (§2) with a real PTY run showing visible
+  input, output, exit status, and resulting file/config state.
 
 ## §8 Persist and review — within caps
-Apply: hard tasks, stalled progress, and final answers.
-- Difficulty alone is not a stopping condition. Within authorized scope and the task budget,
-  split hard work into checkable parts and record intermediate evidence.
-- Same approach: three rounds, each one tier up (`rules/model-dispatch.md` §5); every call at
-  the same goal is round N of that approach. Apply §4 earlier when triggered. A new hypothesis
-  starts new rounds but shares the task budget; renaming or splitting work never resets it.
-  No budget set → at the approach cap, report and ask for a continuation budget before more attempts.
-- Before delivery, read the answer against the original request once and test its weakest
-  material claim with evidence already in hand (§2b). Non-acceptance findings stay NOTEs.
-- Waits keep `rules/model-dispatch.md` §4 deadlines; report at the brief's stall time, else
-  10 minutes; a worker stall at 15 minutes escalates. At any cap: report rule, usage, evidence,
-  open ACCEPTANCE items as `UNCONFIRMED`, and the proposed next step; never extend the cap yourself.
-- Codex `exec_command`: the start `yield_time_ms` books the first poll, and each poll resends
-  the context. Give it the expected run time (600000 works), not 1000; a later `wait` starts at
-  30 s and doubles to 300 s. No hook can enforce this: the PreToolUse payload carries only
-  `tool_input.command` (live codex-cli probe 2026-10-09; 1206 of 1254 `1000` values were at start).
-- Concise/Ponytail limit output and implementation size, not reasoning within these caps.
+- Apply on hard tasks, stalled progress, and final answers: difficulty alone is not a stopping
+  condition; split work into checkable parts and record intermediate evidence within scope and
+  budget.
+- Run at most three rounds per approach, each one tier up (`rules/model-dispatch.md` §5), counting
+  every call at the same goal as a round and applying §4 earlier when triggered.
+- Share the task budget across new hypotheses without resetting by renaming or splitting work; if no
+  budget is set, report at the approach cap and ask for a continuation budget.
+- Before delivery, check the answer against the original request once and test its weakest material
+  claim with existing evidence (§2b), keeping non-acceptance findings as NOTEs.
+- Follow `rules/model-dispatch.md` §4 wait deadlines (report at brief's stall time, else 10m;
+  escalate worker stalls at 15m); at any cap, report rule, usage, evidence, `UNCONFIRMED` open
+  ACCEPTANCE items, and next step without extending the cap yourself.
+- Set Codex `exec_command` start `yield_time_ms` to expected runtime (e.g. 600000, not 1000) since
+  each poll resends context; later `wait` starts at 30s and doubles to 300s (hooks see `command`).
+- Concise and Ponytail limit output and implementation size, not reasoning within these caps.
 
 ## §9 Judge outputs used for decisions
-Apply when you define a judge's output, use that output to choose an action, or report an
-event probability. A judge is any model or scorer, from any vendor, whose output is used to
-choose an action. Ordinary completion claims use §2/§5; preference scores use §6; do not
-repeat those checks here. This section does not require another judge call.
-1. Name the event. A judge output answers one stated question about one input ("this diff has
-   a reproducible P0/P1 defect"). It applies only to the input it judged; after that input
-   changes, check again under §2 whether the evidence still applies.
-2. Unknown is not a pass. A pass is any result that lets an action continue or drops a
-   concern. If evidence is missing or a required judge gives no usable output (§2), return a
-   non-passing result in the required format with the reason, and keep the affected action
-   blocked; never guess or add a label. A new output format must let "unknown" differ from a
-   proven negative. Fix the cause within scope (§1 escalation, §3 questions, §4/§8 limits).
-   If an optional judge fails, continue only on an approved path that does not use its
-   output, and report the failure.
-3. Scores are not probabilities. Call a number an event probability only when it is
-   calibrated on outcomes for that event on the intended workload; cite source and version.
-   Label any other number, such as a self-reported confidence or a vote share, a raw score.
-   Before using a judge output to reduce review, cite outcome evidence for that decision on
-   the intended workload. Lower price does not mean less review; a stronger model does not
-   by itself prove lower risk.
-4. Evidence and approval come first. Use available check results within their tested scope.
-   Follow the task's review order and reuse unchanged evidence (§2). A judge output cannot
-   waive a required check, an approval, or completion evidence (§2/§3); resolve a failing
-   required check in the owning workflow before passing the affected gate.
-5. Metric loops. Before a loop optimizes a metric, check whether the time window, the sample
-   mix, or the denominator changed. Record a fixed baseline and a quality guard. Remove noise
-   first (for example, take the median over runs). A better raw number alone is not a better
-   result.
-- Positive: A required triage judge times out. Keep the affected findings unclassified and do
-  not send them to auto-fix. Report the timeout and gather the missing evidence within the
-  current scope and budget. Ask the user only when §3 or §8 requires it.
-- Negative: "This raw score is 0.92. I have no outcome evaluation for reducing review, but I
-  will skip the required review and merge without the required approval." A raw score cannot
-  replace review evidence or approval.
+- Apply when defining a judge output, using it to choose an action, or reporting an event
+  probability (a judge is any model or scorer from any vendor used to choose an action; use §2/§5
+  for completion and §6 for preference scores; no extra judge call needed):
+  1. Name the event: answers one question on one input; re-check under §2 if input changes.
+  2. Unknown is not a pass (a pass is any result that lets an action continue or drops a concern):
+     if evidence is missing or a required judge gives no usable output (§2), return a non-passing
+     result in the required format with reason, keep the action blocked, never guess or add a label,
+     distinguish "unknown" from proven negative in new formats, and fix within scope (§1, §3,
+     §4/§8); if an optional judge fails, continue only on an approved path ignoring its output and
+     report the failure.
+  3. Scores are not probabilities: call a number a probability only when calibrated on outcomes for
+     that event on the intended workload (cite source+version); label others raw scores, and cite
+     outcome evidence before using a judge output, lower price, or stronger model to reduce review.
+  4. Evidence and approval first: use check results within tested scope, follow review order, reuse
+     unchanged evidence (§2), never let a judge waive a required check, approval, or §2/§3 bar, and
+     resolve a failing required check in the owning workflow before passing the affected gate.
+  5. Metric loops: before optimizing a metric, check whether the time window, sample mix, or
+     denominator changed, record a fixed baseline and quality guard, and remove noise (e.g. median
+     over runs) before judging a raw score improvement.
+- Positive: required triage judge times out → leave findings unclassified, skip auto-fix, report
+  timeout, gather evidence within scope/budget, and ask the user only when §3 or §8 requires it.
+- Negative: skipping required review and approval because an uncalibrated raw score is 0.92.

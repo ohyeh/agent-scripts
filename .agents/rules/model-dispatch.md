@@ -1,353 +1,282 @@
 # Model Dispatch Rules
 
-Read this BEFORE any NEW/FOLLOW-UP delegation or reviewer-profile change; a follow-up under the
-same role, rubric, and acceptance needs no re-read.
+- Read before new or follow-up delegation or reviewer-profile changes.
+- Skip a reread only when role, rubric, and acceptance stay the same.
 
 ## §1 Live model contract
 
-Tier aliases are the policy contract. Each ID below is a floor: "`<id>` or later" accepts any
-later version of the same model line without a table edit (user ruling 2026-10-16: the table
-cannot always be updated in time). Before dispatch, confirm the runtime's ID is at or above the
-floor; never dispatch an older version.
-
-| Alias | Floor | Claude Code | Cursor | agy |
-|---|---|---|---|---|
-| `opus` | `claude-opus-5-5` or later | `opus` | `claude-opus-5-5-<effort>` or later | `claude-opus-5-5-<low\|medium\|high>` or later, backup quota only |
-| `sonnet` | `claude-sonnet-5-5` or later | `sonnet` | — (only `claude-sonnet-5`) | `claude-sonnet-5-5-<low\|medium\|high>` or later, backup quota only |
-| `fable` | `claude-fable-5-1` or later | `fable` | — (only `claude-fable-5`, NO ZDR) | — |
-| `haiku` | `claude-haiku-5-5` or later | `haiku` | — | — |
-
-Resolve the alias through this table for the target runtime. A "—" cell means no qualifying
-version there: pick another runtime or a same-tier model of another family.
-
-| Claude tier | Current ID | Role |
-|---|---|---|
-| `opus` | `claude-opus-5-5` (live 2026-09-24; API default effort `medium`, effort sweep pending) | DEFAULT worker at effort `high`, never lower (owner ruling 2026-10-30「至少 high」): implementation, refactor, research, first review; architecture, hard debugging, adversarial review also start at `high`, `xhigh` only per §5 (two evidenced failures at `high`) |
-| `sonnet` | `claude-sonnet-5-5` (live 2026-10-01) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, solved-pattern batches; effort floor `medium` (user ruling 2026-10-01: at `low` it skips instructions); no planning, synthesis, revision, or verdicts |
-| `fable` | `claude-fable-5-1` | scarce; at `low` often beats opus/sonnet on cost per task — include in any sweep; picker rejection falls back to `opus` |
-| `haiku` | `claude-haiku-5-5` (live 2026-10-10) | commander's call (user ruling 2026-10-10: 5.5+ unbanned): implementation, read-only gathering, mechanical search, read-back, bulk tagging or extraction (including web/community scans); effort floor `medium`; no planning, synthesis, revision, or verdicts |
-
-Haiku 4.x RETIRED 2026-08-01 (user decision; the old model miscounted). Haiku 5.5+ is a
-situational tier (row above). Where the commander does not pick it, former haiku roles run as
-`sonnet` effort `medium`; where only `model` is accepted, pass `sonnet`. Claude Agent calls take
-`model` and `effort` (CC 2.1.292+; omitted effort inherits the session's); effort also exists in
-agent frontmatter and Workflow `agent(prompt, {effort})`.
-
-For phone or device UI work, the commander relays only secrets and hard-stop steps.
-
-| Codex role | Model | Start effort | Ceiling/contract |
-|---|---|---|---|
-| commander | `gpt-6.1-sol` | `medium` | `xhigh` only for materially large/hard work |
-| plan | `gpt-6-astra` | `medium` | `high`; `xhigh` only for major architecture/security/ambiguity |
-| review/judgment | review ladder (§4 Review ladder): `gpt-6-luna` xhigh/max at L1 on request; `gpt-6-astra` low/medium or `gpt-6.1-sol` medium+ at L2 | per seat | reviewer is not the author; each seat runs its tier row's effort, no step-up |
-| execution | `gpt-6-luna`; explicit Sol; or external | Luna `xhigh`/`max`; Sol `medium`+ | Sol never below `medium` |
-
-Codex dispatch models: `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna` — no others. Other catalog models
-(`gpt-6.1-terra` and the rest) are not dispatch targets. `ultra` is forbidden. Keep `service_tier=default`; `priority` only
-for an explicit latency need. Sol `max` needs concrete evidence. Never hard-code context-window
-values; the live catalog is authoritative.
+- Resolve tier aliases for the target runtime; verify its model meets the same-line version floor.
+- Accept later versions of that model line without a table edit; never dispatch an older version.
+- For an unavailable qualifying version, choose another runtime or a same-tier model family.
+- `opus` floor: `claude-opus-5-5`; Claude Code alias `opus`.
+  Cursor ID: `claude-opus-5-5-<effort>`; agy ID: `claude-opus-5-5-<low|medium|high>`.
+- `sonnet` floor: `claude-sonnet-5-5`; Claude Code alias `sonnet`.
+  agy ID: `claude-sonnet-5-5-<low|medium|high>`; Cursor's `claude-sonnet-5` does not qualify.
+- `fable` floor: `claude-fable-5-1`; Claude Code alias `fable`; no qualifying agy version.
+  Cursor's `claude-fable-5` does not qualify and has no ZDR.
+- `haiku` floor: `claude-haiku-5-5`; Claude Code alias `haiku`; no Cursor or agy version.
+- Use agy only as backup quota for opus and sonnet.
+- Default Claude worker: opus high for implementation, refactor, research, and first review.
+- Start architecture, hard debugging, and adversarial review at opus high; use xhigh only under §5
+  (effort and retry ladder).
+- Sonnet 5.5+ and haiku 5.5+: commander may choose implementation, gathering, search, read-back,
+  or solved batches; haiku also handles bulk tags, extraction, and web/community scans.
+- Keep sonnet and haiku at medium or above; neither may plan, synthesize, revise, or issue verdicts.
+- Include scarce fable at low in cost sweeps; use opus if its picker rejects it.
+- Do not use haiku 4.x; where haiku is not chosen, use sonnet medium for its former roles.
+- For former haiku roles where haiku is not chosen, pass `sonnet` if only `model` is accepted.
+- Claude Agent calls accept `model` and `effort` from CC 2.1.292; omitted effort inherits session.
+  Agent frontmatter and Workflow `agent(prompt, {effort})` also support effort.
+- For phone or device UI work, the commander relays only secrets and hard-stop steps.
+- Codex commander: `gpt-6.1-sol` medium; xhigh only for materially large or hard work.
+- Codex plan: `gpt-6-astra` medium, ceiling high; xhigh only for major architecture,
+  security, or ambiguity.
+- Codex review: §4 ladder; Luna xhigh/max at L1 on request, Astra low/medium or Sol medium+ at L2.
+  Keep reviewer separate from author; use the seat's tier effort without step-up.
+- Codex execution: Luna xhigh/max, explicit Sol medium+, or external.
+- Dispatch only `gpt-6.1-sol`, `gpt-6-astra`, or `gpt-6-luna` from the Codex catalog.
+- Do not dispatch `gpt-6.1-terra`, other catalog models, or `ultra` effort.
+- Keep `service_tier=default`; use `priority` only for an explicit latency need.
+- Require concrete evidence for Sol max; never run Sol below medium.
+- Read context limits from the live catalog; do not hard-code them.
 
 ### Codex multi_agent_v2 spawn contract
 
-Routine delegation spawns with `fork_turns="none"` or bounded history, so the child takes the
-`[agents]` defaults. Use `fork_turns="all"` ONLY when the child genuinely needs the whole
-conversation: a full-history fork inherits the parent's model AND reasoning effort and cannot
-override either — it silently bypasses the defaults. `max_concurrent_threads_per_session` COUNTS
-THE ROOT, so the deployed cap of 2 means one root plus one child; raise both the `[agents]` and
-`[features]` values together if a task truly needs a concurrent implementer and reviewer.
+- Use `fork_turns="none"` or bounded history for routine delegation to take `[agents]` defaults.
+- Use `fork_turns="all"` only for necessary full context; it inherits model and effort,
+  cannot override either, and bypasses defaults.
+- Count the root in `max_concurrent_threads_per_session`; cap 2 permits one root and one child.
+- If concurrent implementer and reviewer are needed, raise `[agents]` and `[features]` together.
+- A tmux worker is a fresh CLI root that reads machine config; `fork_turns` does not apply.
+- Use per-run `-c` only to depart from machine config, never to restate it.
 
-A tmux worker is NOT a v2 child: `agent-tmux <cli> …` launches a fresh CLI root reading the
-machine's own config, so `fork_turns` does not apply and per-run `-c` overrides are for
-deliberately departing from that config, never for restating it.
+### Tiers
 
-### Tiers (user ruling 2026-10-16; replaces the 2026-09-11 equivalence table and 2026-09-25 role tiers)
-
-Use when a recipe or brief names one family and the runtime only has another.
-Same row = interchangeable at the stated effort; do not cross rows to "save" cost. A model may
-sit on several rows at different efforts. `medium+` = that effort or higher.
-
-| Tier | Job | Claude | Codex | Gemini (agy) | Grok (Cursor) |
-|---|---|---|---|---|---|
-| best | plan, verdict (preferred) | `fable` low / medium | `gpt-6-astra` low / medium | `gemini-4-argon-low` / `-medium` or later | — |
-| better | plan, verdict | `opus` high+ | `gpt-6.1-sol` medium+ | — | — |
-| exec | implementation | `opus` high; `sonnet` high+ | `gpt-6.1-sol` medium+; `gpt-6-luna` xhigh / max | `gemini-3.8-flash-medium` or later | `grok-4.7-xhigh-fast` or later |
-| basic | gathering, mechanical | `sonnet` medium; `haiku` high+ | `gpt-6.1-sol` medium; `gpt-6-luna` xhigh / max | — | — |
-| cheap | gathering, mechanical | `haiku` medium | — | — | — |
-
-Pending fallback, not active until a §8 sweep passes: `opus` high / xhigh for best; `sonnet`
-xhigh / max for better.
-
-- Pick an exec seat by the quota left (Claude Code, Codex, Cursor; agy is backup quota only).
-- Best tier (`fable`, `gpt-6-astra`, `gemini-4-argon`) needs the user's approval in the current
-  task, the review-ladder L2 seat included: ask once, then L2 runs as normal. A profile file on
-  disk is not approval; a best-tier seat never takes implementation (2026-10-16: astra ran
-  implement and used up the Codex quota that sol shares).
-- Sol, Luna, grok: one-shot output is suspect, 2–3 rounds may fix it; grok opinions carry low weight.
+- When a recipe or brief names a family the runtime lacks, substitute within the same tier
+  at the stated effort.
+- Do not cross tier rows to save cost.
+- A model may occupy several tiers at different efforts; `medium+` means medium or above.
+- Best, preferred for plan/verdict: fable low/medium, `gpt-6-astra` low/medium,
+  or `gemini-4-argon-low`/`-medium` or later.
+- Better, plan/verdict: opus high+ or `gpt-6.1-sol` medium+.
+- Exec: opus high, sonnet high+, Sol medium+, Luna xhigh/max,
+  `gemini-3.8-flash-medium` or later, or Cursor `grok-4.7-xhigh-fast` or later.
+- Basic gathering/mechanical: sonnet medium, haiku high+, Sol medium, or Luna xhigh/max.
+- Cheap gathering/mechanical: haiku medium.
+- Keep opus high/xhigh for best and sonnet xhigh/max for better inactive until a §8 sweep passes.
+- Choose exec seats by remaining Claude Code, Codex, and Cursor quota; agy is backup only.
+- Get current-task user approval once for any best-tier seat, including L2, before launch.
+  A profile file is not approval; best-tier seats never implement.
+- Treat one-shot Sol, Luna, and Grok output with caution; 2–3 rounds may help.
+- Give Grok opinions low weight.
 
 ## §2 Delegate only when it buys leverage
 
-The commander decomposes, decides, integrates, and talks to the user. Delegate or sandbox when
-any applies: more than three files must be read, ownership is unknown, or synthesis needs an
-isolated context; output is unpredictable/over 20 lines; one solved edit repeats across at least
-three files; the change needs independent verification (§6: irreversible or outward-facing).
-
-Do not delegate one-tool-call facts or work whose coordination costs exceed execution. Project
-files read in full are files about to be edited; gate files and user-mandated reads are exempt.
-
-User-named tool or path (W40-2, user ruling 2026-10-09): when the user names the tool, app,
-host, or access path (Grok Bot, Chrome, SSH, a CLI), this session runs it itself. Do not hand
-it to a subagent or worker in the same turn; a subagent repeats the same calls, cannot ask the
-user, and adds a context. In session 9a3b40c3 a delegated Grok Bot read cost $90.32 and hit the
-subagent cap 71 times. Research is the exception (user ruling 2026-10-13): when the work is
-gathering facts, prices, or sources, the commander stays the commander even if the user names
-the tool, and routes it through the `using-decision-tree` loops branch → `haiku-research-round`.
+- The commander decomposes, decides, integrates, and talks to the user.
+- Delegate or sandbox for more than three file reads, unknown ownership, isolated synthesis,
+  unpredictable output or output over 20 lines, one solved edit across three or more files,
+  or independent verification under §6 (reviewer independence).
+- Do not delegate one-call facts or work whose coordination costs more than execution.
+- Read project files in full only before editing; gate files and user-mandated reads are exempt.
+- Run a user-named tool, app, host, or access path in this session, not through a worker that turn.
+- For research facts, prices, or sources, keep the commander role even with a named tool;
+  route through using-decision-tree loops → `haiku-research-round`.
 
 ## §3 Assignment and report contract
 
-Every task uses the matching `delegation-templates` shape and contains: (1) GOAL + WHY;
-(2) objectively checkable ACCEPTANCE; (3) REPORT destination and format; (4) runtime-native model
-plus the applicable §4 row — nearest row requires a deviation. Never claim the user authorized a
-model unless their quoted message names it.
-
-Two packet-shape hard rules (each learned from a real delegation failure):
-- A packet that rewrites tests puts per-test assertion count and a zero-`fetch` (no
-  source-substring-grep) check in ACCEPTANCE, and states that a DROPPING test count beats a hollow shell.
-- A packet that deletes or replaces a file enumerates the behaviours that file owned, as items
-  to port or explicitly retire — "route move" is not a description.
-
-> REPORT: short conclusions only; `file:line` per claim; fresh command + exit code + key lines for
-> changed work; longer material goes to the declared artifact. Missing
-> acceptance is reported, never concealed.
-
-Subagents cannot delegate further unless the task explicitly authorizes it.
-
-Worker lifespan (Agent-tool subagents; user ruling 2026-10-17). Measured 10/15–10/16: workers
-were 37% of weighted usage, and 70% of that was spent in turns above 200K context; one
-implementer got 26 `SendMessage` follow-ups and grew to about 450K (session 86a74915).
-- One worker, one round: commit at the round end, then start a new Agent whose brief carries
-  only the previous REPORT and the commit sha.
-- `SendMessage` to a running worker is for a correction inside the same round. The 3rd
-  follow-up to one agent means: stop and start a new worker (`worker-followup-gate.sh` nudges
-  there). Exception: a fix re-check goes back to the same reviewer (§Review ladder).
-- A worker that reports context above 200K is not continued after its current round.
-- A visual or end-to-end verifier is new per round, never reused.
-The §4 tmux rule (persistent session teammates fed by `send-wait`) is a different mechanism and
-stays.
+- Use the matching delegation-templates shape: GOAL + WHY, checkable ACCEPTANCE, REPORT destination
+  and format, runtime-native model, and applicable §4 row; record any nearest-row deviation.
+- Claim model authorization only when a quoted user message names it.
+- Test rewrite briefs require per-test assertion counts and a zero-`fetch` check in ACCEPTANCE.
+  Reject source-substring-grep tests; fewer tests beat hollow shells.
+- File deletion or replacement briefs list every behavior to port or explicitly retire.
+- Report short conclusions with `file:line` for each claim and a fresh command, exit code,
+  and key output for changed work; put longer material in the declared artifact.
+- Report unmet acceptance; never conceal it.
+- Subagents may delegate only with explicit task authorization.
+- For Agent-tool workers, use one worker per round; commit at round end and start a new Agent
+  with only the prior REPORT and commit sha.
+- Use `SendMessage` only for same-round corrections; stop and replace after a third follow-up.
+  `worker-followup-gate.sh` nudges at that threshold.
+  Fix rechecks return to the same reviewer under the review ladder.
+- Do not continue a worker above 200K context after its current round.
+- Use a new visual or end-to-end verifier each round.
+- Keep the separate §4 tmux persistent-session contract.
 
 ## §4 Role-first selection
 
-| Task | Claude | Codex |
-|---|---|---|
-| locate/inventory | `sonnet` medium for gathering; `opus`/`fable` for synthesis | Luna xhigh |
-| read-only search, both factions | `explore-bounded` (sonnet, effort high, maxTurns 60, Bash write-gate hook): Agent tool `subagent_type`, recipe `agentType`. Never bare `Explore`. | — |
-| implement/refactor/research | `opus` high; `sonnet`/`haiku` 5.5+ by commander's call (§1). An implement/refactor round expected to run many turns: `impl-bounded` (opus high, compacts at 200K, not 450K; 70% of worker cost 10/15–10/16 was above 200K). Pass `model` only to change tier. | Luna xhigh |
-| review/verification | review ladder (§Review ladder below): L1 `sonnet` high → L2 best tier, else `opus` high+ → stop and ask the user | review ladder: Luna xhigh/max at L1 (opt-in); Astra low/medium or Sol medium+ at L2 |
-| hard debugging after two evidenced failures / architecture | `opus` | Sol high |
-| apply solved pattern | `sonnet` medium | Luna xhigh |
-| dispatch external CLI worker | `tmux-agent` mod loaded: `mcp__tmux-agent__assign`, no proxy (`using-tmux-agent-tools` §COLLECTOR). No mod: proxy runs `assign --detach`, the parent owns the wait (`using-tmux-agent-tools` §ONE OWNER) | same |
+- Locate/inventory: sonnet medium gathers, opus/fable synthesizes; Codex uses Luna xhigh.
+- Read-only search: use `explore-bounded`, sonnet high, maxTurns 60, with its Bash write gate.
+  Set Agent `subagent_type` or recipe `agentType`; never use bare `Explore`.
+- Implement/refactor/research: opus high; sonnet/haiku 5.5+ at commander's choice (§1);
+  Codex uses Luna xhigh.
+- For many-turn implement/refactor work, use `impl-bounded` at opus high with 200K compaction.
+  Pass `model` only to change tier.
+- Review/verification: use the review ladder below, then stop and ask at its cap.
+- Architecture or hard debugging after two evidenced failures: opus or Sol high.
+- Apply a solved pattern: sonnet medium or Luna xhigh.
+- With the tmux-agent mod, use `mcp__tmux-agent__assign` and §COLLECTOR; no proxy.
+- Without it, a proxy runs `assign --detach`; the parent owns the wait under §ONE OWNER.
+- Workflow recipes in `~/.claude/workflows/*.workflow.js` override these role choices.
+- Except workers, L1/TK, and mechanical seats below, recipe agents use at least opus high.
+- Mechanical L0 runners and CLI conduits use sonnet medium; L1/TK uses sonnet high.
+- Do not use sonnet/haiku for planning, synthesis, revision, or verdicts.
+  Sonnet 5.5+ may run the L1 pre-filter.
+- Either 5.5+ tier may implement or gather by commander's call.
+- The optional second-model CLI may use any agent-tmux profile different from the author.
+  Without it, use a fresh Claude opus agent as the second brain.
+- Call advisor before launch, at every gate, and before resume under using-decision-tree
+  `references/loops.md` §Contracts.
 
-Workflow recipes (`~/.claude/workflows/*.workflow.js`) override the table above (user ruling
-2026-09-02, after the quick-share plan run: 32 agents, 182M input tokens, 64 KB plan, no code in
-3.5 h): except for the worker, the L1/TK review roles and mechanical seats (L0 runners and CLI
-conduits: `sonnet` medium; L1/TK `sonnet` high) below, every recipe agent runs at least `opus` effort
-`high` (owner ruling 2026-10-30); planning, synthesis, revision, and verdicts NEVER run on `sonnet` or `haiku`. `sonnet` 5.5+ may run the L1 pre-filter of the review ladder
-below (user ruling 2026-10-09); otherwise `sonnet`/`haiku` 5.5+ may run implementation or
-read-only data gathering in a recipe by commander's call (user ruling 2026-10-10). The second-model CLI
-(`cli`) is optional and NOT codex-specific: any agent-tmux profile (codex, claude fable/opus,
-cursor grok, agy) qualifies as the review gate, provided it differs from the author; absent, a
-fresh Claude `opus` agent is the second brain. The commander calls `advisor` before launch, at every gate, and before any
-resume (skill `using-decision-tree`, `references/loops.md` §Contracts, advisor gate).
+### Review ladder
 
-### Review ladder (user ruling 2026-10-09)
-
-Review/verdict loops run this ladder. Wired now: `consensus-gate`
-(`layer`, `round`, `freeze`, `l0` args) and `spec-implement-dual-review-verify` (the build review).
-Every other recipe keeps its own loop until the W43 retro decides, and does not claim the ladder.
-
-| Layer | Who | Job | Cap |
-|---|---|---|---|
-| L0 | deterministic | test/build/lint/scrub/grep/checksum when the tree changed since the last green L0 (not again on an unchanged hash), then hash what is under review; a hash change during the round voids it; negative cases (old code must fail) run once | must PASS before the round |
-| L1 | `sonnet` high (code: `pr-review-toolkit:code-reviewer`); `gemini-3.8-flash-medium` or later (agy); `grok-4.7-xhigh` or later (Cursor); `gpt-6-luna` xhigh/max only on request | adversarial review; each layer loops to convergence before the next (owner 2026-11-06: 「l0 l0 l0 l1 l1 l1」); 0 blockers passes the work when L2 is off, else admits it to L2 | 2 rounds |
-| TK | code only: `pr-review-toolkit` agents (`silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`, `comment-analyzer`) on `sonnet` high, seated in L1 round 1 beside the code-reviewer so one fix answers both | a fixed-form full report of suggestions that sets a floor under L1's blind spots; findings join the ledger, the fixer answers them once; never passes the work. The brief tells `pr-test-analyzer` to also list tests to merge or delete (operator-defaults Test cost) | 1 round |
-| L2 | commander-driven gate: `advisor` (as above). In-script seat: best tier (`fable` / `gpt-6-astra` / `gemini-4-argon`, low / medium), else better tier (`opus` high+ or `gpt-6.1-sol` medium+) (code: `pr-review-toolkit:code-reviewer`) | the final verdict; optional (owner 2026-11-06: 「他是選填 不是必須」): runs on request (`l2: true`) or for the high tier | 3 rounds |
-
-No L3 (user ruling 2026-10-16): still blocking after L2 round 3 → stop the gate and ask the
-user. There is no further layer, so a stuck gate cannot keep burning usage.
-
-- Depth by risk: L0 sets the tier from all changed paths against the repository's path list.
-  Include committed, staged, unstaged, and untracked changes. A mixed diff takes the highest tier.
-  An unknown path is high. The author can raise a tier, never lower it. high = the full ladder with L2, a
-  security lens in L2, and owner approval of the exact diff. normal = the full ladder. low = prose
-  docs only; executable, test, skill, rule, and config files cannot be low. Low uses the full
-  ladder until outcome evidence for that workload supports L0 + L2. Cite that evidence before the
-  first reduced review. A repository without a path list runs everything as normal.
-- When: a code change runs the full ladder once per PR or push checkpoint, on the accumulated
-  diff; between slices only L0 runs (kernel: CI at the checkpoint, local checks between). Only
-  the L0 agent runs checks: reviewers read the L0 output, the fixer runs the narrowest check for
-  its edit, and Finalize reuses the last L0 (2026-10-11: reviewer-run tests rewrote the tree and
-  voided rounds; 5 aborted runs cost 65.6M weighted tokens with no result).
-- Delivery chains. The review container is the PR or a push checkpoint without a PR. Freeze the
-  checkpoint range `origin/<base>..HEAD` before the push. Events are PR merge, push, tag push,
-  release, and deploy. Each event needs its own evidence and authorization under the kernel's
-  scope rules and standing approvals. Approval covers only the named actions and targets. Do not
-  ask again for the same approved scope. Before each event, local checks PASS on the candidate:
-  repository, commit, and clean tree. A later edit voids those checks. Remote CI, where the
-  repository has it, runs at the checkpoint and never replaces the local checks. After each event,
-  read back its destination and verify the expected result. Check the remote commit, tag target,
-  release artifact, or repository deploy check as applicable. Record a failure as a failure.
-- Before you send a worker's change to a second-model gate, read the diff for the reviewed commit.
-  Cite the checked file:line. Then call `advisor` and assign the gate.
-- Reviewer and fixer contracts: `skills/using-workflows/workflows/_lib/worker-doctrine.md` §7–§9.
-  One finding ledger runs through every round and layer: a reviewer resolves or keeps each known
-  finding and adjudicates each fixer rejection; when two L1 reviewers disagree, the finding stays
-  open. Inside one layer the same reviewer re-checks the fix (agent-tmux: the same session;
-  in-script `agent()`: the ledger plus the before/after diff stand in for kept context); a fresh
-  reviewer for a re-check is shopping (§5). Moving up a layer is escalation, not shopping. Review
-  rounds on a revised artifact are not retries of one approach (§5 three-round rule).
-- A void round reruns once; a second void in a row, or L0 failing twice in a row, stops the gate
-  with the cause. Void rounds and L0 fixes count toward the task's calls and tokens.
-- Sol sits on L2 only as a better-tier seat. Every seat runs its tier row's effort; the
-  2026-10-09 Codex step-up is withdrawn (user ruling 2026-10-16).
-- The user approved this roster on 2026-10-16. It answers the tmux-agent-tools §Safety
-  "tool+model+effort per worker" question for ladder workers; a model or effort outside the
-  roster still asks. Best-tier seats (`fable` / `gpt-6-astra` / `gemini-4-argon`) still ask
-  once per task (§1 Tiers), before the gate or recipe starts.
-- Measure per gate type: cost of the whole accepted task (every layer, fixer, L0, void round,
-  advisor), latency, L2 rounds, and findings that escape the gate. Compare L1 on vs off under the
-  same contracts and L0; W39–W41 (other models, no contracts) give direction only. When L1 does
-  not lower the whole-task cost for a gate type, drop L1 for that type.
-
-`tmux-agent` mod loaded (the tool `mcp__tmux-agent__assign` exists; 2026-10-01 user ruling): dispatch
-and wait exactly as `using-tmux-agent-tools` §COLLECTOR says (owner). No proxy, no parent listener.
-The deadline, cancel and concurrency rules below bind both.
-
-No mod: dispatch, wait, `pending` handling and teardown follow `using-tmux-agent-tools`
-§ONE OWNER (owner). Under local Claude Code (a foreground call is reaped at ~600s) a
-`general-purpose` proxy subagent runs `agent-tmux <cli> assign --detach` after `setup`, and the
-PARENT owns the wait with bounded background `result wait-required` calls. Parent foreground
-`assign`, any form, is gate-denied (`tmux-assign-host-gate.sh`). Incidents behind these rules:
-c48c0d3a (2h40m orphaned wait; proxy stood down 12s too late), 2026-08-30 (foreground reaped at
-600s, exit 143; agy never saw its result path, so its `pending` was permanent).
-
-Every delegated wait MUST have an explicit terminal condition and an enforced
-wall-clock deadline before its first wait or poll call. Prefer a blocking/event-driven
-wait; if the tool has none, poll only that condition within the same deadline.
-An attempt count alone is not a deadline. Expiry ends that wait; starting it
-again with materially identical inputs is a retry.
-
-A user instruction to cancel named work takes effect at once: end its process and its
-identified descendants, verify termination, report the result, and only then look at
-secondary problems. Preserve unrelated work; never relaunch cancelled work without
-renewed authorization.
-
-Concurrency cap (2026-08-21 user ruling; dispatch itself is the top friction source on
-record — sessions that delegated drew 26× the corrections of sessions that did not): at most
-3 live subagents per session before a warning, hard stop at 5, enforced by the
-`subagent-concurrency-gate.sh` PreToolUse hook against the SubagentStart/Stop ledger; a
-separate hook, `bol-prompt-gate.sh`, denies any Agent brief missing GOAL/ACCEPTANCE/REPORT.
-Ask "must this be delegated?" first.
-
-Host load gate (2026-10-03 user ruling; basic overload control, not a count cap): session
-caps do not add up across CLIs and sessions; the machine does. `host-load-gate.sh` checks
-host load and memory pressure before a new local worker, wired by `deploy.sh` into every
-parent CLI's own hook system. On a deny or warning, in this order: feed a live worker; do it
-inline if small; offload with `agent-tmux <cli> start-ssh` (not gated: the CLI runs remote);
-show the listed top CPU and memory processes to the user and ask which to stop — some are
-needed (simulators, a live browser), never kill without approval; retry once later, never in
-a loop. Per-host tuning: `HOST_LOAD_WARN`, `HOST_LOAD_DENY` (× cores),
-`HOST_LOAD_OFFLOAD_HOST` (ssh target named in the offload hint); `HOST_LOAD_GATE=off`
-disables it.
-
-tmux worker cap (2026-11-06 user ruling: 「cli agent 開太多 電腦超卡」「走內部 sub-agent |
-worker 就好像不會那麼嚴重」): a tmux worker is a whole CLI on this host; a native subagent runs
-inside the parent CLI. Use a native subagent first; start a tmux worker only for a different
-model family, a seat the parent cannot run, or a long job that must outlive this session. At
-most 3 live tmux workers per host, all sessions together (`TMUX_WORKER_MAX`), enforced by
-`host-load-gate.sh` on `agent-tmux` launches and the mod's `mcp__tmux-agent__assign`. Stop a
-worker as soon as its result is read and no follow-up is planned.
-
-| Parent CLI | native subagent | `agent-tmux` start/resume/assign in a shell |
-|---|---|---|
-| Claude | `Agent` (PreToolUse) | `Bash` (PreToolUse) |
-| Codex | `collaborationspawn_agent` (PreToolUse `*`) | `Bash` (PreToolUse `*`) |
-| Cursor | `preToolUse` Task via cursor-adapt (the CLI never fires `subagentStart`) | `preToolUse` Shell via cursor-adapt |
-| agy | `invoke_subagent` via agy-adapt | `run_command` via agy-adapt |
-
-Not covered: the tmux-agent mod/MCP `assign` (mod tools never reach hooks), Grok Bot (work
-runs on its box or cloud; local execution is approved per call in the app), launches from a
-plain terminal, and load that running workers add later. A warning reaches the model on
-Claude, Codex and Cursor; agy PreToolUse has no context channel, so there only the deny
-shows. Thresholds come from the env the CLI started with (Cursor hooks also source
-`~/.zshenv`): export them before launching it. On the cursor-agent CLI `subagentStart` never
-fires, so `bol-prompt-gate` also runs on `preToolUse` Task there; the concurrency cap still
-cannot count Cursor subagents (its ledger needs `subagentStart`).
-
-Worker lifecycle (2026-08-18 user ruling): workers are SESSION TEAMMATES, not disposables — they live and die with the session. Team slot cap (user ruling 2026-08-18): at most 3 persistent named workers per session TOTAL across all CLIs — opening more requires the user's explicit request. Bring a worker up once (first task via `assign`), feed every later task to the SAME worker with `send-wait` (each dispatched the same way), `stop` only at session end. Per-task start/stop churn is a defect: it burns bring-up cost and amplifies the upstream Codex FD-leak (lessons 2026-08-18 EMFILE). One-shot throwaway workers are the EXCEPTION, only for isolation (different repo/trust scope) or genuine parallel fanout.
-
-tmux worker mechanics (highest-frequency real-world failure, re-hit by ≥4 sessions):
-- Dispatch is `assign` — never hand-chain the steps. A worker started with `--prompt-file` sits idle with no task; the symptom mimics an account/auth hang (`assign` makes that shape impossible and catches "task never reached the CLI").
-- Before declaring any profile/worker unusable: read `skills/tmux-agent-tools/scripts/profiles/README.md` (bin= may need a bare env override such as `CLAUDE="$(command -v claude)"`).
-- Headless codex: always `codex exec … < /dev/null` (add `--skip-git-repo-check` outside a trusted repo) or it hangs on stdin.
-- A worker stuck longer than ~15 min escalates to the user as a blocker.
+- Use the ladder in `consensus-gate` (`layer`, `round`, `freeze`, `l0`) and the build review
+  of `spec-implement-dual-review-verify`.
+- Other recipes keep their loops pending the designated retro decision; do not claim the ladder.
+- L0: run test/build/lint/scrub/grep/checksum only after a tree change since green L0, then hash it.
+  Pass L0 before the round; a hash change voids the round; run old-code negative cases once.
+- L1: use sonnet high (`pr-review-toolkit:code-reviewer` for code),
+  `gemini-3.8-flash-medium` or later, Cursor `grok-4.7-xhigh` or later,
+  or Luna xhigh/max on request; cap at two rounds.
+- Converge each layer before the next; zero L1 blockers passes with L2 off, else admits work to L2.
+- TK, code only: seat `silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`,
+  and `comment-analyzer` on sonnet high beside the code reviewer in L1 round 1; cap at one round.
+- TK gives a fixed-form full suggestion report; add findings to the ledger for one fixer response.
+  TK never passes work; ask `pr-test-analyzer` for tests to merge or delete (Test cost).
+- L2: use the commander advisor gate; in-script use best tier low/medium with approval,
+  else opus high+ or Sol medium+; code uses `pr-review-toolkit:code-reviewer`.
+- L2 gives the final verdict, on request (`l2: true`) or for high risk; cap at three rounds.
+- Do not add L3; after L2 round 3 still blocks, stop the gate and ask the user.
+- Set risk from all committed, staged, unstaged, and untracked paths against the repo path list.
+- Use the highest tier for mixed changes; unknown paths are high; authors may only raise tiers.
+- High uses the full ladder, L2 security review, and user approval of the exact diff.
+- Normal uses the full ladder; without a path list, treat all work as normal.
+- Low is prose docs only; executable, test, skill, rule, and config files cannot be low.
+- Keep the full ladder for low until workload evidence supports L0 + L2; cite it before reduction.
+- Run the full code ladder once per PR or push checkpoint on the accumulated diff; use L0 between.
+- Only L0 agents run checks; reviewers read the output; fixers run the narrowest edit check.
+- Finalize reuses the last L0.
+- Use a PR or push checkpoint as the review container; freeze `origin/<base>..HEAD` before push.
+- Treat merge, push, tag push, release, and deploy as separate events with their own authorization
+  and evidence under kernel scope rules; approval covers only named actions and targets.
+- Do not ask again for an approved scope.
+- Before each event, pass local checks on the candidate repository, commit, and clean tree.
+  A later edit voids those checks; checkpoint remote CI never replaces local checks.
+- After each event, read its destination and check the remote commit, tag target, release artifact,
+  or repo deploy check; record failures as failures.
+- Before a second-model gate, read the worker's reviewed commit diff and cite checked `file:line`;
+  then call advisor and assign the gate.
+- Use `skills/using-workflows/workflows/_lib/worker-doctrine.md` §7–§9.
+- Keep one finding ledger across layers and rounds; resolve or retain each finding and judge
+  fixer rejections; keep a finding open when L1 reviewers disagree.
+- Return fixes to the same reviewer within a layer; tmux keeps its session; in-script agents
+  receive the ledger and before/after diff instead of retained context.
+- Do not shop for a fresh recheck reviewer (§5); escalation to a new layer is allowed.
+- Review of a revised artifact is not a retry of one approach (§5).
+- Rerun a void round once; stop with cause after two consecutive voids or two L0 failures.
+- Count void rounds and L0 fixes in task calls and tokens.
+- Seat Sol only at better-tier L2; keep every seat at its tier effort without a Codex step-up.
+- This roster supplies tmux-agent-tools §Safety approval for listed worker tool/model/effort.
+  Ask for unlisted choices and for best-tier seats (§1 Tiers) once per task before launch.
+- Measure each gate's whole accepted-task cost, latency, L2 rounds, and escaped findings.
+  Include all layers, fixers, L0, void rounds, and advisor.
+- Compare L1 on/off with the same contracts and L0; use older unmatched evidence as direction only.
+- Drop L1 for a gate type if it does not reduce whole-task cost.
+- With `mcp__tmux-agent__assign`, follow using-tmux-agent-tools §COLLECTOR for dispatch and wait.
+  Use no proxy or parent listener; deadline, cancel, and concurrency rules still apply.
+- Without the mod, follow §ONE OWNER for dispatch, wait, pending, and teardown.
+- In local Claude Code, a `general-purpose` proxy runs `agent-tmux <cli> assign --detach`
+  after setup; the parent uses bounded background `result wait-required` calls.
+- Account for local Claude Code foreground calls being reaped at about 600 seconds.
+- Do not use parent foreground assign; `tmux-assign-host-gate.sh` denies it.
+- Before any delegated wait or poll, set a terminal condition and enforced wall-clock deadline.
+- Prefer event-driven or blocking waits; otherwise poll only that condition within the deadline.
+- An attempt count is not a deadline; expiry ends the wait; identical restart inputs are a retry.
+- On user cancellation, stop named processes and identified descendants, verify, and report first.
+- Preserve unrelated work; do not restart cancelled work without renewed authorization.
+- Ask whether delegation is needed before launch; warn at over three live subagents, stop at five.
+  `subagent-concurrency-gate.sh` uses the SubagentStart/Stop ledger.
+- Keep GOAL/ACCEPTANCE/REPORT in Agent briefs; `bol-prompt-gate.sh` enforces them.
+- `host-load-gate.sh` checks host load before a local worker; `deploy.sh` wires it into CLI hooks.
+- On load warning or denial, first feed a live worker, then do small work inline, then offload
+  through `agent-tmux <cli> start-ssh`; remote CLI work bypasses this local gate.
+- Next show top CPU/memory processes and ask which to stop; never kill without approval.
+- Retry load once later, never in a loop.
+- Tune `HOST_LOAD_WARN`, `HOST_LOAD_DENY` as core multiples, and `HOST_LOAD_OFFLOAD_HOST`;
+  `HOST_LOAD_GATE=off` disables the load gate.
+- Prefer native subagents; use tmux only for another family, an unavailable seat, or a long job
+  that must outlive this session.
+- Cap live tmux workers at three per host across sessions (`TMUX_WORKER_MAX`).
+  `host-load-gate.sh` enforces this on agent-tmux launches and mod assign.
+- Stop a worker after reading its result if no follow-up is planned.
+- Claude hooks: native `Agent`, shell `Bash`, both PreToolUse.
+- Codex hooks: native `collaborationspawn_agent`, shell `Bash`, both PreToolUse `*`.
+- Cursor hooks: Task and Shell through cursor-adapt `preToolUse`; no `subagentStart` event.
+- agy hooks: `invoke_subagent` and `run_command` through agy-adapt.
+- Hook coverage excludes mod/MCP assign, Grok Bot, plain terminals, and later worker load.
+  Grok Bot work runs on its box/cloud; approve local execution per app call.
+- Load warnings reach Claude, Codex, and Cursor; agy has no context channel and shows only denial.
+- Export load thresholds before CLI launch; Cursor hooks also source `~/.zshenv`.
+- On Cursor, run bol-prompt-gate on preToolUse Task; its missing start event prevents ledger counts.
+- Keep at most three named persistent tmux workers per session across CLIs; ask before more.
+- Start each once with assign, send later tasks through the same worker with `send-wait`,
+  and normally stop at session end; dispatch each through the same path.
+- Use throwaway workers only for trust/repo isolation or genuine parallel fanout.
+- Dispatch with assign; do not hand-chain steps or use `--prompt-file` as task delivery.
+- Before calling a profile or worker unusable, read
+  `skills/tmux-agent-tools/scripts/profiles/README.md`.
+  A profile `bin=` may need a bare env override such as `CLAUDE="$(command -v claude)"`.
+- Run headless Codex as `codex exec … < /dev/null`.
+- Add `--skip-git-repo-check` outside trusted repos.
+- Escalate a worker stuck beyond about 15 minutes to the user as a blocker.
 
 ## §5 Effort and retry ladder
 
-Default effort per tier (user ruling 2026-10-10); the commander moves it per task:
-
-| Tier | Start | Floor | Ceiling without evidence |
-|---|---|---|---|
-| `opus` | `high` | `high` (owner ruling 2026-10-30「至少 high」) | `high` |
-| `fable` | `low` | `low` | `high` |
-| `sonnet` | `medium` | `medium` (at `low` it skips instructions) | `high` |
-| `haiku` | `medium` | `medium` | `high` (at `max` it used 440M output tokens on the Artificial Analysis Intelligence Index vs a 100M median, checked 2026-10-10) |
-
-Move it dynamically, one step at a time, and say why in the dispatch record (§7):
-- Up front, +1: planning, architecture, risky or adversarial review, root-cause convergence. Claude tiers stop at `high` here; `xhigh` follows the rule below.
-- After an evidenced failure, +1 where the retry ladder below permits it; that ladder controls any
-  required jump to worker high or advisor. First fix decomposition or missing context.
-- Down, −1: the hard part is solved and the rest is a mechanical batch with one worked example.
-  Never below the tier's floor; a tier at its floor that is still too costly moves to a cheaper tier instead.
-- `xhigh`/`max` for Claude tiers: only after two evidenced failures at `high`, or by explicit user
-  choice. This does not permit repeating a tier or a fourth round. Codex roles and the review
-  ladder keep their explicit effort settings.
-
-`model` on an `Agent` call, two cases (both measured 2026-09-04):
-- Built-in `subagent_type` (`general-purpose`, `Explore`, `Plan`): `model` is REQUIRED.
-  Omitting it does NOT inherit the parent (fable parent, four omitted `Explore` calls,
-  opus children); it silently resolves to opus.
-- Custom definition (`explore-bounded`, anything under `global/agents/claude/`): OMIT
-  `model`. The definition binds model/effort/maxTurns; an explicit `model` on the call
-  OVERRIDES it (probe: `explore-bounded` + `model: 'opus'` ran opus). Pass it only to
-  upgrade deliberately, never as the "不知道先 opus" default.
-
-Effort names are NOT equivalent across models (Fable 5.1 guide): re-run the sweep when the model
-changes. Before `xhigh`/`max`, prefer bounded same-tier sampling
-plus a judge when cheaper. Workflow `agent()` calls set effort explicitly. Sol runs at
-`medium` or above; raise it by the same ladder as other tiers.
-
-Same approach: three rounds total, each one tier UP — worker low/medium → worker high (or a
-stronger model) → advisor (second model, e.g. `consensus-gate`) with the full trail. The same
-tier never runs twice on the same approach. EVERY call at the same goal counts as round N of
-that approach — agent, worker, advisor, or `codex exec`, whatever its name (no shopping —
-`judgment-rubrics.md` §4). A third failure triggers `judgment-rubrics.md` §4 (new hypothesis),
-not a fourth retry. Once the hard part is solved, drop to the cheap execution tier with one worked example.
+- Start opus at high, floor high, ceiling high without evidence.
+- Start fable at low, floor low, ceiling high without evidence.
+- Start sonnet and haiku at medium, floor medium, ceiling high without evidence.
+- Adjust effort per task one step at a time; record why under §7 (dispatch records).
+- Raise one step for planning, architecture, risky/adversarial review, or root-cause convergence.
+  Stop Claude tiers at high unless the xhigh/max condition below holds.
+- After an evidenced failure, fix decomposition or missing context first; raise effort only
+  as the retry ladder permits, including its required worker-high or advisor jump.
+- Lower one step for a solved mechanical batch with a worked example, never below the floor.
+  If still too costly at the floor, move to a cheaper tier.
+- Use Claude xhigh/max only after two evidenced failures at high or explicit user choice.
+  This permits neither a repeated tier nor a fourth round; keep explicit Codex and review efforts.
+- Built-in Agent types (`general-purpose`, `Explore`, `Plan`) require explicit `model`;
+  omission resolves to opus instead of inheriting the parent.
+- For custom definitions, omit `model` to keep model/effort/maxTurns; pass it only for a deliberate
+  upgrade, since it overrides the definition.
+- Do not treat effort names as equivalent across models; rerun the sweep after a model change.
+- Before xhigh/max, prefer bounded same-tier samples plus a judge when cheaper.
+- Set effort explicitly in Workflow `agent()` calls; keep Sol medium+ and use the retry ladder.
+- Limit one approach to three rounds: worker low/medium → worker high or stronger → second-model
+  advisor, such as consensus-gate, with the full trail.
+- Never repeat a tier on one approach; count every call toward that goal, regardless of tool name
+  (judgment-rubrics §4).
+- After a third failure, use judgment-rubrics §4 for a new hypothesis, not a fourth retry.
+- Once the hard part is solved, use the cheap execution tier with one worked example.
 
 ## §6 Reviewer independence
 
-When `judgment-rubrics.md` §2/§2b requires independent verification (an irreversible or
-outward-facing change, classified by effect, not by file count), the author is not the verifier. Files need
-fresh read-back (Claude `sonnet` medium; Codex cheap fresh worker); code needs the real
-test/build/flow; high-risk judgment needs Claude `opus`, Codex fresh Astra, or 2–3 candidates plus
-an independent judge. For a reversible change, the author's real command with quoted exit
-code/key lines suffices (`judgment-rubrics.md` §2b). Completion/quality criteria: `judgment-rubrics.md` §2/§5, read before reporting.
+- For irreversible or outward-facing effects, use an independent verifier under
+  judgment-rubrics §2/§2b; classify by effect, not file count.
+- File changes need fresh read-back: Claude sonnet medium or a cheap fresh Codex worker.
+- Code needs the real test, build, or flow.
+- For high-risk judgment, use Claude opus, fresh Codex Astra,
+  or 2–3 candidates with a separate judge.
+- For reversible changes, the author's real command with quoted exit code and key output suffices
+  (judgment-rubrics §2b).
+- Read judgment-rubrics §2/§5 before completion or quality reports.
 
 ## §7 Dispatch records
 
-Dispatch decisions (role, model, brief, acceptance) live in workflow/dispatch artifacts. Surface
-to the user only deviations, approval boundaries, BLOCK/escalations, or explicit requests.
+- Store role, model, brief, and acceptance in workflow or dispatch artifacts.
+- Show users only deviations, approval boundaries, blocks/escalations, or requested details.
 
 ## §8 Re-verification
 
-On the first session of each quarter or any unknown-model error, inspect the live Agent/tool
-schema and model catalog. Update the snapshot only from live evidence and record the proposed
-lesson; never fill IDs or context limits from memory.
+- On each quarter's first session or an unknown-model error, inspect live tool schema and catalog.
+- Update the snapshot only from live evidence and record the proposed lesson.
+- Never fill model IDs or context limits from memory.
