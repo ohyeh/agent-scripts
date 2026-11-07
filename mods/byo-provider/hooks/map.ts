@@ -96,7 +96,7 @@ export function redact(v: string | undefined): string {
 export type After = (ms: number, fn: () => void) => { cancel: () => void }
 
 /** `work`'s value, or why it lost: no answer within `ms`, or `signal` (the turn's interrupt) aborted.
- *  The loser is not cancelled ($.http.fetch takes no signal): a late fetch settles unseen. */
+ *  The loser is not cancelled ($.process.run takes no signal): a late answer settles unseen. */
 export async function deadline<T>(work: Promise<T>, ms: number, signal: AbortSignal, after: After): Promise<{ ok: T } | { why: string }> {
   work.catch(() => {}) // a loser's late rejection is not an unhandled one
   let timer: { cancel: () => void } | undefined

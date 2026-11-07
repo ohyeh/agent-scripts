@@ -1,5 +1,12 @@
 # Changelog
 
+## byo-provider 0.5.0
+
+Owner 11-08: a gated `pr-review-toolkit:code-reviewer` ran 12 tool calls on deepseek (effort max) and then failed with `$.http.fetch(…) aborted: no complete answer within 30000ms`, the host's fetch limit, whatever the profile `timeout` said.
+
+- **Requests go through `curl`** (`$.process.run`, up to ten minutes): token in the child's env via `--variable`/`--expand-header`, body on stdin, neither in argv. A 115 s `effort=max` answer now passes (`gate-answer` `status:200`, `ms:115653`). Needs curl 8.3 or later. A `turn.step` hook held 45 s with no engine limit (probe).
+- **`timeout` is checked**: 1..590 s, else the profile fails. `gate-answer` logs `ms`.
+
 ## byo-provider 0.4.2
 
 - **The `switch` tool reads its `args`.** A registered tool's input fields sit on the `tool.call` event itself, not under `input`; 0.4.1 read `e.input.args`, so every call ran `status`.

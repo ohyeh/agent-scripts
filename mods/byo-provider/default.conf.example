@@ -12,5 +12,6 @@ model=
 # off | low | medium | high | max → thinking disabled, or budget 2048 / 6000 / 12000 / 15360.
 # Empty: the gateway's default.
 effort=
-# Seconds one request may take (default 120; env GATE_TIMEOUT_MS overrides).
+# Seconds one request may take, 1..590 (default 120; env GATE_TIMEOUT_MS overrides).
+# effort=max on a long loop can take minutes: 300 is a safer value there.
 timeout=

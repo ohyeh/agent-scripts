@@ -8,7 +8,7 @@ Built and tested on Claude Code 2.1.319.
 ## How it works
 
 - A `turn.step` hook checks the loop. If the loop is on your provider, the hook does not call `next(e)`.
-  It POSTs the step to `<gate url>/v1/messages` with `$.http.fetch` and yields the answer as the
+  It POSTs the step to `<gate url>/v1/messages` with `curl` (8.3 or later, through `$.process.run`) and yields the answer as the
   step's chunks. If the loop is not on your provider, it calls `next(e)` and Claude answers as usual.
 - The mod never writes env (`claude plugin validate`: `env writes: nothing`). It never reads or
   sends the Claude OAuth credential. The gate request carries only `authorization: Bearer <gate token>`.
@@ -94,9 +94,11 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
    Built-in schemas come from `hooks/schemas.ts` and go stale on a Claude Code update.
 3. The deferred set is parsed from the engine's reminder text (2.1.319 wording). The main-loop-only
    set (`ScheduleWakeup`, `Workflow`) is a measured constant.
-4. Non-streaming: text shows only when the full answer arrives. On a timeout or an interrupt the
-   step ends, but the mod cannot cancel the HTTP request (`$.http.fetch` takes no signal); a late
-   answer is ignored. Whether the host closes the connection on an interrupt is unconfirmed.
+4. Non-streaming: text shows only when the full answer arrives. The request goes through `curl`
+   (8.3 or later: `--variable` puts the token in a header from the child's env, the body goes on
+   stdin), because `$.http.fetch` gives up after 30 s and an `effort=max` step on a long loop took
+   115 s. `timeout` caps it at 590 s (`$.process.run` allows ten minutes). On an interrupt the step ends
+   at once; curl keeps running until `--max-time` and its late answer is ignored.
 5. Privacy: a gated loop sends its full conversation (first message with all context blocks, about
    100 kB here) and the system prompt to your provider. A gated fork sends the parent's context.
 6. Spawn marking happens after `agent.spawn`'s `next(e)` resolves. Every test saw the mark before

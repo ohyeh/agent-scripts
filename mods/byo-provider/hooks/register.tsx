@@ -84,7 +84,10 @@ async function loadProfile($: EngineInterface, name: string): Promise<Profile | 
   if (!kv.url || !kv.token || !kv.model) return `profile ${path} needs url, token and model`
   const effort = kv.effort ?? ''
   if (effort && !THINKING[effort]) return `profile ${path}: effort must be ${Object.keys(THINKING).join('|')}`
-  return { name, url: kv.url, token: kv.token, model: kv.model, effort, timeoutMs: envTimeoutMs || Number(kv.timeout) * 1000 || 120_000 }
+  const timeoutMs = envTimeoutMs || Number(kv.timeout) * 1000 || 120_000
+  // $.process.run allows ten minutes at most; a larger value fails here, not silently clamped.
+  if (!(timeoutMs > 0 && timeoutMs <= 590_000)) return `profile ${path}: timeout must be 1..590 seconds`
+  return { name, url: kv.url, token: kv.token, model: kv.model, effort, timeoutMs }
 }
 
 /** The tools the real API request carries for this loop: every tool of the loop except those the engine
@@ -136,6 +139,21 @@ async function agentDef($: EngineInterface, type: string | undefined): Promise<{
   return null
 }
 
+/** POSTs to `<url>/v1/messages` with curl: `$.http.fetch` gives up after 30 s, a long gateway answer
+ *  (effort max, a long loop) takes more. The token goes in the child's env, the body on stdin: neither
+ *  in argv. status 0 means curl itself failed; `text` then holds its error. */
+async function post($: EngineInterface, cfg: Profile, body: string): Promise<{ status: number; ok: boolean; text: string }> {
+  const r = await $.process.run(['curl', '-sS', '--max-time', String(Math.ceil(cfg.timeoutMs / 1000)), '-X', 'POST',
+    '--variable', '%BYO_GATE_TOKEN', '--expand-header', 'authorization: Bearer {{BYO_GATE_TOKEN}}',
+    '-H', 'content-type: application/json', '-H', 'anthropic-version: 2023-06-01',
+    '--data-binary', '@-', '-w', '\n%{http_code}', `${cfg.url.replace(/\/+$/, '')}/v1/messages`],
+  { stdin: body, env: { BYO_GATE_TOKEN: cfg.token }, timeoutMs: cfg.timeoutMs + 5000 })
+  if (r.exitCode !== 0) return { status: 0, ok: false, text: `curl exit ${r.exitCode}: ${r.stderr.trim().slice(0, 300)}` }
+  const i = r.stdout.lastIndexOf('\n')
+  const status = Number(r.stdout.slice(i + 1))
+  return { status, ok: status >= 200 && status < 300, text: r.stdout.slice(0, i) }
+}
+
 async function gateStep($: EngineInterface, e: TurnStepInput, name: string, signal: AbortSignal): Promise<Step> {
   const cfg = await loadProfile($, name)
   if (typeof cfg === 'string') return failStep(e.turnId, e.index, cfg)
@@ -161,12 +179,9 @@ async function gateStep($: EngineInterface, e: TurnStepInput, name: string, sign
   // Failure text reaches the transcript and the log: the URL and token only ever in redacted form.
   const fail = (why: string) => failStep(e.turnId, e.index, why.split(cfg.url).join(redact(cfg.url)).split(cfg.token).join(redact(cfg.token)))
   let won
+  const sent = Date.now()
   try {
-    won = await deadline($.http.fetch(`${cfg.url.replace(/\/+$/, '')}/v1/messages`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'anthropic-version': '2023-06-01', authorization: `Bearer ${cfg.token}` },
-      body: JSON.stringify(body),
-    }), cfg.timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn))
+    won = await deadline(post($, cfg, JSON.stringify(body)), cfg.timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn))
   } catch (err) {
     return fail(err instanceof Error ? err.message : String(err))
   }
@@ -175,12 +190,13 @@ async function gateStep($: EngineInterface, e: TurnStepInput, name: string, sign
     return fail(won.why)
   }
   const res = won.ok
+  if (res.status === 0) return fail(res.text)
   if (!res.ok) return fail(`HTTP ${res.status}: ${res.text.slice(0, 300)}`)
   let parsed: unknown
   try { parsed = JSON.parse(res.text) } catch { return fail(`not JSON: ${res.text.slice(0, 200)}`) }
   const step = toStep(e.turnId, e.index, parsed, model)
   const content = (parsed as { content?: Array<{ type: string }> }).content ?? []
-  await log($, { ev: 'gate-answer', loop: e.agentId ?? 'main', index: e.index, status: res.status, id: (parsed as { id?: string }).id,
+  await log($, { ev: 'gate-answer', loop: e.agentId ?? 'main', index: e.index, status: res.status, ms: Date.now() - sent, id: (parsed as { id?: string }).id,
     blocks: content.map(b => b.type), stop: step.result.stopReason })
   return step
 }
