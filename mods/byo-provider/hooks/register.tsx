@@ -295,7 +295,7 @@ export const register: Register = (on, opts) => {
   // "put new subagents on default" without typing the command. A subagent may not move loops.
   on('tool.call', { tool: SWITCH_TOOL }, async ($, e) => {
     if ((e as { agentId?: string }).agentId) return { deny: 'only the main loop can switch providers' }
-    const args = String((e.input as { args?: unknown } | undefined)?.args ?? '')
+    const args = String((e as unknown as { args?: unknown }).args ?? '') // a registered tool's input fields sit on e itself
     return { result: await switchAndShow($, args) }
   })
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## byo-provider 0.4.2
+
+- **The `switch` tool reads its `args`.** A registered tool's input fields sit on the `tool.call` event itself, not under `input`; 0.4.1 read `e.input.args`, so every call ran `status`.
+
 ## byo-provider 0.4.1
 
 Owner 11-08: the main agent should switch routing itself, the way tmux-agent's `reload` tool runs `/reload-plugins`.
