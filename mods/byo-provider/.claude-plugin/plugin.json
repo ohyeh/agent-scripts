@@ -1,6 +1,6 @@
 {
   "name": "byo-provider",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Answer chosen loops (main, a subagent, a fork) with a model on your own Anthropic-format gateway by answering turn.step; every other loop stays on Claude. Env is never touched and the Claude credential is never sent to the gateway.",
   "author": {
     "name": "PaulYeh",
@@ -17,40 +17,11 @@
   "license": "MIT",
   "types": "./types/index.d.ts",
   "userConfig": {
-    "url": {
+    "path": {
       "type": "string",
-      "title": "Gateway URL",
-      "description": "Base URL of the Anthropic-format gateway (the mod posts to <url>/v1/messages).",
-      "default": ""
-    },
-    "token": {
-      "type": "string",
-      "title": "Gateway token",
-      "description": "Bearer token for the gateway. Kept in secure storage.",
-      "sensitive": true,
-      "default": ""
-    },
-    "model": {
-      "type": "string",
-      "title": "Default model",
-      "description": "Gateway model used by /provider-switch use and agent when no model is typed.",
-      "default": ""
-    },
-    "timeoutSeconds": {
-      "type": "number",
-      "title": "Request timeout (seconds)",
-      "description": "How long one gateway request may take before the step fails with a visible [byo-provider: ...] message.",
-      "default": 120
-    },
-    "agents": {
-      "type": "string",
-      "title": "New subagents",
-      "description": "follow: a subagent or fork started by a loop on the gateway goes there too. claude: new subagents always run on Claude. /provider-switch agents changes it per session.",
-      "default": "follow",
-      "options": [
-        "follow",
-        "claude"
-      ]
+      "title": "Profiles folder",
+      "description": "Folder of <name>.conf profiles (url=, token=, model=, effort=off|low|medium|high|max, timeout=seconds); default.conf is used when no name is typed. Read at each gateway request; the token never enters settings.",
+      "default": "~/.config/byo-provider/profiles"
     }
   }
 }

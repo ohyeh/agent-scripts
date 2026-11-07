@@ -114,3 +114,13 @@ export async function deadline<T>(work: Promise<T>, ms: number, signal: AbortSig
     signal.removeEventListener('abort', onAbort)
   }
 }
+
+/** `key=value` lines; blank lines, `#` comments and lines without a key are skipped. */
+export function parseConf(text: string): Record<string, string> {
+  const kv: Record<string, string> = {}
+  for (const l of text.split('\n').map(x => x.trim())) {
+    const i = l.indexOf('=')
+    if (!l.startsWith('#') && i > 0) kv[l.slice(0, i).trim()] = l.slice(i + 1).trim()
+  }
+  return kv
+}

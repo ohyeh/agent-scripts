@@ -1,5 +1,13 @@
 # Changelog
 
+## byo-provider 0.3.0
+
+Owner 11-08: the gateway token must be settable without showing it in settings, and effort must be settable; keep one path option and put the rest in config files (like `~/.config/agent-tmux/profiles`).
+
+- **Profiles; one option.** The only plugin option is `path`, the profiles folder (default `~/.config/byo-provider/profiles`). Each `<name>.conf` holds `url`, `token`, `model`, `effort`, `timeout`, read at each gateway request; `default.conf` is used when no name is typed. The `url`, `token`, `model`, `timeoutSeconds` and `agents` options are gone, and so are the `GATE_URL`/`GATE_TOKEN` env overrides. `/provider-switch use|agent` take a profile name.
+- **`/provider-switch agents <profile>`**: new subagents use that profile while the current loop stays where it is (`GATE_TEST_AGENTS` now sets the same mode).
+- **effort** `off|low|medium|high|max` sends `thinking` disabled or a budget of 2048 / 6000 / 12000 / 15360. `output_config.effort` and `reasoning_effort` were accepted by the tested gateway with no measurable change; `thinking` budgets were (7 / 366 / 1528 output tokens for off / 1k / 6k).
+
 ## byo-provider 0.2.0
 
 Owner 11-08: cc-switch is the owner's own manager, most users do not have it; the mod needs plain gateway options and a view of what it routes.

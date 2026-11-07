@@ -1,6 +1,6 @@
 // Unit check of the gate response → TurnStepChunk mapping. Run: bun test <run dir>/test/map.test.ts
 import { expect, test } from 'claude-code/testing'
-import { deadline, deferredTools, failStep, forGate, loadedTools, toStep } from '../hooks/map'
+import { deadline, deferredTools, failStep, forGate, loadedTools, parseConf, toStep } from '../hooks/map'
 import { SCHEMAS } from '../hooks/schemas'
 
 const resp = {
@@ -75,4 +75,9 @@ test('deadline: answer in time, timeout, interrupt, and a rejection passes throu
   // timeout path wired as the hook wires it: the reason becomes a visible failed step
   const lost = await deadline(never, 10, new AbortController().signal, after)
   expect('why' in lost && failStep('t', 0, lost.why).result.answer).toBe('[byo-provider: no answer in 0.01 s (GATE_TIMEOUT_MS)]')
+})
+
+test('parseConf: key=value, comments and blanks skipped, = kept in the value', () => {
+  const kv = parseConf('# gate\nurl = http://h:1\n\ntoken=a=b\nnoequals\n=novalue\nmodel=m\neffort=low\n')
+  expect(kv).toEqual({ url: 'http://h:1', token: 'a=b', model: 'm', effort: 'low' })
 })

@@ -32,27 +32,39 @@ Built and tested on Claude Code 2.1.319.
 
 ## Commands
 
-A pane (`byo-provider`) lists each loop on your provider with its model and last gate step
-(`#index ok <stop>` or the failure text), the new-subagent mode and the gateway (redacted). It opens
+A pane (`byo-provider`) lists each loop on your provider with its profile and last gate step
+(`#index ok <stop>` or the failure text), the new-subagent mode and the profiles folder. It opens
 on `/provider-switch status` and whenever a loop is on your provider.
 
 | Command | Effect |
 | --- | --- |
 | `/provider-switch status` | Shows which loops use your provider, the new-subagent mode, the gate config (redacted), and running agents, and opens the pane. |
-| `/provider-switch use [model]` | The main loop uses your provider `<model>` (default: the `model` option) from its next step. |
+| `/provider-switch use [profile]` | The main loop uses that profile (default: `default`) from its next step. |
 | `/provider-switch off [agentId]` | That loop (default `main`) goes back to Claude from its next step. |
-| `/provider-switch agent <agentId> [model]` | A running subagent uses your provider from its next step. The id must be in `$.agent.list()`. |
-| `/provider-switch agents follow\|claude` | New subagents follow their parent loop onto your provider (`follow`, default), or always use Claude (`claude`). |
+| `/provider-switch agent <agentId> [profile]` | A running subagent uses your provider from its next step. The id must be in `$.agent.list()`. |
+| `/provider-switch agents follow\|claude\|<profile>` | New subagents follow their parent loop onto your provider (`follow`, default), always use Claude (`claude`), or always use `<profile>` while this loop stays where it is. |
 
 ## Setup
 
-1. Gate target: plugin options (`userConfig`), kept in your settings, never in this repo.
+1. Gateway: one file per profile, `<profiles>/<name>.conf`, `key=value` lines, `#` comments.
+   The mod reads it at each gateway request, so an edit applies at the next step. The token stays in
+   this file (keep it `chmod 600`); it never enters settings, the pane, the log or an error text.
+
+   ```
+   url=https://gateway.example
+   token=...
+   model=some-model
+   # off | low | medium | high | max → thinking disabled, or budget 2048 / 6000 / 12000 / 15360; empty: gateway default
+   effort=
+   # seconds one request may take (default 120; GATE_TIMEOUT_MS overrides)
+   timeout=
+   ```
+
+   `default.conf` is the profile `use` and `agent` take when no name is typed.
+   The one plugin option (`userConfig`), kept in your settings:
    Set them once with `claude plugin configure byo-provider@<marketplace>` (or `/config`):
-   - `url` + `token`: the gateway base URL and its bearer token (`sensitive`, kept in secure storage).
-   - `model`: the default gateway model for `use` and `agent` when none is typed.
-   - `timeoutSeconds` (default 120), `agents` (`follow` default, or `claude`).
-2. Env overrides of the claude process, ahead of the options (tests): `GATE_URL` + `GATE_TOKEN`,
-   `GATE_TIMEOUT_MS`.
+   - `path`: the profiles folder (default `~/.config/byo-provider/profiles`).
+2. Env override of the claude process, ahead of the options (tests): `GATE_TIMEOUT_MS`.
 3. Load it: install from the marketplace, or `claude --plugin-dir <this folder>`.
 4. Run gated work in `--permission-mode default` or `acceptEdits`, not `auto` (see Limits).
 
@@ -60,8 +72,8 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
 
 | Env | Same as |
 | --- | --- |
-| `GATE_TEST_MAIN=<model>` | `/provider-switch use <model>` |
-| `GATE_TEST_AGENTS=<model>` | every new subagent and fork uses `<model>`, whatever main uses |
+| `GATE_TEST_MAIN=<profile>` | `/provider-switch use <profile>` |
+| `GATE_TEST_AGENTS=<profile>` | every new subagent and fork uses `<profile>`, whatever main uses |
 | `GATE_TEST_AGENTS_MODE=follow\|claude` | `/provider-switch agents follow\|claude` |
 | `GATE_TEST_STEPS=<K>` | a gated loop goes back to Claude from step index K (`/provider-switch off`) |
 | `GATE_LOG=<path>` | routing log, JSONL; never a URL or token value |

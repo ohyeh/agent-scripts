@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
-import { deadline, deferredTools, failStep, forGate, loadedTools, redact, toStep } from './map'
+import { deadline, deferredTools, failStep, forGate, loadedTools, parseConf, redact, toStep } from './map'
 import { SCHEMAS } from './schemas'
 import type { GateTool, Msg, Step } from './map'
 import type { View } from '../types'
@@ -11,18 +11,25 @@ import type { View } from '../types'
 //
 // Test-only switches, read at session.start from the claude process env (`claude -p` cannot type
 // slash commands mid-run):
-//   GATE_TEST_MAIN=<model>    as `/provider-switch use <model>`
-//   GATE_TEST_AGENTS=<model>  every new subagent/fork goes to <model>, whatever main runs on
+//   GATE_TEST_MAIN=<profile>    as `/provider-switch use <profile>`
+//   GATE_TEST_AGENTS=<profile>  every new subagent/fork goes to <profile>, whatever main runs on
 //   GATE_TEST_AGENTS_MODE=follow|claude  as `/provider-switch agents follow|claude`
 //   GATE_TEST_STEPS=<K>       a gated loop is switched back to Claude from step index K (as /provider-switch off)
 //   GATE_LOG=<path>           routing log (never a URL or token value)
-//   GATE_URL + GATE_TOKEN     gateway, ahead of the plugin options
 //   GATE_TIMEOUT_MS=<ms>      request timeout, ahead of the timeoutSeconds option
-// Everything private (gateway URL, token, model) lives in the plugin's userConfig
-// (settings.json pluginConfigs, the token in secure storage), never in this repo.
+// Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
+// `<profiles>/<name>.conf`, never in this repo or in settings.
 
-let options: { url: string; token: string; model: string; timeoutSeconds: number; agents: string } =
-  { url: '', token: '', model: '', timeoutSeconds: 120, agents: 'follow' }
+let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
+const DEFAULT = 'default' // the profile `use` and `agent` take when no name is typed
+// effort → Anthropic `thinking`; budgets stay under MAX_TOKENS.
+const THINKING: Record<string, object> = {
+  off: { type: 'disabled' },
+  low: { type: 'enabled', budget_tokens: 2048 },
+  medium: { type: 'enabled', budget_tokens: 6000 },
+  high: { type: 'enabled', budget_tokens: 12000 },
+  max: { type: 'enabled', budget_tokens: 15360 },
+}
 // shortcut: fixed output cap, make it a /provider-switch option if a gate model rejects it or cuts answers.
 const MAX_TOKENS = 16384
 const ROLE = '\n\nYou are running as a subagent. Your task is the first user message. The agent that started you ' +
@@ -38,23 +45,21 @@ const HANDBACK: GateTool = {
 // shortcut: measured for general-purpose; a custom agent type's own `tools` list is not known at run time.
 const MAIN_ONLY = new Set(['ScheduleWakeup', 'Workflow'])
 
-const loops = new Map<string, string>() // 'main' or an agentId → gate model
-let agentsMode: 'follow' | 'claude' = 'follow'
-let testAgents: string | undefined
+const loops = new Map<string, string>() // 'main' or an agentId → profile name
+let agentsMode = 'follow' // follow | claude | a profile name every new subagent uses
 let testSteps: number | undefined
-let timeoutMs = 120_000
+let envTimeoutMs = 0
 let logPath: string | undefined
 const lines: string[] = []
 const last = new Map<string, string>() // loop → its last gate step, for the pane
 
 const PANE = 'byo-provider'
-const view = atom({ plugin: 'byo-provider', key: 'view' } as const, { rows: [], agents: 'follow', gate: '' } as View, { shape: 'view-1' })
+const view = atom({ plugin: 'byo-provider', key: 'view' } as const, { rows: [], agents: 'follow', profiles: '' } as View, { shape: 'view-2' })
 
 /** Copies the routing state into the atom the pane reads. */
 async function sync($: EngineInterface) {
-  const cfg = await gateConfig($)
-  const gate = typeof cfg === 'string' ? cfg : `${cfg.from} ${redact(cfg.url)}`
-  await update($, view, () => ({ rows: [...loops].map(([loop, model]) => ({ loop, model, last: last.get(loop) ?? '-' })), agents: agentsMode, gate }))
+  const rows = [...loops].map(([loop, profile]) => ({ loop, profile, last: last.get(loop) ?? '-' }))
+  await update($, view, () => ({ rows, agents: agentsMode, profiles: options.path }))
 }
 
 async function log($: EngineInterface, r: Record<string, unknown>) {
@@ -62,12 +67,23 @@ async function log($: EngineInterface, r: Record<string, unknown>) {
   if (logPath) await $.fs.write(logPath, lines.join('\n') + '\n')
 }
 
-async function gateConfig($: EngineInterface): Promise<{ url: string; token: string; from: string } | string> {
-  const url = await $.env.get('GATE_URL')
-  const token = await $.env.get('GATE_TOKEN')
-  if (url && token) return { url, token, from: 'env' }
-  if (options.url && options.token) return { url: options.url, token: options.token, from: 'options' }
-  return 'no gateway configured: set url + token (claude plugin configure byo-provider)'
+type Profile = { name: string; url: string; token: string; model: string; effort: string; timeoutMs: number }
+
+async function profilesDir($: EngineInterface) {
+  return options.path.replace(/^~(?=\/|$)/, (await $.env.get('HOME')) ?? '~')
+}
+
+/** Reads `<profiles>/<name>.conf` (`key=value` lines, `#` comments) at each step, so an edit applies at once. */
+async function loadProfile($: EngineInterface, name: string): Promise<Profile | string> {
+  if (!/^[\w.-]+$/.test(name)) return `bad profile name '${name}'`
+  const path = `${await profilesDir($)}/${name}.conf`
+  let text: string
+  try { text = String(await $.fs.read(path)) } catch { return `no profile file ${path}` }
+  const kv = parseConf(text)
+  if (!kv.url || !kv.token || !kv.model) return `profile ${path} needs url, token and model`
+  const effort = kv.effort ?? ''
+  if (effort && !THINKING[effort]) return `profile ${path}: effort must be ${Object.keys(THINKING).join('|')}`
+  return { name, url: kv.url, token: kv.token, model: kv.model, effort, timeoutMs: envTimeoutMs || Number(kv.timeout) * 1000 || 120_000 }
 }
 
 /** The tools the real API request carries for this loop: every tool of the loop except those the engine
@@ -97,8 +113,8 @@ async function toolsFor($: EngineInterface, available: readonly ToolInfo[], mess
   return tools
 }
 
-async function gateStep($: EngineInterface, e: TurnStepInput, model: string, signal: AbortSignal): Promise<Step> {
-  const cfg = await gateConfig($)
+async function gateStep($: EngineInterface, e: TurnStepInput, name: string, signal: AbortSignal): Promise<Step> {
+  const cfg = await loadProfile($, name)
   if (typeof cfg === 'string') return failStep(e.turnId, e.index, cfg)
   const [raw, composed, available] = await Promise.all([
     e.agentId ? $.session.messages({ as: 'api', agentId: e.agentId }) : $.session.messages({ as: 'api' }),
@@ -112,8 +128,9 @@ async function gateStep($: EngineInterface, e: TurnStepInput, model: string, sig
   const messages = raw as unknown as Msg[]
   const tools = await toolsFor($, available, messages, e.agentId !== undefined)
   const system = composed.sections.map(s => s.text).join('\n\n') + (e.agentId ? ROLE : '')
-  const body = { model, max_tokens: MAX_TOKENS, stream: false, system, messages: forGate(messages), tools }
-  await log($, { ev: 'gate-request', loop: e.agentId ?? 'main', index: e.index, model, from: cfg.from, url: redact(cfg.url),
+  const model = cfg.model
+  const body = { model, max_tokens: MAX_TOKENS, stream: false, system, messages: forGate(messages), tools, ...(cfg.effort ? { thinking: THINKING[cfg.effort] } : {}) }
+  await log($, { ev: 'gate-request', loop: e.agentId ?? 'main', index: e.index, profile: name, model, effort: cfg.effort || null, url: redact(cfg.url),
     messages: messages.length, messageCount: e.messageCount, tools: tools.length, toolNames: tools.map(t => t.name), systemChars: system.length })
   // Failure text reaches the transcript and the log: the URL and token only ever in redacted form.
   const fail = (why: string) => failStep(e.turnId, e.index, why.split(cfg.url).join(redact(cfg.url)).split(cfg.token).join(redact(cfg.token)))
@@ -123,12 +140,12 @@ async function gateStep($: EngineInterface, e: TurnStepInput, model: string, sig
       method: 'POST',
       headers: { 'content-type': 'application/json', 'anthropic-version': '2023-06-01', authorization: `Bearer ${cfg.token}` },
       body: JSON.stringify(body),
-    }), timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn))
+    }), cfg.timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn))
   } catch (err) {
     return fail(err instanceof Error ? err.message : String(err))
   }
   if ('why' in won) {
-    await log($, { ev: won.why === 'interrupted' ? 'gate-abort' : 'gate-timeout', loop: e.agentId ?? 'main', index: e.index, timeoutMs })
+    await log($, { ev: won.why === 'interrupted' ? 'gate-abort' : 'gate-timeout', loop: e.agentId ?? 'main', index: e.index, timeoutMs: cfg.timeoutMs })
     return fail(won.why)
   }
   const res = won.ok
@@ -143,10 +160,10 @@ async function gateStep($: EngineInterface, e: TurnStepInput, model: string, sig
 }
 
 /** One step answered by your provider. Every failure becomes a failed step: never a silent fall back to Claude. */
-async function* answer($: EngineInterface, e: TurnStepInput, model: string, signal: AbortSignal): AsyncGenerator<TurnStepChunk, TurnStepResult> {
+async function* answer($: EngineInterface, e: TurnStepInput, profile: string, signal: AbortSignal): AsyncGenerator<TurnStepChunk, TurnStepResult> {
   let step: Step
   try {
-    step = await gateStep($, e, model, signal)
+    step = await gateStep($, e, profile, signal)
   } catch (err) {
     step = failStep(e.turnId, e.index, err instanceof Error ? err.message : String(err))
   }
@@ -162,22 +179,30 @@ async function command($: EngineInterface, args: string): Promise<string> {
   const [word, a, b] = args.trim().split(/\s+/)
   switch (word) {
     case 'use': {
-      const m = a ?? options.model
-      if (!m) return 'usage: /provider-switch use <model> (or set the model option)'
+      const m = a ?? DEFAULT
+      const p = await loadProfile($, m)
+      if (typeof p === 'string') return p
       loops.set('main', m)
       return `main loop: ${m} on your provider from its next step. /provider-switch off goes back to Claude.`
     }
     case 'agent': {
-      const m = b ?? options.model
-      if (!a || !m) return 'usage: /provider-switch agent <agentId> <model> (or set the model option)'
+      const m = b ?? DEFAULT
+      if (!a) return 'usage: /provider-switch agent <agentId> [profile]'
+      const p = await loadProfile($, m)
+      if (typeof p === 'string') return p
       if (!(await $.agent.list()).some(x => x.id === a)) return `no running agent ${a}; /provider-switch status lists them`
       loops.set(a, m)
       return `agent ${a}: ${m} on your provider from its next step.`
     }
     case 'agents':
-      if (a !== 'follow' && a !== 'claude') return `new subagents: ${agentsMode}. usage: /provider-switch agents follow|claude`
+      if (!a) return `new subagents: ${agentsMode}. usage: /provider-switch agents follow|claude|<profile>`
+      if (a !== 'follow' && a !== 'claude') {
+        const p = await loadProfile($, a)
+        if (typeof p === 'string') return p
+      }
       agentsMode = a
-      return a === 'follow' ? 'New subagents follow their parent loop onto your provider.' : 'New subagents always run on Claude.'
+      return a === 'follow' ? 'New subagents follow their parent loop onto your provider.'
+        : a === 'claude' ? 'New subagents always run on Claude.' : `New subagents use profile ${a}; this loop stays where it is.`
     case 'off': {
       const loop = a ?? 'main'
       return loops.delete(loop) ? `${loop}: back to Claude from its next step.` : `${loop} is not on your provider.`
@@ -185,39 +210,40 @@ async function command($: EngineInterface, args: string): Promise<string> {
     case 'status':
     case undefined:
     case '': {
-      const cfg = await gateConfig($)
-      const gate = typeof cfg === 'string' ? cfg : `${cfg.from} ${redact(cfg.url)}, token ${redact(cfg.token)}`
+      const dir = await profilesDir($)
+      const names = (await $.fs.list(dir).catch(() => [])).map(f => f.name).filter(n => n.endsWith('.conf')).map(n => n.slice(0, -5))
+      const gate = `${dir}: ${names.join(', ') || 'no profiles'}`
       const on = [...loops].map(([l, m]) => `${l} → ${m}`).join(', ') || 'none'
       const agents = (await $.agent.list()).map(x => x.id).join(', ') || 'none'
-      return `on your provider: ${on} · new subagents: ${agentsMode} · provider: ${gate} · running agents: ${agents}`
+      return `on your provider: ${on} · new subagents: ${agentsMode} · profiles ${gate} · running agents: ${agents}`
     }
     default:
-      return 'usage: /provider-switch use [model] | agent <agentId> [model] | agents follow|claude | off [agentId] | status'
+      return 'usage: /provider-switch use [profile] | agent <agentId> [profile] | agents follow|claude|<profile> | off [agentId] | status'
   }
 }
 
 export const register: Register = (on, opts) => {
   options = { ...options, ...(opts as Partial<typeof options>) }
-  if (options.agents === 'follow' || options.agents === 'claude') agentsMode = options.agents
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     logPath = await $.env.get('GATE_LOG')
     const main = await $.env.get('GATE_TEST_MAIN')
     if (main) loops.set('main', main)
     await sync($)
-    testAgents = (await $.env.get('GATE_TEST_AGENTS')) || undefined
+    const testAgents = await $.env.get('GATE_TEST_AGENTS')
+    if (testAgents) agentsMode = testAgents
     const k = await $.env.get('GATE_TEST_STEPS')
     testSteps = k ? Number(k) : undefined
     const mode = await $.env.get('GATE_TEST_AGENTS_MODE')
     if (mode === 'follow' || mode === 'claude') agentsMode = mode
-    timeoutMs = Number(await $.env.get('GATE_TIMEOUT_MS')) || options.timeoutSeconds * 1000 || 120_000
+    envTimeoutMs = Number(await $.env.get('GATE_TIMEOUT_MS')) || 0
     const reg = await $.command.register({
       name: 'provider-switch',
       description: 'Answer the main loop or a subagent with a model on your own provider, or go back to Claude (byo-provider)',
-      argumentHint: 'use [model] | agent <agentId> [model] | agents follow|claude | off [agentId] | status',
+      argumentHint: 'use [profile] | agent <agentId> [profile] | agents follow|claude|<profile> | off [agentId] | status',
       immediate: true,
     })
-    await log($, { ev: 'session-start', commandRegister: reg, testMain: main ?? null, testAgents: testAgents ?? null, testSteps: testSteps ?? null, agentsMode, timeoutMs })
+    await log($, { ev: 'session-start', commandRegister: reg, testMain: main ?? null, testSteps: testSteps ?? null, agentsMode })
     return started
   })
 
@@ -234,21 +260,21 @@ export const register: Register = (on, opts) => {
     return (
       <Box flexDirection="column">
         {v.rows.length === 0 && <Text dimColor>Every loop is on Claude.</Text>}
-        {v.rows.map(r => <Text>{r.loop} → {r.model} <Text dimColor>{r.last}</Text></Text>)}
-        <Text dimColor>new subagents: {v.agents} · {v.gate}</Text>
+        {v.rows.map(r => <Text>{r.loop} → {r.profile} <Text dimColor>{r.last}</Text></Text>)}
+        <Text dimColor>new subagents: {v.agents} · profiles: {v.profiles}</Text>
       </Box>
     )
   })
 
   // New subagents/forks are marked by the agentId the spawn resolves to.
   on('agent.spawn', async ($, e, next) => {
-    const model = testAgents ?? (agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : undefined)
+    const model = agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : agentsMode === 'claude' ? undefined : agentsMode
     const r = await next(e)
     const agentId = r && 'agentId' in r ? r.agentId : undefined
     if (model && agentId) { loops.set(agentId, model); await sync($).catch(() => undefined) }
     else if (model) $.ui.toast(`[byo-provider] spawn gave no agent id; that agent runs on Claude, not ${model}`)
     // A failing log write must not fail the hook: the engine would skip it after the spawn.
-    await log($, { ev: model && agentId ? 'spawn-marked' : 'spawn-claude', agentId, model: model ?? null, fork: e.fork,
+    await log($, { ev: model && agentId ? 'spawn-marked' : 'spawn-claude', agentId, profile: model ?? null, fork: e.fork,
       parent: e.parentAgentId ?? 'main', parentModel: e.parentModel, askedModel: e.model ?? null, resolvedModel: r && 'model' in r ? r.model : null })
       .catch(() => undefined)
     return r
