@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Rules eval gate — static invariants for global/ + .agents/rules/ + skills/.
-// Exit 0 = all PASS. Any FAIL = exit 1. See evals/README.md for the behavioral
-// fixture schema (not yet executed by this runner).
+// Exit 0 = all PASS. Any FAIL = exit 1.
 import { readFileSync, readdirSync, existsSync, statSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -115,25 +114,6 @@ const deployRuntime = spawnSync('bash', ['-c', String.raw`
 `], { cwd: ROOT, encoding: 'utf8' });
 check('deploy-pinned-sha-runtime', deployRuntime.status === 0,
   deployRuntime.stderr.trim() || 'observed request URL and archive root');
-
-// 6. behavioral fixture files conform to the documented static schema
-const fixtureDir = join(ROOT, 'evals/fixtures');
-const fixtureFiles = existsSync(fixtureDir)
-  ? readdirSync(fixtureDir).filter((f) => f.endsWith('.json'))
-  : [];
-let fixturesValid = fixtureFiles.length > 0;
-for (const f of fixtureFiles) {
-  try {
-    const fixture = JSON.parse(readFileSync(join(fixtureDir, f), 'utf8'));
-    fixturesValid &&= ['id', 'prompt', 'reason'].every(
-      (k) => typeof fixture[k] === 'string' && fixture[k].length > 0);
-    fixturesValid &&= ['must_route', 'must_not', 'required_tokens'].every(
-      (k) => Array.isArray(fixture.labels?.[k]));
-  } catch {
-    fixturesValid = false;
-  }
-}
-check('fixture-schema', fixturesValid, `${fixtureFiles.length} fixture(s)`);
 
 // 7. public tracked files must not contain private fleet topology or home paths
 const privatePatterns = [

@@ -116,7 +116,7 @@ const wrapTimeout = (cmd) => `${PERL_TIMEOUT} ${timeout} bash -c ${shellQuote(cm
 const normNeg = negativeCases.map((c, idx) => {
   const obj = typeof c === 'string' ? { command: c } : (c || {})
   const expectedExit = Number.isInteger(obj.expectedExit) ? obj.expectedExit : 1
-  const cmd = obj.command || (obj.fixture ? `node evals/run-behavior.mjs --case ${shellQuote(obj.fixture)}` : '')
+  const cmd = obj.command || ''
   return {
     name: obj.name || `neg-${idx + 1}`,
     command: cmd,
