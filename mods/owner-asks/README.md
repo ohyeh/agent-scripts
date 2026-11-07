@@ -51,7 +51,6 @@ This mod does not read or migrate the relay's historical ask or audit files.
 `agent-should-know` is the original mod, for the built-in heads-up relay only.
 `owner-asks` is the new mod split out of it for every other feature. It holds the
 ask list now; the audit will be added to this mod after research, not to a third mod.
-Audit research notes remain in `evals/retro-metrics/2026-W44/opinions/`.
 
 ## Install
 
