@@ -1,5 +1,11 @@
 # Changelog
 
+## byo-provider 0.3.1
+
+Owner 11-08: ship an example profile and keep it current with each new key.
+
+- **`default.conf.example`** in the mod lists every profile key with its values; a missing profile's error names it. Update it with every new key.
+
 ## byo-provider 0.3.0
 
 Owner 11-08: the gateway token must be settable without showing it in settings, and effort must be settable; keep one path option and put the rest in config files (like `~/.config/agent-tmux/profiles`).

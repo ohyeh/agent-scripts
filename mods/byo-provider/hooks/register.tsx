@@ -78,7 +78,7 @@ async function loadProfile($: EngineInterface, name: string): Promise<Profile | 
   if (!/^[\w.-]+$/.test(name)) return `bad profile name '${name}'`
   const path = `${await profilesDir($)}/${name}.conf`
   let text: string
-  try { text = String(await $.fs.read(path)) } catch { return `no profile file ${path}` }
+  try { text = String(await $.fs.read(path)) } catch { return `no profile file ${path}; copy ${$.plugin.root}/default.conf.example there` }
   const kv = parseConf(text)
   if (!kv.url || !kv.token || !kv.model) return `profile ${path} needs url, token and model`
   const effort = kv.effort ?? ''

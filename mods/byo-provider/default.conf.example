@@ -1,0 +1,16 @@
+# byo-provider profile. Copy to <path>/default.conf (path: the plugin option, default
+# ~/.config/byo-provider/profiles) and chmod 600. Another name, e.g. glm.conf, is used by
+# `/provider-switch use glm`. The mod reads this file at each gateway request.
+# Keep this example in step with the keys loadProfile() reads (hooks/register.tsx).
+
+# Anthropic-format gateway base URL; the mod posts to <url>/v1/messages.
+url=https://gateway.example
+# Bearer token. It never enters settings, the pane, the log or an error text.
+token=
+# Gateway model name.
+model=
+# off | low | medium | high | max → thinking disabled, or budget 2048 / 6000 / 12000 / 15360.
+# Empty: the gateway's default.
+effort=
+# Seconds one request may take (default 120; env GATE_TIMEOUT_MS overrides).
+timeout=

@@ -50,19 +50,11 @@ on `/provider-switch status` and whenever a loop is on your provider.
    The mod reads it at each gateway request, so an edit applies at the next step. The token stays in
    this file (keep it `chmod 600`); it never enters settings, the pane, the log or an error text.
 
-   ```
-   url=https://gateway.example
-   token=...
-   model=some-model
-   # off | low | medium | high | max → thinking disabled, or budget 2048 / 6000 / 12000 / 15360; empty: gateway default
-   effort=
-   # seconds one request may take (default 120; GATE_TIMEOUT_MS overrides)
-   timeout=
-   ```
+   Start from [`default.conf.example`](default.conf.example): every key the mod reads, with its values.
 
    `default.conf` is the profile `use` and `agent` take when no name is typed.
    The one plugin option (`userConfig`), kept in your settings:
-   Set them once with `claude plugin configure byo-provider@<marketplace>` (or `/config`):
+   Set it with `claude plugin configure byo-provider@<marketplace>` (or `/config`):
    - `path`: the profiles folder (default `~/.config/byo-provider/profiles`).
 2. Env override of the claude process, ahead of the options (tests): `GATE_TIMEOUT_MS`.
 3. Load it: install from the marketplace, or `claude --plugin-dir <this folder>`.
@@ -114,6 +106,7 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
 
 - `hooks/register.tsx`: hooks `session.start`, `command.run{provider-switch}`, `ui.render{Pane}`, `agent.spawn`, `turn.step`.
 - `types/index.d.ts`: the pane's `$.state` contract.
+- `default.conf.example`: the profile keys; update it with every new key.
 - `hooks/map.ts`: pure helpers (`toStep`, `failStep`, `forGate`, `loadedTools`, `deferredTools`,
   `deadline`, `redact`).
 - `hooks/schemas.ts`: generated built-in tool input schemas.
