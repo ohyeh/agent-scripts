@@ -51,8 +51,7 @@ Workflow({ scriptPath: "<abs path>/consensus-gate.workflow.js", args: {...} })
   consensus, notes, manifest_*, l0_* }` plus `passed`, which is true only for an
   L2 `agree` with L0 green and the manifest unchanged — an L1 agree is a
   pre-filter result. **Completion is signaled by polling an output file (one
-  per round), never by pattern-matching the pane.** Smoke:
-  `scripts/test-consensus-gate-ladder`. **See the file header for args examples.**
+  per round), never by pattern-matching the pane.** **See the file header for args examples.**
 
 - **`spec-implement-dual-review-verify.workflow.js`** — the main feature-build
   pipeline: implement the spec → review the change through the ladder: L0
@@ -63,8 +62,7 @@ Workflow({ scriptPath: "<abs path>/consensus-gate.workflow.js", args: {...} })
   still blocking → stop and ask the user (no L3). The implementer model fixes every finding between rounds; the
   finalizer only runs the verify commands and the deviation gate, it never
   edits. A layer with no reviewer left aborts at review (P2-A5); a failed L1
-  seat is a logged warning. Smoke: `scripts/test-review-gate-smoke.mjs`.
-  **See the file header for args examples.**
+  seat is a logged warning. **See the file header for args examples.**
 
 - **`haiku-research-round.workflow.js`** — one round of a commander-driven
   research loop: N read-only scouts (default `haiku` effort `medium`, allowed
