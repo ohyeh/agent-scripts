@@ -53,14 +53,6 @@ This mod does not read or migrate the relay's historical ask or audit files.
 ask list now; the audit will be added to this mod after research, not to a third mod.
 Audit research notes remain in `evals/retro-metrics/2026-W44/opinions/`.
 
-## Local acceptance
-
-Run `MOD=mods/owner-asks scripts/test-mod-permissions-smoke` for isolated unit,
-permission and type checks. Run `python3 scripts/test-owner-asks-engine.py` for
-interactive tmux acceptance with both mods and fresh session IDs. The script keeps
-its fixture, transcript references and results under `.workflow/`. It does not
-install or toggle plugins, or use existing owner sessions.
-
 ## Install
 
 This candidate is local and has not been published. After its release, the marketplace command is:

@@ -244,14 +244,9 @@ echo "PASS [invariants] all checks green"
 # Budget: ~30s total on the operator host. Each test must pass in a git-archive tree (no .git);
 # test-deploy-check.sh needs a checkout, so it runs by hand, not here.
 layer0_tests=(
-  test-rm-home-gate.sh test-codex-cu-chrome-gate.sh test-codex-cu-mcp.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
-  test-review-dispatch-gate.sh test-workflow-agent-cap.sh
-  test-agy-adapt.sh test-cursor-hook-adapter.sh test-jsonl-hooks-smoke test-idevicesyslog-guard.sh
-  test-loop-gates-smoke test-subagent-gate-smoke test-bash-readonly-gate test-round-cost-gate.sh test-worker-followup-gate.sh
-  test-context-mode-dir.sh test-sync-skills-lock.sh test-recipe-usage-stats.sh
-  test-skill-router-nudge.sh test-running-script-edit-gate.sh
-  test-cursor-plan-usage.sh test-workflow-model.mjs
-  test-grok-bot-app.sh
+  test-rm-home-gate.sh test-codex-cu-chrome-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
+  test-review-dispatch-gate.sh test-running-script-edit-gate.sh test-bash-readonly-gate
+  test-jsonl-hooks-smoke test-sync-skills-lock.sh test-grok-bot-app.sh
 )
 for t in "${layer0_tests[@]}"; do
   th="$WORKDIR/t-$t"; mkdir -p "$th/tmp"

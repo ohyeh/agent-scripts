@@ -7,7 +7,7 @@
 #     version line. A plugin cache holds only that dir, so the mod cannot import
 #     from skills/, and it must not depend on how (or whether) the skill is installed.
 # So the core lives in the skill and the mod carries a byte-identical copy.
-# test-version-sync-smoke fails when the copy drifts. Edit the source, then run this.
+# `--check` fails when the copy drifts. Edit the source, then run this.
 #
 # Usage: scripts/sync-mod-core [--check]   (--check: exit 1 on drift, write nothing)
 

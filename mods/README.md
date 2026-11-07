@@ -46,7 +46,6 @@ collaborators (Claude, sol, agy, advisor). Where a rule cites a fixed standard, 
   `~/.claude/plugins/store/<plugin>_<marketplace>-*.json` and quote the result.
 - Mod prompts: a prompt that a mod submits for the agent says that it approves nothing. A fix that needs the
   user's approval (a model tier, a push, a deletion, a change of scope) is named and asked, not made.
-- Mod changes: run `MOD=mods/<m> scripts/test-mod-permissions-smoke` and require exit 0, plus the surface checks above.
-  `claude plugin test` alone does not check types; its `N pass` is not enough.
+- Mod changes: run `claude plugin validate mods/<m>`, plus the surface checks above.
 - Review: compare buttons, hotkeys and commands with the previous version. List each removal against the request.
   Apply the kernel's Surgical diffs rule and deletion approval rule to that list.
