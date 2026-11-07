@@ -250,6 +250,7 @@ layer0_tests=(
   test-context-mode-dir.sh test-sync-skills-lock.sh test-sync-mods.sh test-recipe-usage-stats.sh test-docs-audit-ownership
   test-consensus-gate-ladder test-plan-pipeline-ladder test-haiku-research-round
   test-feature-plan-consensus-ladder test-review-gate-smoke.mjs test-skill-router-nudge.sh test-running-script-edit-gate.sh
+  test-cursor-plan-usage.sh test-deploy-check.sh test-design-audit-verdicts test-fleet-deploy.sh test-workflow-model.mjs
 )
 for t in "${layer0_tests[@]}"; do
   th="$WORKDIR/t-$t"; mkdir -p "$th/tmp"
