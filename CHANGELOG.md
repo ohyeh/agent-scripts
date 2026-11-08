@@ -1,5 +1,9 @@
 # Changelog
 
+## byo-provider 0.5.4
+
+- **`agents=` in `default.conf` sets the mode a session starts in** (`follow` | `claude` | `<profile>`), so new subagents can go to your provider without typing `/provider-switch agents <profile>` after every session start. A bad value is shown as a toast and the mode stays `follow`.
+
 ## byo-provider 0.5.3
 
 A second gated review (deepseek, 103 gate steps) of 0.5.2 found the `tools:` parser still wrong on real YAML; each case re-run here.

@@ -15,3 +15,6 @@ effort=
 # Seconds one request may take, 1..590 (default 120; env GATE_TIMEOUT_MS overrides).
 # effort=max on a long loop can take minutes: 300 is a safer value there.
 timeout=
+# Mode new subagents start in at each session start (default.conf only): follow | claude | <profile>.
+# Empty: follow. Same as typing `/provider-switch agents <value>` at the start of every session.
+agents=

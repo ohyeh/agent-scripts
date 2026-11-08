@@ -286,6 +286,12 @@ export const register: Register = (on, opts) => {
     logPath = await $.env.get('GATE_LOG')
     const main = await $.env.get('GATE_TEST_MAIN')
     if (main) loops.set('main', main)
+    // default.conf `agents=` is the mode a session starts in; a bad value is shown, never silently dropped.
+    const kv = await $.fs.read(`${await profilesDir($)}/default.conf`).then(t => parseConf(String(t)), () => ({} as Record<string, string>))
+    if (kv.agents) {
+      const said = await command($, `agents ${kv.agents}`)
+      if (agentsMode !== kv.agents) $.ui.toast(`[byo-provider] default.conf agents=${kv.agents}: ${said}`)
+    }
     await sync($)
     const testAgents = await $.env.get('GATE_TEST_AGENTS')
     if (testAgents) agentsMode = testAgents

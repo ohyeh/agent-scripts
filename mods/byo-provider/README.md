@@ -42,7 +42,7 @@ on `/provider-switch status` and whenever a loop is on your provider.
 | `/provider-switch use [profile]` | The main loop uses that profile (default: `default`) from its next step. |
 | `/provider-switch off [agentId]` | That loop (default `main`) goes back to Claude from its next step. |
 | `/provider-switch agent <agentId> [profile]` | A running subagent uses your provider from its next step. The id must be in `$.agent.list()`. |
-| `/provider-switch agents follow\|claude\|<profile>` | New subagents follow their parent loop onto your provider (`follow`, default), always use Claude (`claude`), or always use `<profile>` while this loop stays where it is. |
+| `/provider-switch agents follow\|claude\|<profile>` | New subagents follow their parent loop onto your provider (`follow`, default), always use Claude (`claude`), or always use `<profile>` while this loop stays where it is. A session starts in the mode `agents=` names in `default.conf` (else `follow`). |
 
 The main loop can run the same commands through the tool `mcp__byo-provider__switch` (`{ args }`, the
 text after `/provider-switch`), as tmux-agent's `reload` tool runs `/reload-plugins`: the owner can say

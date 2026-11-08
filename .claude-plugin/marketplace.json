@@ -74,7 +74,7 @@
       "name": "byo-provider",
       "source": "./mods/byo-provider",
       "description": "Function-hook mod: /provider-switch answers the main loop, a subagent or a fork with a model on your own Anthropic-format gateway (turn.step takeover); every other loop stays on Claude. Env untouched; the Claude credential is never sent to the gateway. Gateway URL/token/provider live in plugin options, not here. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
-      "version": "0.5.3",
+      "version": "0.5.4",
       "author": {
         "name": "PaulYeh"
       },
