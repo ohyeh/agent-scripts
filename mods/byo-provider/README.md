@@ -47,7 +47,7 @@ on `/provider-switch status` and whenever a loop is on your provider.
 The main loop can run the same commands through the tool `mcp__byo-provider__switch` (`{ args }`, the
 text after `/provider-switch`), as tmux-agent's `reload` tool runs `/reload-plugins`: the owner can say
 "new subagents on default" without typing. A subagent's call is denied. The tool exists only while the
-main loop is on Claude: a gated main loop gets no MCP tools (limit 2), so it switches with `/provider-switch`.
+main loop is on Claude: a gated main loop gets only built-in tools (limit 2: `hooks/schemas.ts` has no schema for it), so it switches with `/provider-switch`.
 
 ## Setup
 
@@ -61,7 +61,7 @@ main loop is on Claude: a gated main loop gets no MCP tools (limit 2), so it swi
    The one plugin option (`userConfig`), kept in your settings:
    Set it with `claude plugin configure byo-provider@<marketplace>` (or `/config`):
    - `path`: the profiles folder (default `~/.config/byo-provider/profiles`).
-2. Env override of the claude process, ahead of the options (tests): `GATE_TIMEOUT_MS`.
+2. Env override of the claude process (tests): `GATE_TIMEOUT_MS`, in ms, ahead of the profile's `timeout` (seconds).
 3. Load it: install from the marketplace, or `claude --plugin-dir <this folder>`.
 4. Run gated work in `--permission-mode default` or `acceptEdits`, not `auto` (see Limits).
 
@@ -105,7 +105,7 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
 6. Spawn marking happens after `agent.spawn`'s `next(e)` resolves. Every test saw the mark before
    the subagent's step 0, but the docs do not promise this order.
 7. A gated subagent of a custom type answers with its definition file's prompt (plus one paragraph),
-   and a `tools:` line in its frontmatter narrows its tools: `<plugin>:<name>` is read from the plugin's
+   and its frontmatter `tools:` narrows and `disallowedTools:` removes tools: `<plugin>:<name>` is read from the plugin's
    install folder (`~/.claude/plugins/installed_plugins.json`), `<name>` from `.claude/agents/` then
    `~/.claude/agents/`. The engine's own types (`general-purpose`, `Explore`, `Plan`) and types a plugin
    registers in code have no file: they get the main system prompt plus that paragraph and every tool.

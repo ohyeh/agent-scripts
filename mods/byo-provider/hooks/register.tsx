@@ -16,7 +16,7 @@ import type { View } from '../types'
 //   GATE_TEST_AGENTS_MODE=follow|claude  as `/provider-switch agents follow|claude`
 //   GATE_TEST_STEPS=<K>       a gated loop is switched back to Claude from step index K (as /provider-switch off)
 //   GATE_LOG=<path>           routing log (never a URL or token value)
-//   GATE_TIMEOUT_MS=<ms>      request timeout, ahead of the timeoutSeconds option
+//   GATE_TIMEOUT_MS=<ms>      request timeout in ms, ahead of the profile's timeout (seconds)
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
@@ -88,7 +88,7 @@ async function loadProfile($: EngineInterface, name: string): Promise<Profile | 
   const ok = (ms: number) => ms > 0 && ms <= 590_000
   if (envTimeoutMs !== undefined && !ok(envTimeoutMs)) return `GATE_TIMEOUT_MS must be 1..590000`
   const t = kv.timeout || undefined // `timeout=` with no value means unset
-  if (t !== undefined && !ok(Number(t) * 1000)) return `profile ${path}: timeout=${t} must be 1..590 seconds`
+  if (t !== undefined && !(Number(t) >= 1 && ok(Number(t) * 1000))) return `profile ${path}: timeout=${t} must be 1..590 seconds`
   const timeoutMs = envTimeoutMs ?? (t !== undefined ? Number(t) * 1000 : 120_000)
   return { name, url: kv.url, token: kv.token, model: kv.model, effort, timeoutMs }
 }
@@ -123,7 +123,7 @@ async function toolsFor($: EngineInterface, available: readonly ToolInfo[], mess
 /** The definition file of an agent type: `<plugin>:<name>` from the plugin's install folder, else
  *  `<name>` from .claude/agents then ~/.claude/agents. null for the engine's own types (general-purpose,
  *  Explore, Plan) and types registered in code: their prompt is not a file. */
-async function agentDef($: EngineInterface, type: string | undefined): Promise<{ path: string; body: string; tools?: string[] } | null> {
+async function agentDef($: EngineInterface, type: string | undefined): Promise<{ path: string; body: string; tools?: string[]; disallowed?: string[] } | null> {
   if (!type || !/^[\w.-]+(:[\w.-]+)?$/.test(type)) return null
   const home = (await $.env.get('HOME')) ?? ''
   const [plugin, name] = type.includes(':') ? type.split(':') as [string, string] : [undefined, type]
@@ -173,7 +173,8 @@ async function gateStep($: EngineInterface, e: TurnStepInput, name: string, sign
   const def = e.agentId ? await agentDef($, types.get(e.agentId)) : null
   // A custom agent answers with its own prompt (as on Claude), not the main loop's; its `tools` list narrows the set.
   const all = await toolsFor($, available, messages, e.agentId !== undefined)
-  const tools = def?.tools ? all.filter(t => def.tools!.includes(t.name) || t.name === HANDBACK.name) : all
+  const tools = all.filter(t => t.name === HANDBACK.name ||
+    ((!def?.tools || def.tools.includes(t.name)) && !def?.disallowed?.includes(t.name)))
   const system = (def ? def.body : composed.sections.map(s => s.text).join('\n\n')) + (e.agentId ? ROLE : '')
   const model = cfg.model
   const budget = cfg.effort ? (THINKING[cfg.effort] as { budget_tokens?: number }).budget_tokens ?? 0 : 0

@@ -1,5 +1,15 @@
 # Changelog
 
+## byo-provider 0.5.3
+
+A second gated review (deepseek, 103 gate steps) of 0.5.2 found the `tools:` parser still wrong on real YAML; each case re-run here.
+
+- **`tools:` lists skip `# comments` and blank lines.** 0.5.2 stopped a `- A` list at the first comment (`Read`, comment, `Bash` gave only `Read`: a regression), kept trailing comments in the item (`Grep  # read-only`), and read `tools: # ro` as a tool name. A flow list may span lines.
+- **`disallowedTools:` removes tools** on the gate path too (e.g. `explore-bounded`: no Edit, Write, NotebookEdit).
+- **`timeout` below 1 s fails** (`timeout=0.5` was accepted under a "1..590" message).
+- Docs: `GATE_TIMEOUT_MS` is ms and overrides the profile's `timeout` (seconds); the gated main loop lacks `switch` because `hooks/schemas.ts` has no schema for it.
+- Known, not fixed: a comma inside a quoted tool name splits it (no real definition does this).
+
 ## byo-provider 0.5.2
 
 Fixes from the adversarial review a gated `pr-review-toolkit:code-reviewer` ran on deepseek (all steps answered by the gate), each checked against the code; advisor set the scope.

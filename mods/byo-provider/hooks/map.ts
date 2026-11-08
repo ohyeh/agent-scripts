@@ -127,20 +127,37 @@ export function parseConf(text: string): Record<string, string> {
   return kv
 }
 
-/** An agent definition file: `---` frontmatter, then the prompt. `tools` only when the frontmatter
- *  names them (`tools: A, B`, `tools: [A, B]` or a YAML `- A` list under `tools:`); absent or empty
- *  means the agent gets every tool. */
-export function parseAgentDef(text: string): { body: string; tools?: string[] } {
+/** A YAML list key of a frontmatter: `k: A, B`, `k: [A, B]` (may span lines) or `- A` lines under `k:`.
+ *  `# comments` and blank lines are skipped. undefined when the key is absent or lists nothing.
+ *  shortcut: not a YAML parser (a comma inside quotes splits); use one if a definition needs it. */
+function yamlList(lines: readonly string[], key: string): string[] | undefined {
+  const uncomment = (l: string) => l.replace(/(^|\s)#.*$/, '').trim()
+  const at = lines.findIndex(l => new RegExp(`^${key}\\s*:`).test(l))
+  if (at < 0) return undefined
+  let inline = uncomment(lines[at]!.replace(/^[^:]*:/, ''))
+  const list: string[] = []
+  let i = at + 1
+  if (inline.startsWith('[')) {
+    while (!inline.includes(']') && i < lines.length) inline += ' ' + uncomment(lines[i++]!)
+    list.push(...inline.replace(/^\[|\].*$/g, '').split(','))
+  } else if (inline) list.push(...inline.split(','))
+  else for (; i < lines.length; i++) {
+    const l = uncomment(lines[i]!)
+    if (!l) continue
+    if (!l.startsWith('-')) break
+    list.push(l.replace(/^-\s*/, ''))
+  }
+  const out = list.map(s => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
+  return out.length ? out : undefined
+}
+
+/** An agent definition file: `---` frontmatter, then the prompt. `tools` narrows the agent's tools
+ *  (absent or empty: every tool); `disallowedTools` removes tools. */
+export function parseAgentDef(text: string): { body: string; tools?: string[]; disallowed?: string[] } {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text)
   if (!m) return { body: text.trim() }
   const lines = m[1]!.split(/\r?\n/)
-  const at = lines.findIndex(l => /^tools\s*:/.test(l))
-  let tools: string[] | undefined
-  if (at >= 0) {
-    const inline = lines[at]!.replace(/^tools\s*:/, '').trim().replace(/^\[|\]$/g, '')
-    const list = inline ? inline.split(',') : []
-    for (let i = at + 1; !inline && i < lines.length && /^\s*-\s+/.test(lines[i]!); i++) list.push(lines[i]!.replace(/^\s*-\s+/, ''))
-    tools = list.map(s => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
-  }
-  return { body: text.slice(m[0].length).trim(), ...(tools?.length ? { tools } : {}) }
+  const tools = yamlList(lines, 'tools')
+  const disallowed = yamlList(lines, 'disallowedTools')
+  return { body: text.slice(m[0].length).trim(), ...(tools ? { tools } : {}), ...(disallowed ? { disallowed } : {}) }
 }

@@ -100,6 +100,12 @@ test('agent tools: comma, flow and block-list forms', () => {
   expect(def('tools: [Read, "Grep"]')).toEqual(['Read', 'Grep'])
   expect(def('tools:\n  - Read\n  - Grep\nmodel: x')).toEqual(['Read', 'Grep'])
   expect(def('tools:')).toBeUndefined()
+  expect(def('tools:\n  - Read\n  # needs bash\n\n  - Bash')).toEqual(['Read', 'Bash'])
+  expect(def('tools: ["Read", "Grep"]  # read-only')).toEqual(['Read', 'Grep'])
+  expect(def('tools: Read, Grep  # read-only')).toEqual(['Read', 'Grep'])
+  expect(def('tools: # ro\n  - Read')).toEqual(['Read'])
+  expect(def('tools: [Read,\n  Grep]')).toEqual(['Read', 'Grep'])
+  expect(parseAgentDef('---\ndisallowedTools: Edit, Write\n---\nb').disallowed).toEqual(['Edit', 'Write'])
 })
 
 test('context-window stop is passed on, not turned into end_turn', () => {
