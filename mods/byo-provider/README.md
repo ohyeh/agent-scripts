@@ -26,7 +26,7 @@ Built and tested on Claude Code 2.1.319.
 - Answer: `text` and `tool_use` blocks become chunks. Thinking from the gate is dropped.
 - Every failure is a visible step: `[byo-provider: <reason>]` with `end_turn`. The mod never falls back
   to Claude. Reasons include HTTP errors, a bad body, a refused connection, a timeout
-  (`no answer in N s (GATE_TIMEOUT_MS)`) and an interrupt (`interrupted`, when you press Escape).
+  (`no answer in N s`) and an interrupt (`interrupted`, when you press Escape).
   The gate URL and token appear only in redacted form (`abcdef…(len N)`).
 - In stream-json, a gate step has a `msg_hook_<uuid>` id. A real API step has a `msg_011…` id.
 
@@ -38,7 +38,7 @@ on `/provider-switch status` and whenever a loop is on your provider.
 
 | Command | Effect |
 | --- | --- |
-| `/provider-switch status` | Shows which loops use your provider, the new-subagent mode, the gate config (redacted), and running agents, and opens the pane. |
+| `/provider-switch status` | Shows which loops use your provider, the new-subagent mode, the profiles folder and its profile names, and running agents, and opens the pane. |
 | `/provider-switch use [profile]` | The main loop uses that profile (default: `default`) from its next step. |
 | `/provider-switch off [agentId]` | That loop (default `main`) goes back to Claude from its next step. |
 | `/provider-switch agent <agentId> [profile]` | A running subagent uses your provider from its next step. The id must be in `$.agent.list()`. |
@@ -46,7 +46,8 @@ on `/provider-switch status` and whenever a loop is on your provider.
 
 The main loop can run the same commands through the tool `mcp__byo-provider__switch` (`{ args }`, the
 text after `/provider-switch`), as tmux-agent's `reload` tool runs `/reload-plugins`: the owner can say
-"new subagents on default" without typing. A subagent's call is denied.
+"new subagents on default" without typing. A subagent's call is denied. The tool exists only while the
+main loop is on Claude: a gated main loop gets no MCP tools (limit 2), so it switches with `/provider-switch`.
 
 ## Setup
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## byo-provider 0.5.2
+
+Fixes from the adversarial review a gated `pr-review-toolkit:code-reviewer` ran on deepseek (all steps answered by the gate), each checked against the code; advisor set the scope.
+
+- **An agent's `tools:` in YAML list form narrows its tools.** `tools: [A, B]` and a `- A` block list were read as empty, so the agent got every tool (fail-open). Comma, flow and block forms now parse; an empty `tools:` still means every tool.
+- **`compaction` and `model_context_window_exceeded` stop reasons pass through** instead of becoming `end_turn` (a cut answer read as final). llm-gate probably never sends them.
+- **`timeout` is really checked.** `timeout=abc` or `timeout=0` became 120 s silently; now the profile fails, naming the value. `timeout=` with no value still means 120 s. A bad `GATE_TIMEOUT_MS` fails with its own message, and the timeout text no longer blames `GATE_TIMEOUT_MS`.
+- **README:** `status` lists the profiles folder (it never showed a gate config); the `switch` tool exists only while the main loop is on Claude.
+- Not changed: finished agents stay in the routing map, because a resumed agent (SendMessage) gets no new `agent.spawn` and would fall back to Claude. A gateway answer without `usage` is still logged as a failure; llm-gate sends `usage`.
+
 ## byo-provider 0.5.1
 
 Owner 11-08: the gated `pr-review-toolkit:code-reviewer` (deepseek, effort max) ran 60 tool calls in 35 min and stopped mid-review with no report. Its last steps used 11238 and 13761 output tokens against a 16384 cap that also held the 15360 thinking budget.

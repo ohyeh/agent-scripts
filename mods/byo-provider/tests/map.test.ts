@@ -64,7 +64,7 @@ const after = (ms: number, fn: () => void) => { const t = setTimeout(fn, ms); re
 test('deadline: answer in time, timeout, interrupt, and a rejection passes through', async () => {
   const never = new Promise<string>(() => {})
   expect(await deadline(Promise.resolve('a'), 50, new AbortController().signal, after)).toEqual({ ok: 'a' })
-  expect(await deadline(never, 20, new AbortController().signal, after)).toEqual({ why: 'no answer in 0.02 s (GATE_TIMEOUT_MS)' })
+  expect(await deadline(never, 20, new AbortController().signal, after)).toEqual({ why: 'no answer in 0.02 s' })
   const stop = new AbortController()
   const r = deadline(never, 5000, stop.signal, after)
   stop.abort()
@@ -74,7 +74,7 @@ test('deadline: answer in time, timeout, interrupt, and a rejection passes throu
   await expect(deadline(Promise.reject(new Error('ECONNREFUSED')), 50, new AbortController().signal, after)).rejects.toThrow('ECONNREFUSED')
   // timeout path wired as the hook wires it: the reason becomes a visible failed step
   const lost = await deadline(never, 10, new AbortController().signal, after)
-  expect('why' in lost && failStep('t', 0, lost.why).result.answer).toBe('[byo-provider: no answer in 0.01 s (GATE_TIMEOUT_MS)]')
+  expect('why' in lost && failStep('t', 0, lost.why).result.answer).toBe('[byo-provider: no answer in 0.01 s]')
 })
 
 test('parseConf: key=value, comments and blanks skipped, = kept in the value', () => {
@@ -92,4 +92,17 @@ test('a thinking-only answer is a failed step, not a silent end', () => {
   const r = toStep('t', 0, { type: 'message', content: [{ type: 'thinking', thinking: 'x' }], stop_reason: 'max_tokens', usage: { output_tokens: 16384 } }, 'm').result
   expect(r.usage).toBeNull()
   expect(r.answer).toContain('max_tokens')
+})
+
+test('agent tools: comma, flow and block-list forms', () => {
+  const def = (fm: string) => parseAgentDef(`---\nname: x\n${fm}\n---\nbody`).tools
+  expect(def('tools: Read, Grep')).toEqual(['Read', 'Grep'])
+  expect(def('tools: [Read, "Grep"]')).toEqual(['Read', 'Grep'])
+  expect(def('tools:\n  - Read\n  - Grep\nmodel: x')).toEqual(['Read', 'Grep'])
+  expect(def('tools:')).toBeUndefined()
+})
+
+test('context-window stop is passed on, not turned into end_turn', () => {
+  const r = toStep('t', 0, { type: 'message', content: [{ type: 'text', text: 'part' }], stop_reason: 'model_context_window_exceeded' }, 'm').result
+  expect(r.stopReason).toBe('model_context_window_exceeded')
 })

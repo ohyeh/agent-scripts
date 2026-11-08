@@ -49,7 +49,7 @@ const loops = new Map<string, string>() // 'main' or an agentId → profile name
 const types = new Map<string, string>() // a gated agentId → its subagentType (none for a fork)
 let agentsMode = 'follow' // follow | claude | a profile name every new subagent uses
 let testSteps: number | undefined
-let envTimeoutMs = 0
+let envTimeoutMs: number | undefined
 let logPath: string | undefined
 const lines: string[] = []
 const last = new Map<string, string>() // loop → its last gate step, for the pane
@@ -84,9 +84,12 @@ async function loadProfile($: EngineInterface, name: string): Promise<Profile | 
   if (!kv.url || !kv.token || !kv.model) return `profile ${path} needs url, token and model`
   const effort = kv.effort ?? ''
   if (effort && !THINKING[effort]) return `profile ${path}: effort must be ${Object.keys(THINKING).join('|')}`
-  const timeoutMs = envTimeoutMs || Number(kv.timeout) * 1000 || 120_000
-  // $.process.run allows ten minutes at most; a larger value fails here, not silently clamped.
-  if (!(timeoutMs > 0 && timeoutMs <= 590_000)) return `profile ${path}: timeout must be 1..590 seconds`
+  // $.process.run allows ten minutes at most; a bad value fails here, never silently replaced.
+  const ok = (ms: number) => ms > 0 && ms <= 590_000
+  if (envTimeoutMs !== undefined && !ok(envTimeoutMs)) return `GATE_TIMEOUT_MS must be 1..590000`
+  const t = kv.timeout || undefined // `timeout=` with no value means unset
+  if (t !== undefined && !ok(Number(t) * 1000)) return `profile ${path}: timeout=${t} must be 1..590 seconds`
+  const timeoutMs = envTimeoutMs ?? (t !== undefined ? Number(t) * 1000 : 120_000)
   return { name, url: kv.url, token: kv.token, model: kv.model, effort, timeoutMs }
 }
 
@@ -289,7 +292,7 @@ export const register: Register = (on, opts) => {
     testSteps = k ? Number(k) : undefined
     const mode = await $.env.get('GATE_TEST_AGENTS_MODE')
     if (mode === 'follow' || mode === 'claude') agentsMode = mode
-    envTimeoutMs = Number(await $.env.get('GATE_TIMEOUT_MS')) || 0
+    { const t = await $.env.get('GATE_TIMEOUT_MS'); envTimeoutMs = t ? Number(t) : undefined }
     const reg = await $.command.register({
       name: 'provider-switch',
       description: 'Answer the main loop or a subagent with a model on your own provider, or go back to Claude (byo-provider)',

@@ -7,7 +7,7 @@ export type GateTool = { name: string; description: string; input_schema: Record
 export type Step = { chunks: TurnStepChunk[]; result: TurnStepResult }
 
 type StopReason = TurnStepResult['stopReason']
-const STOPS = new Set(['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'pause_turn', 'refusal'])
+const STOPS = new Set(['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'pause_turn', 'refusal', 'compaction', 'model_context_window_exceeded'])
 
 /** A failed gate step: one text block saying why, ending the turn. Never a fallback to Claude. */
 export function failStep(turnId: string, index: number, reason: string): Step {
@@ -105,7 +105,7 @@ export async function deadline<T>(work: Promise<T>, ms: number, signal: AbortSig
   let onAbort = () => {}
   const lost = new Promise<{ why: string }>(resolve => {
     if (signal.aborted) return resolve({ why: 'interrupted' })
-    timer = after(ms, () => resolve({ why: `no answer in ${ms / 1000} s (GATE_TIMEOUT_MS)` }))
+    timer = after(ms, () => resolve({ why: `no answer in ${ms / 1000} s` }))
     onAbort = () => resolve({ why: 'interrupted' })
     signal.addEventListener('abort', onAbort)
   })
@@ -128,11 +128,19 @@ export function parseConf(text: string): Record<string, string> {
 }
 
 /** An agent definition file: `---` frontmatter, then the prompt. `tools` only when the frontmatter
- *  names them (`tools: A, B`); absent means the agent gets every tool. */
+ *  names them (`tools: A, B`, `tools: [A, B]` or a YAML `- A` list under `tools:`); absent or empty
+ *  means the agent gets every tool. */
 export function parseAgentDef(text: string): { body: string; tools?: string[] } {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text)
   if (!m) return { body: text.trim() }
-  const line = m[1]!.split(/\r?\n/).find(l => /^tools\s*:/.test(l))
-  const tools = line?.replace(/^tools\s*:/, '').split(',').map(s => s.trim()).filter(Boolean)
+  const lines = m[1]!.split(/\r?\n/)
+  const at = lines.findIndex(l => /^tools\s*:/.test(l))
+  let tools: string[] | undefined
+  if (at >= 0) {
+    const inline = lines[at]!.replace(/^tools\s*:/, '').trim().replace(/^\[|\]$/g, '')
+    const list = inline ? inline.split(',') : []
+    for (let i = at + 1; !inline && i < lines.length && /^\s*-\s+/.test(lines[i]!); i++) list.push(lines[i]!.replace(/^\s*-\s+/, ''))
+    tools = list.map(s => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
+  }
   return { body: text.slice(m[0].length).trim(), ...(tools?.length ? { tools } : {}) }
 }
