@@ -39,6 +39,8 @@ export function toStep(turnId: string, index: number, body: unknown, model: stri
     }
     // thinking / redacted_thinking: no valid Anthropic signature, so never recorded.
   }
+  // Only thinking came back (the cap ran out mid-thought): the engine would end the loop without a word.
+  if (!answer && !toolUses.length) return failStep(turnId, index, `answer has no text or tool call (stop_reason ${r.stop_reason}, ${r.usage?.output_tokens ?? '?'} output tokens)`)
   const stopReason: StopReason = STOPS.has(String(r.stop_reason)) ? (r.stop_reason as StopReason) : toolUses.length ? 'tool_use' : 'end_turn'
   const u = r.usage
   const usage: TurnUsage | null = u

@@ -87,3 +87,9 @@ test('parseAgentDef: frontmatter tools list, body without frontmatter, no tools 
   expect(parseAgentDef('---\nname: x\nmodel: opus\n---\nBody')).toEqual({ body: 'Body' })
   expect(parseAgentDef('No frontmatter')).toEqual({ body: 'No frontmatter' })
 })
+
+test('a thinking-only answer is a failed step, not a silent end', () => {
+  const r = toStep('t', 0, { type: 'message', content: [{ type: 'thinking', thinking: 'x' }], stop_reason: 'max_tokens', usage: { output_tokens: 16384 } }, 'm').result
+  expect(r.usage).toBeNull()
+  expect(r.answer).toContain('max_tokens')
+})

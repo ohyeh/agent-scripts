@@ -1,5 +1,12 @@
 # Changelog
 
+## byo-provider 0.5.1
+
+Owner 11-08: the gated `pr-review-toolkit:code-reviewer` (deepseek, effort max) ran 60 tool calls in 35 min and stopped mid-review with no report. Its last steps used 11238 and 13761 output tokens against a 16384 cap that also held the 15360 thinking budget.
+
+- **`max_tokens` = 16384 + thinking budget** (31744 at `max`), so thinking cannot use up the answer. llm-gate accepts it (probe: `status 200`, `end_turn`).
+- **A thinking-only answer fails the step** with its `stop_reason` and output tokens, instead of an empty answer that ends the loop without a word.
+
 ## byo-provider 0.5.0
 
 Owner 11-08: a gated `pr-review-toolkit:code-reviewer` ran 12 tool calls on deepseek (effort max) and then failed with `$.http.fetch(…) aborted: no complete answer within 30000ms`, the host's fetch limit, whatever the profile `timeout` said.

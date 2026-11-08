@@ -22,7 +22,7 @@ import type { View } from '../types'
 
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
 const DEFAULT = 'default' // the profile `use` and `agent` take when no name is typed
-// effort → Anthropic `thinking`; budgets stay under MAX_TOKENS.
+// effort → Anthropic `thinking`; the budget comes on top of MAX_TOKENS, so thinking never eats the answer.
 const THINKING: Record<string, object> = {
   off: { type: 'disabled' },
   low: { type: 'enabled', budget_tokens: 2048 },
@@ -30,7 +30,7 @@ const THINKING: Record<string, object> = {
   high: { type: 'enabled', budget_tokens: 12000 },
   max: { type: 'enabled', budget_tokens: 15360 },
 }
-// shortcut: fixed output cap, make it a /provider-switch option if a gate model rejects it or cuts answers.
+// shortcut: fixed room for the answer, make it a profile key if a gate model rejects it or cuts answers.
 const MAX_TOKENS = 16384
 const ROLE = '\n\nYou are running as a subagent. Your task is the first user message. The agent that started you ' +
   'sees only your final message, so end with a complete, self-contained report.'
@@ -173,7 +173,8 @@ async function gateStep($: EngineInterface, e: TurnStepInput, name: string, sign
   const tools = def?.tools ? all.filter(t => def.tools!.includes(t.name) || t.name === HANDBACK.name) : all
   const system = (def ? def.body : composed.sections.map(s => s.text).join('\n\n')) + (e.agentId ? ROLE : '')
   const model = cfg.model
-  const body = { model, max_tokens: MAX_TOKENS, stream: false, system, messages: forGate(messages), tools, ...(cfg.effort ? { thinking: THINKING[cfg.effort] } : {}) }
+  const budget = cfg.effort ? (THINKING[cfg.effort] as { budget_tokens?: number }).budget_tokens ?? 0 : 0
+  const body = { model, max_tokens: MAX_TOKENS + budget, stream: false, system, messages: forGate(messages), tools, ...(cfg.effort ? { thinking: THINKING[cfg.effort] } : {}) }
   await log($, { ev: 'gate-request', loop: e.agentId ?? 'main', index: e.index, profile: name, model, effort: cfg.effort || null, url: redact(cfg.url), agentType: e.agentId ? types.get(e.agentId) ?? null : null, agentDef: def?.path ?? null,
     messages: messages.length, messageCount: e.messageCount, tools: tools.length, toolNames: tools.map(t => t.name), systemChars: system.length })
   // Failure text reaches the transcript and the log: the URL and token only ever in redacted form.

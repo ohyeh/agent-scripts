@@ -9,7 +9,7 @@ url=https://gateway.example
 token=
 # Gateway model name.
 model=
-# off | low | medium | high | max → thinking disabled, or budget 2048 / 6000 / 12000 / 15360.
+# off | low | medium | high | max → thinking disabled, or budget 2048 / 6000 / 12000 / 15360, added on top of the 16384-token answer cap.
 # Empty: the gateway's default.
 effort=
 # Seconds one request may take, 1..590 (default 120; env GATE_TIMEOUT_MS overrides).

@@ -12,7 +12,7 @@ Built and tested on Claude Code 2.1.319.
   step's chunks. If the loop is not on your provider, it calls `next(e)` and Claude answers as usual.
 - The mod never writes env (`claude plugin validate`: `env writes: nothing`). It never reads or
   sends the Claude OAuth credential. The gate request carries only `authorization: Bearer <gate token>`.
-- Request body: `{ model, max_tokens: 16384, stream: false, system, messages, tools }`.
+- Request body: `{ model, max_tokens: 16384 + thinking budget, stream: false, system, messages, tools }`.
   - `system`: the sections of `$.prompt.compose()`. A subagent gets one more paragraph that tells
     it to end with a full report.
   - `messages`: `$.session.messages({ as: 'api' })` for that loop. Thinking blocks are removed.
@@ -110,7 +110,7 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
    registers in code have no file: they get the main system prompt plus that paragraph and every tool.
    The definition's `model:` is ignored (the profile picks the model). A fork keeps the main prompt.
 8. `SubagentHandback`'s schema (`{ message }`) comes from the engine's nudge text, not from a type.
-9. `max_tokens` is fixed at 16384.
+9. `max_tokens` is 16384 for the answer plus the effort's thinking budget (31744 at `max`). An answer with only thinking in it fails the step with its `stop_reason`, it never ends the loop silently.
 
 ## Files
 
