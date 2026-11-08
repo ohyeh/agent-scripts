@@ -32,17 +32,18 @@ Built and tested on Claude Code 2.1.319.
 
 ## Commands
 
-A pane (`byo-provider`) lists each loop on your provider with its profile and last gate step
-(`#index ok <stop>` or the failure text), the new-subagent mode and the profiles folder. It opens
-on `/provider-switch status` and whenever a loop is on your provider.
+A band above the prompt (`▌byo-provider`), from the session's start, shows how many loops are on
+your provider and the new-subagent mode with its tier lines, then one line per loop on your provider
+with its profile and last gate step (`#index ok <stop>` or the failure text). It takes only the rows
+the other mods' bands leave.
 
 | Command | Effect |
 | --- | --- |
-| `/provider-switch status` | Shows which loops use your provider, the new-subagent mode, the profiles folder and its profile names, and running agents, and opens the pane. |
+| `/provider-switch status` | Shows which loops use your provider, the new-subagent mode, the profiles folder and its profile names, and running agents. |
 | `/provider-switch use [profile]` | The main loop uses that profile (default: `default`) from its next step. |
 | `/provider-switch off [agentId]` | That loop (default `main`) goes back to Claude from its next step. |
 | `/provider-switch agent <agentId> [profile]` | A running subagent uses your provider from its next step. The id must be in `$.agent.list()`. |
-| `/provider-switch agents follow\|claude\|<profile>` | New subagents follow their parent loop onto your provider (`follow`, default), always use Claude (`claude`), or always use `<profile>` while this loop stays where it is. A session starts in the mode `agents=` names in `default.conf` (else `follow`). |
+| `/provider-switch agents follow\|claude\|<profile>` | New subagents follow their parent loop onto your provider (`follow`, default), always use Claude (`claude`), or always use `<profile>` while this loop stays where it is. A session starts in the mode `agents=` names in `default.conf` (else `follow`); `haiku=` / `sonnet=` / `opus=` lines there route a new subagent by its model tier first (see `default.conf.example`). |
 
 The main loop can run the same commands through the tool `mcp__byo-provider__switch` (`{ args }`, the
 text after `/provider-switch`), as tmux-agent's `reload` tool runs `/reload-plugins`: the owner can say
@@ -115,7 +116,7 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
 
 ## Files
 
-- `hooks/register.tsx`: hooks `session.start`, `command.run{provider-switch}`, `ui.render{Pane}`, `agent.spawn`, `turn.step`.
+- `hooks/register.tsx`: hooks `session.start`, `command.run{provider-switch}`, `ui.render{AbovePrompt}`, `agent.spawn`, `turn.step`.
 - `types/index.d.ts`: the pane's `$.state` contract.
 - `default.conf.example`: the profile keys; update it with every new key.
 - `hooks/map.ts`: pure helpers (`toStep`, `failStep`, `forGate`, `loadedTools`, `deferredTools`,

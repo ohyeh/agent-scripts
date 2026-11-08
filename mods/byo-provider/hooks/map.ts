@@ -117,6 +117,13 @@ export async function deadline<T>(work: Promise<T>, ms: number, signal: AbortSig
   }
 }
 
+/** The default.conf value for a model's tier (`haiku=` / `sonnet=` / `opus=`): a profile name or
+ *  `claude`; undefined when the model names no tier or that tier has no line. */
+export function tierRoute(kv: Record<string, string>, model: string | undefined): string | undefined {
+  const tier = /\b(haiku|sonnet|opus)\b/i.exec(model ?? '')?.[1]?.toLowerCase()
+  return tier ? kv[tier] || undefined : undefined
+}
+
 /** `key=value` lines; blank lines, `#` comments and lines without a key are skipped. */
 export function parseConf(text: string): Record<string, string> {
   const kv: Record<string, string> = {}

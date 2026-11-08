@@ -1,5 +1,10 @@
 # Changelog
 
+## byo-provider 0.5.5
+
+- **`haiku=` / `sonnet=` / `opus=` in `default.conf` route new subagents by the tier of the model they resolve to** (a profile name, or `claude`), ahead of `agents=`; a tier with no line falls back to `agents=`. A bad profile is a toast and that agent runs on Claude. Subagents only: the main loop is not routed by model.
+- **The pane is now a band above the prompt** (`ui.render{AbovePrompt}`, as grok-bot-watch and quick-say draw), shown from the session's start with the new-subagent mode and its tier lines. The `Pane` and every `$.ui.open` are gone: an unasked pane was placed only in a terminal at least 144 columns wide, so it never showed.
+
 ## byo-provider 0.5.4
 
 - **`agents=` in `default.conf` sets the mode a session starts in** (`follow` | `claude` | `<profile>`), so new subagents can go to your provider without typing `/provider-switch agents <profile>` after every session start. A bad value is shown as a toast and the mode stays `follow`.

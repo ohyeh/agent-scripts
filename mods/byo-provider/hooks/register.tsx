@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
-import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, toStep } from './map'
+import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
 import { SCHEMAS } from './schemas'
 import type { GateTool, Msg, Step } from './map'
 import type { View } from '../types'
@@ -54,13 +54,25 @@ let logPath: string | undefined
 const lines: string[] = []
 const last = new Map<string, string>() // loop → its last gate step, for the pane
 
-const PANE = 'byo-provider'
 const view = atom({ plugin: 'byo-provider', key: 'view' } as const, { rows: [], agents: 'follow', profiles: '' } as View, { shape: 'view-2' })
 
 /** Copies the routing state into the atom the pane reads. */
 async function sync($: EngineInterface) {
   const rows = [...loops].map(([loop, profile]) => ({ loop, profile, last: last.get(loop) ?? '-' }))
-  await update($, view, () => ({ rows, agents: agentsMode, profiles: options.path }))
+  const kv = await defaultConf($)
+  const tiers = ['haiku', 'sonnet', 'opus'].filter(t => kv[t]).map(t => `${t}→${kv[t]}`).join(' ')
+  await update($, view, () => ({ rows, agents: tiers ? `${agentsMode} (${tiers})` : agentsMode, profiles: options.path }))
+}
+
+/** Rows a drawn tree takes (grok-bot-watch's rule): a column stacks, a row is its tallest child, a leaf is a line. */
+function rowsOf(n: unknown): number {
+  if (Array.isArray(n)) return n.reduce((a: number, c) => a + rowsOf(c), 0)
+  if (!n || typeof n !== 'object') return 0
+  const el = n as { type?: string; children?: unknown; props?: { flexDirection?: string; children?: unknown } }
+  if (el.type === 'engine') return 0
+  if (el.type !== 'Box') return 1
+  const kids = [el.children ?? el.props?.children].flat(9)
+  return el.props?.flexDirection === 'column' ? kids.reduce((a: number, c) => a + rowsOf(c), 0) : Math.max(1, ...kids.map(rowsOf))
 }
 
 async function log($: EngineInterface, r: Record<string, unknown>) {
@@ -72,6 +84,11 @@ type Profile = { name: string; url: string; token: string; model: string; effort
 
 async function profilesDir($: EngineInterface) {
   return options.path.replace(/^~(?=\/|$)/, (await $.env.get('HOME')) ?? '~')
+}
+
+/** default.conf as key=value; {} when it is missing (its own errors surface at the gateway request). */
+async function defaultConf($: EngineInterface): Promise<Record<string, string>> {
+  return $.fs.read(`${await profilesDir($)}/default.conf`).then(t => parseConf(String(t)), () => ({}))
 }
 
 /** Reads `<profiles>/<name>.conf` (`key=value` lines, `#` comments) at each step, so an edit applies at once. */
@@ -271,11 +288,10 @@ async function command($: EngineInterface, args: string): Promise<string> {
 
 const SWITCH_TOOL = 'mcp__byo-provider__switch'
 
-/** Runs one /provider-switch command, updates the pane, and opens it while a loop is routed or on status. */
+/** Runs one /provider-switch command and updates the band. */
 async function switchAndShow($: EngineInterface, args: string): Promise<string> {
   const text = await command($, args)
   await sync($)
-  if (loops.size > 0 || agentsMode !== 'follow' || /^\s*(status)?\s*$/.test(args)) await $.ui.open({ id: PANE, title: 'byo-provider' })
   return text
 }
 
@@ -287,7 +303,7 @@ export const register: Register = (on, opts) => {
     const main = await $.env.get('GATE_TEST_MAIN')
     if (main) loops.set('main', main)
     // default.conf `agents=` is the mode a session starts in; a bad value is shown, never silently dropped.
-    const kv = await $.fs.read(`${await profilesDir($)}/default.conf`).then(t => parseConf(String(t)), () => ({} as Record<string, string>))
+    const kv = await defaultConf($)
     if (kv.agents) {
       const said = await command($, `agents ${kv.agents}`)
       if (agentsMode !== kv.agents) $.ui.toast(`[byo-provider] default.conf agents=${kv.agents}: ${said}`)
@@ -328,23 +344,39 @@ export const register: Register = (on, opts) => {
 
   on('command.run', { command: 'provider-switch' }, async ($, e) => ({ text: await switchAndShow($, String(e.args ?? '')) }))
 
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+  // A band above the prompt from the session's start, as the other mods draw (grok-bot-watch, quick-say):
+  // no $.ui.open, so no 144-column rule. It draws in the rows the bands below leave: a header, then one
+  // line per loop on your provider, then nothing when even the header does not fit.
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (e.props.hasSurvey) return next(e)
+    const below = await next(e)
+    const budget = e.props.maxRows - rowsOf(below)
+    if (budget < 1) return below
     const { Box, Text } = $.ui.resolve(e)
     const v = await read($, view)
+    const header = `▌byo-provider · ${v.rows.length ? `${v.rows.length} on your provider` : 'every loop on Claude'} · new subagents: ${v.agents}`
     return (
       <Box flexDirection="column">
-        {v.rows.length === 0 && <Text dimColor>Every loop is on Claude.</Text>}
-        {v.rows.map(r => <Text>{r.loop} → {r.profile} <Text dimColor>{r.last}</Text></Text>)}
-        <Text dimColor>new subagents: {v.agents} · profiles: {v.profiles}</Text>
+        {below}
+        <Text bold color="magenta">{header.slice(0, e.props.bodyColumns)}</Text>
+        {v.rows.slice(0, budget - 1).map(r => <Text>  {r.loop} → {r.profile} <Text dimColor>{r.last}</Text></Text>)}
       </Box>
     )
   })
 
   // New subagents/forks are marked by the agentId the spawn resolves to.
   on('agent.spawn', async ($, e, next) => {
-    const model = agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : agentsMode === 'claude' ? undefined : agentsMode
     const r = await next(e)
     const agentId = r && 'agentId' in r ? r.agentId : undefined
+    const resolved = r && 'model' in r ? r.model : undefined
+    // default.conf `haiku=` / `sonnet=` / `opus=` route by the agent's resolved model tier, ahead of `agents=`.
+    const tier = tierRoute(await defaultConf($).catch(() => ({})), resolved ?? e.model ?? e.parentModel)
+    let model = tier !== undefined ? (tier === 'claude' ? undefined : tier)
+      : agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : agentsMode === 'claude' ? undefined : agentsMode
+    if (tier && tier !== 'claude') {
+      const p = await loadProfile($, tier).catch((x: unknown) => String(x))
+      if (typeof p === 'string') { $.ui.toast(`[byo-provider] ${resolved} → ${tier}: ${p}; that agent runs on Claude`); model = undefined }
+    }
     if (model && agentId) {
       loops.set(agentId, model)
       if (!e.fork) types.set(agentId, e.subagentType)
@@ -352,7 +384,7 @@ export const register: Register = (on, opts) => {
     }
     else if (model) $.ui.toast(`[byo-provider] spawn gave no agent id; that agent runs on Claude, not ${model}`)
     // A failing log write must not fail the hook: the engine would skip it after the spawn.
-    await log($, { ev: model && agentId ? 'spawn-marked' : 'spawn-claude', agentId, profile: model ?? null, fork: e.fork,
+    await log($, { ev: model && agentId ? 'spawn-marked' : 'spawn-claude', agentId, profile: model ?? null, tier: tier ?? null, fork: e.fork,
       parent: e.parentAgentId ?? 'main', parentModel: e.parentModel, askedModel: e.model ?? null, resolvedModel: r && 'model' in r ? r.model : null })
       .catch(() => undefined)
     return r

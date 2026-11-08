@@ -1,6 +1,6 @@
 // Unit check of the gate response → TurnStepChunk mapping. Run: bun test <run dir>/test/map.test.ts
 import { expect, test } from 'claude-code/testing'
-import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, toStep } from '../hooks/map'
+import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, tierRoute, toStep } from '../hooks/map'
 import { SCHEMAS } from '../hooks/schemas'
 
 const resp = {
@@ -111,4 +111,15 @@ test('agent tools: comma, flow and block-list forms', () => {
 test('context-window stop is passed on, not turned into end_turn', () => {
   const r = toStep('t', 0, { type: 'message', content: [{ type: 'text', text: 'part' }], stop_reason: 'model_context_window_exceeded' }, 'm').result
   expect(r.stopReason).toBe('model_context_window_exceeded')
+})
+
+test('tierRoute: model tier picks the default.conf line; no tier or no line gives undefined', () => {
+  const kv = { haiku: 'default', sonnet: 'default', opus: 'claude', agents: 'default' }
+  expect(tierRoute(kv, 'claude-haiku-5-5')).toBe('default')
+  expect(tierRoute(kv, 'claude-sonnet-5-5[1m]')).toBe('default')
+  expect(tierRoute(kv, 'claude-opus-5-5')).toBe('claude')
+  expect(tierRoute(kv, 'Haiku')).toBe('default')
+  expect(tierRoute({ opus: 'claude' }, 'claude-haiku-5-5')).toBeUndefined()
+  expect(tierRoute(kv, 'deepseek-v4.1-flash')).toBeUndefined()
+  expect(tierRoute(kv, undefined)).toBeUndefined()
 })

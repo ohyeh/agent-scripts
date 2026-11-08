@@ -18,3 +18,8 @@ timeout=
 # Mode new subagents start in at each session start (default.conf only): follow | claude | <profile>.
 # Empty: follow. Same as typing `/provider-switch agents <value>` at the start of every session.
 agents=
+# Route new subagents by the tier of the model they resolve to (default.conf only), ahead of agents=:
+# a profile name, or `claude` to keep that tier on Claude. A tier with no line falls back to agents=.
+haiku=
+sonnet=
+opus=
