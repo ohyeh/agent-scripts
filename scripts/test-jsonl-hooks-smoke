@@ -392,7 +392,8 @@ FAIL: W46-15 'evidence token' read as a credential"
 [[ -z "$w46b" ]] || { echo "$w46b" >&2; exit 1; }
 echo 'PASS W46-15: ask-back with no consensus call blocks; advisor call, hard-stop ask, final-round ask, quoted ask and plain recap pass'
 # W46-18: a `full` resume recap line is bound to what resume_pack.py PRINTED after the resume prompt:
-# its summary line, and READ stamps (with their page body) for user.txt and each scout group.
+# its summary line, READ stamps (with their page body) for user.txt and footprints.txt, and timeline.md
+# whose `lit` nodes cite only evidence with a read slice page or a read scout report.
 RP="$ROOT/skills/session-handoff/scripts/resume_pack.py"
 LG="$WORK/logs/abcd1234-0000.jsonl"; mkdir -p "$WORK/logs/abcd1234-0000/subagents"
 { jq -cn '{type:"user",timestamp:"2026-01-01T00:00:00Z",message:{content:"do it"}}'
@@ -411,9 +412,10 @@ if ! command -v zstd >/dev/null 2>&1; then
   grep -qx 'missing binary: zstd' "$WORK/zst.stderr" || { echo "FAIL: W46-18 .zst without zstd: $(cat "$WORK/zst.stderr")" >&2; exit 1; }
   [[ ! -e "$WORK/zst-out" ]] || { echo "FAIL: W46-18 .zst failure created output" >&2; exit 1; }
 fi
-SUB="$(cd "$PK/abcd1234" && ls -d sub-*)"
+[[ -z "$(ls -d "$PK"/abcd1234/sub-* 2>/dev/null)" ]] || { echo "FAIL: W46-18 a subagent was packed without --subagents" >&2; exit 1; }
 rdp() { python3 "$RP" --read "$PK/$1"; }
-printf 'scout report\nS01:1 make ok\n' > "$PK/abcd1234/scout-S01-S01.md"
+printf 'scout report\nS01:1 make ok\n' > "$PK/abcd1234/scout-T0001-T0001.md"
+printf '# timeline\n- do it · said: make ran · evidence S01:1 · lit\n' > "$PK/abcd1234/timeline.md"
 res() { jq -cn --arg c "$1" '{type:"user",timestamp:"2026-01-01T00:00:06.000Z",message:{content:[{type:"tool_result",tool_use_id:"r",content:$c}]}}'; }
 rtr() { # $1 file, then tool outputs printed after the second prompt; the pack ran after the resume prompt
   local f="$WORK/$1"; shift
@@ -425,22 +427,24 @@ rtr() { # $1 file, then tool outputs printed after the second prompt; the pack r
 }
 C="$(jq -r .count "$PK/abcd1234/manifest.json")"; T="$(jq -r .tools "$PK/abcd1234/manifest.json")"
 FULL="- abcd1234 full · COUNT $C · TOOLS $T · pack $PK"
-ALL=("$(rdp abcd1234/user.txt)" "$(rdp abcd1234/scout-S01-S01.md)" "$(rdp "abcd1234/$SUB/slices/S01.txt")")
+ALL=("$(rdp abcd1234/user.txt)" "$(rdp abcd1234/scout-T0001-T0001.md)" "$(rdp abcd1234/footprints.txt)")
 w46r=""
 [[ "$(run_claim r1 "$FULL" "$(trh r1.jsonl "$BASHU")")" == block ]] || w46r="$w46r
 FAIL: W46-18 full with no pack output passed"
 [[ -z "$(run_claim r2 "$FULL" "$(rtr r2.jsonl "${ALL[@]}")")" ]] || w46r="$w46r
-FAIL: W46-18 summary + user.txt + scout report + subagent slice across two prompts blocked"
+FAIL: W46-18 summary + user.txt + footprints + scout report for the lit node across two prompts blocked"
 [[ -z "$(run_claim r3 "$FULL" "$(rtr r3.jsonl "${ALL[0]}" "$(rdp abcd1234/slices/S01.txt)" "${ALL[2]}")")" ]] || w46r="$w46r
 FAIL: W46-18 a slice read in place of its scout report blocked"
+[[ "$(run_claim r18 "$FULL" "$(rtr r18.jsonl "${ALL[0]}" "${ALL[1]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 footprints.txt left unread passed"
 [[ "$(run_claim r4 "$FULL" "$(rtr r4.jsonl "$(printf '%s\n' "${ALL[0]}" | tail -1)" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a READ stamp with no page body (| tail -1) counted"
 [[ "$(run_claim r5 "- abcd1234 full · COUNT 9 · TOOLS $T · pack $PK" "$(rtr r5.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a typed COUNT that is not the pack's passed"
 [[ -z "$(run_claim r6 '- abcd1234 partial (slices S03-S09 not read)' "$(trh r6.jsonl "$BASHU")")" ]] || w46r="$w46r
 FAIL: W46-18 a partial line blocked"
-[[ "$(run_claim r7 "$FULL" "$(rtr r7.jsonl "${ALL[0]}" "${ALL[1]}")")" == block ]] || w46r="$w46r
-FAIL: W46-18 a subagent scout group left unread passed"
+[[ "$(run_claim r7 "$FULL" "$(rtr r7.jsonl "${ALL[0]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a lit node whose evidence was never read passed"
 [[ "$(run_claim r8 "$FULL" "$(rtr r8.jsonl "File does not exist." "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a failed read of user.txt counted"
 OLD="$WORK/r9.jsonl"; { res "$SUMMARY"; for o in "${ALL[@]}"; do res "$o"; done
@@ -474,11 +478,15 @@ for n in $(seq 1 "$UT"); do UP+=("$(python3 "$RP" --read "$U" --page "$n")"); do
 FAIL: W46-18 every page of a multi-page user.txt (one line over 4000 chars) blocked: gate and resume_pack.py page differently"
 [[ "$(run_claim r17 "$FULL" "$(rtr r17.jsonl "${UP[@]:0:$((UT - 1))}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a multi-page user.txt with its last page unread passed"
+mv "$PK/abcd1234/timeline.md" "$WORK/timeline.bak"
+[[ "$(run_claim r19 "$FULL" "$(rtr r19.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 full with no timeline.md passed"
+mv "$WORK/timeline.bak" "$PK/abcd1234/timeline.md"
 printf 'edited\n' >> "$PK/abcd1234/user.txt"
 [[ "$(run_claim r12 "$FULL" "$(rtr r12.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a stamp whose sha no longer matches user.txt counted"
 [[ -z "$w46r" ]] || { echo "$w46r" >&2; exit 1; }
-echo 'PASS W46-18: a full recap needs the pack summary and READ-stamped pages of user.txt and every scout group after the latest resume prompt (Claude and Codex, string or content blocks); tail -1, padding above a stamp, forged body=, failed reads, old reads, edited files block'
+echo 'PASS W46-18: a full recap needs the pack summary and READ-stamped pages of user.txt and footprints.txt, and a timeline.md whose lit nodes cite read evidence, after the latest resume prompt (Claude and Codex, string or content blocks); tail -1, padding above a stamp, forged body=, failed reads, old reads, edited files block'
 [[ "$(run_claim h8 '頁面已上線：https://claude.ai/artifact/x' "$(trh h8.jsonl "$PUBU" '{"name":"Bash","input":{"command":"echo take a screenshot later"}}')")" == block ]] || { echo "FAIL: W44-7 a Bash line naming a screenshot passed as a render check" >&2; exit 1; }
 
 # bol: prose shape is no longer judged (runnable-check heuristic retired

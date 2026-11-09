@@ -75,7 +75,8 @@ def load(log):
     raw = log.read_bytes()
     data = run(["zstd", "-dcf", str(log)]) if log.suffix == ".zst" else raw
     try:
-        rows = [json.loads(line) for line in data.splitlines() if line.strip()]
+        # _ln: the row's 1-based line in the log, so a footprint cites the transcript itself.
+        rows = [dict(json.loads(line), _ln=n) for n, line in enumerate(data.splitlines(), 1) if line.strip()]
     except ValueError as exc:
         raise ValueError(f"unsupported CLI: {log} (invalid JSONL)") from exc
     if not all(isinstance(r, dict) for r in rows):
@@ -110,7 +111,7 @@ def tool_calls(rows, cli):
                 kind = block.get("type", "")
                 if row.get("type") == "assistant" and kind in {"tool_use", "server_tool_use"}:
                     calls.append((timestamp, block.get("name", kind), block.get("id"),
-                                  block.get("input", {})))
+                                  block.get("input", {}), row["_ln"]))
                 if row.get("type") in {"user", "assistant"} and kind.endswith("tool_result"):
                     results.setdefault(block.get("tool_use_id"), []).append(block)
         elif row.get("type") == "response_item":
@@ -118,7 +119,7 @@ def tool_calls(rows, cli):
             kind = p.get("type", "")
             if kind in CALL_TYPES:
                 value = p.get("arguments", p.get("input", p.get("action", {})))
-                calls.append((timestamp, p.get("name", kind), p.get("call_id", p.get("id")), value))
+                calls.append((timestamp, p.get("name", kind), p.get("call_id", p.get("id")), value, row["_ln"]))
             elif kind in {t + "_output" for t in CALL_TYPES}:
                 results.setdefault(p.get("call_id"), []).append(p)
     return calls, results
@@ -144,7 +145,7 @@ def is_error(value):
 
 
 def call_text(call, results):
-    timestamp, name, call_id, value = call
+    timestamp, name, call_id, value = call[:4]
     encoded = serialized(value).encode("utf-8")
     text = encoded[:2000].decode("utf-8", errors="ignore")
     if len(encoded) > 2000:
@@ -164,15 +165,87 @@ def call_text(call, results):
     return lines + [""]
 
 
+MUTATING = {"Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch", "Artifact"}
+DELEGATING = {"Agent", "Task", "Workflow", "mcp__tmux-agent__assign", "mcp__tmux-agent__tell"}
+STATE_COMMAND = re.compile(r"\bgit\s+(?:-C\s+\S+\s+)?(?:commit|push|tag|rebase|reset|merge)\b|\bgh\s+(?:pr|release)\b"
+                           r"|\bplugin\s+(?:install|update)\b|\bdeploy\b|\brm\s+-|\bmv\s")
+
+
+def turn_start(row, cli):
+    """The person's prompt (or a hook/plugin message in its place) opens a turn; a tool result does not."""
+    if cli == "codex":
+        p = row.get("payload", {})
+        if row.get("type") == "response_item" and p.get("type") == "message" and p.get("role") == "user":
+            return " ".join(c.get("text", "") for c in p.get("content", []) if isinstance(c, dict))
+        return None
+    if row.get("type") != "user" or row.get("isMeta"):
+        return None
+    content = row.get("message", {}).get("content")
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list) and not any(b.get("type") == "tool_result" for b in blocks(row)):
+        return " ".join(b.get("text", "") for b in blocks(row) if b.get("type") == "text")
+    return None
+
+
+def said(row, cli):
+    """The agent's own words in a row: what the turn stop ends on."""
+    if cli == "codex":
+        p = row.get("payload", {})
+        if p.get("type") == "message" and p.get("role") == "assistant":
+            return " ".join(c.get("text", "") for c in p.get("content", []) if isinstance(c, dict))
+        return ""
+    return " ".join(b.get("text", "") for b in blocks(row) if b.get("type") == "text") if row.get("type") == "assistant" else ""
+
+
+def footprints(rows, cli, calls, results, where, log_sha):
+    """One block per turn: the prompt, the agent's closing words (its account), and a pointer per
+    call that changed state, delegated or failed (the evidence). Pointers only: content stays in
+    the slices (S<NN>:<line>) and the log (L<line>), so a footprint is checked by opening them."""
+    one = lambda t, n: re.sub(r"\s+", " ", t).strip()[:n]
+    by_line = {c[4]: c for c in calls}
+    turns, cur = [], None
+    for row in rows:
+        prompt = turn_start(row, cli)
+        if prompt is not None and not prompt.lstrip().startswith("<local-command"):
+            cur = dict(ln=row["_ln"], ts=row.get("timestamp", "")[:19], prompt=one(prompt, 160), last="", marks=[], first=None, end=None)
+            turns.append(cur)
+            continue
+        if cur is None:
+            continue
+        text = said(row, cli)
+        if text.strip():
+            cur["last"] = text
+        for call in [c for c in calls if c[4] == row["_ln"]] if row["_ln"] in by_line else []:
+            _, name, call_id, value = call[:4]
+            t, at = where[call_id]
+            cur["first"] = cur["first"] or t
+            cur["end"] = t
+            args = object_args(value)
+            cmd = str(args.get("command", args.get("cmd", "")))
+            failed = any(is_error(r) for r in results.get(call_id, []))
+            kind = ("fail" if failed else "edit" if name in MUTATING else "state" if STATE_COMMAND.search(cmd)
+                    else "delegate" if name in DELEGATING else None)
+            if kind:
+                target = next((args[k] for k in TARGET_KEYS if k in args), value)
+                cur["marks"].append(f"  T{t:04} {at} L{call[4]} {kind:8} {name} {one(serialized(target), 100)}")
+    out = [f"LOG sha256={log_sha}  (L<n> = line n of the log; S<NN>:<n> = slice line; T<n> = tools.txt row)"]
+    for i, t in enumerate(turns, 1):
+        span = f"T{t['first']:04}-T{t['end']:04}" if t["first"] else "no calls"
+        out += [f"TURN {i} {t['ts']} L{t['ln']} {span}", f"  asked: {t['prompt']}", f"  said:  {one(t['last'], 200) or '(no closing words)'}", *t["marks"]]
+    return "\n".join(out + [f"TURNS {len(turns)}", ""])
+
+
 def prepare(log, relative):
     data, rows, cli, sid, digest = load(log)
     user = run(["jq", "-rn", USER_FILTERS[cli]], data).decode("utf-8")
     count = int(user.splitlines()[-1].removeprefix("COUNT "))
     calls, results = tool_calls(rows, cli)
     tools, slices, lines = [], [], []
+    where = {}  # call id → (T number, its CALL line in the slices)
     size = 0
     for call in calls:
-        timestamp, name, _, value = call
+        timestamp, name, call_id, value = call[:4]
         args = object_args(value)
         target = next((args[k] for k in TARGET_KEYS if k in args), value)
         tools.append(f"{timestamp}  {name}  " + re.sub(r"[\r\n\t]+", " ", serialized(target))[:120])
@@ -184,6 +257,7 @@ def prepare(log, relative):
         if lines and size + chunk_size > SLICE_BYTES:
             slices.append(lines)
             lines, size = [], 0
+        where[call_id] = (len(tools), f"S{len(slices) + 1:02}:{len(lines) + 1}")
         lines.extend(chunk)
         size += chunk_size
     if lines:
@@ -194,14 +268,15 @@ def prepare(log, relative):
                "slices": names[i:i + width]} for i in range(0, len(names), width)]
     manifest = dict(log=str(log), sha256=digest, cli=cli, count=count,
                     tools=len(calls), slices=names, scout_groups=groups)
-    files = {"user.txt": user, "tools.txt": "\n".join(tools + [f"TOOLS {len(calls)}", ""])}
+    files = {"user.txt": user, "tools.txt": "\n".join(tools + [f"TOOLS {len(calls)}", ""]),
+             "footprints.txt": footprints(rows, cli, calls, results, where, digest)}
     for i, (name, content) in enumerate(zip(names, slices), 1):
         files[name] = "".join(f"S{i:02}:{j}:{line}\n" for j, line in enumerate(content, 1))
     files["manifest.json"] = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
     return relative or Path(sid), files, manifest
 
 
-def build(logs, out):
+def build(logs, out, subagents=False):
     pending, seen = [], set()
     for log in logs:
         log = log.expanduser().resolve()
@@ -210,7 +285,7 @@ def build(logs, out):
         _, _, cli, sid, _ = load(log)
         pending.append((log, Path(sid)))
         seen.add(log)
-        if cli == "claude-code":
+        if cli == "claude-code" and subagents:
             for sub in sorted(log.with_suffix("").glob("subagents/*.jsonl")):
                 if sub in seen:
                     continue
@@ -311,10 +386,15 @@ def self_test():
         plain = fixture(root / "codex.jsonl", rows)
         zipped = root / "codex.jsonl.zst"
         zipped.write_bytes(run(["zstd", "-q", "-c", str(plain)]))
-        dirs = build([main, plain], root / "pack")
+        assert len(build([main], root / "mainonly")) == 1  # subagents are opt-in
+        dirs = build([main, plain], root / "pack", subagents=True)
         compressed = build([zipped], root / "compressed")[0]
         assert len(dirs) == 3
         assert (dirs[0] / "user.txt").read_text().endswith("COUNT 1\n")
+        foot = (dirs[0] / "footprints.txt").read_text()
+        assert "TURN 1 " in foot and "T0001-T0002" in foot and "asked: hello" in foot and foot.endswith("TURNS 1\n")
+        assert " L3 delegate Agent " in foot and "S01:1 " not in foot  # Agent is call 2: its CALL line is past S01:1
+        assert " fail " in (dirs[2] / "footprints.txt").read_text()
         assert (dirs[1] / "user.txt").read_text().endswith("COUNT 1\n")
         content = (dirs[0] / "slices/S01.txt").read_text()
         assert content.count(":CALL ") == 2 and "[… 21 lines cut]" in content
@@ -366,6 +446,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--subagents", action="store_true",
+                        help="also pack each Claude subagent log; off by default, as the main log holds each agent's report")
     parser.add_argument("--read", type=Path, help="print one page of a pack file with its READ stamp")
     parser.add_argument("--page", type=int, default=1)
     parser.add_argument("logs", nargs="*", type=Path)
@@ -392,7 +474,7 @@ def main():
         if args.self_test:
             self_test()
         else:
-            build(args.logs, args.out.expanduser().resolve())
+            build(args.logs, args.out.expanduser().resolve(), args.subagents)
     except (OSError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 1

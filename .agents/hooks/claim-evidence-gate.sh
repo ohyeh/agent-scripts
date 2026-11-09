@@ -236,7 +236,8 @@ recap_reason=""
 # `resume_pack.py` prints a summary line per pack, and `resume_pack.py --read FILE --page N` prints
 # a page followed by `READ <abs path> page N/T lines A-B body=<page sha> sha256=<file sha>`. Three checks, no more:
 # (a) the summary line for <pack>/<sid8> with the same COUNT/TOOLS; (b) every page of user.txt;
-# (c) per scout group of every manifest, every page of scout-<range>.md or of each of its slices.
+# (c) every page of footprints.txt, and timeline.md whose `lit` nodes cite only slices with a read page
+# or a fully read scout-T<a>-T<b>.md citing them.
 # A stamp counts only with its page's lines above it (`| tail -1` keeps the stamp, not the body) and
 # a sha equal to the file on disk. The window is the transcript rows after the last human
 # `/session-handoff resume` prompt (the flow spans turns); rows, not timestamps. Claude and Codex.
@@ -306,13 +307,18 @@ EOF
         | grep -xF "$sid COUNT $count TOOLS $tools slices $(jq -r '.slices | length' "$pack/$sid/manifest.json") groups $(jq -r '.scout_groups | length' "$pack/$sid/manifest.json") -> $pack/$sid" >/dev/null \
         || miss="$miss no resume_pack.py summary for $pack/$sid with COUNT $count TOOLS $tools;"
       read_whole "$pack/$sid/user.txt" || miss="$miss $sid/user.txt not read in full with resume_pack.py --read;"
-      while IFS=$'\t' read -r dir range slices; do
-        [ -n "$range" ] || continue
-        read_whole "$dir/scout-$range.md" && continue
-        all=1; for s in $slices; do read_whole "$dir/$s" || { all=""; break; }; done
-        [ -n "$all" ] || miss="$miss ${dir#"$pack"/}/scout-$range.md (or its slices) not read in full;"
-      done < <(find "$pack/$sid" -maxdepth 2 -name manifest.json 2>/dev/null | while IFS= read -r m; do
-        jq -r --arg d "$(dirname "$m")" '.scout_groups[]? | [$d, .range, (.slices | join(" "))] | @tsv' "$m"; done)
+      read_whole "$pack/$sid/footprints.txt" || miss="$miss $sid/footprints.txt not read in full with resume_pack.py --read;"
+      # Every evidence line a `lit` timeline node cites needs a read page of its slice, or a read scout report citing it.
+      tl="$pack/$sid/timeline.md"
+      if [ ! -f "$tl" ]; then
+        miss="$miss $sid/timeline.md missing (account, evidence and light per node);"
+      else
+        for c in $(grep -E '(^|[^a-z])lit([^a-z]|$)' "$tl" | grep -oE 'S[0-9]{2}:[0-9]+' | sort -u); do
+          awk -F'\t' -v p="$pack/$sid/slices/${c%%:*}.txt" '$1 == p { f = 1 } END { exit !f }' <<<"$stamps" && continue
+          for r in $(grep -lE "$c([^0-9]|$)" "$pack/$sid"/scout-T*.md 2>/dev/null); do read_whole "$r" && continue 2; done
+          miss="$miss lit node cites $c but neither its slice page nor a scout report citing it was read;"
+        done
+      fi
     fi
     [ -z "$miss" ] || recap_reason="$recap_reason $sid:$miss"
   done <<<"$recap_full"

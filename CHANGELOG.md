@@ -1,5 +1,16 @@
 # Changelog
 
+## session-handoff: resume reads footprints, not every call
+
+- **`resume_pack.py` writes `footprints.txt`**: one block per turn with the prompt (`asked:`), the agent's closing words (`said:`, its account) and a pointer per call that edited, changed state, delegated or failed (`T<n> S<NN>:<line> L<log line>`). Pointers only; the evidence stays in the slices and the log. On session 6d861226: 20,364 bytes, against 246,902 bytes of scout reports read in the old flow.
+- **Subagent logs are packed only with `--subagents`.** Each agent's report is already in the main log; the 28 subagent packs were ~90% of that resume's volume.
+- **RESUME Step 3b**: read `user.txt` and `footprints.txt` whole; open evidence only for turns that claim done/verified/pushed, that failed, or that the next step depends on; write `timeline.md` with account, evidence and a light (`lit` / `dim` / `dark`) per node, copied to `.claude/footprints/<sid8>.md` at CREATE.
+- **Claim gate**: a `full` line needs `footprints.txt` read whole and `timeline.md` whose `lit` nodes cite a read slice page or a read `scout-T<a>-T<b>.md`. The per-manifest-group `scout-<range>.md` rule is gone (it refused per-batch reports).
+
+## byo-provider 0.5.7
+
+- **The band says only whether routing works**, in one folded line: `agents=<mode> · ✓ routing ok · 13 → default · 400 steps ok`, a `default.conf` link for the tier lines, and `✗ <n> failed (<who>: <why>)` in red. Fold and hide as quick-say; `/provider-switch band` shows a hidden band.
+
 ## byo-provider 0.5.5
 
 - **`haiku=` / `sonnet=` / `opus=` in `default.conf` route new subagents by the tier of the model they resolve to** (a profile name, or `claude`), ahead of `agents=`; a tier with no line falls back to `agents=`. A bad profile is a toast and that agent runs on Claude. Subagents only: the main loop is not routed by model.
