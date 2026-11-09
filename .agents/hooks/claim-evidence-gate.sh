@@ -343,20 +343,24 @@ PY
       else
         nodes="$(grep -E '^[[:space:]]*[-*] ' "$tl")"
         [ -n "$nodes" ] || miss="$miss $sid/timeline.md has no node lines;"
-        bare="$(printf '%s\n' "$nodes" | grep -viE '(^|[^a-z])(lit|dim|dark)([^a-z]|$)' | grep -v '^$' | head -1)"
-        [ -z "$bare" ] || miss="$miss timeline node with no lit/dim/dark: ${bare:0:60};"
+        # The light is its own last field (` · lit`), never a word inside asked/said/evidence.
+        light_re='·[[:space:]]*(lit|dim|dark)[[:space:]]*$'
+        bare="$(printf '%s\n' "$nodes" | grep -viE "$light_re" | grep -v '^$' | head -1)"
+        [ -z "$bare" ] || miss="$miss timeline node not ending in \` · lit|dim|dark\`: ${bare:0:60};"
         while IFS= read -r node; do
           [ -n "$node" ] || continue
           cites="$(printf '%s' "$node" | grep -oE 'S[0-9]{2,}:[0-9]+' | sort -u)"
           [ -n "$cites" ] || { miss="$miss lit node cites no S<NN>:<line>: ${node:0:60};"; continue; }
           for c in $cites; do
-            line_read "$pack/$sid/slices/${c%%:*}.txt" "${c#*:}" && continue
+            f="$pack/$sid/slices/${c%%:*}.txt"
+            [ -f "$f" ] && [ "$(wc -l < "$f")" -ge "${c#*:}" ] || { miss="$miss lit node cites $c, a line the pack does not have;"; continue; }
+            line_read "$f" "${c#*:}" && continue
             for r in $(grep -lE "$c([^0-9]|$)" "$pack/$sid"/scout-T*.md 2>/dev/null); do read_whole "$r" && continue 2; done
             miss="$miss lit node cites $c but the page holding that line (current file) was not read, nor a scout report citing it;"
           done
-        done < <(printf '%s\n' "$nodes" | grep -iE '(^|[^a-z])lit([^a-z]|$)')
+        done < <(printf '%s\n' "$nodes" | grep -iE '·[[:space:]]*lit[[:space:]]*$')
         for t in $(grep -E '^  T[0-9]{4,} S[0-9]{2,}:[0-9]+ L[0-9]+ fail ' "$pack/$sid/footprints.txt" 2>/dev/null | awk '{ print $1 }'); do
-          grep -qw "$t" "$tl" || miss="$miss failed call $t (footprints.txt) is in no timeline node;"
+          printf '%s\n' "$nodes" | grep -qw "$t" || miss="$miss failed call $t (footprints.txt) is in no timeline node;"
         done
       fi
     fi

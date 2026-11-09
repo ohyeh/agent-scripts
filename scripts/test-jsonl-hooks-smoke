@@ -488,7 +488,12 @@ FAIL: W46-18 a lit node citing no S<NN>:<line> passed"
 printf '# timeline\n- do it · said: make ran · evidence S01:999 · lit\n' > "$PK/abcd1234/timeline.md"
 [[ "$(run_claim r22 "$FULL" "$(rtr r22.jsonl "${UP[@]}" "${ALL[2]}" "$(rdp abcd1234/slices/S01.txt)")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a lit node citing a line the slice does not have passed"
-printf '# timeline\n- do it · said: make ran · not opened · dim\n' > "$PK/abcd1234/timeline.md"
+printf 'scout\nS01:999 fake\n' > "$PK/abcd1234/scout-T0009-T0009.md"
+printf '# timeline\n- do it · said: make ran · evidence S01:999 · lit\n' > "$PK/abcd1234/timeline.md"
+[[ "$(run_claim r24 "$FULL" "$(rtr r24.jsonl "${UP[@]}" "${ALL[2]}" "$(rdp abcd1234/scout-T0009-T0009.md)")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a scout report citing a line the pack does not have stood in for the read"
+rm "$PK/abcd1234/scout-T0009-T0009.md"
+printf '# timeline\n- asked: keep the room lit · said: not started · dim\n' > "$PK/abcd1234/timeline.md"
 [[ -z "$(run_claim r23 "$FULL" "$(rtr r23.jsonl "${UP[@]}" "${ALL[2]}")")" ]] || w46r="$w46r
 FAIL: W46-18 an honest dim-only timeline with footprints read blocked"
 cp "$WORK/timeline.keep" "$PK/abcd1234/timeline.md"

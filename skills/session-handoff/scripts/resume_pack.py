@@ -173,14 +173,23 @@ STATE_COMMAND = re.compile(r"\bgit\s+(?:-[Cc]\s+\S+\s+)*(?:commit|push|tag|rebas
                            r"|\bgh\s+(?:pr|release|issue)\b|\b(?:plugin|npm|pnpm|yarn|pip3?|brew|uv)\s+(?:install|update|add|remove)\b"
                            r"|\bdeploy\b|\brm\s|\bmv\s|\bcp\s|\bsed\s+-i|(?<![0-9&])>>?\s*(?!/dev/null|&)[^\s|]")
 # A shell command whose first word is here reads only; any other shell call keeps a `shell` pointer.
-READ_ONLY = re.compile(r"^\s*(?:cd\s+\S+\s*&&\s*)?(?:ls|cat|head|tail|wc|rg|grep|fd|find|jq|yq|echo|printf|pwd|which|stat|du|diff|"
-                       r"sed\s+-n|awk|sort|uniq|cut|tr|date|env|test|\[|git\s+(?:-C\s+\S+\s+)?(?:status|log|diff|show|branch|rev-parse|ls-remote|fetch))\b")
+READ_ONLY = re.compile(r"^\s*(?:cd\s+\S+\s*$|(?:ls|cat|head|tail|wc|rg|grep|fd|find|jq|yq|echo|printf|pwd|which|stat|du|diff|"
+                       r"sed\s+-n|awk|sort|uniq|cut|tr|date|env|test|\[|git\s+(?:-C\s+\S+\s+)?(?:status|log|diff|show|branch|rev-parse|ls-remote|fetch))\b)")
 
 
-# The same messages user.txt drops (CLAUDE_USER / CODEX_USER): they mark a turn, they do not open one.
-NOT_HUMAN = re.compile(r"^\s*<(?!pasted_content|command-|!-- attach)|^Base directory for this skill|^Stop hook feedback"
-                       r"|^This session is being continued|^Another Claude session sent a message|^The .+ plugin sent a message"
-                       r"|^\s*# AGENTS\.md instructions")
+# The same messages user.txt drops, per CLI (the select() regexes of CLAUDE_USER / CODEX_USER; change both):
+# they mark a turn, they do not open one.
+NOT_HUMAN = {
+    "claude-code": re.compile(r"^\s*<(?!pasted_content|command-|!-- attach)|^Base directory for this skill|^Stop hook feedback"
+                              r"|^This session is being continued|^Another Claude session sent a message|^The .+ plugin sent a message"),
+    "codex": re.compile(r"^\s*(# AGENTS\.md instructions|<(?!image)[a-z_]+[ >])"),
+}
+
+
+def read_only(cmd):
+    """Every part of the command is a read-only verb with no deleting or executing flag; else not proven."""
+    parts = [p for p in re.split(r"&&|\|\||;|\||\n", cmd) if p.strip()]
+    return bool(parts) and all(READ_ONLY.match(p) and not re.search(r"\s-(?:delete|exec|D|d)\b|--delete|--force", p) for p in parts)
 
 
 def turn_start(row, cli):
@@ -213,13 +222,6 @@ def said(row, cli):
     return " ".join(b.get("text", "") for b in blocks(row) if b.get("type") == "text") if row.get("type") == "assistant" else ""
 
 
-def said_text(text, cap=1200):
-    """The account in full up to cap; longer, its head and tail with the cut shown (a claim often closes it)."""
-    if not text:
-        return "(no closing words)"
-    return text if len(text) <= cap else f"{text[:cap // 2]} [… {len(text) - cap} chars cut] {text[-cap // 2:]}"
-
-
 def footprints(rows, cli, calls, results, where, log_sha):
     """One block per turn: the prompt, the agent's closing words (its account), and a pointer per
     call that changed state, delegated or failed (the evidence). Pointers only: content stays in
@@ -230,7 +232,7 @@ def footprints(rows, cli, calls, results, where, log_sha):
     for row in rows:
         prompt = turn_start(row, cli)
         human = (prompt is not None and not row.get("isMeta") and row.get("origin", {}).get("kind") != "plugin"
-                 and not NOT_HUMAN.search(prompt))
+                 and not NOT_HUMAN[cli].search(prompt))
         if human:
             cur = dict(ln=row["_ln"], ts=row.get("timestamp", "")[:19], prompt=one(prompt, 160), last="", marks=[], first=None, end=None)
             turns.append(cur)
@@ -256,7 +258,7 @@ def footprints(rows, cli, calls, results, where, log_sha):
             failed = any(is_error(r) for r in results.get(call_id, []))
             kind = ("fail" if failed else "edit" if name in MUTATING else "state" if STATE_COMMAND.search(cmd)
                     else "delegate" if name in DELEGATING
-                    else "shell" if name in SHELL and not READ_ONLY.match(cmd) else None)
+                    else "shell" if name in SHELL and not read_only(cmd) else None)
             unresolved = call_id not in results  # the call never got its result: interrupted or still running
             kind = kind or ("noresult" if unresolved else None)
             if kind:
@@ -266,7 +268,7 @@ def footprints(rows, cli, calls, results, where, log_sha):
     out = [f"LOG sha256={log_sha}  (L<n> = line n of the log; S<NN>:<n> = slice line; T<n> = tools.txt row)"]
     for i, t in enumerate(turns, 1):
         span = f"T{t['first']:04}-T{t['end']:04}" if t["first"] else "no calls"
-        out += [f"TURN {i} {t['ts']} L{t['ln']} {span}", f"  asked: {t['prompt']}", f"  said:  {said_text(one(t['last'], 100000))}", *t["marks"]]
+        out += [f"TURN {i} {t['ts']} L{t['ln']} {span}", f"  asked: {t['prompt']}", f"  said:  {one(t['last'], 10**9) or '(no closing words)'}", *t["marks"]]
     return "\n".join(out + [f"TURNS {len(turns)}", ""])
 
 
@@ -444,10 +446,18 @@ def self_test():
         _, qf, _ = prepare(q, Path("q"))
         qt = qf["footprints.txt"]
         assert "TURN 2 " in qt and "asked: second" in qt and qt.split("TURN 2 ")[0].count(" no calls") == 1
-        assert "deployed it." in qt and "chars cut" in qt and qt.endswith("TURNS 2\n")
+        assert "deployed it." in qt and qt.endswith("TURNS 2\n")
         assert "  event L3 The tmux-agent plugin sent" in qt and "  answer L4 Which one? → B" in qt
         assert qt.count(" state ") == 3 and qt.count(" shell ") == 1 and " delegate " in qt and "[no result]" in qt
         assert " noresult Bash git status" in qt  # a read-only call is listed only because it never returned
+        cx = [{"type": "session_meta", "payload": {"id": "eeeeeeee-session"}}] + [
+            {"type": "response_item", "timestamp": "t", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": t}]}}
+            for t in ["<image>request</image>", "<pasted_content>p</pasted_content>", "# AGENTS.md instructions for /x"]]
+        _, cf, cm = prepare(fixture(root / "cx.jsonl", cx), Path("cx"))
+        assert cm["count"] == 1 and cf["footprints.txt"].endswith("TURNS 1\n") and "asked: <image>request" in cf["footprints.txt"]
+        for cmd, ro in [("git status && rg x", True), ("cd /a", True), ("echo ready && python3 mutate.py", False),
+                        ("find . -delete", False), ("git branch -D topic", False), ("ls | xargs rm", False)]:
+            assert read_only(cmd) == ro, cmd
         assert (dirs[1] / "user.txt").read_text().endswith("COUNT 1\n")
         content = (dirs[0] / "slices/S01.txt").read_text()
         assert content.count(":CALL ") == 2 and "[… 21 lines cut]" in content
