@@ -260,8 +260,10 @@ recap_reason=""
 # (a) the summary line for <pack>/<sid8> with the same COUNT/TOOLS; (b) every page of user.txt;
 # (c) every page of footprints.txt; timeline.md with a light on every node, every failed call named in a lit or dark node, and
 # each `lit` node bound to an observation: a T<n> whose call block `resume_pack.py --call` printed (a receipt of a past
-# event), or a backticked string of 8+ characters that a live check printed after the resume prompt. Pack reads (READ /
-# CALL-READ outputs) and echo/printf-only commands are not live checks: a quote of the old account proves nothing.
+# event, its body equal to those slice lines on disk), or a backticked string of 8+ characters that a live check printed
+# after the resume prompt and that no tool input after it contains (echo, heredoc, a written file read back). Outputs of
+# pack reads and of commands naming pack files or timeline.md are not live checks: the old account proves nothing.
+# Tripwire, not a security boundary: an agent that splits a string across a computed print still gets past it.
 # A stamp counts only with its page's lines above it (`| tail -1` keeps the stamp, not the body) and
 # a sha equal to the file on disk. The window is the transcript rows after the last human
 # `/session-handoff resume` prompt (the flow spans turns); rows, not timestamps. Claude and Codex.
@@ -292,28 +294,34 @@ if [ -n "$recap_full" ]; then
       [ "$(printf '%s' "$b" | base64 -d 2>/dev/null | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -d' ' -f1)" = "$d" ] \
         && printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$n" "$t" "$h" "$d"
     done <<<"$cand" | sort -u)"
-  # Live checks: tool output after the resume prompt, minus pack reads and echo/printf-only commands.
-  live="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -sc '
-      def cmd: (.input.command // .input.cmd // (.arguments? | strings | (fromjson? // {}) | .command // .cmd) // "") | tostring;
-      def echo_only: test("^\\s*(echo|printf)\\b[^;&|`$]*$");
-      ([ .[] | (.message.content? | arrays | .[] | select(.type == "tool_use") | {id, c: cmd}),
-              (select(.type == "response_item" and .payload.type == "function_call") | .payload | {id: .call_id, c: cmd}) ]
-       | map(select(.c | echo_only) | .id)) as $echo
+  # Live checks: {c: command, o: output} after the resume prompt, minus pack reads and commands on pack files.
+  # ins: every tool input after the prompt except timeline.md writes; a quote found there was typed, not observed.
+  pk_re='timeline\.md|footprints\.txt|user\.txt|tools\.txt|manifest\.json|slices/|resume_pack'
+  live="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -sc --arg re "$pk_re" '
+      def cmd: (.input // (.arguments? | strings | (fromjson? // .)) // "") | tostring;
+      ([ .[] | (.message.content? | arrays | .[] | select(.type == "tool_use") | {key: .id, value: cmd}),
+              (select(.type == "response_item" and .payload.type == "function_call") | .payload | {key: .call_id, value: cmd}) ]
+       | map(select(.key != null)) | from_entries) as $cmds
       | .[] | ((.message.content? | arrays | .[] | select(.type == "tool_result") | {id: .tool_use_id, o: (.content
                 | if type == "string" then . else (map(.text? // empty) | join("\n")) end)}),
                (select(.type == "response_item" and ((.payload.type // "") | endswith("_output"))) | {id: .payload.call_id, o: (.payload.output
                 | if type == "string" then ((fromjson? | .output? // empty | strings) // .) elif type == "array" then (map(.text? // empty) | join("\n")) else tostring end)}))
-      | select((.id as $i | $echo | index($i)) | not) | .o | strings
-      | select(test("(^|\\n)(READ|CALL-READ) /") | not)' 2>/dev/null)"
+      | {c: ($cmds[.id // ""] // ""), o} | select(.o | strings | test("(^|\\n)(READ|CALL-READ) /") | not)
+      | select(.c | test($re) | not)' 2>/dev/null)"
+  ins="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -c '(.message.content? | arrays | .[] | select(.type == "tool_use") | .input | tostring),
+      (select(.type == "response_item" and ((.payload.type // "") | test("call$"))) | .payload | (.arguments // .input // "") | tostring)
+      | select(test("timeline\\.md") | not)' 2>/dev/null)"
   # CALL-READ stamps whose body= matches the lines printed above them: session dir TAB T<n>
   callstamps="$(printf '%s\n' "$outs" | jq -r 'strings | split("\n") as $l
     | reduce range(0; $l | length) as $i ({prev: -1, out: []};
         if ($l[$i] | test("^CALL-READ /")) then .out += [{s: $l[$i], from: (.prev + 1), to: $i}] | .prev = $i else . end)
     | .out[] | . as $o | (.s | capture("^CALL-READ (?<p>/\\S+) (?<t>T[0-9]+) (?<f>S[0-9]+):(?<a>[0-9]+)-(?<b>[0-9]+) body=(?<d>[0-9a-f]{64}) sha256=[0-9a-f]{64}$")?) as $m
     | select($m != null) | (($m.b | tonumber) - ($m.a | tonumber) + 1) as $k | select($o.to - $o.from >= $k)
-    | [$m.p, $m.t, $m.d, ($l[($o.to - $k):$o.to] | join("\n") | @base64)] | @tsv' 2>/dev/null \
-    | while IFS=$'\t' read -r p t d b; do
-        [ "$(printf '%s' "$b" | base64 -d 2>/dev/null | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -d' ' -f1)" = "$d" ] \
+    | [$m.p, $m.t, $m.f, $m.a, $m.b, ($l[($o.to - $k):$o.to] | join("\n") | @base64)] | @tsv' 2>/dev/null \
+    | while IFS=$'\t' read -r p t f a z b; do
+        # The printed body must equal lines a..z of the slice on disk, and the manifest must put T<n> at line a.
+        [ "$(jq -r --argjson n "$((10#${t#T}))" '.calls[$n - 1] // empty' "$p/manifest.json" 2>/dev/null)" = "$f:$a" ] || continue
+        [ "$(printf '%s' "$b" | base64 -d 2>/dev/null)" = "$(sed -n "${a},${z}p" "$p/slices/$f.txt" 2>/dev/null)" ] \
           && printf '%s\t%s\n' "$p" "$t"
       done | sort -u)"
   read_whole() { # $1 file: every page 1..T of the file on disk, each stamped with its real page sha
@@ -377,10 +385,11 @@ EOF
           if [ -z "$bound" ]; then
             while IFS= read -r q; do
               [ "${#q}" -ge 8 ] || continue
-              printf '%s\n' "$live" | jq -e --arg q "$q" 'select(index($q))' >/dev/null 2>&1 && { bound=1; break; }
+              printf '%s\n' "$ins" | jq -e --arg q "$q" 'select(index($q))' >/dev/null 2>&1 && continue
+              printf '%s\n' "$live" | jq -e --arg q "$q" --arg pk "$pack" 'select((.o | index($q)) and (.c | index($pk) | not))' >/dev/null 2>&1 && { bound=1; break; }
             done < <(printf '%s' "$node" | grep -oE '`[^`]+`' | sed -E 's/^`|`$//g')
           fi
-          [ -n "$bound" ] || miss="$miss lit node has no observation: no printed --call T<n> and no backticked output (8+ chars) of a live check after the resume prompt: ${node:0:60};"
+          [ -n "$bound" ] || miss="$miss lit node has no observation: no printed --call T<n> and no backticked output (8+ chars) of a live check after the resume prompt that no tool input typed: ${node:0:60};"
         done < <(printf '%s\n' "$nodes" | grep -iE '·[[:space:]]*lit[[:space:]]*$')
         for t in $(grep -E '^  T[0-9]{4,} S[0-9]{2,}:[0-9]+ L[0-9]+ fail ' "$pack/$sid/footprints.txt" 2>/dev/null | awk '{ print $1 }'); do
           # A failure is opened, not skimmed: its node is lit (evidence read) or dark (read, unresolved), never dim.

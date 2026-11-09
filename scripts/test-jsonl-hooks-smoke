@@ -497,6 +497,25 @@ EC="$(rtr r27.jsonl "${UP[@]}" "${ALL[2]}")"
   jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"e1",content:"build finished: 3 targets ok"}]}}'; } >> "$EC"
 [[ "$(run_claim r27 "$FULL" "$EC")" == block ]] || w46r="$w46r
 FAIL: W46-18 an echo-only command stood in for a live check"
+WC="$(rtr r29.jsonl "${UP[@]}" "${ALL[2]}")"
+{ jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"w1",name:"Write",input:{file_path:"/x/note.txt",content:"build finished: 3 targets ok"}}]}}'
+  jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_use",id:"w2",name:"Bash",input:{command:"cat /x/note.txt"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:09.000Z",message:{content:[{type:"tool_result",tool_use_id:"w2",content:"build finished: 3 targets ok"}]}}'; } >> "$WC"
+[[ "$(run_claim r29 "$FULL" "$WC")" == block ]] || w46r="$w46r
+FAIL: W46-18 a quote the agent wrote to a file and read back stood in for a live check"
+FC="$(rtr r30.jsonl "${UP[@]}" "${ALL[2]}")"
+{ jq -cn --arg c "cat $PK/abcd1234/footprints.txt" '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"f1",name:"Bash",input:{command:$c}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"f1",content:"build finished: 3 targets ok"}]}}'; } >> "$FC"
+[[ "$(run_claim r30 "$FULL" "$FC")" == block ]] || w46r="$w46r
+FAIL: W46-18 output of a command on a pack file stood in for a live check"
+FORGED_CALL="$(printf '%s\n' "${ALL[1]}" | python3 -c '
+import sys, hashlib, re
+l = sys.stdin.read().splitlines(); st = l[-1]; body = [re.sub(r"make", "true", x) for x in l[:-1]]
+d = hashlib.sha256("\n".join(body).encode()).hexdigest()
+print("\n".join(body + [re.sub(r"body=[0-9a-f]{64}", "body=" + d, st)]))')"
+printf '# timeline\n- do it · said: make ran · receipt T0001 · lit\n' > "$PK/abcd1234/timeline.md"
+[[ "$FORGED_CALL" != "${ALL[1]}" && "$(run_claim r31 "$FULL" "$(rtr r31.jsonl "${UP[@]}" "$FORGED_CALL" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a CALL-READ stamp over a body that is not the slice on disk counted"
 printf '# timeline\n- do it · said: make ran T0001 · now `ok` · lit\n' > "$PK/abcd1234/timeline.md"
 [[ "$(run_claim r28 "$FULL" "$(rtr r28.jsonl "${UP[@]}" "${ALL[2]}" "ok")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a quote under 8 characters bound a lit node"
