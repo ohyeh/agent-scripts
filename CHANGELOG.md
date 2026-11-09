@@ -1,5 +1,9 @@
 # Changelog
 
+## quick-say 0.7.1
+
+- The band title shows the installed version; `MOD_VERSION` stayed at 0.6.2 through three releases. New invariant `mod-version-sync` fails when a mod's hook `VERSION` differs from its `plugin.json`.
+
 ## quick-say 0.7.0
 
 - 7 is now 調查: investigate before changing anything. Route with `using-decision-tree`, then `diagnosing-bugs` for breakage or `unknowns-discovery` for unclear asks; search in full (no head/tail cut, no `rg -E`), and report root cause, evidence and a proposed fix for the owner to decide.

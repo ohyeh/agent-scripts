@@ -199,6 +199,20 @@ const deadRefs = spawnSync('bash', [join(ROOT, 'scripts/check-dead-refs.sh')], {
 check('dead-refs', deadRefs.status === 0,
   (deadRefs.stdout + deadRefs.stderr).trim().split('\n').slice(-1)[0]);
 
+// mod-version-sync: a mod's hard-coded hook VERSION is what its panel title shows; it must
+// equal plugin.json, or the band shows an old version after an update (quick-say 0.7.0 showed v0.6.2).
+const modDrift = [];
+for (const name of readdirSync(join(ROOT, 'mods'))) {
+  const plugin = join(ROOT, 'mods', name, '.claude-plugin/plugin.json');
+  if (!existsSync(plugin)) continue;
+  const want = JSON.parse(readFileSync(plugin, 'utf8')).version;
+  const hooks = join(ROOT, 'mods', name, 'hooks');
+  const found = existsSync(hooks) ? readdirSync(hooks).filter(f => /\.tsx?$/.test(f))
+    .map(f => readFileSync(join(hooks, f), 'utf8').match(/\b(?:MOD_)?VERSION\s*=\s*'([0-9.]+)'/)?.[1]).filter(Boolean) : [];
+  for (const have of found) if (have !== want) modDrift.push(`${name} hook=${have} plugin=${want}`);
+}
+check('mod-version-sync', modDrift.length === 0, modDrift.join('; ') || 'hook VERSION = plugin.json');
+
 let failed = 0;
 for (const r of results) {
   if (!r.ok) failed++;
