@@ -1,6 +1,6 @@
 // Unit check of the gate response → TurnStepChunk mapping. Run: bun test <run dir>/test/map.test.ts
 import { expect, test } from 'claude-code/testing'
-import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, tierRoute, toStep, bandText } from '../hooks/map'
+import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, tierRoute, toStep, bandText, resultsFor } from '../hooks/map'
 import { SCHEMAS } from '../hooks/schemas'
 
 const resp = {
@@ -132,4 +132,15 @@ test('bandText: the header says whether routing works; failures show, finished a
   const bad = bandText({ routed: ['default', 'default'], ok: 5, fails: [{ who: 'Explore', why: 'gate 502' }], agents: 'default' })
   expect(bad.status).toBe('agents=default · ✗ 1 failed (Explore: gate 502) · 2 → default · 5 steps ok')
   expect(bad.rows).toEqual(['✗ Explore: gate 502'])
+})
+
+test('resultsFor: a kept record answers each tool_use by id, else in order; a missing one is an error', () => {
+  const last = { role: 'assistant' as const, content: [{ type: 'text', text: 'reading' }, { type: 'tool_use', id: 'call_00_a', name: 'Read', input: {} }, { type: 'tool_use', id: 'call_01_b', name: 'Bash', input: {} }] }
+  expect(resultsFor(last, [{ id: 'call_01_b', text: 'B', isError: true }, { id: 'call_00_a', text: 'A', isError: false }])).toEqual({ role: 'user', content: [
+    { type: 'tool_result', tool_use_id: 'call_00_a', content: 'A' },
+    { type: 'tool_result', tool_use_id: 'call_01_b', content: 'B', is_error: true }] })
+  expect(resultsFor(last, [{ id: 'toolu_x', text: 'A', isError: false }])).toEqual({ role: 'user', content: [
+    { type: 'tool_result', tool_use_id: 'call_00_a', content: 'A' },
+    { type: 'tool_result', tool_use_id: 'call_01_b', content: 'no result was recorded for this call', is_error: true }] })
+  expect(resultsFor({ role: 'assistant', content: [{ type: 'text', text: 'done' }] }, [])).toBeNull()
 })

@@ -124,6 +124,26 @@ export function tierRoute(kv: Record<string, string>, model: string | undefined)
   return tier ? kv[tier] || undefined : undefined
 }
 
+export type Ran = { id?: string; text: string; isError: boolean }
+
+/** The user message that answers the last assistant message's tool calls, from results recorded by
+ *  tool.call: matched by tool_use id, else in the order they came; a call with none gets an error result. */
+export function resultsFor(last: Msg | undefined, ran: readonly Ran[]): Msg | null {
+  const uses = (last?.content ?? []).filter(b => b.type === 'tool_use') as Array<{ id: string }>
+  if (!uses.length) return null
+  const left = [...ran]
+  const pick = (id: string) => {
+    let i = left.findIndex(r => r.id === id)
+    if (i < 0) i = left.findIndex(r => !uses.some(u => u.id === r.id)) // an id the engine renamed: next in order
+    return i >= 0 ? left.splice(i, 1)[0] : undefined
+  }
+  const content = uses.map(u => {
+    const r = pick(u.id)
+    return { type: 'tool_result', tool_use_id: u.id, content: r ? r.text : 'no result was recorded for this call', ...(r && !r.isError ? {} : { is_error: true }) }
+  })
+  return { role: 'user', content }
+}
+
 export type Fail = { who: string; why: string }
 
 /** The band's words: did routing work, and the new-subagent mode (the tier lines stay in default.conf).

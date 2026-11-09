@@ -38,8 +38,9 @@ in red when a gate step failed or a tier route fell back to Claude, and a `defau
 that holds the tier lines. It starts folded (one line); `▸ open` adds the last 3 failures. `hide` or `/provider-switch band` hides and shows it; both
 are remembered. It takes only the rows the other mods' bands leave.
 
-Agents a Workflow script starts always run on Claude: the engine does not let a hook read their
-conversation, so a gateway could not answer them.
+Agents a Workflow script starts are routed like other subagents. The engine does not let a hook read
+their conversation, so the mod keeps its own: the task, each gateway answer and each tool result. What
+the engine itself adds to their requests (reminders, context) is not in it.
 
 | Command | Effect |
 | --- | --- |

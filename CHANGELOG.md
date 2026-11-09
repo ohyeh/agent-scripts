@@ -7,6 +7,11 @@
 - **RESUME Step 3b**: read `user.txt` and `footprints.txt` whole; open evidence only for turns that claim done/verified/pushed, that failed, or that the next step depends on; write `timeline.md` with account, evidence and a light (`lit` / `dim` / `dark`) per node, copied to `.claude/footprints/<sid8>.md` at CREATE.
 - **Claim gate**: a `full` line needs `footprints.txt` read whole and `timeline.md` whose `lit` nodes cite a read slice page or a read `scout-T<a>-T<b>.md`. The per-manifest-group `scout-<range>.md` rule is gone (it refused per-batch reports).
 
+## byo-provider 0.6.0
+
+- **Workflow agents run on your provider.** Their conversation is closed to hooks, so the mod keeps its own record per workflow agent: the task (`agent.spawn`'s prompt), each gate answer, and each tool result `tool.call` hands back (matched by `tool_use_id`). Live test: a 2-agent workflow, each agent 2 gate steps, both Read results recorded, `messages-denied` 0, `gate-fail` 0, both answers right. The routing log adds `kept`, `promptChars` on spawn and a `kept-result` line per tool result.
+- Limits: the record has only the task, answers and tool results: what the engine adds to a workflow agent's request (12 messages in the test: reminders, context) is not sent. A run whose script is hidden gives a placeholder prompt, which the mod cannot tell from a real one. Mid-run compaction of a workflow agent is not handled.
+
 ## byo-provider 0.5.8
 
 - **Workflow agents stay on Claude.** The engine closes a workflow agent's conversation to hooks (`$.session.messages({ agentId })` gives `{deny}`), so every gate step of one failed (`this loop's conversation cannot be read`) and its workflow broke. Tier lines, `agents=` and `follow` now skip agents a Workflow script starts; the routing log records `workflow: <runId>`.

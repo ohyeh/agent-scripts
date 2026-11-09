@@ -1,8 +1,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
-import { bandText, deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
+import { bandText, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
 import { SCHEMAS } from './schemas'
-import type { Fail, GateTool, Msg, Step } from './map'
+import type { Fail, GateTool, Msg, Ran, Step } from './map'
 import type { View } from '../types'
 
 // byo-provider: chosen loops are answered by the owner's Anthropic-format gateway by
@@ -20,7 +20,7 @@ import type { View } from '../types'
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
-const VERSION = '0.5.8' // keep equal to .claude-plugin/plugin.json
+const VERSION = '0.6.0' // keep equal to .claude-plugin/plugin.json
 const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
 const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
@@ -60,6 +60,9 @@ const routed: string[] = [] // the profile of each loop ever put on your provide
 let okSteps = 0
 const fails: Fail[] = [] // gate steps and tier routes that did not reach your provider
 const band = { folded: true, hidden: false }
+// A workflow agent's conversation is closed to hooks ($.session.messages gives {deny}), so the mod keeps its
+// own: the task at spawn, each gate answer, and each tool result tool.call hands back. agentId → record.
+const own = new Map<string, { msgs: Msg[]; ran: Ran[] }>()
 
 const view = atom({ plugin: 'byo-provider', key: 'view' } as const, { rows: [], agents: 'follow', profiles: '', ok: 0, fails: [] } as View, { shape: 'view-3' })
 
@@ -184,8 +187,14 @@ async function post($: EngineInterface, cfg: Profile, body: string): Promise<{ s
 async function gateStep($: EngineInterface, e: TurnStepInput, name: string, signal: AbortSignal): Promise<Step> {
   const cfg = await loadProfile($, name)
   if (typeof cfg === 'string') return failStep(e.turnId, e.index, cfg)
+  const kept = e.agentId ? own.get(e.agentId) : undefined
+  if (kept) {
+    const answered = resultsFor(kept.msgs.at(-1), kept.ran)
+    if (answered) kept.msgs.push(answered)
+    kept.ran = []
+  }
   const [raw, composed, available] = await Promise.all([
-    e.agentId ? $.session.messages({ as: 'api', agentId: e.agentId }) : $.session.messages({ as: 'api' }),
+    kept ? kept.msgs : e.agentId ? $.session.messages({ as: 'api', agentId: e.agentId }) : $.session.messages({ as: 'api' }),
     $.prompt.compose(),
     $.tool.list(),
   ])
@@ -225,6 +234,7 @@ async function gateStep($: EngineInterface, e: TurnStepInput, name: string, sign
   try { parsed = JSON.parse(res.text) } catch { return fail(`not JSON: ${res.text.slice(0, 200)}`) }
   const step = toStep(e.turnId, e.index, parsed, model)
   const content = (parsed as { content?: Array<{ type: string }> }).content ?? []
+  if (kept && step.result.usage !== null) kept.msgs.push({ role: 'assistant', content: content.filter(b => b.type === 'text' || b.type === 'tool_use') as Msg['content'] })
   await log($, { ev: 'gate-answer', loop: e.agentId ?? 'main', index: e.index, status: res.status, ms: Date.now() - sent, id: (parsed as { id?: string }).id,
     blocks: content.map(b => b.type), stop: step.result.stopReason })
   return step
@@ -402,6 +412,20 @@ export const register: Register = (on, opts) => {
     )
   })
 
+  // A tool a kept-record agent ran: its result goes into that record for the next gate step.
+  on('tool.call', async ($, e, next) => {
+    const r = await next(e)
+    const kept = e.agentId ? own.get(e.agentId) : undefined
+    if (kept) {
+      const x = r as { deny?: string; text?: string; result?: unknown; isError?: boolean; context?: readonly string[] }
+      const text = x.deny ?? [x.text ?? JSON.stringify(x.result ?? ''), ...(x.context ?? [])].join('\n')
+      const id = (e as { tool_use_id?: string }).tool_use_id
+      kept.ran.push({ id, text, isError: x.deny !== undefined || x.isError === true })
+      await log($, { ev: 'kept-result', agentId: e.agentId, tool: e.tool, id: id ?? null, isError: x.deny !== undefined || x.isError === true, chars: text.length }).catch(() => undefined)
+    }
+    return r
+  })
+
   // New subagents/forks are marked by the agentId the spawn resolves to.
   on('agent.spawn', async ($, e, next) => {
     const r = await next(e)
@@ -409,11 +433,11 @@ export const register: Register = (on, opts) => {
     const resolved = r && 'model' in r ? r.model : undefined
     // default.conf `haiku=` / `sonnet=` / `opus=` route by the agent's resolved model tier, ahead of `agents=`.
     const tier = tierRoute(await defaultConf($).catch(() => ({})), resolved ?? e.model ?? e.parentModel)
-    // A workflow agent's conversation is closed to hooks ($.session.messages gives {deny}), so the gate
-    // could not answer any of its steps: it stays on Claude.
-    let model = e.workflow ? undefined : tier !== undefined ? (tier === 'claude' ? undefined : tier)
+    // A workflow agent is routed from its own record (see `own`), which needs the task text to start.
+    const noTask = e.workflow !== undefined && !e.prompt?.trim()
+    let model = noTask ? undefined : tier !== undefined ? (tier === 'claude' ? undefined : tier)
       : agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : agentsMode === 'claude' ? undefined : agentsMode
-    if (tier && tier !== 'claude' && !e.workflow) {
+    if (tier && tier !== 'claude' && !noTask) {
       const p = await loadProfile($, tier).catch((x: unknown) => String(x))
       if (typeof p === 'string') {
         $.ui.toast(`[byo-provider] ${resolved} → ${tier}: ${p}; that agent runs on Claude`)
@@ -424,13 +448,14 @@ export const register: Register = (on, opts) => {
     if (model && agentId) {
       loops.set(agentId, model)
       routed.push(model)
+      if (e.workflow) own.set(agentId, { msgs: [{ role: 'user', content: [{ type: 'text', text: e.prompt }] }], ran: [] })
       if (!e.fork) types.set(agentId, e.subagentType)
       await sync($).catch(() => undefined)
     }
     else if (model) $.ui.toast(`[byo-provider] spawn gave no agent id; that agent runs on Claude, not ${model}`)
     // A failing log write must not fail the hook: the engine would skip it after the spawn.
     await log($, { ev: model && agentId ? 'spawn-marked' : 'spawn-claude', agentId, profile: model ?? null, tier: tier ?? null, fork: e.fork,
-      workflow: e.workflow ? e.workflow.runId : null, parent: e.parentAgentId ?? 'main', parentModel: e.parentModel, askedModel: e.model ?? null, resolvedModel: r && 'model' in r ? r.model : null })
+      workflow: e.workflow ? e.workflow.runId : null, kept: e.workflow !== undefined && !noTask, promptChars: e.prompt?.length ?? 0, parent: e.parentAgentId ?? 'main', parentModel: e.parentModel, askedModel: e.model ?? null, resolvedModel: r && 'model' in r ? r.model : null })
       .catch(() => undefined)
     return r
   }).catch(async ($, e, next) => {
