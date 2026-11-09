@@ -13,6 +13,10 @@ directly. The only write path into it is a note in
 external submission store in front of that path. Each host has its own inbox and
 its own Codex memory. Treat dynamic claims as `UNCONFIRMED` until verified in the
 active session.
+The reader labels every search hit `UNCONFIRMED memory-lead` and shows its mtime.
+This is an output contract, not a live check or an expiry date. A historical `active`
+or `verified` label never overrides it. Check the cited live source before using a
+dynamic claim; if that source is unavailable, keep the claim `UNCONFIRMED`.
 
 ## What belongs here
 
@@ -67,6 +71,13 @@ Use `python3 scripts/read_memory.py keyword [keyword ...]` from this skill direc
 
 5. A correction is a new submission with `supersedes_submission`; never overwrite the
    earlier proposal.
+   Set this field to the earlier submission's basename only when replacing the whole
+   submission. For a partial correction, name the replaced claim in the curation note.
+   The reader follows links in processed submissions, shows the terminal replacement
+   even when only the old text matches. Conflicting or cyclic links fail the affected
+   lookup. YAML null means no link; a missing ancestor cannot invalidate other lookups.
+   Pending and rejected proposals cannot replace a processed submission. File age is
+   not a replacement link. Free-form claim-level notes still require source review.
 
 ## Codex: review and hand off
 
@@ -107,6 +118,14 @@ Use `python3 scripts/read_memory.py keyword [keyword ...]` from this skill direc
    `UNCONFIRMED`; mark replaced claims `superseded` with their replacement reference.
 4. Check that the text of each note handed off since the last run is in `MEMORY.md`;
    report any note that consolidation has not merged.
+5. After releasing the lease, plan completed-file archival with
+   `python3 scripts/archive_completed.py --as codex`. After approval, run it with
+   `--apply`. It takes the same lease and moves top-level `.md` files older than
+   60 days from `processed/` and `retro-inbox/done/` into `archive/YYYY-MM/` below
+   each source. It refuses collisions and never deletes content. Pending, rejected,
+   notes and consolidated memory are untouched. The reader searches these archives
+   and retro done files recursively; `--status` counts the whole tree. This bounds
+   the working directories after each run, not total storage. No unattended job runs.
 
 ## Validator
 

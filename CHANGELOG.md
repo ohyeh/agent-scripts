@@ -1,5 +1,13 @@
 # Changelog
 
+## shared-memory-intake and evidence hooks
+
+- `read_memory.py` follows `supersedes_submission` links in processed submissions and prints the terminal replacement; cycles and conflicting links fail only the affected lookup, and one unreadable submission is skipped with a line, not fatal.
+- Every `read_memory.py` hit starts with `UNCONFIRMED memory-lead mtime=<iso>`: memory is a lead, never live truth. `bash-read-audit.sh` adds the same warning when a Bash command touches the memory store.
+- New `scripts/archive_completed.py --as codex [--apply]` moves `.md` files older than 60 days from `processed/` and `retro-inbox/done/` into `archive/YYYY-MM/` under the curator lease. It never deletes and refuses collisions; the reader searches archives recursively.
+- `bash-read-audit.sh` denies `rg -E` (ripgrep's encoding flag, which turns a pattern search into a silent empty result) and warns on searches piped to head/tail and head/tail excerpts of source files.
+- `claim-evidence-gate.sh` treats `no … clause/mention`, `no … anywhere`, 找不到 and 沒有…條款 as negative claims, and blocks one whose subject this turn was touched only through head/tail/`sed -n`/`rg -E`.
+
 ## byo-provider 0.7.0
 
 - CLI profiles: `cli=<agent-tmux profile>` runs its `headless_flags` once; `cli=tmux/<profile>` uses the tmux-agent mod's assign/await tools. CLI profiles need no gateway URL, token or model.

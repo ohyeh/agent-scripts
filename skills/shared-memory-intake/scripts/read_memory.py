@@ -8,6 +8,40 @@ import io
 import os
 from pathlib import Path
 import tempfile
+from validate_submission import frontmatter
+
+
+def replacements(home):
+    """Use explicit, curated whole-submission links, never file age."""
+    processed = home / ".agents/shared-memory-inbox/processed"
+    files = sorted(p for p in processed.rglob("*.md") if p.is_file())
+    links = {}
+    for path in files:
+        try:
+            text = path.read_text(encoding="utf-8")
+            if not text.startswith("---\n"):
+                continue
+            old = frontmatter(text).get("supersedes_submission", "").strip("\"'")
+        except (OSError, UnicodeError, ValueError) as error:
+            # One unreadable submission must not hide every other lookup.
+            print(f"supersession skipped {path}: {error}")
+            continue
+        if old and old.casefold() not in ("null", "~"):
+            links.setdefault(old, []).append(path)
+    return links
+
+
+def replacement(path, links):
+    seen = set()
+    while path.name in links:
+        if path.name in seen:
+            raise ValueError(f"supersession cycle at {path}")
+        seen.add(path.name)
+        candidates = links[path.name]
+        if len(candidates) != 1:
+            raise ValueError(f"conflicting replacements for {path}")
+        path = candidates[0]
+    return path
 
 
 def sources(home):
@@ -19,6 +53,7 @@ def sources(home):
         ("note", memory / "extensions/ad_hoc/notes", True),
         *[(kind, inbox / kind, True)
           for kind in ("pending", "processed", "rejected")],
+        ("retro-done", home / ".agents/retro-inbox/done", True),
     ]
 
 
@@ -31,6 +66,11 @@ def read_memory(home, keywords=(), status=False):
     baseline = memory.stat().st_mtime_ns if memory.is_file() else None
     words = [word.casefold() for word in keywords]
     errors = False
+    try:
+        links = replacements(home) if not status else {}
+    except (OSError, UnicodeError, ValueError) as error:
+        print(f"supersession error: {error}")
+        return 1
     for kind, source, directory in sources(home):
         try:
             exists = source.is_dir() if directory else source.is_file()
@@ -39,7 +79,7 @@ def read_memory(home, keywords=(), status=False):
                 if status:
                     print(f"{kind} {source} files=0 newest=none")
                 continue
-            files = sorted(p for p in source.glob("*.md") if p.is_file()) if directory else [source]
+            files = sorted(p for p in source.rglob("*.md") if p.is_file()) if directory else [source]
             if status:
                 mtimes = [(path, path.stat().st_mtime_ns) for path in files]
                 newest = stamp(max(mtime for _, mtime in mtimes)) if mtimes else "none"
@@ -55,8 +95,16 @@ def read_memory(home, keywords=(), status=False):
                             for number, line in enumerate(handle, 1):
                                 line = line.rstrip("\r\n")
                                 if any(word in line.casefold() for word in words):
-                                    print(f"{kind} {path}:{number} {line[:200]}")
-                    except (OSError, UnicodeError) as error:
+                                    target = replacement(path, links) if kind == "processed" else path
+                                    if target != path:
+                                        print(f"superseded {path}:{number} replacement={target}")
+                                        for n, current in enumerate(target.read_text(encoding="utf-8").splitlines(), 1):
+                                            print(f"UNCONFIRMED memory-lead mtime={stamp(target.stat().st_mtime_ns)} "
+                                                  f"replacement {target}:{n} {current[:200]}")
+                                        break
+                                    print(f"UNCONFIRMED memory-lead mtime={stamp(path.stat().st_mtime_ns)} "
+                                          f"{kind} {path}:{number} {line[:200]}")
+                    except (OSError, UnicodeError, ValueError) as error:
                         print(f"{kind} error {path}: {type(error).__name__}: {error}")
                         errors = True
         except OSError as error:
@@ -82,7 +130,7 @@ def self_test():
             assert read_memory(home, ["absent", "mixed"]) == 0
         lines = output.getvalue().splitlines()
         for kind in ("memory", "summary", "note", "pending", "processed"):
-            hit = next(line for line in lines if line.startswith(kind + " "))
+            hit = next(line for line in lines if f" {kind} " in line and ":2 " in line)
             assert ":2 " in hit and len(hit.split(":2 ", 1)[1]) == 200, hit
         assert any(line.startswith("rejected missing ") for line in lines)
         output = io.StringIO()

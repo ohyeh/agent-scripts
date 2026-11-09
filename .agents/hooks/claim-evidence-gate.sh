@@ -106,7 +106,8 @@ fi
 # items it never checked). 「我還沒看過截圖」 states what was not observed (W46-16), so it is a label.
 LABEL_RE='unverified|UNCONFIRMED|attempted|not observed|not checked|未驗證|未觀測|未查|沒(有)?查|不確定|還沒看|沒(有)?看過'
 # A "not done" state is a negative claim too (W43-18): 還沒/尚未/未完成 assert what is not there.
-NEG_RE='(^|[^a-z])(stuck|failed|missing|not implemented|not (yet )?(done|fixed|started)|no (reply|response)|never (reported|responded)|hung|dead)([^a-z]|$)|卡住|受阻|失敗|缺少|不存在|尚未|還沒|未完成|未開始|沒(有)?回(覆|應)|掛了'
+# Absence claims (no X clause, no X anywhere, 找不到, 沒有…條款) are negative claims too; bare found/match stay out (review summaries).
+NEG_RE='(^|[^a-z])(stuck|failed|missing|not implemented|not (yet )?(done|fixed|started)|no (reply|response)|never (reported|responded)|hung|dead|no ([a-z0-9_-]+ ){1,4}(clause|mention)|no [^,.!?;]{1,40} anywhere)([^a-z]|$)|卡住|受阻|失敗|缺少|不存在|尚未|還沒|未完成|未開始|沒(有)?回(覆|應)|掛了|找不到|沒有.{0,12}(條款|規定|紀錄)'
 # Kept raw (code spans intact): a line's `code`, file, W-id or sha is the subject it must be bound to.
 negative_lines="$(printf '%s' "$last" | sed -E '/^```/,/^```/d' \
   | grep -viE 'judgment-rubrics|claim-evidence-gate|Completion claim|Negative claim|done-claim|宣告|宣稱' | grep -Eiv "$LABEL_RE" \
@@ -211,14 +212,34 @@ if [ -n "$negative_lines" ]; then
     [ "$claim" = negative ] && [ "${calls:-0}" -lt 2 ] && neg_reason="it rests on ${calls:-0} tool call(s) since the last user prompt at ${since}Z; one miss is not absence"
   else
     unbound=""
+    sloppy=""
+    uses_in="$(jq -r --arg s "$since" 'select((.timestamp // "")[0:19] >= $s) | .message.content? | arrays | .[]
+      | select(.type == "tool_use" and .name == "Bash") | .input.command // empty' "$TRANSCRIPT" 2>/dev/null)"
     observed="$(printf '%s\n' "$window" | jq -r '.evidence[]? // empty' 2>/dev/null | sort -u)"
     while IFS= read -r line; do
       [ -n "$line" ] || continue
       keys="$(printf '%s' "$line" | grep -oE '`[^`]+`|[A-Za-z0-9_-]{2,}\.[A-Za-z]{1,5}|W[0-9]{2}-[0-9]+[a-z]?|Q-[0-9]+|#[0-9]+|[0-9a-f]{7,40}' | tr -d '`')"
       hit=""
+      partial_only=""
       while IFS= read -r k; do
-        [ -n "$k" ] && grep -qF -- "$k" <<<"$traffic" && { hit=1; break; }
+        [ -n "$k" ] || continue
+        if grep -qF -- "$k" <<<"$traffic"; then
+          if [ -n "$uses_in" ] && grep -F -- "$k" <<<"$uses_in" | grep -qE '(^|[|;&"'"'"'[:space:]])(head|tail|sed -n)[[:space:]]|rg[[:space:]]+[^;|&]*-E[[:space:]]' \
+             && ! grep -F -- "$k" <<<"$uses_in" | grep -qvE '(^|[|;&"'"'"'[:space:]])(head|tail|sed -n)[[:space:]]|rg[[:space:]]+[^;|&]*-E[[:space:]]'; then
+            partial_only="$k"
+          else
+            hit=1; break
+          fi
+        fi
       done <<<"$keys"
+      if [ -n "$partial_only" ] && [ -z "$hit" ]; then
+        sloppy="$sloppy | $(printf '%s' "$line" | cut -c1-100) (only touched via partial read or rg -E on $partial_only)"
+        continue
+      fi
+      if printf '%s' "$line" | grep -Eqi '(^|[^a-z])anywhere([^a-z]|$)|任何地方|整個 *repo|全域' && [ "${calls:-0}" -lt 2 ]; then
+        sloppy="$sloppy | $(printf '%s' "$line" | cut -c1-100) ('anywhere' absence claim rests on ${calls:-0} tool call)"
+        continue
+      fi
       # an evidence token a tool printed this turn (exit=1, N failed) binds the line too
       [ -n "$hit" ] || { [ -x "$TOKENIZER" ] && [ -n "$observed" ] \
         && [ -n "$(comm -12 <(printf '%s\n' "$observed") <(printf '%s' "$line" | bash "$TOKENIZER" | sort -u))" ] && hit=1; }
@@ -227,6 +248,7 @@ if [ -n "$negative_lines" ]; then
       [ -n "$hit" ] || unbound="$unbound | $(printf '%s' "$line" | cut -c1-100)"
     done <<<"$negative_lines"
     [ -z "$unbound" ] || neg_reason="these lines name no subject a tool touched this turn:$unbound"
+    [ -z "$sloppy" ] || neg_reason="${neg_reason:+$neg_reason; }sloppy or partial search cannot prove absence:$sloppy"
   fi
   [ -n "$neg_reason" ] && reason="${reason:+$reason }Negative claim (not done/stuck/failed/missing) fails the absence rule (judgment-rubrics §2): $neg_reason. Check that item now and name it (\`file\`, W-id, sha) in the line, or mark the line UNCONFIRMED and name the unchecked channel."
 fi

@@ -4,7 +4,7 @@
 # while cat/head/sed reads leave no trail. This appends one JSONL line per
 # read-shaped Bash command to read-audit.jsonl in the session's run dir.
 # Command text is never stored because it can contain credentials.
-# Log-only, never blocks; gating comes later once the data says it should.
+# Deny rg -E (an encoding flag); warn on truncated searches, partial reads and memory reads.
 set -u
 
 IN="$(cat)"
@@ -14,6 +14,19 @@ TOOL_NAME="$(printf '%s' "$IN" | jq -r '.tool_name // ""')"
 [ "$TOOL_NAME" = "Bash" ] || exit 0
 
 CMD="$(printf '%s' "$IN" | jq -r '.tool_input.command // ""')"
+# shortcut: checks literal Bash text, use a shell parser if wrappers must be covered.
+deny_search() { echo "search evidence: $1" >&2; exit 2; }
+printf '%s' "$CMD" | grep -qE '(^|[|;&])[[:space:]]*rg[[:space:]]+([^|;&]*[[:space:]])?-E([[:space:]]|$)' \
+  && deny_search 'rg -E selects encoding; use rg -e for a pattern or --encoding explicitly'
+# Truncation and memory reads are allowed but carry a warning; scripts/test-bash-readonly-gate allows `| head`.
+warn=""
+printf '%s' "$CMD" | grep -qE '(rg|grep)[[:space:]][^;]*\|[[:space:]]*(head|tail)([[:space:]]|$)' \
+  && warn="${warn}WARNING [truncated-search]: a search piped to head or tail cannot prove absence or coverage; re-run it untruncated before an absence claim. "
+printf '%s' "$CMD" | grep -qE '(^|[|;&])[[:space:]]*(head|tail)[[:space:]][^;|]*\.(py|sh|md)([[:space:]]|$)' \
+  && warn="${warn}WARNING [partial-read]: a head or tail excerpt cannot establish whole-file content. "
+printf '%s' "$CMD" | grep -qE '(\.agents/shared-memory-inbox|\.codex/memories|read_memory\.py)' \
+  && warn="${warn}WARNING [memory-is-a-lead]: shared-memory entries are leads, not live truth; verify a dynamic claim against the live source this session or label it UNCONFIRMED. "
+[ -n "$warn" ] && jq -cn --arg m "$warn" '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$m}}'
 # Read-shaped: a read utility appears in command position (start or after |;&&).
 printf '%s' "$CMD" | grep -qE '(^|\||;|&&)[[:space:]]*(cat|head|tail|less|more|awk|sed -n)[[:space:]]' || exit 0
 
