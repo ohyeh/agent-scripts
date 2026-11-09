@@ -262,8 +262,8 @@ recap_reason=""
 # each `lit` node bound to an observation: a T<n> whose call block `resume_pack.py --call` printed, every page, each
 # equal to that page of the slice on disk (a receipt of a past event), or a backticked string of 8+ characters that a live check printed
 # after the resume prompt and that no tool input before it contains (echo, heredoc, a written file read back). Outputs
-# with no call of their own, of pack reads, and of commands naming pack files, timeline.md, handoffs or footprints are
-# not live checks: the old account proves nothing.
+# with no call of their own, and of reads of pack files, timeline.md, handoffs or footprints (a read verb or a Read
+# file_path on them) are not live checks: the old account proves nothing.
 # Tripwire, not a security boundary: an agent that splits a string across a computed print still gets past it.
 # A stamp counts only with its page's lines above it (`| tail -1` keeps the stamp, not the body) and
 # a sha equal to the file on disk. The window is the transcript rows after the last human
@@ -298,7 +298,9 @@ if [ -n "$recap_full" ]; then
   # Live checks: {c: command, o: output} after the resume prompt, minus pack reads and commands on pack files.
   # ins: {n: row, s: input} for every tool input after the prompt except timeline.md writes. A quote counts only when
   # some live output shows it before any input contains it: typed first, then printed, is not an observation.
-  pk_re='timeline\.md|footprints\.txt|user\.txt|tools\.txt|manifest\.json|slices/|resume_pack|\.claude/(handoffs|footprints)/'
+  # A read of the old account: a read verb or a Read file_path on a pack file, a handoff or a footprint. Only the read
+  # is excluded: a batch that passes a handoff path to a validator, next to live checks, stays live.
+  pk_re='resume_pack|(\b(cat|head|tail|sed|less|more|bat|rg|grep|awk|jq|cut|nl|strings)\b[^;&|]*|file_path":"[^"]*)(timeline\.md|footprints\.txt|user\.txt|tools\.txt|manifest\.json|slices/|\.claude/(handoffs|footprints)/)'
   live="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -sc --arg re "$pk_re" '
       def cmd: (.input // .action // (.arguments? | strings | (fromjson? // .)) // "") | tostring;
       ([ .[] | (.message.content? | arrays | .[] | select(.type == "tool_use") | {key: .id, value: cmd}),
@@ -418,7 +420,7 @@ EOF
           if [ -z "$bound" ]; then
             while IFS= read -r q; do
               [ "${#q}" -ge 8 ] || continue
-              mo="$(printf '%s\n' "$live" | jq -sr --arg q "$q" --arg pk "$pack" '[.[] | select((.o | index($q)) and (.c | index($pk) | not)) | .n] | min // empty' 2>/dev/null)"
+              mo="$(printf '%s\n' "$live" | jq -sr --arg q "$q" '[.[] | select(.o | index($q)) | .n] | min // empty' 2>/dev/null)"
               mi="$(printf '%s\n' "$ins" | jq -sr --arg q "$q" '[.[] | select(.s | index($q)) | .n] | min // empty' 2>/dev/null)"
               [ -n "$mo" ] && { [ -z "$mi" ] || [ "$mo" -lt "$mi" ]; } && { bound=1; break; }
             done < <(printf '%s' "$node" | grep -oE '`[^`]+`' | sed -E 's/^`|`$//g')

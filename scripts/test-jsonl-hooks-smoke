@@ -511,6 +511,16 @@ LC="$(rtr r32.jsonl "${UP[@]}" "${ALL[2]}" "build finished: 3 targets ok")"
   jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"l1",content:"4:build finished: 3 targets ok"}]}}'; } >> "$LC"
 [[ -z "$(run_claim r32 "$FULL" "$LC")" ]] || w46r="$w46r
 FAIL: W46-18 a quote seen in output first and used in a later command was un-witnessed"
+BC="$(rtr r35.jsonl "${UP[@]}" "${ALL[2]}")"
+{ jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"b1",name:"Bash",input:{command:"python3 validate_handoff.py .claude/handoffs/h.md; make"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"b1",content:"Verdict: READY\nbuild finished: 3 targets ok"}]}}'; } >> "$BC"
+[[ -z "$(run_claim r35 "$FULL" "$BC")" ]] || w46r="$w46r
+FAIL: W46-18 a batch passing a handoff path to a validator lost its live output"
+RH="$(rtr r36.jsonl "${UP[@]}" "${ALL[2]}")"
+{ jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"h1",name:"Read",input:{file_path:"/repo/.claude/handoffs/h.md"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"h1",content:"build finished: 3 targets ok"}]}}'; } >> "$RH"
+[[ "$(run_claim r36 "$FULL" "$RH")" == block ]] || w46r="$w46r
+FAIL: W46-18 a Read of a handoff stood in for a live check"
 FC="$(rtr r30.jsonl "${UP[@]}" "${ALL[2]}")"
 { jq -cn --arg c "cat $PK/abcd1234/footprints.txt" '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"f1",name:"Bash",input:{command:$c}}]}}'
   jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"f1",content:"build finished: 3 targets ok"}]}}'; } >> "$FC"
