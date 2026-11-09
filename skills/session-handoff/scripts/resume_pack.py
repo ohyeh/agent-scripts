@@ -168,12 +168,17 @@ def call_text(call, results):
 MUTATING = {"Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch", "Artifact"}
 DELEGATING = {"Agent", "Task", "Workflow", "mcp__tmux-agent__assign", "mcp__tmux-agent__tell",
               "spawn_agent", "send_message", "followup_task"}
-SHELL = {"Bash", "exec", "exec_command", "shell", "local_shell_call", "PowerShell"}
+SHELL = {"Bash", "exec", "exec_command", "shell", "local_shell_call", "PowerShell",
+         "mcp__plugin_context-mode_context-mode__ctx_execute", "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+         "mcp__plugin_context-mode_context-mode__ctx_execute_file"}
+# An MCP or control tool whose name says it writes or acts: a state pointer.
+STATE_TOOL = re.compile(r"(?i)(?:write|create|update|delete|remove|publish|send|post|set|push|deploy|assign|switch|reload|stop|tell|"
+                        r"trash|label|place|close|transition|edit|upload|batch|execute(?!_?read)|rename)")
 STATE_COMMAND = re.compile(r"\bgit\s+(?:-[Cc]\s+\S+\s+)*(?:commit|push|tag|rebase|reset|merge|checkout|switch|stash)\b"
                            r"|\bgh\s+(?:pr|release|issue)\b|\b(?:plugin|npm|pnpm|yarn|pip3?|brew|uv)\s+(?:install|update|add|remove)\b"
                            r"|\bdeploy\b|\brm\s|\bmv\s|\bcp\s|\bsed\s+-i|(?<![0-9&])>>?\s*(?!/dev/null|&)[^\s|]")
 # A shell command whose first word is here reads only; any other shell call keeps a `shell` pointer.
-READ_ONLY = re.compile(r"^\s*(?:cd\s+\S+\s*$|(?:ls|cat|head|tail|wc|rg|grep|fd|find|jq|yq|echo|printf|pwd|which|stat|du|diff|"
+READ_ONLY = re.compile(r"^\s*(?:\w+=\S*\s+)*(?:cd\s+\S+\s*$|(?:ls|cat|head|tail|wc|rg|grep|fd|find|jq|yq|echo|printf|pwd|which|stat|du|diff|"
                        r"sed\s+-n|awk|sort|uniq|cut|tr|date|env|test|\[|git\s+(?:-C\s+\S+\s+)?(?:status|log|diff|show|branch|rev-parse|ls-remote|fetch))\b)")
 
 
@@ -208,7 +213,7 @@ def turn_start(row, cli):
     if isinstance(content, str):
         return content
     if isinstance(content, list) and not any(b.get("type") == "tool_result" for b in blocks(row)):
-        return " ".join(b.get("text", "") for b in blocks(row) if b.get("type") == "text")
+        return " ".join(b.get("text", "") if b.get("type") == "text" else "[image]" for b in blocks(row) if b.get("type") in {"text", "image"})
     return None
 
 
@@ -237,8 +242,9 @@ def footprints(rows, cli, calls, results, where, log_sha):
             cur = dict(ln=row["_ln"], ts=row.get("timestamp", "")[:19], prompt=one(prompt, 160), last="", marks=[], first=None, end=None)
             turns.append(cur)
             continue
-        if cur is None:
-            continue
+        if cur is None:  # rows before the first prompt (a compacted or plugin-opened session) get a turn 0
+            cur = dict(ln=row["_ln"], ts=row.get("timestamp", "")[:19], prompt="(before the first prompt)", last="", marks=[], first=None, end=None, zero=True)
+            turns.append(cur)
         if prompt is not None and not row.get("isMeta") and prompt.strip():
             cur["marks"].append(f"  event L{row['_ln']} {one(prompt, 100)}")
             continue
@@ -254,9 +260,11 @@ def footprints(rows, cli, calls, results, where, log_sha):
             cur["first"] = cur["first"] or t
             cur["end"] = t
             args = object_args(value)
-            cmd = str(args.get("command", args.get("cmd", "")))
+            raw = args.get("command", args.get("cmd", args.get("code", args.get("commands", ""))))
+            cmd = " ; ".join(map(str, raw)) if isinstance(raw, list) else str(raw)  # Codex local_shell_call: argv list
             failed = any(is_error(r) for r in results.get(call_id, []))
             kind = ("fail" if failed else "edit" if name in MUTATING else "state" if STATE_COMMAND.search(cmd)
+                    or (name.startswith("mcp__") and name not in SHELL and STATE_TOOL.search(name.split("__")[-1]))
                     else "delegate" if name in DELEGATING
                     else "shell" if name in SHELL and not read_only(cmd) else None)
             unresolved = call_id not in results  # the call never got its result: interrupted or still running
@@ -268,8 +276,8 @@ def footprints(rows, cli, calls, results, where, log_sha):
     out = [f"LOG sha256={log_sha}  (L<n> = line n of the log; S<NN>:<n> = slice line; T<n> = tools.txt row)"]
     for i, t in enumerate(turns, 1):
         span = f"T{t['first']:04}-T{t['end']:04}" if t["first"] else "no calls"
-        out += [f"TURN {i} {t['ts']} L{t['ln']} {span}", f"  asked: {t['prompt']}", f"  said:  {one(t['last'], 10**9) or '(no closing words)'}", *t["marks"]]
-    return "\n".join(out + [f"TURNS {len(turns)}", ""])
+        out += [f"TURN {0 if t.get('zero') else i - (1 if turns[0].get('zero') else 0)} {t['ts']} L{t['ln']} {span}", f"  asked: {t['prompt']}", f"  said:  {one(t['last'], 10**9) or '(no closing words)'}", *t["marks"]]
+    return "\n".join(out + [f"TURNS {sum(1 for t in turns if not t.get('zero'))}", ""])
 
 
 def prepare(log, relative):
@@ -458,6 +466,16 @@ def self_test():
         for cmd, ro in [("git status && rg x", True), ("cd /a", True), ("echo ready && python3 mutate.py", False),
                         ("find . -delete", False), ("git branch -D topic", False), ("ls | xargs rm", False)]:
             assert read_only(cmd) == ro, cmd
+        assert read_only("LC_ALL=C grep x f") and not read_only("FOO=1 python3 m.py")
+        z = fixture(root / "zero.jsonl", [
+            claude("user", "This session is being continued from a previous conversation."),
+            claude("assistant", [{"type": "tool_use", "id": "z1", "name": "Write", "input": {"file_path": "/a"}},
+                                  {"type": "tool_use", "id": "z2", "name": "mcp__plugin_context-mode_context-mode__ctx_execute", "input": {"code": "rm -rf /tmp/x"}},
+                                  {"type": "tool_use", "id": "z3", "name": "mcp__claude_ai_Gmail__send_message", "input": {}}]),
+            claude("user", [{"type": "text", "text": "look"}, {"type": "image"}])])
+        zf = prepare(z, Path("z"))[1]["footprints.txt"]
+        assert "TURN 0 " in zf and " edit     Write" in zf and " state    mcp__plugin_context-mode" in zf
+        assert " state    mcp__claude_ai_Gmail__send_message" in zf and "asked: look [image]" in zf and zf.endswith("TURNS 1\n")
         assert (dirs[1] / "user.txt").read_text().endswith("COUNT 1\n")
         content = (dirs[0] / "slices/S01.txt").read_text()
         assert content.count(":CALL ") == 2 and "[… 21 lines cut]" in content

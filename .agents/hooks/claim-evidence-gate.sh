@@ -236,7 +236,7 @@ recap_reason=""
 # `resume_pack.py` prints a summary line per pack, and `resume_pack.py --read FILE --page N` prints
 # a page followed by `READ <abs path> page N/T lines A-B body=<page sha> sha256=<file sha>`. Three checks, no more:
 # (a) the summary line for <pack>/<sid8> with the same COUNT/TOOLS; (b) every page of user.txt;
-# (c) every page of footprints.txt; timeline.md with a light on every node, every failed call named, and
+# (c) every page of footprints.txt; timeline.md with a light on every node, every failed call named in a lit or dark node, and
 # each `lit` node's S<NN>:<line> on a page read with the file's current sha, or in a fully read scout-T<a>-T<b>.md.
 # A stamp counts only with its page's lines above it (`| tail -1` keeps the stamp, not the body) and
 # a sha equal to the file on disk. The window is the transcript rows after the last human
@@ -360,7 +360,8 @@ PY
           done
         done < <(printf '%s\n' "$nodes" | grep -iE '·[[:space:]]*lit[[:space:]]*$')
         for t in $(grep -E '^  T[0-9]{4,} S[0-9]{2,}:[0-9]+ L[0-9]+ fail ' "$pack/$sid/footprints.txt" 2>/dev/null | awk '{ print $1 }'); do
-          printf '%s\n' "$nodes" | grep -qw "$t" || miss="$miss failed call $t (footprints.txt) is in no timeline node;"
+          # A failure is opened, not skimmed: its node is lit (evidence read) or dark (read, unresolved), never dim.
+          printf '%s\n' "$nodes" | grep -viE '·[[:space:]]*dim[[:space:]]*$' | grep -qw "$t" || miss="$miss failed call $t (footprints.txt) is in no lit or dark timeline node;"
         done
       fi
     fi
