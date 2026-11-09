@@ -171,9 +171,15 @@ DELEGATING = {"Agent", "Task", "Workflow", "mcp__tmux-agent__assign", "mcp__tmux
 SHELL = {"Bash", "exec", "exec_command", "shell", "local_shell_call", "PowerShell",
          "mcp__plugin_context-mode_context-mode__ctx_execute", "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
          "mcp__plugin_context-mode_context-mode__ctx_execute_file"}
-# An MCP or control tool whose name says it writes or acts: a state pointer.
-STATE_TOOL = re.compile(r"(?i)(?:write|create|update|delete|remove|publish|send|post|set|push|deploy|assign|switch|reload|stop|tell|"
-                        r"trash|label|place|close|transition|edit|upload|batch|execute(?!_?read)|rename)")
+# An MCP or control tool whose name has a verb that writes or acts: a state pointer (whole tokens, not substrings).
+STATE_VERBS = set("write create update delete remove publish send post set push deploy assign switch reload stop tell trash "
+                  "label place close transition edit upload batch execute rename append patch merge move copy insert replace "
+                  "add submit apply install uninstall archive restore drop".split())
+
+
+def state_tool(name):
+    tokens = set(re.findall(r"[a-z]+", re.sub(r"([a-z])([A-Z])", r"\1_\2", name.split("__")[-1]).lower()))
+    return bool(tokens & STATE_VERBS) and not {"execute", "read"} <= tokens
 STATE_COMMAND = re.compile(r"\bgit\s+(?:-[Cc]\s+\S+\s+)*(?:commit|push|tag|rebase|reset|merge|checkout|switch|stash)\b"
                            r"|\bgh\s+(?:pr|release|issue)\b|\b(?:plugin|npm|pnpm|yarn|pip3?|brew|uv)\s+(?:install|update|add|remove)\b"
                            r"|\bdeploy\b|\brm\s|\bmv\s|\bcp\s|\bsed\s+-i|(?<![0-9&])>>?\s*(?!/dev/null|&)[^\s|]")
@@ -194,6 +200,8 @@ NOT_HUMAN = {
 def read_only(cmd):
     """Every part of the command is a read-only verb with no deleting or executing flag; else not proven."""
     parts = [p for p in re.split(r"&&|\|\||;|\||\n", cmd) if p.strip()]
+    if re.search(r"\$\(|`", cmd):  # a command substitution runs a program of its own
+        return False
     return bool(parts) and all(READ_ONLY.match(p) and not re.search(r"\s-(?:delete|exec|D|d|x|X)\b|--delete|--force|--exec", p) for p in parts)
 
 
@@ -264,7 +272,7 @@ def footprints(rows, cli, calls, results, where, log_sha):
             cmd = " ; ".join(map(str, raw)) if isinstance(raw, list) else str(raw)  # Codex local_shell_call: argv list
             failed = any(is_error(r) for r in results.get(call_id, []))
             kind = ("fail" if failed else "edit" if name in MUTATING else "state" if STATE_COMMAND.search(cmd)
-                    or (name.startswith("mcp__") and name not in SHELL and STATE_TOOL.search(name.split("__")[-1]))
+                    or (name.startswith("mcp__") and name not in SHELL and state_tool(name))
                     else "delegate" if name in DELEGATING
                     else "shell" if name in SHELL and not read_only(cmd) else None)
             unresolved = call_id not in results  # the call never got its result: interrupted or still running
@@ -469,6 +477,11 @@ def self_test():
                         ("fd -x rm", False)]:
             assert read_only(cmd) == ro, cmd
         assert read_only("LC_ALL=C grep x f") and not read_only("FOO=1 python3 m.py")
+        assert not read_only("FOO=$(./mutate) cat f") and not read_only("FOO=`./mutate` cat f")
+        for tool, st in [("mcp__filesystem__append_file", True), ("mcp__filesystem__apply_patch", True),
+                         ("mcp__github__merge_pull_request", True), ("mcp__x__get_dataset", False),
+                         ("mcp__claude_ai_Atlassian_MCP__executeRead", False), ("mcp__claude_ai_Atlassian_MCP__executeWrite", True)]:
+            assert state_tool(tool) == st, tool
         z = fixture(root / "zero.jsonl", [
             claude("user", "This session is being continued from a previous conversation."),
             claude("assistant", [{"type": "tool_use", "id": "z1", "name": "Write", "input": {"file_path": "/a"}},
