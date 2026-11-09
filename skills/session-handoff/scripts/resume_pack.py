@@ -372,7 +372,7 @@ def build(logs, out, subagents=False):
 PAGE_BYTES = 16 * 1024  # Claude Code keeps a tool result whole only up to ~30 KB, then shows a 2 KB preview.
 
 
-def pages_of(text):  # claim-evidence-gate.sh read_whole repeats this paging; change both
+def pages_of(text):  # claim-evidence-gate.sh read_whole and call_whole repeat this paging; change all three
     """Split at line boundaries into pages of at most PAGE_BYTES; a longer line (a pasted message)
     is cut into 4,000-character pieces first, so no page outgrows the transcript's limit."""
     pages, page, size = [], [], 0
@@ -403,9 +403,10 @@ def read_page(path, number):
                              f"sha256={hashlib.sha256(raw).hexdigest()}"])
 
 
-def read_call(session, number):
-    """Print the whole block of call T<number> from its slice, then a CALL-READ stamp the claim gate
-    checks the same way as a READ stamp: body= binds the lines above it, sha256= the slice file."""
+def read_call(session, number, page=1):
+    """Print one page of call T<number>'s block from its slice (pages_of, so a 256 KiB result is not
+    cut to a preview), then a CALL-READ stamp: body= binds the lines above it. The claim gate counts
+    the receipt only when every page of the block was printed, each equal to the slice on disk."""
     session = session.expanduser().resolve()
     starts = json.loads((session / "manifest.json").read_text(encoding="utf-8")).get("calls")
     if not starts:
@@ -420,10 +421,14 @@ def read_call(session, number):
     last = int(nxt.split(":")[1]) - 1 if nxt and nxt.split(":")[0] == name else len(lines)
     while last > int(first) and not lines[last - 1].split(":", 2)[-1].strip():
         last -= 1  # drop the blank separator line
-    body = lines[int(first) - 1:last]
+    pages = pages_of("\n".join(lines[int(first) - 1:last]))
+    if not 1 <= page <= len(pages):
+        raise ValueError(f"{session}: T{number} page {page} is outside 1-{len(pages)}")
+    body = pages[page - 1]
+    lo = sum(len(q) for q in pages[:page - 1]) + 1
     text = "\n".join(body)
-    return "\n".join(body + [f"CALL-READ {session} T{number:04} {name}:{first}-{last} "
-                             f"body={hashlib.sha256(text.encode('utf-8')).hexdigest()} "
+    return "\n".join(body + [f"CALL-READ {session} T{number:04} {name}:{first}-{last} page {page}/{len(pages)} "
+                             f"lines {lo}-{lo + len(body) - 1} body={hashlib.sha256(text.encode('utf-8')).hexdigest()} "
                              f"sha256={hashlib.sha256(raw).hexdigest()}"])
 
 
@@ -571,8 +576,15 @@ def self_test():
         assert "<500 encrypted bytes dropped>" in blob and "AAAA" not in blob
         # --call prints one whole call block with a stamp bound to it.
         receipt = read_call(dirs[2], 2).splitlines()
-        assert receipt[-1].startswith(f"CALL-READ {dirs[2].resolve()} T0002 S01:") and " body=" in receipt[-1]
+        assert receipt[-1].startswith(f"CALL-READ {dirs[2].resolve()} T0002 S01:") and " page 1/1 lines 1-" in receipt[-1]
         assert sum(":CALL " in line for line in receipt[:-1]) == 1 and receipt[0].split(":", 2)[2].startswith("CALL ")
+        # A 256 KiB result is paged: every page stays under the transcript limit and the pages rebuild the block.
+        for name, content in files.items():
+            (root / "large" / name).parent.mkdir(parents=True, exist_ok=True)
+            (root / "large" / name).write_text(content, encoding="utf-8")
+        total = int(read_call(root / "large", 1).splitlines()[-1].split(" page 1/")[1].split()[0])
+        big = [read_call(root / "large", 1, k) for k in range(1, total + 1)]
+        assert total > 1 and all(len(page.encode("utf-8")) < 30 * 1024 for page in big)
         for bad in (0, 4):
             try:
                 read_call(dirs[2], bad)
@@ -600,12 +612,12 @@ def main():
     parser.add_argument("--read", type=Path, help="print one page of a pack file with its READ stamp")
     parser.add_argument("--page", type=int, default=1)
     parser.add_argument("--call", nargs=2, metavar=("SESSION_DIR", "T<n>"),
-                        help="print one call's whole block (the receipt of a past event) with its CALL-READ stamp")
+                        help="print one page (--page) of one call's block, the receipt of a past event, with its CALL-READ stamp")
     parser.add_argument("logs", nargs="*", type=Path)
     args = parser.parse_args()
     if args.call:
         try:
-            print(read_call(Path(args.call[0]), int(args.call[1].lstrip("Tt"))))
+            print(read_call(Path(args.call[0]), int(args.call[1].lstrip("Tt")), args.page))
         except (OSError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             print(str(exc), file=sys.stderr)
             return 1

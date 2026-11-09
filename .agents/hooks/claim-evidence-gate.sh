@@ -259,10 +259,11 @@ recap_reason=""
 # a page followed by `READ <abs path> page N/T lines A-B body=<page sha> sha256=<file sha>`. Three checks, no more:
 # (a) the summary line for <pack>/<sid8> with the same COUNT/TOOLS; (b) every page of user.txt;
 # (c) every page of footprints.txt; timeline.md with a light on every node, every failed call named in a lit or dark node, and
-# each `lit` node bound to an observation: a T<n> whose call block `resume_pack.py --call` printed (a receipt of a past
-# event, its body equal to those slice lines on disk), or a backticked string of 8+ characters that a live check printed
-# after the resume prompt and that no tool input after it contains (echo, heredoc, a written file read back). Outputs of
-# pack reads and of commands naming pack files or timeline.md are not live checks: the old account proves nothing.
+# each `lit` node bound to an observation: a T<n> whose call block `resume_pack.py --call` printed, every page, each
+# equal to that page of the slice on disk (a receipt of a past event), or a backticked string of 8+ characters that a live check printed
+# after the resume prompt and that no tool input before it contains (echo, heredoc, a written file read back). Outputs
+# with no call of their own, of pack reads, and of commands naming pack files, timeline.md, handoffs or footprints are
+# not live checks: the old account proves nothing.
 # Tripwire, not a security boundary: an agent that splits a string across a computed print still gets past it.
 # A stamp counts only with its page's lines above it (`| tail -1` keeps the stamp, not the body) and
 # a sha equal to the file on disk. The window is the transcript rows after the last human
@@ -297,35 +298,65 @@ if [ -n "$recap_full" ]; then
   # Live checks: {c: command, o: output} after the resume prompt, minus pack reads and commands on pack files.
   # ins: {n: row, s: input} for every tool input after the prompt except timeline.md writes. A quote counts only when
   # some live output shows it before any input contains it: typed first, then printed, is not an observation.
-  pk_re='timeline\.md|footprints\.txt|user\.txt|tools\.txt|manifest\.json|slices/|resume_pack'
+  pk_re='timeline\.md|footprints\.txt|user\.txt|tools\.txt|manifest\.json|slices/|resume_pack|\.claude/(handoffs|footprints)/'
   live="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -sc --arg re "$pk_re" '
-      def cmd: (.input // (.arguments? | strings | (fromjson? // .)) // "") | tostring;
+      def cmd: (.input // .action // (.arguments? | strings | (fromjson? // .)) // "") | tostring;
       ([ .[] | (.message.content? | arrays | .[] | select(.type == "tool_use") | {key: .id, value: cmd}),
-              (select(.type == "response_item" and .payload.type == "function_call") | .payload | {key: .call_id, value: cmd}) ]
+              (select(.type == "response_item" and ((.payload.type // "") | endswith("call"))) | .payload | {key: .call_id, value: cmd}) ]
        | map(select(.key != null)) | from_entries) as $cmds
       | range(length) as $n | .[$n] | ((.message.content? | arrays | .[] | select(.type == "tool_result") | {id: .tool_use_id, o: (.content
                 | if type == "string" then . else (map(.text? // empty) | join("\n")) end)}),
                (select(.type == "response_item" and ((.payload.type // "") | endswith("_output"))) | {id: .payload.call_id, o: (.payload.output
                 | if type == "string" then ((fromjson? | .output? // empty | strings) // .) elif type == "array" then (map(.text? // empty) | join("\n")) else tostring end)}))
       | {n: $n, c: ($cmds[.id // ""] // ""), o} | select(.o | strings | test("(^|\\n)(READ|CALL-READ) /") | not)
-      | select(.c | test($re) | not)' 2>/dev/null)"
+      | select(.c != "" and (.c | test($re) | not))' 2>/dev/null)"
   ins="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -sc 'range(length) as $n | .[$n]
       | ((.message.content? | arrays | .[] | select(.type == "tool_use") | .input | tostring),
-         (select(.type == "response_item" and ((.payload.type // "") | test("call$"))) | .payload | (.arguments // .input // "") | tostring))
+         (select(.type == "response_item" and ((.payload.type // "") | test("call$"))) | .payload | (.arguments // .input // .action // "") | tostring))
       | select(test("timeline\\.md") | not) | {n: $n, s: .}' 2>/dev/null)"
-  # CALL-READ stamps whose body= matches the lines printed above them: session dir TAB T<n>
-  callstamps="$(printf '%s\n' "$outs" | jq -r 'strings | split("\n") as $l
+  # CALL-READ page stamps whose body= matches the lines printed above them: session dir TAB T<n> TAB page TAB total TAB body sha
+  cstamps="$(printf '%s\n' "$outs" | jq -r 'strings | split("\n") as $l
     | reduce range(0; $l | length) as $i ({prev: -1, out: []};
         if ($l[$i] | test("^CALL-READ /")) then .out += [{s: $l[$i], from: (.prev + 1), to: $i}] | .prev = $i else . end)
-    | .out[] | . as $o | (.s | capture("^CALL-READ (?<p>/\\S+) (?<t>T[0-9]+) (?<f>S[0-9]+):(?<a>[0-9]+)-(?<b>[0-9]+) body=(?<d>[0-9a-f]{64}) sha256=[0-9a-f]{64}$")?) as $m
+    | .out[] | . as $o | (.s | capture("^CALL-READ (?<p>/\\S+) (?<t>T[0-9]+) S[0-9]+:[0-9]+-[0-9]+ page (?<n>[0-9]+)/(?<T>[0-9]+) lines (?<a>[0-9]+)-(?<b>[0-9]+) body=(?<d>[0-9a-f]{64}) sha256=[0-9a-f]{64}$")?) as $m
     | select($m != null) | (($m.b | tonumber) - ($m.a | tonumber) + 1) as $k | select($o.to - $o.from >= $k)
-    | [$m.p, $m.t, $m.f, $m.a, $m.b, ($l[($o.to - $k):$o.to] | join("\n") | @base64)] | @tsv' 2>/dev/null \
-    | while IFS=$'\t' read -r p t f a z b; do
-        # The printed body must equal lines a..z of the slice on disk, and the manifest must put T<n> at line a.
-        [ "$(jq -r --argjson n "$((10#${t#T}))" '.calls[$n - 1] // empty' "$p/manifest.json" 2>/dev/null)" = "$f:$a" ] || continue
-        [ "$(printf '%s' "$b" | base64 -d 2>/dev/null)" = "$(sed -n "${a},${z}p" "$p/slices/$f.txt" 2>/dev/null)" ] \
-          && printf '%s\t%s\n' "$p" "$t"
-      done | sort -u)"
+    | [$m.p, $m.t, $m.n, $m.T, $m.d, ($l[($o.to - $k):$o.to] | join("\n") | @base64)] | @tsv' 2>/dev/null)"
+  cstamps="$(while IFS=$'\t' read -r p t n tt d b; do
+      [ -n "$p" ] || continue
+      [ "$(printf '%s' "$b" | base64 -d 2>/dev/null | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -d' ' -f1)" = "$d" ] \
+        && printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$t" "$n" "$tt" "$d"
+    done <<<"$cstamps" | sort -u)"
+  call_whole() { # $1 session dir, $2 T<n> as T%04d: every page of that call block printed, each equal to the slice on disk
+    local want
+    # shortcut: repeats resume_pack.py read_call and pages_of; a change there must change this too.
+    want="$(/usr/bin/python3 - "$1" "$((10#${2#T}))" 2>/dev/null <<'EOF'
+import hashlib, json, sys
+d, n = sys.argv[1], int(sys.argv[2])
+starts = json.load(open(d + "/manifest.json"))["calls"]
+name, first = starts[n - 1].split(":")
+lines = open(d + "/slices/" + name + ".txt", "rb").read().decode("utf-8").splitlines()
+nxt = starts[n] if n < len(starts) else None
+last = int(nxt.split(":")[1]) - 1 if nxt and nxt.split(":")[0] == name else len(lines)
+while last > int(first) and not lines[last - 1].split(":", 2)[-1].strip():
+    last -= 1
+pages, page, size = [], [], 0
+for whole in lines[int(first) - 1:last]:
+    for i in range(0, max(len(whole), 1), 4000):
+        piece = whole[i:i + 4000]
+        k = len(piece.encode("utf-8")) + 1
+        if page and size + k > 16 * 1024:
+            pages.append(page)
+            page, size = [], 0
+        page.append(piece)
+        size += k
+pages = pages + [page] if page else pages or [[]]
+for k, p in enumerate(pages, 1):
+    print(k, len(pages), hashlib.sha256("\n".join(p).encode("utf-8")).hexdigest(), sep="\t")
+EOF
+)" || return 1
+    [ -n "$want" ] && [ -z "$(comm -23 <(printf '%s\n' "$want" | sort) \
+      <(awk -F'\t' -v p="$1" -v t="$2" '$1 == p && $2 == t { print $3 "\t" $4 "\t" $5 }' <<<"$cstamps" | sort -u))" ]
+  }
   read_whole() { # $1 file: every page 1..T of the file on disk, each stamped with its real page sha
     local want
     # shortcut: repeats resume_pack.py pages_of (4000-char pieces, 16 KiB pages); a change there must change this too.
@@ -382,7 +413,7 @@ EOF
           [ -n "$node" ] || continue
           bound=""
           for t in $(printf '%s' "$node" | grep -oE '\bT[0-9]{1,}\b' | sort -u); do
-            n=$((10#${t#T})); printf '%s\n' "$callstamps" | grep -qxF "$pack/$sid"$'\t'"$(printf 'T%04d' "$n")" && { bound=1; break; }
+            n=$((10#${t#T})); [ "$n" -ge 1 ] && call_whole "$pack/$sid" "$(printf 'T%04d' "$n")" && { bound=1; break; }
           done
           if [ -z "$bound" ]; then
             while IFS= read -r q; do
@@ -392,7 +423,7 @@ EOF
               [ -n "$mo" ] && { [ -z "$mi" ] || [ "$mo" -lt "$mi" ]; } && { bound=1; break; }
             done < <(printf '%s' "$node" | grep -oE '`[^`]+`' | sed -E 's/^`|`$//g')
           fi
-          [ -n "$bound" ] || miss="$miss lit node has no observation: no printed --call T<n> and no backticked output (8+ chars) of a live check after the resume prompt that no tool input typed: ${node:0:60};"
+          [ -n "$bound" ] || miss="$miss lit node has no observation: no --call T<n> printed whole (every page) and no backticked output (8+ chars) of a live check after the resume prompt that no earlier tool input typed (quote what the check added: a line number, a subject, a path): ${node:0:60};"
         done < <(printf '%s\n' "$nodes" | grep -iE '·[[:space:]]*lit[[:space:]]*$')
         for t in $(grep -E '^  T[0-9]{4,} S[0-9]{2,}:[0-9]+ L[0-9]+ fail ' "$pack/$sid/footprints.txt" 2>/dev/null | awk '{ print $1 }'); do
           # A failure is opened, not skimmed: its node is lit (evidence read) or dark (read, unresolved), never dim.

@@ -36,7 +36,7 @@ with `APPROVES_NOTHING`: it grants no new approval.
 | Key | Name | Purpose |
 |---|---|---|
 | 4 | 更深的問題 | Find the deeper question behind repeated discussion. |
-| 5 | 前情提要 | Read the handoff, user.txt and footprints.txt, check what the next step relies on live (read-only) or by one `--call` receipt, no scouts; explain the timeline and checkpoint, then wait for confirmation. |
+| 5 | 前情提要 | Read the handoff, user.txt and footprints.txt, check what the next step relies on live (read-only) or by one `--call` receipt, no scouts; adds only the commit diffs and pages the next step continues from; explain the timeline and checkpoint, then wait for confirmation. |
 | 6 | 規劃期 | Show a state model first; add code signatures for cross-module or interface work; write the plan after agreement. |
 | 7 | 調查 | Investigate before changing anything: route with using-decision-tree, then diagnosing-bugs for breakage or unknowns-discovery for unclear asks; report root cause and evidence. |
 | 8 | 指揮＋loop | Direct workers through implementation, review and acceptance until the recorded end conditions hold. |

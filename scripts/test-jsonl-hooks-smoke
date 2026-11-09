@@ -416,7 +416,10 @@ fi
 [[ -z "$(ls -d "$PK"/abcd1234/sub-* 2>/dev/null)" ]] || { echo "FAIL: W46-18 a subagent was packed without --subagents" >&2; exit 1; }
 rdp() { python3 "$RP" --read "$PK/$1"; }
 printf '# timeline\n- do it · said: make ran · receipt T0001 · lit\n' > "$PK/abcd1234/timeline.md"
-res() { jq -cn --arg c "$1" '{type:"user",timestamp:"2026-01-01T00:00:06.000Z",message:{content:[{type:"tool_result",tool_use_id:"r",content:$c}]}}'; }
+res() { # one call and its output: an output with no call of its own is not a live check
+  local id="r$RANDOM$RANDOM"
+  jq -cn --arg i "$id" '{type:"assistant",timestamp:"2026-01-01T00:00:06.000Z",message:{content:[{type:"tool_use",id:$i,name:"Bash",input:{command:"check"}}]}}'
+  jq -cn --arg i "$id" --arg c "$1" '{type:"user",timestamp:"2026-01-01T00:00:06.000Z",message:{content:[{type:"tool_result",tool_use_id:$i,content:$c}]}}'; }
 rtr() { # $1 file, then tool outputs printed after the second prompt; the pack ran after the resume prompt
   local f="$WORK/$1"; shift
   { jq -cn '{type:"user",timestamp:"2026-01-01T00:00:00.000Z",message:{content:"/session-handoff resume 前情提要：照 RESUME 流程讀"}}'
@@ -521,6 +524,18 @@ print("\n".join(body + [re.sub(r"body=[0-9a-f]{64}", "body=" + d, st)]))')"
 printf '# timeline\n- do it · said: make ran · receipt T0001 · lit\n' > "$PK/abcd1234/timeline.md"
 [[ "$FORGED_CALL" != "${ALL[1]}" && "$(run_claim r31 "$FULL" "$(rtr r31.jsonl "${UP[@]}" "$FORGED_CALL" "${ALL[2]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a CALL-READ stamp over a body that is not the slice on disk counted"
+HEAD_CALL="$(printf '%s\n' "${ALL[1]}" | python3 -c '
+import sys, hashlib, re
+l = sys.stdin.read().splitlines(); st = l[-1]; body = l[:1]
+d = hashlib.sha256("\n".join(body).encode()).hexdigest()
+print("\n".join(body + [re.sub(r"lines [0-9]+-[0-9]+ body=[0-9a-f]{64}", "lines 1-1 body=" + d, st)]))')"
+[[ "$(run_claim r33 "$FULL" "$(rtr r33.jsonl "${UP[@]}" "$HEAD_CALL" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a CALL-READ receipt printing only the first line of the call block counted"
+printf '# timeline\n- do it · said: make ran T0001 · now `build finished: 3 targets ok` · lit\n' > "$PK/abcd1234/timeline.md"
+OC="$(rtr r34.jsonl "${UP[@]}" "${ALL[2]}")"
+jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"orphan",content:"build finished: 3 targets ok"}]}}' >> "$OC"
+[[ "$(run_claim r34 "$FULL" "$OC")" == block ]] || w46r="$w46r
+FAIL: W46-18 an output with no call of its own stood in for a live check"
 printf '# timeline\n- do it · said: make ran T0001 · now `ok` · lit\n' > "$PK/abcd1234/timeline.md"
 [[ "$(run_claim r28 "$FULL" "$(rtr r28.jsonl "${UP[@]}" "${ALL[2]}" "ok")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a quote under 8 characters bound a lit node"
