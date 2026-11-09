@@ -236,8 +236,8 @@ recap_reason=""
 # `resume_pack.py` prints a summary line per pack, and `resume_pack.py --read FILE --page N` prints
 # a page followed by `READ <abs path> page N/T lines A-B body=<page sha> sha256=<file sha>`. Three checks, no more:
 # (a) the summary line for <pack>/<sid8> with the same COUNT/TOOLS; (b) every page of user.txt;
-# (c) every page of footprints.txt, and timeline.md whose `lit` nodes cite only slices with a read page
-# or a fully read scout-T<a>-T<b>.md citing them.
+# (c) every page of footprints.txt; timeline.md with a light on every node, every failed call named, and
+# each `lit` node's S<NN>:<line> on a page read with the file's current sha, or in a fully read scout-T<a>-T<b>.md.
 # A stamp counts only with its page's lines above it (`| tail -1` keeps the stamp, not the body) and
 # a sha equal to the file on disk. The window is the transcript rows after the last human
 # `/session-handoff resume` prompt (the flow spans turns); rows, not timestamps. Claude and Codex.
@@ -293,6 +293,32 @@ EOF
     [ -n "$want" ] && [ -z "$(comm -23 <(printf '%s\n' "$want" | sort) \
       <(awk -F'\t' -v p="$1" '$1 == p { print $2 "\t" $3 "\t" $4 "\t" $5 }' <<<"$stamps" | sort -u))" ]
   }
+  line_read() { # $1 slice file, $2 line: the page holding that line, stamped with the file's current sha
+    local want
+    want="$(/usr/bin/python3 - "$1" "$2" 2>/dev/null <<'PY'
+import hashlib, sys
+raw = open(sys.argv[1], "rb").read()
+target, pages, page, size, owner, n = int(sys.argv[2]), [], [], 0, None, 0
+for whole in raw.decode("utf-8").splitlines():
+    n += 1
+    for i in range(0, max(len(whole), 1), 4000):
+        piece = whole[i:i + 4000]
+        b = len(piece.encode("utf-8")) + 1
+        if page and size + b > 16 * 1024:
+            pages.append(page)
+            page, size = [], 0
+        page.append(piece)
+        size += b
+        if n == target and owner is None:
+            owner = len(pages)
+pages = pages + [page] if page else pages
+if owner is None:
+    sys.exit(1)
+print(owner + 1, len(pages), hashlib.sha256(raw).hexdigest(), hashlib.sha256("\n".join(pages[owner]).encode("utf-8")).hexdigest(), sep="\t")
+PY
+)" || return 1
+    awk -F'\t' -v p="$1" '$1 == p { print $2 "\t" $3 "\t" $4 "\t" $5 }' <<<"$stamps" | grep -qxF "$want"
+  }
   while IFS= read -r line; do
     sid="$(printf '%s' "$line" | cut -d' ' -f2)"
     count="$(printf '%s' "$line" | sed -E 's/.*COUNT ([0-9]+).*/\1/')"
@@ -308,15 +334,29 @@ EOF
         || miss="$miss no resume_pack.py summary for $pack/$sid with COUNT $count TOOLS $tools;"
       read_whole "$pack/$sid/user.txt" || miss="$miss $sid/user.txt not read in full with resume_pack.py --read;"
       read_whole "$pack/$sid/footprints.txt" || miss="$miss $sid/footprints.txt not read in full with resume_pack.py --read;"
-      # Every evidence line a `lit` timeline node cites needs a read page of its slice, or a read scout report citing it.
+      # timeline.md: one `- ` line per node, each with a light (lit/dim/dark); a lit node cites S<NN>:<line>
+      # and each cited line sits on a page read in full with the file's current sha, or in a read scout report
+      # citing it; every failed call footprints.txt lists is named (T<n>) in some node.
       tl="$pack/$sid/timeline.md"
       if [ ! -f "$tl" ]; then
         miss="$miss $sid/timeline.md missing (account, evidence and light per node);"
       else
-        for c in $(grep -E '(^|[^a-z])lit([^a-z]|$)' "$tl" | grep -oE 'S[0-9]{2}:[0-9]+' | sort -u); do
-          awk -F'\t' -v p="$pack/$sid/slices/${c%%:*}.txt" '$1 == p { f = 1 } END { exit !f }' <<<"$stamps" && continue
-          for r in $(grep -lE "$c([^0-9]|$)" "$pack/$sid"/scout-T*.md 2>/dev/null); do read_whole "$r" && continue 2; done
-          miss="$miss lit node cites $c but neither its slice page nor a scout report citing it was read;"
+        nodes="$(grep -E '^[[:space:]]*[-*] ' "$tl")"
+        [ -n "$nodes" ] || miss="$miss $sid/timeline.md has no node lines;"
+        bare="$(printf '%s\n' "$nodes" | grep -viE '(^|[^a-z])(lit|dim|dark)([^a-z]|$)' | grep -v '^$' | head -1)"
+        [ -z "$bare" ] || miss="$miss timeline node with no lit/dim/dark: ${bare:0:60};"
+        while IFS= read -r node; do
+          [ -n "$node" ] || continue
+          cites="$(printf '%s' "$node" | grep -oE 'S[0-9]{2,}:[0-9]+' | sort -u)"
+          [ -n "$cites" ] || { miss="$miss lit node cites no S<NN>:<line>: ${node:0:60};"; continue; }
+          for c in $cites; do
+            line_read "$pack/$sid/slices/${c%%:*}.txt" "${c#*:}" && continue
+            for r in $(grep -lE "$c([^0-9]|$)" "$pack/$sid"/scout-T*.md 2>/dev/null); do read_whole "$r" && continue 2; done
+            miss="$miss lit node cites $c but the page holding that line (current file) was not read, nor a scout report citing it;"
+          done
+        done < <(printf '%s\n' "$nodes" | grep -iE '(^|[^a-z])lit([^a-z]|$)')
+        for t in $(grep -E '^  T[0-9]{4,} S[0-9]{2,}:[0-9]+ L[0-9]+ fail ' "$pack/$sid/footprints.txt" 2>/dev/null | awk '{ print $1 }'); do
+          grep -qw "$t" "$tl" || miss="$miss failed call $t (footprints.txt) is in no timeline node;"
         done
       fi
     fi

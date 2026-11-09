@@ -166,19 +166,34 @@ def call_text(call, results):
 
 
 MUTATING = {"Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch", "Artifact"}
-DELEGATING = {"Agent", "Task", "Workflow", "mcp__tmux-agent__assign", "mcp__tmux-agent__tell"}
-STATE_COMMAND = re.compile(r"\bgit\s+(?:-C\s+\S+\s+)?(?:commit|push|tag|rebase|reset|merge)\b|\bgh\s+(?:pr|release)\b"
-                           r"|\bplugin\s+(?:install|update)\b|\bdeploy\b|\brm\s+-|\bmv\s")
+DELEGATING = {"Agent", "Task", "Workflow", "mcp__tmux-agent__assign", "mcp__tmux-agent__tell",
+              "spawn_agent", "send_message", "followup_task"}
+SHELL = {"Bash", "exec", "exec_command", "shell", "local_shell_call", "PowerShell"}
+STATE_COMMAND = re.compile(r"\bgit\s+(?:-[Cc]\s+\S+\s+)*(?:commit|push|tag|rebase|reset|merge|checkout|switch|stash)\b"
+                           r"|\bgh\s+(?:pr|release|issue)\b|\b(?:plugin|npm|pnpm|yarn|pip3?|brew|uv)\s+(?:install|update|add|remove)\b"
+                           r"|\bdeploy\b|\brm\s|\bmv\s|\bcp\s|\bsed\s+-i|(?<![0-9&])>>?\s*(?!/dev/null|&)[^\s|]")
+# A shell command whose first word is here reads only; any other shell call keeps a `shell` pointer.
+READ_ONLY = re.compile(r"^\s*(?:cd\s+\S+\s*&&\s*)?(?:ls|cat|head|tail|wc|rg|grep|fd|find|jq|yq|echo|printf|pwd|which|stat|du|diff|"
+                       r"sed\s+-n|awk|sort|uniq|cut|tr|date|env|test|\[|git\s+(?:-C\s+\S+\s+)?(?:status|log|diff|show|branch|rev-parse|ls-remote|fetch))\b")
+
+
+# The same messages user.txt drops (CLAUDE_USER / CODEX_USER): they mark a turn, they do not open one.
+NOT_HUMAN = re.compile(r"^\s*<(?!pasted_content|command-|!-- attach)|^Base directory for this skill|^Stop hook feedback"
+                       r"|^This session is being continued|^Another Claude session sent a message|^The .+ plugin sent a message"
+                       r"|^\s*# AGENTS\.md instructions")
 
 
 def turn_start(row, cli):
-    """The person's prompt (or a hook/plugin message in its place) opens a turn; a tool result does not."""
+    """Text of a user-side row that is not a tool result: a prompt, or an event (notice, hook, summary)."""
+    if row.get("type") == "attachment" and row.get("attachment", {}).get("type") == "queued_command":
+        prompt = row["attachment"].get("prompt", "")  # a prompt sent while the agent worked opens a turn too
+        return prompt if isinstance(prompt, str) else " ".join(b.get("text", "") for b in prompt if isinstance(b, dict))
     if cli == "codex":
         p = row.get("payload", {})
         if row.get("type") == "response_item" and p.get("type") == "message" and p.get("role") == "user":
             return " ".join(c.get("text", "") for c in p.get("content", []) if isinstance(c, dict))
         return None
-    if row.get("type") != "user" or row.get("isMeta"):
+    if row.get("type") != "user":
         return None
     content = row.get("message", {}).get("content")
     if isinstance(content, str):
@@ -198,6 +213,13 @@ def said(row, cli):
     return " ".join(b.get("text", "") for b in blocks(row) if b.get("type") == "text") if row.get("type") == "assistant" else ""
 
 
+def said_text(text, cap=1200):
+    """The account in full up to cap; longer, its head and tail with the cut shown (a claim often closes it)."""
+    if not text:
+        return "(no closing words)"
+    return text if len(text) <= cap else f"{text[:cap // 2]} [… {len(text) - cap} chars cut] {text[-cap // 2:]}"
+
+
 def footprints(rows, cli, calls, results, where, log_sha):
     """One block per turn: the prompt, the agent's closing words (its account), and a pointer per
     call that changed state, delegated or failed (the evidence). Pointers only: content stays in
@@ -207,12 +229,20 @@ def footprints(rows, cli, calls, results, where, log_sha):
     turns, cur = [], None
     for row in rows:
         prompt = turn_start(row, cli)
-        if prompt is not None and not prompt.lstrip().startswith("<local-command"):
+        human = (prompt is not None and not row.get("isMeta") and row.get("origin", {}).get("kind") != "plugin"
+                 and not NOT_HUMAN.search(prompt))
+        if human:
             cur = dict(ln=row["_ln"], ts=row.get("timestamp", "")[:19], prompt=one(prompt, 160), last="", marks=[], first=None, end=None)
             turns.append(cur)
             continue
         if cur is None:
             continue
+        if prompt is not None and not row.get("isMeta") and prompt.strip():
+            cur["marks"].append(f"  event L{row['_ln']} {one(prompt, 100)}")
+            continue
+        answers = row.get("toolUseResult", {}).get("answers") if isinstance(row.get("toolUseResult"), dict) else None
+        if answers:
+            cur["marks"].append(f"  answer L{row['_ln']} " + one(" || ".join(f"{k[:50]} → {v}" for k, v in answers.items()), 300))
         text = said(row, cli)
         if text.strip():
             cur["last"] = text
@@ -225,14 +255,18 @@ def footprints(rows, cli, calls, results, where, log_sha):
             cmd = str(args.get("command", args.get("cmd", "")))
             failed = any(is_error(r) for r in results.get(call_id, []))
             kind = ("fail" if failed else "edit" if name in MUTATING else "state" if STATE_COMMAND.search(cmd)
-                    else "delegate" if name in DELEGATING else None)
+                    else "delegate" if name in DELEGATING
+                    else "shell" if name in SHELL and not READ_ONLY.match(cmd) else None)
+            unresolved = call_id not in results  # the call never got its result: interrupted or still running
+            kind = kind or ("noresult" if unresolved else None)
             if kind:
                 target = next((args[k] for k in TARGET_KEYS if k in args), value)
-                cur["marks"].append(f"  T{t:04} {at} L{call[4]} {kind:8} {name} {one(serialized(target), 100)}")
+                cur["marks"].append(f"  T{t:04} {at} L{call[4]} {kind:8} {name} {one(serialized(target), 100)}"
+                                    + (" [no result]" if unresolved and kind != "noresult" else ""))
     out = [f"LOG sha256={log_sha}  (L<n> = line n of the log; S<NN>:<n> = slice line; T<n> = tools.txt row)"]
     for i, t in enumerate(turns, 1):
         span = f"T{t['first']:04}-T{t['end']:04}" if t["first"] else "no calls"
-        out += [f"TURN {i} {t['ts']} L{t['ln']} {span}", f"  asked: {t['prompt']}", f"  said:  {one(t['last'], 200) or '(no closing words)'}", *t["marks"]]
+        out += [f"TURN {i} {t['ts']} L{t['ln']} {span}", f"  asked: {t['prompt']}", f"  said:  {said_text(one(t['last'], 100000))}", *t["marks"]]
     return "\n".join(out + [f"TURNS {len(turns)}", ""])
 
 
@@ -395,6 +429,25 @@ def self_test():
         assert "TURN 1 " in foot and "T0001-T0002" in foot and "asked: hello" in foot and foot.endswith("TURNS 1\n")
         assert " L3 delegate Agent " in foot and "S01:1 " not in foot  # Agent is call 2: its CALL line is past S01:1
         assert " fail " in (dirs[2] / "footprints.txt").read_text()
+        q = fixture(root / "queued.jsonl", [
+            claude("user", "first"),
+            dict(type="attachment", timestamp="t", attachment={"type": "queued_command", "prompt": "second"}),
+            claude("user", "The tmux-agent plugin sent a message: worker done"),
+            claude("user", [{"type": "tool_result", "tool_use_id": "z", "content": "ok"}], toolUseResult={"answers": {"Which one?": "B"}}),
+            claude("assistant", [{"type": "text", "text": "x" * 1500 + " I fixed it and deployed it."},
+                                  {"type": "tool_use", "id": "q1", "name": "Bash", "input": {"command": "git -c user.name=R commit -m fix"}},
+                                  {"type": "tool_use", "id": "q2", "name": "Bash", "input": {"command": "npm install pkg"}},
+                                  {"type": "tool_use", "id": "q3", "name": "Bash", "input": {"command": "printf done > result.txt"}},
+                                  {"type": "tool_use", "id": "q4", "name": "Bash", "input": {"command": "make build"}},
+                                  {"type": "tool_use", "id": "q5", "name": "Bash", "input": {"command": "git status"}},
+                                  {"type": "tool_use", "id": "q6", "name": "spawn_agent", "input": {}}])])
+        _, qf, _ = prepare(q, Path("q"))
+        qt = qf["footprints.txt"]
+        assert "TURN 2 " in qt and "asked: second" in qt and qt.split("TURN 2 ")[0].count(" no calls") == 1
+        assert "deployed it." in qt and "chars cut" in qt and qt.endswith("TURNS 2\n")
+        assert "  event L3 The tmux-agent plugin sent" in qt and "  answer L4 Which one? → B" in qt
+        assert qt.count(" state ") == 3 and qt.count(" shell ") == 1 and " delegate " in qt and "[no result]" in qt
+        assert " noresult Bash git status" in qt  # a read-only call is listed only because it never returned
         assert (dirs[1] / "user.txt").read_text().endswith("COUNT 1\n")
         content = (dirs[0] / "slices/S01.txt").read_text()
         assert content.count(":CALL ") == 2 and "[… 21 lines cut]" in content

@@ -478,8 +478,22 @@ for n in $(seq 1 "$UT"); do UP+=("$(python3 "$RP" --read "$U" --page "$n")"); do
 FAIL: W46-18 every page of a multi-page user.txt (one line over 4000 chars) blocked: gate and resume_pack.py page differently"
 [[ "$(run_claim r17 "$FULL" "$(rtr r17.jsonl "${UP[@]:0:$((UT - 1))}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a multi-page user.txt with its last page unread passed"
+cp "$PK/abcd1234/timeline.md" "$WORK/timeline.keep"
+printf '# timeline\n- do it · said: make ran · no light\n' > "$PK/abcd1234/timeline.md"
+[[ "$(run_claim r20 "$FULL" "$(rtr r20.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a timeline node with no lit/dim/dark passed"
+printf '# timeline\n- do it · said: make ran · lit\n' > "$PK/abcd1234/timeline.md"
+[[ "$(run_claim r21 "$FULL" "$(rtr r21.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a lit node citing no S<NN>:<line> passed"
+printf '# timeline\n- do it · said: make ran · evidence S01:999 · lit\n' > "$PK/abcd1234/timeline.md"
+[[ "$(run_claim r22 "$FULL" "$(rtr r22.jsonl "${UP[@]}" "${ALL[2]}" "$(rdp abcd1234/slices/S01.txt)")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a lit node citing a line the slice does not have passed"
+printf '# timeline\n- do it · said: make ran · not opened · dim\n' > "$PK/abcd1234/timeline.md"
+[[ -z "$(run_claim r23 "$FULL" "$(rtr r23.jsonl "${UP[@]}" "${ALL[2]}")")" ]] || w46r="$w46r
+FAIL: W46-18 an honest dim-only timeline with footprints read blocked"
+cp "$WORK/timeline.keep" "$PK/abcd1234/timeline.md"
 mv "$PK/abcd1234/timeline.md" "$WORK/timeline.bak"
-[[ "$(run_claim r19 "$FULL" "$(rtr r19.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
+[[ "$(run_claim r19 "$FULL" "$(rtr r19.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 full with no timeline.md passed"
 mv "$WORK/timeline.bak" "$PK/abcd1234/timeline.md"
 printf 'edited\n' >> "$PK/abcd1234/user.txt"
