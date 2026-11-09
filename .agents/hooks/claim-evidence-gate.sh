@@ -295,22 +295,24 @@ if [ -n "$recap_full" ]; then
         && printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$n" "$t" "$h" "$d"
     done <<<"$cand" | sort -u)"
   # Live checks: {c: command, o: output} after the resume prompt, minus pack reads and commands on pack files.
-  # ins: every tool input after the prompt except timeline.md writes; a quote found there was typed, not observed.
+  # ins: {n: row, s: input} for every tool input after the prompt except timeline.md writes. A quote counts only when
+  # some live output shows it before any input contains it: typed first, then printed, is not an observation.
   pk_re='timeline\.md|footprints\.txt|user\.txt|tools\.txt|manifest\.json|slices/|resume_pack'
   live="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -sc --arg re "$pk_re" '
       def cmd: (.input // (.arguments? | strings | (fromjson? // .)) // "") | tostring;
       ([ .[] | (.message.content? | arrays | .[] | select(.type == "tool_use") | {key: .id, value: cmd}),
               (select(.type == "response_item" and .payload.type == "function_call") | .payload | {key: .call_id, value: cmd}) ]
        | map(select(.key != null)) | from_entries) as $cmds
-      | .[] | ((.message.content? | arrays | .[] | select(.type == "tool_result") | {id: .tool_use_id, o: (.content
+      | range(length) as $n | .[$n] | ((.message.content? | arrays | .[] | select(.type == "tool_result") | {id: .tool_use_id, o: (.content
                 | if type == "string" then . else (map(.text? // empty) | join("\n")) end)}),
                (select(.type == "response_item" and ((.payload.type // "") | endswith("_output"))) | {id: .payload.call_id, o: (.payload.output
                 | if type == "string" then ((fromjson? | .output? // empty | strings) // .) elif type == "array" then (map(.text? // empty) | join("\n")) else tostring end)}))
-      | {c: ($cmds[.id // ""] // ""), o} | select(.o | strings | test("(^|\\n)(READ|CALL-READ) /") | not)
+      | {n: $n, c: ($cmds[.id // ""] // ""), o} | select(.o | strings | test("(^|\\n)(READ|CALL-READ) /") | not)
       | select(.c | test($re) | not)' 2>/dev/null)"
-  ins="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -c '(.message.content? | arrays | .[] | select(.type == "tool_use") | .input | tostring),
-      (select(.type == "response_item" and ((.payload.type // "") | test("call$"))) | .payload | (.arguments // .input // "") | tostring)
-      | select(test("timeline\\.md") | not)' 2>/dev/null)"
+  ins="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -sc 'range(length) as $n | .[$n]
+      | ((.message.content? | arrays | .[] | select(.type == "tool_use") | .input | tostring),
+         (select(.type == "response_item" and ((.payload.type // "") | test("call$"))) | .payload | (.arguments // .input // "") | tostring))
+      | select(test("timeline\\.md") | not) | {n: $n, s: .}' 2>/dev/null)"
   # CALL-READ stamps whose body= matches the lines printed above them: session dir TAB T<n>
   callstamps="$(printf '%s\n' "$outs" | jq -r 'strings | split("\n") as $l
     | reduce range(0; $l | length) as $i ({prev: -1, out: []};
@@ -385,8 +387,9 @@ EOF
           if [ -z "$bound" ]; then
             while IFS= read -r q; do
               [ "${#q}" -ge 8 ] || continue
-              printf '%s\n' "$ins" | jq -e --arg q "$q" 'select(index($q))' >/dev/null 2>&1 && continue
-              printf '%s\n' "$live" | jq -e --arg q "$q" --arg pk "$pack" 'select((.o | index($q)) and (.c | index($pk) | not))' >/dev/null 2>&1 && { bound=1; break; }
+              mo="$(printf '%s\n' "$live" | jq -sr --arg q "$q" --arg pk "$pack" '[.[] | select((.o | index($q)) and (.c | index($pk) | not)) | .n] | min // empty' 2>/dev/null)"
+              mi="$(printf '%s\n' "$ins" | jq -sr --arg q "$q" '[.[] | select(.s | index($q)) | .n] | min // empty' 2>/dev/null)"
+              [ -n "$mo" ] && { [ -z "$mi" ] || [ "$mo" -lt "$mi" ]; } && { bound=1; break; }
             done < <(printf '%s' "$node" | grep -oE '`[^`]+`' | sed -E 's/^`|`$//g')
           fi
           [ -n "$bound" ] || miss="$miss lit node has no observation: no printed --call T<n> and no backticked output (8+ chars) of a live check after the resume prompt that no tool input typed: ${node:0:60};"
