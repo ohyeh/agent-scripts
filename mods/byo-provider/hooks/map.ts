@@ -1,10 +1,76 @@
 // Pure helpers: no `$`, so test/map.test.ts runs them under bun.
-import type { TurnStepChunk, TurnStepResult, TurnUsage } from 'claude-code'
+import type { ProcessSpawnChunk, ProcessSpawnResult, TurnStepChunk, TurnStepResult, TurnUsage } from 'claude-code'
 
 export type Block = { type: string; [k: string]: unknown }
 export type Msg = { role: 'user' | 'assistant'; content: Block[] }
 export type GateTool = { name: string; description: string; input_schema: Record<string, unknown> }
-export type Step = { chunks: TurnStepChunk[]; result: TurnStepResult }
+export type Step = { chunks: TurnStepChunk[]; result: TurnStepResult; ok?: boolean }
+
+export type CliOwner = { sessionId: string; pid: number; procStart: string }
+export type CliBinding = { agentId: string; worker: string; profile: string; workerProfile: string; kind: string; ledger: string; owner: CliOwner; name?: string; cwd?: string }
+
+export function stopReceipt(worker: string, receipt: string): boolean {
+  return receipt.startsWith(`stopped "${worker}" on `) || receipt.split('\n').some(line =>
+    (line.startsWith('Stopped ') || line.startsWith('Already stopped: ')) && line.endsWith(`-${worker}`))
+}
+
+/** Binding and guard release is conditional on positive stop evidence. */
+export async function finishStop(worker: string, stop: () => Promise<string>, release: () => Promise<void>) {
+  const receipt = await stop()
+  if (!stopReceipt(worker, receipt)) throw new Error(`unconfirmed CLI stop: ${receipt}`)
+  await release()
+}
+
+/** Stored JSON is checked before it can name a worker to stop. */
+export function parseBindings(stored: unknown): CliBinding[] {
+  if (stored === undefined) return []
+  if (!Array.isArray(stored)) throw new Error('invalid CLI bindings store: expected an array')
+  for (const raw of stored) {
+    if (!raw || typeof raw !== 'object' || !['agentId', 'worker', 'profile', 'workerProfile', 'kind', 'ledger'].every(k => typeof raw[k] === 'string' && raw[k].length > 0)
+      || !/^[\w.-]+$/.test(raw.worker) || !/^[\w.-]+$/.test(raw.workerProfile)
+      || ['name', 'cwd'].some(k => raw[k] !== undefined && typeof raw[k] !== 'string')
+      || !raw.owner || typeof raw.owner.sessionId !== 'string' || !raw.owner.sessionId
+      || !Number.isSafeInteger(raw.owner.pid) || raw.owner.pid <= 0
+      || typeof raw.owner.procStart !== 'string' || !raw.owner.procStart) throw new Error('invalid CLI binding entry')
+  }
+  return stored as CliBinding[]
+}
+
+/** A foreign session's agent ids are never judged by this session's agent list. */
+export function bindingPlan(stored: unknown, liveIds: readonly string[], sessionId: string, protectedOwners: readonly CliOwner[]): { rebind: CliBinding[]; stop: CliBinding[]; keep: CliBinding[] } {
+  const live = new Set(liveIds)
+  const rebind: CliBinding[] = [], stop: CliBinding[] = [], keep: CliBinding[] = []
+  for (const b of parseBindings(stored)) {
+    const target = b.owner.sessionId === sessionId ? (live.has(b.agentId) ? rebind : stop)
+      : protectedOwners.some(o => o.sessionId === b.owner.sessionId && o.pid === b.owner.pid && o.procStart === b.owner.procStart) ? keep : stop
+    target.push(b)
+  }
+  return { rebind, stop, keep }
+}
+
+/** CLI routes are explicit and match whole type names, never substrings. */
+export function cliAllowed(kv: Record<string, string>, type: string | undefined, workflow = false, fork = false): boolean {
+  const kind = workflow ? 'workflow' : fork ? 'fork' : type
+  return !!kind && (kv.cli_types ?? '').split(',').map(t => t.trim()).includes(kind)
+}
+
+export function cliProfile(kv: Record<string, string>): string | undefined {
+  if (!Object.hasOwn(kv, 'cli')) return undefined
+  if (!/^(tmux\/)?[\w.-]+$/.test(kv.cli ?? '')) throw new Error('cli must be <profile> or tmux/<profile>')
+  return kv.cli
+}
+
+/** Only a validated successful report is an answer; every other status fails the step. */
+export function reportStep(turnId: string, index: number, body: unknown): Step {
+  const r = body as { schema_version?: unknown; status?: unknown; summary?: unknown; artifacts?: unknown; errors?: unknown }
+  if (!r || r.schema_version !== 1 || typeof r.summary !== 'string' || !Array.isArray(r.artifacts) || !Array.isArray(r.errors))
+    return failStep(turnId, index, 'invalid CLI result.json (schema_version, summary, artifacts, errors required)')
+  if (r.status !== 'success') return failStep(turnId, index, `CLI status ${String(r.status)}: ${r.summary}; ${JSON.stringify(r.errors)}`)
+  if (!r.summary.trim()) return failStep(turnId, index, 'CLI report is empty')
+  const text = JSON.stringify(body)
+  return { ok: true, chunks: [{ kind: 'text', index: 0, text }, { kind: 'stop', stopReason: 'end_turn', usage: null }],
+    result: { turnId, index, answer: text, toolUses: [], stopReason: 'end_turn', usage: null } }
+}
 
 type StopReason = TurnStepResult['stopReason']
 const STOPS = new Set(['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'pause_turn', 'refusal', 'compaction', 'model_context_window_exceeded'])
@@ -114,6 +180,31 @@ export async function deadline<T>(work: Promise<T>, ms: number, signal: AbortSig
   } finally {
     timer?.cancel()
     signal.removeEventListener('abort', onAbort)
+  }
+}
+
+export async function headlessStep(turnId: string, index: number,
+  stream: Pick<AsyncGenerator<ProcessSpawnChunk, ProcessSpawnResult>, 'next' | 'return'>,
+  ms: number, signal: AbortSignal, after: After, report: () => Promise<unknown>): Promise<Step> {
+  let stderr = ''
+  try {
+    const drain = async () => {
+      let end
+      do {
+        end = await stream.next()
+        if (!end.done && end.value.stream === 'stderr') stderr = (stderr + end.value.text).slice(-2000)
+      } while (!end.done)
+      return end.value
+    }
+    const got = await deadline(drain(), ms, signal, after)
+    if ('why' in got) throw new Error(got.why)
+    if (signal.aborted) throw new Error('interrupted')
+    if (got.ok.code !== 0) throw new Error(/BYO_CLI_ERROR: ([^\n]+)/.exec(stderr)?.[1] ?? `CLI exit ${got.ok.code} (${got.ok.signal ?? 'no signal'})`)
+    return reportStep(turnId, index, await report())
+  } catch (error) {
+    let why = String(error)
+    try { await stream.return({ code: null, signal: 'SIGTERM' }) } catch (stopError) { why += `; CLI stop failed: ${String(stopError)}` }
+    return failStep(turnId, index, why)
   }
 }
 

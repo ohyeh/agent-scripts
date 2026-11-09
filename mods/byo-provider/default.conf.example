@@ -23,3 +23,8 @@ agents=
 haiku=
 sonnet=
 opus=
+# CLI route instead of url/token/model: sol (headless) or tmux/agy-flash (interactive worker).
+# cli=sol
+# Exact agent types allowed to use CLI routes (default.conf only); empty disables them.
+# Add workflow and/or fork explicitly for those untyped loops.
+cli_types=

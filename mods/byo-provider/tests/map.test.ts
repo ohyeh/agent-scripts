@@ -2,6 +2,117 @@
 import { expect, test } from 'claude-code/testing'
 import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, tierRoute, toStep, bandText, resultsFor } from '../hooks/map'
 import { SCHEMAS } from '../hooks/schemas'
+import { bindingPlan, cliAllowed, cliProfile, finishStop, headlessStep, reportStep } from '../hooks/map'
+
+test('headless abort and timeout close a blocked stream with SIGTERM and fail promptly', async () => {
+  for (const mode of ['abort', 'timeout', 'already-aborted']) {
+    const stop = new AbortController()
+    const calls: unknown[] = []
+    let reports = 0
+    const stream = {
+      next: () => new Promise<never>(() => {}),
+      return: async (value: { code: number | null; signal: string | null }) => { calls.push(value); return { done: true as const, value } },
+    }
+    if (mode === 'already-aborted') stop.abort()
+    const step = headlessStep('headless', 0, stream, mode === 'timeout' ? 10 : 590_000, stop.signal, after, async () => { reports++; return {} })
+    if (mode === 'abort') stop.abort()
+    const got = await step
+    expect(calls).toEqual([{ code: null, signal: 'SIGTERM' }])
+    expect(got.ok).not.toBe(true)
+    expect(got.result.stopReason).toBe('end_turn')
+    expect(got.result.answer).toContain(mode === 'timeout' ? 'no answer in 0.01 s' : 'interrupted')
+    expect(reports).toBe(0)
+  }
+})
+
+test('failed stop keeps binding and guard; only confirmed stop releases them', async () => {
+  const state = { binding: true, guard: true }
+  const release = async () => { state.binding = false; state.guard = false }
+  for (const receipt of ['stop for "worker" exited 1; row dropped anyway', 'not stopping "worker"', 'Stopped other-worker2', '']) {
+    let failed = false
+    try { await finishStop('worker', async () => receipt, release) } catch { failed = true }
+    expect(failed).toBe(true)
+    expect(state).toEqual({ binding: true, guard: true })
+  }
+  await finishStop('worker', async () => 'stopped "worker" on agy-flash; cancelled episode(s) 1', release)
+  expect(state).toEqual({ binding: false, guard: false })
+  for (const receipt of ['Stopped agy-flash-worker', 'Already stopped: agy-flash-worker']) {
+    let released = false
+    await finishStop('worker', async () => receipt, async () => { released = true })
+    expect(released).toBe(true)
+  }
+})
+
+test('stored CLI bindings split by live agent id without losing route metadata', () => {
+  const first = { agentId: 'a1', worker: 'byo-one.abcde', profile: 'coding', workerProfile: 'agy-flash', kind: 'general-purpose', ledger: '/state/.v3', name: 'mate', cwd: '/repo', owner: { sessionId: 'own', pid: 123, procStart: 'start' } }
+  const second = { ...first, agentId: 'a2', worker: 'byo-two.abcde' }
+  const stored = JSON.parse(JSON.stringify([first, second]))
+  expect(bindingPlan(stored, ['a1', 'unrelated'], 'own', [])).toEqual({ rebind: [first], stop: [second], keep: [] })
+  expect(bindingPlan(stored, [], 'own', [])).toEqual({ rebind: [], stop: [first, second], keep: [] })
+  expect(bindingPlan(stored, ['a1', 'a2'], 'own', [])).toEqual({ rebind: [first, second], stop: [], keep: [] })
+  expect(stored).toEqual([first, second])
+  expect(bindingPlan(undefined, [], 'own', [])).toEqual({ rebind: [], stop: [], keep: [] })
+  expect(bindingPlan([], [], 'own', [])).toEqual({ rebind: [], stop: [], keep: [] })
+})
+
+test('own/foreign owners and live/dead agents select rebind, stop or keep', () => {
+  const own = { agentId: 'a1', worker: 'byo-one.abcde', profile: 'coding', workerProfile: 'agy-flash', kind: 'general-purpose', ledger: '/state/.v3', owner: { sessionId: 'own', pid: 123, procStart: 'start' } }
+  const foreign = { ...own, worker: 'byo-two.abcde', owner: { sessionId: 'other', pid: 456, procStart: 'later' } }
+  for (const protectedOwners of [[], [own.owner]]) {
+    expect(bindingPlan([own], ['a1'], 'own', protectedOwners)).toEqual({ rebind: [own], stop: [], keep: [] })
+    expect(bindingPlan([own], [], 'own', protectedOwners)).toEqual({ rebind: [], stop: [own], keep: [] })
+  }
+  for (const ids of [[], ['a1']]) {
+    expect(bindingPlan([foreign], ids, 'own', [foreign.owner])).toEqual({ rebind: [], stop: [], keep: [foreign] })
+    expect(bindingPlan([foreign], ids, 'own', [])).toEqual({ rebind: [], stop: [foreign], keep: [] })
+  }
+  expect(bindingPlan([own, foreign], ['a1'], 'own', [foreign.owner])).toEqual({ rebind: [own], stop: [], keep: [foreign] })
+  const dead = { ...foreign, worker: 'byo-old.abcde', owner: { ...foreign.owner, procStart: 'older process' } }
+  expect(bindingPlan([foreign, dead], [], 'own', [foreign.owner])).toEqual({ rebind: [], stop: [dead], keep: [foreign] })
+})
+
+test('invalid stored bindings fail before they can name a worker to stop', () => {
+  for (const stored of [null, {}, [null], [{ agentId: 'a1' }], [{ agentId: 'a1', worker: '../other', profile: 'coding', workerProfile: 'agy-flash', kind: 'workflow', ledger: '/state/.v3' }]])
+    expect(() => bindingPlan(stored, [], 'own', [])).toThrow()
+  const binding = { agentId: 'a1', worker: 'byo-one.abcde', profile: 'coding', workerProfile: 'agy-flash', kind: 'workflow', ledger: '/state/.v3' }
+  for (const owner of [undefined, {}, { sessionId: 'own', pid: '123', procStart: 'start' }, { sessionId: 'own', pid: 0, procStart: 'start' }, { sessionId: 'own', pid: 123, procStart: '' }])
+    expect(() => bindingPlan([{ ...binding, owner }], [], 'own', [])).toThrow()
+})
+
+test('CLI profile needs no gateway fields and rejects unsafe or empty names', () => {
+  expect(cliProfile(parseConf('cli=sol'))).toBe('sol')
+  expect(cliProfile(parseConf('cli=tmux/agy-flash'))).toBe('tmux/agy-flash')
+  expect(cliProfile(parseConf('model=x'))).toBe(undefined)
+  for (const cli of ['', '../sol', 'tmux/', 'sol;id', 'tmux/a/b']) expect(() => cliProfile({ cli })).toThrow()
+})
+
+test('CLI opt-in is exact, including separate workflow and fork tokens', () => {
+  const kv = { cli_types: ' general-purpose, workflow, fork ' }
+  expect(cliAllowed(kv, 'general-purpose')).toBe(true)
+  expect(cliAllowed(kv, 'general')).toBe(false)
+  expect(cliAllowed(kv, 'Explore')).toBe(false)
+  expect(cliAllowed({}, 'general-purpose')).toBe(false)
+  expect(cliAllowed({ cli_types: ',' }, undefined)).toBe(false)
+  expect(cliAllowed(kv, undefined, true)).toBe(true)
+  expect(cliAllowed(kv, undefined, false, true)).toBe(true)
+  expect(cliAllowed({ cli_types: 'general-purpose' }, 'general-purpose', true)).toBe(false)
+  expect(cliAllowed({ cli_types: 'general-purpose' }, 'general-purpose', false, true)).toBe(false)
+})
+
+test('CLI reports end one step and failed, blocked, malformed reports never succeed', () => {
+  const report = { schema_version: 1, status: 'success', summary: 'answer', artifacts: [], errors: [] }
+  const step = reportStep('t', 3, report)
+  expect(step.ok).toBe(true)
+  expect(step.result).toMatchObject({ answer: JSON.stringify(report), index: 3, stopReason: 'end_turn', toolUses: [] })
+  expect(step.chunks.at(-1)).toEqual({ kind: 'stop', stopReason: 'end_turn', usage: null })
+  for (const status of ['failed', 'blocked', 'needs-input', 'pending', undefined]) {
+    const failed = reportStep('t', 0, { ...report, status, errors: ['reason'] })
+    expect(failed.ok).not.toBe(true)
+    expect(failed.result.answer).toContain('CLI status')
+  }
+  for (const bad of [null, {}, { ...report, schema_version: '1' }, { ...report, summary: '' }])
+    expect(reportStep('t', 0, bad).ok).not.toBe(true)
+})
 
 const resp = {
   id: 'msg_x', type: 'message', role: 'assistant', model: 'gate-m', stop_reason: 'tool_use',

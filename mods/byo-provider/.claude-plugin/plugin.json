@@ -1,6 +1,6 @@
 {
   "name": "byo-provider",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Answer chosen loops (main, a subagent, a fork) with a model on your own Anthropic-format gateway by answering turn.step; every other loop stays on Claude. Env is never touched and the Claude credential is never sent to the gateway.",
   "author": {
     "name": "PaulYeh",
@@ -20,7 +20,7 @@
     "path": {
       "type": "string",
       "title": "Profiles folder",
-      "description": "Folder of <name>.conf profiles (url=, token=, model=, effort=off|low|medium|high|max, timeout=seconds); default.conf is used when no name is typed. Read at each gateway request; the token never enters settings.",
+      "description": "Folder of <name>.conf profiles (gateway: url=, token=, model=; CLI: cli=<profile>|tmux/<profile>; timeout=seconds). default.conf also holds cli_types= opt-in. The token never enters settings.",
       "default": "~/.config/byo-provider/profiles"
     }
   }

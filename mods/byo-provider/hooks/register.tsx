@@ -1,8 +1,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
-import { bandText, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
+import { bandText, bindingPlan, parseBindings, cliAllowed, cliProfile, finishStop, stopReceipt, reportStep, headlessStep, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
 import { SCHEMAS } from './schemas'
-import type { Fail, GateTool, Msg, Ran, Step } from './map'
+import type { CliBinding, CliOwner, Fail, GateTool, Msg, Ran, Step } from './map'
 import type { View } from '../types'
 
 // byo-provider: chosen loops are answered by the owner's Anthropic-format gateway by
@@ -20,7 +20,7 @@ import type { View } from '../types'
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
-const VERSION = '0.6.0' // keep equal to .claude-plugin/plugin.json
+const VERSION = '0.7.0' // keep equal to .claude-plugin/plugin.json
 const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
 const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
@@ -63,6 +63,121 @@ const band = { folded: true, hidden: false }
 // A workflow agent's conversation is closed to hooks ($.session.messages gives {deny}), so the mod keeps its
 // own: the task at spawn, each gate answer, and each tool result tool.call hands back. agentId → record.
 const own = new Map<string, { msgs: Msg[]; ran: Ran[] }>()
+const cliLoops = new Map<string, { prompt: string; kind: string; name?: string; cwd?: string; teammate: boolean; worker?: string; workerProfile?: string; ledger?: string; owner?: CliOwner; closed?: boolean; pending: string[]; guard?: ReturnType<EngineInterface['process']['spawn']>; guardPath?: string }>()
+const BINDINGS_KEY = 'byo-provider.cli-bindings'
+let bindingWrites: Promise<void> = Promise.resolve()
+let bindingError: string | undefined
+let cleanupBin: string | undefined
+
+function saveBinding($: EngineInterface, agentId: string, binding?: CliBinding, ownerId?: string): Promise<void> {
+  const write = bindingWrites.catch(() => undefined).then(async () => {
+    const sessionId = ownerId ?? await $.session.id()
+    const key = `${BINDINGS_KEY}.${sessionId}`
+    const stored = parseBindings(await $.store.get(key)).filter(b => b.agentId !== agentId)
+    if (binding) stored.push(binding)
+    if (stored.some(b => b.owner.sessionId !== sessionId)) throw new Error('CLI binding owner does not match its store key')
+    if (stored.length) await $.store.set(key, stored)
+    else await $.store.delete(key)
+  })
+  bindingWrites = write
+  return write
+}
+
+async function currentOwner($: EngineInterface): Promise<CliOwner> {
+  const sessionId = await $.session.id()
+  const dir = `${await $.env.get('HOME')}/.claude/sessions`
+  for (const entry of await $.fs.list(dir)) {
+    if (!/^\d+\.json$/.test(entry.name)) continue
+    const row = await $.fs.read(`${dir}/${entry.name}`).then(t => JSON.parse(String(t)), () => null).catch(() => null)
+    if (row?.sessionId === sessionId && row.pid === Number(entry.name.slice(0, -5)) && typeof row.procStart === 'string' && row.procStart) {
+      const owner = { sessionId, pid: row.pid, procStart: row.procStart }
+      if (await ownerState($, owner) === 'live') return owner
+    }
+  }
+  throw new Error('current Claude session has no registry entry')
+}
+
+async function ownerState($: EngineInterface, owner: CliOwner): Promise<'live' | 'dead' | 'unknown'> {
+  try {
+    const dir = `${await $.env.get('HOME')}/.claude/sessions`
+    const name = `${owner.pid}.json`
+    if (!(await $.fs.list(dir)).some(f => f.name === name)) return 'dead'
+    const row = JSON.parse(String(await $.fs.read(`${dir}/${name}`)))
+    if (!row || typeof row.sessionId !== 'string') return 'unknown'
+    if (row.sessionId !== owner.sessionId) return 'dead'
+    if (!Number.isSafeInteger(row.pid) || typeof row.procStart !== 'string' || !row.procStart) return 'unknown'
+    if (row.pid !== owner.pid || row.procStart !== owner.procStart) return 'dead'
+    // Registry procStart is UTC; ps otherwise uses the host's time zone.
+    const ps = await $.process.run(['ps', '-p', String(owner.pid), '-o', 'lstart='], { env: { TZ: 'UTC', LC_ALL: 'C' }, timeoutMs: 5000 })
+    if (ps.exitCode === 1 && !ps.stdout.trim() && !ps.stderr.trim()) return 'dead'
+    if (ps.exitCode !== 0 || !ps.stdout.trim()) return 'unknown'
+    return ps.stdout.trim().replace(/\s+/g, ' ') === owner.procStart.trim().replace(/\s+/g, ' ') ? 'live' : 'dead'
+  } catch { return 'unknown' }
+}
+
+async function releaseGuard($: EngineInterface, record: NonNullable<ReturnType<typeof cliLoops.get>>, idle = false) {
+  if (!record.guardPath) return
+  await $.fs.write(record.guardPath, idle ? JSON.stringify({ owner: record.owner }) : 'keep')
+  await record.guard?.return({ code: null, signal: 'SIGTERM' })
+  record.guard = undefined
+}
+
+async function armGuard($: EngineInterface, loop: string, selector?: string) {
+  const record = cliLoops.get(loop)!
+  if (record.guard || (!record.worker && !selector) || !record.workerProfile || !record.ledger) return
+  await releaseGuard($, record)
+  const state = logPath?.includes('/') ? logPath.slice(0, logPath.lastIndexOf('/')) : `${await $.env.get('HOME')}/.local/state/byo-provider`
+  record.guardPath = `${state}/byo-${loop}-${Date.now()}.guard`
+  await $.fs.write(record.guardPath, JSON.stringify({ state: 'armed', owner: record.owner }))
+  record.guard = $.process.spawn({ argv: ['python3', `${$.plugin.root}/scripts/cli.py`, '--guard', await tmuxBin($), record.workerProfile, selector ?? record.worker!, record.guardPath, record.ledger] })
+  const ready = await record.guard.next()
+  if (ready.done || ready.value.text.trim() !== 'ready') throw new Error('worker cleanup guard did not start')
+  await log($, { ev: 'cli-guard', loop, worker: record.worker, resultPath: `${record.guardPath}.cleanup.json` })
+}
+
+async function restoreBindings($: EngineInterface) {
+  const sessionId = await $.session.id()
+  const stored: CliBinding[] = []
+  const states = new Map<CliOwner, 'live' | 'dead' | 'unknown'>()
+  for (const key of await $.store.keys()) {
+    if (!key.startsWith(`${BINDINGS_KEY}.`)) continue
+    let bindings: CliBinding[]
+    try {
+      bindings = parseBindings(await $.store.get(key))
+      if (bindings.some(b => key !== `${BINDINGS_KEY}.${b.owner.sessionId}`)) throw new Error('CLI binding owner does not match its store key')
+    } catch (error) {
+      if (key === `${BINDINGS_KEY}.${sessionId}`) throw error
+      await log($, { ev: 'cli-binding-foreign-unknown', key, error: String(error) })
+      continue
+    }
+    stored.push(...bindings)
+    for (const b of bindings) if (b.owner.sessionId !== sessionId) states.set(b.owner, await ownerState($, b.owner))
+  }
+  const plan = bindingPlan(stored, (await $.agent.list()).map(a => a.id), sessionId, [...states].filter(([, state]) => state !== 'dead').map(([owner]) => owner))
+  for (const b of plan.keep) await log($, { ev: states.get(b.owner) === 'live' ? 'cli-binding-foreign-live' : 'cli-binding-foreign-unknown', loop: b.agentId, worker: b.worker, owner: b.owner, observer: sessionId })
+  for (const b of plan.rebind) cliLoops.set(b.agentId, { ...b, prompt: '', teammate: true, pending: [] })
+  for (const b of plan.rebind) {
+    b.owner = await currentOwner($)
+    cliLoops.get(b.agentId)!.owner = b.owner
+    await saveBinding($, b.agentId, b)
+    await armGuard($, b.agentId)
+    await releaseGuard($, cliLoops.get(b.agentId)!, true)
+    loops.set(b.agentId, b.profile)
+    if (b.kind !== 'fork' && b.kind !== 'workflow') types.set(b.agentId, b.kind)
+    routed.push(b.profile)
+    await log($, { ev: 'cli-rebind', loop: b.agentId, worker: b.worker, profile: b.profile })
+  }
+  for (const b of plan.stop) {
+    try {
+      await stopRecord($, b.agentId, { ...b, prompt: '', teammate: true, pending: [] })
+      if (b.owner.sessionId === sessionId) cliLoops.delete(b.agentId)
+      await log($, { ev: 'cli-orphan-stop', loop: b.agentId, worker: b.worker, owner: b.owner })
+    } catch (error) {
+      fails.push({ who: b.agentId, why: String(error).slice(0, 80) })
+      await log($, { ev: 'cli-orphan-stop-fail', loop: b.agentId, worker: b.worker, error: String(error) })
+    }
+  }
+}
 
 const view = atom({ plugin: 'byo-provider', key: 'view' } as const, { rows: [], agents: 'follow', profiles: '', ok: 0, fails: [] } as View, { shape: 'view-3' })
 
@@ -90,7 +205,9 @@ async function log($: EngineInterface, r: Record<string, unknown>) {
   if (logPath) await $.fs.write(logPath, lines.join('\n') + '\n')
 }
 
-type Profile = { name: string; url: string; token: string; model: string; effort: string; timeoutMs: number }
+type GateProfile = { name: string; url: string; token: string; model: string; effort: string; timeoutMs: number }
+type CliProfile = { name: string; cli: string; timeoutMs: number }
+type Profile = GateProfile | CliProfile
 
 async function profilesDir($: EngineInterface) {
   return options.path.replace(/^~(?=\/|$)/, (await $.env.get('HOME')) ?? '~')
@@ -108,7 +225,9 @@ async function loadProfile($: EngineInterface, name: string): Promise<Profile | 
   let text: string
   try { text = String(await $.fs.read(path)) } catch { return `no profile file ${path}; copy ${$.plugin.root}/default.conf.example there` }
   const kv = parseConf(text)
-  if (!kv.url || !kv.token || !kv.model) return `profile ${path} needs url, token and model`
+  let cli: string | undefined
+  try { cli = cliProfile(kv) } catch (err) { return String(err) }
+  if (!cli && (!kv.url || !kv.token || !kv.model)) return `profile ${path} needs url, token and model`
   const effort = kv.effort ?? ''
   if (effort && !THINKING[effort]) return `profile ${path}: effort must be ${Object.keys(THINKING).join('|')}`
   // $.process.run allows ten minutes at most; a bad value fails here, never silently replaced.
@@ -117,7 +236,8 @@ async function loadProfile($: EngineInterface, name: string): Promise<Profile | 
   const t = kv.timeout || undefined // `timeout=` with no value means unset
   if (t !== undefined && !(Number(t) >= 1 && ok(Number(t) * 1000))) return `profile ${path}: timeout=${t} must be 1..590 seconds`
   const timeoutMs = envTimeoutMs ?? (t !== undefined ? Number(t) * 1000 : 120_000)
-  return { name, url: kv.url, token: kv.token, model: kv.model, effort, timeoutMs }
+  if (cli) return { name, cli, timeoutMs }
+  return { name, url: kv.url!, token: kv.token!, model: kv.model!, effort, timeoutMs }
 }
 
 /** The tools the real API request carries for this loop: every tool of the loop except those the engine
@@ -172,7 +292,7 @@ async function agentDef($: EngineInterface, type: string | undefined): Promise<{
 /** POSTs to `<url>/v1/messages` with curl: `$.http.fetch` gives up after 30 s, a long gateway answer
  *  (effort max, a long loop) takes more. The token goes in the child's env, the body on stdin: neither
  *  in argv. status 0 means curl itself failed; `text` then holds its error. */
-async function post($: EngineInterface, cfg: Profile, body: string): Promise<{ status: number; ok: boolean; text: string }> {
+async function post($: EngineInterface, cfg: GateProfile, body: string): Promise<{ status: number; ok: boolean; text: string }> {
   const r = await $.process.run(['curl', '-sS', '--max-time', String(Math.ceil(cfg.timeoutMs / 1000)), '-X', 'POST',
     '--variable', '%BYO_GATE_TOKEN', '--expand-header', 'authorization: Bearer {{BYO_GATE_TOKEN}}',
     '-H', 'content-type: application/json', '-H', 'anthropic-version: 2023-06-01',
@@ -187,6 +307,7 @@ async function post($: EngineInterface, cfg: Profile, body: string): Promise<{ s
 async function gateStep($: EngineInterface, e: TurnStepInput, name: string, signal: AbortSignal): Promise<Step> {
   const cfg = await loadProfile($, name)
   if (typeof cfg === 'string') return failStep(e.turnId, e.index, cfg)
+  if ('cli' in cfg) return cliStep($, e, cfg, signal)
   const kept = e.agentId ? own.get(e.agentId) : undefined
   if (kept) {
     const answered = resultsFor(kept.msgs.at(-1), kept.ran)
@@ -240,6 +361,165 @@ async function gateStep($: EngineInterface, e: TurnStepInput, name: string, sign
   return step
 }
 
+async function cliTool($: EngineInterface, input: { tool: `mcp__tmux-agent__${'assign' | 'await' | 'tell' | 'stop'}`; [key: string]: unknown }): Promise<string> {
+  const r = await $.tool.call(input)
+  if ('deny' in r || r.isError) throw new Error(r.deny ?? r.text ?? 'CLI tool failed')
+  return typeof r.result === 'string' ? r.result : r.text ?? JSON.stringify(r.result)
+}
+
+async function tmuxBin($: EngineInterface): Promise<string> {
+  if (cleanupBin) return cleanupBin
+  const found = await $.process.run(['sh', '-c', 'command -v agent-tmux'])
+  if (found.exitCode === 0 && found.stdout.trim()) return cleanupBin = found.stdout.trim()
+  const home = await $.env.get('HOME')
+  for (const relative of ['.claude/plugins/marketplaces/tmux-agent-tools/skills/tmux-agent-tools/scripts', '.agents/skills/tmux-agent-tools/scripts']) {
+    const dir = `${home}/${relative}`
+    if ((await $.fs.list(dir).catch(() => [])).some(f => f.name === 'agent-tmux')) return cleanupBin = `${dir}/agent-tmux`
+  }
+  throw new Error('agent-tmux not found for worker cleanup')
+}
+
+async function stopCli($: EngineInterface, loop: string, aborted = false) {
+  const record = cliLoops.get(loop)
+  if (record) await stopRecord($, loop, record, aborted)
+}
+
+async function stopRecord($: EngineInterface, loop: string, record: NonNullable<ReturnType<typeof cliLoops.get>>, aborted = false) {
+  if (!record.worker) {
+    if (record.guard) await record.guard.return({ code: null, signal: 'SIGTERM' })
+    return
+  }
+  const worker = record.worker
+  if (aborted && record.guard) {
+    await record.guard.return({ code: null, signal: 'SIGTERM' })
+    await log($, { ev: 'cli-abort-cleanup', loop, worker, resultPath: `${record.guardPath}.cleanup.json` })
+    return // The detached guard owns confirmation; retain the persisted binding until then.
+  } else {
+    try {
+      await finishStop(worker, async () => {
+        try {
+          const receipt = await cliTool($, { tool: 'mcp__tmux-agent__stop', name: worker })
+          if (!stopReceipt(worker, receipt)) throw new Error(`unconfirmed CLI stop: ${receipt}`)
+          return receipt
+        } catch (error) {
+          if (!record.workerProfile || !record.ledger) throw error
+          const stopped = await $.process.run(['zsh', await tmuxBin($), record.workerProfile, 'stop', worker], { env: { TMUX_AGENT_DIR: record.ledger }, timeoutMs: 30_000 })
+          if (stopped.exitCode !== 0) throw new Error(`CLI stop exit ${stopped.exitCode}: ${stopped.stderr.slice(-300)}`)
+          await log($, { ev: 'cli-stop-via-process', loop, worker, exitCode: stopped.exitCode })
+          return stopped.stdout
+        }
+      }, async () => {
+        await releaseGuard($, record)
+        await saveBinding($, loop, undefined, record.owner?.sessionId)
+      })
+      await log($, { ev: 'cli-stop', loop, worker })
+    } catch (error) {
+      await log($, { ev: 'cli-stop-fail', loop, worker, error: String(error) })
+      throw error
+    }
+  }
+  record.worker = undefined
+  record.guard = undefined
+}
+
+async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, signal: AbortSignal): Promise<Step> {
+  const loop = e.agentId ?? 'main'
+  const record = cliLoops.get(loop)
+  if (!e.agentId || !record) return failStep(e.turnId, e.index, 'CLI profiles require an opted-in spawned agent')
+  if (!cliAllowed(await defaultConf($), record.kind)) {
+    await stopCli($, loop)
+    return failStep(e.turnId, e.index, 'agent type is not opted in by cli_types')
+  }
+  const route = `cli:${cfg.cli}`
+  const state = logPath?.includes('/') ? logPath.slice(0, logPath.lastIndexOf('/')) : `${await $.env.get('HOME')}/.local/state/byo-provider`
+  await log($, { ev: 'cli-step', loop, index: e.index, route })
+  const prompt = record.pending.splice(0).join('\n\n') || record.prompt
+  const def = await agentDef($, types.get(loop))
+  const task = `${def?.body ?? ''}\n\n${prompt}`
+  let resultPath: string | undefined
+  try {
+    if (signal.aborted) throw new Error('interrupted')
+    if (cfg.cli.startsWith('tmux/')) {
+      if (record.worker) {
+        await armGuard($, loop)
+        const receipt = await cliTool($, { tool: 'mcp__tmux-agent__tell', name: record.worker, text: task })
+        await log($, { ev: 'cli-tell', loop, worker: record.worker, receipt })
+      } else {
+        const name = `byo-${loop.replace(/[^\w.-]/g, '').slice(-24)}-${Date.now().toString(36)}`
+        record.owner = await currentOwner($)
+        record.workerProfile = cfg.cli.slice(5)
+        const override = (await $.env.get('TMUX_AGENT_DIR'))?.trim().replace(/\/+$/, '')
+        const xdg = (await $.env.get('XDG_STATE_HOME'))?.trim().replace(/\/+$/, '')
+        const root = override?.startsWith('/') ? override.replace(/\/\.v3$/, '') : xdg?.startsWith('/') ? `${xdg}/tmux-agent-tools` : `${await $.env.get('HOME')}/.local/state/tmux-agent-tools`
+        record.ledger = `${root}/.v3`
+        await armGuard($, loop, JSON.stringify({ prefix: `${name}.`, owner: record.owner.sessionId }))
+        let receipt: string
+        try {
+          receipt = await cliTool($, { tool: 'mcp__tmux-agent__assign', profile: cfg.cli.slice(5), name,
+            dir: record.cwd ?? await $.session.cwd(), brief: `GOAL\n${task}\nACCEPTANCE\nComplete the supplied task and report its outcome.\nMODEL\nThe supplied task defines the system and constraints. Run this whole task in this CLI.\nREPORT\nWrite the required result report. Do not spawn additional workers.` })
+        } catch (error) {
+          if (!signal.aborted) {
+            await $.fs.write(record.guardPath!, 'no-launch')
+            await log($, { ev: 'cli-no-launch', loop, name, error: String(error) })
+            await record.guard?.return({ code: null, signal: 'SIGTERM' })
+            record.guard = undefined
+          }
+          throw error
+        }
+        if (await $.env.get('GATE_TEST_ABORT_AFTER_ASSIGN') === '1') {
+          await log($, { ev: 'cli-test-abort-after-assign', loop, receipt })
+          await $.process.run(['kill', '-INT', String(record.owner.pid)])
+          throw new Error('injected abort after assign')
+        }
+        record.worker = /launch requested for "([^"]+)"/.exec(receipt)?.[1]
+        record.workerProfile = cfg.cli.slice(5)
+        if (!record.worker) throw new Error(`assign gave no worker name: ${receipt}`)
+        const workerDir = /\(launch log: (.+)\/mod-assign.log\)/.exec(receipt)?.[1]
+        if (!workerDir) throw new Error('assign gave no worker state path')
+        const ledger = workerDir.slice(0, workerDir.lastIndexOf('/'))
+        if (record.ledger !== ledger) throw new Error('assign worker state path differs from cleanup ledger')
+        await saveBinding($, loop, { agentId: loop, worker: record.worker, profile: cfg.name, workerProfile: record.workerProfile, kind: record.kind, ledger, owner: record.owner, name: record.name, cwd: record.cwd })
+        await log($, { ev: 'cli-assign', loop, worker: record.worker, route })
+      }
+      const work = async () => {
+        const until = Date.now() + cfg.timeoutMs
+        while (!signal.aborted && Date.now() < until && record.worker) {
+          const text = await cliTool($, { tool: 'mcp__tmux-agent__await', name: record.worker, max_seconds: 30 })
+          const receipt = JSON.parse(text.split('\n')[0]!) as { status: string; result?: string; episode?: number }
+          if (receipt.status !== 'pending') {
+            if (!receipt.result) throw new Error('await gave no result.json path')
+            resultPath = receipt.result
+            const body = JSON.parse(String(await $.fs.read(resultPath)))
+            if (body.episode !== receipt.episode) throw new Error('CLI report episode does not match await')
+            return body
+          }
+        }
+        throw new Error(signal.aborted ? 'interrupted' : 'CLI timeout')
+      }
+      const got = await deadline(work(), cfg.timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn))
+      if ('why' in got) throw new Error(got.why)
+      const step = reportStep(e.turnId, e.index, got.ok)
+      await log($, { ev: 'cli-result', loop, route, worker: record.worker, resultPath, status: got.ok.status })
+      if (!step.ok || !record.teammate) await stopCli($, loop)
+      else await releaseGuard($, record, true)
+      return step
+    }
+    resultPath = `${state}/byo-${e.turnId.replace(/[^\w.-]/g, '')}-${e.index}.json`
+    await $.fs.write(resultPath, '')
+    const input = `Write final JSON to this exact path: ${resultPath}\nInclude schema_version: 1, status: success|failed|blocked|needs-input, summary, artifacts: [], errors: [].\n\n${task}\n\nReturn a complete report. Do not spawn additional workers.`
+    const stream = $.process.spawn({ argv: ['python3', `${$.plugin.root}/scripts/cli.py`, cfg.cli, String(cfg.timeoutMs / 1000)], cwd: record.cwd, input })
+    return headlessStep(e.turnId, e.index, stream, cfg.timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn), async () => {
+      const body = JSON.parse(String(await $.fs.read(resultPath!)))
+      await log($, { ev: 'cli-result', loop, route, resultPath, status: body.status })
+      return body
+    })
+  } catch (err) {
+    let why = String(err)
+    try { await stopCli($, loop, signal.aborted) } catch (stopError) { why += `; worker stop failed: ${String(stopError)}` }
+    return failStep(e.turnId, e.index, why)
+  }
+}
+
 /** One step answered by your provider. Every failure becomes a failed step: never a silent fall back to Claude. */
 async function* answer($: EngineInterface, e: TurnStepInput, profile: string, signal: AbortSignal): AsyncGenerator<TurnStepChunk, TurnStepResult> {
   let step: Step
@@ -249,10 +529,11 @@ async function* answer($: EngineInterface, e: TurnStepInput, profile: string, si
     step = failStep(e.turnId, e.index, err instanceof Error ? err.message : String(err))
   }
   const loop = e.agentId ?? 'main'
-  if (step.result.usage === null) await log($, { ev: 'gate-fail', loop, index: e.index, answer: step.result.answer.slice(0, 300) })
-  if (step.result.usage === null) fails.push({ who: types.get(loop) ?? loop, why: step.result.answer.slice(0, 80) })
+  const failed = !step.ok && step.result.usage === null
+  if (failed) await log($, { ev: 'gate-fail', loop, index: e.index, answer: step.result.answer.slice(0, 300) })
+  if (failed) fails.push({ who: types.get(loop) ?? loop, why: step.result.answer.slice(0, 80) })
   else okSteps++
-  last.set(loop, `#${e.index} ${step.result.usage === null ? step.result.answer.slice(0, 80) : `ok ${step.result.stopReason}`}`)
+  last.set(loop, `#${e.index} ${failed ? step.result.answer.slice(0, 80) : `ok ${step.result.stopReason}`}`)
   await sync($)
   for (const c of step.chunks) yield c
   return step.result
@@ -265,6 +546,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
       const m = a ?? DEFAULT
       const p = await loadProfile($, m)
       if (typeof p === 'string') return p
+      if ('cli' in p) return 'CLI profiles apply only to opted-in spawned agents; use agents <profile>'
       loops.set('main', m)
       routed.push(m)
       return `main loop: ${m} on your provider from its next step. /provider-switch off goes back to Claude.`
@@ -274,7 +556,9 @@ async function command($: EngineInterface, args: string): Promise<string> {
       if (!a) return 'usage: /provider-switch agent <agentId> [profile]'
       const p = await loadProfile($, m)
       if (typeof p === 'string') return p
+      if ('cli' in p && !cliAllowed(await defaultConf($), cliLoops.get(a)?.kind)) return 'agent type is not opted in by cli_types'
       if (!(await $.agent.list()).some(x => x.id === a)) return `no running agent ${a}; /provider-switch status lists them`
+      if (loops.get(a) !== m) await stopCli($, a)
       loops.set(a, m)
       routed.push(m)
       return `agent ${a}: ${m} on your provider from its next step.`
@@ -283,13 +567,18 @@ async function command($: EngineInterface, args: string): Promise<string> {
       if (!a) return `new subagents: ${agentsMode}. usage: /provider-switch agents follow|claude|<profile>`
       if (a !== 'follow' && a !== 'claude') {
         const p = await loadProfile($, a)
-        if (typeof p === 'string') return p
+        if (typeof p === 'string') {
+          const raw = parseConf(String(await $.fs.read(`${await profilesDir($)}/${a}.conf`).catch(() => '')))
+          if (!Object.hasOwn(raw, 'cli')) return p
+          // Keep a bad CLI route marked so its next step fails visibly.
+        }
       }
       agentsMode = a
       return a === 'follow' ? 'New subagents follow their parent loop onto your provider.'
         : a === 'claude' ? 'New subagents always run on Claude.' : `New subagents use profile ${a}; this loop stays where it is.`
     case 'off': {
       const loop = a ?? 'main'
+      await stopCli($, loop)
       return loops.delete(loop) ? `${loop}: back to Claude from its next step.` : `${loop} is not on your provider.`
     }
     case 'band':
@@ -326,6 +615,12 @@ export const register: Register = (on, opts) => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     logPath = await $.env.get('GATE_LOG')
+    try { await restoreBindings($) }
+    catch (error) {
+      bindingError = String(error)
+      fails.push({ who: 'bindings', why: bindingError.slice(0, 80) })
+      await log($, { ev: 'cli-bindings-fail', error: bindingError })
+    }
     const main = await $.env.get('GATE_TEST_MAIN')
     if (main) { loops.set('main', main); routed.push(main) }
     band.folded = (await $.store.get(FOLD_KEY)) !== 'open'
@@ -414,6 +709,26 @@ export const register: Register = (on, opts) => {
 
   // A tool a kept-record agent ran: its result goes into that record for the next gate step.
   on('tool.call', async ($, e, next) => {
+    if (e.tool === 'SendMessage' && typeof e.message === 'object' && e.message.type === 'shutdown_request') {
+      const target = (await $.agent.list()).find(a => a.name === e.to || a.id === e.to)
+      const id = target?.id ?? [...cliLoops].find(([id, r]) => id === e.to || r.name === e.to)?.[0]
+      if (id && cliLoops.get(id)?.worker) {
+        await stopCli($, id)
+        cliLoops.get(id)!.closed = true
+        if (target && ['pending', 'running', 'idle'].includes(target.status)) {
+          const stopped = await $.tool.call({ tool: 'TaskStop', task_id: target.id })
+          if ('deny' in stopped || stopped.isError) return { deny: stopped.deny ?? stopped.text ?? 'CLI teammate stop failed' }
+        }
+        return { result: { success: true, message: `CLI teammate ${e.to} stopped` } }
+      }
+    }
+    if (e.tool === 'TaskStop') {
+      const id = cliLoops.has(e.task_id) ? e.task_id : [...cliLoops].find(([, r]) => r.name === e.task_id)?.[0] ?? (await $.agent.list()).find(a => a.name === e.task_id || a.teammateId === e.task_id)?.id
+      if (id) {
+        await stopCli($, id)
+        if (cliLoops.get(id)?.workerProfile) cliLoops.get(id)!.closed = true
+      }
+    }
     const r = await next(e)
     const kept = e.agentId ? own.get(e.agentId) : undefined
     if (kept) {
@@ -428,18 +743,28 @@ export const register: Register = (on, opts) => {
 
   // New subagents/forks are marked by the agentId the spawn resolves to.
   on('agent.spawn', async ($, e, next) => {
+    if (e.resume && cliLoops.get(e.resume.agentId)?.closed) return { deny: 'CLI teammate has ended' }
     const r = await next(e)
     const agentId = r && 'agentId' in r ? r.agentId : undefined
     const resolved = r && 'model' in r ? r.model : undefined
     // default.conf `haiku=` / `sonnet=` / `opus=` route by the agent's resolved model tier, ahead of `agents=`.
-    const tier = tierRoute(await defaultConf($).catch(() => ({})), resolved ?? e.model ?? e.parentModel)
+    const defaults = await defaultConf($).catch(() => ({}))
+    const tier = tierRoute(defaults, resolved ?? e.model ?? e.parentModel)
     // A workflow agent is routed from its own record (see `own`), which needs the task text to start.
     const noTask = e.workflow !== undefined && !e.prompt?.trim()
-    let model = noTask ? undefined : tier !== undefined ? (tier === 'claude' ? undefined : tier)
-      : agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : agentsMode === 'claude' ? undefined : agentsMode
+    const modeRoute = agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : agentsMode === 'claude' ? undefined : agentsMode
+    let model = noTask ? undefined : tier !== undefined ? (tier === 'claude' ? undefined : tier) : modeRoute
+    const candidate = model ? parseConf(String(await $.fs.read(`${await profilesDir($)}/${model}.conf`).catch(() => ''))) : {}
+    const isCli = Object.hasOwn(candidate, 'cli')
+    if (isCli && !cliAllowed(defaults, e.subagentType, !!e.workflow, e.fork)) {
+      model = modeRoute !== model ? modeRoute : undefined
+      const fallback = model ? parseConf(String(await $.fs.read(`${await profilesDir($)}/${model}.conf`).catch(() => ''))) : {}
+      if (Object.hasOwn(fallback, 'cli')) model = undefined
+      if (agentId) { await stopCli($, agentId); loops.delete(agentId) }
+    }
     if (tier && tier !== 'claude' && !noTask) {
       const p = await loadProfile($, tier).catch((x: unknown) => String(x))
-      if (typeof p === 'string') {
+      if (typeof p === 'string' && !isCli) {
         $.ui.toast(`[byo-provider] ${resolved} → ${tier}: ${p}; that agent runs on Claude`)
         fails.push({ who: e.subagentType ?? 'fork', why: `${tier}: ${p}`.slice(0, 80) })
         model = undefined
@@ -447,6 +772,10 @@ export const register: Register = (on, opts) => {
     }
     if (model && agentId) {
       loops.set(agentId, model)
+      const previous = cliLoops.get(agentId)
+      if (previous) {
+        if (e.resume && e.prompt?.trim() && !previous.pending.includes(e.prompt)) previous.pending.push(e.prompt)
+      } else cliLoops.set(agentId, { prompt: e.prompt, kind: e.workflow ? 'workflow' : e.fork ? 'fork' : e.subagentType, name: e.name, cwd: e.cwd, teammate: !!e.isTeammate || !!e.name, pending: [] })
       routed.push(model)
       if (e.workflow) own.set(agentId, { msgs: [{ role: 'user', content: [{ type: 'text', text: e.prompt }] }], ran: [] })
       if (!e.fork) types.set(agentId, e.subagentType)
@@ -466,15 +795,55 @@ export const register: Register = (on, opts) => {
   })
 
   on('turn.step', async function* ($, e, next) {
+    if (e.agentId && bindingError) {
+      const step = failStep(e.turnId, e.index, `CLI bindings could not be restored: ${bindingError}`)
+      for (const chunk of step.chunks) yield chunk
+      return step.result
+    }
     const loop = e.agentId ?? 'main'
     if (testSteps !== undefined && loops.has(loop) && e.index >= testSteps) {
+      await stopCli($, loop)
       loops.delete(loop)
       await sync($)
       await log($, { ev: 'test-switch-back', loop, index: e.index })
     }
     const model = loops.get(loop)
-    await log($, { ev: 'step', loop, index: e.index, turnId: e.turnId, engineModel: e.model, route: model ? `gate:${model}` : 'claude' })
+    const cfg = model ? await loadProfile($, model) : undefined
+    await log($, { ev: 'step', loop, index: e.index, turnId: e.turnId, engineModel: e.model, route: cfg && typeof cfg !== 'string' && 'cli' in cfg ? `cli:${cfg.cli}` : model ? `gate:${model}` : 'claude' })
     if (!model) return yield* next(e)
     return yield* answer($, e, model, next.signal)
+  }).catch(async function* ($, e, next) {
+    if (!loops.has(e.agentId ?? 'main')) throw next.error
+    const step = failStep(e.turnId, e.index, String(next.error))
+    fails.push({ who: e.agentId ?? 'main', why: step.result.answer.slice(0, 80) })
+    for (const chunk of step.chunks) yield chunk
+    return step.result
+  })
+
+  on('session.receive', async ($, e, next) => {
+    if (e.agentId) cliLoops.get(e.agentId)?.pending.push(e.text)
+    return next(e)
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    if (e.agentId && e.reason !== 'answer') {
+      await log($, { ev: 'cli-turn-ended', loop: e.agentId, reason: e.reason })
+      await stopCli($, e.agentId, e.reason === 'aborted')
+    }
+    return next(e)
+  })
+
+  on('session.end', async ($, e, next) => {
+    const started = Date.now()
+    const jobs = [...cliLoops.values()].filter(r => r.worker && r.workerProfile && r.ledger).map(r => ({ binary: cleanupBin!, profile: r.workerProfile!, worker: r.worker!, marker: r.guardPath ?? `${r.ledger}/byo-${r.worker}.guard`, ledger: r.ledger! }))
+    if (jobs.length) {
+      const resultPath = `${jobs[0]!.marker}.session-cleanup.json`
+      try {
+        const receipt = await $.process.run(['python3', `${$.plugin.root}/scripts/cli.py`, '--batch', JSON.stringify(jobs), resultPath], { timeoutMs: 1000 })
+        if (receipt.exitCode !== 0 || receipt.stdout.trim() !== 'ready') throw new Error(`cleanup handoff failed: ${receipt.stderr}`)
+        await log($, { ev: 'cli-session-cleanup-handoff', workers: jobs.map(j => j.worker), ms: Date.now() - started, resultPath })
+      } catch (error) { await log($, { ev: 'cli-stop-fail', error: String(error) }) }
+    }
+    return next(e)
   })
 }

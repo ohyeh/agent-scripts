@@ -1,5 +1,14 @@
 # Changelog
 
+## byo-provider 0.7.0
+
+- CLI profiles: `cli=<agent-tmux profile>` runs its `headless_flags` once; `cli=tmux/<profile>` uses the tmux-agent mod's assign/await tools. CLI profiles need no gateway URL, token or model.
+- CLI routing requires exact agent types in `default.conf` `cli_types=`; workflow agents and forks need their own `workflow` and `fork` tokens. Other types keep the existing provider path.
+- A teammate keeps its tmux worker between turns and sends later messages with tell. Shutdown and aborted turns stop its worker. Each CLI report becomes one end_turn step; failed reports and timeouts fail visibly without a Claude fallback.
+- CLI worker bindings use one `$.store` key per session. Reload/resume restores that session's live agents. Startup keeps foreign workers while the owner registry and PID remain live or uncertain. It stops them only after the owner is gone. Separate keys prevent cross-session lost updates; each session serializes its own writes. Successful stops remove the binding; failed cleanup stays retryable at the next startup.
+- Cleanup requires positive stop evidence before releasing bindings and guards. Guards are armed before assign, cover the detached launch race, and watch idle teammates' owner sessions. Session end hands worker stops to one detached parallel cleanup process. Headless normal exits also terminate background descendants.
+- A guard exits once its watcher process is gone. Before, a guard whose watcher died slept forever with no cleanup path (`tests/cli_check.py`: guard exits once its watcher is gone).
+
 ## session-handoff: resume reads footprints, not every call
 
 - **`resume_pack.py` writes `footprints.txt`**: one block per turn with the prompt (`asked:`), the agent's closing words (`said:`, its account) and a pointer per call that edited, changed state, delegated or failed (`T<n> S<NN>:<line> L<log line>`). Pointers only; the evidence stays in the slices and the log. On session 6d861226: 20,364 bytes, against 246,902 bytes of scout reports read in the old flow.

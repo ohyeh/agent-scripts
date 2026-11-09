@@ -55,7 +55,83 @@ text after `/provider-switch`), as tmux-agent's `reload` tool runs `/reload-plug
 "new subagents on default" without typing. A subagent's call is denied. The tool exists only while the
 main loop is on Claude: a gated main loop gets only built-in tools (limit 2: `hooks/schemas.ts` has no schema for it), so it switches with `/provider-switch`.
 
-## Setup
+## CLI profiles
+
+CLI routing is opt-in. In the profiles folder, create `coding.conf`:
+
+```conf
+cli=sol
+timeout=180
+```
+
+`cli=sol` reads `~/.config/agent-tmux/profiles/sol.conf` and runs its `bin`,
+`headless_flags` and optional `headless_prompt_flag` once. Python 3 parses the flags
+with `shlex` and starts the CLI without a shell. The task asks the CLI to write a
+schema-v1 report; only a valid `status=success` report answers the step.
+
+For an interactive worker, use `cli=tmux/agy-flash`. Load the tmux-agent mod too.
+The hook calls `mcp__tmux-agent__assign`, then `mcp__tmux-agent__await`; the worker
+appears in `/workers` while it runs and can be peeked. Its `result.json` is the
+answer. A teammate keeps the same worker; later messages use `tell` and await its
+new episode. Shutdown requests and aborted turns stop that worker. Ordinary
+subagents stop their worker after reading the report.
+After an interrupt, the engine refuses new tool and process calls. A Python
+cleanup guard is armed through `$.process.spawn` when the worker starts. Closing
+that existing stream, or unloading the session, runs the installed
+`agent-tmux <profile> stop <worker>` outside the cancelled turn. `cli-guard` logs
+the cleanup result path; its JSON records the exit code. Normal stops use the
+mod tool and disarm the guard.
+The guard requires Unix process APIs. It passes the mod's ledger as
+`TMUX_AGENT_DIR` only to the cleanup child, matching tmux-agent; the session's
+environment stays unchanged.
+
+In `default.conf`, choose the route and exact allowed types:
+
+```conf
+agents=coding
+cli_types=general-purpose,workflow,fork
+```
+
+Tier routes (`haiku=`, `sonnet=`, `opus=`) can also name `coding`. A CLI route
+applies only to listed agent types. Workflow agents need `workflow`, and forks
+need `fork`, even if another type is listed. Unlisted types ignore a CLI tier
+override and keep the non-CLI `agents=` route; if that mode also selects a CLI
+profile, they stay on Claude. Existing HTTP profiles are unchanged.
+The main loop cannot use a CLI profile. Profiles with `cli=` need no `url`,
+`token` or `model`. Each step logs `route: cli:sol` or `route: cli:tmux/agy-flash`.
+
+Permission caveat: the CLI profile's flags are used as written, including yolo
+or permission bypass flags. A child CLI has its own tools and permission policy;
+the parent agent's tool restrictions do not sandbox it. Put only owner-approved
+types in `cli_types`. The mod never changes environment variables or the owner's
+profile files. CLI tasks receive their task text and any custom agent definition,
+not the gateway's full API transcript. Headless rounds start a fresh CLI; only
+tmux teammates preserve CLI conversation state. CLI results are delivered as one
+non-streaming `end_turn` step. Timeout remains 1..590 seconds (default 120);
+failed, blocked, needs-input, invalid or absent reports fail the step. Reports
+remain at their logged paths for inspection. Worker bindings are mirrored in
+`$.store` under `byo-provider.cli-bindings.<sessionId>`, with the owner's session
+id, PID and process start time from `~/.claude/sessions/<pid>.json`. Each session
+updates its own key and serializes its own writes, so sessions do not overwrite
+each other's binding arrays. On reload or resume of the same session, live agent
+ids are restored (`cli-rebind`); its other agents are stopped (`cli-orphan-stop`).
+A foreign owner's workers stay untouched while its registry matches and `ps`
+confirms the PID and process start time (`cli-binding-foreign-live`). They are
+stopped only when that owner is gone; an inconclusive registry/process read
+keeps them and logs `cli-binding-foreign-unknown`. Cleanup removes only the dead
+owner's entry from its key. Only a positive stop receipt releases a binding
+and its guard; a failed stop retains both and logs `cli-stop-fail` (startup also
+logs `cli-orphan-stop-fail`). Before assign, a detached guard tracks the unique
+worker name prefix and owner, so cancellation before receipt handling still
+finds the worker. It waits for the detached launch to reach its start lock
+before stopping it. Idle guards watch the owner session, so reload preserves
+workers and process exit cleans them up. Session end hands all stops to one
+detached process in parallel, outside the engine's shared 1.5-second deadline;
+`cli-session-cleanup-handoff` logs its timing and cleanup report path. Bindings
+stay stored until a confirmed stop or a later startup sweep. Headless CLI exits
+also terminate the CLI's process group, including background tool processes.
+
+## Gateway setup
 
 1. Gateway: one file per profile, `<profiles>/<name>.conf`, `key=value` lines, `#` comments.
    The mod reads it at each gateway request, so an edit applies at the next step. The token stays in
@@ -142,6 +218,7 @@ python3 scripts/gen-schemas.py <plugin-authoring skill>/types/claude-code.d.ts h
 ```
 claude plugin test mods/byo-provider      # unit: response mapping, tool sets, deadline
 claude plugin validate mods/byo-provider
+python3 mods/byo-provider/tests/cli_check.py <scratch-directory>  # runner flags, abort, timeout
 ```
 
 The live tests (a loopback fake Anthropic server that logs request shapes, never secrets, and runs
