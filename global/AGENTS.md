@@ -161,7 +161,7 @@ Version: 4.50.0-ironlaws
 - Diagnose the named system first.
 - Batch independent tool calls (`&&`, `ctx_batch_execute`) because each round re-reads the full
   context (`harness-diagnosis` §1); ensure every round adds information or changes state, and after
-  2 single-read rounds in a row, batch the rest or hand off to `explore-bounded`.
+  2 single-read rounds in a row, batch the rest or hand off to a `general-purpose` subagent.
 - Read `SKILL.md` before using a skill; route through the domain router first, max two hops.
 
 ## Continuity

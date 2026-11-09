@@ -118,7 +118,7 @@ Version: 4.50.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
   only on explicit request (an open browser tool is not authorization); diagnose the named system
   first.
 - Batch independent tool calls (`harness-diagnosis` §1) so every round adds information or changes
-  state; after 2 single-read rounds → batch or `explore-bounded`.
+  state; after 2 single-read rounds → batch or a `general-purpose` subagent.
 - Read `SKILL.md` before use; domain router first, max two hops.
 
 ## Continuity

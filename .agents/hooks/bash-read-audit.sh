@@ -18,7 +18,7 @@ CMD="$(printf '%s' "$IN" | jq -r '.tool_input.command // ""')"
 deny_search() { echo "search evidence: $1" >&2; exit 2; }
 printf '%s' "$CMD" | grep -qE '(^|[|;&])[[:space:]]*rg[[:space:]]+([^|;&]*[[:space:]])?-E([[:space:]]|$)' \
   && deny_search 'rg -E selects encoding; use rg -e for a pattern or --encoding explicitly'
-# Truncation and memory reads are allowed but carry a warning; scripts/test-bash-readonly-gate allows `| head`.
+# Truncation and memory reads are allowed but carry a warning.
 warn=""
 printf '%s' "$CMD" | grep -qE '(rg|grep)[[:space:]][^;]*\|[[:space:]]*(head|tail)([[:space:]]|$)' \
   && warn="${warn}WARNING [truncated-search]: a search piped to head or tail cannot prove absence or coverage; re-run it untruncated before an absence claim. "

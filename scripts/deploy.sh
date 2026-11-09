@@ -245,7 +245,7 @@ echo "PASS [invariants] all checks green"
 # test-deploy-check.sh needs a checkout, so it runs by hand, not here.
 layer0_tests=(
   test-rm-home-gate.sh test-codex-cu-chrome-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
-  test-review-dispatch-gate.sh test-running-script-edit-gate.sh test-bash-readonly-gate
+  test-review-dispatch-gate.sh test-running-script-edit-gate.sh
   test-jsonl-hooks-smoke test-sync-skills-lock.sh test-grok-bot-app.sh
 )
 for t in "${layer0_tests[@]}"; do
@@ -480,7 +480,6 @@ hook_install "$SRC/.agents/hooks/skill-router-nudge.sh"
 hook_install "$SRC/.agents/hooks/skill-router-table.tsv" 0644
 hook_install "$SRC/.agents/hooks/bash-read-audit.sh"
 hook_install "$SRC/.agents/hooks/artifact-title-gate.sh"
-hook_install "$SRC/.agents/hooks/bash-readonly-gate.sh"   # attached by global/agents/claude/*.md frontmatter, not settings.json
 hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
 # idevicesyslog guard (2026-10-28 iPhone panic): sits ahead of the real binary in PATH.
 if [ "$CHECK" = 1 ]; then

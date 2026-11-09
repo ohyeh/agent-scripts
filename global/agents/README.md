@@ -11,23 +11,10 @@ day they are collected here.
 | `claude/*.md` | `~/.claude/agents/` | markdown + YAML frontmatter (`model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `hooks`) |
 | `codex/*.toml` (not yet collected) | `~/.codex/agents/` | TOML (`model`, `model_reasoning_effort`, `developer_instructions`) |
 
-Read-only is two layers, each measured 2026-09-04 under `claude -p`:
-`disallowedTools: Edit, Write, NotebookEdit` removes the editors, and a
-`hooks: PreToolUse` entry pointing at `.agents/hooks/bash-readonly-gate.sh`
-denies write-shaped Bash (redirection, rm/mv/tee/sed -i, interpreters, git
-mutations) while fd/rg/ast-grep/jq/yq pass. Grep/Glob are not exposed in this
-configuration (probe subagents saw only Read/Bash), so Bash is the agent's only search path and the hook is its only
-write barrier. `permissionMode: plan` did NOT stop Bash writes under `-p`
-(interactive: UNCONFIRMED) and is not used. Regression table:
-`scripts/test-bash-readonly-gate`. A referenced hook that is missing is a SILENT
-ALLOW (measured), so deploy layer 8 fails closed unless every `command:` in a
-definition is already executable on the host (layer 5 installs them first).
-
 Why these exist (2026-09-04, after the 856M cache-read night): a definition
 file is the only place a `model` and a `maxTurns` ceiling bind to a role.
-`explore-bounded` is the read-only search lane for both delegation factions —
-Agent tool `subagent_type` and workflow recipe `agentType`. See
-`.agents/rules/model-dispatch.md`.
+`impl-bounded` binds opus and 200K compaction to long implement work; read-only
+search uses `general-purpose`. See `.agents/rules/model-dispatch.md`.
 
 Definitions are read at session start. A running session (interactive or
 `/loop`) does not see a newly deployed file until it is restarted; `claude -p`
@@ -42,15 +29,14 @@ the first `/loop` night that runs on the merged branch. Window = that night;
 
 | # | Question | Command | Expect |
 |---|---|---|---|
-| 1 | Did commanders dispatch the new lane? | `rg -o '"subagent_type":"(explore-bounded\|Explore)"' $P/*/*.jsonl \| sort \| uniq -c` | bare `Explore` = 0 |
-| 2 | Do subagent models follow model-dispatch §1? | `rg -o '"model":"claude-[a-z]+-[0-9-]+"' $P/*/*/subagents/*.jsonl \| sort \| uniq -c` | sonnet ≥ explore-bounded calls; haiku/sonnet only on worker roles (gathering, implementation, extraction); planning, synthesis and verdict agents on opus/fable |
+| 1 | Did commanders avoid bare Explore? | `rg -o '"subagent_type":"(general-purpose\|Explore)"' $P/*/*.jsonl \| sort \| uniq -c` | bare `Explore` = 0 |
+| 2 | Do subagent models follow model-dispatch §1? | `rg -o '"model":"claude-[a-z]+-[0-9-]+"' $P/*/*/subagents/*.jsonl \| sort \| uniq -c` | haiku/sonnet only on worker roles (gathering, implementation, extraction); planning, synthesis and verdict agents on opus/fable |
 | 3 | Did `maxTurns` bite? | `rg -l 'stopped at its 60-turn limit' $P/*/*.jsonl` | rare; each hit = a GOAL that was too wide |
-| 4 | Did the write gate fire? | `rg -c 'read-only agent:' $P/*/*/subagents/*.jsonl` | 0 ideally; any hit → false positive or an agent trying to write |
 | 5 | Cost share moved? | `session-report` plugin `analyze-sessions.mjs --json --since 7d` → `by_subagent_type` | `workflow-subagent` share < 23.4% |
 
 Still UNCONFIRMED and not observable from transcripts: whether `effort: high`
-applies; whether `permissionMode: plan` gates Bash in interactive mode.
-Close this section (delete it) once rows 1–5 have numbers and a retro has ruled.
+applies.
+Close this section (delete it) once rows 1, 2, 3 and 5 have numbers and a retro has ruled.
 
 History: the 2026-07-18 retirement (A4b) removed the tmux-delegate era defs
 because auto-triggering was never used. These are not auto-triggers; they are

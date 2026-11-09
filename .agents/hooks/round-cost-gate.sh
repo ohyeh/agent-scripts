@@ -74,6 +74,6 @@ jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg sid "$(printf '%s' "$IN
   >> "$DATA_DIR/round-cost-stats.jsonl"
 
 [ "$run" -eq "$NUDGE_AT" ] || exit 0
-jq -cn --arg ctx "round-cost-gate: this is single-read round $run in a row. Each round re-reads the whole context (cost = rounds × context size). Put every remaining read you can name into ONE call (several commands joined with &&, or ctx_batch_execute), or hand the exploration to an explore-bounded subagent and take back only its conclusions." \
+jq -cn --arg ctx "round-cost-gate: this is single-read round $run in a row. Each round re-reads the whole context (cost = rounds × context size). Put every remaining read you can name into ONE call (several commands joined with &&, or ctx_batch_execute), or hand the exploration to a general-purpose subagent and take back only its conclusions." \
   '{hookSpecificOutput: {hookEventName: "PreToolUse", additionalContext: $ctx}}'
 exit 0

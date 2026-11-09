@@ -24,7 +24,7 @@
   every tool round re-reads the entire context.
 - Route commands with >20 expected or unpredictable lines through `ctx_batch_execute` or
   `ctx_execute` and print only the derived answer.
-- Use the `explore-bounded` subagent (`model-dispatch` §4) when reading >3 files or searching
+- Use a `general-purpose` subagent (`model-dispatch` §4) when reading >3 files or searching
   unknown locations so only conclusions and `file:line` references return.
 - Use `Read` only on the needed line range of a project file you are about to `Edit`, except for
   mandatory `~/.agents/rules/` reads (`CLAUDE.md` §Routing) and files the user orders read in full.

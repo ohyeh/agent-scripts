@@ -1,5 +1,9 @@
 # Changelog
 
+## Retire the read-only search agent definition
+
+- Owner request: the read-only search subagent definition, its Bash write gate, the gate's regression test and every mention are removed. Read-only search uses `general-purpose` (kernel, `model-dispatch` §4, `harness-diagnosis`, `round-cost-gate.sh`, `delegation-templates`). `impl-bounded` stays.
+
 ## session-handoff: resume checks what the next step relies on; quick-say 0.8.0
 
 - RESUME Step 3b.2b no longer sends slice pages to scouts. The resuming agent reads `user.txt` and `footprints.txt` itself, then builds a work list (conclusions the next step relies on, done claims for open asks, unsettled fail/noresult/delegate pointers) and checks each item: current state read-only and live, never a replayed push or deploy; a past event no live read can prove by one call block from the new `resume_pack.py --call <pack>/<sid8> T<n> --page <k>` (paged like `--read`, so a 256 KiB result is not cut to a preview); otherwise `unknown`. On 2026-11-10 the old path took hours: 10 subagents, 5 blocked by the read-only gate, one fed 2 KB previews by three-page reads.
@@ -77,7 +81,7 @@
 A second gated review (deepseek, 103 gate steps) of 0.5.2 found the `tools:` parser still wrong on real YAML; each case re-run here.
 
 - **`tools:` lists skip `# comments` and blank lines.** 0.5.2 stopped a `- A` list at the first comment (`Read`, comment, `Bash` gave only `Read`: a regression), kept trailing comments in the item (`Grep  # read-only`), and read `tools: # ro` as a tool name. A flow list may span lines.
-- **`disallowedTools:` removes tools** on the gate path too (e.g. `explore-bounded`: no Edit, Write, NotebookEdit).
+- **`disallowedTools:` removes tools** on the gate path too (e.g. `disallowedTools: Edit, Write, NotebookEdit`).
 - **`timeout` below 1 s fails** (`timeout=0.5` was accepted under a "1..590" message).
 - Docs: `GATE_TIMEOUT_MS` is ms and overrides the profile's `timeout` (seconds); the gated main loop lacks `switch` because `hooks/schemas.ts` has no schema for it.
 - Known, not fixed: a comma inside a quoted tool name splits it (no real definition does this).

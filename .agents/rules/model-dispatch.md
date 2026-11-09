@@ -106,8 +106,8 @@
 ## §4 Role-first selection
 
 - Locate/inventory: sonnet medium gathers, opus/fable synthesizes; Codex uses Luna xhigh.
-- Read-only search: use `explore-bounded`, sonnet high, maxTurns 60, with its Bash write gate.
-  Set Agent `subagent_type` or recipe `agentType`; never use bare `Explore`.
+- Read-only search: use `general-purpose`; the brief names the paths, the question and that it
+  writes nothing. Never use bare `Explore`.
 - Implement/refactor/research: opus high; sonnet/haiku 5.5+ at commander's choice (§1);
   Codex uses Luna xhigh.
 - For many-turn implement/refactor work, use `impl-bounded` at opus high with 200K compaction.
