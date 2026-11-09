@@ -1,5 +1,9 @@
 # Changelog
 
+## quick-say 0.6.3
+
+- 5 前情提要 follows the footprints RESUME (9617954): read `user.txt` and `footprints.txt` whole, open slices only for turns that claim done, carry a fail pointer or that the next step depends on, and write `timeline.md`. Before, it still asked for every manifest scout group, the path the owner reported as slow on 2026-11-06.
+
 ## shared-memory-intake and evidence hooks
 
 - `read_memory.py` follows `supersedes_submission` links in processed submissions and prints the terminal replacement; cycles and conflicting links fail only the affected lookup, and one unreadable submission is skipped with a line, not fatal.
