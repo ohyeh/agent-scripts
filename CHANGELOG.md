@@ -1,8 +1,8 @@
 # Changelog
 
-## Retire the read-only search agent definition
+## Retire the custom subagent definitions
 
-- Owner request: the read-only search subagent definition, its Bash write gate, the gate's regression test and every mention are removed. Read-only search uses `general-purpose` (kernel, `model-dispatch` §4, `harness-diagnosis`, `round-cost-gate.sh`, `delegation-templates`). `impl-bounded` stays.
+- Owner request: both definitions under `global/agents/claude/` are removed with every mention: the read-only search agent, its Bash write gate and the gate's regression test, and the 200K-compaction implement agent (the session's 450K compaction is enough). Read-only search and long implement work use `general-purpose` (kernel, `model-dispatch` §4, `harness-diagnosis`, `round-cost-gate.sh`, `delegation-templates`).
 
 ## session-handoff: resume checks what the next step relies on; quick-say 0.8.0
 

@@ -110,7 +110,6 @@
   writes nothing. Never use bare `Explore`.
 - Implement/refactor/research: opus high; sonnet/haiku 5.5+ at commander's choice (§1);
   Codex uses Luna xhigh.
-- For many-turn implement/refactor work, use `impl-bounded` at opus high with 200K compaction.
   Pass `model` only to change tier.
 - Review/verification: use the review ladder below, then stop and ask at its cap.
 - Architecture or hard debugging after two evidenced failures: opus or Sol high.
