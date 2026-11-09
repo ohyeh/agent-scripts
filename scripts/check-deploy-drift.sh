@@ -42,7 +42,16 @@ else
   iso="$(mktemp -d)"; mkdir -p "$iso/tmp" "$iso/cache"
   copy="$iso/cache/$(basename "$root")"
   set +e
-  cp -R "$root" "$copy" && printf '%s' "$probe" | env -i PATH="$PATH" HOME="$iso" TMPDIR="$iso/tmp" CLAUDE_PLUGIN_ROOT="$copy" \
+  # Live sessions swap better_sqlite3.node through a .staging-<pid>-<ts> file on every hook
+  # call; `cp -R` lost that race (file listed, then renamed away -> exit 1, a false FAIL).
+  # Skip staging files; rsync 24 = a source file vanished mid-copy, which is that same race.
+  rsync -a --exclude '*.staging-*' "$root/" "$copy/" 2>/dev/null; crc=$?
+  if [ "$crc" -ne 0 ] && [ "$crc" -ne 24 ]; then
+    set -e; rm -rf "$iso"
+    echo "FAIL [hook] could not copy the context-mode plugin for the probe (rsync exit=$crc) on $(hostname): $root" >&2
+    exit 1
+  fi
+  printf '%s' "$probe" | env -i PATH="$PATH" HOME="$iso" TMPDIR="$iso/tmp" CLAUDE_PLUGIN_ROOT="$copy" \
     perl -e 'alarm 30; exec @ARGV' bash -c "${cmd//"$root"/$copy}" >/dev/null 2>&1
   rc=$?
   set -e

@@ -1,5 +1,9 @@
 # Changelog
 
+## deploy: the context-mode hook probe no longer races live sessions
+
+- `check-deploy-drift.sh` copied the live context-mode plugin with `cp -R`. Every hook call in any open session swaps `better_sqlite3.node` through a `.staging-<pid>-<ts>` file, so the copy could list a staging file that was renamed away a moment later: `cp` exited 1 and deploy reported `FAIL [hook] context-mode PreToolUse exit=1` (2026-11-10). The probe copies with `rsync --exclude '*.staging-*'`, treats rsync 24 (a file vanished mid-copy) as that same race, and reports a copy failure apart from a hook failure. Repro under a swap loop: `cp -R` failed 1/15, rsync 0/15.
+
 ## Retire the custom subagent definitions
 
 - Owner request: both definitions under `global/agents/claude/` are removed with every mention: the read-only search agent, its Bash write gate and the gate's regression test, and the 200K-compaction implement agent (the session's 450K compaction is enough). Read-only search and long implement work use `general-purpose` (kernel, `model-dispatch` §4, `harness-diagnosis`, `round-cost-gate.sh`, `delegation-templates`).
