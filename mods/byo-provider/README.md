@@ -32,10 +32,11 @@ Built and tested on Claude Code 2.1.319.
 
 ## Commands
 
-A band above the prompt (`▌byo-provider`), from the session's start, shows how many loops are on
-your provider and the new-subagent mode with its tier lines, then one line per loop on your provider
-with its profile and last gate step (`#index ok <stop>` or the failure text). It takes only the rows
-the other mods' bands leave.
+A band above the prompt (`▌byo-provider v<version>`), from the session's start, says whether routing
+works: `✓ routing ok · 13 → default · 400 steps ok`, or `✗ <n> failed (<who>: <why>)` in red when a
+gate step failed or a tier route fell back to Claude. It starts folded (one line); `▸ open` adds the
+new-subagent mode and the last 3 failures. `hide` or `/provider-switch band` hides and shows it; both
+are remembered. It takes only the rows the other mods' bands leave.
 
 | Command | Effect |
 | --- | --- |

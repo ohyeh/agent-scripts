@@ -124,6 +124,18 @@ export function tierRoute(kv: Record<string, string>, model: string | undefined)
   return tier ? kv[tier] || undefined : undefined
 }
 
+export type Fail = { who: string; why: string }
+
+/** The band's words: did routing work. Header = routed loops, steps ok, and the last failure if any;
+ *  the unfolded rows = the new-subagent mode, then the last 3 failures. */
+export function bandText(v: { routed: string[]; ok: number; fails: Fail[]; agents: string }): { status: string; rows: string[] } {
+  const by = [...new Set(v.routed)].map(p => `${v.routed.filter(x => x === p).length} → ${p}`).join(', ')
+  const last = v.fails.at(-1)
+  const status = !v.routed.length && !v.fails.length ? 'nothing routed yet'
+    : `${last ? `✗ ${v.fails.length} failed (${last.who}: ${last.why})` : '✓ routing ok'} · ${by || 'no loop'} · ${v.ok} steps ok`
+  return { status, rows: [`new subagents: ${v.agents}`, ...v.fails.slice(-3).map(f => `✗ ${f.who}: ${f.why}`)] }
+}
+
 /** `key=value` lines; blank lines, `#` comments and lines without a key are skipped. */
 export function parseConf(text: string): Record<string, string> {
   const kv: Record<string, string> = {}

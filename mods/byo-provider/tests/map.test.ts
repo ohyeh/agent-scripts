@@ -1,6 +1,6 @@
 // Unit check of the gate response → TurnStepChunk mapping. Run: bun test <run dir>/test/map.test.ts
 import { expect, test } from 'claude-code/testing'
-import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, tierRoute, toStep } from '../hooks/map'
+import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, tierRoute, toStep, bandText } from '../hooks/map'
 import { SCHEMAS } from '../hooks/schemas'
 
 const resp = {
@@ -122,4 +122,14 @@ test('tierRoute: model tier picks the default.conf line; no tier or no line give
   expect(tierRoute({ opus: 'claude' }, 'claude-haiku-5-5')).toBeUndefined()
   expect(tierRoute(kv, 'deepseek-v4.1-flash')).toBeUndefined()
   expect(tierRoute(kv, undefined)).toBeUndefined()
+})
+
+test('bandText: the header says whether routing works; failures show, finished agents do not', () => {
+  expect(bandText({ routed: [], ok: 0, fails: [], agents: 'default' }).status).toBe('nothing routed yet')
+  const ok = bandText({ routed: Array(13).fill('default'), ok: 400, fails: [], agents: 'default' })
+  expect(ok.status).toBe('✓ routing ok · 13 → default · 400 steps ok')
+  expect(ok.rows).toEqual(['new subagents: default'])
+  const bad = bandText({ routed: ['default', 'default'], ok: 5, fails: [{ who: 'Explore', why: 'gate 502' }], agents: 'default' })
+  expect(bad.status).toBe('✗ 1 failed (Explore: gate 502) · 2 → default · 5 steps ok')
+  expect(bad.rows).toEqual(['new subagents: default', '✗ Explore: gate 502'])
 })

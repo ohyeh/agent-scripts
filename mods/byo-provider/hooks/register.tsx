@@ -1,8 +1,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
-import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
+import { bandText, deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
 import { SCHEMAS } from './schemas'
-import type { GateTool, Msg, Step } from './map'
+import type { Fail, GateTool, Msg, Step } from './map'
 import type { View } from '../types'
 
 // byo-provider: chosen loops are answered by the owner's Anthropic-format gateway by
@@ -20,6 +20,9 @@ import type { View } from '../types'
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
+const VERSION = '0.5.6' // keep equal to .claude-plugin/plugin.json
+const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
+const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
 const DEFAULT = 'default' // the profile `use` and `agent` take when no name is typed
 // effort → Anthropic `thinking`; the budget comes on top of MAX_TOKENS, so thinking never eats the answer.
@@ -53,15 +56,19 @@ let envTimeoutMs: number | undefined
 let logPath: string | undefined
 const lines: string[] = []
 const last = new Map<string, string>() // loop → its last gate step, for the pane
+const routed: string[] = [] // the profile of each loop ever put on your provider
+let okSteps = 0
+const fails: Fail[] = [] // gate steps and tier routes that did not reach your provider
+const band = { folded: true, hidden: false }
 
-const view = atom({ plugin: 'byo-provider', key: 'view' } as const, { rows: [], agents: 'follow', profiles: '' } as View, { shape: 'view-2' })
+const view = atom({ plugin: 'byo-provider', key: 'view' } as const, { rows: [], agents: 'follow', profiles: '', ok: 0, fails: [] } as View, { shape: 'view-3' })
 
 /** Copies the routing state into the atom the pane reads. */
 async function sync($: EngineInterface) {
   const rows = [...loops].map(([loop, profile]) => ({ loop, profile, last: last.get(loop) ?? '-' }))
   const kv = await defaultConf($)
   const tiers = ['haiku', 'sonnet', 'opus'].filter(t => kv[t]).map(t => `${t}→${kv[t]}`).join(' ')
-  await update($, view, () => ({ rows, agents: tiers ? `${agentsMode} (${tiers})` : agentsMode, profiles: options.path }))
+  await update($, view, () => ({ rows, agents: tiers ? `${agentsMode} (${tiers})` : agentsMode, profiles: options.path, ok: okSteps, fails: [...fails] }))
 }
 
 /** Rows a drawn tree takes (grok-bot-watch's rule): a column stacks, a row is its tallest child, a leaf is a line. */
@@ -233,6 +240,8 @@ async function* answer($: EngineInterface, e: TurnStepInput, profile: string, si
   }
   const loop = e.agentId ?? 'main'
   if (step.result.usage === null) await log($, { ev: 'gate-fail', loop, index: e.index, answer: step.result.answer.slice(0, 300) })
+  if (step.result.usage === null) fails.push({ who: types.get(loop) ?? loop, why: step.result.answer.slice(0, 80) })
+  else okSteps++
   last.set(loop, `#${e.index} ${step.result.usage === null ? step.result.answer.slice(0, 80) : `ok ${step.result.stopReason}`}`)
   await sync($)
   for (const c of step.chunks) yield c
@@ -247,6 +256,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
       const p = await loadProfile($, m)
       if (typeof p === 'string') return p
       loops.set('main', m)
+      routed.push(m)
       return `main loop: ${m} on your provider from its next step. /provider-switch off goes back to Claude.`
     }
     case 'agent': {
@@ -256,6 +266,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
       if (typeof p === 'string') return p
       if (!(await $.agent.list()).some(x => x.id === a)) return `no running agent ${a}; /provider-switch status lists them`
       loops.set(a, m)
+      routed.push(m)
       return `agent ${a}: ${m} on your provider from its next step.`
     }
     case 'agents':
@@ -271,6 +282,11 @@ async function command($: EngineInterface, args: string): Promise<string> {
       const loop = a ?? 'main'
       return loops.delete(loop) ? `${loop}: back to Claude from its next step.` : `${loop} is not on your provider.`
     }
+    case 'band':
+      band.hidden = !band.hidden
+      await $.store.set(HIDE_KEY, band.hidden ? 'hidden' : 'shown')
+      $.ui.invalidate('ui.render')
+      return band.hidden ? 'band hidden; /provider-switch band shows it again.' : 'band shown.'
     case 'status':
     case undefined:
     case '': {
@@ -282,7 +298,7 @@ async function command($: EngineInterface, args: string): Promise<string> {
       return `on your provider: ${on} · new subagents: ${agentsMode} · profiles ${gate} · running agents: ${agents}`
     }
     default:
-      return 'usage: /provider-switch use [profile] | agent <agentId> [profile] | agents follow|claude|<profile> | off [agentId] | status'
+      return 'usage: /provider-switch use [profile] | agent <agentId> [profile] | agents follow|claude|<profile> | off [agentId] | status | band'
   }
 }
 
@@ -301,7 +317,9 @@ export const register: Register = (on, opts) => {
     const started = await next(e)
     logPath = await $.env.get('GATE_LOG')
     const main = await $.env.get('GATE_TEST_MAIN')
-    if (main) loops.set('main', main)
+    if (main) { loops.set('main', main); routed.push(main) }
+    band.folded = (await $.store.get(FOLD_KEY)) !== 'open'
+    band.hidden = (await $.store.get(HIDE_KEY)) === 'hidden'
     // default.conf `agents=` is the mode a session starts in; a bad value is shown, never silently dropped.
     const kv = await defaultConf($)
     if (kv.agents) {
@@ -319,7 +337,7 @@ export const register: Register = (on, opts) => {
     const reg = await $.command.register({
       name: 'provider-switch',
       description: 'Answer the main loop or a subagent with a model on your own provider, or go back to Claude (byo-provider)',
-      argumentHint: 'use [profile] | agent <agentId> [profile] | agents follow|claude|<profile> | off [agentId] | status',
+      argumentHint: 'use [profile] | agent <agentId> [profile] | agents follow|claude|<profile> | off [agentId] | status | band',
       immediate: true,
     })
     await $.tool.register({
@@ -344,22 +362,39 @@ export const register: Register = (on, opts) => {
 
   on('command.run', { command: 'provider-switch' }, async ($, e) => ({ text: await switchAndShow($, String(e.args ?? '')) }))
 
-  // A band above the prompt from the session's start, as the other mods draw (grok-bot-watch, quick-say):
-  // no $.ui.open, so no 144-column rule. It draws in the rows the bands below leave: a header, then one
-  // line per loop on your provider, then nothing when even the header does not fit.
+  // A band above the prompt from the session's start, drawn as quick-say draws its band (fold and hide
+  // stored in $.store, header only when folded): no $.ui.open, so no 144-column rule. It says only whether
+  // routing works; unfolded it adds the new-subagent mode and the last failures, in the rows left below.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
     const below = await next(e)
+    if (band.hidden) return below
     const budget = e.props.maxRows - rowsOf(below)
     if (budget < 1) return below
-    const { Box, Text } = $.ui.resolve(e)
+    const { Box, Text, Button } = $.ui.resolve(e)
     const v = await read($, view)
-    const header = `▌byo-provider · ${v.rows.length ? `${v.rows.length} on your provider` : 'every loop on Claude'} · new subagents: ${v.agents}`
+    const { status, rows } = bandText({ routed, ok: v.ok, fails: v.fails, agents: v.agents })
+    const title = `▌byo-provider v${VERSION}`
+    const buttons = `[ ${band.folded ? '▸ open' : '▾ fold'} ][ hide ] [-]` // ' [-]': the engine's collapse control, kept clear
+    const width = e.props.bodyColumns
+    const room = Math.max(0, width - title.length - buttons.length - 3)
+    const header = (
+      <Box flexDirection="row">
+        <Text bold color="magenta">{title}</Text>
+        <Text color={v.fails.length ? 'red' : undefined} dimColor={!v.fails.length}>{` · ${status}`.slice(0, room)} </Text>
+        {Button({ key: 'fold', label: band.folded ? '▸ open' : '▾ fold', onPress: () => {
+          band.folded = !band.folded
+          $.ui.invalidate('ui.render')
+          void $.store.set(FOLD_KEY, band.folded ? 'folded' : 'open').catch(err => $.ui.toast(`[byo-provider] fold not saved (${String(err)})`))
+        } })}
+        {Button({ key: 'hide', label: 'hide', onPress: () => void command($, 'band') })}
+      </Box>
+    )
     return (
       <Box flexDirection="column">
         {below}
-        <Text bold color="magenta">{header.slice(0, e.props.bodyColumns)}</Text>
-        {v.rows.slice(0, budget - 1).map(r => <Text>  {r.loop} → {r.profile} <Text dimColor>{r.last}</Text></Text>)}
+        {header}
+        {band.folded ? null : rows.slice(0, budget - 1).map(r => <Text dimColor={!r.startsWith('✗')} color={r.startsWith('✗') ? 'red' : undefined}>  {r.slice(0, width - 2)}</Text>)}
       </Box>
     )
   })
@@ -375,10 +410,15 @@ export const register: Register = (on, opts) => {
       : agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : agentsMode === 'claude' ? undefined : agentsMode
     if (tier && tier !== 'claude') {
       const p = await loadProfile($, tier).catch((x: unknown) => String(x))
-      if (typeof p === 'string') { $.ui.toast(`[byo-provider] ${resolved} → ${tier}: ${p}; that agent runs on Claude`); model = undefined }
+      if (typeof p === 'string') {
+        $.ui.toast(`[byo-provider] ${resolved} → ${tier}: ${p}; that agent runs on Claude`)
+        fails.push({ who: e.subagentType ?? 'fork', why: `${tier}: ${p}`.slice(0, 80) })
+        model = undefined
+      }
     }
     if (model && agentId) {
       loops.set(agentId, model)
+      routed.push(model)
       if (!e.fork) types.set(agentId, e.subagentType)
       await sync($).catch(() => undefined)
     }

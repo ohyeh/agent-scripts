@@ -1,6 +1,6 @@
 {
   "name": "byo-provider",
-  "version": "0.5.5",
+  "version": "0.5.6",
   "description": "Answer chosen loops (main, a subagent, a fork) with a model on your own Anthropic-format gateway by answering turn.step; every other loop stays on Claude. Env is never touched and the Claude credential is never sent to the gateway.",
   "author": {
     "name": "PaulYeh",
