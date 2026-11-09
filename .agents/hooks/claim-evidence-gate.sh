@@ -259,7 +259,9 @@ recap_reason=""
 # a page followed by `READ <abs path> page N/T lines A-B body=<page sha> sha256=<file sha>`. Three checks, no more:
 # (a) the summary line for <pack>/<sid8> with the same COUNT/TOOLS; (b) every page of user.txt;
 # (c) every page of footprints.txt; timeline.md with a light on every node, every failed call named in a lit or dark node, and
-# each `lit` node's S<NN>:<line> on a page read with the file's current sha, or in a fully read scout-T<a>-T<b>.md.
+# each `lit` node bound to an observation: a T<n> whose call block `resume_pack.py --call` printed (a receipt of a past
+# event), or a backticked string of 8+ characters that a live check printed after the resume prompt. Pack reads (READ /
+# CALL-READ outputs) and echo/printf-only commands are not live checks: a quote of the old account proves nothing.
 # A stamp counts only with its page's lines above it (`| tail -1` keeps the stamp, not the body) and
 # a sha equal to the file on disk. The window is the transcript rows after the last human
 # `/session-handoff resume` prompt (the flow spans turns); rows, not timestamps. Claude and Codex.
@@ -290,6 +292,30 @@ if [ -n "$recap_full" ]; then
       [ "$(printf '%s' "$b" | base64 -d 2>/dev/null | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -d' ' -f1)" = "$d" ] \
         && printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$n" "$t" "$h" "$d"
     done <<<"$cand" | sort -u)"
+  # Live checks: tool output after the resume prompt, minus pack reads and echo/printf-only commands.
+  live="$(tail -n "+${rrow:-1}" "$TRANSCRIPT" | jq -sc '
+      def cmd: (.input.command // .input.cmd // (.arguments? | strings | (fromjson? // {}) | .command // .cmd) // "") | tostring;
+      def echo_only: test("^\\s*(echo|printf)\\b[^;&|`$]*$");
+      ([ .[] | (.message.content? | arrays | .[] | select(.type == "tool_use") | {id, c: cmd}),
+              (select(.type == "response_item" and .payload.type == "function_call") | .payload | {id: .call_id, c: cmd}) ]
+       | map(select(.c | echo_only) | .id)) as $echo
+      | .[] | ((.message.content? | arrays | .[] | select(.type == "tool_result") | {id: .tool_use_id, o: (.content
+                | if type == "string" then . else (map(.text? // empty) | join("\n")) end)}),
+               (select(.type == "response_item" and ((.payload.type // "") | endswith("_output"))) | {id: .payload.call_id, o: (.payload.output
+                | if type == "string" then ((fromjson? | .output? // empty | strings) // .) elif type == "array" then (map(.text? // empty) | join("\n")) else tostring end)}))
+      | select((.id as $i | $echo | index($i)) | not) | .o | strings
+      | select(test("(^|\\n)(READ|CALL-READ) /") | not)' 2>/dev/null)"
+  # CALL-READ stamps whose body= matches the lines printed above them: session dir TAB T<n>
+  callstamps="$(printf '%s\n' "$outs" | jq -r 'strings | split("\n") as $l
+    | reduce range(0; $l | length) as $i ({prev: -1, out: []};
+        if ($l[$i] | test("^CALL-READ /")) then .out += [{s: $l[$i], from: (.prev + 1), to: $i}] | .prev = $i else . end)
+    | .out[] | . as $o | (.s | capture("^CALL-READ (?<p>/\\S+) (?<t>T[0-9]+) (?<f>S[0-9]+):(?<a>[0-9]+)-(?<b>[0-9]+) body=(?<d>[0-9a-f]{64}) sha256=[0-9a-f]{64}$")?) as $m
+    | select($m != null) | (($m.b | tonumber) - ($m.a | tonumber) + 1) as $k | select($o.to - $o.from >= $k)
+    | [$m.p, $m.t, $m.d, ($l[($o.to - $k):$o.to] | join("\n") | @base64)] | @tsv' 2>/dev/null \
+    | while IFS=$'\t' read -r p t d b; do
+        [ "$(printf '%s' "$b" | base64 -d 2>/dev/null | { sha256sum 2>/dev/null || openssl dgst -sha256 -r 2>/dev/null; } | cut -d' ' -f1)" = "$d" ] \
+          && printf '%s\t%s\n' "$p" "$t"
+      done | sort -u)"
   read_whole() { # $1 file: every page 1..T of the file on disk, each stamped with its real page sha
     local want
     # shortcut: repeats resume_pack.py pages_of (4000-char pieces, 16 KiB pages); a change there must change this too.
@@ -315,32 +341,6 @@ EOF
     [ -n "$want" ] && [ -z "$(comm -23 <(printf '%s\n' "$want" | sort) \
       <(awk -F'\t' -v p="$1" '$1 == p { print $2 "\t" $3 "\t" $4 "\t" $5 }' <<<"$stamps" | sort -u))" ]
   }
-  line_read() { # $1 slice file, $2 line: the page holding that line, stamped with the file's current sha
-    local want
-    want="$(/usr/bin/python3 - "$1" "$2" 2>/dev/null <<'PY'
-import hashlib, sys
-raw = open(sys.argv[1], "rb").read()
-target, pages, page, size, owner, n = int(sys.argv[2]), [], [], 0, None, 0
-for whole in raw.decode("utf-8").splitlines():
-    n += 1
-    for i in range(0, max(len(whole), 1), 4000):
-        piece = whole[i:i + 4000]
-        b = len(piece.encode("utf-8")) + 1
-        if page and size + b > 16 * 1024:
-            pages.append(page)
-            page, size = [], 0
-        page.append(piece)
-        size += b
-        if n == target and owner is None:
-            owner = len(pages)
-pages = pages + [page] if page else pages
-if owner is None:
-    sys.exit(1)
-print(owner + 1, len(pages), hashlib.sha256(raw).hexdigest(), hashlib.sha256("\n".join(pages[owner]).encode("utf-8")).hexdigest(), sep="\t")
-PY
-)" || return 1
-    awk -F'\t' -v p="$1" '$1 == p { print $2 "\t" $3 "\t" $4 "\t" $5 }' <<<"$stamps" | grep -qxF "$want"
-  }
   while IFS= read -r line; do
     sid="$(printf '%s' "$line" | cut -d' ' -f2)"
     count="$(printf '%s' "$line" | sed -E 's/.*COUNT ([0-9]+).*/\1/')"
@@ -356,9 +356,8 @@ PY
         || miss="$miss no resume_pack.py summary for $pack/$sid with COUNT $count TOOLS $tools;"
       read_whole "$pack/$sid/user.txt" || miss="$miss $sid/user.txt not read in full with resume_pack.py --read;"
       read_whole "$pack/$sid/footprints.txt" || miss="$miss $sid/footprints.txt not read in full with resume_pack.py --read;"
-      # timeline.md: one `- ` line per node, each with a light (lit/dim/dark); a lit node cites S<NN>:<line>
-      # and each cited line sits on a page read in full with the file's current sha, or in a read scout report
-      # citing it; every failed call footprints.txt lists is named (T<n>) in some node.
+      # timeline.md: one `- ` line per node, each with a light (lit/dim/dark); a lit node is bound to an
+      # observation (see the header above); every failed call footprints.txt lists is named (T<n>) in some node.
       tl="$pack/$sid/timeline.md"
       if [ ! -f "$tl" ]; then
         miss="$miss $sid/timeline.md missing (account, evidence and light per node);"
@@ -371,15 +370,17 @@ PY
         [ -z "$bare" ] || miss="$miss timeline node not ending in \` · lit|dim|dark\`: ${bare:0:60};"
         while IFS= read -r node; do
           [ -n "$node" ] || continue
-          cites="$(printf '%s' "$node" | grep -oE 'S[0-9]{2,}:[0-9]+' | sort -u)"
-          [ -n "$cites" ] || { miss="$miss lit node cites no S<NN>:<line>: ${node:0:60};"; continue; }
-          for c in $cites; do
-            f="$pack/$sid/slices/${c%%:*}.txt"
-            [ -f "$f" ] && [ "$(wc -l < "$f")" -ge "${c#*:}" ] || { miss="$miss lit node cites $c, a line the pack does not have;"; continue; }
-            line_read "$f" "${c#*:}" && continue
-            for r in $(grep -lE "$c([^0-9]|$)" "$pack/$sid"/scout-T*.md 2>/dev/null); do read_whole "$r" && continue 2; done
-            miss="$miss lit node cites $c but the page holding that line (current file) was not read, nor a scout report citing it;"
+          bound=""
+          for t in $(printf '%s' "$node" | grep -oE '\bT[0-9]{1,}\b' | sort -u); do
+            n=$((10#${t#T})); printf '%s\n' "$callstamps" | grep -qxF "$pack/$sid"$'\t'"$(printf 'T%04d' "$n")" && { bound=1; break; }
           done
+          if [ -z "$bound" ]; then
+            while IFS= read -r q; do
+              [ "${#q}" -ge 8 ] || continue
+              printf '%s\n' "$live" | jq -e --arg q "$q" 'select(index($q))' >/dev/null 2>&1 && { bound=1; break; }
+            done < <(printf '%s' "$node" | grep -oE '`[^`]+`' | sed -E 's/^`|`$//g')
+          fi
+          [ -n "$bound" ] || miss="$miss lit node has no observation: no printed --call T<n> and no backticked output (8+ chars) of a live check after the resume prompt: ${node:0:60};"
         done < <(printf '%s\n' "$nodes" | grep -iE '·[[:space:]]*lit[[:space:]]*$')
         for t in $(grep -E '^  T[0-9]{4,} S[0-9]{2,}:[0-9]+ L[0-9]+ fail ' "$pack/$sid/footprints.txt" 2>/dev/null | awk '{ print $1 }'); do
           # A failure is opened, not skimmed: its node is lit (evidence read) or dark (read, unresolved), never dim.

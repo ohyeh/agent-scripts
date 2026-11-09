@@ -393,7 +393,8 @@ FAIL: W46-15 'evidence token' read as a credential"
 echo 'PASS W46-15: ask-back with no consensus call blocks; advisor call, hard-stop ask, final-round ask, quoted ask and plain recap pass'
 # W46-18: a `full` resume recap line is bound to what resume_pack.py PRINTED after the resume prompt:
 # its summary line, READ stamps (with their page body) for user.txt and footprints.txt, and timeline.md
-# whose `lit` nodes cite only evidence with a read slice page or a read scout report.
+# whose `lit` nodes are bound to an observation: a `--call T<n>` receipt printed after the resume prompt, or a
+# backticked string (8+ chars) a live check printed. Pack reads and echo/printf-only output never count.
 RP="$ROOT/skills/session-handoff/scripts/resume_pack.py"
 LG="$WORK/logs/abcd1234-0000.jsonl"; mkdir -p "$WORK/logs/abcd1234-0000/subagents"
 { jq -cn '{type:"user",timestamp:"2026-01-01T00:00:00Z",message:{content:"do it"}}'
@@ -414,8 +415,7 @@ if ! command -v zstd >/dev/null 2>&1; then
 fi
 [[ -z "$(ls -d "$PK"/abcd1234/sub-* 2>/dev/null)" ]] || { echo "FAIL: W46-18 a subagent was packed without --subagents" >&2; exit 1; }
 rdp() { python3 "$RP" --read "$PK/$1"; }
-printf 'scout report\nS01:1 make failed\n' > "$PK/abcd1234/scout-T0001-T0001.md"
-printf '# timeline\n- do it · said: make ran · T0001 S01:1 · lit\n' > "$PK/abcd1234/timeline.md"
+printf '# timeline\n- do it · said: make ran · receipt T0001 · lit\n' > "$PK/abcd1234/timeline.md"
 res() { jq -cn --arg c "$1" '{type:"user",timestamp:"2026-01-01T00:00:06.000Z",message:{content:[{type:"tool_result",tool_use_id:"r",content:$c}]}}'; }
 rtr() { # $1 file, then tool outputs printed after the second prompt; the pack ran after the resume prompt
   local f="$WORK/$1"; shift
@@ -427,14 +427,15 @@ rtr() { # $1 file, then tool outputs printed after the second prompt; the pack r
 }
 C="$(jq -r .count "$PK/abcd1234/manifest.json")"; T="$(jq -r .tools "$PK/abcd1234/manifest.json")"
 FULL="- abcd1234 full · COUNT $C · TOOLS $T · pack $PK"
-ALL=("$(rdp abcd1234/user.txt)" "$(rdp abcd1234/scout-T0001-T0001.md)" "$(rdp abcd1234/footprints.txt)")
+ALL=("$(rdp abcd1234/user.txt)" "$(python3 "$RP" --call "$PK/abcd1234" T1)" "$(rdp abcd1234/footprints.txt)")
+[[ "${ALL[1]}" == *"CALL-READ $PK/abcd1234 T0001 S01:"* ]] || { echo "FAIL: W46-18 --call printed no CALL-READ stamp: ${ALL[1]}" >&2; exit 1; }
 w46r=""
 [[ "$(run_claim r1 "$FULL" "$(trh r1.jsonl "$BASHU")")" == block ]] || w46r="$w46r
 FAIL: W46-18 full with no pack output passed"
 [[ -z "$(run_claim r2 "$FULL" "$(rtr r2.jsonl "${ALL[@]}")")" ]] || w46r="$w46r
-FAIL: W46-18 summary + user.txt + footprints + scout report for the lit node across two prompts blocked"
-[[ -z "$(run_claim r3 "$FULL" "$(rtr r3.jsonl "${ALL[0]}" "$(rdp abcd1234/slices/S01.txt)" "${ALL[2]}")")" ]] || w46r="$w46r
-FAIL: W46-18 a slice read in place of its scout report blocked"
+FAIL: W46-18 summary + user.txt + footprints + a --call receipt for the lit node across two prompts blocked"
+[[ "$(run_claim r3 "$FULL" "$(rtr r3.jsonl "${ALL[0]}" "$(rdp abcd1234/slices/S01.txt)" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a slice page read stood in for the --call receipt of a lit node"
 [[ "$(run_claim r18 "$FULL" "$(rtr r18.jsonl "${ALL[0]}" "${ALL[1]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 footprints.txt left unread passed"
 [[ "$(run_claim r4 "$FULL" "$(rtr r4.jsonl "$(printf '%s\n' "${ALL[0]}" | tail -1)" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
@@ -484,15 +485,21 @@ printf '# timeline\n- do it · said: make ran · no light\n' > "$PK/abcd1234/tim
 FAIL: W46-18 a timeline node with no lit/dim/dark passed"
 printf '# timeline\n- do it · said: make ran · lit\n' > "$PK/abcd1234/timeline.md"
 [[ "$(run_claim r21 "$FULL" "$(rtr r21.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
-FAIL: W46-18 a lit node citing no S<NN>:<line> passed"
-printf '# timeline\n- do it · said: make ran · evidence S01:999 · lit\n' > "$PK/abcd1234/timeline.md"
+FAIL: W46-18 a lit node with no observation passed"
+printf '# timeline\n- do it · said: make ran T0001 · evidence `make: *** [all] Error 2` · lit\n' > "$PK/abcd1234/timeline.md"
 [[ "$(run_claim r22 "$FULL" "$(rtr r22.jsonl "${UP[@]}" "${ALL[2]}" "$(rdp abcd1234/slices/S01.txt)")")" == block ]] || w46r="$w46r
-FAIL: W46-18 a lit node citing a line the slice does not have passed"
-printf 'scout\nS01:999 fake\n' > "$PK/abcd1234/scout-T0009-T0009.md"
-printf '# timeline\n- do it · said: make ran · evidence S01:999 · lit\n' > "$PK/abcd1234/timeline.md"
-[[ "$(run_claim r24 "$FULL" "$(rtr r24.jsonl "${UP[@]}" "${ALL[2]}" "$(rdp abcd1234/scout-T0009-T0009.md)")")" == block ]] || w46r="$w46r
-FAIL: W46-18 a scout report citing a line the pack does not have stood in for the read"
-rm "$PK/abcd1234/scout-T0009-T0009.md"
+FAIL: W46-18 a lit node quoting only pack text (the old account witnessing itself) passed"
+printf '# timeline\n- do it · said: make ran T0001 · now `build finished: 3 targets ok` · lit\n' > "$PK/abcd1234/timeline.md"
+[[ -z "$(run_claim r24 "$FULL" "$(rtr r24.jsonl "${UP[@]}" "${ALL[2]}" "build finished: 3 targets ok")")" ]] || w46r="$w46r
+FAIL: W46-18 a lit node quoting a live check's output blocked"
+EC="$(rtr r27.jsonl "${UP[@]}" "${ALL[2]}")"
+{ jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"e1",name:"Bash",input:{command:"echo build finished: 3 targets ok"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"e1",content:"build finished: 3 targets ok"}]}}'; } >> "$EC"
+[[ "$(run_claim r27 "$FULL" "$EC")" == block ]] || w46r="$w46r
+FAIL: W46-18 an echo-only command stood in for a live check"
+printf '# timeline\n- do it · said: make ran T0001 · now `ok` · lit\n' > "$PK/abcd1234/timeline.md"
+[[ "$(run_claim r28 "$FULL" "$(rtr r28.jsonl "${UP[@]}" "${ALL[2]}" "ok")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a quote under 8 characters bound a lit node"
 printf '# timeline\n- asked: keep the room lit · said: T0001 failed · dim\n' > "$PK/abcd1234/timeline.md"
 R25_OUT="$(printf '%s' "$(jq -cn --arg t "$(rtr r25.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")" --arg m "$FULL" '{session_id:"r25",transcript_path:$t,stop_hook_active:false,last_assistant_message:$m}')" | HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" XDG_STATE_HOME="$TEST_HOME/.local/state" bash "$ROOT/.agents/hooks/claim-evidence-gate.sh")"
 [[ "$(printf '%s' "$R25_OUT" | jq -r '.decision // empty')" == block && "$(printf '%s' "$R25_OUT" | jq -r '.reason // empty')" == *"failed call T0001 (footprints.txt) is in no lit or dark timeline node"* ]] || w46r="$w46r
@@ -511,7 +518,7 @@ printf 'edited\n' >> "$PK/abcd1234/user.txt"
 [[ "$(run_claim r12 "$FULL" "$(rtr r12.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
 FAIL: W46-18 a stamp whose sha no longer matches user.txt counted"
 [[ -z "$w46r" ]] || { echo "$w46r" >&2; exit 1; }
-echo 'PASS W46-18: a full recap needs the pack summary and READ-stamped pages of user.txt and footprints.txt, and a timeline.md whose lit nodes cite read evidence, after the latest resume prompt (Claude and Codex, string or content blocks); tail -1, padding above a stamp, forged body=, failed reads, old reads, edited files block'
+echo 'PASS W46-18: a full recap needs the pack summary and READ-stamped pages of user.txt and footprints.txt, and a timeline.md whose lit nodes are bound to a --call receipt or a live check (not pack text, not echo), after the latest resume prompt (Claude and Codex, string or content blocks); tail -1, padding above a stamp, forged body=, failed reads, old reads, edited files block'
 [[ "$(run_claim h8 '頁面已上線：https://claude.ai/artifact/x' "$(trh h8.jsonl "$PUBU" '{"name":"Bash","input":{"command":"echo take a screenshot later"}}')")" == block ]] || { echo "FAIL: W44-7 a Bash line naming a screenshot passed as a render check" >&2; exit 1; }
 
 # bol: prose shape is no longer judged (runnable-check heuristic retired

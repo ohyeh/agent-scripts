@@ -49,6 +49,8 @@ def serialized(value):
 
 
 def result_text(value):
+    if isinstance(value, dict) and isinstance(value.get("encrypted_content"), str):  # advisor: unreadable bytes only
+        value = {**value, "encrypted_content": f"<{len(value['encrypted_content'])} encrypted bytes dropped>"}
     if isinstance(value, list):
         return "\n".join(result_text(item) for item in value)
     if isinstance(value, dict) and isinstance(value.get("text"), str):
@@ -182,7 +184,8 @@ def state_tool(name):
     return bool(tokens & STATE_VERBS) and not {"execute", "read"} <= tokens
 STATE_COMMAND = re.compile(r"\bgit\s+(?:-[Cc]\s+\S+\s+)*(?:commit|push|tag|rebase|reset|merge|checkout|switch|stash)\b"
                            r"|\bgh\s+(?:pr|release|issue)\b|\b(?:plugin|npm|pnpm|yarn|pip3?|brew|uv)\s+(?:install|update|add|remove)\b"
-                           r"|\bdeploy\b|\brm\s|\bmv\s|\bcp\s|\bsed\s+-i|(?<![0-9&])>>?\s*(?!/dev/null|&)[^\s|]")
+                           r"|(?:^|[;&|(\n]|\btimeout\s+\S+|\benv(?:\s+\w+=\S*)*)\s*(?:bash\s+|sh\s+)?\S*\bdeploy(?:\.sh)?(?![\w.-])(?![^\n;&|]*--check)"
+                           r"|\brm\s|\bmv\s|\bcp\s|\bsed\s+-i|(?<![0-9&])>>?\s*(?!/dev/null|&|/tmp/|/private/tmp/|/var/folders/)[^\s|]")
 # A shell command whose first word is here reads only; any other shell call keeps a `shell` pointer.
 READ_ONLY = re.compile(r"^\s*(?:\w+=\S*\s+)*(?:cd\s+\S+\s*$|(?:ls|cat|head|tail|wc|rg|grep|fd|jq|yq|echo|printf|pwd|which|stat|du|diff|"
                        r"sed\s+-n|sort|uniq|cut|tr|date|test|\[|git\s+(?:-C\s+\S+\s+)?(?:status|log|diff|show|rev-parse|ls-remote|fetch))\b)")
@@ -321,7 +324,8 @@ def prepare(log, relative):
     groups = [{"range": f"{Path(names[i]).stem}-{Path(names[min(i + width, len(names)) - 1]).stem}",
                "slices": names[i:i + width]} for i in range(0, len(names), width)]
     manifest = dict(log=str(log), sha256=digest, cli=cli, count=count,
-                    tools=len(calls), slices=names, scout_groups=groups)
+                    tools=len(calls), slices=names, scout_groups=groups,
+                    calls=[where[c[2]][1] for c in calls if c[2] in where])
     files = {"user.txt": user, "tools.txt": "\n".join(tools + [f"TOOLS {len(calls)}", ""]),
              "footprints.txt": footprints(rows, cli, calls, results, where, digest)}
     for i, (name, content) in enumerate(zip(names, slices), 1):
@@ -395,6 +399,30 @@ def read_page(path, number):
     # body= binds the stamp to the lines printed above it: padding plus `| tail -1` does not match.
     text = "\n".join(body)
     return "\n".join(body + [f"READ {path} page {number}/{len(pages)} lines {first}-{first + len(body) - 1} "
+                             f"body={hashlib.sha256(text.encode('utf-8')).hexdigest()} "
+                             f"sha256={hashlib.sha256(raw).hexdigest()}"])
+
+
+def read_call(session, number):
+    """Print the whole block of call T<number> from its slice, then a CALL-READ stamp the claim gate
+    checks the same way as a READ stamp: body= binds the lines above it, sha256= the slice file."""
+    session = session.expanduser().resolve()
+    starts = json.loads((session / "manifest.json").read_text(encoding="utf-8")).get("calls")
+    if not starts:
+        raise ValueError(f"{session}: manifest.json has no call index; rebuild the pack with this resume_pack.py")
+    if not 1 <= number <= len(starts):
+        raise ValueError(f"{session}: T{number} is outside T1-T{len(starts)}")
+    name, first = starts[number - 1].split(":")
+    path = session / "slices" / f"{name}.txt"
+    raw = path.read_bytes()
+    lines = raw.decode("utf-8").splitlines()
+    nxt = starts[number] if number < len(starts) else None
+    last = int(nxt.split(":")[1]) - 1 if nxt and nxt.split(":")[0] == name else len(lines)
+    while last > int(first) and not lines[last - 1].split(":", 2)[-1].strip():
+        last -= 1  # drop the blank separator line
+    body = lines[int(first) - 1:last]
+    text = "\n".join(body)
+    return "\n".join(body + [f"CALL-READ {session} T{number:04} {name}:{first}-{last} "
                              f"body={hashlib.sha256(text.encode('utf-8')).hexdigest()} "
                              f"sha256={hashlib.sha256(raw).hexdigest()}"])
 
@@ -530,6 +558,27 @@ def self_test():
         _, files, manifest = prepare(large, Path("large"))
         assert len(manifest['slices']) == 12 and len(manifest['scout_groups']) <= 10
         assert sum(files[s].count(":CALL ") for s in manifest['slices']) == 12
+        assert len(manifest['calls']) == 12
+        # A deploy that writes is state; reading or checking it is not. A redirect into scratch is not state.
+        for cmd, st in [("cat scripts/deploy.sh", False), ('echo "=== deploy refs ==="', False),
+                        ("timeout 500 bash scripts/deploy.sh > /private/tmp/s/deploy.log 2>&1", True),
+                        ("timeout 400 bash scripts/deploy.sh --check > /private/tmp/s/check.log 2>&1", False),
+                        ("cd /repo; scripts/deploy.sh", True), ("rg -n x . > /tmp/out.txt", False),
+                        ("jq . a.json > b.json", True), ("git commit -qm x && git push origin main", True),
+                        ("echo x > $S/out.txt", True)]:
+            assert bool(STATE_COMMAND.search(cmd)) == st, cmd
+        blob = result_text({"type": "advisor_redacted_result", "encrypted_content": "A" * 500})
+        assert "<500 encrypted bytes dropped>" in blob and "AAAA" not in blob
+        # --call prints one whole call block with a stamp bound to it.
+        receipt = read_call(dirs[2], 2).splitlines()
+        assert receipt[-1].startswith(f"CALL-READ {dirs[2].resolve()} T0002 S01:") and " body=" in receipt[-1]
+        assert sum(":CALL " in line for line in receipt[:-1]) == 1 and receipt[0].split(":", 2)[2].startswith("CALL ")
+        for bad in (0, 4):
+            try:
+                read_call(dirs[2], bad)
+            except ValueError:
+                continue
+            raise AssertionError(f"T{bad} accepted")
         unknown = fixture(root / "unknown.jsonl", [{"role": "user", "content": "other CLI"}])
         for inputs in [[plain, unknown], [main, unknown]]:
             try:
@@ -550,8 +599,17 @@ def main():
                         help="also pack each Claude subagent log; off by default, as the main log holds each agent's report")
     parser.add_argument("--read", type=Path, help="print one page of a pack file with its READ stamp")
     parser.add_argument("--page", type=int, default=1)
+    parser.add_argument("--call", nargs=2, metavar=("SESSION_DIR", "T<n>"),
+                        help="print one call's whole block (the receipt of a past event) with its CALL-READ stamp")
     parser.add_argument("logs", nargs="*", type=Path)
     args = parser.parse_args()
+    if args.call:
+        try:
+            print(read_call(Path(args.call[0]), int(args.call[1].lstrip("Tt"))))
+        except (OSError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        return 0
     if args.read:
         try:
             print(read_page(args.read, args.page))

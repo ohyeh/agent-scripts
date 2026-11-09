@@ -1,5 +1,12 @@
 # Changelog
 
+## session-handoff: resume checks what the next step relies on; quick-say 0.8.0
+
+- RESUME Step 3b.2b no longer sends slice pages to scouts. The resuming agent reads `user.txt` and `footprints.txt` itself, then builds a work list (conclusions the next step relies on, done claims for open asks, unsettled fail/noresult/delegate pointers) and checks each item: current state read-only and live, never a replayed push or deploy; a past event no live read can prove by one call block from the new `resume_pack.py --call <pack>/<sid8> T<n>`; otherwise `unknown`. On 2026-11-10 the old path took hours: 10 subagents, 5 blocked by the read-only gate, one fed 2 KB previews by three-page reads.
+- `claim-evidence-gate.sh`: a `lit` timeline node is bound to an observation, not to a read page: a `--call` receipt (`CALL-READ` stamp with its body) or a backticked output string of 8+ characters printed by a live check after the resume prompt. Pack reads and echo/printf-only commands do not count, so the old account cannot witness itself.
+- `resume_pack.py`: `deploy` is state only as a command that is not `--check`; a redirect into `/tmp`, `/private/tmp` or `/var/folders` alone is not state; advisor `encrypted_content` is dropped at pack time; `manifest.json` records where each call starts.
+- quick-say 0.8.0: 5 前情提要 follows the new Step 3b.2b.
+
 ## quick-say 0.7.1
 
 - The band title shows the installed version; `MOD_VERSION` stayed at 0.6.2 through three releases. New invariant `mod-version-sync` fails when a mod's hook `VERSION` differs from its `plugin.json`.
