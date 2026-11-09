@@ -207,13 +207,15 @@ def read_only(cmd):
 
 def turn_start(row, cli):
     """Text of a user-side row that is not a tool result: a prompt, or an event (notice, hook, summary)."""
+    txt = lambda items, img="image": " ".join(b.get("text", "") if b.get("type") in {"text", "input_text"} else "[image]"
+                                              for b in items if isinstance(b, dict) and b.get("type") in {"text", "input_text", img})
     if row.get("type") == "attachment" and row.get("attachment", {}).get("type") == "queued_command":
         prompt = row["attachment"].get("prompt", "")  # a prompt sent while the agent worked opens a turn too
-        return prompt if isinstance(prompt, str) else " ".join(b.get("text", "") for b in prompt if isinstance(b, dict))
+        return prompt if isinstance(prompt, str) else txt(prompt)
     if cli == "codex":
         p = row.get("payload", {})
         if row.get("type") == "response_item" and p.get("type") == "message" and p.get("role") == "user":
-            return " ".join(c.get("text", "") for c in p.get("content", []) if isinstance(c, dict))
+            return txt(p.get("content", []), "input_image")
         return None
     if row.get("type") != "user":
         return None
@@ -221,7 +223,7 @@ def turn_start(row, cli):
     if isinstance(content, str):
         return content
     if isinstance(content, list) and not any(b.get("type") == "tool_result" for b in blocks(row)):
-        return " ".join(b.get("text", "") if b.get("type") == "text" else "[image]" for b in blocks(row) if b.get("type") in {"text", "image"})
+        return txt(blocks(row))
     return None
 
 
@@ -449,7 +451,7 @@ def self_test():
         assert " fail " in (dirs[2] / "footprints.txt").read_text()
         q = fixture(root / "queued.jsonl", [
             claude("user", "first"),
-            dict(type="attachment", timestamp="t", attachment={"type": "queued_command", "prompt": "second"}),
+            dict(type="attachment", timestamp="t", attachment={"type": "queued_command", "prompt": [{"type": "text", "text": "second"}, {"type": "image"}]}),
             claude("user", "The tmux-agent plugin sent a message: worker done"),
             claude("user", [{"type": "tool_result", "tool_use_id": "z", "content": "ok"}], toolUseResult={"answers": {"Which one?": "B"}}),
             claude("assistant", [{"type": "text", "text": "x" * 1500 + " I fixed it and deployed it."},
@@ -461,16 +463,18 @@ def self_test():
                                   {"type": "tool_use", "id": "q6", "name": "spawn_agent", "input": {}}])])
         _, qf, _ = prepare(q, Path("q"))
         qt = qf["footprints.txt"]
-        assert "TURN 2 " in qt and "asked: second" in qt and qt.split("TURN 2 ")[0].count(" no calls") == 1
+        assert "TURN 2 " in qt and "asked: second [image]" in qt and qt.split("TURN 2 ")[0].count(" no calls") == 1
         assert "deployed it." in qt and qt.endswith("TURNS 2\n")
         assert "  event L3 The tmux-agent plugin sent" in qt and "  answer L4 Which one? → B" in qt
         assert qt.count(" state ") == 3 and qt.count(" shell ") == 1 and " delegate " in qt and "[no result]" in qt
         assert " noresult Bash git status" in qt  # a read-only call is listed only because it never returned
-        cx = [{"type": "session_meta", "payload": {"id": "eeeeeeee-session"}}] + [
+        cx = [{"type": "session_meta", "payload": {"id": "eeeeeeee-session"}},
+              {"type": "response_item", "timestamp": "t", "payload": {"type": "message", "role": "user",
+               "content": [{"type": "input_text", "text": "<image>request</image>"}, {"type": "input_image"}]}}] + [
             {"type": "response_item", "timestamp": "t", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": t}]}}
-            for t in ["<image>request</image>", "<pasted_content>p</pasted_content>", "# AGENTS.md instructions for /x"]]
+            for t in ["<pasted_content>p</pasted_content>", "# AGENTS.md instructions for /x"]]
         _, cf, cm = prepare(fixture(root / "cx.jsonl", cx), Path("cx"))
-        assert cm["count"] == 1 and cf["footprints.txt"].endswith("TURNS 1\n") and "asked: <image>request" in cf["footprints.txt"]
+        assert cm["count"] == 1 and cf["footprints.txt"].endswith("TURNS 1\n") and "asked: <image>request</image> [image]" in cf["footprints.txt"]
         for cmd, ro in [("git status && rg x", True), ("cd /a", True), ("echo ready && python3 mutate.py", False),
                         ("find . -delete", False), ("git branch -D topic", False), ("ls | xargs rm", False),
                         ("env python3 mutate.py", False), ("find . -fprint output.txt", False), ("git branch new-topic", False),
