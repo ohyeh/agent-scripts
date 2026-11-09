@@ -7,6 +7,10 @@
 - **RESUME Step 3b**: read `user.txt` and `footprints.txt` whole; open evidence only for turns that claim done/verified/pushed, that failed, or that the next step depends on; write `timeline.md` with account, evidence and a light (`lit` / `dim` / `dark`) per node, copied to `.claude/footprints/<sid8>.md` at CREATE.
 - **Claim gate**: a `full` line needs `footprints.txt` read whole and `timeline.md` whose `lit` nodes cite a read slice page or a read `scout-T<a>-T<b>.md`. The per-manifest-group `scout-<range>.md` rule is gone (it refused per-batch reports).
 
+## byo-provider 0.5.8
+
+- **Workflow agents stay on Claude.** The engine closes a workflow agent's conversation to hooks (`$.session.messages({ agentId })` gives `{deny}`), so every gate step of one failed (`this loop's conversation cannot be read`) and its workflow broke. Tier lines, `agents=` and `follow` now skip agents a Workflow script starts; the routing log records `workflow: <runId>`.
+
 ## byo-provider 0.5.7
 
 - **The band says only whether routing works**, in one folded line: `agents=<mode> · ✓ routing ok · 13 → default · 400 steps ok`, a `default.conf` link for the tier lines, and `✗ <n> failed (<who>: <why>)` in red. Fold and hide as quick-say; `/provider-switch band` shows a hidden band.

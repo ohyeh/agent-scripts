@@ -20,7 +20,7 @@ import type { View } from '../types'
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
-const VERSION = '0.5.7' // keep equal to .claude-plugin/plugin.json
+const VERSION = '0.5.8' // keep equal to .claude-plugin/plugin.json
 const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
 const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
@@ -409,9 +409,11 @@ export const register: Register = (on, opts) => {
     const resolved = r && 'model' in r ? r.model : undefined
     // default.conf `haiku=` / `sonnet=` / `opus=` route by the agent's resolved model tier, ahead of `agents=`.
     const tier = tierRoute(await defaultConf($).catch(() => ({})), resolved ?? e.model ?? e.parentModel)
-    let model = tier !== undefined ? (tier === 'claude' ? undefined : tier)
+    // A workflow agent's conversation is closed to hooks ($.session.messages gives {deny}), so the gate
+    // could not answer any of its steps: it stays on Claude.
+    let model = e.workflow ? undefined : tier !== undefined ? (tier === 'claude' ? undefined : tier)
       : agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : agentsMode === 'claude' ? undefined : agentsMode
-    if (tier && tier !== 'claude') {
+    if (tier && tier !== 'claude' && !e.workflow) {
       const p = await loadProfile($, tier).catch((x: unknown) => String(x))
       if (typeof p === 'string') {
         $.ui.toast(`[byo-provider] ${resolved} → ${tier}: ${p}; that agent runs on Claude`)
@@ -428,7 +430,7 @@ export const register: Register = (on, opts) => {
     else if (model) $.ui.toast(`[byo-provider] spawn gave no agent id; that agent runs on Claude, not ${model}`)
     // A failing log write must not fail the hook: the engine would skip it after the spawn.
     await log($, { ev: model && agentId ? 'spawn-marked' : 'spawn-claude', agentId, profile: model ?? null, tier: tier ?? null, fork: e.fork,
-      parent: e.parentAgentId ?? 'main', parentModel: e.parentModel, askedModel: e.model ?? null, resolvedModel: r && 'model' in r ? r.model : null })
+      workflow: e.workflow ? e.workflow.runId : null, parent: e.parentAgentId ?? 'main', parentModel: e.parentModel, askedModel: e.model ?? null, resolvedModel: r && 'model' in r ? r.model : null })
       .catch(() => undefined)
     return r
   }).catch(async ($, e, next) => {
