@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 LAUNCH_WAIT_SECONDS = 30
 # Pre-launch normally takes seconds; allow ten minutes before judging a dead owner's reservation.
 LAUNCH_ABANDON_SECONDS = 600
+EMPTY_SINCE = None
 
 
 def guard():
@@ -49,8 +50,11 @@ def guard():
         try:
             os.kill(watcher, 0)
         except ProcessLookupError:
-            return
+            break
         time.sleep(1)
+    marker_state = Path(marker).read_text() if Path(marker).exists() else 'missing'
+    if marker_state != 'keep' and not Path(marker + '.cleanup.json').exists():
+        raise RuntimeError(f'watcher {watcher} exited before cleanup; marker={marker_state[:40]}')
 
 
 def stop_worker(binary, profile, worker, marker, ledger):
@@ -93,12 +97,18 @@ def cleanup():
     if worker.startswith('{'):
         selector = json.loads(worker)
         workers = []
+        global EMPTY_SINCE
         for path in Path(ledger).glob('*/worker.json'):
             if not path.parent.name.startswith(selector['prefix']):
                 continue
             row = json.loads(path.read_text())
             if row.get('owner') == selector['owner'] and row.get('name', '').startswith(selector['prefix']):
                 workers.append(row['name'])
+        if not workers and Path(marker).read_text() != 'no-launch':
+            # An assign cut short may reserve its worker later; wait as the single-worker path does.
+            EMPTY_SINCE = EMPTY_SINCE or time.monotonic()
+            if time.monotonic() - EMPTY_SINCE < LAUNCH_WAIT_SECONDS:
+                return False
         with ThreadPoolExecutor(max_workers=max(1, len(workers))) as pool:
             results = list(pool.map(lambda name: stop_worker(binary, profile, name, marker, ledger), workers))
         result = {'workers': results}
@@ -128,13 +138,18 @@ def owner_alive(owner):
 def watch():
     sys.stdin.read()
     while True:
-        state = Path(sys.argv[-2]).read_text()
-        if state == 'keep':
-            return
-        metadata = json.loads(state) if state.startswith('{') else {}
-        if state in ('armed', 'no-launch') or metadata.get('state') == 'armed' or not owner_alive(metadata['owner']):
-            if cleanup():
+        try:
+            state = Path(sys.argv[-2]).read_text()
+            if state == 'keep':
                 return
+            metadata = json.loads(state) if state.startswith('{') else {}
+            if state in ('armed', 'no-launch') or metadata.get('state') == 'armed' or not owner_alive(metadata['owner']):
+                if cleanup():
+                    return
+                time.sleep(1)
+                continue
+        except (OSError, ValueError, KeyError):
+            # A marker read mid-write is transient; dying here would leave the worker with no cleanup path.
             time.sleep(1)
             continue
         time.sleep(0.2)

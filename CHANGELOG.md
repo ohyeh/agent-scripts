@@ -7,7 +7,9 @@
 - A teammate keeps its tmux worker between turns and sends later messages with tell. Shutdown and aborted turns stop its worker. Each CLI report becomes one end_turn step; failed reports and timeouts fail visibly without a Claude fallback.
 - CLI worker bindings use one `$.store` key per session. Reload/resume restores that session's live agents. Startup keeps foreign workers while the owner registry and PID remain live or uncertain. It stops them only after the owner is gone. Separate keys prevent cross-session lost updates; each session serializes its own writes. Successful stops remove the binding; failed cleanup stays retryable at the next startup.
 - Cleanup requires positive stop evidence before releasing bindings and guards. Guards are armed before assign, cover the detached launch race, and watch idle teammates' owner sessions. Session end hands worker stops to one detached parallel cleanup process. Headless normal exits also terminate background descendants.
-- A guard exits once its watcher process is gone. Before, a guard whose watcher died slept forever with no cleanup path (`tests/cli_check.py`: guard exits once its watcher is gone).
+- A guard exits once its watcher process is gone. Before, a guard whose watcher died slept forever with no cleanup path. It exits 1 with `watcher … exited before cleanup` when no cleanup ran (`tests/cli_check.py`: guard exits 1 once its watcher is gone before cleanup).
+- A watcher retries after a marker read fails (a torn write, missing `owner`) instead of dying silently (`tests/cli_check.py`: watcher survives a torn marker).
+- A selector cleanup that finds no worker waits up to 30 seconds for an assign cut short by an abort to reserve one. Before, it finished empty and the late worker had no cleanup (`tests/cli_check.py`: selector cleanup waits for a worker reserved after abort).
 
 ## session-handoff: resume reads footprints, not every call
 

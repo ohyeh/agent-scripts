@@ -143,6 +143,26 @@ with tempfile.TemporaryDirectory(dir=sys.argv[1]) as directory:
     rows = json.loads(result.read_text())['workers']
     assert len(rows) == 1 and rows[0]['worker'] == 'owned.12345' and rows[0]['stopped'] is True
     print('PASS pre-assign guard recovers owned receipt; foreign worker untouched')
+    # A selector cleanup that runs before assign reserves its worker must wait for it, not finish empty.
+    marker = root / 'late-selector'
+    marker.write_text('armed')
+    guard = subprocess.Popen([sys.executable, str(runner), '--guard', str(stop), 'test', json.dumps({'prefix': 'late.', 'owner': 'session'}), str(marker), str(root)], stdout=subprocess.PIPE, text=True)
+    assert guard.stdout.readline().strip() == 'ready'
+    guard.kill()
+    guard.wait(timeout=5)
+    result = Path(str(marker) + '.cleanup.json')
+    time.sleep(1.5)
+    assert not result.exists(), 'selector cleanup finished before the worker was reserved'
+    late = root / 'late.1'
+    late.mkdir()
+    (late / 'worker.json').write_text(json.dumps({'name': 'late.1', 'owner': 'session'}))
+    (late / 'pane-id').write_text('%1')
+    until = time.monotonic() + 5
+    while not result.exists() and time.monotonic() < until:
+        time.sleep(0.02)
+    rows = json.loads(result.read_text())['workers']
+    assert len(rows) == 1 and rows[0]['worker'] == 'late.1' and rows[0]['stopped'] is True, rows
+    print('PASS selector cleanup waits for a worker reserved after abort, then stops it')
     delayed = root / 'delayed'
     delayed.mkdir()
     (delayed / 'worker.json').write_text(json.dumps({'name': 'delayed', 'owner': 'session'}))
@@ -282,18 +302,48 @@ with tempfile.TemporaryDirectory(dir=sys.argv[1]) as directory:
     # A guard whose watcher died has no cleanup path left; it must exit instead of sleeping forever.
     marker = root / 'orphan-guard'
     marker.write_text('armed')
-    guard = subprocess.Popen([sys.executable, str(runner), '--guard', str(stop), 'test', 'orphan', str(marker), str(root)], stdout=subprocess.PIPE, text=True)
+    guard = subprocess.Popen([sys.executable, str(runner), '--guard', str(stop), 'test', 'orphan', str(marker), str(root)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         assert guard.stdout.readline().strip() == 'ready'
         watchers = subprocess.run(['pgrep', '-f', '--', '--watch .* ' + str(marker) + ' '], capture_output=True, text=True).stdout.split()
         assert len(watchers) == 1, watchers
         os.kill(int(watchers[0]), signal.SIGKILL)
-        assert guard.wait(timeout=5) == 0
+        assert guard.wait(timeout=5) == 1
+        assert 'exited before cleanup' in guard.stderr.read()
     finally:
         if guard.poll() is None:
             guard.kill()
             guard.wait(timeout=5)
-    print('PASS guard exits once its watcher is gone')
+    print('PASS guard exits 1 once its watcher is gone before cleanup')
+    # A marker read mid-write must not kill the watcher: it is the only cleanup path.
+    marker = root / 'torn-marker'
+    marker.write_text('armed')
+    guard = subprocess.Popen([sys.executable, str(runner), '--guard', str(stop), 'test', 'torn', str(marker), str(root)], stdout=subprocess.PIPE, text=True)
+    try:
+        assert guard.stdout.readline().strip() == 'ready'
+        watchers = subprocess.run(['pgrep', '-f', '--', '--watch .* ' + str(marker) + ' '], capture_output=True, text=True).stdout.split()
+        assert len(watchers) == 1, watchers
+        marker.write_text('{"own')
+        guard.kill()  # the watcher acts only after its guard's pipe closes
+        guard.wait(timeout=5)
+        time.sleep(1.5)
+        os.kill(int(watchers[0]), 0)
+        marker.write_text('keep')
+        until = time.monotonic() + 5
+        while time.monotonic() < until:
+            try:
+                os.kill(int(watchers[0]), 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        else:
+            raise AssertionError('watcher ignored keep after a torn marker')
+    finally:
+        if guard.poll() is None:
+            guard.kill()
+            guard.wait(timeout=5)
+        marker.write_text('keep')
+    print('PASS watcher survives a torn marker and exits on keep')
     stop.write_text('sleep 0.8\nprint -r -- "Stopped test-$3"\n')
     jobs = [{'binary': str(stop), 'profile': 'test', 'worker': name, 'marker': str(root / name), 'ledger': str(root)} for name in ['first', 'second']]
     result = root / 'batch.json'
