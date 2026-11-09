@@ -1,5 +1,9 @@
 # Changelog
 
+## quick-say 0.6.4
+
+- 6 規劃期 names the design branch's real routes (Motion, diagram, explainer page); `canvas` is no route in `using-decision-tree/references/design.md`.
+
 ## quick-say 0.6.3
 
 - 5 前情提要 follows the footprints RESUME (9617954): read `user.txt` and `footprints.txt` whole, open slices only for turns that claim done, carry a fail pointer or that the next step depends on, and write `timeline.md`. Before, it still asked for every manifest scout group, the path the owner reported as slow on 2026-11-06.
