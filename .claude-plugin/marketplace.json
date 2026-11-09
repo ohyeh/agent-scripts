@@ -18,12 +18,7 @@
         "name": "PaulYeh"
       },
       "category": "development",
-      "keywords": [
-        "grok-bot",
-        "cdp",
-        "mod",
-        "hooks"
-      ]
+      "keywords": ["grok-bot", "cdp", "mod", "hooks"]
     },
     {
       "name": "session-recall",
@@ -34,12 +29,7 @@
         "name": "PaulYeh"
       },
       "category": "development",
-      "keywords": [
-        "assets",
-        "url",
-        "mod",
-        "hooks"
-      ]
+      "keywords": ["assets", "url", "mod", "hooks"]
     },
     {
       "name": "agent-should-know",
@@ -50,12 +40,7 @@
         "name": "PaulYeh"
       },
       "category": "development",
-      "keywords": [
-        "you-should-know",
-        "relay",
-        "mod",
-        "hooks"
-      ]
+      "keywords": ["you-should-know", "relay", "mod", "hooks"]
     },
     {
       "name": "owner-asks",
@@ -83,12 +68,7 @@
         "name": "PaulYeh"
       },
       "category": "development",
-      "keywords": [
-        "canned",
-        "prompt",
-        "mod",
-        "hooks"
-      ]
+      "keywords": ["canned", "prompt", "mod", "hooks"]
     },
     {
       "name": "byo-provider",
@@ -99,12 +79,7 @@
         "name": "PaulYeh"
       },
       "category": "development",
-      "keywords": [
-        "gateway",
-        "routing",
-        "turn.step",
-        "mod"
-      ]
+      "keywords": ["gateway", "routing", "turn.step", "mod"]
     }
   ]
 }
