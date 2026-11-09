@@ -20,7 +20,7 @@ import type { View } from '../types'
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
-const VERSION = '0.5.6' // keep equal to .claude-plugin/plugin.json
+const VERSION = '0.5.7' // keep equal to .claude-plugin/plugin.json
 const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
 const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
@@ -371,17 +371,20 @@ export const register: Register = (on, opts) => {
     if (band.hidden) return below
     const budget = e.props.maxRows - rowsOf(below)
     if (budget < 1) return below
-    const { Box, Text, Button } = $.ui.resolve(e)
+    const { Box, Text, Button, Link } = $.ui.resolve(e)
     const v = await read($, view)
-    const { status, rows } = bandText({ routed, ok: v.ok, fails: v.fails, agents: v.agents })
+    const { status, rows } = bandText({ routed, ok: v.ok, fails: v.fails, agents: agentsMode })
+    const conf = `${await profilesDir($)}/default.conf`
     const title = `▌byo-provider v${VERSION}`
-    const buttons = `[ ${band.folded ? '▸ open' : '▾ fold'} ][ hide ] [-]` // ' [-]': the engine's collapse control, kept clear
+    const buttons = ` default.conf [ ${band.folded ? '▸ open' : '▾ fold'} ][ hide ] [-]` // ' [-]': the engine's collapse control, kept clear
     const width = e.props.bodyColumns
     const room = Math.max(0, width - title.length - buttons.length - 3)
     const header = (
       <Box flexDirection="row">
         <Text bold color="magenta">{title}</Text>
         <Text color={v.fails.length ? 'red' : undefined} dimColor={!v.fails.length}>{` · ${status}`.slice(0, room)} </Text>
+        <Link href={`file://${conf}`}>default.conf</Link>
+        <Text> </Text>
         {Button({ key: 'fold', label: band.folded ? '▸ open' : '▾ fold', onPress: () => {
           band.folded = !band.folded
           $.ui.invalidate('ui.render')

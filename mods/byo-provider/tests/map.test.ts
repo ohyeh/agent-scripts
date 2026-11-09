@@ -125,11 +125,11 @@ test('tierRoute: model tier picks the default.conf line; no tier or no line give
 })
 
 test('bandText: the header says whether routing works; failures show, finished agents do not', () => {
-  expect(bandText({ routed: [], ok: 0, fails: [], agents: 'default' }).status).toBe('nothing routed yet')
+  expect(bandText({ routed: [], ok: 0, fails: [], agents: 'default' }).status).toBe('agents=default · nothing routed yet')
   const ok = bandText({ routed: Array(13).fill('default'), ok: 400, fails: [], agents: 'default' })
-  expect(ok.status).toBe('✓ routing ok · 13 → default · 400 steps ok')
-  expect(ok.rows).toEqual(['new subagents: default'])
+  expect(ok.status).toBe('agents=default · ✓ routing ok · 13 → default · 400 steps ok')
+  expect(ok.rows).toEqual([])
   const bad = bandText({ routed: ['default', 'default'], ok: 5, fails: [{ who: 'Explore', why: 'gate 502' }], agents: 'default' })
-  expect(bad.status).toBe('✗ 1 failed (Explore: gate 502) · 2 → default · 5 steps ok')
-  expect(bad.rows).toEqual(['new subagents: default', '✗ Explore: gate 502'])
+  expect(bad.status).toBe('agents=default · ✗ 1 failed (Explore: gate 502) · 2 → default · 5 steps ok')
+  expect(bad.rows).toEqual(['✗ Explore: gate 502'])
 })
