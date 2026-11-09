@@ -1,5 +1,10 @@
 # Changelog
 
+## quick-say 0.7.0
+
+- 7 is now 調查: investigate before changing anything. Route with `using-decision-tree`, then `diagnosing-bugs` for breakage or `unknowns-discovery` for unclear asks; search in full (no head/tail cut, no `rg -E`), and report root cause, evidence and a proposed fix for the owner to decide.
+- 8 指揮＋loop now carries the 指揮 text itself; the separate 7 指揮 duplicated it.
+
 ## quick-say 0.6.4
 
 - 6 規劃期 names the design branch's real routes (Motion, diagram, explainer page); `canvas` is no route in `using-decision-tree/references/design.md`.

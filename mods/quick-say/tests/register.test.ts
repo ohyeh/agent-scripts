@@ -63,7 +63,7 @@ test('the band starts folded, opens, and a combo button fills its whole text int
   expect(w.store.get('quick-say.fold')).toBe('open')
   const open = textOf(await $.ui.render(band()))
   expect(open).toContain('[ ▾ fold ]')
-  expect(open).toContain('4: 更深的問題  5: 前情提要  6: 規劃期  7: 指揮  8: 指揮＋loop  9: 驗收  0: 收工')
+  expect(open).toContain('4: 更深的問題  5: 前情提要  6: 規劃期  7: 調查  8: 指揮＋loop  9: 驗收  0: 收工')
 
   await $.ui.press({ plugin: PLUGIN, key: 'say-0', requestId: 'above' })
   expect(w.filled).toEqual([PHRASES[6]!.text])
@@ -86,7 +86,7 @@ test('narrow: icons only, labels cut, never wrapped; no room: the phrase row goe
   expect(narrow).toContain('▌quick say v0.6.2')
   expect(narrow).toContain('[ ◐ ][ ▾ ][ ✕ ]')
   // Seven labels use two rows; each label fits its share.
-  expect(narrow).toContain('4: 更深…  5: 前情…  6: 規劃…  7: 指揮')
+  expect(narrow).toContain('4: 更深…  5: 前情…  6: 規劃…  7: 調查')
   expect(narrow).toContain('8: 指揮…  9: 驗收  0: 收工')
   // Room for one phrase row only: one row, labels cut.
   expect(textOf(await $.ui.render(band(40, 3)))).toContain('4: ')
@@ -136,7 +136,7 @@ test('every combo in phrases.ts fills its own whole text into the box, unsent', 
   await $.session.start(start)
   const expected = PHRASES.map(p => p.text)
   expect(new Set(PHRASES.map(p => p.hotkey)).size).toBe(PHRASES.length)
-  expect(PHRASES.find(p => p.hotkey === '8')!.text).toContain(PHRASES.find(p => p.hotkey === '7')!.text)
+  expect(PHRASES.find(p => p.hotkey === '8')!.text).toContain('全程指揮模式')
   expect(PHRASES.every(p => !/\{\{\w+\}\}/.test(p.text))).toBe(true)
   for (const p of PHRASES) {
     await $.ui.render(band())

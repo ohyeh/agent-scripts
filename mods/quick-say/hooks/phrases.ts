@@ -1,5 +1,5 @@
 // The owner's combo texts: data only, edit here. A text may embed another
-// combo's text as {{<hotkey>}} (combo 8 reuses 7). register.ts checks the list once on load.
+// combo's text as {{<hotkey>}}. register.ts checks the list once on load.
 // Kept as .ts: a hooks module may import only code files, not .json.
 export default [
   {
@@ -29,15 +29,14 @@ export default [
   },
   {
     hotkey: "7",
-    label: "指揮",
-    when: "目標已確定，要由主 agent 指揮 workers 實作與審查",
-    text: `全程指揮模式：實作與審查都交給 workers 執行。你是大腦：盤點、決策、派發、復驗、定奪；自己只寫少量重要的產品 code。
-
-你的主要任務是分析、編排和驗證，具體工作盡量交給 local coding agent CLI 或 grok bot 執行。
-
-自己只做需求澄清、方案拆解、任務分派和結果驗收；實作類工作（讀大量程式碼、寫程式、跑測試、批次修改）交給 workers。
-
-Discover live, never recite from memory.`,
+    label: "調查",
+    when: "問題原因不明或方向不清，先查清楚再動手",
+    text: `調查模式：先查清楚，不改產品 code、不發布。
+1. 先依 using-decision-tree 確認這件事歸哪個 skill 或 recipe，照它走。
+2. 壞掉、報錯、變慢、測試失敗：照 /diagnosing-bugs，先做出一個會變紅的回饋迴圈，重現、縮小，再提假設、加觀測，證實根因。
+3. 需求或驗收講不清、陌生領域、上次做錯想直接重試：照 /unknowns-discovery，列出已知、未知和盲點；真的要我回答的才問，一次一題。
+4. 搜尋要完整：不准 head／tail 截斷、不准 rg -E，一次沒找到不算不存在。每個結論附本 session 跑的指令和輸出；查不到的標 UNCONFIRMED，並寫怎麼確認。
+5. 交出：根因（或最可能的假設和已排除的）、證據、建議修法和驗證方式。修不修由我決定。`,
   },
   {
     hotkey: "8",
@@ -45,7 +44,13 @@ Discover live, never recite from memory.`,
     when: "規劃已確認，要持續指揮直到所有結束條件達成",
     text: `/loop 完成規劃好的所有內容
 
-{{7}}
+全程指揮模式：實作與審查都交給 workers 執行。你是大腦：盤點、決策、派發、復驗、定奪；自己只寫少量重要的產品 code。
+
+你的主要任務是分析、編排和驗證，具體工作盡量交給 local coding agent CLI 或 grok bot 執行。
+
+自己只做需求澄清、方案拆解、任務分派和結果驗收；實作類工作（讀大量程式碼、寫程式、跑測試、批次修改）交給 workers。
+
+Discover live, never recite from memory.
 
 每一輪 loop 你都要主動多做事
 每一輪不只收尾，還要主動往下一輪前進

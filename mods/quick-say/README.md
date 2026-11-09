@@ -1,6 +1,6 @@
 # quick-say
 
-Seven combos for 前情提要 → 規劃期 → 指揮 → 驗收 → 收工, with three modes.
+Seven combos for 前情提要 → 調查 → 規劃期 → 指揮 → 驗收 → 收工, with three modes.
 Digits fill the full combo into the prompt box. Read or edit it, then press Enter to send.
 
 ## Modes
@@ -38,8 +38,8 @@ with `APPROVES_NOTHING`: it grants no new approval.
 | 4 | 更深的問題 | Find the deeper question behind repeated discussion. |
 | 5 | 前情提要 | Read the handoff and sources, explain the timeline and checkpoint, then wait for confirmation. |
 | 6 | 規劃期 | Show a state model first; add code signatures for cross-module or interface work; write the plan after agreement. |
-| 7 | 指揮 | Direct workers through implementation, review and acceptance. |
-| 8 | 指揮＋loop | Run the agreed work to its recorded end conditions. Reuses the full text of 7. |
+| 7 | 調查 | Investigate before changing anything: route with using-decision-tree, then diagnosing-bugs for breakage or unknowns-discovery for unclear asks; report root cause and evidence. |
+| 8 | 指揮＋loop | Direct workers through implementation, review and acceptance until the recorded end conditions hold. |
 | 9 | 驗收 | Check model transitions and tasks against real product evidence; reviewers take objective issues, then a scope／direction card for the owner. |
 | 0 | 收工 | Check delivery, write the handoff and memory submission, and record the next checkpoint. |
 

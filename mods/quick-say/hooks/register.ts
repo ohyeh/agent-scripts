@@ -13,7 +13,7 @@ const FOLD_KEY = `${NAME}.fold`
 const HIDE_KEY = `${NAME}.hidden`
 
 // A digit fills the box; only the owner sends it. The texts live in ./phrases.ts;
-// a text may embed another combo's text as {{<hotkey>}} (combo 8 reuses 7).
+// a text may embed another combo's text as {{<hotkey>}}.
 type Phrase = { hotkey: string; label: string; when: string; text: string }
 export function phrasesOf(raw: unknown): Phrase[] {
   if (!Array.isArray(raw) || raw.length === 0) throw new Error('phrases.ts: expected a non-empty array')
