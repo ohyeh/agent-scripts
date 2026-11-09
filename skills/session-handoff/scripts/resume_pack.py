@@ -178,8 +178,8 @@ STATE_COMMAND = re.compile(r"\bgit\s+(?:-[Cc]\s+\S+\s+)*(?:commit|push|tag|rebas
                            r"|\bgh\s+(?:pr|release|issue)\b|\b(?:plugin|npm|pnpm|yarn|pip3?|brew|uv)\s+(?:install|update|add|remove)\b"
                            r"|\bdeploy\b|\brm\s|\bmv\s|\bcp\s|\bsed\s+-i|(?<![0-9&])>>?\s*(?!/dev/null|&)[^\s|]")
 # A shell command whose first word is here reads only; any other shell call keeps a `shell` pointer.
-READ_ONLY = re.compile(r"^\s*(?:\w+=\S*\s+)*(?:cd\s+\S+\s*$|(?:ls|cat|head|tail|wc|rg|grep|fd|find|jq|yq|echo|printf|pwd|which|stat|du|diff|"
-                       r"sed\s+-n|awk|sort|uniq|cut|tr|date|env|test|\[|git\s+(?:-C\s+\S+\s+)?(?:status|log|diff|show|branch|rev-parse|ls-remote|fetch))\b)")
+READ_ONLY = re.compile(r"^\s*(?:\w+=\S*\s+)*(?:cd\s+\S+\s*$|(?:ls|cat|head|tail|wc|rg|grep|fd|jq|yq|echo|printf|pwd|which|stat|du|diff|"
+                       r"sed\s+-n|sort|uniq|cut|tr|date|test|\[|git\s+(?:-C\s+\S+\s+)?(?:status|log|diff|show|rev-parse|ls-remote|fetch))\b)")
 
 
 # The same messages user.txt drops, per CLI (the select() regexes of CLAUDE_USER / CODEX_USER; change both):
@@ -194,7 +194,7 @@ NOT_HUMAN = {
 def read_only(cmd):
     """Every part of the command is a read-only verb with no deleting or executing flag; else not proven."""
     parts = [p for p in re.split(r"&&|\|\||;|\||\n", cmd) if p.strip()]
-    return bool(parts) and all(READ_ONLY.match(p) and not re.search(r"\s-(?:delete|exec|D|d)\b|--delete|--force", p) for p in parts)
+    return bool(parts) and all(READ_ONLY.match(p) and not re.search(r"\s-(?:delete|exec|D|d|x|X)\b|--delete|--force|--exec", p) for p in parts)
 
 
 def turn_start(row, cli):
@@ -464,7 +464,9 @@ def self_test():
         _, cf, cm = prepare(fixture(root / "cx.jsonl", cx), Path("cx"))
         assert cm["count"] == 1 and cf["footprints.txt"].endswith("TURNS 1\n") and "asked: <image>request" in cf["footprints.txt"]
         for cmd, ro in [("git status && rg x", True), ("cd /a", True), ("echo ready && python3 mutate.py", False),
-                        ("find . -delete", False), ("git branch -D topic", False), ("ls | xargs rm", False)]:
+                        ("find . -delete", False), ("git branch -D topic", False), ("ls | xargs rm", False),
+                        ("env python3 mutate.py", False), ("find . -fprint output.txt", False), ("git branch new-topic", False),
+                        ("fd -x rm", False)]:
             assert read_only(cmd) == ro, cmd
         assert read_only("LC_ALL=C grep x f") and not read_only("FOO=1 python3 m.py")
         z = fixture(root / "zero.jsonl", [
