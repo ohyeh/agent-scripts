@@ -56,6 +56,12 @@ export function cliAllowed(kv: Record<string, string>, type: string | undefined,
 
 /** Longest `timeout` a profile may set. A gateway request is one `$.process.run` (ten minutes at most);
  *  a CLI task, tmux or headless, is waited for in linked steps (relayStep). */
+/** tmux-agent owns a `runtime: tmux/<profile>` brief: it starts the worker and spawns its own waiter
+ *  (model sonnet). Routing either to a CLI starts a second worker for the same task. */
+export function ownedByTmuxAgent(subagentType: string | undefined, prompt: string | undefined): boolean {
+  return subagentType === 'tmux-agent:tmux-waiter' || /^\s*runtime:\s*tmux\/\S+\s*$/m.test(prompt ?? '')
+}
+
 export function maxTimeoutSeconds(cli: string | undefined): number {
   return cli ? 3600 : 590
 }

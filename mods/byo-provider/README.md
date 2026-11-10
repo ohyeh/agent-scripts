@@ -75,6 +75,10 @@ keeps the report summary to one paragraph. A successful step returns that file's
 the report, so output the parent needs verbatim (code, lists, raw text) is not cut to the summary.
 
 For an interactive worker, use `cli=tmux/agy-flash`. Load the tmux-agent mod too.
+A brief with a `runtime: tmux/<profile>` line belongs to tmux-agent: byo routes neither that spawn
+nor tmux-agent's `tmux-agent:tmux-waiter`, so one task starts one worker. That spawn runs on Claude
+even when its tier names a gateway profile, and even when tmux-agent is not loaded (then the
+brief runs as a plain Claude subagent): load tmux-agent before you use `runtime:` lines.
 A CLI task, tmux or headless, may run past ten minutes, the most one step may take. Steps are
 linked like train cars: a step waits up to 540 s, and while the task still runs it ends with one
 call of byo's own no-op tool `mcp__byo-provider__cli_next`, so the engine starts the next step,

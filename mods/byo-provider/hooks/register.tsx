@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
-import { maxTimeoutSeconds, relayStep, RELAY_SLICE_MS, RELAY_TOOL, bandText, bindingPlan, parseBindings, cliAllowed, cliProfile, finishStop, stopReceipt, reportStep, withAnswer, roundPrompt, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
+import { maxTimeoutSeconds, ownedByTmuxAgent, relayStep, RELAY_SLICE_MS, RELAY_TOOL, bandText, bindingPlan, parseBindings, cliAllowed, cliProfile, finishStop, stopReceipt, reportStep, withAnswer, roundPrompt, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
 import { SCHEMAS } from './schemas'
 import type { CliBinding, CliOwner, Fail, GateTool, Msg, Ran, Step } from './map'
 import type { View } from '../types'
@@ -869,8 +869,9 @@ export const register: Register = (on, opts) => {
     const tier = tierRoute(defaults, resolved ?? e.model ?? e.parentModel)
     // A workflow agent is routed from its own record (see `own`), which needs the task text to start.
     const noTask = e.workflow !== undefined && !e.prompt?.trim()
+    const tmuxOwned = ownedByTmuxAgent(e.subagentType, e.prompt)
     const modeRoute = agentsMode === 'follow' ? loops.get(e.parentAgentId ?? 'main') : agentsMode === 'claude' ? undefined : agentsMode
-    let model = noTask ? undefined : tier !== undefined ? (tier === 'claude' ? undefined : tier) : modeRoute
+    let model = noTask || tmuxOwned ? undefined : tier !== undefined ? (tier === 'claude' ? undefined : tier) : modeRoute
     const candidate = model ? parseConf(String(await $.fs.read(`${await profilesDir($)}/${model}.conf`).catch(() => ''))) : {}
     const isCli = Object.hasOwn(candidate, 'cli')
     if (isCli && !cliAllowed(defaults, e.subagentType, !!e.workflow, e.fork)) {
@@ -879,7 +880,7 @@ export const register: Register = (on, opts) => {
       if (Object.hasOwn(fallback, 'cli')) model = undefined
       if (agentId) { await stopCli($, agentId); loops.delete(agentId) }
     }
-    if (tier && tier !== 'claude' && !noTask) {
+    if (tier && tier !== 'claude' && !noTask && !tmuxOwned) {
       const p = await loadProfile($, tier).catch((x: unknown) => String(x))
       if (typeof p === 'string' && !isCli) {
         $.ui.toast(`[byo-provider] ${resolved} → ${tier}: ${p}; that agent runs on Claude`)
@@ -900,7 +901,7 @@ export const register: Register = (on, opts) => {
     }
     else if (model) $.ui.toast(`[byo-provider] spawn gave no agent id; that agent runs on Claude, not ${model}`)
     // A failing log write must not fail the hook: the engine would skip it after the spawn.
-    await log($, { ev: model && agentId ? 'spawn-marked' : 'spawn-claude', agentId, profile: model ?? null, tier: tier ?? null, fork: e.fork,
+    await log($, { ev: model && agentId ? 'spawn-marked' : 'spawn-claude', agentId, profile: model ?? null, tier: tier ?? null, fork: e.fork, tmuxOwned, subagentType: e.subagentType ?? null,
       workflow: e.workflow ? e.workflow.runId : null, kept: e.workflow !== undefined && !noTask, promptChars: e.prompt?.length ?? 0, parent: e.parentAgentId ?? 'main', parentModel: e.parentModel, askedModel: e.model ?? null, resolvedModel: r && 'model' in r ? r.model : null })
       .catch(() => undefined)
     return r

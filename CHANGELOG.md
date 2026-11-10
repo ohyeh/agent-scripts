@@ -1,5 +1,9 @@
 # Changelog
 
+## byo-provider 0.8.1
+
+- A brief with a `runtime: tmux/<profile>` line starts one worker, not two. tmux-agent launches the worker and spawns its own waiter with model `sonnet`; with a `sonnet=` tier line on a CLI profile, byo routed that spawn too and started a second worker for the same task (seen with `sonnet=t-tagy`: workers `byomixedlong.tplxl` and `byo-a3debf…`). byo now leaves a spawn whose prompt has that line, or whose type is `tmux-agent:tmux-waiter`, on Claude (`ownedByTmuxAgent`). Such a spawn runs on Claude even when its tier names a gateway profile, and even when tmux-agent is not loaded (no toast; the log says `spawn-claude`, `tmuxOwned: true`). The spawn log line records `tmuxOwned` and `subagentType`.
+
 ## byo-provider 0.8.0
 
 - A CLI task, tmux or headless, may run past ten minutes. The engine aborts one step at 600 s (a tmux/agy step was cut at exactly 600 s while byo's timeout was 1200 s; a plain Claude subagent ran 686 s, one Bash call per step). Steps are now linked: a step waits up to 540 s (`RELAY_SLICE_MS`); while the task still runs it ends with one call of byo's own no-op tool `mcp__byo-provider__cli_next` (`relayStep`), and the next step of the same loop goes on waiting, with no new task or round. `timeout` bounds the whole task; CLI profiles may set up to 3600 s, a gateway keeps 1..590 (`maxTimeoutSeconds`). `GATE_RELAY_SLICE_MS` shortens the slice for tests.

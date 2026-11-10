@@ -2,7 +2,7 @@
 import { expect, test } from 'claude-code/testing'
 import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, tierRoute, toStep, bandText, resultsFor } from '../hooks/map'
 import { SCHEMAS } from '../hooks/schemas'
-import { maxTimeoutSeconds, relayStep, RELAY_TOOL, bindingPlan, cliAllowed, cliProfile, finishStop, reportStep, roundPrompt, withAnswer } from '../hooks/map'
+import { maxTimeoutSeconds, ownedByTmuxAgent, relayStep, RELAY_TOOL, bindingPlan, cliAllowed, cliProfile, finishStop, reportStep, roundPrompt, withAnswer } from '../hooks/map'
 
 test('failed stop keeps binding and guard; only confirmed stop releases them', async () => {
   const state = { binding: true, guard: true }
@@ -270,4 +270,11 @@ test('timeout limit: CLI routes allow an hour; a gateway keeps the ten-minute li
   expect(maxTimeoutSeconds('tmux/agy-flash')).toBe(3600)
   expect(maxTimeoutSeconds('agy-flash')).toBe(3600)
   expect(maxTimeoutSeconds(undefined)).toBe(590)
+})
+
+test('a tmux-agent runtime brief and its waiter stay off byo routing', () => {
+  expect(ownedByTmuxAgent('tmux-agent:tmux-waiter', 'wait for x')).toBe(true)
+  expect(ownedByTmuxAgent('general-purpose', 'GOAL: x\nruntime: tmux/agy-flash\nREPORT: y')).toBe(true)
+  expect(ownedByTmuxAgent('general-purpose', 'GOAL: say runtime: tmux/agy-flash inline')).toBe(false)
+  expect(ownedByTmuxAgent(undefined, undefined)).toBe(false)
 })
