@@ -75,6 +75,15 @@ keeps the report summary to one paragraph. A successful step returns that file's
 the report, so output the parent needs verbatim (code, lists, raw text) is not cut to the summary.
 
 For an interactive worker, use `cli=tmux/agy-flash`. Load the tmux-agent mod too.
+A CLI task, tmux or headless, may run past ten minutes, the most one step may take. Steps are
+linked like train cars: a step waits up to 540 s, and while the task still runs it ends with one
+call of byo's own no-op tool `mcp__byo-provider__cli_next`, so the engine starts the next step,
+which goes on waiting for the same task (`cli-relay` and `cli-relay-resume` in the log). The task
+keeps running between steps; `timeout` (up to 3600 s) bounds the whole task. A headless runner is
+detached from the step (`cli.py --detach`; the engine ends a step's processes with the step) and
+stops its CLI when the owner session is gone. A gone pane, a failed tmux launch (`launch.exit`), a
+shutdown request or the timeout ends the task. A teammate message that arrives during a round runs
+as the next round in the same turn, and the parent gets both rounds' answers.
 The hook calls `mcp__tmux-agent__assign`, then `mcp__tmux-agent__await`; the worker
 appears in `/workers` while it runs and can be peeked. Its `result.json` is the
 answer. A teammate keeps the same worker; later messages use `tell` and await its
@@ -122,7 +131,8 @@ types in `cli_types`. The mod never changes environment variables or the owner's
 profile files. CLI tasks receive their task text and any custom agent definition,
 not the gateway's full API transcript. Headless rounds start a fresh CLI; only
 tmux teammates preserve CLI conversation state. CLI results are delivered as one
-non-streaming `end_turn` step. Timeout remains 1..590 seconds (default 120);
+non-streaming `end_turn` step. Timeout is 1..3600 seconds for a CLI route and 1..590 for a gateway
+(default 120);
 failed, blocked, needs-input, invalid or absent reports fail the step. Reports
 remain at their logged paths for inspection. Worker bindings are mirrored in
 `$.store` under `byo-provider.cli-bindings.<sessionId>`, with the owner's session

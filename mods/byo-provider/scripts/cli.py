@@ -175,8 +175,8 @@ def batch():
     print('ready', flush=True)
 
 
-def main():
-    profile, seconds = sys.argv[1:]
+def run(profile, seconds, prompt, alive):
+    """Runs the profile's headless CLI once and returns its exit code; stops it when alive() turns false."""
     conf = {}
     for line in (Path.home() / '.config/agent-tmux/profiles' / (profile + '.conf')).read_text().splitlines():
         if '=' in line and not line.lstrip().startswith('#'):
@@ -184,7 +184,6 @@ def main():
             conf[key.strip()] = value.strip()
     if not conf.get('bin') or not conf.get('headless_flags'):
         raise ValueError('agent-tmux profile needs bin and headless_flags')
-    prompt = sys.stdin.read()
     argv = [os.path.expanduser(conf['bin']), *shlex.split(conf['headless_flags'])]
     argv += [*shlex.split(conf.get('headless_prompt_flag', '')), prompt]
     child = subprocess.Popen(argv, start_new_session=True)
@@ -215,13 +214,84 @@ def main():
 
     signal.signal(signal.SIGTERM, aborted)
     signal.signal(signal.SIGINT, aborted)
+    until = time.monotonic() + float(seconds)
+    checked = time.monotonic()
     try:
-        code = child.wait(timeout=float(seconds))
-    except subprocess.TimeoutExpired:
-        raise TimeoutError('CLI timeout after ' + seconds + ' seconds')
+        while True:
+            try:
+                return child.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                if time.monotonic() >= until:
+                    raise TimeoutError('CLI timeout after ' + seconds + ' seconds')
+                if time.monotonic() - checked >= 5:
+                    checked = time.monotonic()
+                    if not alive():
+                        raise RuntimeError('owner session ended; CLI stopped')
     finally:
         stop()
-    sys.exit(code)
+
+
+def main():
+    profile, seconds = sys.argv[1:]
+    owner = os.getppid()
+    sys.exit(run(profile, seconds, sys.stdin.read(), lambda: os.getppid() == owner))
+
+
+def wait_exit():
+    """Prints the exit file's code once the runner has written it, or nothing after the given seconds."""
+    exit_path, seconds = sys.argv[2], float(sys.argv[3])
+    until = time.monotonic() + seconds
+    while True:
+        try:
+            code = Path(exit_path).read_text().strip()
+        except FileNotFoundError:
+            code = ''
+        if code or time.monotonic() >= until:
+            print(code)
+            return
+        time.sleep(0.25)
+
+
+def detach():
+    """Starts the runner outside the step (the engine ends a step's processes with the step): it prints
+    `ready <pid>` and returns; the runner writes its exit code to exit_path and its stderr beside it."""
+    profile, seconds, exit_path, owner_json = sys.argv[2:]
+    owner = json.loads(owner_json)
+    prompt = sys.stdin.read()
+    # Opened before the fork: a bad path fails here, as `CLI runner did not start`, not in a runner with no exit file.
+    err = os.open(exit_path + '.stderr', os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    pid_reader, pid_writer = os.pipe()
+    launcher = os.fork()
+    if launcher == 0:
+        os.setsid()
+        runner = os.fork()
+        if runner != 0:
+            os.write(pid_writer, str(runner).encode())
+            os._exit(0)
+        os.close(pid_reader)
+        os.close(pid_writer)
+        null = os.open(os.devnull, os.O_RDWR)
+        os.dup2(null, 0)
+        os.dup2(null, 1)
+        os.dup2(err, 2)
+        os.close(null)
+        os.close(err)
+        try:
+            code = run(profile, seconds, prompt, lambda: owner_alive(owner))
+        except SystemExit as stopped:
+            code = stopped.code if isinstance(stopped.code, int) else 1
+        except Exception as error:
+            print('BYO_CLI_ERROR: ' + str(error), file=sys.stderr, flush=True)
+            code = 1
+        Path(exit_path + '.tmp').write_text(str(code))
+        os.replace(exit_path + '.tmp', exit_path)
+        os._exit(0)
+    os.close(pid_writer)
+    os.close(err)
+    os.waitpid(launcher, 0)
+    runner = int(os.read(pid_reader, 32))
+    os.close(pid_reader)
+    print('ready ' + str(runner), flush=True)
 
 
 if __name__ == '__main__':
@@ -232,6 +302,10 @@ if __name__ == '__main__':
             watch()
         elif sys.argv[1] == '--batch':
             batch()
+        elif sys.argv[1] == '--detach':
+            detach()
+        elif sys.argv[1] == '--wait':
+            wait_exit()
         else:
             main()
     except Exception as error:

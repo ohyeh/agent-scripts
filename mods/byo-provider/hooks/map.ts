@@ -1,5 +1,5 @@
 // Pure helpers: no `$`, so test/map.test.ts runs them under bun.
-import type { ProcessSpawnChunk, ProcessSpawnResult, TurnStepChunk, TurnStepResult, TurnUsage } from 'claude-code'
+import type { TurnStepChunk, TurnStepResult, TurnUsage } from 'claude-code'
 
 export type Block = { type: string; [k: string]: unknown }
 export type Msg = { role: 'user' | 'assistant'; content: Block[] }
@@ -54,6 +54,12 @@ export function cliAllowed(kv: Record<string, string>, type: string | undefined,
   return !!kind && (kv.cli_types ?? '').split(',').map(t => t.trim()).includes(kind)
 }
 
+/** Longest `timeout` a profile may set. A gateway request is one `$.process.run` (ten minutes at most);
+ *  a CLI task, tmux or headless, is waited for in linked steps (relayStep). */
+export function maxTimeoutSeconds(cli: string | undefined): number {
+  return cli ? 3600 : 590
+}
+
 export function cliProfile(kv: Record<string, string>): string | undefined {
   if (!Object.hasOwn(kv, 'cli')) return undefined
   if (!/^(tmux\/)?[\w.-]+$/.test(kv.cli ?? '')) throw new Error('cli must be <profile> or tmux/<profile>')
@@ -90,8 +96,29 @@ type StopReason = TurnStepResult['stopReason']
 const STOPS = new Set(['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'pause_turn', 'refusal', 'compaction', 'model_context_window_exceeded'])
 
 /** A failed gate step: one text block saying why, ending the turn. Never a fallback to Claude. */
-export function failStep(turnId: string, index: number, reason: string): Step {
-  const text = `[byo-provider: ${reason}]`
+/** The longest wait one step runs: the engine aborts a step at ten minutes. */
+export const RELAY_SLICE_MS = 540_000
+/** byo's own no-op tool. A step that calls it makes the engine start the next step of the same loop. */
+export const RELAY_TOOL = 'mcp__byo-provider__cli_next'
+
+/** Adds one call of the link tool to a step, so the turn goes on to another step (a train's coupling:
+ *  each step is a car of at most RELAY_SLICE_MS). Without a step, an empty one that only links. */
+export function relayStep(turnId: string, index: number, step?: Step): Step {
+  const base = step ?? { chunks: [{ kind: 'stop', stopReason: 'end_turn', usage: null }], result: { turnId, index, answer: '', toolUses: [], stopReason: 'end_turn', usage: null } }
+  const id = `toolu_byonext${index}${Math.random().toString(36).slice(2, 10)}`
+  const at = base.chunks.filter(c => c.kind !== 'stop').reduce((n, c) => Math.max(n, 'index' in c ? c.index + 1 : n), 0)
+  const stop = base.chunks.find(c => c.kind === 'stop')
+  return {
+    chunks: [...base.chunks.filter(c => c.kind !== 'stop'), { kind: 'tool', index: at, id, name: RELAY_TOOL }, { kind: 'input', index: at, json: '{}' },
+      { kind: 'stop', stopReason: 'tool_use', usage: stop && 'usage' in stop ? stop.usage : null }],
+    result: { ...base.result, toolUses: [...base.result.toolUses, { name: RELAY_TOOL, input: {} }], stopReason: 'tool_use' },
+    ok: step ? step.ok : true, // a wait handed on is not a failure, and is never counted as a round
+  }
+}
+
+/** `before`: an answer the turn already has (an earlier round's), kept ahead of the failure. */
+export function failStep(turnId: string, index: number, reason: string, before = ''): Step {
+  const text = `${before.trim() ? `${before.trim()}\n\n` : ''}[byo-provider: ${reason}]`
   return {
     chunks: [{ kind: 'text', index: 0, text }, { kind: 'stop', stopReason: 'end_turn', usage: null }],
     result: { turnId, index, answer: text, toolUses: [], stopReason: 'end_turn', usage: null },
@@ -194,31 +221,6 @@ export async function deadline<T>(work: Promise<T>, ms: number, signal: AbortSig
   } finally {
     timer?.cancel()
     signal.removeEventListener('abort', onAbort)
-  }
-}
-
-export async function headlessStep(turnId: string, index: number,
-  stream: Pick<AsyncGenerator<ProcessSpawnChunk, ProcessSpawnResult>, 'next' | 'return'>,
-  ms: number, signal: AbortSignal, after: After, report: () => Promise<unknown>): Promise<Step> {
-  let stderr = ''
-  try {
-    const drain = async () => {
-      let end
-      do {
-        end = await stream.next()
-        if (!end.done && end.value.stream === 'stderr') stderr = (stderr + end.value.text).slice(-2000)
-      } while (!end.done)
-      return end.value
-    }
-    const got = await deadline(drain(), ms, signal, after)
-    if ('why' in got) throw new Error(got.why)
-    if (signal.aborted) throw new Error('interrupted')
-    if (got.ok.code !== 0) throw new Error(/BYO_CLI_ERROR: ([^\n]+)/.exec(stderr)?.[1] ?? `CLI exit ${got.ok.code} (${got.ok.signal ?? 'no signal'})`)
-    return reportStep(turnId, index, await report())
-  } catch (error) {
-    let why = String(error)
-    try { await stream.return({ code: null, signal: 'SIGTERM' }) } catch (stopError) { why += `; CLI stop failed: ${String(stopError)}` }
-    return failStep(turnId, index, why)
   }
 }
 

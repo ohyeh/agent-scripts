@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
-import { bandText, bindingPlan, parseBindings, cliAllowed, cliProfile, finishStop, stopReceipt, reportStep, headlessStep, withAnswer, roundPrompt, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
+import { maxTimeoutSeconds, relayStep, RELAY_SLICE_MS, RELAY_TOOL, bandText, bindingPlan, parseBindings, cliAllowed, cliProfile, finishStop, stopReceipt, reportStep, withAnswer, roundPrompt, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
 import { SCHEMAS } from './schemas'
 import type { CliBinding, CliOwner, Fail, GateTool, Msg, Ran, Step } from './map'
 import type { View } from '../types'
@@ -17,10 +17,11 @@ import type { View } from '../types'
 //   GATE_TEST_STEPS=<K>       a gated loop is switched back to Claude from step index K (as /provider-switch off)
 //   GATE_LOG=<path>           routing log (never a URL or token value)
 //   GATE_TIMEOUT_MS=<ms>      request timeout in ms, ahead of the profile's timeout (seconds)
+//   GATE_RELAY_SLICE_MS=<ms>  a tmux CLI step hands the turn on after this long (default and max 540000)
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
-const VERSION = '0.7.3' // keep equal to .claude-plugin/plugin.json
+const VERSION = '0.8.0' // keep equal to .claude-plugin/plugin.json
 const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
 const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
@@ -53,6 +54,7 @@ const types = new Map<string, string>() // a gated agentId → its subagentType 
 let agentsMode = 'follow' // follow | claude | a profile name every new subagent uses
 let testSteps: number | undefined
 let envTimeoutMs: number | undefined
+let relaySliceMs = RELAY_SLICE_MS
 let logPath: string | undefined
 const lines: string[] = []
 const last = new Map<string, string>() // loop → its last gate step, for the pane
@@ -63,7 +65,10 @@ const band = { folded: true, hidden: false }
 // A workflow agent's conversation is closed to hooks ($.session.messages gives {deny}), so the mod keeps its
 // own: the task at spawn, each gate answer, and each tool result tool.call hands back. agentId → record.
 const own = new Map<string, { msgs: Msg[]; ran: Ran[] }>()
-const cliLoops = new Map<string, { prompt: string; kind: string; name?: string; cwd?: string; teammate: boolean; worker?: string; workerProfile?: string; ledger?: string; owner?: CliOwner; closed?: boolean; rounds?: number; pending: string[]; guard?: ReturnType<EngineInterface['process']['spawn']>; guardPath?: string; stopHeadless?: () => void }>()
+const cliLoops = new Map<string, { prompt: string; kind: string; name?: string; cwd?: string; teammate: boolean; worker?: string; workerProfile?: string; ledger?: string; owner?: CliOwner; closed?: boolean; rounds?: number; pending: string[]; guard?: ReturnType<EngineInterface['process']['spawn']>; guardPath?: string; stopHeadless?: () => void; relay?: Relay; carry?: string }>()
+/** A CLI task that outlives a step: its deadline, its answer file, and (headless) the running process. */
+type Relay = { until: number; answerPath: string; job?: HeadlessJob }
+type HeadlessJob = { resultPath: string; exitPath: string; pid: number }
 const BINDINGS_KEY = 'byo-provider.cli-bindings'
 let bindingWrites: Promise<void> = Promise.resolve()
 let bindingError: string | undefined
@@ -230,11 +235,12 @@ async function loadProfile($: EngineInterface, name: string): Promise<Profile | 
   if (!cli && (!kv.url || !kv.token || !kv.model)) return `profile ${path} needs url, token and model`
   const effort = kv.effort ?? ''
   if (effort && !THINKING[effort]) return `profile ${path}: effort must be ${Object.keys(THINKING).join('|')}`
-  // $.process.run allows ten minutes at most; a bad value fails here, never silently replaced.
-  const ok = (ms: number) => ms > 0 && ms <= 590_000
-  if (envTimeoutMs !== undefined && !ok(envTimeoutMs)) return `GATE_TIMEOUT_MS must be 1..590000`
+  // A bad value fails here, never silently replaced; the limit depends on the route (maxTimeoutSeconds).
+  const max = maxTimeoutSeconds(cli)
+  const ok = (ms: number) => ms > 0 && ms <= max * 1000
+  if (envTimeoutMs !== undefined && !ok(envTimeoutMs)) return `GATE_TIMEOUT_MS must be 1..${max * 1000} for profile ${name}`
   const t = kv.timeout || undefined // `timeout=` with no value means unset
-  if (t !== undefined && !(Number(t) >= 1 && ok(Number(t) * 1000))) return `profile ${path}: timeout=${t} must be 1..590 seconds`
+  if (t !== undefined && !(Number(t) >= 1 && ok(Number(t) * 1000))) return `profile ${path}: timeout=${t} must be 1..${max} seconds`
   const timeoutMs = envTimeoutMs ?? (t !== undefined ? Number(t) * 1000 : 120_000)
   if (cli) return { name, cli, timeoutMs }
   return { name, url: kv.url!, token: kv.token!, model: kv.model!, effort, timeoutMs }
@@ -393,8 +399,11 @@ async function stopCli($: EngineInterface, loop: string, aborted = false) {
 }
 
 async function stopRecord($: EngineInterface, loop: string, record: NonNullable<ReturnType<typeof cliLoops.get>>, aborted = false) {
+  record.relay = undefined
+  record.carry = undefined
   if (!record.worker) {
     record.stopHeadless?.() // a running headless step ends now: its runner gets SIGTERM and stops the CLI's group
+    record.stopHeadless = undefined
     if (record.guard) await record.guard.return({ code: null, signal: 'SIGTERM' })
     return
   }
@@ -431,6 +440,8 @@ async function stopRecord($: EngineInterface, loop: string, record: NonNullable<
   record.guard = undefined
 }
 
+const RELAY = Symbol('relay')
+
 async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, signal: AbortSignal): Promise<Step> {
   const loop = e.agentId ?? 'main'
   const record = cliLoops.get(loop)
@@ -442,20 +453,37 @@ async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, si
   const route = `cli:${cfg.cli}`
   const state = logPath?.includes('/') ? logPath.slice(0, logPath.lastIndexOf('/')) : `${await $.env.get('HOME')}/.local/state/byo-provider`
   await log($, { ev: 'cli-step', loop, index: e.index, route })
-  const prompt = roundPrompt(record.pending.splice(0), record.rounds, record.prompt)
-  if (!prompt.trim()) return failStep(e.turnId, e.index, 'no new message for this CLI teammate')
+  // A relay step goes on waiting for the worker the step before it started: no new task, no round.
+  const relay = record.relay
+  record.relay = undefined
+  if (relay && record.closed) return failStep(e.turnId, e.index, 'CLI teammate has ended')
+  const prompt = relay ? '' : roundPrompt(record.pending.splice(0), record.rounds, record.prompt)
+  if (!relay && !prompt.trim()) return failStep(e.turnId, e.index, 'no new message for this CLI teammate')
   const def = await agentDef($, types.get(loop))
-  const answerPath = `${state}/byo-${e.turnId.replace(/[^\w.-]/g, '')}-${e.index}.answer.md`
+  const answerPath = relay?.answerPath ?? `${state}/byo-${e.turnId.replace(/[^\w.-]/g, '')}-${e.index}.answer.md`
   const full = `Write the complete output this task asks for (the full text, not a recap) to ${answerPath}. Keep the report summary to one paragraph.`
   const task = `${def?.body ?? ''}\n\n${prompt}\n\n${full}`
   const answerText = async () => String(await $.fs.read(answerPath).catch(() => ''))
   const counted = (step: Step) => { if (step.ok) record.rounds = (record.rounds ?? 0) + 1; return step }
+  // A teammate message that arrived while this round ran (a relayed round has tool rounds) starts the next round now.
+  const nextRound = (step: Step) => {
+    const carried = record.carry
+    record.carry = undefined
+    const full = carried ? withAnswer(step, carried) : step
+    if (!(step.ok && record.teammate && record.pending.length && !record.closed)) return full
+    // The parent sees only the turn's last answer: keep this round's for it, then run the next round.
+    record.carry = full.result.answer
+    return relayStep(e.turnId, e.index, step)
+  }
   let resultPath: string | undefined
   try {
-    await $.fs.write(answerPath, '')
+    if (!relay) await $.fs.write(answerPath, '')
     if (signal.aborted) throw new Error('interrupted')
     if (cfg.cli.startsWith('tmux/')) {
-      if (record.worker) {
+      if (relay) {
+        await armGuard($, loop)
+        await log($, { ev: 'cli-relay-resume', loop, worker: record.worker, index: e.index })
+      } else if (record.worker) {
         await armGuard($, loop)
         const receipt = await cliTool($, { tool: 'mcp__tmux-agent__tell', name: record.worker, text: task })
         await log($, { ev: 'cli-tell', loop, worker: record.worker, receipt })
@@ -496,11 +524,15 @@ async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, si
         await saveBinding($, loop, { agentId: loop, worker: record.worker, profile: cfg.name, workerProfile: record.workerProfile, kind: record.kind, ledger, owner: record.owner, name: record.name, cwd: record.cwd })
         await log($, { ev: 'cli-assign', loop, worker: record.worker, route })
       }
-      const work = async () => {
-        const until = Date.now() + cfg.timeoutMs
-        while (!signal.aborted && Date.now() < until && record.worker) {
-          const text = await cliTool($, { tool: 'mcp__tmux-agent__await', name: record.worker, max_seconds: 30 })
-          const receipt = JSON.parse(text.split('\n')[0]!) as { status: string; result?: string; episode?: number }
+      // One step may not run past ten minutes (the engine aborts it), so a long task is waited for in slices:
+      // a slice that ends with the worker still alive hands the turn on with a tool call (relayStep).
+      const until = relay?.until ?? Date.now() + cfg.timeoutMs
+      const sliceEnd = Math.min(until, Date.now() + relaySliceMs)
+      const work = async (): Promise<unknown> => {
+        while (!signal.aborted && Date.now() < sliceEnd && record.worker) {
+          const wait = Math.max(1, Math.min(30, Math.ceil((sliceEnd - Date.now()) / 1000)))
+          const text = await cliTool($, { tool: 'mcp__tmux-agent__await', name: record.worker, max_seconds: wait })
+          const receipt = JSON.parse(text.split('\n')[0]!) as { status: string; result?: string; episode?: number; progress?: { state?: string } }
           if (receipt.status !== 'pending') {
             if (!receipt.result) throw new Error('await gave no result.json path')
             resultPath = receipt.result
@@ -508,36 +540,85 @@ async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, si
             if (body.episode !== receipt.episode) throw new Error('CLI report episode does not match await')
             return body
           }
+          if (receipt.progress?.state === 'pane gone') throw new Error('CLI worker pane is gone and it wrote no report')
+          const exit = String(await $.fs.read(`${record.ledger}/${record.worker}/launch.exit`).catch(() => '0')).trim()
+          if (exit !== '0') throw new Error(`CLI worker launch failed (launch.exit ${exit}); see ${record.ledger}/${record.worker}/mod-assign.log`)
         }
-        throw new Error(signal.aborted ? 'interrupted' : 'CLI timeout')
+        if (signal.aborted) throw new Error('interrupted')
+        if (!record.worker || record.closed) throw new Error('CLI teammate has ended')
+        if (Date.now() >= until) throw new Error('CLI timeout')
+        return RELAY
       }
-      const got = await deadline(work(), cfg.timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn))
+      const got = await deadline(work(), sliceEnd - Date.now() + 45_000, signal, (ms, fn) => $.clock.after(ms, fn))
       if ('why' in got) throw new Error(got.why)
+      if (got.ok === RELAY) {
+        record.relay = { until, answerPath }
+        await releaseGuard($, record, true)
+        await log($, { ev: 'cli-relay', loop, worker: record.worker, index: e.index, leftMs: until - Date.now() })
+        return relayStep(e.turnId, e.index)
+      }
       const step = counted(withAnswer(reportStep(e.turnId, e.index, got.ok), await answerText()))
-      await log($, { ev: 'cli-result', loop, route, worker: record.worker, resultPath, status: got.ok.status })
+      await log($, { ev: 'cli-result', loop, route, worker: record.worker, resultPath, status: (got.ok as { status?: unknown }).status })
       if (!step.ok || !record.teammate) await stopCli($, loop)
       else await releaseGuard($, record, true)
-      return step
+      return nextRound(step)
     }
-    resultPath = `${state}/byo-${e.turnId.replace(/[^\w.-]/g, '')}-${e.index}.json`
-    await $.fs.write(resultPath, '')
-    const input = `Write final JSON to this exact path: ${resultPath}\nInclude schema_version: 1, status: success|failed|blocked|needs-input, summary, artifacts: [], errors: [].\n\n${task}\n\nReturn a complete report. Do not spawn additional workers.`
-    const stream = $.process.spawn({ argv: ['python3', `${$.plugin.root}/scripts/cli.py`, cfg.cli, String(cfg.timeoutMs / 1000)], cwd: record.cwd, input })
-    // A shutdown or TaskStop of this loop aborts the step as the turn's own interrupt does.
-    const halt = new AbortController()
-    signal.addEventListener('abort', () => halt.abort(), { once: true })
-    record.stopHeadless = () => halt.abort()
-    try {
-      return counted(withAnswer(await headlessStep(e.turnId, e.index, stream, cfg.timeoutMs, halt.signal, (ms, fn) => $.clock.after(ms, fn), async () => {
-        const body = JSON.parse(String(await $.fs.read(resultPath!)))
-        await log($, { ev: 'cli-result', loop, route, resultPath, status: body.status })
-        return body
-      }), await answerText()))
-    } finally { record.stopHeadless = undefined }
+    // Headless: one runner for the whole task, kept on the record across steps; each step waits one slice.
+    const until = relay?.until ?? Date.now() + cfg.timeoutMs
+    let job = relay?.job
+    if (!job) {
+      const jobResult = `${state}/byo-${e.turnId.replace(/[^\w.-]/g, '')}-${e.index}.json`
+      const exitPath = `${jobResult}.exit`
+      await $.fs.write(jobResult, '')
+      await $.fs.write(exitPath, '')
+      const input = `Write final JSON to this exact path: ${jobResult}\nInclude schema_version: 1, status: success|failed|blocked|needs-input, summary, artifacts: [], errors: [].\n\n${task}\n\nReturn a complete report. Do not spawn additional workers.`
+      record.owner = record.owner ?? await currentOwner($)
+      // The runner is detached: the engine ends a step's processes when the step ends, and a task spans steps.
+      const started = await $.process.run(['python3', `${$.plugin.root}/scripts/cli.py`, '--detach', cfg.cli, String(cfg.timeoutMs / 1000), exitPath, JSON.stringify(record.owner)],
+        { stdin: input, cwd: record.cwd, timeoutMs: 15_000 })
+      const pid = Number(/^ready (\d+)$/m.exec(started.stdout)?.[1])
+      if (started.exitCode !== 0 || !pid) throw new Error(`CLI runner did not start: ${(started.stderr || started.stdout).slice(-300)}`)
+      job = { resultPath: jobResult, exitPath, pid }
+      // A shutdown, TaskStop or interrupt stops the runner, whichever step the task is in.
+      record.stopHeadless = () => { $.process.run(['kill', '-TERM', String(pid)]).catch(() => {}) }
+      await log($, { ev: 'cli-runner', loop, pid, route })
+    } else await log($, { ev: 'cli-relay-resume', loop, index: e.index })
+    resultPath = job.resultPath
+    const exitPath = job.exitPath
+    const sliceEnd = Math.min(until, Date.now() + relaySliceMs)
+    let code = ''
+    // Wait in a process, not on $.clock: a $.clock wait counts against the hook's 10 s budget, a $ call does not.
+    // Short waits keep an interrupt answered within the 5 s linger.
+    while (!signal.aborted && Date.now() < sliceEnd && !record.closed) {
+      const seconds = Math.max(0.1, Math.min(4, (sliceEnd - Date.now()) / 1000))
+      code = (await $.process.run(['python3', `${$.plugin.root}/scripts/cli.py`, '--wait', exitPath, String(seconds)], { timeoutMs: 15_000 })
+        .catch(error => { if (signal.aborted) throw new Error('interrupted'); throw error })).stdout.trim()
+      if (code) break
+    }
+    if (signal.aborted) throw new Error('interrupted')
+    if (record.closed) throw new Error('CLI teammate has ended')
+    if (!code) {
+      if (Date.now() >= until) throw new Error('CLI timeout')
+      record.relay = { until, answerPath, job }
+      await log($, { ev: 'cli-relay', loop, index: e.index, leftMs: until - Date.now() })
+      return relayStep(e.turnId, e.index)
+    }
+    record.stopHeadless = undefined
+    if (code !== '0') {
+      const stderr = String(await $.fs.read(`${exitPath}.stderr`).catch(() => ''))
+      throw new Error(/BYO_CLI_ERROR: ([^\n]+)/.exec(stderr)?.[1] ?? `CLI exit ${code}`)
+    }
+    const body = JSON.parse(String(await $.fs.read(job.resultPath)))
+    await log($, { ev: 'cli-result', loop, route, resultPath, status: body.status })
+    return nextRound(counted(withAnswer(reportStep(e.turnId, e.index, body), await answerText())))
   } catch (err) {
     let why = String(err)
+    // An earlier round of this turn finished: keep its answer ahead of the failure (stopCli clears carry).
+    const carried = record.carry
     try { await stopCli($, loop, signal.aborted) } catch (stopError) { why += `; worker stop failed: ${String(stopError)}` }
-    return failStep(e.turnId, e.index, why)
+    record.stopHeadless = undefined
+    record.carry = undefined
+    return failStep(e.turnId, e.index, why, carried)
   }
 }
 
@@ -662,6 +743,7 @@ export const register: Register = (on, opts) => {
     const mode = await $.env.get('GATE_TEST_AGENTS_MODE')
     if (mode === 'follow' || mode === 'claude') agentsMode = mode
     { const t = await $.env.get('GATE_TIMEOUT_MS'); envTimeoutMs = t ? Number(t) : undefined }
+    { const r = Number(await $.env.get('GATE_RELAY_SLICE_MS')); relaySliceMs = r > 0 && r <= RELAY_SLICE_MS ? r : RELAY_SLICE_MS }
     const reg = await $.command.register({
       name: 'provider-switch',
       description: 'Answer the main loop or a subagent with a model on your own provider, or go back to Claude (byo-provider)',
@@ -676,9 +758,17 @@ export const register: Register = (on, opts) => {
         '"agent <agentId> [profile]", "off [agentId]", "use [profile]" (moves THIS main loop off Claude), "status".',
       inputSchema: { type: 'object', properties: { args: { type: 'string', description: 'the /provider-switch arguments' } }, required: ['args'] },
     })
+    await $.tool.register({
+      name: 'cli_next',
+      description: 'byo-provider internal: links two steps of a long CLI task and returns at once. byo-provider issues this call itself; never call it.',
+      inputSchema: { type: 'object', properties: {} },
+    })
     await log($, { ev: 'session-start', commandRegister: reg, testMain: main ?? null, testSteps: testSteps ?? null, agentsMode })
     return started
   })
+
+  // The link between two steps of a long CLI task (relayStep): it only lets the engine start the next step.
+  on('tool.call', { tool: RELAY_TOOL }, async () => ({ result: 'continuing' }))
 
   // The same switch as a tool the main loop can call (as tmux-agent's reload): the owner can say
   // "put new subagents on default" without typing the command. A subagent may not move loops.
@@ -753,7 +843,7 @@ export const register: Register = (on, opts) => {
       const id = cliLoops.has(e.task_id) ? e.task_id : [...cliLoops].find(([, r]) => r.name === e.task_id)?.[0] ?? (await $.agent.list()).find(a => a.name === e.task_id || a.teammateId === e.task_id)?.id
       if (id) {
         await stopCli($, id)
-        if (cliLoops.get(id)?.workerProfile) cliLoops.get(id)!.closed = true
+        if (await onCli($, id)) cliLoops.get(id)!.closed = true
       }
     }
     const r = await next(e)

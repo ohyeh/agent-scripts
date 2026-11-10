@@ -2,28 +2,7 @@
 import { expect, test } from 'claude-code/testing'
 import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, tierRoute, toStep, bandText, resultsFor } from '../hooks/map'
 import { SCHEMAS } from '../hooks/schemas'
-import { bindingPlan, cliAllowed, cliProfile, finishStop, headlessStep, reportStep, roundPrompt, withAnswer } from '../hooks/map'
-
-test('headless abort and timeout close a blocked stream with SIGTERM and fail promptly', async () => {
-  for (const mode of ['abort', 'timeout', 'already-aborted']) {
-    const stop = new AbortController()
-    const calls: unknown[] = []
-    let reports = 0
-    const stream = {
-      next: () => new Promise<never>(() => {}),
-      return: async (value: { code: number | null; signal: string | null }) => { calls.push(value); return { done: true as const, value } },
-    }
-    if (mode === 'already-aborted') stop.abort()
-    const step = headlessStep('headless', 0, stream, mode === 'timeout' ? 10 : 590_000, stop.signal, after, async () => { reports++; return {} })
-    if (mode === 'abort') stop.abort()
-    const got = await step
-    expect(calls).toEqual([{ code: null, signal: 'SIGTERM' }])
-    expect(got.ok).not.toBe(true)
-    expect(got.result.stopReason).toBe('end_turn')
-    expect(got.result.answer).toContain(mode === 'timeout' ? 'no answer in 0.01 s' : 'interrupted')
-    expect(reports).toBe(0)
-  }
-})
+import { maxTimeoutSeconds, relayStep, RELAY_TOOL, bindingPlan, cliAllowed, cliProfile, finishStop, reportStep, roundPrompt, withAnswer } from '../hooks/map'
 
 test('failed stop keeps binding and guard; only confirmed stop releases them', async () => {
   const state = { binding: true, guard: true }
@@ -153,6 +132,8 @@ test('error body and failStep end the turn with a visible reason, no tools', () 
   expect(bad.result).toMatchObject({ answer: '[byo-provider: bad response: quota]', toolUses: [], stopReason: 'end_turn', usage: null })
   expect(bad.chunks.at(-1)).toEqual({ kind: 'stop', stopReason: 'end_turn', usage: null })
   expect(failStep('t', 1, 'HTTP 502: down').chunks[0]).toEqual({ kind: 'text', index: 0, text: '[byo-provider: HTTP 502: down]' })
+  // an earlier round's answer stays ahead of the failure
+  expect(failStep('t', 1, 'CLI timeout', 'ONE\n').result.answer).toBe('ONE\n\n[byo-provider: CLI timeout]')
 })
 
 test('unknown stop_reason falls back by content', () => {
@@ -271,4 +252,22 @@ test('a CLI round runs new messages, the spawn prompt only on round 1, never rou
   expect(roundPrompt([], undefined, 'task')).toBe('task')
   expect(roundPrompt(['m1', 'm2'], 1, 'task')).toBe('m1\n\nm2')
   expect(roundPrompt([], 1, 'task')).toBe('')
+})
+
+test('a relay step links on with one call of the no-op tool; an answer step keeps its text', () => {
+  const step = relayStep('t1', 3)
+  expect(step.ok).toBe(true)
+  expect(step.result).toMatchObject({ turnId: 't1', index: 3, answer: '', stopReason: 'tool_use', toolUses: [{ name: RELAY_TOOL, input: {} }] })
+  expect(step.chunks.map(c => c.kind)).toEqual(['tool', 'input', 'stop'])
+  const answered = relayStep('t1', 4, { ...failStep('t1', 4, 'x'), ok: true })
+  expect(answered.result.answer).toBe('[byo-provider: x]')
+  expect(answered.result.stopReason).toBe('tool_use')
+  expect(answered.chunks.map(c => c.kind)).toEqual(['text', 'tool', 'input', 'stop'])
+  expect(answered.chunks[1]).toMatchObject({ kind: 'tool', index: 1, name: RELAY_TOOL })
+})
+
+test('timeout limit: CLI routes allow an hour; a gateway keeps the ten-minute limit', () => {
+  expect(maxTimeoutSeconds('tmux/agy-flash')).toBe(3600)
+  expect(maxTimeoutSeconds('agy-flash')).toBe(3600)
+  expect(maxTimeoutSeconds(undefined)).toBe(590)
 })
