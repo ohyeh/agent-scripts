@@ -105,9 +105,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "fee48ebaab4e36b07a7b61aa2ab7c342dfbbc919",
+      "skillFolderHash": "7c64ced4ca34f0e77fd4f3c5f77421cf59de3762",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-11-09T08:51:14.777Z"
+      "updatedAt": "2026-11-10T02:04:14.503Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -141,9 +141,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "b1109d09c5623f7bb7d6bb7a5af096581993bc49",
+      "skillFolderHash": "c990cca10b374b1c821d2208cf826a52ae5975db",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-11-09T19:13:21.729Z"
+      "updatedAt": "2026-11-10T02:04:20.485Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -305,9 +305,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/tt-a1i/archify.git",
       "skillPath": "archify/SKILL.md",
-      "skillFolderHash": "d5fc699feb186e8be4e2d9e86f850a8ea1b6959e",
+      "skillFolderHash": "03645a096811664da641153a4a42e862c4a6bc62",
       "installedAt": "2026-10-23T05:53:45.590Z",
-      "updatedAt": "2026-10-27T02:09:35.272Z"
+      "updatedAt": "2026-11-10T02:04:30.907Z"
     },
     "design-taste-frontend": {
       "source": "Leonxlnx/taste-skill",
