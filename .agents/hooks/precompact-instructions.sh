@@ -7,14 +7,14 @@
 # `newCustomInstructions`; for manual /compact the hook text is APPENDED after
 # the user's own instructions (`${user}\n\n${hook}`), never replacing them.
 # The built-in summary template already demands verbatim user messages (§6),
-# so this payload only adds what the template lacks: the four headings
+# so this payload only adds what the template lacks: the handoff sections
 # that make the summary a session-handoff document. The summary itself lands in
 # the new context, so the session resumes from it; no file copy is kept.
 set -u
 
 # Mark which thread is compacting, for compaction-recall.sh. Inside a subagent
-# the compaction hooks carry no agent_id and name the parent's transcript and session (probe 2026-10-17,
-# CLI 2.1.302: PreCompact/PostCompact/SessionStart stdin had no agent_id;
+# the compaction hooks carry no agent_id and name the parent's transcript and
+# session (probe 2026-10-17, CLI 2.1.302: PreCompact/PostCompact/SessionStart stdin had no agent_id;
 # PreToolUse had it). Auto-compaction fires right after the compacting
 # thread's tool result, so the newest context-ledger.sh row (PostToolUse,
 # which carries agent_id) names that thread. Manual /compact is the main thread.
@@ -37,40 +37,29 @@ fi
 # payload plain prose so nothing downstream mistakes it for JSON.
 MAX_BYTES=6000
 
-read -r -d '' PAYLOAD <<'EOF' || true
-After the numbered sections, add these four headings verbatim (level-2
-markdown, exact titles) so the summary validates as a session handoff:
+# The rules are CREATE Step 2 of the deployed session-handoff skill, read at each
+# compaction: one spec for handoffs and summaries (owner 2026-11-10 「我就是希望只維護一份」).
+# No copy here: a missing or oversized Step 2 sends nothing and the default template applies.
+SKILL="${HOME}/.agents/skills/session-handoff/SKILL.md"
+RULES="$(awk '/^### Step 2: Complete the Handoff Document/{on=1; next} /^### /{on=0}
+  on && (/^[0-9]+\. / || (/^   / && item)) {item=1; print}' "$SKILL" 2>/dev/null)"
+PAYLOAD="After the numbered sections, write this summary as a session handoff: one level-2
+heading per item below, titled with the item's bold name, filled from this conversation.
+Skip any part that needs a command, a script or a file (resume_pack.py, copying files),
+and never invent a count, a time or a status line; write \"None\" under a heading with
+nothing to record.
+Drop first, in this order: tool output, file contents, my own explanations; keep the
+user's words at the cost of my own.
 
-## Standing Authorizations
-Every standing approval or scope grant the user gave (e.g. "push is OK",
-"實驗機自由發揮"), quoted verbatim, each with the scope it covers. Copy every
-entry from any earlier summary forward unchanged. Never restate one as "needs
-approval". List revoked ones with the user's revoking words. Write "None" if
-there are none.
+$RULES"
 
-## Current State Summary
-What is done and proven (quote the evidence line), what is in progress, what
-is blocked. Prefer the user's words over my own paraphrase.
-
-## Important Context
-- Every approach the user REJECTED, quoted in the words they rejected it with.
-- Every correction the user made to a claim, and what the corrected claim was.
-- Any file path, branch, command, identifier, or number the user supplied.
-- Every approach I tried or considered and set aside, and why.
-- Every claim still UNCONFIRMED (no run this session), labelled as such.
-
-## Immediate Next Steps
-Numbered, concrete, in order. First item = compare the run's latest human
-corrections and authorization with this handoff; then what I was about to do.
-
-Drop first, in this order: tool output, file contents, my own explanations.
-Keep the user's words at the cost of my own.
-EOF
-
+case "$RULES" in *"Immediate Next Steps"*"Timeline"*) ;; *)
+  echo "[precompact-instructions] no CREATE Step 2 in $SKILL; sending nothing" >&2
+  exit 0 ;;
+esac
 [ "$(printf '%s' "$PAYLOAD" | wc -c)" -le "$MAX_BYTES" ] || {
   echo "[precompact-instructions] payload over ${MAX_BYTES}B; sending nothing" >&2
   exit 0
 }
-
 printf '%s\n' "$PAYLOAD"
 exit 0

@@ -137,6 +137,18 @@ if run_device_gate 'agent-device open MyApp --platform ios; printf -- --device';
   exit 1
 fi
 
+# precompact: the summary rules are CREATE Step 2 of the deployed skill, sent whole; no skill -> nothing
+PCH="$WORK/pc-home"; mkdir -p "$PCH/.agents/skills/session-handoff"
+cp "$ROOT/skills/session-handoff/SKILL.md" "$PCH/.agents/skills/session-handoff/"
+pc="$(echo '{"session_id":"pc","trigger":"manual"}' | HOME="$PCH" bash "$ROOT/.agents/hooks/precompact-instructions.sh" 2>/dev/null)"
+for want in '**Immediate Next Steps**' 'Source' '**Timeline**' '**Standing Authorizations**' 'UNCONFIRMED'; do
+  grep -qF -- "$want" <<<"$pc" || { echo "FAIL: precompact payload lacks $want from SKILL.md Step 2" >&2; exit 1; }
+done
+[ "$(printf '%s' "$pc" | wc -c)" -le 6000 ] || { echo "FAIL: precompact payload over 6000B" >&2; exit 1; }
+[ -z "$(echo '{"session_id":"pc2","trigger":"manual"}' | HOME="$WORK/pc-none" bash "$ROOT/.agents/hooks/precompact-instructions.sh" 2>/dev/null)" ] \
+  || { echo "FAIL: precompact sent rules with no skill installed" >&2; exit 1; }
+echo 'PASS precompact: summary rules = SKILL.md CREATE Step 2 (Next Steps with Source, Timeline, Standing Authorizations), none without the skill'
+
 # compaction recall: re-injects verbatim user prompts, skips tool_result/<tags>/its own header, escalates at 3 compactions
 TR="$WORK/transcript.jsonl"
 {

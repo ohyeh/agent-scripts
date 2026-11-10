@@ -6,6 +6,7 @@ Use this template structure when creating handoff documents. The smart scaffold 
 
 - [Session Metadata](#session-metadata)
 - [Current State Summary](#current-state-summary)
+- [Standing Authorizations](#standing-authorizations)
 - [Timeline](#timeline)
 - [Codebase Understanding](#codebase-understanding)
   - [Architecture Overview](#architecture-overview)
@@ -45,6 +46,10 @@ Use this template structure when creating handoff documents. The smart scaffold 
 ## Current State Summary
 
 [One paragraph: What was being worked on, current status, and where things left off]
+
+## Standing Authorizations
+
+[Each standing approval the user gave, quoted with its date and the scope it covers; revoked or used-up ones with the user's words; "None" if there are none]
 
 ## Timeline
 

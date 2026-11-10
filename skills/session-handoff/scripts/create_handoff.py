@@ -262,6 +262,10 @@ def generate_handoff(
 
 [TODO: Write one paragraph describing what was being worked on, current status, and where things left off]
 
+## Standing Authorizations
+
+[TODO: Each standing approval the user gave, quoted with its date and the scope it covers; revoked or used-up ones with the user's words; "None" if there are none]
+
 ## Timeline
 
 ### Nodes

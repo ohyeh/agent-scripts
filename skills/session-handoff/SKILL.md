@@ -54,8 +54,14 @@ The script will:
 Open the generated file and fill in all `[TODO: ...]` sections. Prioritize these sections:
 
 1. **Current State Summary** - What's happening right now
+   What is done and proven (quote the evidence line), what is in progress, what is blocked. Prefer the user's words over your own paraphrase.
 2. **Important Context** - Critical info the next agent MUST know
-3. **Immediate Next Steps** - Clear, actionable first steps. Each item names its Source: a user quote or a user-reviewed work record.
+   - Every approach the user REJECTED, quoted in the words they rejected it with.
+   - Every correction the user made to a claim, and what the corrected claim was.
+   - Any file path, branch, command, identifier, or number the user supplied.
+   - Every approach you tried or considered and set aside, and why.
+   - Every claim still UNCONFIRMED (no run this session), labelled as such.
+3. **Immediate Next Steps** - Clear, actionable first steps, numbered and in order. The first item is: compare the latest human corrections and authorization with this handoff; then what you were about to do. Each item names its Source: a user quote or a user-reviewed work record.
    A user quote is the user's verbatim words with a date; a filled `Q-n` `ans:` counts.
    A user-reviewed work record is an artifact page or spec the user reviewed. A handoff or an agent note is not one.
    Put your own ideas under "Agent Proposals (not requested)".
@@ -64,6 +70,7 @@ Open the generated file and fill in all `[TODO: ...]` sections. Prioritize these
 6. **Timeline** - First the nodes: one row per stretch of work from a user request to its verified outcome — time span, what was asked (user quote), what was achieved (files, behavior), the evidence that closed it (sha, test output, page), and status (`verified` / `open` / `dropped`). A resuming agent reads the nodes as the map and checks them against the rows below. Then the rows: each user message, ruling and correction as a `user` row (UTC time, short verbatim quote), and each state change (commit, push, deploy, worker start/stop) with its evidence. Run `resume_pack.py` (RESUME Step 3b) on this session's own log, or the Step 3b filter for a CLI it does not cover. Copy the `COUNT <n>` line of `user.txt` into the section and write one `user` row per line, from the full output, not from memory or a summary.
    Copy each resumed session's `<pack>/<sid8>/timeline.md` to `<project>/.claude/footprints/<sid8>.md` (RESUME Step 3b.2d).
 7. **Sources Read** - Copy this session's resume status lines exactly as the reply printed them (`full · COUNT …` / `partial (…)` / `not read (…)` / `inherited full (from …)`). Never rewrite an `inherited full` line as `full`. The next resume skips every session marked `full` or `inherited full` here.
+8. **Standing Authorizations** - Every standing approval or scope grant the user gave, quoted verbatim with its date, each with the scope it covers. Copy every entry from earlier handoffs and compaction summaries forward unchanged; never restate one as "needs approval". List revoked or used-up ones with the user's words. Write "None" if there are none.
 
 Use the template structure in [references/handoff-template.md](references/handoff-template.md) for guidance.
 
