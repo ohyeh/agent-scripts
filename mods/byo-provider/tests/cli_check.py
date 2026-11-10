@@ -1,4 +1,8 @@
-"""Real process checks; pass the authorized scratch directory as argv[1]."""
+"""Real process checks; pass the authorized scratch directory as argv[1].
+
+Run it outside the Claude Code sandbox: there killpg fails with EPERM, which looks exactly like
+the macOS 27 race the spawn case guards (0.7.1). The spawn case runs 5 times, because that race
+showed in 4 of 5 single runs on macOS 27 and never on Darwin 24."""
 import json
 import os
 from pathlib import Path
@@ -38,20 +42,21 @@ with tempfile.TemporaryDirectory(dir=sys.argv[1]) as directory:
     assert json.loads(ran.stdout) == ['-p', '$(touch never); literal']
     assert not (root / 'never').exists()
     print('PASS headless_flags and literal prompt; no shell expansion')
-    ran = subprocess.run(argv, input='spawn', text=True, capture_output=True, env=env, cwd=root)
-    assert ran.returncode == 0, ran.stderr
-    pid = int((root / 'descendant').read_text())
-    until = time.monotonic() + 5
-    while time.monotonic() < until:
-        try:
-            os.kill(pid, 0)
-        except ProcessLookupError:
-            break
-        time.sleep(0.02)
-    else:
-        os.kill(pid, signal.SIGKILL)
-        raise AssertionError(f'normal exit left descendant {pid} alive')
-    print(f'PASS normal exit reaps background descendant {pid}')
+    for attempt in range(5):
+        ran = subprocess.run(argv, input='spawn', text=True, capture_output=True, env=env, cwd=root)
+        assert ran.returncode == 0, ran.stderr
+        pid = int((root / 'descendant').read_text())
+        until = time.monotonic() + 5
+        while time.monotonic() < until:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.02)
+        else:
+            os.kill(pid, signal.SIGKILL)
+            raise AssertionError(f'normal exit left descendant {pid} alive')
+    print(f'PASS normal exit reaps background descendant, 5 runs (last {pid})')
     for mode in ['abort', 'timeout']:
         child = subprocess.Popen([*argv[:-1], '0.3' if mode == 'timeout' else '10'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, cwd=root)
         child.stdin.write('wait')

@@ -44,7 +44,7 @@ the engine itself adds to their requests (reminders, context) is not in it.
 
 | Command | Effect |
 | --- | --- |
-| `/provider-switch status` | Shows which loops use your provider, the new-subagent mode, the profiles folder and its profile names, and running agents. |
+| `/provider-switch status` | Shows which loops use your provider, the new-subagent mode, the tier map, `cli_types`, the profiles folder and its profile names, and each engine agent with its status (a finished named agent stays `idle`); a CLI teammate that got a shutdown request shows `(ended)`. |
 | `/provider-switch use [profile]` | The main loop uses that profile (default: `default`) from its next step. |
 | `/provider-switch off [agentId]` | That loop (default `main`) goes back to Claude from its next step. |
 | `/provider-switch agent <agentId> [profile]` | A running subagent uses your provider from its next step. The id must be in `$.agent.list()`. |
@@ -57,7 +57,9 @@ main loop is on Claude: a gated main loop gets only built-in tools (limit 2: `ho
 
 ## CLI profiles
 
-CLI routing is opt-in. In the profiles folder, create `coding.conf`:
+CLI routing is opt-in. The profiles folder is the plugin option `options.path`
+(default `~/.config/byo-provider/profiles`); `/provider-switch status` prints the folder in use,
+the tier map and `cli_types`. In that folder, create `coding.conf`:
 
 ```conf
 cli=sol
@@ -67,14 +69,22 @@ timeout=180
 `cli=sol` reads `~/.config/agent-tmux/profiles/sol.conf` and runs its `bin`,
 `headless_flags` and optional `headless_prompt_flag` once. Python 3 parses the flags
 with `shlex` and starts the CLI without a shell. The task asks the CLI to write a
-schema-v1 report; only a valid `status=success` report answers the step.
+schema-v1 report; only a valid `status=success` report answers the step. The task also names
+an answer file, `<state>/byo-<turn>-<step>.answer.md`: the CLI writes the full output there and
+keeps the report summary to one paragraph. A successful step returns that file's text ahead of
+the report, so output the parent needs verbatim (code, lists, raw text) is not cut to the summary.
 
 For an interactive worker, use `cli=tmux/agy-flash`. Load the tmux-agent mod too.
 The hook calls `mcp__tmux-agent__assign`, then `mcp__tmux-agent__await`; the worker
 appears in `/workers` while it runs and can be peeked. Its `result.json` is the
 answer. A teammate keeps the same worker; later messages use `tell` and await its
-new episode. Shutdown requests and aborted turns stop that worker. Ordinary
-subagents stop their worker after reading the report.
+new episode. Shutdown requests and aborted turns stop that worker; a headless teammate is
+closed the same way. A teammate round runs only the messages that arrived since its last round:
+a round with no new message fails (`no new message for this CLI teammate`) instead of
+running round 1 again. Ordinary subagents stop their worker after reading the report.
+The worker starts in the agent's folder: a CLI that asks whether to trust that folder (grok
+does) stops at that question, and the step waits until its timeout. Trust the project folder in
+that CLI once.
 After an interrupt, the engine refuses new tool and process calls. A Python
 cleanup guard is armed through `$.process.spawn` when the worker starts. Closing
 that existing stream, or unloading the session, runs the installed
@@ -92,7 +102,12 @@ agents=coding
 cli_types=general-purpose,workflow,fork
 ```
 
-Tier routes (`haiku=`, `sonnet=`, `opus=`) can also name `coding`. A CLI route
+Tier routes (`haiku=`, `sonnet=`, `opus=`) can also name `coding`. A tier line wins over
+`agents=` and over `/provider-switch agents <profile>`. A subagent spawned without a `model`
+takes its parent's model, so its parent's tier applies (from an Opus main loop, `opus=`).
+Cost: on one host a tmux CLI teammate took 134–238 s for a trivial task and a headless CLI
+about 30 s. Use a headless profile for one-shot work and `tmux/` only when the conversation
+must persist across rounds. A CLI route
 applies only to listed agent types. Workflow agents need `workflow`, and forks
 need `fork`, even if another type is listed. Unlisted types ignore a CLI tier
 override and keep the non-CLI `agents=` route; if that mode also selects a CLI
@@ -201,7 +216,7 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
 - `types/index.d.ts`: the pane's `$.state` contract.
 - `default.conf.example`: the profile keys; update it with every new key.
 - `hooks/map.ts`: pure helpers (`toStep`, `failStep`, `forGate`, `loadedTools`, `deferredTools`,
-  `deadline`, `redact`).
+  `deadline`, `redact`, `reportStep`, `withAnswer`).
 - `hooks/schemas.ts`: generated built-in tool input schemas.
 - `scripts/gen-schemas.py`: the generator.
 
@@ -218,7 +233,7 @@ python3 scripts/gen-schemas.py <plugin-authoring skill>/types/claude-code.d.ts h
 ```
 claude plugin test mods/byo-provider      # unit: response mapping, tool sets, deadline
 claude plugin validate mods/byo-provider
-python3 mods/byo-provider/tests/cli_check.py <scratch-directory>  # runner flags, abort, timeout
+python3 mods/byo-provider/tests/cli_check.py <scratch-directory>  # runner flags, abort, timeout; run outside the sandbox
 ```
 
 The live tests (a loopback fake Anthropic server that logs request shapes, never secrets, and runs

@@ -1,5 +1,14 @@
 # Changelog
 
+## byo-provider 0.7.2
+
+- A headless CLI teammate now stops on a shutdown request. Only tmux teammates were stopped (`register.tsx` checked `worker`), so a headless one took the request as a message, found no text, fell back to its spawn prompt and ran round 1 again, and stayed listed as running (seen on .44). Every teammate whose profile has `cli=` is now stopped and closed (a gateway teammate still gets the request as a message); a finished named agent is listed `idle` and `TaskStop` answers `not running` for it, which no longer turns the shutdown into an error; `TaskStop` closes a tmux CLI record; a teammate round with no new message fails (`no new message for this CLI teammate`) instead of rerunning round 1; empty incoming text is not queued.
+- Full answers: a CLI task names an answer file (`<state>/byo-<turn>-<step>.answer.md`). The CLI writes the full output there and keeps the report summary short; a successful step returns that text ahead of the report (`withAnswer`). Before, the parent got only the report, so output asked for verbatim was cut to the summary.
+- `/provider-switch status` prints the tier map (`haiku→… sonnet→… opus→…`, `(agents)` for an unset tier) and `cli_types`, marks an ended CLI teammate `(ended)`, and lists `engine agents` with their engine status (was `running agents`, which listed idle ones too).
+- Live-tested in an isolated `claude -p` (scratch profiles via `options.path`): headless `cli=sol` (codex) and `cli=grok`, tmux `cli=tmux/sol` and `cli=tmux/grok`. Each ran a named teammate for 2 rounds (`cli-result … success`, full 3-line answer returned), took a shutdown request (`CLI teammate t1 stopped`) and refused a later message (`CLI teammate has ended`). A tmux grok in a folder grok does not trust stops at grok's trust dialog.
+- README: the profiles folder is the plugin option `options.path`; a tier line wins over `agents=` and `/provider-switch agents`; a subagent without `model` takes its parent's tier; measured tmux (134–238 s) vs headless (~30 s) cost for a trivial task; the answer file.
+- `tests/cli_check.py` says it must run outside the Claude Code sandbox (sandbox EPERM looks like the 0.7.1 race) and runs the spawn case 5 times. Field-test findings and suggestions came from the .44 session.
+
 ## byo-provider 0.7.1
 
 - `scripts/cli.py` `stop()` also accepts `PermissionError` from `killpg`. On macOS 27 (Python 3.15), a process group whose last member is exiting returns EPERM, not ESRCH, at the SIGKILL sweep; `ps` lists no member then. The uncaught error ended a successful headless CLI step as `BYO_CLI_ERROR: [Errno 1] Operation not permitted`. On .44, `tests/cli_check.py` failed 4 of 5 runs before and passed 5 of 5 after (exit=0, 18 PASS). Reported by the .44 session; Darwin 24.6 returns ESRCH and never failed.

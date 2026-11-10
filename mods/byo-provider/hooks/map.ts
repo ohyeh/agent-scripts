@@ -72,6 +72,20 @@ export function reportStep(turnId: string, index: number, body: unknown): Step {
     result: { turnId, index, answer: text, toolUses: [], stopReason: 'end_turn', usage: null } }
 }
 
+/** The text one CLI round runs: the messages that arrived since the last round, else the spawn
+ *  prompt on round 1 only. Empty means nothing new: the caller fails the step, never reruns round 1. */
+export function roundPrompt(pending: string[], rounds: number | undefined, spawn: string): string {
+  return pending.join('\n\n') || (rounds ? '' : spawn)
+}
+
+/** A successful CLI step with the CLI's full answer file ahead of its report; the report alone
+ *  carries only a one-paragraph summary. A failed step, or an empty file, is left as it is. */
+export function withAnswer(step: Step, full: string): Step {
+  if (!step.ok || !full.trim()) return step
+  const text = `${full.trim()}\n\n${step.result.answer}`
+  return { ...step, chunks: [{ kind: 'text', index: 0, text }, ...step.chunks.slice(1)], result: { ...step.result, answer: text } }
+}
+
 type StopReason = TurnStepResult['stopReason']
 const STOPS = new Set(['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'pause_turn', 'refusal', 'compaction', 'model_context_window_exceeded'])
 

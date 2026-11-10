@@ -2,7 +2,7 @@
 import { expect, test } from 'claude-code/testing'
 import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, tierRoute, toStep, bandText, resultsFor } from '../hooks/map'
 import { SCHEMAS } from '../hooks/schemas'
-import { bindingPlan, cliAllowed, cliProfile, finishStop, headlessStep, reportStep } from '../hooks/map'
+import { bindingPlan, cliAllowed, cliProfile, finishStop, headlessStep, reportStep, roundPrompt, withAnswer } from '../hooks/map'
 
 test('headless abort and timeout close a blocked stream with SIGTERM and fail promptly', async () => {
   for (const mode of ['abort', 'timeout', 'already-aborted']) {
@@ -112,6 +112,17 @@ test('CLI reports end one step and failed, blocked, malformed reports never succ
   }
   for (const bad of [null, {}, { ...report, schema_version: '1' }, { ...report, summary: '' }])
     expect(reportStep('t', 0, bad).ok).not.toBe(true)
+})
+
+test('the full answer file goes ahead of a successful report only', () => {
+  const report = { schema_version: 1, status: 'success', summary: 'short', artifacts: [], errors: [] }
+  const step = withAnswer(reportStep('t', 1, report), 'line 1\nline 2\n')
+  expect(step.result.answer).toBe(`line 1\nline 2\n\n${JSON.stringify(report)}`)
+  expect(step.chunks[0]).toEqual({ kind: 'text', index: 0, text: step.result.answer })
+  expect(step.chunks.at(-1)).toEqual({ kind: 'stop', stopReason: 'end_turn', usage: null })
+  expect(withAnswer(reportStep('t', 1, report), '  \n').result.answer).toBe(JSON.stringify(report))
+  const failed = reportStep('t', 1, { ...report, status: 'failed' })
+  expect(withAnswer(failed, 'full text')).toBe(failed)
 })
 
 const resp = {
@@ -254,4 +265,10 @@ test('resultsFor: a kept record answers each tool_use by id, else in order; a mi
     { type: 'tool_result', tool_use_id: 'call_00_a', content: 'A' },
     { type: 'tool_result', tool_use_id: 'call_01_b', content: 'no result was recorded for this call', is_error: true }] })
   expect(resultsFor({ role: 'assistant', content: [{ type: 'text', text: 'done' }] }, [])).toBeNull()
+})
+
+test('a CLI round runs new messages, the spawn prompt only on round 1, never round 1 again', () => {
+  expect(roundPrompt([], undefined, 'task')).toBe('task')
+  expect(roundPrompt(['m1', 'm2'], 1, 'task')).toBe('m1\n\nm2')
+  expect(roundPrompt([], 1, 'task')).toBe('')
 })

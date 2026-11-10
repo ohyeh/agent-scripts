@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
-import { bandText, bindingPlan, parseBindings, cliAllowed, cliProfile, finishStop, stopReceipt, reportStep, headlessStep, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
+import { bandText, bindingPlan, parseBindings, cliAllowed, cliProfile, finishStop, stopReceipt, reportStep, headlessStep, withAnswer, roundPrompt, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
 import { SCHEMAS } from './schemas'
 import type { CliBinding, CliOwner, Fail, GateTool, Msg, Ran, Step } from './map'
 import type { View } from '../types'
@@ -20,7 +20,7 @@ import type { View } from '../types'
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
-const VERSION = '0.7.1' // keep equal to .claude-plugin/plugin.json
+const VERSION = '0.7.2' // keep equal to .claude-plugin/plugin.json
 const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
 const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
@@ -63,7 +63,7 @@ const band = { folded: true, hidden: false }
 // A workflow agent's conversation is closed to hooks ($.session.messages gives {deny}), so the mod keeps its
 // own: the task at spawn, each gate answer, and each tool result tool.call hands back. agentId → record.
 const own = new Map<string, { msgs: Msg[]; ran: Ran[] }>()
-const cliLoops = new Map<string, { prompt: string; kind: string; name?: string; cwd?: string; teammate: boolean; worker?: string; workerProfile?: string; ledger?: string; owner?: CliOwner; closed?: boolean; pending: string[]; guard?: ReturnType<EngineInterface['process']['spawn']>; guardPath?: string }>()
+const cliLoops = new Map<string, { prompt: string; kind: string; name?: string; cwd?: string; teammate: boolean; worker?: string; workerProfile?: string; ledger?: string; owner?: CliOwner; closed?: boolean; rounds?: number; pending: string[]; guard?: ReturnType<EngineInterface['process']['spawn']>; guardPath?: string }>()
 const BINDINGS_KEY = 'byo-provider.cli-bindings'
 let bindingWrites: Promise<void> = Promise.resolve()
 let bindingError: string | undefined
@@ -379,6 +379,14 @@ async function tmuxBin($: EngineInterface): Promise<string> {
   throw new Error('agent-tmux not found for worker cleanup')
 }
 
+/** True when the loop's profile routes it to a CLI; gateway-routed agents have a record too. */
+async function onCli($: EngineInterface, loop: string): Promise<boolean> {
+  const name = loops.get(loop)
+  if (!cliLoops.has(loop) || !name) return false
+  const p = await loadProfile($, name).catch(() => undefined)
+  return !!p && typeof p !== 'string' && 'cli' in p
+}
+
 async function stopCli($: EngineInterface, loop: string, aborted = false) {
   const record = cliLoops.get(loop)
   if (record) await stopRecord($, loop, record, aborted)
@@ -433,11 +441,17 @@ async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, si
   const route = `cli:${cfg.cli}`
   const state = logPath?.includes('/') ? logPath.slice(0, logPath.lastIndexOf('/')) : `${await $.env.get('HOME')}/.local/state/byo-provider`
   await log($, { ev: 'cli-step', loop, index: e.index, route })
-  const prompt = record.pending.splice(0).join('\n\n') || record.prompt
+  const prompt = roundPrompt(record.pending.splice(0), record.rounds, record.prompt)
+  if (!prompt.trim()) return failStep(e.turnId, e.index, 'no new message for this CLI teammate')
   const def = await agentDef($, types.get(loop))
-  const task = `${def?.body ?? ''}\n\n${prompt}`
+  const answerPath = `${state}/byo-${e.turnId.replace(/[^\w.-]/g, '')}-${e.index}.answer.md`
+  const full = `Write the complete output this task asks for (the full text, not a recap) to ${answerPath}. Keep the report summary to one paragraph.`
+  const task = `${def?.body ?? ''}\n\n${prompt}\n\n${full}`
+  const answerText = async () => String(await $.fs.read(answerPath).catch(() => ''))
+  const counted = (step: Step) => { if (step.ok) record.rounds = (record.rounds ?? 0) + 1; return step }
   let resultPath: string | undefined
   try {
+    await $.fs.write(answerPath, '')
     if (signal.aborted) throw new Error('interrupted')
     if (cfg.cli.startsWith('tmux/')) {
       if (record.worker) {
@@ -498,7 +512,7 @@ async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, si
       }
       const got = await deadline(work(), cfg.timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn))
       if ('why' in got) throw new Error(got.why)
-      const step = reportStep(e.turnId, e.index, got.ok)
+      const step = counted(withAnswer(reportStep(e.turnId, e.index, got.ok), await answerText()))
       await log($, { ev: 'cli-result', loop, route, worker: record.worker, resultPath, status: got.ok.status })
       if (!step.ok || !record.teammate) await stopCli($, loop)
       else await releaseGuard($, record, true)
@@ -508,11 +522,11 @@ async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, si
     await $.fs.write(resultPath, '')
     const input = `Write final JSON to this exact path: ${resultPath}\nInclude schema_version: 1, status: success|failed|blocked|needs-input, summary, artifacts: [], errors: [].\n\n${task}\n\nReturn a complete report. Do not spawn additional workers.`
     const stream = $.process.spawn({ argv: ['python3', `${$.plugin.root}/scripts/cli.py`, cfg.cli, String(cfg.timeoutMs / 1000)], cwd: record.cwd, input })
-    return headlessStep(e.turnId, e.index, stream, cfg.timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn), async () => {
+    return counted(withAnswer(await headlessStep(e.turnId, e.index, stream, cfg.timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn), async () => {
       const body = JSON.parse(String(await $.fs.read(resultPath!)))
       await log($, { ev: 'cli-result', loop, route, resultPath, status: body.status })
       return body
-    })
+    }), await answerText()))
   } catch (err) {
     let why = String(err)
     try { await stopCli($, loop, signal.aborted) } catch (stopError) { why += `; worker stop failed: ${String(stopError)}` }
@@ -592,9 +606,11 @@ async function command($: EngineInterface, args: string): Promise<string> {
       const dir = await profilesDir($)
       const names = (await $.fs.list(dir).catch(() => [])).map(f => f.name).filter(n => n.endsWith('.conf')).map(n => n.slice(0, -5))
       const gate = `${dir}: ${names.join(', ') || 'no profiles'}`
-      const on = [...loops].map(([l, m]) => `${l} → ${m}`).join(', ') || 'none'
-      const agents = (await $.agent.list()).map(x => x.id).join(', ') || 'none'
-      return `on your provider: ${on} · new subagents: ${agentsMode} · profiles ${gate} · running agents: ${agents}`
+      const on = [...loops].map(([l, m]) => `${l} → ${m}${cliLoops.get(l)?.closed ? ' (ended)' : ''}`).join(', ') || 'none'
+      const agents = (await $.agent.list()).map(x => `${x.id} (${x.status})`).join(', ') || 'none'
+      const kv = await defaultConf($)
+      const tiers = ['haiku', 'sonnet', 'opus'].map(t => `${t}→${kv[t] || '(agents)'}`).join(' ')
+      return `on your provider: ${on} · new subagents: ${agentsMode} · tiers: ${tiers} · cli_types: ${kv.cli_types || 'none'} · profiles ${gate} · engine agents: ${agents}`
     }
     default:
       return 'usage: /provider-switch use [profile] | agent <agentId> [profile] | agents follow|claude|<profile> | off [agentId] | status | band'
@@ -712,12 +728,16 @@ export const register: Register = (on, opts) => {
     if (e.tool === 'SendMessage' && typeof e.message === 'object' && e.message.type === 'shutdown_request') {
       const target = (await $.agent.list()).find(a => a.name === e.to || a.id === e.to)
       const id = target?.id ?? [...cliLoops].find(([id, r]) => id === e.to || r.name === e.to)?.[0]
-      if (id && cliLoops.get(id)?.worker) {
+      if (id && await onCli($, id)) { // tmux and headless CLI teammates; a gateway teammate gets the request as a message
         await stopCli($, id)
         cliLoops.get(id)!.closed = true
         if (target && ['pending', 'running', 'idle'].includes(target.status)) {
           const stopped = await $.tool.call({ tool: 'TaskStop', task_id: target.id })
-          if ('deny' in stopped || stopped.isError) return { deny: stopped.deny ?? stopped.text ?? 'CLI teammate stop failed' }
+          const failed = 'deny' in stopped || stopped.isError
+          // A finished named agent is listed as live, but TaskStop says it is not running: nothing is left to stop.
+          const after = failed ? (await $.agent.list()).find(a => a.id === target.id)?.status : undefined
+          await log($, { ev: 'cli-shutdown', loop: id, status: target.status, taskStop: failed ? String(stopped.deny ?? stopped.text).slice(0, 120) : 'ok', after: after ?? null })
+          if (failed && after && ['pending', 'running'].includes(after)) return { deny: stopped.deny ?? stopped.text ?? 'CLI teammate stop failed' }
         }
         return { result: { success: true, message: `CLI teammate ${e.to} stopped` } }
       }
@@ -821,7 +841,7 @@ export const register: Register = (on, opts) => {
   })
 
   on('session.receive', async ($, e, next) => {
-    if (e.agentId) cliLoops.get(e.agentId)?.pending.push(e.text)
+    if (e.agentId && e.text?.trim()) cliLoops.get(e.agentId)?.pending.push(e.text)
     return next(e)
   })
 
