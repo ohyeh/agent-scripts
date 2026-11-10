@@ -8,14 +8,12 @@
 # the user's own instructions (`${user}\n\n${hook}`), never replacing them.
 # The built-in summary template already demands verbatim user messages (§6),
 # so this payload only adds what the template lacks: the four headings
-# that make the summary a valid session-handoff document, which
-# postcompact-handoff.sh then writes to <cwd>/.claude/handoffs/compact/ and validates
-# with skills/session-handoff/scripts/validate_handoff.py.
+# that make the summary a session-handoff document. The summary itself lands in
+# the new context, so the session resumes from it; no file copy is kept.
 set -u
 
-# Mark which thread is compacting, for compaction-recall.sh and
-# postcompact-handoff.sh. Inside a subagent the compaction hooks carry no
-# agent_id and name the parent's transcript and session (probe 2026-10-17,
+# Mark which thread is compacting, for compaction-recall.sh. Inside a subagent
+# the compaction hooks carry no agent_id and name the parent's transcript and session (probe 2026-10-17,
 # CLI 2.1.302: PreCompact/PostCompact/SessionStart stdin had no agent_id;
 # PreToolUse had it). Auto-compaction fires right after the compacting
 # thread's tool result, so the newest context-ledger.sh row (PostToolUse,

@@ -459,6 +459,7 @@ layer_hooks() {
 echo "==> [hooks] installing sentinel hooks + registering in ~/.claude/settings.json"
 w rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent-tools plugin
 w rm -f ~/.agents/hooks/bol-prompt-warn.sh      # retired 2026-08-25; replaced by bol-prompt-gate.sh (blocking)
+w rm -f ~/.agents/hooks/postcompact-handoff.sh  # retired 2026-11-10; its file copy of the summary had no reader
 w mkdir -p ~/.agents/hooks
 # same-file guard: on the clone-tracked layout ~/.agents/hooks IS $SRC/.agents/hooks
 hook_install() {
@@ -503,7 +504,6 @@ hook_install "$SRC/.agents/hooks/claude-only.sh"
 hook_install "$SRC/.agents/hooks/agy-adapt.sh"
 hook_install "$SRC/.agents/hooks/compaction-recall.sh"
 hook_install "$SRC/.agents/hooks/precompact-instructions.sh"
-hook_install "$SRC/.agents/hooks/postcompact-handoff.sh"
 hook_install "$SRC/.agents/hooks/evidence-tokens.sh"
 hook_install "$SRC/.agents/hooks/claim-evidence-gate.sh"
 hook_install "$SRC/.agents/hooks/subagent-concurrency-gate.sh"
@@ -619,7 +619,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PostToolUse"; "*"; $ledger)
   | ensureMatched("SessionStart"; "compact"; $recall)
   | ensure("PreCompact"; $precompact)
-  | ensure("PostCompact"; $postcompact)
+  | retire("PostCompact"; $only + " " + $postcompact)   # retired 2026-11-10
   | ensure("Stop"; $claim)
   | ensureMatched("PreToolUse"; "Agent"; $conc)
   | ensureMatched("PreToolUse"; "Agent|Bash|mcp__tmux-agent__assign"; $hostload)
@@ -755,7 +755,7 @@ if [ -d ~/.gemini/config ]; then
   apply "$t" "$AGY_PLUGIN/hooks.json" hooks
 fi
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate running-script-edit-gate pr-create-gate compaction-recall precompact-instructions postcompact-handoff skill-router-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate running-script-edit-gate pr-create-gate compaction-recall precompact-instructions skill-router-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1
@@ -768,6 +768,10 @@ done
 [ -x ~/.agents/hooks/cursor-adapt.sh ] || { echo "FAIL [hooks] cursor-adapt.sh not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/claude-only.sh ] || { echo "FAIL [hooks] claude-only.sh (settings.json hook wrapper) not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/agy-adapt.sh ] || { echo "FAIL [hooks] agy-adapt.sh not installed" >&2; exit 1; }
+if [ -e ~/.agents/hooks/postcompact-handoff.sh ] || grep -q 'postcompact-handoff' "$SETTINGS"; then
+  echo "FAIL [hooks] retired postcompact-handoff.sh still installed or registered" >&2
+  exit 1
+fi
 if [ -e ~/.agents/hooks/bol-prompt-warn.sh ] || grep -q 'bol-prompt-warn' "$SETTINGS"; then
   echo "FAIL [hooks] retired bol-prompt-warn.sh still installed or registered" >&2
   exit 1

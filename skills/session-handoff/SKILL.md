@@ -114,7 +114,7 @@ Read the `plan.md` and `state.md` of each run dir the handoffs or the newest ses
 Read the newest handoff for your task, then follow its "Continues from" chain back and read each handoff's text.
 Also read the handoff named by the user.
 Select the handoff for your task by its task, files, and chain links.
-Only handoffs written by CREATE count, and a session is on the chain only when a "Continues from" link reaches its handoff. Compaction summaries (`.claude/handoffs/compact/`, older ones `compact-*.md`) serve that session's own recall: do not read them.
+Only handoffs written by CREATE count, and a session is on the chain only when a "Continues from" link reaches its handoff. Files in `.claude/handoffs/compact/` or named `compact-*.md` are copies of a compaction summary left by a retired hook, not handoffs: do not read them.
 `Written by:` identifies the writer, which may be a previous session.
 Do not treat a different writer as proof of concurrent work.
 A missing or `UNCONFIRMED` writer means the writer is unknown.

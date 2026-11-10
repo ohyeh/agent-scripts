@@ -111,22 +111,6 @@ ${brief:+Your brief (first message): $brief
 }$(printf '%s\n' "$prompts" | grep -v '^$' | sed 's/^/- /')
 Compactions in this session: $compactions. Re-derive current goal and title status from these, not from the summary alone."
 
-# Point at the file postcompact-handoff.sh just wrote so the model can read the
-# full summary back if the re-injected context above looks incomplete.
-CWD="$(printf '%s' "$IN" | jq -r '.cwd // empty')"
-SID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
-# This session's file only, at the git root where postcompact-handoff.sh writes it.
-# No newest-file fallback: it can name another session's handoff.
-project="$(git -C "${CWD:-.}" rev-parse --show-toplevel 2>/dev/null)"
-[ -n "$project" ] || project="${CWD:-.}"
-latest_handoff="$project/.claude/handoffs/compact/${SID:0:8}.md"
-# a worker's summary is already in its context; compact/<sid8>.md is the parent's
-[ -f "$latest_handoff" ] && [ -z "$AGENT_ID" ] || latest_handoff=""
-if [ -n "$latest_handoff" ]; then
-  out="$out
-Latest compact handoff: ${latest_handoff/#$HOME/\~}. Read it before acting if the summary above seems incomplete."
-fi
-
 if [ "$compactions" -ge "$MAX_COMPACTIONS" ]; then
   out="$out
 ESCALATION: this session has compacted $compactions times (limit $MAX_COMPACTIONS). Building is now BLOCKED by compaction-cap-gate.sh (no exemption). Do exactly: write the handoff (skill session-handoff), closing recap, rename this title to ↗️ with the next sequence number (session-titles.md §State transitions 4), PushNotification the user to open the successor, ScheduleWakeup {stop:true}, then idle."

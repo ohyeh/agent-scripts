@@ -1,5 +1,9 @@
 # Changelog
 
+## Retire postcompact-handoff.sh; the compaction summary itself is the handoff
+
+- `postcompact-handoff.sh` copied each compaction summary to a file that nothing read: `compaction-recall.sh` only printed its path, and only when the file already existed. PostCompact usually runs after SessionStart:compact, so 128 of 138 first compactions on this host had no pointer, and no `[postcompact-handoff]` status line reached any transcript. The summary already lands in the new context in handoff shape (`precompact-instructions.sh`), and recall re-injects the user's own prompts; both stay. deploy.sh removes the installed hook and its PostCompact registration and fails if either comes back. Old files in `.claude/handoffs/compact/` are left in place; RESUME does not read them.
+
 ## deploy: the context-mode hook probe no longer races live sessions
 
 - `check-deploy-drift.sh` copied the live context-mode plugin with `cp -R`. Every hook call in any open session swaps `better_sqlite3.node` through a `.staging-<pid>-<ts>` file, so the copy could list a staging file that was renamed away a moment later: `cp` exited 1 and deploy reported `FAIL [hook] context-mode PreToolUse exit=1` (2026-11-10). The probe copies with `rsync --exclude '*.staging-*'`, treats rsync 24 (a file vanished mid-copy) as that same race, and reports a copy failure apart from a hook failure. Repro under a swap loop: `cp -R` failed 1/15, rsync 0/15.
