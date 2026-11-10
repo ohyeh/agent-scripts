@@ -258,7 +258,7 @@ neg layer_hooks hooks .agents/hooks/claim-evidence-gate.sh
 neg layer_context_mode context-mode-dir .claude/context-mode-mcp.sh
 neg layer_cursor cursor-runtime .cursor/rules/kernel.mdc
 neg layer_grok grok-runtime .claude/CLAUDE.md
-neg layer_agents agents "$(first .claude/agents)"
+# layer_agents has no negative case: global/agents/ holds no definition since 551bc84.
 neg layer_mods mods "$(first .claude/plugins/cache)"
 
 # Grok's own rule and status line. The fixture writes nothing under ~/.cursor.
