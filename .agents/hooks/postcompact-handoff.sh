@@ -4,7 +4,7 @@
 # Input (stdin JSON, docs https://code.claude.com/docs/en/hooks): session_id,
 # cwd, trigger ("manual"|"auto"), compact_summary. PostCompact has no decision
 # control and cannot inject context (prior art: anthropics/claude-code#14258),
-# so this hook only writes <project>/.claude/handoffs/compact-<sid8>.md and runs the
+# so this hook only writes <project>/.claude/handoffs/compact/<sid8>.md and runs the
 # vendored validator; its one-line stdout shows in the transcript as status.
 # Pair: precompact-instructions.sh asks the summarizer for the four REQUIRED
 # handoff headings; this hook checks they arrived. Never exits non-zero.
@@ -22,7 +22,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 summary="$(printf '%s' "$IN" | jq -r '.compact_summary // empty')"
 [ -n "$summary" ] || exit 0
 # A subagent shares the parent's session_id, so its summary would overwrite
-# the parent's compact-<sid8>.md. Its summary is already in its own context,
+# the parent's compact/<sid8>.md. Its summary is already in its own context,
 # and compaction-recall.sh re-injects its brief. PostCompact stdin carries no
 # agent_id inside a subagent: use the mark precompact-instructions.sh wrote.
 [ "$(printf '%s' "$IN" | jq -r 'has("agent_id")')" = "false" ] || exit 0
@@ -39,9 +39,9 @@ session_id="$(printf '%s' "$IN" | jq -r '.session_id // "unknown"')"
 # artifacts under review (W42-15). Outside git, the cwd is the project.
 project="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)"
 [ -n "$project" ] || project="$cwd"
-dir="$project/.claude/handoffs"
+dir="$project/.claude/handoffs/compact"  # a subfolder: resume and create_handoff.py glob handoffs/*.md and must not take it for a handoff
 mkdir -p "$dir" || exit 0
-file="$dir/compact-${session_id:0:8}.md"
+file="$dir/${session_id:0:8}.md"
 transcript="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
 compactions="$(grep -c '"isCompactSummary":true' "$transcript" 2>/dev/null)"
 # Correlation fields (Paul 2026-09-24, W39 retro): last value of each key in

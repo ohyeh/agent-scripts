@@ -9,7 +9,7 @@
 # The built-in summary template already demands verbatim user messages (§6),
 # so this payload only adds what the template lacks: the four headings
 # that make the summary a valid session-handoff document, which
-# postcompact-handoff.sh then writes to <cwd>/.claude/handoffs/ and validates
+# postcompact-handoff.sh then writes to <cwd>/.claude/handoffs/compact/ and validates
 # with skills/session-handoff/scripts/validate_handoff.py.
 set -u
 

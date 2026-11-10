@@ -104,8 +104,8 @@ Several sessions can work in one repo at the same time, so the newest file may b
 session. List the recent ones, not only the newest:
 
 ```bash
-ls -lt .claude/handoffs/*.md | head -10              # newest first
-grep -H -E '^- (Written by|Session|CLI|Model|Host):' .claude/handoffs/*.md   # writer: manual and compact handoffs
+ls -lt .claude/handoffs/[0-9]*.md | head -10        # newest first
+grep -H -E '^- (Written by|Session|CLI|Model|Host):' .claude/handoffs/[0-9]*.md   # writer
 ls -dt .workflow/*/ | head -5                         # run dirs, newest first
 ```
 
@@ -114,7 +114,8 @@ Read the `plan.md` and `state.md` of each run dir the handoffs or the newest ses
 Read the newest handoff for your task, then follow its "Continues from" chain back and read each handoff's text.
 Also read the handoff named by the user.
 Select the handoff for your task by its task, files, and chain links.
-`Written by:` and `compact-<session id>.md` identify the writer, which may be a previous session.
+Only handoffs written by CREATE count, and a session is on the chain only when a "Continues from" link reaches its handoff. Compaction summaries (`.claude/handoffs/compact/`, older ones `compact-*.md`) serve that session's own recall: do not read them.
+`Written by:` identifies the writer, which may be a previous session.
 Do not treat a different writer as proof of concurrent work.
 A missing or `UNCONFIRMED` writer means the writer is unknown.
 
@@ -144,7 +145,7 @@ Read in full every user-reviewed work record the handoff names, in any section. 
 
 A handoff is an agent's summary of a session, not its record. Read the record too.
 
-1. List the sessions: the writer session of the newest handoff (`Session:` line, or the id in `compact-<id>.md`), every session the user names, and the holes. A hole is a session in the chain whose handoff file timestamp is within the last 24 hours and that no handoff's "Sources Read" marks `full` or `inherited full`. A session marked so there was read by an earlier resume: do not pack it again; open only the cited lines the next step depends on. Older sessions are read as handoff text only.
+1. List the sessions: the writer session of the newest handoff (`Written by:` line), every session the user names, and the holes. A hole is a session in the chain whose handoff file timestamp is within the last 24 hours and that no handoff's "Sources Read" marks `full` or `inherited full`. A session marked so there was read by an earlier resume: do not pack it again; open only the cited lines the next step depends on. Older sessions are read as handoff text only.
 2. For each session, read what the user said AND what the agent did. The user's messages show what was asked and corrected; only the agent's tool calls show what was built (W46 audit: 10 of 15 resumes read only the user's side). Claude Code and Codex: build the session's reading pack.
 
    ```bash

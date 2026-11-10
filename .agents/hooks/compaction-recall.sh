@@ -119,8 +119,8 @@ SID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
 # No newest-file fallback: it can name another session's handoff.
 project="$(git -C "${CWD:-.}" rev-parse --show-toplevel 2>/dev/null)"
 [ -n "$project" ] || project="${CWD:-.}"
-latest_handoff="$project/.claude/handoffs/compact-${SID:0:8}.md"
-# a worker's summary is already in its context; compact-<sid8>.md is the parent's
+latest_handoff="$project/.claude/handoffs/compact/${SID:0:8}.md"
+# a worker's summary is already in its context; compact/<sid8>.md is the parent's
 [ -f "$latest_handoff" ] && [ -z "$AGENT_ID" ] || latest_handoff=""
 if [ -n "$latest_handoff" ]; then
   out="$out
