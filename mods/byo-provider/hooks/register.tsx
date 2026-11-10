@@ -20,7 +20,7 @@ import type { View } from '../types'
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
-const VERSION = '0.7.2' // keep equal to .claude-plugin/plugin.json
+const VERSION = '0.7.3' // keep equal to .claude-plugin/plugin.json
 const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
 const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
@@ -63,7 +63,7 @@ const band = { folded: true, hidden: false }
 // A workflow agent's conversation is closed to hooks ($.session.messages gives {deny}), so the mod keeps its
 // own: the task at spawn, each gate answer, and each tool result tool.call hands back. agentId → record.
 const own = new Map<string, { msgs: Msg[]; ran: Ran[] }>()
-const cliLoops = new Map<string, { prompt: string; kind: string; name?: string; cwd?: string; teammate: boolean; worker?: string; workerProfile?: string; ledger?: string; owner?: CliOwner; closed?: boolean; rounds?: number; pending: string[]; guard?: ReturnType<EngineInterface['process']['spawn']>; guardPath?: string }>()
+const cliLoops = new Map<string, { prompt: string; kind: string; name?: string; cwd?: string; teammate: boolean; worker?: string; workerProfile?: string; ledger?: string; owner?: CliOwner; closed?: boolean; rounds?: number; pending: string[]; guard?: ReturnType<EngineInterface['process']['spawn']>; guardPath?: string; stopHeadless?: () => void }>()
 const BINDINGS_KEY = 'byo-provider.cli-bindings'
 let bindingWrites: Promise<void> = Promise.resolve()
 let bindingError: string | undefined
@@ -394,6 +394,7 @@ async function stopCli($: EngineInterface, loop: string, aborted = false) {
 
 async function stopRecord($: EngineInterface, loop: string, record: NonNullable<ReturnType<typeof cliLoops.get>>, aborted = false) {
   if (!record.worker) {
+    record.stopHeadless?.() // a running headless step ends now: its runner gets SIGTERM and stops the CLI's group
     if (record.guard) await record.guard.return({ code: null, signal: 'SIGTERM' })
     return
   }
@@ -522,11 +523,17 @@ async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, si
     await $.fs.write(resultPath, '')
     const input = `Write final JSON to this exact path: ${resultPath}\nInclude schema_version: 1, status: success|failed|blocked|needs-input, summary, artifacts: [], errors: [].\n\n${task}\n\nReturn a complete report. Do not spawn additional workers.`
     const stream = $.process.spawn({ argv: ['python3', `${$.plugin.root}/scripts/cli.py`, cfg.cli, String(cfg.timeoutMs / 1000)], cwd: record.cwd, input })
-    return counted(withAnswer(await headlessStep(e.turnId, e.index, stream, cfg.timeoutMs, signal, (ms, fn) => $.clock.after(ms, fn), async () => {
-      const body = JSON.parse(String(await $.fs.read(resultPath!)))
-      await log($, { ev: 'cli-result', loop, route, resultPath, status: body.status })
-      return body
-    }), await answerText()))
+    // A shutdown or TaskStop of this loop aborts the step as the turn's own interrupt does.
+    const halt = new AbortController()
+    signal.addEventListener('abort', () => halt.abort(), { once: true })
+    record.stopHeadless = () => halt.abort()
+    try {
+      return counted(withAnswer(await headlessStep(e.turnId, e.index, stream, cfg.timeoutMs, halt.signal, (ms, fn) => $.clock.after(ms, fn), async () => {
+        const body = JSON.parse(String(await $.fs.read(resultPath!)))
+        await log($, { ev: 'cli-result', loop, route, resultPath, status: body.status })
+        return body
+      }), await answerText()))
+    } finally { record.stopHeadless = undefined }
   } catch (err) {
     let why = String(err)
     try { await stopCli($, loop, signal.aborted) } catch (stopError) { why += `; worker stop failed: ${String(stopError)}` }

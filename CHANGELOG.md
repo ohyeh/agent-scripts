@@ -1,5 +1,9 @@
 # Changelog
 
+## byo-provider 0.7.3
+
+- A shutdown request or `TaskStop` now ends a headless CLI step that is still running. 0.7.2 closed the teammate but left `cli.py` and its CLI running to the end (seen on .44: agy ran on ~65 s after `CLI teammate agy-h2 stopped`, skip-permissions). The step now aborts as an interrupt does: the runner gets SIGTERM and stops the CLI's process group, and the step ends `interrupted`. Live on Darwin 24.6: `cli.py agy-flash` was gone 15 s after the shutdown (`pgrep` exit 1).
+
 ## byo-provider 0.7.2
 
 - A headless CLI teammate now stops on a shutdown request. Only tmux teammates were stopped (`register.tsx` checked `worker`), so a headless one took the request as a message, found no text, fell back to its spawn prompt and ran round 1 again, and stayed listed as running (seen on .44). Every teammate whose profile has `cli=` is now stopped and closed (a gateway teammate still gets the request as a message); a finished named agent is listed `idle` and `TaskStop` answers `not running` for it, which no longer turns the shutdown into an error; `TaskStop` closes a tmux CLI record; a teammate round with no new message fails (`no new message for this CLI teammate`) instead of rerunning round 1; empty incoming text is not queued.
