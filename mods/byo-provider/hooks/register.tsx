@@ -20,7 +20,7 @@ import type { View } from '../types'
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
-const VERSION = '0.7.0' // keep equal to .claude-plugin/plugin.json
+const VERSION = '0.7.1' // keep equal to .claude-plugin/plugin.json
 const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
 const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }

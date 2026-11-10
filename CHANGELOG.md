@@ -1,5 +1,9 @@
 # Changelog
 
+## byo-provider 0.7.1
+
+- `scripts/cli.py` `stop()` also accepts `PermissionError` from `killpg`. On macOS 27 (Python 3.15), a process group whose last member is exiting returns EPERM, not ESRCH, at the SIGKILL sweep; `ps` lists no member then. The uncaught error ended a successful headless CLI step as `BYO_CLI_ERROR: [Errno 1] Operation not permitted`. On .44, `tests/cli_check.py` failed 4 of 5 runs before and passed 5 of 5 after (exit=0, 18 PASS). Reported by the .44 session; Darwin 24.6 returns ESRCH and never failed.
+
 ## Retire postcompact-handoff.sh; the compaction summary itself is the handoff
 
 - `postcompact-handoff.sh` copied each compaction summary to a file that nothing read: `compaction-recall.sh` only printed its path, and only when the file already existed. PostCompact usually runs after SessionStart:compact, so 128 of 138 first compactions on this host had no pointer, and no `[postcompact-handoff]` status line reached any transcript. The summary already lands in the new context in handoff shape (`precompact-instructions.sh`), and recall re-injects the user's own prompts; both stay. deploy.sh removes the installed hook and its PostCompact registration and fails if either comes back. Old files in `.claude/handoffs/compact/` are left in place; RESUME does not read them.

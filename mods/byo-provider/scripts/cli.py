@@ -196,6 +196,8 @@ def main():
             os.killpg(child.pid, signal.SIGTERM)
         except ProcessLookupError:
             return
+        except PermissionError:
+            pass  # macOS 27: EPERM, not ESRCH, while the group's last member exits; still reap below
         try:
             child.wait(timeout=5)
         except subprocess.TimeoutExpired:
@@ -203,7 +205,7 @@ def main():
         # The CLI may have left a tool process alive after its own exit.
         try:
             os.killpg(child.pid, signal.SIGKILL)
-        except ProcessLookupError:
+        except (ProcessLookupError, PermissionError):
             pass
         child.wait()
 
