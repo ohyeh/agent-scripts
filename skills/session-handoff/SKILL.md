@@ -106,7 +106,10 @@ session. List the recent ones, not only the newest:
 ```bash
 ls -lt .claude/handoffs/*.md | head -10              # newest first
 grep -H -E '^- (Written by|Session|CLI|Model|Host):' .claude/handoffs/*.md   # writer: manual and compact handoffs
+ls -dt .workflow/*/ | head -5                         # run dirs, newest first
 ```
+
+Read the `plan.md` and `state.md` of each run dir the handoffs or the newest sessions name. They hold the task list and the last checkpoint, which the handoff text only summarizes.
 
 Read the newest handoff for your task, then follow its "Continues from" chain back and read each handoff's text.
 Also read the handoff named by the user.
@@ -145,8 +148,10 @@ A handoff is an agent's summary of a session, not its record. Read the record to
 2. For each session, read what the user said AND what the agent did. The user's messages show what was asked and corrected; only the agent's tool calls show what was built (W46 audit: 10 of 15 resumes read only the user's side). Claude Code and Codex: build the session's reading pack.
 
    ```bash
-   python3 <this skill's dir>/scripts/resume_pack.py --out <run dir or scratchpad>/pack "$LOG" [more logs]
+   python3 <this skill's dir>/scripts/resume_pack.py --out <run dir>/pack "$LOG" [more logs]
    ```
+
+   Put the pack in the task's run dir (open one if there is none), not the scratchpad: the scratchpad can be wiped between turns, and the pack and its `timeline.md` must outlive the turn for CREATE and the validator.
 
    Per log it writes `<sid8>/user.txt` (one line per user message, oldest first, ending `COUNT <n>`), `footprints.txt` (one block per turn, ending `TURNS <n>`), `tools.txt` (one line per tool call, ending `TOOLS <n>`), `slices/S01.txt`… (every tool call with its input and result, each line prefixed `S<NN>:<line>`) and `manifest.json`. A log it cannot parse exits 1: that session is `not read`, never empty. Subagent logs are packed only with `--subagents`: each agent's report is already a tool result in the main log; pack a subagent only when that result failed, was cut, or the next step depends on how the agent got it.
 
@@ -197,7 +202,7 @@ A handoff is an agent's summary of a session, not its record. Read the record to
 
    Typed messages are `type=="USER_INPUT"`; images are in `media`. Messages sent while agy worked and answers to its questions are reported to be `USER_INPUT` too, but no log has shown one yet (UNCONFIRMED): if you find them elsewhere, include them and say so.
 3. Where a user message and a handoff differ, the user message wins. Correct the handoff before you state scope.
-4. Build the timeline: extend `timeline.md` (2d) by merging each handoff's Timeline, every user message, and the live record (`git log`, worker list, deploy output) into one ordered list that ends now. Write it to a file (the task's run dir or scratchpad), not into the chat. Until it exists and its last entry matches the live state, do not dispatch an implementation worker, write a work brief, or edit project files. A read-only subagent that runs the filter for you is allowed.
+4. Build the timeline: extend `timeline.md` (2d) by merging each handoff's Timeline, every user message, and the live record (`git log`, worker list, deploy output) into one ordered list that ends now. Write it to a file in the task's run dir, not into the chat. Until it exists and its last entry matches the live state, do not dispatch an implementation worker, write a work brief, or edit project files. A read-only subagent that runs the filter for you is allowed.
 
 **Your first status reply lists what you read:** each handoff marked `full`, `partial (<range>)` or `not read`, and one line per session in exactly one of these shapes (the claim gate matches them):
 

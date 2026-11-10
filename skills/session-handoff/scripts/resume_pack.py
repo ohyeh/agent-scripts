@@ -127,22 +127,29 @@ def tool_calls(rows, cli):
     return calls, results
 
 
-def is_error(value):
+ERROR_TEXT = re.compile(r"(?im)(?:^|\n)(?:error\b|traceback\b|.*(?:exited with code|exit code|Process exited with code)\s*[:=]?\s*[1-9]\d*)")
+ERROR_LINE = re.compile(r"(?im)^(?:error\b|traceback\b|(?:exited with code|exit code|Process exited with code)\s*[:=]?\s*[1-9])")
+
+
+def is_error(value, flagged_ok=False):
+    # flagged_ok: the CLI said is_error false, so text counts only as a line that starts with the
+    # error, not one that quotes it mid-line (source code, pack lines, uniq counts).
     if isinstance(value, dict):
+        flagged_ok = flagged_ok or value.get("is_error") is False
         return (bool(value.get("is_error")) or bool(value.get("error"))
                 or value.get("status") in {"error", "failed"}
                 or value.get("exit_code", 0) not in (None, 0)
                 or str(value.get("type", "")).endswith("_error")
-                or any(is_error(v) for v in value.values()))
+                or any(is_error(v, flagged_ok) for v in value.values()))
     if isinstance(value, list):
-        return any(is_error(v) for v in value)
+        return any(is_error(v, flagged_ok) for v in value)
     if isinstance(value, str):
         try:
             decoded = json.loads(value)
         except ValueError:
             decoded = None
-        return ((decoded is not None and not isinstance(decoded, str) and is_error(decoded))
-                or bool(re.search(r"(?im)(?:^|\n)(?:error\b|traceback\b|.*(?:exited with code|exit code|Process exited with code)\s*[:=]?\s*[1-9]\d*)", value)))
+        return ((decoded is not None and not isinstance(decoded, str) and is_error(decoded, flagged_ok))
+                or bool((ERROR_LINE if flagged_ok else ERROR_TEXT).search(value)))
     return False
 
 
@@ -541,6 +548,10 @@ def self_test():
                        {"output": "Process exited with code 2\n" + long}]:
             assert is_error(result)
             assert "lines cut" not in "\n".join(call_text(("", "Read", "a", {}), {"a": [result]}))
+        for quoted in ['  {"output": "Process exited with code 2', "S02:1861:Exit code 1", "   1 Exit code 2"]:
+            assert not is_error({"is_error": False, "content": [{"type": "text", "text": quoted + "\n" + long}]})
+        for real in ["ok\nerror: the following file has changes staged", json.dumps({"exit_code": 1})]:
+            assert is_error({"is_error": False, "content": real})
         assert "no matching result recorded" in "\n".join(call_text(("", "Read", "missing", {}), {}))
         for directory in [dirs[2], compressed]:
             manifest = json.loads((directory / "manifest.json").read_text())
