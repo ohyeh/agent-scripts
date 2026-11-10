@@ -181,7 +181,7 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
 | Env | Same as |
 | --- | --- |
 | `GATE_TEST_MAIN=<profile>` | `/provider-switch use <profile>` |
-| `GATE_TEST_AGENTS=<profile>` | every new subagent and fork uses `<profile>`, whatever main uses |
+| `GATE_TEST_AGENTS=<profile>` | sets the `agents=` mode to `<profile>`: a new subagent or fork with no matching tier line (`haiku=`/`sonnet=`/`opus=`) uses it; a tier line still wins |
 | `GATE_TEST_AGENTS_MODE=follow\|claude` | `/provider-switch agents follow\|claude` |
 | `GATE_TEST_STEPS=<K>` | a gated loop goes back to Claude from step index K (`/provider-switch off`) |
 | `GATE_LOG=<path>` | routing log, JSONL; never a URL or token value |

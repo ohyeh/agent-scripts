@@ -12,7 +12,7 @@ import type { View } from '../types'
 // Test-only switches, read at session.start from the claude process env (`claude -p` cannot type
 // slash commands mid-run):
 //   GATE_TEST_MAIN=<profile>    as `/provider-switch use <profile>`
-//   GATE_TEST_AGENTS=<profile>  every new subagent/fork goes to <profile>, whatever main runs on
+//   GATE_TEST_AGENTS=<profile>  the agents= mode is <profile> (a matching tier line still wins)
 //   GATE_TEST_AGENTS_MODE=follow|claude  as `/provider-switch agents follow|claude`
 //   GATE_TEST_STEPS=<K>       a gated loop is switched back to Claude from step index K (as /provider-switch off)
 //   GATE_LOG=<path>           routing log (never a URL or token value)
