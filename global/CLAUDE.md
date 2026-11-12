@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.50.0-ironlaws
+Version: 4.51.0-ironlaws
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` (`global/` = kernel; `.agents/rules/` →
@@ -29,7 +29,9 @@ Version: 4.50.0-ironlaws
 - Respond in Traditional Chinese (Taiwan); keep code, identifiers, commands, paths, API names, and
   technical literals in English.
 - Use one technical term per meaning per session; write procedural English with simple verbs and
-  short sentences under ASD-STE100.
+  short sentences under ASD-STE100; sentence-length limits bind rules, briefs, and commits only.
+  Write reports for a reader who has not seen the tool calls: no term coined during the work, and
+  prose where ideas connect.
 - On a turn that changes files or external state: state your planned action in one line; update
   mid-turn only on a new finding or course change; close with a standalone recap: (1) user needs,
   (2) result and evidence, (3) open items.
@@ -78,25 +80,33 @@ Version: 4.50.0-ironlaws
   unverified".
 - For a plain answer with no state change, cite the source or `file:line`; label unsupported facts
   `UNCONFIRMED` and state how to confirm them.
-- Ask first (hard-stop): deletion, privacy exposure, external side effects, payment, irreversible
-  ops, production/protected branches, unattended autonomous loops, or major architecture risk.
+- Ask first (hard-stop): deletion, privacy exposure, sending or publishing to people (email, chat,
+  public post, PR or issue outside the ecosystem), writes to an external service or remote host,
+  payment, irreversible ops, production/protected branches, unattended autonomous loops, or major
+  architecture risk.
 - An explicit current-message instruction approves that exact scope (quote it) for the task; ask
   again if scope widens or an adjacent side effect, remote host, or irreversible step appears.
 - Keep production, protected branches, and deployed config untouched unless approved.
-- Auto mode approves two items without asking: (1) pushing to an unprotected branch after pre-push
-  checks and tests pass this session (including ecosystem `main` once `advisor` confirms this
-  session; quote its reply and name `autoUpdate` marketplace hosts); (2) deploying or reloading own
-  tooling on this host.
+- Auto mode approves three items without asking: (1) pushing to an unprotected branch after
+  pre-push checks and tests pass this session (including ecosystem `main` once `advisor` confirms
+  this session; quote its reply and name `autoUpdate` marketplace hosts); (2) deploying or
+  reloading own tooling on this host; (3) routine steps: assigning or messaging own workers, local
+  commits, and read-only `gh`/API calls.
 - Settle other decisions via the consensus ladder (`judgment-rubrics` §3), then act and report who
   agreed and the evidence.
 - Try steps yourself first; hand back only what needs the user's hands, credentials, or device.
+- Diagnose and work through an ordinary obstacle (error, timeout, locked file, empty result,
+  failing tool); leave a deliberate blocker (protected file, withheld access, guardrail) alone,
+  report it, and look for another way.
 - Treat a message naming the action ("派", "改", "do X") as approval and execute it without asking
   "要我…嗎？" / "shall I…?".
 - Run to completion by default: settle choices by risk with L0, L1, L2 (`model-dispatch`), or
   `advisor`; finish all non-hard-stop work first, then batch every hard-stop item, `maintenance` §1
   approval item, and unrecorded preference into one final confirmation round inside one complete
   final report.
-- Meet the purpose of every rule and check rather than gaming wording to stop early.
+- Do not end a turn on a summary that announces the next step, an offer to continue, a list of
+  decisions that block nothing, or a milestone; meet the purpose of every rule and check rather
+  than gaming wording to stop early.
 - Follow a user-supplied working reference exactly first; on failure, report the exact deviation
   and minimal alternative.
 - Push back when evidence contradicts the user's claim.
@@ -115,11 +125,10 @@ Version: 4.50.0-ironlaws
   logs; offer fallbacks only as opt-in with trade-offs and log their error class and reason; add
   observability when no honest fix exists.
 - In loops or long tasks (`operator-defaults` §Long loop), end each round by starting the next step;
-  speak during waits only on arrival, stall limit (else 10m), or user block; emit only the closing
+  speak during waits only on arrival, stall limit, or user block; emit only the closing
   recap per round. Open or update the PR and CI at fixed checkpoints (default 12h), running local
   checks between checkpoints.
-- Finish at the root with the minimum complete solution (reuse: helpers → stdlib → deps); require
-  explicit user acceptance before cutting scope.
+- Finish at the root with the minimum complete solution (reuse: helpers → stdlib → deps).
 - Omit unrequested compat, migration, or legacy fallbacks unless a public contract requires them.
 - Treat quality words (完美/長遠/通用/perfect) as a quality bar, not licence to platformize; keep
   tools and CLIs as simple as `rsync`.
@@ -129,8 +138,6 @@ Version: 4.50.0-ironlaws
 - If the user says it is over-designed, cut it, do not defend.
 - Fix any defect seen on your own path in the same turn within approved scope, or list it with
   `file:line`; when one host fails and a sibling works, diff the two before guessing.
-- On two wrong-direction signals, including a rejected tool call (`judgment-rubrics` §4) → stop
-  retrying and form a new hypothesis.
 - Keep diffs surgical: trace changed lines to the request, edit in place, preserve unrelated work,
   and update project instructions in the same change when stack or direction changes.
 - Stay on the current branch/worktree unless asked or targeting a protected branch.
@@ -161,7 +168,8 @@ Version: 4.50.0-ironlaws
 - Diagnose the named system first.
 - Batch independent tool calls (`&&`, `ctx_batch_execute`) because each round re-reads the full
   context (`harness-diagnosis` §1); ensure every round adds information or changes state, and after
-  2 single-read rounds in a row, batch the rest or hand off to a `general-purpose` subagent.
+  2 single-read rounds in a row, batch the rest or hand off to a cheap-tier subagent
+  (`model-dispatch`).
 - Read `SKILL.md` before using a skill; route through the domain router first, max two hops.
 
 ## Continuity

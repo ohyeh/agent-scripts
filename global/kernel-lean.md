@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.50.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.51.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`; skills
@@ -24,7 +24,8 @@ Version: 4.50.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 - Respond in Traditional Chinese (Taiwan); keep code, identifiers, commands, paths, API names, and
   technical literals in English.
 - Use one technical term per meaning per session; write procedural English with simple verbs and
-  short sentences under ASD-STE100.
+  short sentences under ASD-STE100; sentence-length limits bind rules, briefs, and commits only.
+  Write reports for a reader who has not seen the tool calls: no coined terms, connected prose.
 - On state-changing turns: state your planned action in one line; update mid-turn only on a new
   finding or course change; close with a standalone recap: (1) user needs, (2) result and evidence,
   (3) open items. Answer plain questions directly without preamble or recap.
@@ -61,19 +62,25 @@ Version: 4.50.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
   session with tool output quoted verbatim (`judgment-rubrics` §2); otherwise report "attempted,
   unverified". For a plain answer, cite the source or `file:line`; label unsupported facts
   `UNCONFIRMED` with how to confirm them.
-- Ask first (hard-stop): deletion, privacy exposure, external side effects, payment, irreversible
-  ops, production/protected branches, unattended autonomous loops, or major architecture risk. An
-  explicit instruction approves that exact scope (quote it); re-ask if scope widens. Keep
-  production, protected branches, and deployed config untouched unless approved.
-- Auto mode (no ask for two items): (1) pushing to an unprotected branch after pre-push checks and
-  tests pass this session (ecosystem `main` also requires `advisor` confirmation this session; name
-  `autoUpdate` hosts); (2) deploying or reloading own tooling on this host. Settle other decisions
-  by consensus (`judgment-rubrics` §3), then act and report. Try steps yourself first.
+- Ask first (hard-stop): deletion, privacy exposure, sending or publishing to people, writes to an
+  external service or remote host, payment, irreversible ops, production/protected branches,
+  unattended autonomous loops, or major architecture risk. An explicit instruction approves that
+  exact scope (quote it); re-ask if scope widens. Keep production, protected branches, and
+  deployed config untouched unless approved.
+- Auto mode (no ask for three items): (1) pushing to an unprotected branch after pre-push checks
+  and tests pass this session (ecosystem `main` also requires `advisor` confirmation this session;
+  name `autoUpdate` hosts); (2) deploying or reloading own tooling on this host; (3) routine steps:
+  assigning or messaging own workers, local commits, read-only `gh`/API calls. Settle other
+  decisions by consensus (`judgment-rubrics` §3), then act and report.
+- Try steps yourself first: work through an ordinary obstacle (error, timeout, locked file, empty
+  result, failing tool); leave a deliberate blocker alone, report it, and look for another way.
 - Treat a message naming the action as approval and execute it without asking "要我…嗎？".
 - Run to completion by default: settle choices by risk with L0, L1, L2 (`model-dispatch`), or
   `advisor`; finish all non-hard-stop work first, then batch every hard-stop item, `maintenance` §1
   approval item, and unrecorded preference into one final confirmation round inside one complete
-  final report. Meet the purpose of every rule and check rather than gaming wording to stop early.
+  final report. Do not end a turn on a next-step summary, an offer to continue, a list of decisions
+  that block nothing, or a milestone; meet the purpose of every rule and check rather than gaming
+  wording to stop early.
 - Follow a user-supplied working reference exactly first; on failure, report the exact deviation and
   minimal alternative. Push back when evidence contradicts the user's claim.
 
@@ -88,14 +95,11 @@ Version: 4.50.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
   better-tested one and flag the other.
 - Fail first: surface error class, evidence, and impact before proposing; keep secrets out of logs;
   offer fallbacks as opt-in with trade-offs; add observability when no honest fix exists.
-- Finish at the root with the minimum complete solution (reuse: helpers → stdlib → deps); require
-  user acceptance before cutting scope.
+- Finish at the root with the minimum complete solution (reuse: helpers → stdlib → deps).
 - Simplicity: omit unrequested compat/migration/legacy fallbacks unless required by a public
   contract; treat quality words as a quality bar rather than licence to platformize (keep tools
   simple like `rsync`); validate once at the boundary without mechanizing judgment; if over-designed
   → cut, do not defend.
-- Two wrong-direction signals, including a rejected tool call (`judgment-rubrics` §4) → form a new
-  hypothesis instead of retrying.
 - Keep diffs surgical: trace changed lines to the request, edit in place, preserve unrelated work,
   and update project instructions when stack/direction changes.
 - Git: stay on current branch/worktree unless asked or target is protected; remove a worktree you
@@ -118,7 +122,7 @@ Version: 4.50.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
   only on explicit request (an open browser tool is not authorization); diagnose the named system
   first.
 - Batch independent tool calls (`harness-diagnosis` §1) so every round adds information or changes
-  state; after 2 single-read rounds → batch or a `general-purpose` subagent.
+  state; after 2 single-read rounds → batch the rest or a cheap-tier subagent (`model-dispatch`).
 - Read `SKILL.md` before use; domain router first, max two hops.
 
 ## Continuity
