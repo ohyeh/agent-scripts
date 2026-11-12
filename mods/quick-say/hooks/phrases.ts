@@ -3,6 +3,18 @@
 // Kept as .ts: a hooks module may import only code files, not .json.
 export default [
   {
+    hotkey: "3",
+    label: "整理",
+    when: "開發告一段落、初步跑通，要整理程式碼和 commits",
+    text: `/simplify 開發告一段落，初步跑通了，現在整理程式碼和 commits。
+You are the owner and long-term maintainer of this codebase, and its design is up to you.
+1. 先跑一次現有的測試或檢查，記下通過的基準。
+2. 整理這次改動涉及的程式碼（上游分支之後的 commit，加上還沒提交的改動）：合併重複、刪掉用不到的、把名稱和結構理順；行為不變。
+3. 整理 commits：只動還沒 push 的 commit，合併成幾個各自說得清楚的 commit；已 push 的不改寫。
+4. 整理完再跑同一組檢查，結果要和基準一致。
+5. 收尾列出每一項改動，包含小改動、新增的測試和文件；任何行為變更單獨列出，由我決定留不留。`,
+  },
+  {
     hotkey: "4",
     label: "更深的問題",
     when: "反覆討論同一件事，需要找出一直沒問的更深問題",

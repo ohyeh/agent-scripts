@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { PHRASES, phrasesOf } from '../hooks/register.ts'
+import { MOD_VERSION, PHRASES, phrasesOf } from '../hooks/register.ts'
 import { cells } from '../hooks/lib/band.ts'
 
 const PLUGIN = 'quick-say'
@@ -56,7 +56,7 @@ test('the band starts folded, opens, and a combo button fills its whole text int
   await $.session.start(start)
 
   const folded = textOf(await $.ui.render(band()))
-  expect(folded).toContain('▌quick say v0.6.2 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]')
+  expect(folded).toContain(`▌quick say v${MOD_VERSION} · 8 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]`)
   expect(folded).not.toContain('0: 收工')
 
   await $.ui.press({ plugin: PLUGIN, key: 'fold', requestId: 'above' })
@@ -66,7 +66,7 @@ test('the band starts folded, opens, and a combo button fills its whole text int
   expect(open).toContain('4: 更深的問題  5: 前情提要  6: 規劃期  7: 調查  8: 指揮＋loop  9: 驗收  0: 收工')
 
   await $.ui.press({ plugin: PLUGIN, key: 'say-0', requestId: 'above' })
-  expect(w.filled).toEqual([PHRASES[6]!.text])
+  expect(w.filled).toEqual([PHRASES.at(-1)!.text])
   expect(w.sent.length).toBe(0)
 
   // The open choice is kept for the next session; folding again is kept too.
@@ -83,11 +83,11 @@ test('narrow: icons only, labels cut, never wrapped; no room: the phrase row goe
   await $.session.start(start)
 
   const narrow = textOf(await $.ui.render(band(40)))
-  expect(narrow).toContain('▌quick say v0.6.2')
+  expect(narrow).toContain(`▌quick say v${MOD_VERSION}`)
   expect(narrow).toContain('[ ◐ ][ ▾ ][ ✕ ]')
-  // Seven labels use two rows; each label fits its share.
-  expect(narrow).toContain('4: 更深…  5: 前情…  6: 規劃…  7: 調查')
-  expect(narrow).toContain('8: 指揮…  9: 驗收  0: 收工')
+  // Eight labels use two rows; each label fits its share.
+  expect(narrow).toContain('3: 整理  4: 更深…  5: 前情…  6: 規劃…')
+  expect(narrow).toContain('7: 調查  8: 指揮…  9: 驗收  0: 收工')
   // Room for one phrase row only: one row, labels cut.
   expect(textOf(await $.ui.render(band(40, 3)))).toContain('4: ')
 
@@ -112,9 +112,9 @@ test('hide takes the band away across sessions until /quick-say shows it again',
 
   const shown = await $.command.run(cmd)
   expect(shown.text).toContain('band shown')
-  expect(shown.text).toContain(`0 收工: ${PHRASES[6]!.text}`)
+  expect(shown.text).toContain(`0 收工: ${PHRASES.at(-1)!.text}`)
   expect(w.store.get('quick-say.hidden')).toBe('shown')
-  expect(textOf(await $.ui.render(band()))).toContain('▌quick say v0.6.2')
+  expect(textOf(await $.ui.render(band()))).toContain(`▌quick say v${MOD_VERSION}`)
 
   expect((await $.command.run(cmd)).text).toContain('band hidden; /quick-say shows it again.')
 })
@@ -208,7 +208,7 @@ test('all mode headers fit wide and narrow cells and actionable buttons are not 
       const text = textOf(tree)
       if (width < 36) expect(text).not.toContain('quick say')
       else {
-        expect(text).toContain('▌quick say v0.6.2')
+        expect(text).toContain(`▌quick say v${MOD_VERSION}`)
         expect(text).toContain(`[ ${width >= 80 ? label : icon} ]`)
       }
       for (const line of linesOf(tree).filter(l => !l.startsWith('workers v0.46.14'))) expect(cells(line) + (line.includes('▌quick say') ? 4 : 0)).toBeLessThanOrEqual(width)

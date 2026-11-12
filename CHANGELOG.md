@@ -1,5 +1,11 @@
 # Changelog
 
+## quick-say 0.8.1
+
+- New combo `3 整理`: after a first working pass, it runs `/simplify` with the code-ownership sentence from Anthropic's Fable 5.2 prompting guide, tidies the code and the unpushed commits, keeps behaviour, and lists every change. The sentence is in a combo, not the kernel: the guide measured 70-80 percent more output tokens and unrequested changes with it, so it applies only to the task where the owner presses the key.
+- Key 3 can be taken by the workers band with three or more workers (same limit as key 4).
+- Tests read the band version from `MOD_VERSION` (now exported). Four tests had failed since the version passed the hard-coded `v0.6.2`.
+
 ## byo-provider 0.8.1
 
 - A brief with a `runtime: tmux/<profile>` line starts one worker, not two. tmux-agent launches the worker and spawns its own waiter with model `sonnet`; with a `sonnet=` tier line on a CLI profile, byo routed that spawn too and started a second worker for the same task (seen with `sonnet=t-tagy`: workers `byomixedlong.tplxl` and `byo-a3debf…`). byo now leaves a spawn whose prompt has that line, or whose type is `tmux-agent:tmux-waiter`, on Claude (`ownedByTmuxAgent`). Such a spawn runs on Claude even when its tier names a gateway profile, and even when tmux-agent is not loaded (no toast; the log says `spawn-claude`, `tmuxOwned: true`). The spawn log line records `tmuxOwned` and `subagentType`.

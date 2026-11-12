@@ -1,6 +1,6 @@
 # quick-say
 
-Seven combos for 前情提要 → 調查 → 規劃期 → 指揮 → 驗收 → 收工, with three modes.
+Eight combos for 前情提要 → 調查 → 規劃期 → 指揮 → 整理 → 驗收 → 收工, with three modes.
 Digits fill the full combo into the prompt box. Read or edit it, then press Enter to send.
 
 ## Modes
@@ -35,6 +35,7 @@ with `APPROVES_NOTHING`: it grants no new approval.
 
 | Key | Name | Purpose |
 |---|---|---|
+| 3 | 整理 | After a first working pass: run /simplify as the code owner, tidy the code and the unpushed commits, keep behaviour, and list every change. |
 | 4 | 更深的問題 | Find the deeper question behind repeated discussion. |
 | 5 | 前情提要 | Read the handoff, user.txt and footprints.txt, check what the next step relies on live (read-only) or by one `--call` receipt, no scouts; adds only the commit diffs and pages the next step continues from; explain the timeline and checkpoint, then wait for confirmation. |
 | 6 | 規劃期 | Show a state model first; add code signatures for cross-module or interface work; write the plan after agreement. |
@@ -49,7 +50,7 @@ The owner's texts and the model's `when` hints live in `hooks/phrases.ts` (data 
 ## Band and log
 
 ```
-▌quick say v0.6.2 · 7 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
+▌quick say v0.8.1 · 8 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
 ```
 
 The band starts folded. Open/fold and hide choices persist across sessions.
@@ -72,7 +73,8 @@ A log write error goes to the debug log and does not hold the prompt.
 
 ## Limits
 
-- Key 4 can be taken by the workers band with four or more workers; the band drawn later wins.
+- Key 3 can be taken by the workers band with three or more workers, and key 4 with four or
+  more; the band drawn later wins.
 - Auto acts only at turn completion. It cannot act while the agent runs mid-turn.
 - Slash-prefixed combos: whether Enter treats the filled text as a slash command is
   **UNCONFIRMED**, pending a real engine check.
@@ -81,7 +83,7 @@ A log write error goes to the debug log and does not hold the prompt.
   Quoted paths and `pushd` can be missed. A branch without an upstream has no unpushed check.
 - Each main-agent answer can use one small-model call in semi-auto or auto mode.
 - Digit buttons need an empty prompt and a band that fits `maxRows`. To type a prompt that
-  starts with 4–9 or 0 while the band is open, put a space first.
+  starts with 3–9 or 0 while the band is open, put a space first.
 
 ## Install
 
