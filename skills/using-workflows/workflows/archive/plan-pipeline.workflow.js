@@ -73,7 +73,7 @@ const effort = a.effort || 'high'    // drafter / driving agent effort (default 
 const reviewEffort = a.reviewEffort || 'high'   // L2 reviewer effort
 const model = a.model || 'opus'     // drafter never sonnet: this recipe is planning (user ruling 2026-09-02)
 // Official agent() opts, listed on every call. Both default OFF:
-// No isolation: every agent() would get its own worktree, so drafter, fixer, L0 and reviewers would not
+// No isolation: every agent() would get its own checkout, so drafter, fixer, L0 and reviewers would not
 // see one another's edits. The ladder runs on one live tree.
 if (a.isolation != null) return { aborted: true, reason: 'isolation is not supported: the review ladder needs every agent on the same live tree' }
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)

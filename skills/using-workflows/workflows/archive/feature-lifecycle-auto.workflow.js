@@ -103,7 +103,7 @@ if (!/^[a-zA-Z0-9._-]+$/.test(slug) || slug.includes('..')) return { aborted: tr
 const model = a.model || 'opus'
 const effort = a.effort || 'high'   // worker default (owner ruling 2026-10-30); reviewers use reviewEffort
 // Official agent() opts, also forwarded to nested stages. Both default OFF:
-const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
+const isolation = undefined  // owner ruling 2026-11-13: isolated checkouts are blocked on every host
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)
 // Second-model CLI forwarded to every stage — OPTIONAL, neutral (never depend on codex). Absent → each
 // stage runs a fresh Claude opus reviewer. Validated here so a bad value surfaces at the shell.

@@ -74,7 +74,7 @@ const effort = a.effort || 'high'    // worker effort (default and floor: opus h
 const reviewEffort = a.reviewEffort || 'high'   // critics + second reviewer
 const discoverModel = a.discoverModel  // undefined by default: Discover inherits the session model
 // Official agent() opts, listed on every call. Both default OFF:
-const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
+const isolation = undefined  // owner ruling 2026-11-13: isolated checkouts are blocked on every host
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)
 const slug = a.slug || 'feature-plan'
 if (!/^[a-zA-Z0-9._-]+$/.test(slug) || slug.includes('..')) return { aborted: true, reason: `invalid slug '${slug}' (alnum/._- only, no path traversal)` }

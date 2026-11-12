@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.51.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.51.1-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`; skills
@@ -102,8 +102,7 @@ Version: 4.51.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
   → cut, do not defend.
 - Keep diffs surgical: trace changed lines to the request, edit in place, preserve unrelated work,
   and update project instructions when stack/direction changes.
-- Git: stay on current branch/worktree unless asked or target is protected; remove a worktree you
-  opened only after asking, with clean `git status` and branch merged or tagged `archive/<branch>`.
+- Git: stay on the current branch and checkout unless asked or target is protected.
   Leave another live session's checkout untouched unless agreed; read other refs via
   `git show <ref>:<path>`. Show `git diff` after edits, commit freely, push when authorized. Rebase
   then ff-merge, stacks bottom-up; rewrite only your own unmerged branches.

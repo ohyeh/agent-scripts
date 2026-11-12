@@ -33,7 +33,7 @@ const hints = (a.scopeHints || []).join(', ')
 const model = a.model || 'opus'
 const effort = a.effort || 'high'   // default and floor opus/high (owner ruling 2026-10-30)
 // Official agent() opts, listed on every call (none reads as "unsupported"). Both default OFF:
-const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
+const isolation = undefined  // owner ruling 2026-11-13: isolated checkouts are blocked on every host
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; a missing custom agentType is a HARD error #20931)
 
 const HYP = { type: 'object', additionalProperties: false, required: ['hypotheses'],

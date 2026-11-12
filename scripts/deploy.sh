@@ -606,12 +606,15 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   # W44-2 B1: subagent-ledger.sh now counts workflow agents at SubagentStart
   | retire("SubagentStart"; $only + " " + $wfcap)
   | ensureMatched("PreToolUse"; "Bash|EnterWorktree|Agent"; $rmhome)
-  # 2026-10-23: rm-home-gate also asks before a worktree; widen an existing Bash entry in place
+  # 2026-10-23: rm-home-gate also covers EnterWorktree and Agent; widen an existing Bash entry in place
   | .hooks.PreToolUse |= map(if any(.hooks[]?; .command == ($only + " " + $rmhome))
       then .matcher = "Bash|EnterWorktree|Agent" else . end)
-  # bypassPermissions ignores a hook ask (live 2026-10-23); ask rules cover that mode
-  | .permissions.ask = (((.permissions.ask // []) + ["EnterWorktree", "Bash(git worktree add *)",
-      "Bash(git -C * worktree add *)", "Bash(*Google Chrome* --headless*)"]) | unique)
+  # 2026-11-13 owner ruling: deny, never ask. The hook denies these too; the deny rules cover a
+  # form the hook misses, and the ask rules of an older deploy are removed so no prompt reaches the owner
+  | ["EnterWorktree", "Bash(git worktree add *)", "Bash(git -C * worktree add *)",
+     "Bash(*Google Chrome* --headless*)"] as $blocked
+  | .permissions.ask = ((.permissions.ask // []) - $blocked)
+  | .permissions.deny = (((.permissions.deny // []) + $blocked) | unique)
   | ensureMatched("PreToolUse"; "mcp__codex-cu__js"; $cuchrome)
   # 2026-11-06: an edit to a script a live process runs corrupts that run
   | ensureMatched("PreToolUse"; "Edit|Write|MultiEdit"; $runedit)

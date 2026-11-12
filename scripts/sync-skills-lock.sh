@@ -24,7 +24,7 @@ LOG="${DEPLOY_LOG:-$HOME/.local/state/agent-scripts/deploy-log.jsonl}"
 # with a stale lock, caught only by deploy after the push). The tree also tells which side moved,
 # whatever the timestamps say (2026-10-15: using-grok-bot-app reported as "installed newer").
 tree_hash() {
-  # HEAD only when ROOT is the repo top: a tarball extracted inside another worktree must not
+  # HEAD only when ROOT is the repo top: a tarball extracted inside another checkout must not
   # read that outer repo's HEAD.
   if [ -z "$(git -C "$ROOT" rev-parse --show-prefix 2>/dev/null || echo none)" ]; then
     git -C "$ROOT" rev-parse -q --verify "HEAD:$1"; return

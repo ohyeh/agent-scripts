@@ -45,8 +45,7 @@ const repo = a.repoPath || '.'
 const session = a.sessionName || 'consensus'
 const effort = a.effort || 'medium' // the conduit agent only relays a file (sonnet floor: medium); the reviewer's effort comes from its profile (effort_flags)
 const model = a.model || 'sonnet'   // the driving Claude agent's model: a mechanical conduit, sonnet medium (model-dispatch.md model floor)
-// Official agent() opts, listed on every call so none reads as "unsupported". Both default OFF:
-const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit (NOT false/'none')
+// Official agent() opts, listed on every call so none reads as "unsupported". Default OFF:
 const agentType = a.agentType || undefined  // off = default workflow agent. NEVER hardcode a custom one — a missing agentType is a HARD error (#20931), breaks portability
 const marker = a.marker || '=== REVIEWER VERDICT END ==='
 const timeout = a.timeoutSec || 1500
@@ -122,7 +121,7 @@ Steps:
 ${modConduit({ profile: cli, base: session, dir: repo, worker: a.worker, out: OUT, marker, timeout, task: `the proposal above, then the L0 result from step 1 (l0_rc and l0_output, verbatim), then this reviewer contract: ${REVIEWER_CONTRACT}` })}
 3. Run the same manifest command again, exactly as written → manifest_after (three lines, verbatim). Return: verdict = the verdict text read from OUT (trimmed, drop the trailing marker line); consensus = your classification (agree / agree_with_changes / disagree / unclear); notes = key objections or required changes; worker; timed_out = true only if step 2 stopped on the timeout (then verdict = "", consensus = unclear), else false.
 Return only the structured fields.`,
-  { label: `${cli}:${session}`, phase: 'Consult', model, effort, isolation, agentType, schema: SCHEMA }
+  { label: `${cli}:${session}`, phase: 'Consult', model, effort, agentType, schema: SCHEMA }
 )
 // `passed` is a strict allow-list: only genuine consensus at the verdict layer (L2), with L0 green
 // and the manifest unchanged, clears the gate. An L1 agree is a pre-filter result, never a pass.

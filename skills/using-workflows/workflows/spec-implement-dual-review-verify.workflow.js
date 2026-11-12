@@ -93,7 +93,7 @@ const maxRounds = a.maxReviewRounds || 3
 const v = (a.verification && typeof a.verification === 'object') ? a.verification : {}
 const timeout = Number.isInteger(a.timeoutSec) ? a.timeoutSec : (Number.isInteger(v.timeoutSec) ? v.timeoutSec : 1200)
 // Official agent() opts, listed on every call. Both default OFF:
-// No isolation: every agent() would get its own worktree, so drafter, fixer, L0 and reviewers would not
+// No isolation: every agent() would get its own checkout, so drafter, fixer, L0 and reviewers would not
 // see one another's edits. The ladder runs on one live tree.
 if (a.isolation != null) return { aborted: true, reason: 'isolation is not supported: the review ladder needs every agent on the same live tree' }
 const agentType = a.agentType || undefined  // implementer/fixer/finalizer only; reviewers use their toolkit agent types

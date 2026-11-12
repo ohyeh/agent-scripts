@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.51.0-ironlaws
+Version: 4.51.1-ironlaws
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` (`global/` = kernel; `.agents/rules/` →
@@ -140,9 +140,7 @@ Version: 4.51.0-ironlaws
   `file:line`; when one host fails and a sibling works, diff the two before guessing.
 - Keep diffs surgical: trace changed lines to the request, edit in place, preserve unrelated work,
   and update project instructions in the same change when stack or direction changes.
-- Stay on the current branch/worktree unless asked or targeting a protected branch.
-- Remove a worktree you opened only after asking, with clean `git status` and its branch merged or
-  tagged `archive/<branch>`.
+- Stay on the current branch and checkout unless asked or targeting a protected branch.
 - Leave another live session's checkout untouched unless agreed; read other refs via
   `git show <ref>:<path>`.
 - Show `git status`/`git diff` after edits; commit freely, push when authorized.

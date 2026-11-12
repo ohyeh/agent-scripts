@@ -11,7 +11,7 @@
 # Other patterns over already-published history are REPORTED as debt
 # (history-*.txt), not blocked -- scope ruling 2026-09-15, see `git show 97e4b0d^:.agents/rules/lessons.md`. Exits 0 only on a
 # clean scan; any match, any unexpected `git grep` exit code, a dirty
-# worktree, or a broken object graph is a hard BLOCK (exit 1). Never weaken
+# working tree, or a broken object graph is a hard BLOCK (exit 1). Never weaken
 # these patterns to make a scan pass -- fix the staged content instead.
 #
 # This file is intentionally NOT excluded from any scan. Each pattern that
@@ -39,7 +39,7 @@ set -euo pipefail
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO="${1:-$SCRIPT_DIR/..}"
 REPO="$(CDPATH= cd -- "$REPO" && pwd)"
-# EVIDENCE_DIR inside the repo dirties the worktree and self-BLOCKs the scan
+# EVIDENCE_DIR inside the repo dirties the working tree and self-BLOCKs the scan
 # (happened twice: W4 era and 2026-07-18) — default to a fresh temp dir outside it.
 # Omitting it was itself a repeated mistake (W42, W43: exit 1 before any scan).
 EVIDENCE="${2:-$(mktemp -d "${TMPDIR:-/tmp}/scrub-evidence.XXXXXX")}"
@@ -165,7 +165,7 @@ while IFS= read -r line; do
 done < "$EVIDENCE/commit-metadata-unique.txt"
 test ! -s "$EVIDENCE/commit-metadata-unexpected.txt"
 
-# --- worktree/object-graph sanity (unchanged from W1+W2) ---
+# --- working-tree/object-graph sanity (unchanged from W1+W2) ---
 test -z "$(git -C "$REPO" status --porcelain)"
 git -C "$REPO" fsck --full --no-reflogs
 

@@ -39,7 +39,7 @@ const docsRoot = a.docsRoot || 'docs/'
 const model = a.model || 'opus'     // listed on every agent() below (never omitted); floor opus
 const effort = a.effort || 'high'    // reasoning effort — "not shown" must not read as "unsupported"
 // Official agent() opts, listed on every call. Both default OFF:
-const isolation = a.isolation === 'worktree' ? 'worktree' : undefined  // spec: only 'worktree' enables; off = omit
+const isolation = undefined  // owner ruling 2026-11-13: isolated checkouts are blocked on every host
 const agentType = a.agentType || undefined  // off = default workflow agent (portable; missing custom agentType = HARD error #20931)
 const groundTruth = a.groundTruth || '(no ground-truth facts supplied — verify every claim directly against the code.)'
 const banned = Array.isArray(a.bannedPatterns) ? a.bannedPatterns : []
