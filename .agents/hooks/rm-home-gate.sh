@@ -5,8 +5,8 @@
 # - deny: launching a Chromium browser other than Google Chrome (Arc, Dia, Playwright's
 #   chromium, ...) from Bash (2026-10-23: agents opened other Chromium browsers);
 # - deny: Google Chrome with --headless (2026-11-05 W45 D3: the ask prompt kept landing on the owner);
-# - ask: creating a git worktree (Bash, EnterWorktree, Agent isolation) — the owner never
-#   approved it (2026-10-16, 2026-10-23);
+# - deny: creating a git worktree (Bash, EnterWorktree, Agent isolation) — the ask prompt kept
+#   landing on the owner (2026-10-16, 2026-10-23, W46: three corrections);
 # - warn: a command that starts with cd to a dir other than the repo root (session cwd drift).
 #
 # Ask only where the CLI shows a prompt: AGENT_HOOK_ASK_OK=1 (set by claude-only.sh and
@@ -37,10 +37,11 @@ ask() {
   echo "BLOCKED: $1 This CLI cannot show the owner a confirm prompt, so the call is denied. Ask the owner in your reply, or hand the step to the commander." >&2
   exit 2
 }
-WT="Opening a git worktree needs the owner's OK first (owner: 「誰准你亂用 worktree」). Without one, stay in this tree: commit only your own paths, or wait for the other writer."
+WT="BLOCKED: opening a git worktree is not allowed (owner: 「不要用 wt 一直講講不聽耶」). Do not ask the owner for it: stay in this tree, commit only your own paths, or wait for the other writer. Only the owner opens one, by typing: ! git worktree add"
+wt_deny() { echo "$WT" >&2; exit 2; }
 case "$TOOL" in
-  EnterWorktree) ask "$WT" ;;
-  Agent) [ "$(printf '%s' "$IN" | jq -r '.tool_input.isolation // ""')" = worktree ] && ask "$WT"; exit 0 ;;
+  EnterWorktree) wt_deny ;;
+  Agent) [ "$(printf '%s' "$IN" | jq -r '.tool_input.isolation // ""')" = worktree ] && wt_deny; exit 0 ;;
 esac
 [ -n "$CMD" ] || exit 0
 
@@ -97,7 +98,7 @@ if [[ "$flat" =~ Google\ Chrome\.app/Contents/MacOS/Google\ Chrome|${OPENA}Googl
   exit 2
 fi
 while IFS= read -r seg; do
-  [[ "$seg" =~ (^|[^[:alnum:]_-])git($S.*)?$S+worktree$S+add($S|$) ]] && ask "$WT"
+  [[ "$seg" =~ (^|[^[:alnum:]_-])git($S.*)?$S+worktree$S+add($S|$) ]] && wt_deny
 done < <(printf '%s\n' "$flat" | tr ';&|()`' '\n\n\n\n\n\n')
 
 # cd warn: only a command whose first word is cd; `(cd x && make)` keeps the session cwd.

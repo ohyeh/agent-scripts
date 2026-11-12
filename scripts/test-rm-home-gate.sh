@@ -60,14 +60,14 @@ j "tmux worker headless flag"   pass "$(b "agent-tmux codex start w1 /tmp b.md $
 j "soffice headless"            pass "$(b "python scripts/office/soffice.py $HL --convert-to pdf a.doc")" 1
 j "e2e test runner"             pass "$(b "npm run test:e2e")" 1
 j "worktree retro case"         deny "$(b "git $WA -q --detach /tmp/x origin/main")"
-j "worktree ask CLI"            ask  "$(b "git $WA -q --detach /tmp/x origin/main")" 1
+j "worktree ask CLI"            deny "$(b "git $WA -q --detach /tmp/x origin/main")" 1
 j "worktree -C quoted"          deny "$(b "git -C \"/repo with space\" $WA /tmp/x")"
 j "worktree after sibling"      deny "$(b "git fetch && git $WA /tmp/x")"
 j "worktree list"               pass "$(b "git worktree list")"
 j "worktree remove"             pass "$(b "git worktree remove /tmp/x")"
-j "EnterWorktree ask CLI"       ask  '{"tool_name":"EnterWorktree","tool_input":{}}' 1
+j "EnterWorktree ask CLI"       deny '{"tool_name":"EnterWorktree","tool_input":{}}' 1
 j "EnterWorktree no ask"        deny '{"tool_name":"EnterWorktree","tool_input":{}}'
-j "Agent isolation"             ask  '{"tool_name":"Agent","tool_input":{"prompt":"x","isolation":"worktree"}}' 1
+j "Agent isolation"             deny '{"tool_name":"Agent","tool_input":{"prompt":"x","isolation":"worktree"}}' 1
 j "Agent plain"                 pass '{"tool_name":"Agent","tool_input":{"prompt":"x"}}' 1
 # cd cases run in a scratch repo: deploy's Layer 0 runs this file in a tarball, not a clone.
 R0="$(mktemp -d)"; trap 'rm -rf "$R0" "$N0"' EXIT
