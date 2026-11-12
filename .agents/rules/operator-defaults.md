@@ -20,9 +20,12 @@ output. Follow both by default.
 - Long-loop milestones: an open grant covers the work, not the reports.
 - Use the kernel Loop cadence: one recap per round.
 - During a wait, one line when the stall limit passes; nothing in between.
+  That line quotes the last log line or `result.json` of the background
+  task, read in the same turn.
 - The stall limit is the brief's, else 10 minutes.
 - During active work, ten minutes without a recap means update the run dir
-  state file with: finished, running now, still to do, next action.
+  state file with: finished, running now, still to do, next action, and each
+  approved action not yet run (done or paused, with the reason).
 - Test cost: before adding or expanding a test, read the existing tests for
   that behavior.
 - State the regression it detects and the repository's test time budget.
@@ -46,7 +49,8 @@ output. Follow both by default.
   reaches is residue: wire it or delete it.
 - A reviewer applies the same bar: a "missing test" finding names the
   regression it detects.
-- A reviewer may ask to merge or delete a duplicate test.
+- A reviewer may ask to merge or delete a duplicate test. Before a delete,
+  read the test and state whether it runs the real subject.
 - Iterate on the related tests.
 - Before merge or delivery, run each lane the repository requires, in full.
 - A watch-mode result is not full-suite evidence.
@@ -56,8 +60,9 @@ output. Follow both by default.
 - Each difference maps to an accepted contract change.
 - New tests that all pass do not prove equivalence.
 - Do not add a gate script for the test-cost rule.
-- Bulk change to a device or config: before the change, record the
-  before-values and the restore method.
+- Bulk change to a device, config, or repo cleanup: before the change, record
+  the before-values and the restore method. A cleanup puts each tracked file
+  the user did not name into the final confirmation round.
 - List the functions it affects.
 - After the change, read each value back.
 - "Reversible" does not prove that a restore works.
@@ -109,7 +114,8 @@ output. Follow both by default.
   not keep it on the branch.
 - Apply the judgment-rubrics §8 budget across sessions.
 - Stop when the loop meets the outcome. Start a new goal only from an approved
-  goal queue.
+  goal queue. Stop each worker you will not reuse in the turn you read its
+  result.
 
 ## Shape every output
 

@@ -239,27 +239,11 @@ fi
 echo "PASS [invariants] all checks green"
 
 # Hook and recipe regressions, on the release tree before any layer mutates ~.
-# Explicit list (no glob: installers and live-model evals must not run here); each
-# test gets its own HOME/XDG/TMPDIR so a fixture never writes the real home.
-# Budget: ~30s total on the operator host. Each test must pass in a git-archive tree (no .git);
-# test-deploy-check.sh needs a checkout, so it runs by hand, not here.
-layer0_tests=(
-  test-rm-home-gate.sh test-codex-cu-chrome-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
-  test-review-dispatch-gate.sh test-running-script-edit-gate.sh
-  test-jsonl-hooks-smoke test-sync-skills-lock.sh test-grok-bot-app.sh
-)
-for t in "${layer0_tests[@]}"; do
-  th="$WORKDIR/t-$t"; mkdir -p "$th/tmp"
-  case "$t" in *.mjs) run=(node "scripts/$t") ;; *.sh) run=(bash "scripts/$t") ;; *) run=("scripts/$t") ;; esac
-  if ! (cd "$SRC" && HOME="$th" XDG_STATE_HOME="$th/.local/state" XDG_DATA_HOME="$th/.local/share" \
-        XDG_CONFIG_HOME="$th/.config" XDG_CACHE_HOME="$th/.cache" TMPDIR="$th/tmp" \
-        "${run[@]}" >"$th/log" 2>&1 </dev/null); then
-    echo "FAIL [tests] $t; refusing to deploy. Log:" >&2
-    tail -20 "$th/log" >&2
-    exit 1
-  fi
-done
-echo "PASS [tests] ${#layer0_tests[@]} hook/recipe regressions"
+# The list and the per-test sandbox live in scripts/run-layer0-tests.sh, so a run by hand before a push uses the same set.
+if ! bash "$SRC/scripts/run-layer0-tests.sh" "$SRC" "$WORKDIR"; then
+  echo "FAIL [tests] layer0 regressions; refusing to deploy" >&2
+  exit 1
+fi
 fi
 
 # --- Layer 1: global runtime files -----------------------------------------

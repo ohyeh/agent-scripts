@@ -65,6 +65,8 @@
 - Cheap gathering/mechanical: haiku medium.
 - Keep opus high/xhigh for best and sonnet xhigh/max for better inactive until a §8 sweep passes.
 - Choose exec seats by remaining Claude Code, Codex, and Cursor quota; agy is backup only.
+  When a listed L2 seat has no quota, take the next listed seat instead of waiting for a reset;
+  a best-tier seat still needs the approval below.
 - Get current-task user approval once for any best-tier seat, including L2, before launch.
   A profile file is not approval; best-tier seats never implement.
 - Treat one-shot Sol, Luna, and Grok output with caution; 2–3 rounds may help.
@@ -147,6 +149,7 @@
 - L2 gives the final verdict, on request (`l2: true`) or for high risk; cap at three rounds.
 - Do not add L3; after L2 round 3 still blocks, stop the gate and ask the user.
 - Set risk from all committed, staged, unstaged, and untracked paths against the repo path list.
+  A history rewrite whose tree diff is empty changes no path: quote the empty diff and run L0 only.
 - Use the highest tier for mixed changes; unknown paths are high; authors may only raise tiers.
 - High uses the full ladder, L2 security review, and user approval of the exact diff.
 - Normal uses the full ladder; without a path list, treat all work as normal.
@@ -244,7 +247,9 @@
 - Use Claude xhigh/max only after two evidenced failures at high or explicit user choice.
   This permits neither a repeated tier nor a fourth round; keep explicit Codex and review efforts.
 - Built-in Agent types (`general-purpose`, `Explore`, `Plan`) require explicit `model`;
-  omission resolves to opus instead of inheriting the parent.
+  omission resolves to opus instead of inheriting the parent. When byo-provider is loaded, the
+  brief names the tier→profile result, and a routing claim quotes `/provider-switch status` after
+  the spawn.
 - For custom definitions, omit `model` to keep model/effort/maxTurns; pass it only for a deliberate
   upgrade, since it overrides the definition.
 - Do not treat effort names as equivalent across models; rerun the sweep after a model change.

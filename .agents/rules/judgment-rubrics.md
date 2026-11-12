@@ -39,7 +39,9 @@
   judge identity or drift by `diff` rather than hash mismatch alone, and check untracked files via
   `git ls-files` / `git log -- <path>`.
 - [ ] Prove runtime claims with an observable difference (screen/output diff or a fresh install's
-  first run) rather than "Restarted", a listening port, or exit 0.
+  first run) rather than "Restarted", a listening port, or exit 0; a claim about runtime R needs a
+  run on R (a text review is not one), a "path exists and works" claim quotes this run's evidence
+  from the endpoint it depends on, and a plugin "fixed" claim names the installed version.
 - [ ] Read delegated-worker verdicts from `result.json` (`status`), not the supervise/wait exit
   code; on exit≠0 with missing/invalid `result.json`, inspect `result --path` and pane capture
   before re-dispatching or reporting failure, keeping pane PASS without valid JSON `UNCONFIRMED`.
@@ -50,8 +52,11 @@
   shown above, committed as abc1234."
 - Negative: "Updated config so timeout should be resolved" with no run ("attempted, unverified").
 - Apply the same bar to negative claims inferred from absence (stuck, failed, missing, no reply,
-  never reported; 卡住／受阻／失敗／缺少／不存在／尚未實作／沒有回覆／似乎掛了): state whether the
-  item is absent or only unobserved, naming the unchecked channel.
+  never reported, not up, transient, unrelated, no ticket; 卡住／受阻／失敗／缺少／不存在／尚未實作／
+  沒有回覆／似乎掛了): state whether the item is absent or only unobserved, naming the unchecked
+  channel. Elapsed time is not a channel; a search that exits 2 is no evidence; a remote absence
+  needs two search shapes; "transient" or "unrelated" names the `file:line` that printed the error;
+  a service-down diagnosis names the launcher inspected before it proposes a remedy.
 - Corroborate via an authoritative source or independent channel (`git diff --stat`/mtimes, pane
   capture, varied pattern+tool) before re-dispatching, reverting, rewriting, or escalating; never
   reason further on an uncorroborated negative.
@@ -85,7 +90,8 @@
 - [ ] Two readings lead to very different work and picking wrong touches >2 files or changes a
   schema, API, or public interface.
 - [ ] Acceptance criteria cannot be stated objectively after reading the code.
-- [ ] Acting would override an explicit earlier instruction from the user.
+- [ ] Acting would override an explicit earlier instruction from the user, or drop an option the
+  user chose (if a later instruction forces the drop, the next report says "A dropped, because B").
 - Exception: an explicitly user-invoked interview (`~/.agents/skills/unknowns-discovery/SKILL.md`
   §4) may ask one question per turn, architecture-changing first; otherwise every question must
   satisfy a stop-and-ask condition above under the one-question cap.
@@ -111,7 +117,8 @@
 - Any two signals below mean the approach is wrong; never rerun the same idea at the same tier, and
   end after three tiers where every call at the same goal counts as a round
   (`rules/model-dispatch.md` §5):
-- [ ] Each fix moves the error elsewhere instead of removing it.
+- [ ] Each fix moves the error elsewhere instead of removing it (e.g. each matcher patch after
+  review opens a new miss).
 - [ ] You are adding 2+ special cases to make the solution hold.
 - [ ] The diff keeps growing while acceptance criteria get no closer.
 - [ ] You are fighting the framework or library by patching internals or copying private code.
@@ -122,7 +129,8 @@
   result twice — hard signal: do not run it a third time; change hypothesis (condition checks within
   one valid wait per `rules/model-dispatch.md` §4 count as one wait, but restarting an expired wait
   with identical inputs is a retry).
-- [ ] The user re-pastes a prior correction: stop, read the named asset in full, then answer.
+- [ ] The user re-pastes a prior correction or rejects the same view twice: stop, read the named
+  asset in full, then answer; for a rejected view, show a text mock with exact numbers first.
 - [ ] The user rejects a tool call.
 - When triggered, stop and record (a) what was assumed and (b) which assumption evidence refutes,
   then form a new hypothesis explaining all observations or escalate with the trail.
@@ -155,8 +163,9 @@
   inference, and mark unsupported claims `UNCONFIRMED`.
 - [ ] Reports: put conclusions first, back every claim with evidence or `file:line`, separate
   inferred from verified, and name the most likely failure point.
-- [ ] Analysis: label each conclusion number as measured or proxy, and prove any proxy can reject a
-  bad result on a known case rather than holding by construction.
+- [ ] Analysis: label each conclusion number as measured or proxy, name what its counter cannot
+  record, and prove any proxy can reject a bad result on a known case rather than holding by
+  construction.
 - [ ] Probe and quote output before stating a cause in a named app/terminal, else `UNCONFIRMED`.
 - [ ] Everything: answer the original request rather than a sub-problem.
 - [ ] Measurement/inventory (logs, usage, counts): use full-coverage scripts without sampling,
@@ -186,7 +195,8 @@
 - [ ] User-facing UI: run keyboard nav + contrast spot-check (skill `impeccable` audit), not a full
   audit unless requested.
 - [ ] Terminal UI / CLI control: verify runtime claims (§2) with a real PTY run showing visible
-  input, output, exit status, and resulting file/config state.
+  input, output, exit status, and resulting file/config state; a layout claim lists the widths run
+  (the owner's terminal size and each width threshold ±1).
 
 ## §8 Persist and review — within caps
 - Apply on hard tasks, stalled progress, and final answers: difficulty alone is not a stopping
