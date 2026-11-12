@@ -463,6 +463,7 @@ hook_install "$SRC/scripts/check-bol-prompt.sh"
 hook_install "$SRC/.agents/hooks/context-ledger.sh"
 hook_install "$SRC/.agents/hooks/skill-router-nudge.sh"
 hook_install "$SRC/.agents/hooks/skill-router-table.tsv" 0644
+hook_install "$SRC/.agents/hooks/skill-chain-nudge.sh"
 hook_install "$SRC/.agents/hooks/bash-read-audit.sh"
 hook_install "$SRC/.agents/hooks/artifact-title-gate.sh"
 hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
@@ -528,6 +529,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
    --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" \
    --arg arttitle "\"\$HOME/.agents/hooks/artifact-title-gate.sh\"" \
    --arg router "\"\$HOME/.agents/hooks/skill-router-nudge.sh\"" \
+   --arg chain "\"\$HOME/.agents/hooks/skill-chain-nudge.sh\"" \
    --arg compcap "\"\$HOME/.agents/hooks/compaction-cap-gate.sh\"" \
    --arg idle "\"\$HOME/.agents/hooks/wakeup-idle-gate.sh\"" \
    --arg roundcost "\"\$HOME/.agents/hooks/round-cost-gate.sh\"" \
@@ -604,6 +606,8 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "Edit|Write|MultiEdit"; $runedit)
   | ensureMatched("PreToolUse"; "Bash"; $prcreate)
   | ensureMatched("PostToolUse"; "*"; $ledger)
+  # 2026-11-13: a loaded skill is told its next station (using-decision-tree references/chain.tsv); a nudge, never a block
+  | ensureMatched("PostToolUse"; "Skill"; $chain)
   | ensureMatched("SessionStart"; "compact"; $recall)
   | ensure("PreCompact"; $precompact)
   | retire("PostCompact"; $only + " " + $postcompact)   # retired 2026-11-10
@@ -742,7 +746,7 @@ if [ -d ~/.gemini/config ]; then
   apply "$t" "$AGY_PLUGIN/hooks.json" hooks
 fi
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate running-script-edit-gate pr-create-gate compaction-recall precompact-instructions skill-router-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate running-script-edit-gate pr-create-gate compaction-recall precompact-instructions skill-router-nudge skill-chain-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1

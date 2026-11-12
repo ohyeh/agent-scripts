@@ -51,8 +51,10 @@ dispatcher already routed; workers follow their brief.
 **Q2 Select — which recipe (RECIPE row).**
 Discover live — never recite the recipe list from memory (the `ls` above).
 
-The inner loop (the ONLY loop — there is no scheduling outer ring; do not
-invent one):
+The inner loop. Each recipe returns its next station (`next` or `nextStep`); run
+it in the same turn. An outer ring exists only when the owner starts one with
+`/loop`: each wake-up runs the returned next station, and it ends when the loop
+has converged or a kernel hard-stop is reached. Do not invent another scheduler:
 
 ```
 audit (design-vs-code-audit)
@@ -62,7 +64,7 @@ audit (design-vs-code-audit)
   │                        (the plan-maker recipes are in workflows/archive/)
   → spec-implement-dual-review-verify
   → re-run the ORIGINATING audit, SAME args
-  │                        connector ②: lives in YOU, not in code
+  │                        connector ②: the recipe returns it as `nextStep`
   → confirmed == 0 AND no unverified/unaudited (§9.2) → converged, report · else → back to findings-triage / re-check
 ```
 
@@ -143,7 +145,7 @@ under these constraints (Codex-authored, gate-v2 2026-07-19):
 - Human gates MUST return `status: paused` plus `next_action`, preserve `recipe_result`, stop the runner, and resume only via a new explicitly approved invocation.
 - Evidence MUST say `recipe <name> executed natively on Claude runtime via runner (commanded by Codex)`; adapter or child failure is never recipe PASS.
 
-Runtime matrix (Claude Code = `NATIVE` for all 13). Cursor and agy have no
+Runtime matrix (Claude Code = `NATIVE` for every installed recipe). Cursor and agy have no
 `Workflow()` and no adapter: every recipe there is `UNAVAILABLE` natively.
 `UNAVAILABLE` and `UNTESTED` name the native path only; they do not stop the
 work. A row stops the work when any cell in it says `stop`. Every adapter

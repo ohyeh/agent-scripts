@@ -41,7 +41,9 @@ Common footer — include in EVERY delegation:
 > verification evidence if you changed anything. Long
 > artifacts → write to `{artifact_path}` and return the path; a result that must
 > outlive the session goes under `.workflow/<run>/`. Do not paste file
-> contents or logs.
+> contents or logs. After the bullets add one line `NEXT: {the station to run
+> next and the artifact it takes} | none`, before any `VERDICT:` line, which
+> stays last.
 > If you cannot meet an acceptance criterion, say which one and why — do not
 > fake it.
 > On work over 15 minutes, send one progress line (done, next, blocker) at each
@@ -245,3 +247,7 @@ the filled prompt lands — the authoritative rules for deciding WHETHER to
 delegate, constructing invocations, and supervising workers after launch live
 in the using-tmux-agent-tools and tmux-agent-tools skills, and are not
 restated here.
+
+## Exit
+
+When the brief is filled, dispatch it in the same turn. When the report returns, re-run its check yourself, then start the station its `NEXT:` line names. Stop instead at a kernel hard-stop or the edge of the authorized scope.

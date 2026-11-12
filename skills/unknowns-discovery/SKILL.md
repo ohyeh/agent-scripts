@@ -151,3 +151,6 @@ Apply: after a change far larger than the user expected, or when they ask.
   unknowns, not model capability. Do not blind-retry: bring the user back
   through §2–§5. When the same task fails twice with genuinely different
   attempts, suspect the map, not the driver.
+- Exit: when the defaults are stated and no §STOP condition holds, start the next station in the same turn
+  (`prototype` for a design question, else the implementation) with the stated
+  defaults as its input.

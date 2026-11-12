@@ -15,7 +15,7 @@ if [ $# -ge 1 ]; then SRC="$1"; else
 fi
 layer0_tests=(
   test-rm-home-gate.sh test-codex-cu-chrome-gate.sh test-pr-create-gate.sh test-tmux-assign-host-gate.sh
-  test-review-dispatch-gate.sh test-running-script-edit-gate.sh
+  test-review-dispatch-gate.sh test-running-script-edit-gate.sh test-skill-chain-nudge.sh
   test-jsonl-hooks-smoke test-sync-skills-lock.sh test-grok-bot-app.sh
 )
 failed=0

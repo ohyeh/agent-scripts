@@ -380,3 +380,7 @@ sidebar attributes and the transcript read were re-checked on `0.59.1` and `0.66
 an embedded `Grok Bot's Computer` panel (a bot can hand its screen over for
 interactive login and take it back) which is visible in the tree but unexplored
 — if a task needs it, expect to map it yourself and write down what you find.
+
+## Exit
+
+When the read or the send ends, return the quoted bot text to the station that asked for it. A wait for a bot reply uses `grok-bot-watch`, not a sleep loop. Stop instead at a kernel hard-stop or the edge of the authorized scope.

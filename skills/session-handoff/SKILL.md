@@ -295,3 +295,7 @@ Listing and staleness need no script — see the RESUME workflow above.
 ### references/
 
 - [handoff-template.md](references/handoff-template.md) - Complete template structure with guidance
+
+## Exit
+
+After CREATE passes the validator, submit reusable knowledge through `shared-memory-intake` in the same turn. After RESUME, start the first Immediate Next Step whose Source you confirmed. Stop instead at a kernel hard-stop or the edge of the authorized scope.

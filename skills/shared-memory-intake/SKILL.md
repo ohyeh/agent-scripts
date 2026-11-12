@@ -132,3 +132,7 @@ Use `python3 scripts/read_memory.py keyword [keyword ...]` from this skill direc
 Use `scripts/validate_submission.py`. It is a narrow preflight gate, not proof that a
 claim is true and not a complete secret scanner. A pass authorizes review only; Codex
 still owns evidence verification and the hand-off.
+
+## Exit
+
+As Claude, the loop closes when the inbox entry passes `scripts/validate_submission.py`: report the file path and stop. As Codex (`--as codex`), the loop closes at the ad_hoc note hand-off. Stop instead at a kernel hard-stop or the edge of the authorized scope.

@@ -314,3 +314,7 @@ the same time, Freeform drag, AppleScript JS
 inside a browser app, and `claude setup-token` over SSH. Computer surface through
 `codex-cu-remote` (2026-10-13: the remote screen was locked,
 `-10005: cgWindowNotFound`; browser surface passed on the same run).
+
+## Exit
+
+When the browser or app step ends, return the observed state to the station that asked for it. A defect you found goes to `diagnosing-bugs` with the repro steps. Stop instead at a kernel hard-stop or the edge of the authorized scope.

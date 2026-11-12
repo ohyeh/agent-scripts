@@ -89,3 +89,7 @@ Use these priorities:
 If there are no qualifying findings, say `No findings.` Do not invent a finding to fill the result.
 After the findings, add a brief overall assessment and mention any material test gaps or residual
 risks.
+
+## Exit
+
+When the review ends, the caller fixes each confirmed finding and sends the fix back to the same reviewer. The loop closes when a round has no confirmed finding. Stop instead at a kernel hard-stop or the edge of the authorized scope.

@@ -96,3 +96,7 @@ This report never enters the artifact.
   software docs (the genre branch in Stage 0 picks the structure station).
   A plan page from a discussion → build it directly under `artifacts-rules`
   (Plan page).
+
+## Exit
+
+When the draft is tight, start the design branch of `using-decision-tree` in the same turn to render it. The loop closes when the user has the file or the link. Stop instead at a kernel hard-stop or the edge of the authorized scope.

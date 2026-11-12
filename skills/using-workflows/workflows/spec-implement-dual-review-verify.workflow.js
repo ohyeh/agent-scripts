@@ -365,4 +365,5 @@ if (amendmentNeeded) return { aborted: true, stage: 'finalize', reason: 'build c
 // Fail closed on verification: a finalizer that did not get verify passing is not a success.
 if (fixed.verified !== true) return { aborted: true, stage: 'finalize', reason: 'verification did not pass (verified!=true) — not finalizing as success', needsUser: true, fixed, impl, rounds, warnings }
 
-return { impl, rounds, calls, minors, warnings, fixed, deviations: fixed.deviations, amendment_needed: false, verified: true }
+return { impl, rounds, calls, minors, warnings, fixed, deviations: fixed.deviations, amendment_needed: false, verified: true,
+  nextStep: 'if an audit produced this spec: re-run the ORIGINATING audit with the SAME args — zero confirmed AND zero unverified/unaudited = loop converged (connector 2). No audit: defect-first-review on the diff.' }

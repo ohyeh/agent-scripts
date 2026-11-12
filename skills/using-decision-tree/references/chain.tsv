@@ -1,0 +1,24 @@
+# station	next station	artifact the next station takes
+# One row per skill that has a next station in map.md §Flows. The hook skill-chain-nudge.sh prints the row when the skill loads.
+# `none` = the row's loop closes here. Validated by scripts/test-skill-chain-nudge.sh.
+unknowns-discovery	prototype (a design question), else the implementation	the stated defaults
+prototype	the implementation (tdd when the user wants test-first)	the answer to the design question
+tdd	a check executed and quoted, then defect-first-review on the diff when risk warrants	the passing tests and the diff
+diagnosing-bugs	fix, re-run the original scenario, then defect-first-review on the fix diff when risk warrants	the repro and the failing signal
+defect-first-review	fix each confirmed finding, then send the fix back to the same reviewer	the findings list
+security-audit	fix each confirmed finding, then defect-first-review on the fix diff	the findings list
+triage	diagnosing-bugs for a bug issue, else the implementation	the triaged issue
+writing-artifacts	the design branch of using-decision-tree for rendering	the tightened draft
+session-handoff	shared-memory-intake for reusable knowledge	the handoff file
+shared-memory-intake	none	the inbox entry
+grilling	unknowns-discovery when acceptance is still unclear, else the implementation	the decisions the user confirmed
+adhd	unknowns-discovery on the top survivors (grilling first when the user wants a stress-test)	the scored survivors
+wayfinder	session-handoff; each slice later enters its own row	the map of slices
+improve-codebase-architecture	codebase-design for the chosen module	the ranked deepening opportunities
+codebase-design	tdd or the implementation	the interface and its seam
+domain-modeling	the implementation, with the glossary terms in code	the glossary or ADR
+documentation-writing	stop-slop on the draft, then a run of every example	the draft
+skill-creator	rule maintenance §1: exact diff, then approval	the drafted skill and its eval
+delegation-templates	dispatch the brief, then re-run the report's check yourself	the filled brief
+codex-cu	the station that asked for the browser or app step (a defect goes to diagnosing-bugs)	the observed state
+using-grok-bot-app	the station that asked for the bot read or send	the quoted bot text

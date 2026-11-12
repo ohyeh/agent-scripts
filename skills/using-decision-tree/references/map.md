@@ -25,12 +25,21 @@ inside the scope the user authorized. A branch that owns a pipeline keeps it.
 Loop-shaped work or a named recipe goes to the loops branch, which picks or
 bypasses; a fresh reviewer alone does not make a recipe. Not every skill is a
 link: tools, generators and constraint sets come from the map.
+`chain.tsv` holds the same edges, one row per skill; a hook prints the row when
+the skill loads. When a station ends, name the next station of its row and start it in the same
+turn with the artifact the row names. Stop at a kernel hard-stop, a stop
+condition of the current station, the edge of the authorized scope, or when
+the row's loop has closed.
 
 | Situation | Handoff | Artifact per step | Loop closes when |
 |---|---|---|---|
 | New feature, acceptance unclear | `unknowns-discovery` (when its trigger holds) → `prototype` for a design question, or `wayfinder` when too big for one session → implement (`tdd` when the user wants test-first) → a check executed and quoted before any done claim (kernel Done rule) → `defect-first-review` when risk or the user asks | stated defaults → design answer or decision tickets → diff and tests → quoted check output → findings | findings fixed and re-verified; a repeated finding → a gate, or a backlog row that names the file |
 | Bug or regression | `diagnosing-bugs` (many competing hypotheses → enter the loops branch instead) → re-run the original scenario → `defect-first-review` on the fix diff when risk warrants | repro and failing signal → fix and regression test → original scenario re-run → findings | regression test stays in the repo |
 | Test plan | write the cases inline → only when execution is authorized: the browser row below (web) or the app row below (app) → a bug → Bug row; tracker issues → `triage` | cases → execution evidence → bug report | a missed case goes back into the plan |
+| Idea still fuzzy | `adhd` to diverge, or `grilling` to stress-test → `unknowns-discovery` → the New feature row | scored survivors or confirmed decisions → stated defaults | the user confirms the direction |
+| Codebase hard to change | `improve-codebase-architecture` → `codebase-design` for the chosen module (terms unclear → `domain-modeling`) → `tdd` or implement → `defect-first-review` | ranked opportunities → interface and seam → tests and diff | the review has no confirmed finding |
+| Work too big for one session | `wayfinder` → each slice enters its own row → `session-handoff` at each pause | map of slices → handoff doc | every slice is closed |
+| Docs for a project | `documentation-writing` → `stop-slop` → run every example | draft → clean draft | every example runs |
 | Pause or hand off | `session-handoff`; reusable knowledge for Codex → `shared-memory-intake` (inbox only) | handoff doc → inbox entry | the next session starts from the doc |
 
 Owner pointers (their chains stay with them): codebase-wide deepening →
@@ -66,6 +75,7 @@ before any install or deploy.
 |---|---|---|
 | diagnose a hard bug or performance regression inline | `diagnosing-bugs` | Skill() |
 | review a diff defect-first, read-only, every finding | `defect-first-review` | Skill() |
+| review a codebase, API or service for vulnerabilities; full audit only on an explicit audit or pen-test ask | `security-audit` | Skill() |
 | review UI code: a11y, contrast, responsive, UX | `impeccable` (audit) | Skill() |
 | give a project a verification skill and feature map that drive the app like a user (reuse its device or browser harness, e.g. healthgo's `device-hub-pro`) | `create-verification-skill` | manual |
 | keep that verification skill and feature map true after the code changes | `maintain-verification-skill` | manual |
