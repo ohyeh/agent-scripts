@@ -41,15 +41,10 @@
 
 ## Rules / Institution
 
-- Use public agent-scripts `.agents/rules/` as canonical; deploy only repo → machine.
-- Both runtimes read `~/.agents/rules/` on demand through their global routing table.
-- Deploy rules with `rsync -a --delete <repo>/.agents/rules/ ~/.agents/rules/`.
-  The fast-path rules layer does this.
-- Deploy repo `global/` byte-identically to native `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`.
-- Maintain both global files separately; do not symlink them.
-- Check that the rules manifest matches the routing table and both `Version:` lines match.
-- Pass `node scripts/check-rules-invariants.mjs` before deployment.
-- Check that a new session reply ends with `✈`.
+- Follow `rules/maintenance.md` §5 for the canonical home, the rules and `global/` deploy, the
+  pre-deploy invariants check, and the `✈` check; deploy only repo → machine.
+- The fast-path rules layer runs the rules `rsync`.
+- Check that the rules manifest matches the routing table.
 
 ## Plugins / Marketplaces
 

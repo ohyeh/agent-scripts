@@ -111,4 +111,4 @@
 - Match each machine's rule and global-file md5 values against the corresponding repo paths.
 - Before deployment, pass `node scripts/check-rules-invariants.mjs`.
 - After deployment, check that a new session reply ends with `✈`, unless its format fixes the end.
-  See `rules/agent-environment-provisioning.md`.
+- To provision a new machine, follow `rules/agent-environment-provisioning.md`.
