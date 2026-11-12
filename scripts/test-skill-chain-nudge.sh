@@ -12,6 +12,8 @@ ctx() { run "$@" | jq -r '.hookSpecificOutput.additionalContext // empty'; }
 ctx Skill unknowns-discovery | grep -q 'next station is: prototype' || { echo "FAIL: unknowns-discovery did not name prototype" >&2; fail=1; }
 ctx Skill plugin:session-handoff | grep -q 'shared-memory-intake' || { echo "FAIL: a plugin-prefixed name did not match" >&2; fail=1; }
 ctx Skill shared-memory-intake | grep -q 'report and stop' || { echo "FAIL: a closing station was not told to stop" >&2; fail=1; }
+ctx Skill security-audit | grep -q 'no next station to start' || { echo "FAIL: a station that waits was told to start a next station" >&2; fail=1; }
+ctx Skill security-audit | grep -q 'Start it in the same turn' && { echo "FAIL: a waiting station got the start line" >&2; fail=1; }
 [ -z "$(run Skill pdf)" ] || { echo "FAIL: a skill with no row printed a line" >&2; fail=1; }
 [ -z "$(run Bash unknowns-discovery)" ] || { echo "FAIL: a non-Skill tool printed a line" >&2; fail=1; }
 run Skill pdf; [ $? = 0 ] || { echo "FAIL: the hook must always exit 0" >&2; fail=1; }

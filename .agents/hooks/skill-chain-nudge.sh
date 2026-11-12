@@ -26,10 +26,13 @@ jq -cn --arg ts "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" --arg s "$S" --arg next "${ro
 
 [ -n "$row" ] || exit 0
 next="${row%%$'\t'*}"; art="${row#*$'\t'}"
+case "$next" in none*) wait=1;; *) wait=0;; esac
 if [ "$next" = none ]; then
   c="station $S closes its loop with $art. When it is done, report and stop."
+elif [ "$wait" = 1 ]; then
+  c="station $S has no next station to start: $next. Its output is $art."
 else
-  c="when station $S ends, the next station is: $next. It takes $art. Start it in the same turn. Stop instead at a kernel hard-stop, a stop condition of $S, or the edge of the authorized scope."
+  c="when station $S ends, the next station is: $next. It takes $art. Start it in the same turn when its condition holds. Stop instead at a kernel hard-stop, a stop condition of $S, or the edge of the authorized scope."
 fi
 jq -cn --arg c "[skill-chain] (using-decision-tree) $c If it does not apply, ignore this line silently." \
   '{hookSpecificOutput:{hookEventName:"PostToolUse", additionalContext:$c}}'
