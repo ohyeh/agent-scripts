@@ -3,8 +3,9 @@
 - Verify runtime facts live in the current session and mark any unverified detail `UNCONFIRMED`.
 
 ## Environment snapshot
-- Session model: `claude-opus-5-5[1m]` via `/model` default (`model` unset in settings); global
-  effort `low`, `modelSettings.claude-opus-5-5.effortLevel: xhigh` (`~/.claude/settings.json`).
+- Session model and effort: read them live (`/model`, and
+  `jq '.model, .effortLevel, .modelSettings' ~/.claude/settings.json`); they change with each
+  model release.
 - Claude Code Agent tool: takes `model` (`sonnet` | `opus` | `haiku` | `fable`) and `effort`
   (`low|medium|high|xhigh|max`), defaulting to `.claude/agents/*.md` frontmatter then session;
   `Workflow` scripts use `agent(..., {effort})`, and other runtimes must check their live schema.
@@ -14,7 +15,7 @@
 - Memory: built-in auto-memory is disabled (`CLAUDE_CODE_DISABLE_AUTO_MEMORY=true`); search prior
   sessions via `ctx_search(sort: "timeline")` after resume or compaction before asking the user.
 - Every session preloads user `CLAUDE.md`, Ponytail hook, Explanatory and Learning styles,
-  context-mode instructions, and ~60 skill descriptions, which can conflict.
+  context-mode instructions, and the skill descriptions, which can conflict.
 - Keep `~/.claude/CLAUDE-FABLE-5.md` as reference material only; never load it into context.
 
 ## Top 3 failure modes, each with a fix a weak model can execute
@@ -27,12 +28,12 @@
 - Use a `general-purpose` subagent (`model-dispatch` §4) when reading >3 files or searching
   unknown locations so only conclusions and `file:line` references return.
 - Use `Read` only on the needed line range of a project file you are about to `Edit`, except for
-  mandatory `~/.agents/rules/` reads (`CLAUDE.md` §Routing) and files the user orders read in full.
+  mandatory `~/.agents/rules/` reads (`CLAUDE.md` §Routing Index) and files the user orders read in full.
 - Fetch web content via `ctx_fetch_and_index` or skill `defuddle` rather than raw page fetches.
 
 ### §2 Focus loss: conflicting always-on styles + skill-trigger sprawl
 - Conflicting injected styles (Ponytail, Explanatory, Learning) and broad skill triggers cause
-  style thrashing and mid-task detours; follow `CLAUDE.md` §Precedence first:
+  style thrashing and mid-task detours; follow `CLAUDE.md` §Overview & Precedence first:
   1. Ponytail governs code: build the minimal solution that fully works.
   2. Explanatory governs prose: include at most one `★ Insight` block per response.
   3. Learning-style ("ask the user to write this part"): skip unless the user opted in.
@@ -106,7 +107,7 @@
 
 ## Honorable mention (not top-3, still real)
 - Prune `~/.claude` junk (`history.jsonl`, `paste-cache`, `session-env`) yearly to keep audits fast.
-- Keep all 12 enabled plugins and output styles unless an approved diff changes them, relying on the
+- Keep all enabled plugins and output styles unless an approved diff changes them, relying on the
   precedence order above to resolve conflicts.
 
 ## Open questions — do not guess, do not "helpfully" fill in

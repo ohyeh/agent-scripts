@@ -6,6 +6,7 @@ set -u
 R="$(cd "$(dirname "$0")/.." && pwd)"
 G="$R/.agents/hooks/skill-chain-nudge.sh"; T="$R/skills/using-decision-tree/references/chain.tsv"
 export SKILL_CHAIN_TABLE="$T"
+export XDG_DATA_HOME="$(mktemp -d)"   # the hook logs each start; keep fixture rows out of the real stats file
 fail=0
 run() { jq -cn --arg t "$1" --arg s "$2" '{tool_name:$t,tool_input:{skill:$s},session_id:"t"}' | bash "$G"; }
 ctx() { run "$@" | jq -r '.hookSpecificOutput.additionalContext // empty'; }

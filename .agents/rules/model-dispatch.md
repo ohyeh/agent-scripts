@@ -226,7 +226,7 @@
 - Use throwaway workers only for trust/repo isolation or genuine parallel fanout.
 - Dispatch with assign; do not hand-chain steps or use `--prompt-file` as task delivery.
 - Before calling a profile or worker unusable, read
-  `skills/tmux-agent-tools/scripts/profiles/README.md`.
+  `~/.agents/skills/tmux-agent-tools/scripts/profiles/README.md`.
   A profile `bin=` may need a bare env override such as `CLAUDE="$(command -v claude)"`.
 - Run headless Codex as `codex exec … < /dev/null`.
 - Add `--skip-git-repo-check` outside trusted repos.

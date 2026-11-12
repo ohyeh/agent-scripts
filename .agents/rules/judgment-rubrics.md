@@ -77,10 +77,8 @@
 - Apply continuously; ask first on hard-stop items: data deletion, privacy exposure, external side
   effects (emails, tickets, deploys, payments), irreversible operations, production or
   protected-branch changes, and major architectural risk.
-- Kernel auto mode exempts two items: (1) pushing to an unprotected branch ("unprotected" = the
-  remote reports no branch protection) that nothing deploys from without a human step, after the
-  repo's pre-push check and tests pass this session; (2) deploying or reloading own tooling on this
-  host.
+- Kernel auto mode exempts three items (kernel §Hard Boundaries). In item (1), "unprotected" = the
+  remote reports no branch protection and nothing deploys from the branch without a human step.
 - Still ask for other hosts, force push, history rewrite, deletion, or messages to
   people or outside services.
 - Before changing any file or external state outside run-dir records, identify the authorizing

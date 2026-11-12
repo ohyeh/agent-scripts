@@ -70,8 +70,8 @@ PASS or BLOCK. PROTO → none.
   `{repo}/DESIGN.md` first; conform to its tokens. SKILL: read and follow
   `{member SKILL.md}` first."
 - **Loop topology**: the builder is a persistent worker; BLOCK findings go
-  back to the SAME builder. Each reviewer is a fresh one-shot, never the
-  builder, never reused.
+  back to the SAME builder. A reviewer is never the builder; a fix re-check
+  goes back to the same reviewer (judgment-rubrics §4).
 - **Diagram motion** (overrides a member's opt-in gate, never its mechanism):
   a DG-HOUSE diagram whose story IS direction (data flow, architecture,
   dependency, deployment) ships motion: mode `loop`, one `aria-hidden` flow
@@ -97,7 +97,7 @@ review. Constraint loading and small scoped edits stay inline.
 | Direction (Q2) | Inline, main session; persists to DESIGN.md |
 | Build, non-trivial | Persistent tmux worker: the model the chosen row names, `claude` otherwise; inline only for a small scoped edit |
 | Pipeline D: compare N module shapes | Parallel in-process sub-agents, judged against PD-DEPTH |
-| Every review round | A FRESH one-shot (tier per `model-dispatch` §4) |
+| First review | A fresh one-shot (tier per `model-dispatch` §4); fix re-checks go to the same reviewer |
 | Specialists, DESIGN.md upkeep | Inline |
 
 Defaults: DESIGN.md at `{repo}/DESIGN.md` unless a docs convention exists;
@@ -157,7 +157,7 @@ pass; final line exactly `VERDICT: PASS` or `VERDICT: BLOCK`, quoted in your
 report. A report without the `VERDICT:` line → ask the SAME reviewer for that
 line; never spawn another reviewer for it.
 
-**Rounds:** BLOCK → the same builder fixes → a fresh reviewer re-audits.
+**Rounds:** BLOCK → the same builder fixes → the same reviewer re-audits.
 After two fix rounds (inside the shared cap), route by cause: same-root
 failures + wrong-direction signals (rule `judgment-rubrics` §4) → back to
 direction · evidence gap → repair the evidence path, re-audit · new or

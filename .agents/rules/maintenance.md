@@ -17,7 +17,7 @@
   Content changes use the semantic rule approval path.
 - Backlog rows (§3): add freely; ask the user before closing a row as dropped.
 - Global files: get approval for every edit; change both files together with identical `Version:`.
-  Keep iron laws only; the deployed solid edition has no size cap and uses the growth budget gate.
+  Keep iron laws only; the solid edition stays under 200 lines (kernel §Editing this file).
   Keep `global/kernel-lean.md` terse by review, without a hard character cap.
   `WEB-AGENTS.md` fetches the lean edition for network-only agents; route detail to rules.
   Preserve imperative force when compressed, including prohibitions and approval requirements.
@@ -81,7 +81,7 @@
 
 ## §4 Size limits and pruning
 
-- Govern growth by review, without a size cap or byte budget.
+- Govern growth of rule files by review, without a byte budget; the kernel keeps its 200-line limit.
 - Do not trim unrelated rules to fit additions or reflow text to evade review.
 - Keep `~/.claude/CLAUDE.md` to an index and hard rules; route detail through one line.
 - Treat `Version:` as a policy edition, not a drift signal.
