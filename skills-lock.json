@@ -15,9 +15,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/vercel-labs/agent-browser.git",
       "skillPath": "skills/agent-browser/SKILL.md",
-      "skillFolderHash": "29ba9c12789b1c54ab76ad40e2472e646d141b85",
+      "skillFolderHash": "cd4185523189fb04c1d24bea0100b6aa2ce7421e",
       "installedAt": "2026-07-18T20:48:45.740Z",
-      "updatedAt": "2026-11-04T01:31:13.489Z"
+      "updatedAt": "2026-11-12T12:53:16.864Z"
     },
     "agent-device": {
       "source": "callstackincubator/agent-device",
@@ -77,10 +77,10 @@
       "source": "kepano/obsidian-skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/kepano/obsidian-skills.git",
-      "skillPath": "skills/defuddle/SKILL.md",
-      "skillFolderHash": "72c1262fcb7abd3b846032d12dd8adefeb7da569",
+      "skillPath": "plugins/obsidian/skills/defuddle/SKILL.md",
+      "skillFolderHash": "69e781a19e8807f5d037723f1f994cfbe19573ff",
       "installedAt": "2026-07-18T20:47:55.256Z",
-      "updatedAt": "2026-09-17T09:48:39.486Z"
+      "updatedAt": "2026-11-12T01:18:35.362Z"
     },
     "delegation-templates": {
       "source": "ohyeh/agent-scripts",
@@ -141,9 +141,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "c990cca10b374b1c821d2208cf826a52ae5975db",
+      "skillFolderHash": "e92e2e77c815097cd5fa05c8eaee2a5399d92757",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-11-10T02:04:20.485Z"
+      "updatedAt": "2026-11-11T12:44:36.585Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
