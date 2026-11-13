@@ -51,7 +51,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/codex-cu/SKILL.md",
-      "skillFolderHash": "d26611b9c34d4f8ff5881af3692fe726019c200d",
+      "skillFolderHash": "1bc68aca6f4f25d039fec8869d3ebc253be14ec2",
       "installedAt": "2026-10-08T17:59:00.705Z",
       "updatedAt": "2026-10-31T09:40:00.000Z"
     },
@@ -251,7 +251,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-decision-tree/SKILL.md",
-      "skillFolderHash": "29e4d7476b11ddf7ae970e83608ceb6947d78c40",
+      "skillFolderHash": "e6cfcae1dd5929b18e4a1d72976b8ecaeecbde17",
       "installedAt": "2026-10-23T00:00:00.000Z",
       "updatedAt": "2026-11-06T11:25:55.000Z"
     },
