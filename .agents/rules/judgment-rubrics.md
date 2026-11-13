@@ -78,7 +78,8 @@
   effects (emails, tickets, deploys, payments), irreversible operations, production or
   protected-branch changes, and major architectural risk.
 - Kernel auto mode exempts three items (kernel §Hard Boundaries). In item (1), "unprotected" = the
-  remote reports no branch protection and nothing deploys from the branch without a human step.
+  remote reports no branch protection and nothing deploys from the branch without a human step;
+  ecosystem `main` is the one exception, on the kernel's `advisor` condition.
 - Still ask for other hosts, force push, history rewrite, deletion, or messages to
   people or outside services.
 - Before changing any file or external state outside run-dir records, identify the authorizing

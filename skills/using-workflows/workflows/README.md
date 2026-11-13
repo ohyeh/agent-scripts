@@ -58,7 +58,7 @@ Workflow({ scriptPath: "<abs path>/consensus-gate.workflow.js", args: {...} })
   `verifyCommands` + manifest → L1 `pr-review-toolkit:code-reviewer` on sonnet
   (+ Luna via `luna: true`) → TK one-pass `pr-review-toolkit` report (`toolkit`,
   default all four agents; findings fixed once) → L2
-  `pr-review-toolkit:code-reviewer` on fable, opus if fable fails (always, ≤3);
+  `pr-review-toolkit:code-reviewer` on opus (fable first only with `l2Model: 'fable'`, a seat the user approved; ≤3);
   still blocking → stop and ask the user (no L3). The implementer model fixes every finding between rounds; the
   finalizer only runs the verify commands and the deviation gate, it never
   edits. A layer with no reviewer left aborts at review (P2-A5); a failed L1

@@ -37,8 +37,9 @@
 //   L1  pr-review-toolkit:code-reviewer on sonnet high (+ gpt-6-luna xhigh when args.luna), adversarial,
 //       ≤2 rounds. Round 1 also seats the pr-review-toolkit agents (args.toolkit), in parallel, so one fix
 //       answers both. Without args.l2, an L1 round with 0 Critical/Major passes the change.
-//   L2  opt-in (args.l2: true): pr-review-toolkit:code-reviewer on fable medium (best tier), opus at
-//       reviewEffort if fable fails; ≤maxReviewRounds. No L3: still blocking after the last L2 round → stop,
+//   L2  opt-in (args.l2: true): pr-review-toolkit:code-reviewer on opus at reviewEffort. args.l2Model: 'fable'
+//       (best tier; pass it only when the user approved that seat for this task, model-dispatch.md §Tiers)
+//       runs fable medium first, opus if fable fails; ≤maxReviewRounds. No L3: still blocking after the last L2 round → stop,
 //       needsUser. One finding ledger runs through every round and layer; the
 //       implementer model fixes under the fixer contract (_lib/worker-doctrine.md §7–§9).
 //
@@ -57,18 +58,18 @@
 // A review layer with no reviewer left (L2 agent null, or every L1 or TK seat failed) ABORTS at the
 // review stage — no silent degradation (P2-A5). A failed L1/TK seat is a logged warning.
 // MODEL POLICY: implementer/fixer = `model` (sonnet allowed here only); L1 sonnet is review-only
-// (user ruling 2026-10-09); L2 (fable, else opus) and the finalizer never run below opus tier.
+// (user ruling 2026-10-09); L2 (opus; fable on args.l2Model) and the finalizer never run below opus tier.
 //
 // NOTE: workflow scripts have no FS/shell — only agents do. All file work happens inside agent() prompts.
 // NESTING: this is a mid-level stage — do NOT call workflow() here (1-level nesting cap).
 
 export const meta = {
   name: 'spec-implement-dual-review-verify',
-  description: 'Implement a spec, review it through the ladder (L0 → sonnet code-reviewer + pr-review-toolkit seats, each layer to convergence → optional fable/opus L2; still blocking → ask the user), verify (param via args)',
+  description: 'Implement a spec, review it through the ladder (L0 → sonnet code-reviewer + pr-review-toolkit seats, each layer to convergence → optional opus L2; still blocking → ask the user), verify (param via args)',
   whenToUse: 'When a written spec must become code with laddered independent review and command-verified evidence — the main build pipeline. When a consensus-frozen plan.md already exists, pass a plan POINTER as the spec (see the frozen-plan preset in the header).',
   phases: [
     { title: 'Implement', detail: 'write/edit the target per spec', model: 'opus' },
-    { title: 'Review', detail: 'review ladder: L0 → sonnet code-reviewer + toolkit seats → optional fable/opus L2' },
+    { title: 'Review', detail: 'review ladder: L0 → sonnet code-reviewer + toolkit seats → optional opus L2' },
     { title: 'Finalize', detail: 'run verify commands and classify deviations; no further edits' },
   ],
 }
@@ -78,6 +79,7 @@ for (const k of ['repoPath', 'spec']) if (!a[k]) return { aborted: true, reason:
 if (a.cli != null) return { aborted: true, reason: 'cli is not a reviewer here any more: the review ladder picks the reviewers (model-dispatch.md §Review ladder); drop cli' }
 if (a.maxReviewRounds != null && !(Number.isInteger(a.maxReviewRounds) && a.maxReviewRounds >= 1 && a.maxReviewRounds <= 3)) return { aborted: true, reason: 'invalid arg: maxReviewRounds must be an integer 1–3 (L2 rounds)' }
 if (a.reviewEffort != null && !['high', 'xhigh', 'max'].includes(a.reviewEffort)) return { aborted: true, reason: 'invalid arg: reviewEffort must be high|xhigh|max (L2 is opus high+)' }
+if (a.l2Model != null && a.l2Model !== 'fable') return { aborted: true, reason: "invalid arg: l2Model must be 'fable' or absent (default opus)" }
 if (a.l1Lenses != null) return { aborted: true, reason: 'l1Lenses is gone: the toolkit agents run once as the TK step; pass toolkit' }
 const TK_OK = ['silent-failure-hunter', 'pr-test-analyzer', 'type-design-analyzer', 'comment-analyzer']
 // 2026-10-11: toolkit lenses inside L1 reran every L1 round (80% of toolkit spend); one TK pass gives the full report
@@ -233,8 +235,9 @@ const review = (tier, who, r, max, ledger, prev, l0) => {
   // An L1/TK seat that fails (null, or a throw such as a missing toolkit agent type) is a logged warning.
   if (tier === 'L1' || tier === 'TK') return agent(prompt, { label, phase: 'Review', schema: VERDICT, model: 'sonnet', effort: 'high', agentType: `pr-review-toolkit:${who}` })
     .then(x => x || seatFailed(who, 'agent null'), e => seatFailed(who, `threw: ${e}`))
-  // L2: best tier first (fable medium); better tier (opus) only when fable returns nothing. If opus fails too, the gate stops (null).
+  // L2: opus by default; fable medium first only on args.l2Model (a best-tier seat needs the user's approval). If opus fails, the gate stops (null).
   const l2 = (model, effort) => agent(prompt, { label, phase: 'Review', schema: VERDICT, model, effort, agentType: 'pr-review-toolkit:code-reviewer' })
+  if (a.l2Model !== 'fable') return l2('opus', reviewEffort)
   return l2('fable', 'medium')
     .catch(e => { log(`L2 fable threw (${e}); falling back to opus`); return null })
     .then(x => x || (log(`L2 fable gave no verdict; opus ${reviewEffort} reviews`), l2('opus', reviewEffort)))

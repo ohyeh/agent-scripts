@@ -112,7 +112,8 @@ uncropped. Desktop AND mobile for responsive work. Missing, stale or cropped
 evidence → UNCONFIRMED → overall BLOCK; never PASS on code-only review. A
 DESIGN.md-only deliverable records file hash or commit instead; the moment a
 render exists, the full contract applies. Scroll the page before a full-page
-capture so lazy images load. Choose the screenshot tool by host capability:
+capture so lazy images load. The design task that produced the render is the request for
+this capture; no render, no browser. Choose the screenshot tool by host capability:
 `codex-cu` where it runs, else `agent-browser` (`references/map.md` §drive a
 browser). A headless screenshot is denied. A worker that cannot take a
 screenshot hands Gate 0 back to the main session.
