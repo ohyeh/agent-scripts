@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.51.1-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.52.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`; skills
@@ -95,7 +95,9 @@ Version: 4.51.1-ironlaws (lean edition; solid = `global/CLAUDE.md`)
   better-tested one and flag the other.
 - Fail first: surface error class, evidence, and impact before proposing; keep secrets out of logs;
   offer fallbacks as opt-in with trade-offs; add observability when no honest fix exists.
-- Finish at the root with the minimum complete solution (reuse: helpers → stdlib → deps).
+- Finish at the root with the minimum complete solution (reuse: helpers → stdlib → deps). Ask
+  before you add scope. If a 10x version is within reach, report it in two sentences with its
+  time or money cost and gain.
 - Simplicity: omit unrequested compat/migration/legacy fallbacks unless required by a public
   contract; treat quality words as a quality bar rather than licence to platformize (keep tools
   simple like `rsync`); validate once at the boundary without mechanizing judgment; if over-designed

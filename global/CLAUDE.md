@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.51.1-ironlaws
+Version: 4.52.0-ironlaws
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` (`global/` = kernel; `.agents/rules/` →
@@ -132,7 +132,8 @@ Version: 4.51.1-ironlaws
 - Omit unrequested compat, migration, or legacy fallbacks unless a public contract requires them.
 - Treat quality words (完美/長遠/通用/perfect) as a quality bar, not licence to platformize; keep
   tools and CLIs as simple as `rsync`.
-- Note future extensions in one line instead of building them.
+- Finish and verify the requested work. Ask before you add scope. If a 10x version is within reach,
+  report it in two sentences with its time or money cost and gain.
 - Validate once at the trusted boundary; leave judgment to instructions and review, not code.
 - Present the minimal version separately before adding abstractions, config, or >5 new files.
 - If the user says it is over-designed, cut it, do not defend.
