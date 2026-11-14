@@ -3,8 +3,8 @@
 #   ~/.grok/rules/ponytail.md  — markdown body of the installed ponytail rule
 #   ~/.grok/statusline.sh      — scripts/grok-statusline.sh (claude-hud wrapper)
 #   ~/.grok/config.toml        — [ui.status_line] command (replaced); compat policy,
-#                                session compact, default model's context_window
-#                                (each only when its table is absent)
+#                                session compact, skills ignore (~/.agents/skills/synced),
+#                                default model's context_window (each only when its table is absent)
 #   ~/.grok/AGENTS.md          — removed when it is a kernel copy (kernel comes via Claude compat)
 # Missing ~/.grok means Grok Build is not installed here. Missing ponytail
 # plugin is a WARN: the rule is third-party, not a kernel file.
@@ -95,6 +95,9 @@ add_table() {  # $1 = header line, $2 = body
 add_table '[compat.claude]' "$(printf '%s = true\n' agents hooks mcps rules skills sessions)"
 add_table '[compat.cursor]' "$(printf '%s = false\n' agents hooks mcps rules skills sessions)"
 add_table '[compat.codex]' 'skills = true'
+# synced/ holds Claude account-skill copies (cloud editions) of skills this repo also ships; Grok
+# dedupes by name and picked the cloud edition over the repo one (2026-11-14: 36/38 visible).
+add_table '[skills]' 'ignore = ["~/.agents/skills/synced"]'
 # Owner policy 2026-11-01: 500k window on the default model, compact at 90%.
 add_table '[session]' 'auto_compact_threshold_percent = 90'
 default_model="$(awk -F'"' '/^\[/{s=($0=="[models]")} s && /^default[[:space:]]*=/{print $2; exit}' "$cfg")"
