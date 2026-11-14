@@ -60,7 +60,7 @@
   or `gemini-4-argon-low`/`-medium` or later.
 - Better, plan/verdict: opus high+ or `gpt-6.1-sol` medium+.
 - Exec: opus high, sonnet high+, Sol medium+, Luna xhigh/max,
-  `gemini-3.8-flash-medium` or later, or Cursor `grok-4.7-xhigh-fast` or later.
+  `gemini-4-hydrogen-high` or later, or Cursor `grok-4.7-high` or later.
 - Basic gathering/mechanical: sonnet medium, haiku high+, Sol medium, or Luna xhigh/max.
 - Cheap gathering/mechanical: haiku medium.
 - Keep opus high/xhigh for best and sonnet xhigh/max for better inactive until a §8 sweep passes.
@@ -137,7 +137,7 @@
 - L0: run test/build/lint/scrub/grep/checksum only after a tree change since green L0, then hash it.
   Pass L0 before the round; a hash change voids the round; run old-code negative cases once.
 - L1: use sonnet high (`pr-review-toolkit:code-reviewer` for code),
-  `gemini-3.8-flash-medium` or later, Cursor `grok-4.7-xhigh` or later,
+  `gemini-4-hydrogen-high` or later, Cursor `grok-4.7-high` or later,
   or Luna xhigh/max on request; cap at two rounds.
 - Converge each layer before the next; zero L1 blockers passes with L2 off, else admits work to L2.
 - TK, code only: seat `silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`,
