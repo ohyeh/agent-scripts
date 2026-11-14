@@ -15,27 +15,27 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/vercel-labs/agent-browser.git",
       "skillPath": "skills/agent-browser/SKILL.md",
-      "skillFolderHash": "cd4185523189fb04c1d24bea0100b6aa2ce7421e",
+      "skillFolderHash": "d75a393c9a371295c6d6be46c34938e76ef21184",
       "installedAt": "2026-07-18T20:48:45.740Z",
-      "updatedAt": "2026-11-12T12:53:16.864Z"
+      "updatedAt": "2026-11-14T01:15:51.658Z"
     },
     "agent-device": {
       "source": "callstackincubator/agent-device",
       "sourceType": "github",
       "sourceUrl": "https://github.com/callstackincubator/agent-device.git",
       "skillPath": "skills/agent-device/SKILL.md",
-      "skillFolderHash": "a95c15816dbe7d7a1838499685a2fc58fbdb9611",
+      "skillFolderHash": "ae5f0c0d6542f62fe5e3ae0c1a3fe02d4df2c106",
       "installedAt": "2026-07-18T20:47:33.875Z",
-      "updatedAt": "2026-11-09T03:03:59.800Z"
+      "updatedAt": "2026-11-14T01:15:52.160Z"
     },
     "apple-design": {
       "source": "emilkowalski/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/emilkowalski/skills.git",
       "skillPath": "skills/apple-design/SKILL.md",
-      "skillFolderHash": "cd509ae729c86487d352e17a26651217a4c25711",
+      "skillFolderHash": "9bfcd2e17dbac4b390ab231bbf9bd3f3734b21ff",
       "installedAt": "2026-07-18T20:47:41.108Z",
-      "updatedAt": "2026-09-17T09:48:20.814Z"
+      "updatedAt": "2026-11-14T01:15:52.340Z"
     },
     "codebase-design": {
       "source": "mattpocock/skills",
@@ -141,9 +141,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "e92e2e77c815097cd5fa05c8eaee2a5399d92757",
+      "skillFolderHash": "fc5a528480cb98dea880dbcc95dbe65b0781b490",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-11-11T12:44:36.585Z"
+      "updatedAt": "2026-11-14T06:07:37.316Z"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
