@@ -1,0 +1,27 @@
+{
+  "name": "byo-provider",
+  "version": "0.8.1",
+  "description": "Answer chosen loops (main, a subagent, a fork) with a model on your own Anthropic-format gateway by answering turn.step; every other loop stays on Claude. Env is never touched and the Claude credential is never sent to the gateway.",
+  "author": {
+    "name": "PaulYeh",
+    "url": "https://github.com/ohyeh"
+  },
+  "repository": "https://github.com/ohyeh/agent-scripts",
+  "keywords": [
+    "gateway",
+    "routing",
+    "turn.step",
+    "mod"
+  ],
+  "displayName": "Bring Your Own Provider",
+  "license": "MIT",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "path": {
+      "type": "string",
+      "title": "Profiles folder",
+      "description": "Folder of <name>.conf profiles (gateway: url=, token=, model=; CLI: cli=<profile>|tmux/<profile>; timeout=seconds). default.conf also holds cli_types= opt-in. The token never enters settings.",
+      "default": "~/.config/byo-provider/profiles"
+    }
+  }
+}

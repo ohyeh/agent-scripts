@@ -1,0 +1,30 @@
+# byo-provider profile. Copy to <path>/default.conf (path: the plugin option, default
+# ~/.config/byo-provider/profiles) and chmod 600. Another name, e.g. glm.conf, is used by
+# `/provider-switch use glm`. The mod reads this file at each gateway request.
+# Keep this example in step with the keys loadProfile() reads (hooks/register.tsx).
+
+# Anthropic-format gateway base URL; the mod posts to <url>/v1/messages.
+url=https://gateway.example
+# Bearer token. It never enters settings, the pane, the log or an error text.
+token=
+# Gateway model name.
+model=
+# off | low | medium | high | max → thinking disabled, or budget 2048 / 6000 / 12000 / 15360, added on top of the 16384-token answer cap.
+# Empty: the gateway's default.
+effort=
+# Seconds one request may take, 1..590 (default 120; env GATE_TIMEOUT_MS overrides).
+# effort=max on a long loop can take minutes: 300 is a safer value there.
+timeout=
+# Mode new subagents start in at each session start (default.conf only): follow | claude | <profile>.
+# Empty: follow. Same as typing `/provider-switch agents <value>` at the start of every session.
+agents=
+# Route new subagents by the tier of the model they resolve to (default.conf only), ahead of agents=:
+# a profile name, or `claude` to keep that tier on Claude. A tier with no line falls back to agents=.
+haiku=
+sonnet=
+opus=
+# CLI route instead of url/token/model: sol (headless) or tmux/agy-flash (interactive worker).
+# cli=sol
+# Exact agent types allowed to use CLI routes (default.conf only); empty disables them.
+# Add workflow and/or fork explicitly for those untyped loops.
+cli_types=

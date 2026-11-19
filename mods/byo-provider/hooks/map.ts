@@ -1,0 +1,315 @@
+// Pure helpers: no `$`, so test/map.test.ts runs them under bun.
+import type { TurnStepChunk, TurnStepResult, TurnUsage } from 'claude-code'
+
+export type Block = { type: string; [k: string]: unknown }
+export type Msg = { role: 'user' | 'assistant'; content: Block[] }
+export type GateTool = { name: string; description: string; input_schema: Record<string, unknown> }
+export type Step = { chunks: TurnStepChunk[]; result: TurnStepResult; ok?: boolean }
+
+export type CliOwner = { sessionId: string; pid: number; procStart: string }
+export type CliBinding = { agentId: string; worker: string; profile: string; workerProfile: string; kind: string; ledger: string; owner: CliOwner; name?: string; cwd?: string }
+
+export function stopReceipt(worker: string, receipt: string): boolean {
+  return receipt.startsWith(`stopped "${worker}" on `) || receipt.split('\n').some(line =>
+    (line.startsWith('Stopped ') || line.startsWith('Already stopped: ')) && line.endsWith(`-${worker}`))
+}
+
+/** Binding and guard release is conditional on positive stop evidence. */
+export async function finishStop(worker: string, stop: () => Promise<string>, release: () => Promise<void>) {
+  const receipt = await stop()
+  if (!stopReceipt(worker, receipt)) throw new Error(`unconfirmed CLI stop: ${receipt}`)
+  await release()
+}
+
+/** Stored JSON is checked before it can name a worker to stop. */
+export function parseBindings(stored: unknown): CliBinding[] {
+  if (stored === undefined) return []
+  if (!Array.isArray(stored)) throw new Error('invalid CLI bindings store: expected an array')
+  for (const raw of stored) {
+    if (!raw || typeof raw !== 'object' || !['agentId', 'worker', 'profile', 'workerProfile', 'kind', 'ledger'].every(k => typeof raw[k] === 'string' && raw[k].length > 0)
+      || !/^[\w.-]+$/.test(raw.worker) || !/^[\w.-]+$/.test(raw.workerProfile)
+      || ['name', 'cwd'].some(k => raw[k] !== undefined && typeof raw[k] !== 'string')
+      || !raw.owner || typeof raw.owner.sessionId !== 'string' || !raw.owner.sessionId
+      || !Number.isSafeInteger(raw.owner.pid) || raw.owner.pid <= 0
+      || typeof raw.owner.procStart !== 'string' || !raw.owner.procStart) throw new Error('invalid CLI binding entry')
+  }
+  return stored as CliBinding[]
+}
+
+/** A foreign session's agent ids are never judged by this session's agent list. */
+export function bindingPlan(stored: unknown, liveIds: readonly string[], sessionId: string, protectedOwners: readonly CliOwner[]): { rebind: CliBinding[]; stop: CliBinding[]; keep: CliBinding[] } {
+  const live = new Set(liveIds)
+  const rebind: CliBinding[] = [], stop: CliBinding[] = [], keep: CliBinding[] = []
+  for (const b of parseBindings(stored)) {
+    const target = b.owner.sessionId === sessionId ? (live.has(b.agentId) ? rebind : stop)
+      : protectedOwners.some(o => o.sessionId === b.owner.sessionId && o.pid === b.owner.pid && o.procStart === b.owner.procStart) ? keep : stop
+    target.push(b)
+  }
+  return { rebind, stop, keep }
+}
+
+/** CLI routes are explicit and match whole type names, never substrings. */
+export function cliAllowed(kv: Record<string, string>, type: string | undefined, workflow = false, fork = false): boolean {
+  const kind = workflow ? 'workflow' : fork ? 'fork' : type
+  return !!kind && (kv.cli_types ?? '').split(',').map(t => t.trim()).includes(kind)
+}
+
+/** Longest `timeout` a profile may set. A gateway request is one `$.process.run` (ten minutes at most);
+ *  a CLI task, tmux or headless, is waited for in linked steps (relayStep). */
+/** tmux-agent owns a `runtime: tmux/<profile>` brief: it starts the worker and spawns its own waiter
+ *  (model sonnet). Routing either to a CLI starts a second worker for the same task. */
+export function ownedByTmuxAgent(subagentType: string | undefined, prompt: string | undefined): boolean {
+  return subagentType === 'tmux-agent:tmux-waiter' || /^\s*runtime:\s*tmux\/\S+\s*$/m.test(prompt ?? '')
+}
+
+export function maxTimeoutSeconds(cli: string | undefined): number {
+  return cli ? 3600 : 590
+}
+
+export function cliProfile(kv: Record<string, string>): string | undefined {
+  if (!Object.hasOwn(kv, 'cli')) return undefined
+  if (!/^(tmux\/)?[\w.-]+$/.test(kv.cli ?? '')) throw new Error('cli must be <profile> or tmux/<profile>')
+  return kv.cli
+}
+
+/** Only a validated successful report is an answer; every other status fails the step. */
+export function reportStep(turnId: string, index: number, body: unknown): Step {
+  const r = body as { schema_version?: unknown; status?: unknown; summary?: unknown; artifacts?: unknown; errors?: unknown }
+  if (!r || r.schema_version !== 1 || typeof r.summary !== 'string' || !Array.isArray(r.artifacts) || !Array.isArray(r.errors))
+    return failStep(turnId, index, 'invalid CLI result.json (schema_version, summary, artifacts, errors required)')
+  if (r.status !== 'success') return failStep(turnId, index, `CLI status ${String(r.status)}: ${r.summary}; ${JSON.stringify(r.errors)}`)
+  if (!r.summary.trim()) return failStep(turnId, index, 'CLI report is empty')
+  const text = JSON.stringify(body)
+  return { ok: true, chunks: [{ kind: 'text', index: 0, text }, { kind: 'stop', stopReason: 'end_turn', usage: null }],
+    result: { turnId, index, answer: text, toolUses: [], stopReason: 'end_turn', usage: null } }
+}
+
+/** The text one CLI round runs: the messages that arrived since the last round, else the spawn
+ *  prompt on round 1 only. Empty means nothing new: the caller fails the step, never reruns round 1. */
+export function roundPrompt(pending: string[], rounds: number | undefined, spawn: string): string {
+  return pending.join('\n\n') || (rounds ? '' : spawn)
+}
+
+/** A successful CLI step with the CLI's full answer file ahead of its report; the report alone
+ *  carries only a one-paragraph summary. A failed step, or an empty file, is left as it is. */
+export function withAnswer(step: Step, full: string): Step {
+  if (!step.ok || !full.trim()) return step
+  const text = `${full.trim()}\n\n${step.result.answer}`
+  return { ...step, chunks: [{ kind: 'text', index: 0, text }, ...step.chunks.slice(1)], result: { ...step.result, answer: text } }
+}
+
+type StopReason = TurnStepResult['stopReason']
+const STOPS = new Set(['end_turn', 'max_tokens', 'stop_sequence', 'tool_use', 'pause_turn', 'refusal', 'compaction', 'model_context_window_exceeded'])
+
+/** A failed gate step: one text block saying why, ending the turn. Never a fallback to Claude. */
+/** The longest wait one step runs: the engine aborts a step at ten minutes. */
+export const RELAY_SLICE_MS = 540_000
+/** byo's own no-op tool. A step that calls it makes the engine start the next step of the same loop. */
+export const RELAY_TOOL = 'mcp__byo-provider__cli_next'
+
+/** Adds one call of the link tool to a step, so the turn goes on to another step (a train's coupling:
+ *  each step is a car of at most RELAY_SLICE_MS). Without a step, an empty one that only links. */
+export function relayStep(turnId: string, index: number, step?: Step): Step {
+  const base = step ?? { chunks: [{ kind: 'stop', stopReason: 'end_turn', usage: null }], result: { turnId, index, answer: '', toolUses: [], stopReason: 'end_turn', usage: null } }
+  const id = `toolu_byonext${index}${Math.random().toString(36).slice(2, 10)}`
+  const at = base.chunks.filter(c => c.kind !== 'stop').reduce((n, c) => Math.max(n, 'index' in c ? c.index + 1 : n), 0)
+  const stop = base.chunks.find(c => c.kind === 'stop')
+  return {
+    chunks: [...base.chunks.filter(c => c.kind !== 'stop'), { kind: 'tool', index: at, id, name: RELAY_TOOL }, { kind: 'input', index: at, json: '{}' },
+      { kind: 'stop', stopReason: 'tool_use', usage: stop && 'usage' in stop ? stop.usage : null }],
+    result: { ...base.result, toolUses: [...base.result.toolUses, { name: RELAY_TOOL, input: {} }], stopReason: 'tool_use' },
+    ok: step ? step.ok : true, // a wait handed on is not a failure, and is never counted as a round
+  }
+}
+
+/** `before`: an answer the turn already has (an earlier round's), kept ahead of the failure. */
+export function failStep(turnId: string, index: number, reason: string, before = ''): Step {
+  const text = `${before.trim() ? `${before.trim()}\n\n` : ''}[byo-provider: ${reason}]`
+  return {
+    chunks: [{ kind: 'text', index: 0, text }, { kind: 'stop', stopReason: 'end_turn', usage: null }],
+    result: { turnId, index, answer: text, toolUses: [], stopReason: 'end_turn', usage: null },
+  }
+}
+
+/** An Anthropic Messages response body → the chunks to yield and the step result. Thinking is dropped. */
+export function toStep(turnId: string, index: number, body: unknown, model: string): Step {
+  const r = body as { type?: string; content?: Block[]; stop_reason?: string; model?: string; usage?: Record<string, number>; error?: { message?: string } }
+  if (!r || r.type === 'error' || !Array.isArray(r.content)) {
+    return failStep(turnId, index, `bad response: ${r?.error?.message ?? JSON.stringify(body).slice(0, 200)}`)
+  }
+  const chunks: TurnStepChunk[] = []
+  const toolUses: TurnStepResult['toolUses'][number][] = []
+  let answer = ''
+  let i = 0 // own block counter: dropped thinking blocks leave no gap
+  for (const b of r.content) {
+    if (b.type === 'text' && typeof b.text === 'string') {
+      chunks.push({ kind: 'text', index: i++, text: b.text })
+      answer += b.text
+    } else if (b.type === 'tool_use' && typeof b.name === 'string' && typeof b.id === 'string') {
+      chunks.push({ kind: 'tool', index: i, id: b.id, name: b.name })
+      chunks.push({ kind: 'input', index: i++, json: JSON.stringify(b.input ?? {}) })
+      toolUses.push({ name: b.name, input: b.input ?? {} })
+    }
+    // thinking / redacted_thinking: no valid Anthropic signature, so never recorded.
+  }
+  // Only thinking came back (the cap ran out mid-thought): the engine would end the loop without a word.
+  if (!answer && !toolUses.length) return failStep(turnId, index, `answer has no text or tool call (stop_reason ${r.stop_reason}, ${r.usage?.output_tokens ?? '?'} output tokens)`)
+  const stopReason: StopReason = STOPS.has(String(r.stop_reason)) ? (r.stop_reason as StopReason) : toolUses.length ? 'tool_use' : 'end_turn'
+  const u = r.usage
+  const usage: TurnUsage | null = u
+    ? { input_tokens: u.input_tokens ?? 0, output_tokens: u.output_tokens ?? 0, cache_read_input_tokens: u.cache_read_input_tokens ?? 0,
+        cache_creation_input_tokens: u.cache_creation_input_tokens ?? 0, model: r.model ?? model }
+    : null
+  chunks.push({ kind: 'stop', stopReason, usage })
+  return { chunks, result: { turnId, index, answer, toolUses, stopReason, usage } }
+}
+
+type Ref = { type: 'tool_reference'; tool_name: string }
+const isRef = (x: unknown): x is Ref => !!x && typeof x === 'object' && (x as Ref).type === 'tool_reference'
+
+/** Tools this loop already has: those ToolSearch loaded (its tool_result carries `tool_reference`
+ *  blocks) and those it already called (`tool_use`), so a call in the history keeps its schema. */
+export function loadedTools(messages: readonly Msg[]): Set<string> {
+  const names = new Set<string>()
+  for (const m of messages) for (const b of m.content) {
+    if (b.type === 'tool_use' && typeof b.name === 'string') names.add(b.name)
+    if (b.type === 'tool_result' && Array.isArray(b.content)) for (const c of b.content) if (isRef(c)) names.add(c.tool_name)
+  }
+  return names
+}
+
+const ANNOUNCE = /The following deferred tools are now available via ToolSearch[^\n]*\n([\s\S]*?)(?:\n\s*\n|<\/system-reminder>|$)/g
+
+/** Tools the engine told this loop are behind ToolSearch, from its system-reminder announcements.
+ *  shortcut: parses the engine's prose (CC 2.1.319 wording); re-check the wording on a Claude Code update. */
+export function deferredTools(messages: readonly Msg[]): Set<string> {
+  const names = new Set<string>()
+  for (const m of messages) for (const b of m.content) {
+    if (b.type !== 'text' || typeof b.text !== 'string') continue
+    for (const [, list] of b.text.matchAll(ANNOUNCE)) for (const n of (list ?? '').split('\n')) if (n.trim()) names.add(n.trim())
+  }
+  return names
+}
+
+/** The conversation for the gate: thinking out (Claude's signatures mean nothing there), and
+ *  tool_reference blocks as text (only the Anthropic API expands them; the gate gets the schemas in `tools`). */
+export function forGate(messages: readonly Msg[]): Msg[] {
+  return messages.map(m => ({
+    ...m,
+    content: m.content.filter(b => b.type !== 'thinking' && b.type !== 'redacted_thinking').map(b =>
+      b.type === 'tool_result' && Array.isArray(b.content) && b.content.some(isRef)
+        ? { ...b, content: (b.content as unknown[]).map(c => (isRef(c) ? { type: 'text', text: `Tool loaded: ${c.tool_name}` } : c)) }
+        : b),
+  })).filter(m => m.content.length > 0)
+}
+
+/** `abcdef…(len 42)`: the only form a secret is ever mentioned in. */
+export function redact(v: string | undefined): string {
+  return v ? `${v.slice(0, 6)}…(len ${v.length})` : '(none)'
+}
+
+export type After = (ms: number, fn: () => void) => { cancel: () => void }
+
+/** `work`'s value, or why it lost: no answer within `ms`, or `signal` (the turn's interrupt) aborted.
+ *  The loser is not cancelled ($.process.run takes no signal): a late answer settles unseen. */
+export async function deadline<T>(work: Promise<T>, ms: number, signal: AbortSignal, after: After): Promise<{ ok: T } | { why: string }> {
+  work.catch(() => {}) // a loser's late rejection is not an unhandled one
+  let timer: { cancel: () => void } | undefined
+  let onAbort = () => {}
+  const lost = new Promise<{ why: string }>(resolve => {
+    if (signal.aborted) return resolve({ why: 'interrupted' })
+    timer = after(ms, () => resolve({ why: `no answer in ${ms / 1000} s` }))
+    onAbort = () => resolve({ why: 'interrupted' })
+    signal.addEventListener('abort', onAbort)
+  })
+  try {
+    return await Promise.race([work.then(ok => ({ ok })), lost])
+  } finally {
+    timer?.cancel()
+    signal.removeEventListener('abort', onAbort)
+  }
+}
+
+/** The default.conf value for a model's tier (`haiku=` / `sonnet=` / `opus=`): a profile name or
+ *  `claude`; undefined when the model names no tier or that tier has no line. */
+export function tierRoute(kv: Record<string, string>, model: string | undefined): string | undefined {
+  const tier = /\b(haiku|sonnet|opus)\b/i.exec(model ?? '')?.[1]?.toLowerCase()
+  return tier ? kv[tier] || undefined : undefined
+}
+
+export type Ran = { id?: string; text: string; isError: boolean }
+
+/** The user message that answers the last assistant message's tool calls, from results recorded by
+ *  tool.call: matched by tool_use id, else in the order they came; a call with none gets an error result. */
+export function resultsFor(last: Msg | undefined, ran: readonly Ran[]): Msg | null {
+  const uses = (last?.content ?? []).filter(b => b.type === 'tool_use') as Array<{ id: string }>
+  if (!uses.length) return null
+  const left = [...ran]
+  const pick = (id: string) => {
+    let i = left.findIndex(r => r.id === id)
+    if (i < 0) i = left.findIndex(r => !uses.some(u => u.id === r.id)) // an id the engine renamed: next in order
+    return i >= 0 ? left.splice(i, 1)[0] : undefined
+  }
+  const content = uses.map(u => {
+    const r = pick(u.id)
+    return { type: 'tool_result', tool_use_id: u.id, content: r ? r.text : 'no result was recorded for this call', ...(r && !r.isError ? {} : { is_error: true }) }
+  })
+  return { role: 'user', content }
+}
+
+export type Fail = { who: string; why: string }
+
+/** The band's words: did routing work, and the new-subagent mode (the tier lines stay in default.conf).
+ *  Unfolded rows = the last 3 failures. */
+export function bandText(v: { routed: string[]; ok: number; fails: Fail[]; agents: string }): { status: string; rows: string[] } {
+  const by = [...new Set(v.routed)].map(p => `${v.routed.filter(x => x === p).length} → ${p}`).join(', ')
+  const last = v.fails.at(-1)
+  const status = !v.routed.length && !v.fails.length ? 'nothing routed yet'
+    : `${last ? `✗ ${v.fails.length} failed (${last.who}: ${last.why})` : '✓ routing ok'} · ${by || 'no loop'} · ${v.ok} steps ok`
+  return { status: `agents=${v.agents} · ${status}`, rows: v.fails.slice(-3).map(f => `✗ ${f.who}: ${f.why}`) }
+}
+
+/** `key=value` lines; blank lines, `#` comments and lines without a key are skipped. */
+export function parseConf(text: string): Record<string, string> {
+  const kv: Record<string, string> = {}
+  for (const l of text.split('\n').map(x => x.trim())) {
+    const i = l.indexOf('=')
+    if (!l.startsWith('#') && i > 0) kv[l.slice(0, i).trim()] = l.slice(i + 1).trim()
+  }
+  return kv
+}
+
+/** A YAML list key of a frontmatter: `k: A, B`, `k: [A, B]` (may span lines) or `- A` lines under `k:`.
+ *  `# comments` and blank lines are skipped. undefined when the key is absent or lists nothing.
+ *  shortcut: not a YAML parser (a comma inside quotes splits); use one if a definition needs it. */
+function yamlList(lines: readonly string[], key: string): string[] | undefined {
+  const uncomment = (l: string) => l.replace(/(^|\s)#.*$/, '').trim()
+  const at = lines.findIndex(l => new RegExp(`^${key}\\s*:`).test(l))
+  if (at < 0) return undefined
+  let inline = uncomment(lines[at]!.replace(/^[^:]*:/, ''))
+  const list: string[] = []
+  let i = at + 1
+  if (inline.startsWith('[')) {
+    while (!inline.includes(']') && i < lines.length) inline += ' ' + uncomment(lines[i++]!)
+    list.push(...inline.replace(/^\[|\].*$/g, '').split(','))
+  } else if (inline) list.push(...inline.split(','))
+  else for (; i < lines.length; i++) {
+    const l = uncomment(lines[i]!)
+    if (!l) continue
+    if (!l.startsWith('-')) break
+    list.push(l.replace(/^-\s*/, ''))
+  }
+  const out = list.map(s => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean)
+  return out.length ? out : undefined
+}
+
+/** An agent definition file: `---` frontmatter, then the prompt. `tools` narrows the agent's tools
+ *  (absent or empty: every tool); `disallowedTools` removes tools. */
+export function parseAgentDef(text: string): { body: string; tools?: string[]; disallowed?: string[] } {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text)
+  if (!m) return { body: text.trim() }
+  const lines = m[1]!.split(/\r?\n/)
+  const tools = yamlList(lines, 'tools')
+  const disallowed = yamlList(lines, 'disallowedTools')
+  return { body: text.slice(m[0].length).trim(), ...(tools ? { tools } : {}), ...(disallowed ? { disallowed } : {}) }
+}
