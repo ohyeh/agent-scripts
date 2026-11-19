@@ -1,0 +1,793 @@
+#!/usr/bin/env bash
+# Regression smoke for the A2/A5 hooks: one valid JSON object per physical line.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+WORK="$(mktemp -d -t agent-hooks-jsonl-smoke.XXXXXX)"
+trap 'rm -rf "$WORK"' EXIT
+TEST_HOME="$WORK/home"
+TEST_DATA="$WORK/data"
+mkdir -p "$TEST_HOME" "$TEST_DATA"
+# The claim-gate fixtures test the checks themselves, so they run in enforce mode; observe has its own fixture.
+export CLAIM_GATE_CLAIM_MODE=enforce
+
+check_jsonl() {
+  local file="$1" expected_lines="$2" filter="$3" line count=0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    count=$((count + 1))
+    printf '%s\n' "$line" | jq -e "$filter" >/dev/null
+  done < "$file"
+  [[ "$count" -eq "$expected_lines" ]]
+}
+
+run_bol() { # $1 prompt, $2 session_id (optional), $3 subagent_type (optional); returns the hook's exit code
+  local prompt="$1" sid="${2:-}" st="${3:-general-purpose}"
+  printf '%s' "$(jq -cn --arg p "$prompt" --arg sid "$sid" --arg st "$st" \
+    '{tool_name:"Agent",session_id:$sid,tool_input:{prompt:$p,subagent_type:$st}}')" |
+    HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" XDG_STATE_HOME="$TEST_HOME/.local/state" \
+    bash "$ROOT/.agents/hooks/bol-prompt-gate.sh" >/dev/null 2>"$WORK/bol-stderr"
+}
+run_ledger_event() { # $1 event, $2 session_id, $3 agent_id
+  printf '%s' "$(jq -cn --arg ev "$1" --arg sid "$2" --arg aid "$3" \
+    '{hook_event_name:$ev,session_id:$sid,agent_id:$aid,agent_type:"general-purpose"}')" |
+    HOME="$TEST_HOME" XDG_STATE_HOME="$TEST_HOME/.local/state" bash "$ROOT/.agents/hooks/subagent-ledger.sh"
+}
+
+# bill of lading: complete brief passes, incomplete brief is DENIED (exit 2), Explore is exempt
+run_bol 'GOAL: ship it ACCEPTANCE: tests pass REPORT: evidence' || { echo "FAIL: complete brief was blocked" >&2; exit 1; }
+if run_bol 'GOAL: ship it'; then echo "FAIL: incomplete brief was not blocked" >&2; exit 1; fi
+# the block message carries a fillable skeleton, so the retry needs no lookup
+for line in 'GOAL:' 'ACCEPTANCE:' 'REPORT:'; do
+  grep -q "^$line" "$WORK/bol-stderr" || { echo "FAIL: block message missing skeleton line $line" >&2; exit 1; }
+done
+run_bol 'where is the config loader?' '' Explore || { echo "FAIL: Explore lookup was blocked" >&2; exit 1; }
+check_jsonl "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" 3 \
+  'type == "object" and (.timestamp | type) == "string" and (.result == "pass" or .result == "fail" or .result == "exempt") and (.missing | type) == "array" and (.blocked | type) == "boolean"'
+# 2026-11-17: the web-fetch page reader is a lookup, like Explore
+run_bol 'read https://example.com and summarize it' '' web-fetch || { echo "FAIL: web-fetch lookup was blocked" >&2; exit 1; }
+
+# concurrency: 5 live subagents deny the 6th dispatch; a SubagentStop frees a slot
+SID="bol-concurrency-smoke"
+for i in 1 2 3 4 5; do run_ledger_event SubagentStart "$SID" "agent-$i"; done
+[[ "$(ls "$TEST_HOME/.local/state/agent-hooks/$SID/subagents" | wc -l | tr -d ' ')" == 5 ]]
+run_conc() { # $1 session_id
+  printf '%s' "$(jq -cn --arg sid "$1" '{tool_name:"Agent",session_id:$sid,tool_input:{prompt:"GOAL: g ACCEPTANCE: a REPORT: r",subagent_type:"general-purpose"}}')" |
+    HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" XDG_STATE_HOME="$TEST_HOME/.local/state" bash "$ROOT/.agents/hooks/subagent-concurrency-gate.sh" >/dev/null 2>&1
+}
+if run_conc "$SID"; then echo "FAIL: 6th concurrent dispatch was not blocked" >&2; exit 1; fi
+run_bol 'GOAL: g ACCEPTANCE: a REPORT: r' "$SID" || { echo "FAIL: bol gate still denies on concurrency (split violated)" >&2; exit 1; }
+run_ledger_event SubagentStop "$SID" "agent-3"
+run_conc "$SID" || { echo "FAIL: dispatch blocked with 4 live subagents" >&2; exit 1; }
+grep -c '"result":"concurrency"' "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" | grep -qx 1 || { echo "FAIL: concurrency stat not logged exactly once" >&2; exit 1; }
+
+# W44-2 B1: the ledger counts a workflow agent (no pending claimed + a run on record) under the run key
+hook_env() { HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" XDG_STATE_HOME="$TEST_HOME/.local/state" "$@"; }
+wf_launch() { jq -cn --arg s "$1" '{hook_event_name:"PreToolUse",tool_name:"Workflow",session_id:$s,tool_input:{name:"haiku-research-round"}}' | hook_env bash "$ROOT/.agents/hooks/workflow-agent-cap.sh"; }
+wf_start() { jq -cn --arg s "$1" --arg a "$2" '{hook_event_name:"SubagentStart",session_id:$s,agent_id:$a,agent_type:"general-purpose"}' | hook_env bash "$ROOT/.agents/hooks/subagent-ledger.sh" 2>"$WORK/cap-stderr"; }
+wf_counted() { find "$TEST_HOME/.local/state/agent-hooks/$1/workflow-runs" -type f 2>/dev/null | wc -l | tr -d ' '; }
+wf_launch wf-cap
+mkdir -p "$TEST_HOME/.local/state/agent-hooks/wf-cap/pending"; echo "1 general-purpose" > "$TEST_HOME/.local/state/agent-hooks/wf-cap/pending/1-p"
+wf_start wf-cap agent-tool && [[ "$(wf_counted wf-cap)" == 0 ]] || { echo "FAIL: B1 subagent with a pending was counted" >&2; exit 1; }
+wf_start wf-cap w1 && [[ "$(wf_counted wf-cap)" == 1 ]] || { echo "FAIL: B1 pending-less subagent with a run on record not counted" >&2; exit 1; }
+for i in $(seq 2 25); do wf_start wf-cap "w$i" || { echo "FAIL: B1 agent $i of 25 denied" >&2; exit 1; }; done
+if wf_start wf-cap w26; then echo "FAIL: B1 26th workflow agent not capped" >&2; exit 1; fi
+grep -q 'CAPPED: W43-1 haiku-research-round agent 26/25' "$WORK/cap-stderr" || { echo "FAIL: B1 CAPPED text: $(cat "$WORK/cap-stderr")" >&2; exit 1; }
+wf_start wf-norun n1 && [[ "$(wf_counted wf-norun)" == 0 ]] || { echo "FAIL: B1 subagent counted with no run on record" >&2; exit 1; }
+wf_start wf-cap agent-tool || { echo "FAIL: B1 Agent-tool subagent woken again under its id was capped: $(cat "$WORK/cap-stderr")" >&2; exit 1; }
+jq -cn '{hook_event_name:"SubagentStart",session_id:"wf-cap",agent_id:"waiter1",agent_type:"tmux-agent:tmux-waiter"}' | hook_env bash "$ROOT/.agents/hooks/subagent-ledger.sh" 2>/dev/null \
+  || { echo "FAIL: B1 tmux-agent waiter was capped" >&2; exit 1; }
+
+# W44-2 B2: a main-agent TaskStop of a workflow (via context-ledger) drops that run's live markers only
+TS_STATE="$TEST_HOME/.local/state/agent-hooks/taskstop/subagents"; mkdir -p "$TS_STATE" "$WORK/wf_X" "$WORK/wf_Y"
+for a in x1 x2 y1; do echo "general-purpose t" > "$TS_STATE/$a"; done
+: > "$WORK/wf_X/agent-x1.meta.json"; : > "$WORK/wf_X/agent-x2.meta.json"; : > "$WORK/wf_Y/agent-y1.meta.json"
+{ jq -cn --arg d "$WORK/wf_X" '{type:"user",toolUseResult:{status:"async_launched",taskId:"tX",taskType:"local_workflow",runId:"wf_X",transcriptDir:$d}}'
+  jq -n --arg d "$WORK/wf_Y" '{type:"user",toolUseResult:{status:"async_launched",taskId:"tY",taskType:"local_workflow",runId:"wf_Y",transcriptDir:$d}}' | tr -d '\n'; echo; } > "$WORK/ts-transcript.jsonl"
+task_stop() { jq -cn --arg t "$1" --arg ty "$2" --arg tp "$WORK/ts-transcript.jsonl" '{hook_event_name:"PostToolUse",session_id:"taskstop",transcript_path:$tp,tool_name:"TaskStop",tool_input:{task_id:$t},tool_response:{task_type:$ty}}' | hook_env bash "$ROOT/.agents/hooks/context-ledger.sh"; }
+task_stop tY local_agent
+[[ "$(ls "$TS_STATE" | tr '\n' ' ')" == "x1 x2 y1 " ]] || { echo "FAIL: B2 local_agent TaskStop removed markers: $(ls "$TS_STATE")" >&2; exit 1; }
+task_stop tX local_workflow
+[[ "$(ls "$TS_STATE" | tr '\n' ' ')" == "y1 " ]] || { echo "FAIL: B2 workflow TaskStop: want y1 left, got $(ls "$TS_STATE")" >&2; exit 1; }
+task_stop tY local_workflow   # spaced JSON (`"taskId": "tY"`) in the transcript line
+[[ -z "$(ls "$TS_STATE")" ]] || { echo "FAIL: B2 TaskStop missed a spaced-JSON launch line: $(ls "$TS_STATE")" >&2; exit 1; }
+
+run_ledger() {
+  printf '%s' "$1" |
+    HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/context-ledger.sh" >/dev/null 2>&1
+}
+
+run_ledger '{"session_id":"jsonl-smoke","tool_name":"Read","tool_input":{"file_path":"one.md"}}'
+run_ledger '{"session_id":"jsonl-smoke","tool_name":"Edit","tool_input":{"file_path":"two.md"}}'
+check_jsonl "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" 2 \
+  'type == "object" and (.timestamp | type) == "string" and (.tool | type) == "string" and (.input_sha256 | test("^[0-9a-f]{64}$")) and .evidence == []'
+# evidence tokens: normalized shapes only, never surrounding output (secrets stay out)
+run_ledger "$(jq -cn '{session_id:"jsonl-smoke",tool_name:"Bash",tool_input:{command:"make test"},tool_response:{stdout:"token=TEST_SECRET_123\nexit code 0\n18/18 passed\nPASS [hooks] ok\n463 tests passed",stderr:"",interrupted:false}}')"
+tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" | jq -e '(.evidence | sort) == (["18/18 passed","463 passed","PASS","exit=0"] | sort)' >/dev/null || { echo "FAIL: evidence tokens not normalized: $(tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl")" >&2; exit 1; }
+! grep -q 'TEST_SECRET_123' "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl"
+# Step 1: passed token requires count >= 1 and left boundary anchor (0 passed, 0/0 passed, 0/1 passed emit no pass token; 3 passed emits "3 passed")
+run_ledger "$(jq -cn '{session_id:"jsonl-smoke",tool_name:"Bash",tool_input:{command:"make test"},tool_response:{stdout:"0 passed\n0/0 passed\n0/1 passed\n",stderr:"",interrupted:false}}')"
+tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" | jq -e '.evidence == []' >/dev/null || { echo "FAIL: 0/0 or 0/1 passed emitted a pass token: $(tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl")" >&2; exit 1; }
+run_ledger "$(jq -cn '{session_id:"jsonl-smoke",tool_name:"Bash",tool_input:{command:"make test"},tool_response:{stdout:"3 passed\n",stderr:"",interrupted:false}}')"
+tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl" | jq -e '.evidence == ["3 passed"]' >/dev/null || { echo "FAIL: 3 passed token missing: $(tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/ledger.jsonl")" >&2; exit 1; }
+
+# provenance: a token present only in the ECHOED INPUT is not evidence
+# (session 07fab76e: ctx_execute echoed a grep pattern 'All tests passed')
+run_ledger "$(jq -cn '{session_id:"jsonl-prov",tool_name:"Bash",tool_input:{command:"grep -qE \"All tests passed!|Some tests failed\" /tmp/log"},tool_response:{stdout:"grep -qE \"All tests passed!|Some tests failed\" /tmp/log\n",stderr:"",interrupted:false}}')"
+tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-prov/ledger.jsonl" | jq -e '.evidence == []' >/dev/null || { echo "FAIL: echoed-input token recorded as evidence: $(tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-prov/ledger.jsonl")" >&2; exit 1; }
+# a token present only in the RESPONSE is still kept
+run_ledger "$(jq -cn '{session_id:"jsonl-prov",tool_name:"Bash",tool_input:{command:"make check"},tool_response:{stdout:"7/7 passed\n",stderr:"",interrupted:false}}')"
+tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-prov/ledger.jsonl" | jq -e '.evidence == ["7/7 passed"]' >/dev/null || { echo "FAIL: genuine response token was dropped" >&2; exit 1; }
+# documented ceiling: a token in BOTH input and response is dropped (fails closed)
+run_ledger "$(jq -cn '{session_id:"jsonl-prov",tool_name:"Bash",tool_input:{command:"echo PASS"},tool_response:{stdout:"PASS\n",stderr:"",interrupted:false}}')"
+tail -1 "$TEST_HOME/.local/state/agent-hooks/jsonl-prov/ledger.jsonl" | jq -e '.evidence == []' >/dev/null || { echo "FAIL: input/output collision token was kept" >&2; exit 1; }
+
+audit_command='cat README.md && curl -H Authorization:Bearer_TEST_SECRET_123 example.invalid'
+printf '%s' "$(jq -cn --arg command "$audit_command" '{session_id:"jsonl-smoke",tool_name:"Bash",tool_input:{command:$command}}')" |
+  HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/bash-read-audit.sh"
+audit_file="$TEST_HOME/.local/state/agent-hooks/jsonl-smoke/read-audit.jsonl"
+check_jsonl "$audit_file" 1 \
+  'type == "object" and .kind == "bash-read" and .read_tool == "cat" and (.command_sha256 | test("^[0-9a-f]{64}$")) and (has("command") | not)'
+! grep -q 'TEST_SECRET_123' "$audit_file"
+
+run_device_gate() {
+  local command="$1"
+  printf '%s' "$(jq -cn --arg command "$command" '{tool_name:"Bash",tool_input:{command:$command}}')" |
+    HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/agent-device-target-gate.sh" >/dev/null 2>&1
+}
+run_device_gate 'agent-device open MyApp --platform ios --device phone'
+run_device_gate 'agent-device open MyApp --platform web'
+if run_device_gate 'agent-device open MyApp --platform ios; printf -- --device'; then
+  echo "FAIL: sibling --device token bypassed agent-device gate" >&2
+  exit 1
+fi
+
+# precompact: the summary rules are CREATE Step 2 of the deployed skill, sent whole; no skill -> nothing
+PCH="$WORK/pc-home"; mkdir -p "$PCH/.agents/skills/session-handoff"
+cp "$ROOT/skills/session-handoff/SKILL.md" "$PCH/.agents/skills/session-handoff/"
+pc="$(echo '{"session_id":"pc","trigger":"manual"}' | HOME="$PCH" bash "$ROOT/.agents/hooks/precompact-instructions.sh" 2>/dev/null)"
+for want in '**Immediate Next Steps**' 'Source' '**Timeline**' '**Standing Authorizations**' 'UNCONFIRMED'; do
+  grep -qF -- "$want" <<<"$pc" || { echo "FAIL: precompact payload lacks $want from SKILL.md Step 2" >&2; exit 1; }
+done
+[ "$(printf '%s' "$pc" | wc -c)" -le 6000 ] || { echo "FAIL: precompact payload over 6000B" >&2; exit 1; }
+[ -z "$(echo '{"session_id":"pc2","trigger":"manual"}' | HOME="$WORK/pc-none" bash "$ROOT/.agents/hooks/precompact-instructions.sh" 2>/dev/null)" ] \
+  || { echo "FAIL: precompact sent rules with no skill installed" >&2; exit 1; }
+echo 'PASS precompact: summary rules = SKILL.md CREATE Step 2 (Next Steps with Source, Timeline, Standing Authorizations), none without the skill'
+
+# compaction recall: re-injects verbatim user prompts, skips tool_result/<tags>/its own header, escalates at 3 compactions
+TR="$WORK/transcript.jsonl"
+{
+  echo '{"type":"user","message":{"content":"uat = staging 記得改"}}'
+  echo '{"type":"user","message":{"content":[{"type":"tool_result","content":"noise"}]}}'
+  echo '{"type":"user","message":{"content":"<system-reminder>skip me</system-reminder>"}}'
+  echo '{"type":"user","message":{"content":"[compaction-recall] verbatim user prompts before this compaction, newest last: - old injection"}}'
+  echo '{"type":"user","isCompactSummary":true,"message":{"content":"summary text"}}'
+  echo '{"type":"user","message":{"content":[{"type":"text","text":"快點測試 驗證"}]}}'
+} > "$TR"
+run_recall() { printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",transcript_path:$t}')" | bash "$ROOT/.agents/hooks/compaction-recall.sh"; }
+out="$(run_recall)"
+grep -q -- '- uat = staging 記得改' <<<"$out" || { echo "FAIL: recall dropped a user prompt" >&2; exit 1; }
+grep -q -- '- 快點測試 驗證' <<<"$out" || { echo "FAIL: recall dropped a text-block prompt" >&2; exit 1; }
+grep -q 'noise\|skip me\|old injection' <<<"$out" && { echo "FAIL: recall leaked tool_result/tag/self output" >&2; exit 1; }
+grep -q 'ESCALATION' <<<"$out" && { echo "FAIL: escalated at 1 compaction" >&2; exit 1; }
+for i in $(seq 2 19); do echo '{"type":"user","isCompactSummary":true,"message":{"content":"s"}}' >> "$TR"; done
+grep -q 'ESCALATION' <<<"$(run_recall)" && { echo "FAIL: escalated below the 20-compaction limit" >&2; exit 1; }
+echo '{"type":"user","isCompactSummary":true,"message":{"content":"s"}}' >> "$TR"
+grep -q 'ESCALATION: this session has compacted 20 times' <<<"$(run_recall)" || { echo "FAIL: no escalation at 20 compactions" >&2; exit 1; }
+for i in $(seq 1 60); do printf '{"type":"user","message":{"content":"%s"}}\n' "$(head -c 300 /dev/zero | tr '\0' x)" >> "$TR"; done
+[[ "$(run_recall | wc -c)" -le 6100 ]] || { echo "FAIL: recall exceeded byte cap" >&2; exit 1; }
+# Step 1: 300-char prompt ending in REVOKE emits a transcript:line pointer that reads back REVOKE
+printf '{"type":"user","message":{"content":"%sREVOKE"}}\n' "$(head -c 294 /dev/zero | tr '\0' y)" >> "$TR"
+recall_ptr_out="$(run_recall)"
+ptr="$(printf '%s\n' "$recall_ptr_out" | sed -nE 's/.*\[cut; full: ([^]]+:[0-9]+)\].*/\1/p' | tail -n 1)"
+[[ -n "$ptr" ]] || { echo "FAIL: cut prompt missing [cut; full: path:line] pointer" >&2; exit 1; }
+sed -n "${ptr##*:}p" "${ptr%:*}" | grep -q 'REVOKE' || { echo "FAIL: pointed transcript line ${ptr} missing REVOKE" >&2; exit 1; }
+# agent-should-know's open asks ride after the byte cap, whole; a subagent's recall leaves them out
+mkdir -p "$TEST_HOME/.local/state/agent-hooks/rc-asks"
+{ echo '## Open owner asks (agent-should-know)'; echo "- U1 「$(head -c 3000 /dev/zero | tr '\0' z)END」"; echo '<!-- asks-open gen=3 end -->'; } > "$TEST_HOME/.local/state/agent-hooks/rc-asks/asks-open.md"
+asks_out="$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
+grep -q 'zEND」' <<<"$asks_out" || { echo "FAIL: recall dropped or cut the open asks" >&2; exit 1; }
+grep -q 'snapshot is incomplete' <<<"$asks_out" && { echo "FAIL: a whole snapshot flagged incomplete" >&2; exit 1; }
+asks_out="$(printf '%s' "$(jq -cn --arg t "$WORK/missing-transcript" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
+grep -q 'zEND」' <<<"$asks_out" || { echo "FAIL F7: missing transcript skipped asks-open snapshot" >&2; exit 1; }
+echo 'PASS F7: missing transcript injects asks-open snapshot'
+f="$TEST_HOME/.local/state/agent-hooks/rc-asks/asks-open.md"; sed -i.bak '$d' "$f" && rm -f "$f.bak" # -i.bak: BSD and GNU sed both accept it
+partial="$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
+grep -q 'coverage UNKNOWN' <<<"$partial" \
+  || { echo "FAIL: a snapshot with no end marker was passed on as whole" >&2; exit 1; }
+grep -q 'before any act' <<<"$partial" && { echo 'FAIL: partial cache creates a command' >&2; exit 1; }
+grep -q 'historical cache only' <<<"$partial" || { echo 'FAIL: cache authority not labelled' >&2; exit 1; }
+asks_out="$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",agent_id:"w1",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
+grep -q 'Open owner asks' <<<"$asks_out" && { echo "FAIL: a subagent's recall carried the parent's asks" >&2; exit 1; }
+
+# title sentinel: title-only again — a ✅ title is the claim gate's business
+TR2="$WORK/transcript-short.jsonl"
+printf '%s\n' '{"type":"user","message":{"content":"hi"}}' '{"type":"custom-title","customTitle":"✅ foo — shipped · .1-abcd1234"}' > "$TR2"
+out="$(printf '%s' "$(jq -cn --arg t "$TR2" '{session_id:"ts-1",transcript_path:$t,stop_hook_active:false,last_assistant_message:"改好了 應該沒問題"}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/session-title-sentinel.sh")"
+[[ -z "$out" ]] || { echo "FAIL: title sentinel acted on a claim (not its job): $out" >&2; exit 1; }
+# 2026-11-17: when it fires (12+ human prompts), it reminds the owner and never sends the turn back
+TR3="$WORK/transcript-long.jsonl"; : > "$TR3"
+for _ in $(seq 12); do printf '%s\n' '{"type":"user","message":{"content":"next"}}' >> "$TR3"; done
+out="$(printf '%s' "$(jq -cn --arg t "$TR3" '{session_id:"ts-2",transcript_path:$t,stop_hook_active:false}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/session-title-sentinel.sh")"
+jq -e '(.systemMessage | test("Session title check")) and (has("decision") | not)' <<<"$out" >/dev/null \
+  || { echo "FAIL: title sentinel must remind without blocking: $out" >&2; exit 1; }
+
+# claim-evidence gate: claims are bound to the ledger by token equality
+TR3="$WORK/transcript-claim.jsonl"
+printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"修好它"}}' > "$TR3"
+ledger_for() { # $1 sid, then JSON lines
+  local d="$TEST_HOME/.local/state/agent-hooks/$1"; mkdir -p "$d"; shift; printf '%s\n' "$@" > "$d/ledger.jsonl"
+}
+run_claim() { # $1 sid, $2 last_assistant_message, [$3 transcript]
+  printf '%s' "$(jq -cn --arg t "${3:-$TR3}" --arg m "$2" --arg sid "$1" '{session_id:$sid,transcript_path:$t,stop_hook_active:false,last_assistant_message:$m}')" |
+    HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" XDG_STATE_HOME="$TEST_HOME/.local/state" bash "$ROOT/.agents/hooks/claim-evidence-gate.sh" | jq -r '.decision // empty'
+}
+BEFORE='{"timestamp":"2025-12-31T23:59:00Z","tool":"Bash","evidence":["exit=0"]}'
+RUN0='{"timestamp":"2026-01-01T00:00:05Z","tool":"Bash","evidence":["exit=0","18/18 passed"]}'
+READ='{"timestamp":"2026-01-01T00:00:06Z","tool":"Read","evidence":[]}'
+EDIT0='{"timestamp":"2026-01-01T00:00:05Z","tool":"Edit","evidence":[]}'
+ledger_for c1 "$BEFORE" "$EDIT0";  [[ "$(run_claim c1 '修好了，應該沒問題')" == block ]]            || { echo "FAIL: claim with nothing run not blocked" >&2; exit 1; }
+ledger_for c1c "$BEFORE" "$EDIT0"; [[ "$(LC_ALL=C run_claim c1c '修好了，應該沒問題')" == block ]]   || { echo "FAIL: CJK claim not blocked under LC_ALL=C" >&2; exit 1; }
+ledger_for c1b "$BEFORE";          [[ -z "$(run_claim c1b '修好了，應該沒問題')" ]]                  || { echo "FAIL: plain answer (no mutating tool) blocked" >&2; exit 1; }
+# 2026-11-17 default observe mode: the same unbacked claim passes and is logged as would_block.
+ledger_for c1o "$BEFORE" "$EDIT0"; [[ -z "$(CLAIM_GATE_CLAIM_MODE=observe run_claim c1o '修好了，應該沒問題')" ]] || { echo "FAIL: observe mode blocked a completion claim" >&2; exit 1; }
+tail -1 "$TEST_DATA/agent-hooks/claim-evidence-observe.jsonl" | jq -e '.session == "c1o" and (.would_block | test("Completion claim")) and (.transcript | length > 0) and (.reply_tail | test("修好了"))' >/dev/null \
+  || { echo "FAIL: observe mode did not log what it would have blocked" >&2; exit 1; }
+TRX="$WORK/transcript-codex.jsonl"   # Codex rollout: a real user turn is an item_completed UserMessage
+printf '%s\n' '{"timestamp":"2026-01-01T00:00:00.000Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage"}}}' > "$TRX"
+ledger_for c13 "$BEFORE" "$EDIT0"; [[ "$(run_claim c13 '修好了，應該沒問題' "$TRX")" == block ]]  || { echo "FAIL: Codex transcript claim not blocked" >&2; exit 1; }
+PATCH0='{"timestamp":"2026-01-01T00:00:05Z","tool":"apply_patch","evidence":[]}'
+ledger_for c14 "$BEFORE" "$PATCH0"; [[ "$(run_claim c14 '修好了，應該沒問題' "$TRX")" == block ]] || { echo "FAIL: Codex apply_patch-only claim not blocked" >&2; exit 1; }
+ledger_for c2 "$BEFORE" "$RUN0";   [[ "$(run_claim c2 '修好了，應該沒問題')" == block ]]            || { echo "FAIL: claim quoting no token not blocked" >&2; exit 1; }
+ledger_for c3 "$BEFORE" "$RUN0";   [[ "$(run_claim c3 'Fixed. `npm test` exit 1')" == block ]]        || { echo "FAIL: mismatched token not blocked" >&2; exit 1; }
+ledger_for c4 "$BEFORE" "$RUN0";   [[ -z "$(run_claim c4 'Fixed. `npm test` → exit 0, 18/18 passed')" ]] || { echo "FAIL: bound claim blocked" >&2; exit 1; }
+# W42-21: an edit to a cited file after the run invalidates its evidence; an edit before it, or to an uncited file, does not
+EDITX='{"timestamp":"2026-01-01T00:00:07Z","tool":"Edit","file":"/r/src/client.ts","evidence":[]}'
+EDITY='{"timestamp":"2026-01-01T00:00:07Z","tool":"Write","file":"/r/notes.md","evidence":[]}'
+ledger_for c4s "$BEFORE" "$RUN0" "$EDITX"; [[ "$(run_claim c4s 'Fixed client.ts. `npm test` → 18/18 passed')" == block ]] || { echo "FAIL: cited file edited after the run not blocked" >&2; exit 1; }
+ledger_for c4r "$BEFORE" "$EDITX" "$RUN0"; [[ -z "$(run_claim c4r 'Fixed client.ts. `npm test` → 18/18 passed')" ]]     || { echo "FAIL: edit before the run blocked" >&2; exit 1; }
+ledger_for c4u "$BEFORE" "$RUN0" "$EDITY"; [[ -z "$(run_claim c4u 'Fixed client.ts. `npm test` → 18/18 passed')" ]]     || { echo "FAIL: edit of an uncited file blocked" >&2; exit 1; }
+ledger_for c4x "$BEFORE" "$RUN0" "$EDITX" "$RUN0"; [[ -z "$(run_claim c4x 'Fixed client.ts. `npm test` → 18/18 passed')" ]] || { echo "FAIL: re-run after the edit blocked" >&2; exit 1; }
+ledger_for c5 "$BEFORE";           [[ "$(run_claim c5 'not done yet, still tracing')" == block ]]     || { echo "FAIL: unchecked 'not done' passed (W43-18: it is a negative claim)" >&2; exit 1; }
+ledger_for c5o "$BEFORE";          [[ -z "$(CLAIM_GATE_CLAIM_MODE=observe run_claim c5o 'not done yet, still tracing')" ]] || { echo "FAIL: observe mode blocked a negative claim" >&2; exit 1; }
+tail -1 "$TEST_DATA/agent-hooks/claim-evidence-observe.jsonl" | jq -e '.session == "c5o" and (.would_block | test("Negative claim"))' >/dev/null \
+  || { echo "FAIL: observe mode did not log the negative claim" >&2; exit 1; }
+ledger_for c5b "$BEFORE" "$EDIT0"; [[ "$(run_claim c5b '修好了，應該沒問題
+另一項還沒做')" == block ]] || { echo "FAIL: one 還沒 line exempted a whole claim" >&2; exit 1; }
+# W43-18: with tool traffic in the transcript, each negative line must name a subject a tool touched
+TRT="$WORK/transcript-traffic.jsonl"
+printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"還剩哪些"}}' \
+  '{"type":"assistant","timestamp":"2026-01-01T00:00:03.000Z","message":{"content":[{"type":"tool_use","name":"Bash","input":{"command":"git log --oneline -- scripts/deploy.sh"}}]}}' \
+  '{"type":"user","timestamp":"2026-01-01T00:00:04.000Z","message":{"content":[{"type":"tool_result","content":"2ad6a5a feat(deploy): W43-3 --check"}]}}' > "$TRT"
+TWO='{"timestamp":"2026-01-01T00:00:03Z","tool":"Bash","evidence":[]}'
+ledger_for n1 "$TWO" "$READ"; [[ "$(run_claim n1 'W43-18 還沒做' "$TRT")" == block ]]          || { echo "FAIL: 'not done' on a subject no tool touched passed on 2 calls" >&2; exit 1; }
+ledger_for n2 "$TWO" "$READ"; [[ -z "$(run_claim n2 '`deploy.sh` 的 W43-3 還沒 push' "$TRT")" ]] || { echo "FAIL: 'not done' bound to a checked subject blocked" >&2; exit 1; }
+ledger_for n3 "$TWO" "$READ"; [[ -z "$(run_claim n3 'W43-18 還沒做（UNCONFIRMED：沒查 backlog）' "$TRT")" ]] || { echo "FAIL: self-labelled line blocked" >&2; exit 1; }
+ledger_for n4 "$TWO" "$READ"; [[ "$(run_claim n4 'foo.sh:12 還沒修' "$TRT")" == block ]]        || { echo "FAIL: a file:line the tools never touched counted as evidence" >&2; exit 1; }
+ledger_for n5 "$TWO" "$READ"; [[ "$(run_claim n5 'W43-3 done in 2ad6a5a
+W43-22 未開始' "$TRT")" == block ]] || { echo "FAIL: unbound negative line passed next to a positive claim" >&2; exit 1; }
+ledger_for n7 "$TWO" "$READ"; [[ "$(run_claim n7 '自我稽核未執行：fork api-error，W43-18 還沒驗' "$TRT")" == block ]] || { echo "FAIL: the unaudited label exempted a line with no audit state behind it" >&2; exit 1; }
+# W46-16 (evals/retro-metrics/2026-W46/claim-gate-sample-w45.md): the 9 non-probe false blocks are a plan,
+# a requirement, a scope note or a forecast, not a claim. The ledger has one Edit and no token, so a claim blocks.
+# The 2 misses (a claim next to a bound 還沒 line) and the 2 true violations must block.
+W46_PASS=('- 修正前的版本要測出失敗，修正後要通過。'
+  '修正後需要通過 CI'
+  '只要測試通過就上傳'
+  '做完之後，五個畫面要在 1440、768、390 三個寬度都通過 `npm run check:ui`，0 個 FAIL。接著另找一個 reviewer 用 `codex` 審，最後發成 Artifact 給你看。builder 回報時我會通知你。'
+  'worker 一多，一輪就會超過 2 秒；上一輪還沒跑完，下一輪就直接跳過（`tui.node.ts:1112`）。而且只有內容真的變了才重畫，畫面上也沒有任何地方告訴你上次更新是什麼時候。'
+  '**這一票的限制**：依據是 `DIRECTION.md`、lint 結果和評審檔，F、G 的實際畫面我還沒看過截圖。要讓票更有份量，可以派 agy 和 cursor 用同一套四軸評分看 F、G。'
+  '好，順序是：修好、部署上線、確認線上沒問題，然後寫交接、recap，並把這次的錯誤和建議投稿到 shared memory。'
+  '- **Hard boundaries §Done**（[CLAUDE.md:90-94](file:///x/CLAUDE.md#L90-L94)）：沒有當場執行的 tool 輸出驗證（exit code, test count, artifact），宣稱 done 直接視為無效；Stop gate 會強制攔截。'
+  '這個修改只是本地模擬的調整，通過與否不等於正式 CI 的結果，只用來提前抓四個 Compile bundle 的問題。'
+  '- 我只對 sit 格讀了詳細內容，其他 3 格只看了通過／失敗的結果。'
+  '所以實際用的是 Android Studio 內建的 JBR：你本機是 21，可以 build。mini 的 Android Studio 比較新，內建 JBR 25，而 Gradle 8.11.1 跑不了 Java 25，mini 上用預設環境就會失敗在 `assembleUat`。這是 mini 和你本機環境不一樣造成的，不是 App 的問題。')
+W46_BLOCK=('UAT 的 IPA 已上傳 TestFlight，APK 也已上傳 Firebase，兩邊都完成了。
+- **還沒處理的事：** 0902 密碼找不到確切值（UNCONFIRMED：沒查 STG 後台）'
+  'W46-16 已完成。
+P3 根本還沒做完：sol 還在調查，`deploy.sh` 不存在'
+  '重要的測試都通過'
+  '主要的 bug 都修好'
+  '需要改的三個檔案都完成'
+  '會議前測試都通過'
+  '我不推送，因為推的話會把本機 main 上 F worker 的 5 個 commit（`513a328` `351695c`）一起推上去。那 5 個是 worker 沒經授權做的，要不要留是 Q-5，還沒決定。另外本機也落後 origin 1 個 commit（`8723db1`），推之前要先 rebase。')
+w46=""
+for loc in en_US.UTF-8 C; do
+  i=0; for m in "${W46_PASS[@]}"; do i=$((i+1)); s="w46p$i${loc%%.*}"; ledger_for "$s" "$EDIT0"
+    [[ -z "$(LC_ALL=$loc run_claim "$s" "$m" "$TRT")" ]] || w46="$w46
+FAIL ($loc): W46-16 not a claim, but blocked: $m"; done
+  i=0; for m in "${W46_BLOCK[@]}"; do i=$((i+1)); s="w46b$i${loc%%.*}"; ledger_for "$s" "$EDIT0" "$READ"
+    [[ "$(LC_ALL=$loc run_claim "$s" "$m" "$TRT")" == block ]] || w46="$w46
+FAIL ($loc): W46-16 claim with no token passed: $m"; done
+done
+[[ -z "$w46" ]] || { echo "$w46" >&2; exit 1; }
+echo 'PASS W46-16: 9 sample false blocks pass; 2 misses, 4 compound-word claims and 1 true violation block (en_US.UTF-8 and C)'
+# W48-8: fixed replay of 1 old false block with same-turn evidence (e9059361:2281, status check with exit=0 in same turn)
+# and 1 true violation (2fce8723:2049, handoff edited after validator run with no re-check), in observe and enforce modes.
+W48_FP='**目前狀態：兩台都已同步完成。** 本輪現場檢查 `git status` 與 `curl` 回傳 `HEAD=2da2740`、`exit=0`。'
+W48_TP='收工：審過的表已套用、本機部署完成（`exit=0`）。交接 `2026-11-13-093417-skill-chain-rule-tuning.md` 已更新。'
+EDIT_H='{"timestamp":"2026-01-01T00:00:07Z","tool":"Edit","file":"/r/.claude/handoffs/2026-11-13-093417-skill-chain-rule-tuning.md","evidence":[]}'
+ledger_for w48fp "$BEFORE" "$RUN0"
+[[ -z "$(CLAIM_GATE_CLAIM_MODE=enforce run_claim w48fp "$W48_FP")" ]] || { echo "FAIL: W48-8 reply with same-turn evidence was blocked in enforce mode" >&2; exit 1; }
+ledger_for w48fpo "$BEFORE" "$RUN0"
+[[ -z "$(CLAIM_GATE_CLAIM_MODE=observe run_claim w48fpo "$W48_FP")" ]] || { echo "FAIL: W48-8 reply with same-turn evidence was blocked in observe mode" >&2; exit 1; }
+! grep -q '"session":"w48fpo"' "$TEST_DATA/agent-hooks/claim-evidence-observe.jsonl" || { echo "FAIL: W48-8 reply with same-turn evidence was logged as would_block" >&2; exit 1; }
+ledger_for w48tp "$BEFORE" "$RUN0" "$EDIT_H"
+[[ "$(CLAIM_GATE_CLAIM_MODE=enforce run_claim w48tp "$W48_TP")" == block ]] || { echo "FAIL: W48-8 true violation (handoff edited after evidence run) passed in enforce mode" >&2; exit 1; }
+ledger_for w48tpo "$BEFORE" "$RUN0" "$EDIT_H"
+[[ -z "$(CLAIM_GATE_CLAIM_MODE=observe run_claim w48tpo "$W48_TP")" ]] || { echo "FAIL: W48-8 observe mode blocked true violation" >&2; exit 1; }
+tail -1 "$TEST_DATA/agent-hooks/claim-evidence-observe.jsonl" | jq -e '.session == "w48tpo" and (.would_block | test("2026-11-13-093417-skill-chain-rule-tuning.md was edited after the run"))' >/dev/null || { echo "FAIL: W48-8 observe mode did not record true violation" >&2; exit 1; }
+echo 'PASS W48-8: fixed replay passes same-turn evidence and records/blocks true violation'
+# Legacy audit files have no effect on independent claim binding.
+gate_out() {
+  printf '%s' "$(jq -cn --arg t "$TRT" --arg m "$2" --arg sid "$1" --argjson a "${3:-false}" '{session_id:$sid,transcript_path:$t,stop_hook_active:$a,last_assistant_message:$m}')" |
+    HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" bash "$ROOT/.agents/hooks/claim-evidence-gate.sh"
+}
+for sid in old-active-1 old-active-2; do
+  ledger_for "$sid" "$TWO" "$READ"
+  legacy="$TEST_HOME/.local/state/agent-hooks/$sid/audit"
+  mkdir -p "$legacy"
+  for file in active held current chain missing-chain; do printf '%s\n' 'legacy bytes' > "$legacy/$file"; done
+  before="$(find "$legacy" -type f -exec shasum -a 256 {} \; | sort)"
+  [[ -z "$(gate_out "$sid" '說明如下')" ]] || { echo 'FAIL: legacy audit blocked a fresh reply' >&2; exit 1; }
+  [[ -z "$(gate_out "$sid" '另一則說明' true)" ]] || { echo 'FAIL: legacy audit blocked re-entry' >&2; exit 1; }
+  [[ "$(run_claim "$sid" 'W99-9 missing' "$TRT")" == block ]] || { echo 'FAIL: independent negative claim lost binding' >&2; exit 1; }
+  [[ "$before" == "$(find "$legacy" -type f -exec shasum -a 256 {} \; | sort)" ]] || { echo 'FAIL: Stop changed legacy audit bytes' >&2; exit 1; }
+done
+if rg 'audit/active|AUDIT_DIR|audit_reason|audit_hold|audit_file|audit_state|heartbeat|reaper' "$ROOT/.agents/hooks/claim-evidence-gate.sh"; then
+  echo 'FAIL: Stop gate retains audit IPC' >&2; exit 1
+fi
+echo 'PASS old-active-no-audit-enforcement: 2 fresh chains; claim binding retained; legacy bytes unchanged'
+# a line that names no subject keeps the old bar (>= 2 calls); a printed evidence token binds a line
+ledger_for n6 "$TWO" "$READ"; [[ -z "$(run_claim n6 '重設計還在進行，頁面還沒更新' "$TRT")" ]] || { echo "FAIL: keyless line blocked on 2 calls" >&2; exit 1; }
+ledger_for n7 "$TWO";         [[ "$(run_claim n7 '重設計還在進行，頁面還沒更新' "$TRT")" == block ]] || { echo "FAIL: keyless line passed on 1 call" >&2; exit 1; }
+FAILRUN='{"timestamp":"2026-01-01T00:00:03Z","tool":"Bash","evidence":["exit=1"]}'
+ledger_for n8 "$FAILRUN";     [[ -z "$(run_claim n8 'the suite still fails: npm test exit=1' "$TRT")" ]] || { echo "FAIL: a line quoting a printed exit=1 blocked" >&2; exit 1; }
+# sol W43 review F3: a background completion or plugin notice mid-turn does not start a new human turn
+for k in task-notification plugin legacy; do
+  TRN="$WORK/transcript-notice-$k.jsonl"; cp "$TRT" "$TRN"
+  case $k in legacy) printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:05.000Z","message":{"content":"<task-notification><task-id>a1</task-id></task-notification>"}}';;
+    *) printf '{"type":"user","timestamp":"2026-01-01T00:00:05.000Z","origin":{"kind":"%s"},"message":{"content":"worker finished"}}\n' "$k";; esac >> "$TRN"
+  ledger_for "n9$k" "$TWO" "$READ"; [[ -z "$(run_claim "n9$k" '`deploy.sh` 的 W43-3 還沒 push' "$TRN")" ]] || { echo "FAIL: a $k row reset the human turn" >&2; exit 1; }
+done
+ledger_for c6 "$BEFORE";           [[ -z "$(run_claim c6 '改了設定，attempted, unverified')" ]]        || { echo "FAIL: self-labelled reply blocked" >&2; exit 1; }
+ledger_for c7 "$BEFORE";           [[ -z "$(run_claim c7 'The claim-evidence-gate blocks a `done` claim; 「完成宣告 gate」 is discussed here, and Completion claim text is quoted')" ]] || { echo "FAIL: discussing the gate treated as a claim" >&2; exit 1; }
+ledger_for c8 "$BEFORE" "$RUN0";   [[ "$(run_claim c8 'the worker is stuck, no reply for 30 min')" == block ]] || { echo "FAIL: negative claim on one call not blocked" >&2; exit 1; }
+ledger_for c9 "$BEFORE" "$RUN0" "$READ"; [[ -z "$(run_claim c9 'the worker is stuck, no reply for 30 min')" ]] || { echo "FAIL: corroborated negative claim blocked" >&2; exit 1; }
+ledger_for c10 "$BEFORE";          run_claim c10 '搞定了' >/dev/null; [[ -z "$(run_claim c10 '搞定了')" ]]  || { echo "FAIL: gate fired twice for the same reply" >&2; exit 1; }
+TR4="$WORK/transcript-title.jsonl"
+printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"go"}}' '{"type":"custom-title","customTitle":"✅ foo — shipped · .1-abcd1234"}' > "$TR4"
+ledger_for c11 "$RUN0";            [[ "$(run_claim c11 'see above' "$TR4")" == block ]]               || { echo "FAIL: ✅ title without quoted evidence not blocked" >&2; exit 1; }
+ledger_for c12 "$RUN0";            [[ -z "$(run_claim c12 'exit=0' "$TR4")" ]]                        || { echo "FAIL: ✅ title with bound evidence blocked" >&2; exit 1; }
+# W44-7: a reload hand-back needs a mcp__tmux-agent__reload call; "live" after an Artifact publish needs a screenshot
+trh() { # $1 file, then tool_use objects ({name,input}) made this turn
+  local f="$WORK/$1"; shift
+  printf '%s\n' '{"type":"user","timestamp":"2026-01-01T00:00:00.000Z","message":{"content":"go"}}' > "$f"
+  for u in "$@"; do jq -cn --argjson u "$u" '{type:"assistant",timestamp:"2026-01-01T00:00:03.000Z",message:{content:[{type:"tool_use"} + $u]}}' >> "$f"; done
+  printf '%s' "$f"
+}
+BASHU='{"name":"Bash","input":{"command":"git pull"}}'
+PUBU='{"name":"Artifact","input":{"file_path":"/s/page.html","icon":"chart"}}'
+[[ "$(run_claim h1 '已更新 plugin，請執行 `/reload-plugins` 再試。' "$(trh h1.jsonl "$BASHU")")" == block ]] || { echo "FAIL: W44-7 reload hand-back with no reload call passed" >&2; exit 1; }
+[[ -z "$(run_claim h2 '已更新 plugin，請執行 `/reload-plugins` 再試。' "$(trh h2.jsonl "$BASHU" '{"name":"mcp__tmux-agent__reload","input":{}}')")" ]] || { echo "FAIL: W44-7 reload hand-back after a reload call blocked" >&2; exit 1; }
+[[ -z "$(run_claim h3 'The tmux-agent plugin is at v0.46.19; its plugins list is unchanged.' "$(trh h3.jsonl "$BASHU")")" ]] || { echo "FAIL: W44-7 a plain plugin mention blocked" >&2; exit 1; }
+[[ "$(run_claim h4 'The page is live: https://claude.ai/artifact/x' "$(trh h4.jsonl "$PUBU")")" == block ]] || { echo "FAIL: W44-7 live page with no screenshot passed" >&2; exit 1; }
+# W46-16 sample #17, a true violation: still blocks
+[[ "$(run_claim w46t17 '四版比稿頁已經發布，請選一版，也可以混搭：https://claude.ai/artifact/U7fG95TKypYF8DG88onjyX' "$(trh w46t17.jsonl "$PUBU")")" == block ]] || { echo "FAIL: W46-16 sample #17 (published, no render check) passed" >&2; exit 1; }
+[[ -z "$(run_claim h5 'The page is live: https://claude.ai/artifact/x' "$(trh h5.jsonl "$PUBU" '{"name":"mcp__claude-in-chrome__computer","input":{"action":"screenshot"}}')")" ]] || { echo "FAIL: W44-7 live page after a screenshot blocked" >&2; exit 1; }
+# L1 false blocks: "live"/"published" in another sense, /reload-plugins as history or a quote, a Bash line naming a screenshot
+[[ -z "$(run_claim h6 'I checked the live source and the file; the page is saved to the artifact URL. The skill was published in 2025 by the vendor.' "$(trh h6.jsonl "$PUBU")")" ]] || { echo "FAIL: W44-7 live in another sense blocked" >&2; exit 1; }
+# A reload request needs a call; historical and quoted commands do not.
+[[ "$(run_claim h7 '要 /reload-plugins 才會載入。' "$(trh h7.jsonl "$BASHU")")" == block ]] || { echo "FAIL: W44-7 reload ask without a run verb passed" >&2; exit 1; }
+[[ -z "$(run_claim h7b 'Run this:
+```
+/reload-plugins
+```' "$(trh h7b.jsonl "$BASHU" '{"name":"mcp__tmux-agent__reload","input":{}}')")" ]] || { echo "FAIL: W44-7 reload ask after a reload call blocked" >&2; exit 1; }
+[[ "$(run_claim h9 "It's live at the URL." "$(trh h9.jsonl "$PUBU")")" == block ]] || { echo "FAIL: W44-7 it's live with no screenshot passed" >&2; exit 1; }
+[[ -z "$(run_claim h10 'The source is live, not memory. The tag has been published to GitHub. I fixed it, so the live check passes now.' "$(trh h10.jsonl "$PUBU")")" ]] || { echo "FAIL: W44-7 live/published about a non-page blocked" >&2; exit 1; }
+# L2: real screenshots through codex-cu or agent-browser count; a fenced command is not an ask
+[[ -z "$(run_claim h11 'The page is live: https://claude.ai/artifact/x' "$(trh h11.jsonl "$PUBU" '{"name":"mcp__codex-cu__js","input":{"code":"const t = await cua.getTab({url}); await t.screenshot({})"}}')")" ]] || { echo "FAIL: W44-7 codex-cu screenshot not counted" >&2; exit 1; }
+[[ -z "$(run_claim h12 'The page is live: https://claude.ai/artifact/x' "$(trh h12.jsonl "$PUBU" '{"name":"Bash","input":{"command":"agent-browser --cdp 9222 screenshot /s/p.png"}}')")" ]] || { echo "FAIL: W44-7 agent-browser screenshot not counted" >&2; exit 1; }
+[[ "$(run_claim h13 'I have published it.' "$(trh h13.jsonl "$PUBU")")" == block ]] || { echo "FAIL: W44-7 'I have published it' with no screenshot passed" >&2; exit 1; }
+[[ -z "$(run_claim h14 'Docs example:
+```
+/reload-plugins
+```' "$(trh h14.jsonl "$BASHU")")" ]] || { echo "FAIL: W44-7 fenced /reload-plugins blocked" >&2; exit 1; }
+[[ -z "$(run_claim h15 '先前執行 `/reload-plugins` 後，工具恢復正常。' "$(trh h15.jsonl "$BASHU")")" ]] || { echo 'FAIL: historical reload counted as a hand-back' >&2; exit 1; }
+[[ -z "$(run_claim h16 '舊訊息寫著「請執行 /reload-plugins 再試」。' "$(trh h16.jsonl "$BASHU")")" ]] || { echo 'FAIL: quoted reload counted as a hand-back' >&2; exit 1; }
+# W46-15: a reply that ends by handing a decision to the owner needs a consensus call this turn.
+# Real case: session c9213e9e, 2026-11-06T02:55Z.
+ASKB='**還開著**
+- 儀表板的計數和標籤要不要修（這次沒寫入），以及 P1、P3、P5、L2、L3、L4、L12 要不要補去向。
+- claim gate 詞表誤擋和漏洞要不要開新列。
+- 儀表板上 W46-2 還寫「部分」，等 retro 驗收後再改。
+
+✈'
+ADV='{"type":"server_tool_use","name":"advisor","input":{}}'
+w46b=""
+[[ "$(run_claim a1 "$ASKB" "$(trh a1.jsonl "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 ask-back with no consensus call passed"
+[[ "$(CLAIM_GATE_CLAIM_MODE=observe run_claim a1o "$ASKB" "$(trh a1o.jsonl "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 observe mode (claims only) let an ask-back through"
+[[ -z "$(run_claim a2 "$ASKB" "$(trh a2.jsonl "$BASHU" "$ADV")")" ]] || w46b="$w46b
+FAIL: W46-15 ask-back after an advisor call blocked"
+[[ -z "$(run_claim a3 '舊的 log 檔已經沒用了，要不要刪除？' "$(trh a3.jsonl "$BASHU")")" ]] || w46b="$w46b
+FAIL: W46-15 a hard-stop ask (delete) blocked"
+[[ -z "$(run_claim a4 '原文寫著「要不要修？」。
+```
+should I deploy?
+```' "$(trh a4.jsonl "$BASHU")")" ]] || w46b="$w46b
+FAIL: W46-15 a quoted or fenced question blocked"
+[[ -z "$(run_claim a5 '已更新 README 的安裝步驟，並改了範例指令。
+
+✈' "$(trh a5.jsonl "$BASHU")")" ]] || w46b="$w46b
+FAIL: W46-15 a plain recap blocked"
+# Real FP: session f0ae08b3, 2026-11-06 — a negated ask states that nothing waits on the owner.
+i=0; for m in '目前沒有要你決定的事。' '不用你選，我照 advisor 的建議做。'; do i=$((i+1))
+  [[ -z "$(run_claim "n$i" "$m" "$(trh "n$i.jsonl" "$BASHU")")" ]] || w46b="$w46b
+FAIL: W46-15 a negated ask blocked: $m"; done
+[[ "$(run_claim n9 '沒問題的話，你決定哪一個？' "$(trh n9.jsonl "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 an ask after a negated condition passed"
+# L2 sol (2026-11-06): 不用 negates 問, not the owner's choice; only the direct phrase is stripped.
+[[ "$(run_claim n8 '不用問你選一個。' "$(trh n8.jsonl "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 a negation of another verb hid the ask"
+# L2 (2026-11-06): the kernel 4.47.0 final confirmation round names its item on the asking line or next to it.
+i=0; for m in '待你確認（maintenance §1）：kernel 4.48.0 diff 要不要套用？' '要我把 hooks 部署到其他主機（mini、grok-bot）嗎？' 'Shall I apply the CLAUDE.md diff?' '預算上限你決定：100 還是 200 美元？' '屬不可逆操作。
+要不要繼續？'; do i=$((i+1))
+  [[ -z "$(run_claim "f$i" "$m" "$(trh "f$i.jsonl" "$BASHU")")" ]] || w46b="$w46b
+FAIL: W46-15 a final-round ask blocked: $m"; done
+[[ "$(run_claim f9 '要不要把 evidence token 加進表格？' "$(trh f9.jsonl "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 'evidence token' read as a credential"
+# Real FP, session 45bc48a2, 2026-11-17T02:23Z: the ask itself names the removal.
+[[ -z "$(run_claim hs1 '上一題的殭屍 episode 跟這個無關，還等你決定要不要清。' "$(trh hs1.jsonl "$BASHU")")" ]] || w46b="$w46b
+FAIL: W46-15 an ask to remove records blocked"
+i=0; for m in '要不要清楚標出來？' '要不要清單也列進去？'; do i=$((i+1))
+  for loc in C en_US.UTF-8; do
+    [[ "$(LC_ALL=$loc run_claim "hs2$i$loc" "$m" "$(trh "hs2$i$loc.jsonl" "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 清楚/清單 read as a removal ($loc): $m"; done; done
+# A final-round list: each ask needs its own hard-stop item; the unrelated ask still blocks.
+[[ "$(run_claim hs4 '1. 舊 log 檔要不要刪除？
+2. README 的範例要不要改短？' "$(trh hs4.jsonl "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 one hard-stop ask exempted an unrelated ask in the same list"
+# Replay 2026-11-17 (session 73ff7a69): a removal word in a description line no longer exempts the ask below it.
+[[ "$(run_claim hs3 '- 同一支手機上的其他 App 拿到的值不一樣，刪掉重裝也會換新。
+- 兩個都是這次安裝的 ID。
+所以要不要加由你決定。' "$(trh hs3.jsonl "$BASHU")")" == block ]] || w46b="$w46b
+FAIL: W46-15 a removal word two lines above exempted the ask"
+[[ -z "$w46b" ]] || { echo "$w46b" >&2; exit 1; }
+echo 'PASS W46-15: ask-back with no consensus call blocks; advisor call, hard-stop ask, final-round ask, quoted ask and plain recap pass'
+# W46-18: a `full` resume recap line is bound to what resume_pack.py PRINTED after the resume prompt:
+# its summary line, READ stamps (with their page body) for user.txt and footprints.txt, and timeline.md
+# whose `lit` nodes are bound to an observation: a `--call T<n>` receipt printed after the resume prompt, or a
+# backticked string (8+ chars) a live check printed. Pack reads and echo/printf-only output never count.
+RP="$ROOT/skills/session-handoff/scripts/resume_pack.py"
+LG="$WORK/logs/abcd1234-0000.jsonl"; mkdir -p "$WORK/logs/abcd1234-0000/subagents"
+{ jq -cn '{type:"user",timestamp:"2026-01-01T00:00:00Z",message:{content:"do it"}}'
+  jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:01Z",message:{content:[{type:"tool_use",id:"t1",name:"Bash",input:{command:"make"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:02Z",message:{content:[{type:"tool_result",tool_use_id:"t1",is_error:true,content:"make: *** [all] Error 2"}]}}'; } > "$LG"
+{ jq -cn '{type:"user",timestamp:"2026-01-01T00:00:00Z",message:{content:"sub"}}'
+  jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:01Z",message:{content:[{type:"tool_use",id:"s1",name:"Read",input:{file_path:"x"}}]}}'; } > "$WORK/logs/abcd1234-0000/subagents/agent-a1.jsonl"
+PK="$(mkdir -p "$WORK/pack" && cd "$WORK/pack" && pwd -P)"
+SUMMARY="$(python3 "$RP" --out "$PK" "$LG")" || { echo "FAIL: W46-18 resume_pack.py could not build the smoke pack" >&2; exit 1; }
+# A plain JSONL pack must build with no zstd. A .zst log still fails closed when zstd is absent.
+if ! command -v zstd >/dev/null 2>&1; then
+  printf 'not a zstd frame\n' > "$WORK/logs/no-zstd.jsonl.zst"
+  if python3 "$RP" --out "$WORK/zst-out" "$WORK/logs/no-zstd.jsonl.zst" >"$WORK/zst.stdout" 2>"$WORK/zst.stderr"; then
+    echo "FAIL: W46-18 a .zst log exited 0 without zstd" >&2; exit 1
+  fi
+  grep -qx 'missing binary: zstd' "$WORK/zst.stderr" || { echo "FAIL: W46-18 .zst without zstd: $(cat "$WORK/zst.stderr")" >&2; exit 1; }
+  [[ ! -e "$WORK/zst-out" ]] || { echo "FAIL: W46-18 .zst failure created output" >&2; exit 1; }
+fi
+[[ -z "$(ls -d "$PK"/abcd1234/sub-* 2>/dev/null)" ]] || { echo "FAIL: W46-18 a subagent was packed without --subagents" >&2; exit 1; }
+rdp() { python3 "$RP" --read "$PK/$1"; }
+printf '# timeline\n- do it · said: make ran · receipt T0001 · lit\n' > "$PK/abcd1234/timeline.md"
+res() { # one call and its output: an output with no call of its own is not a live check
+  local id="r$RANDOM$RANDOM"
+  jq -cn --arg i "$id" '{type:"assistant",timestamp:"2026-01-01T00:00:06.000Z",message:{content:[{type:"tool_use",id:$i,name:"Bash",input:{command:"check"}}]}}'
+  jq -cn --arg i "$id" --arg c "$1" '{type:"user",timestamp:"2026-01-01T00:00:06.000Z",message:{content:[{type:"tool_result",tool_use_id:$i,content:$c}]}}'; }
+rtr() { # $1 file, then tool outputs printed after the second prompt; the pack ran after the resume prompt
+  local f="$WORK/$1"; shift
+  { jq -cn '{type:"user",timestamp:"2026-01-01T00:00:00.000Z",message:{content:"/session-handoff resume 前情提要：照 RESUME 流程讀"}}'
+    res "$SUMMARY"
+    jq -cn '{type:"user",timestamp:"2026-01-01T00:00:05.000Z",message:{content:"繼續"}}'
+    for o in "$@"; do res "$o"; done; } > "$f"
+  printf '%s' "$f"
+}
+C="$(jq -r .count "$PK/abcd1234/manifest.json")"; T="$(jq -r .tools "$PK/abcd1234/manifest.json")"
+FULL="- abcd1234 full · COUNT $C · TOOLS $T · pack $PK"
+ALL=("$(rdp abcd1234/user.txt)" "$(python3 "$RP" --call "$PK/abcd1234" T1)" "$(rdp abcd1234/footprints.txt)")
+[[ "${ALL[1]}" == *"CALL-READ $PK/abcd1234 T0001 S01:"* ]] || { echo "FAIL: W46-18 --call printed no CALL-READ stamp: ${ALL[1]}" >&2; exit 1; }
+w46r=""
+[[ "$(run_claim r1 "$FULL" "$(trh r1.jsonl "$BASHU")")" == block ]] || w46r="$w46r
+FAIL: W46-18 full with no pack output passed"
+[[ -z "$(run_claim r2 "$FULL" "$(rtr r2.jsonl "${ALL[@]}")")" ]] || w46r="$w46r
+FAIL: W46-18 summary + user.txt + footprints + a --call receipt for the lit node across two prompts blocked"
+[[ "$(run_claim r3 "$FULL" "$(rtr r3.jsonl "${ALL[0]}" "$(rdp abcd1234/slices/S01.txt)" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a slice page read stood in for the --call receipt of a lit node"
+[[ "$(run_claim r18 "$FULL" "$(rtr r18.jsonl "${ALL[0]}" "${ALL[1]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 footprints.txt left unread passed"
+[[ "$(run_claim r4 "$FULL" "$(rtr r4.jsonl "$(printf '%s\n' "${ALL[0]}" | tail -1)" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a READ stamp with no page body (| tail -1) counted"
+[[ "$(run_claim r5 "- abcd1234 full · COUNT 9 · TOOLS $T · pack $PK" "$(rtr r5.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a typed COUNT that is not the pack's passed"
+[[ -z "$(run_claim r6 '- abcd1234 partial (slices S03-S09 not read)' "$(trh r6.jsonl "$BASHU")")" ]] || w46r="$w46r
+FAIL: W46-18 a partial line blocked"
+[[ "$(run_claim r7 "$FULL" "$(rtr r7.jsonl "${ALL[0]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a lit node whose evidence was never read passed"
+[[ "$(run_claim r8 "$FULL" "$(rtr r8.jsonl "File does not exist." "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a failed read of user.txt counted"
+OLD="$WORK/r9.jsonl"; { res "$SUMMARY"; for o in "${ALL[@]}"; do res "$o"; done
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:09.000Z",message:{content:"/session-handoff resume 前情提要"}}'; } > "$OLD"
+[[ "$(run_claim r9 "$FULL" "$OLD")" == block ]] || w46r="$w46r
+FAIL: W46-18 reads from before the latest resume prompt counted"
+CX="$WORK/r10.jsonl"; { jq -cn '{timestamp:"2026-01-01T00:00:00.000Z",type:"event_msg",payload:{type:"item_completed",item:{type:"UserMessage"}}}'
+  jq -cn '{type:"response_item",timestamp:"2026-01-01T00:00:00.000Z",payload:{type:"message",role:"user",content:[{type:"input_text",text:"/session-handoff resume 前情提要"}]}}'
+  for o in "$SUMMARY" "${ALL[@]}"; do jq -cn --arg o "$o" '{type:"response_item",timestamp:"2026-01-01T00:00:01.000Z",payload:{type:"function_call_output",call_id:"c",output:$o}}'; done; } > "$CX"
+[[ -z "$(run_claim r10 "$FULL" "$CX")" ]] || w46r="$w46r
+FAIL: W46-18 a Codex transcript with the pack output blocked"
+printf '%s\n' '{"timestamp":"2026-01-01T00:00:00.000Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"UserMessage"}}}' > "$WORK/r11.jsonl"
+[[ "$(run_claim r11 "$FULL" "$WORK/r11.jsonl")" == block ]] || w46r="$w46r
+FAIL: W46-18 a Codex transcript with no pack output passed"
+PAD="$(printf '%s\n' "${ALL[0]}" | sed '$!s/.*/padding/')"
+[[ "$(run_claim r13 "$FULL" "$(rtr r13.jsonl "$PAD" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a READ stamp under padding lines (not the page body) counted"
+PB="$(printf '%s\n' "$PAD" | sed '$d')"; PS="$(printf '%s' "$PB" | { sha256sum 2>/dev/null || shasum -a 256; } | cut -d' ' -f1)"
+FORGED="$PB
+$(printf '%s\n' "$PAD" | tail -1 | sed -E "s/body=[0-9a-f]{64}/body=$PS/")"
+[[ "$(run_claim r15 "$FULL" "$(rtr r15.jsonl "$FORGED" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 padding under a stamp with a forged body= counted"
+CB="$WORK/r14.jsonl"; { jq -cn '{type:"response_item",timestamp:"2026-01-01T00:00:00.000Z",payload:{type:"message",role:"user",content:[{type:"input_text",text:"/session-handoff resume 前情提要"}]}}'
+  for o in "$SUMMARY" "${ALL[@]}"; do jq -cn --arg o "$o" '{type:"response_item",timestamp:"2026-01-01T00:00:01.000Z",payload:{type:"custom_tool_call_output",call_id:"c",output:[{type:"input_text",text:$o}]}}'; done; } > "$CB"
+[[ -z "$(run_claim r14 "$FULL" "$CB")" ]] || w46r="$w46r
+FAIL: W46-18 a Codex content-block output list blocked"
+U="$PK/abcd1234/user.txt"; python3 -c 'import sys; open(sys.argv[1], "w").write("".join("U%03d: %s\n" % (i, "x" * 120) for i in range(300)) + "L" * 5000 + "\n")' "$U"
+UT="$(python3 "$RP" --read "$U" --page 1 | tail -1 | sed -E 's/.* page 1\/([0-9]+) .*/\1/')"; UP=()
+for n in $(seq 1 "$UT"); do UP+=("$(python3 "$RP" --read "$U" --page "$n")"); done
+[[ "$UT" -ge 3 && -z "$(run_claim r16 "$FULL" "$(rtr r16.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")")" ]] || w46r="$w46r
+FAIL: W46-18 every page of a multi-page user.txt (one line over 4000 chars) blocked: gate and resume_pack.py page differently"
+[[ "$(run_claim r17 "$FULL" "$(rtr r17.jsonl "${UP[@]:0:$((UT - 1))}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a multi-page user.txt with its last page unread passed"
+cp "$PK/abcd1234/timeline.md" "$WORK/timeline.keep"
+printf '# timeline\n- do it · said: make ran · no light\n' > "$PK/abcd1234/timeline.md"
+[[ "$(run_claim r20 "$FULL" "$(rtr r20.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a timeline node with no lit/dim/dark passed"
+printf '# timeline\n- do it · said: make ran · lit\n' > "$PK/abcd1234/timeline.md"
+[[ "$(run_claim r21 "$FULL" "$(rtr r21.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a lit node with no observation passed"
+printf '# timeline\n- do it · said: make ran T0001 · evidence `make: *** [all] Error 2` · lit\n' > "$PK/abcd1234/timeline.md"
+[[ "$(run_claim r22 "$FULL" "$(rtr r22.jsonl "${UP[@]}" "${ALL[2]}" "$(rdp abcd1234/slices/S01.txt)")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a lit node quoting only pack text (the old account witnessing itself) passed"
+printf '# timeline\n- do it · said: make ran T0001 · now `build finished: 3 targets ok` · lit\n' > "$PK/abcd1234/timeline.md"
+[[ -z "$(run_claim r24 "$FULL" "$(rtr r24.jsonl "${UP[@]}" "${ALL[2]}" "build finished: 3 targets ok")")" ]] || w46r="$w46r
+FAIL: W46-18 a lit node quoting a live check's output blocked"
+EC="$(rtr r27.jsonl "${UP[@]}" "${ALL[2]}")"
+{ jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"e1",name:"Bash",input:{command:"echo build finished: 3 targets ok"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"e1",content:"build finished: 3 targets ok"}]}}'; } >> "$EC"
+[[ "$(run_claim r27 "$FULL" "$EC")" == block ]] || w46r="$w46r
+FAIL: W46-18 an echo-only command stood in for a live check"
+WC="$(rtr r29.jsonl "${UP[@]}" "${ALL[2]}")"
+{ jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"w1",name:"Write",input:{file_path:"/x/note.txt",content:"build finished: 3 targets ok"}}]}}'
+  jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_use",id:"w2",name:"Bash",input:{command:"cat /x/note.txt"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:09.000Z",message:{content:[{type:"tool_result",tool_use_id:"w2",content:"build finished: 3 targets ok"}]}}'; } >> "$WC"
+[[ "$(run_claim r29 "$FULL" "$WC")" == block ]] || w46r="$w46r
+FAIL: W46-18 a quote the agent wrote to a file and read back stood in for a live check"
+LC="$(rtr r32.jsonl "${UP[@]}" "${ALL[2]}" "build finished: 3 targets ok")"
+{ jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"l1",name:"Bash",input:{command:"grep -n \"build finished: 3 targets ok\" build.log"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"l1",content:"4:build finished: 3 targets ok"}]}}'; } >> "$LC"
+[[ -z "$(run_claim r32 "$FULL" "$LC")" ]] || w46r="$w46r
+FAIL: W46-18 a quote seen in output first and used in a later command was un-witnessed"
+BC="$(rtr r35.jsonl "${UP[@]}" "${ALL[2]}")"
+{ jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"b1",name:"Bash",input:{command:"python3 validate_handoff.py .claude/handoffs/h.md; make"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"b1",content:"Verdict: READY\nbuild finished: 3 targets ok"}]}}'; } >> "$BC"
+[[ -z "$(run_claim r35 "$FULL" "$BC")" ]] || w46r="$w46r
+FAIL: W46-18 a batch passing a handoff path to a validator lost its live output"
+RH="$(rtr r36.jsonl "${UP[@]}" "${ALL[2]}")"
+{ jq -cn '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"h1",name:"Read",input:{file_path:"/repo/.claude/handoffs/h.md"}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"h1",content:"build finished: 3 targets ok"}]}}'; } >> "$RH"
+[[ "$(run_claim r36 "$FULL" "$RH")" == block ]] || w46r="$w46r
+FAIL: W46-18 a Read of a handoff stood in for a live check"
+FC="$(rtr r30.jsonl "${UP[@]}" "${ALL[2]}")"
+{ jq -cn --arg c "cat $PK/abcd1234/footprints.txt" '{type:"assistant",timestamp:"2026-01-01T00:00:07.000Z",message:{content:[{type:"tool_use",id:"f1",name:"Bash",input:{command:$c}}]}}'
+  jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"f1",content:"build finished: 3 targets ok"}]}}'; } >> "$FC"
+[[ "$(run_claim r30 "$FULL" "$FC")" == block ]] || w46r="$w46r
+FAIL: W46-18 output of a command on a pack file stood in for a live check"
+FORGED_CALL="$(printf '%s\n' "${ALL[1]}" | python3 -c '
+import sys, hashlib, re
+l = sys.stdin.read().splitlines(); st = l[-1]; body = [re.sub(r"make", "true", x) for x in l[:-1]]
+d = hashlib.sha256("\n".join(body).encode()).hexdigest()
+print("\n".join(body + [re.sub(r"body=[0-9a-f]{64}", "body=" + d, st)]))')"
+printf '# timeline\n- do it · said: make ran · receipt T0001 · lit\n' > "$PK/abcd1234/timeline.md"
+[[ "$FORGED_CALL" != "${ALL[1]}" && "$(run_claim r31 "$FULL" "$(rtr r31.jsonl "${UP[@]}" "$FORGED_CALL" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a CALL-READ stamp over a body that is not the slice on disk counted"
+HEAD_CALL="$(printf '%s\n' "${ALL[1]}" | python3 -c '
+import sys, hashlib, re
+l = sys.stdin.read().splitlines(); st = l[-1]; body = l[:1]
+d = hashlib.sha256("\n".join(body).encode()).hexdigest()
+print("\n".join(body + [re.sub(r"lines [0-9]+-[0-9]+ body=[0-9a-f]{64}", "lines 1-1 body=" + d, st)]))')"
+[[ "$(run_claim r33 "$FULL" "$(rtr r33.jsonl "${UP[@]}" "$HEAD_CALL" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a CALL-READ receipt printing only the first line of the call block counted"
+printf '# timeline\n- do it · said: make ran T0001 · now `build finished: 3 targets ok` · lit\n' > "$PK/abcd1234/timeline.md"
+OC="$(rtr r34.jsonl "${UP[@]}" "${ALL[2]}")"
+jq -cn '{type:"user",timestamp:"2026-01-01T00:00:08.000Z",message:{content:[{type:"tool_result",tool_use_id:"orphan",content:"build finished: 3 targets ok"}]}}' >> "$OC"
+[[ "$(run_claim r34 "$FULL" "$OC")" == block ]] || w46r="$w46r
+FAIL: W46-18 an output with no call of its own stood in for a live check"
+printf '# timeline\n- do it · said: make ran T0001 · now `ok` · lit\n' > "$PK/abcd1234/timeline.md"
+[[ "$(run_claim r28 "$FULL" "$(rtr r28.jsonl "${UP[@]}" "${ALL[2]}" "ok")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a quote under 8 characters bound a lit node"
+printf '# timeline\n- asked: keep the room lit · said: T0001 failed · dim\n' > "$PK/abcd1234/timeline.md"
+R25_OUT="$(printf '%s' "$(jq -cn --arg t "$(rtr r25.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")" --arg m "$FULL" '{session_id:"r25",transcript_path:$t,stop_hook_active:false,last_assistant_message:$m}')" | HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" XDG_STATE_HOME="$TEST_HOME/.local/state" bash "$ROOT/.agents/hooks/claim-evidence-gate.sh")"
+[[ "$(printf '%s' "$R25_OUT" | jq -r '.decision // empty')" == block && "$(printf '%s' "$R25_OUT" | jq -r '.reason // empty')" == *"failed call T0001 (footprints.txt) is in no lit or dark timeline node"* ]] || w46r="$w46r
+FAIL: W46-18 a failed call in footprints.txt sitting only in a dim timeline node passed or wrong reason: $R25_OUT"
+printf '# timeline\n- asked: keep the room lit · said: T0001 unresolved · dark\n' > "$PK/abcd1234/timeline.md"
+[[ -z "$(run_claim r23 "$FULL" "$(rtr r23.jsonl "${UP[@]}" "${ALL[2]}")")" ]] || w46r="$w46r
+FAIL: W46-18 a failed call in a dark timeline node with footprints read blocked"
+cp "$WORK/timeline.keep" "$PK/abcd1234/timeline.md"
+[[ -z "$(run_claim r26 "$FULL" "$(rtr r26.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")")" ]] || w46r="$w46r
+FAIL: W46-18 a failed call in a lit timeline node with its read evidence blocked"
+mv "$PK/abcd1234/timeline.md" "$WORK/timeline.bak"
+[[ "$(run_claim r19 "$FULL" "$(rtr r19.jsonl "${UP[@]}" "${ALL[1]}" "${ALL[2]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 full with no timeline.md passed"
+mv "$WORK/timeline.bak" "$PK/abcd1234/timeline.md"
+printf 'edited\n' >> "$PK/abcd1234/user.txt"
+[[ "$(run_claim r12 "$FULL" "$(rtr r12.jsonl "${ALL[@]}")")" == block ]] || w46r="$w46r
+FAIL: W46-18 a stamp whose sha no longer matches user.txt counted"
+[[ -z "$w46r" ]] || { echo "$w46r" >&2; exit 1; }
+echo 'PASS W46-18: a full recap needs the pack summary and READ-stamped pages of user.txt and footprints.txt, and a timeline.md whose lit nodes are bound to a --call receipt or a live check (not pack text, not echo), after the latest resume prompt (Claude and Codex, string or content blocks); tail -1, padding above a stamp, forged body=, failed reads, old reads, edited files block'
+[[ "$(run_claim h8 '頁面已上線：https://claude.ai/artifact/x' "$(trh h8.jsonl "$PUBU" '{"name":"Bash","input":{"command":"echo take a screenshot later"}}')")" == block ]] || { echo "FAIL: W44-7 a Bash line naming a screenshot passed as a render check" >&2; exit 1; }
+
+# bol: prose shape is no longer judged (runnable-check heuristic retired
+# 2026-08-30 under the kernel's do-not-mechanize-judgment rule). A declared
+# proxy brief still has its fields checked.
+run_bol 'GOAL: implement retry in client.ts ACCEPTANCE: retries work REPORT: summary' || { echo "FAIL: brief blocked for lacking a command" >&2; exit 1; }
+run_bol 'GOAL: Answer: which SDK version ACCEPTANCE: every claim cited REPORT: path + summary' || { echo "FAIL: research brief blocked" >&2; exit 1; }
+if run_bol 'PROXY_MODE: agent-tmux-assign
+GOAL: host one assign ACCEPTANCE: it returns
+REPORT
+exit code + status/summary only; do not read or reproduce worker output.'; then echo "FAIL: proxy brief without WORKER_ARTIFACT not blocked" >&2; exit 1; fi
+tail -1 "$TEST_DATA/agent-hooks/bol-prompt-stats.jsonl" | jq -e '.result == "fail" and .missing == ["SCHEMA"] and .blocked == true' >/dev/null
+# typed proxy contract: a canonical marked brief passes, an altered REPORT is denied, and
+# unmarked briefs that only QUOTE dispatch vocabulary keep passing (Codex counterexamples
+# A/B/C, 2026-08-30 adversarial review) or the gate blocks its own review and tests.
+# shellcheck disable=SC2016  # single-quoted fixtures hold literal backticks on purpose
+PROXY_HEAD='PROXY_MODE: agent-tmux-assign
+WORKER_ARTIFACT: /tmp/run/findings.md
+
+GOAL
+Host exactly one blocking `agent-tmux agy assign w1 /tmp/run /tmp/run/p.md` call.
+
+ACCEPTANCE
+The assign call returns.
+'
+run_bol "$PROXY_HEAD
+REPORT
+exit code + status/summary only; do not read or reproduce worker output." || { echo "FAIL: canonical proxy brief blocked" >&2; exit 1; }
+if run_bol "$PROXY_HEAD
+REPORT
+Return the worker's answer VERBATIM."; then echo "FAIL: proxy brief with altered REPORT not blocked" >&2; exit 1; fi
+run_bol 'GOAL: Update the dispatch runbook. Explain why `agent-tmux agy assign NAME DIR PROMPT`
+must be hosted by a supervision proxy.
+
+ACCEPTANCE: Preserve the current policy sentence "reports exit code + status/summary
+only" VERBATIM, add one valid command example, and run `bash scripts/check-rules-invariants.mjs`.
+
+REPORT: List changed files and the checker exit code.' || { echo "FAIL: unmarked runbook brief blocked" >&2; exit 1; }
+run_bol 'GOAL: Adversarially review a hook that rejects prompts containing
+`agent-tmux` followed by `assign` plus a full-output demand.
+
+ACCEPTANCE: Quote each tested denial message word for word and include the complete
+output of `bash scripts/test-jsonl-hooks-smoke`. Do not summarize the supplied incident quotation.
+
+REPORT: Write findings to review.md and return only the verdict.' || { echo "FAIL: unmarked review brief blocked" >&2; exit 1; }
+run_bol 'GOAL: Diagnose why the documented `agent-tmux claude assign` example exits 2.
+
+ACCEPTANCE: Reproduce locally with `zsh -n scripts/agent-tmux`. Capture the error line VERBATIM so its
+punctuation can be compared with the parser fixture. Do not summarise the error message.
+
+REPORT: Give the root cause, test exit code, and the exact failing log line only.' || { echo "FAIL: unmarked debugging brief blocked" >&2; exit 1; }
+
+# deny-replay: the same (tool, input) that a gate BLOCKED earlier is short-circuited; a fresh input and a plain error are not
+TR5="$WORK/transcript-deny.jsonl"
+printf '%s\n' \
+  '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"gated-cmd --foreground"}}]}}' \
+  '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t1","is_error":true,"content":"BLOCKED: gated-cmd must not run in the foreground"}]}}' \
+  '{"type":"assistant","message":{"content":[{"type":"tool_use","id":"t2","name":"Bash","input":{"command":"npm test"}}]}}' \
+  '{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"t2","is_error":true,"content":"Exit code 1\n3 failing"}]}}' > "$TR5"
+run_deny() { printf '%s' "$(jq -cn --arg tp "$TR5" --arg c "$1" '{tool_name:"Bash",transcript_path:$tp,tool_input:{command:$c}}')" \
+  | HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" bash "$ROOT/.agents/hooks/deny-replay-gate.sh" >/dev/null 2>&1; }
+if run_deny 'gated-cmd --foreground'; then echo "FAIL: replay of a BLOCKED call was not short-circuited" >&2; exit 1; fi
+run_deny 'npm test'  || { echo "FAIL: re-running a plain failing command was blocked" >&2; exit 1; }
+run_deny 'ls -la'    || { echo "FAIL: a fresh call was blocked" >&2; exit 1; }
+check_jsonl "$TEST_DATA/agent-hooks/deny-replay-stats.jsonl" 3 '(.tool=="Bash") and (.replay_blocked|type)=="boolean"'
+[[ "$(jq -r 'select(.replay_blocked==true)|.tool' "$TEST_DATA/agent-hooks/deny-replay-stats.jsonl" | wc -l | tr -d ' ')" == 1 ]]
+# Codex rollout shape (live 2026-09-26): exec JS input + "Command blocked by PreToolUse hook" output.
+TR6="$WORK/rollout-deny.jsonl"
+printf '%s\n' \
+  '{"type":"response_item","payload":{"type":"custom_tool_call","call_id":"c1","name":"exec","input":"text(await tools.exec_command({cmd:\"gated-cmd \\\"x\\\"\",max_output_tokens:1000}));\n"}}' \
+  '{"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c1","output":[{"type":"input_text","text":"Script failed\nCommand blocked by PreToolUse hook: BLOCKED: no"}]}}' > "$TR6"
+run_codex_deny() { printf '%s' "$(jq -cn --arg tp "$TR6" --arg c "$1" '{tool_name:"Bash",transcript_path:$tp,tool_input:{command:$c}}')" \
+  | HOME="$TEST_HOME" XDG_DATA_HOME="$TEST_DATA" bash "$ROOT/.agents/hooks/deny-replay-gate.sh" >/dev/null 2>&1; }
+if run_codex_deny 'gated-cmd "x"'; then echo "FAIL: Codex replay of a BLOCKED call was not short-circuited" >&2; exit 1; fi
+run_codex_deny 'gated-cmd "y"' || { echo "FAIL: a fresh Codex call was blocked" >&2; exit 1; }
+printf '%s\n' \
+  '{"type":"response_item","payload":{"type":"custom_tool_call","call_id":"c2","name":"exec","input":"text(await tools.exec_command({cmd:\"rg phrase\",max_output_tokens:1000}));\n"}}' \
+  '{"type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c2","output":[{"type":"input_text","text":"Script completed\nOutput:\nx.sh:3: Command blocked by PreToolUse hook: y"}]}}' >> "$TR6"
+run_codex_deny 'rg phrase' || { echo "FAIL: output that only mentions the deny phrase was treated as a deny" >&2; exit 1; }
+
+# host load gate: fake uname/sysctl on PATH give fixed readings (10 cores: warn load1 > 15, deny > 20)
+mkdir -p "$WORK/fakebin"
+printf '#!/bin/sh\necho "${FAKE_UNAME:-Darwin}"\n' > "$WORK/fakebin/uname"
+cat > "$WORK/fakebin/sysctl" <<'EOF'
+#!/bin/sh
+case "$2" in
+  hw.ncpu) echo 10 ;;
+  vm.loadavg) echo "$FAKE_LOADAVG" ;;
+  kern.memorystatus_vm_pressure_level) echo "$FAKE_MP" ;;
+esac
+EOF
+printf '#!/bin/sh\nprintf "%%s" "$FAKE_TMUX_SESSIONS"\n' > "$WORK/fakebin/tmux"
+chmod +x "$WORK/fakebin/uname" "$WORK/fakebin/sysctl" "$WORK/fakebin/tmux"
+HIGH='{ 1.00 21.00 1.00 }'
+host_payload() { # $1 tool_name, $2 command
+  jq -cn --arg t "$1" --arg c "${2:-}" '{tool_name:$t,session_id:"hlg",tool_input:{command:$c,prompt:"p"}}'
+}
+run_host() { # $1 loadavg, $2 pressure level, $3 payload; returns the hook's exit code
+  printf '%s' "$3" | PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="$1" FAKE_MP="$2" XDG_DATA_HOME="$WORK/hlg-data" \
+    bash "$ROOT/.agents/hooks/host-load-gate.sh" >"$WORK/host-out" 2>"$WORK/host-err"
+}
+AGENT="$(host_payload Agent)"
+run_host '{ 1.00 1.00 1.00 }' 1 "$AGENT" && [[ ! -s "$WORK/host-out" ]] || { echo "FAIL: host gate not silent at low load" >&2; exit 1; }
+run_host '{ 15.00 20.00 1.00 }' 1 "$AGENT" && [[ ! -s "$WORK/host-out" ]] || { echo "FAIL: host gate fired at exactly the thresholds" >&2; exit 1; }
+run_host '{ 16.00 1.00 1.00 }' 1 "$AGENT" || { echo "FAIL: load1 warn was denied" >&2; exit 1; }
+jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and (.hookSpecificOutput.additionalContext | test("Top processes"))' "$WORK/host-out" >/dev/null || { echo "FAIL: warn did not reach the model as additionalContext" >&2; exit 1; }
+run_host '{ 1.00 1.00 1.00 }' 2 "$AGENT" && grep -q additionalContext "$WORK/host-out" || { echo "FAIL: memory pressure warn missing" >&2; exit 1; }
+if run_host "$HIGH" 1 "$AGENT"; then echo "FAIL: load5 over 2x cores did not deny Agent" >&2; exit 1; fi
+grep -q '^BLOCKED by host-load-gate' "$WORK/host-err" && grep -q 'start-ssh' "$WORK/host-err" || { echo "FAIL: deny message lacks reason or offload" >&2; exit 1; }
+if run_host '{ 1.00 1.00 1.00 }' 4 "$AGENT"; then echo "FAIL: critical memory pressure was not denied" >&2; exit 1; fi
+if run_host 'garbage' 1 "$AGENT"; then echo "FAIL: unreadable load was allowed" >&2; exit 1; fi
+grep -q 'cannot read host load' "$WORK/host-err" || { echo "FAIL: read failure not named" >&2; exit 1; }
+HOST_LOAD_GATE=off run_host "$HIGH" 4 "$AGENT" || { echo "FAIL: HOST_LOAD_GATE=off still denied" >&2; exit 1; }
+FAKE_UNAME=Linux run_host 'garbage' 1 "$AGENT" && grep -q 'macOS only' "$WORK/host-err" || { echo "FAIL: non-macOS host not skipped with a notice" >&2; exit 1; }
+# one stats row per gated launch, in call order (W42-7); off writes none
+got="$(jq -r .decision "$WORK/hlg-data/agent-hooks/host-load-stats.jsonl" | paste -sd' ' -)"
+[ "$got" = "allow allow warn warn deny deny deny-unreadable skip-os" ] || { echo "FAIL: host load stats rows: $got" >&2; exit 1; }
+# which launches it gates: Codex v2 spawn and local agent-tmux launches; not reads, start-ssh, dry-run, other tools
+if run_host "$HIGH" 1 "$(host_payload collaborationspawn_agent)"; then echo "FAIL: Codex v2 spawn not gated" >&2; exit 1; fi
+for c in 'agent-tmux codex start w /tmp' '/x/scripts/agent-tmux grok assign w /tmp' 'cd /tmp && agent-tmux claude resume w' 'tmux-agent-fanout --cli codex'; do
+  if run_host "$HIGH" 1 "$(host_payload Bash "$c")"; then echo "FAIL: local launch not gated: $c" >&2; exit 1; fi
+done
+for c in 'agent-tmux codex start-ssh w host /tmp' 'agent-tmux codex start --dry-run w /tmp' 'agent-tmux codex list' 'ls agent-tmux-start' 'git status'; do
+  run_host "$HIGH" 1 "$(host_payload Bash "$c")" || { echo "FAIL: non-launch command was gated: $c" >&2; exit 1; }
+done
+run_host "$HIGH" 1 "$(host_payload Read)" || { echo "FAIL: unrelated tool was gated" >&2; exit 1; }
+# tmux worker cap (2026-11-06): at low load, 3 live workers deny a fourth tmux launch; a native subagent is not capped
+LOW='{ 1.00 1.00 1.00 }'
+TWO="$(printf 'main\nclaude-ds-review.cxq0u\ncodex-sol-fix.ab12c\nagy-flash-x.zz9yy\n')"
+if FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload mcp__tmux-agent__assign)"; then echo "FAIL: mod assign over the worker cap was allowed" >&2; exit 1; fi
+grep -q 'live tmux workers on this host (cap 3)' "$WORK/host-err" && grep -q 'native subagent' "$WORK/host-err" || { echo "FAIL: worker-cap deny lacks count or next steps" >&2; exit 1; }
+if FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux codex start w /tmp')"; then echo "FAIL: agent-tmux start over the worker cap was allowed" >&2; exit 1; fi
+FAKE_TMUX_SESSIONS="$(printf 'main\nclaude-ds-review.cxq0u\ncodex-sol-fix.ab12c\n')" run_host "$LOW" 1 "$(host_payload mcp__tmux-agent__assign)" || { echo "FAIL: mod assign under the worker cap was denied" >&2; exit 1; }
+FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux codex start w /tmp')" && [[ ! -s "$WORK/host-out" ]] || { echo "FAIL: launch with no live worker was not silently allowed" >&2; exit 1; }
+FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$AGENT" || { echo "FAIL: native subagent was blocked by the tmux worker cap" >&2; exit 1; }
+FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux codex start-ssh w host /tmp')" || { echo "FAIL: remote start-ssh was blocked by the tmux worker cap" >&2; exit 1; }
+echo "PASS tmux worker cap: 3 live workers deny a 4th mod assign or agent-tmux start; native subagent, start-ssh and 2 live workers pass"
+# the deny reaches Cursor (subagentStart, preToolUse Shell) and agy (run_command) through their adapters
+run_adapted() { # $1 adapter command..., stdin payload
+  PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="${ADAPT_LOADAVG:-$HIGH}" FAKE_MP=1 HOME="$TEST_HOME" \
+    CURSOR_ADAPT_HOOKS_DIR="$ROOT/.agents/hooks" AGY_ADAPT_HOOKS_DIR="$ROOT/.agents/hooks" "$@" 2>/dev/null
+}
+out="$(printf '%s' '{"hook_event_name":"subagentStart","subagent_type":"general","task":"t","conversation_id":"c"}' | run_adapted bash "$ROOT/.agents/hooks/cursor-adapt.sh" host-load-gate)" || true
+printf '%s' "$out" | jq -e '.permission == "deny" and (.agent_message | test("host-load-gate"))' >/dev/null || { echo "FAIL: Cursor subagentStart deny not mapped: $out" >&2; exit 1; }
+out="$(printf '%s' '{"hook_event_name":"preToolUse","tool_name":"Shell","tool_input":{"command":"agent-tmux codex start w /tmp"},"conversation_id":"c"}' | run_adapted bash "$ROOT/.agents/hooks/cursor-adapt.sh" host-load-gate)" || true
+printf '%s' "$out" | jq -e '.permission == "deny"' >/dev/null || { echo "FAIL: Cursor Shell launch deny not mapped: $out" >&2; exit 1; }
+# cursor-agent CLI never fires subagentStart for Task (live probe 2026-10-03); preToolUse Task does
+out="$(printf '%s' '{"hook_event_name":"preToolUse","tool_name":"Task","tool_input":{"subagent_type":"general","prompt":"t"},"conversation_id":"c"}' | run_adapted bash "$ROOT/.agents/hooks/cursor-adapt.sh" host-load-gate)" || true
+printf '%s' "$out" | jq -e '.permission == "deny"' >/dev/null || { echo "FAIL: Cursor preToolUse Task deny not mapped: $out" >&2; exit 1; }
+# a warn reaches Cursor's model as additional_context; the deny names the next steps and the offload host
+out="$(printf '%s' '{"hook_event_name":"preToolUse","tool_name":"Shell","tool_input":{"command":"agent-tmux codex start w /tmp"},"conversation_id":"c"}' | ADAPT_LOADAVG='{ 16.00 1.00 1.00 }' run_adapted bash "$ROOT/.agents/hooks/cursor-adapt.sh" host-load-gate)"
+printf '%s' "$out" | jq -e '.additional_context | test("host-load-gate")' >/dev/null || { echo "FAIL: Cursor warn not forwarded as additional_context: $out" >&2; exit 1; }
+HOST_LOAD_OFFLOAD_HOST=box9 run_host "$HIGH" 1 "$AGENT" || true
+grep -q 'start-ssh <name> box9 ' "$WORK/host-err" && grep -q '^1\. Feed a live worker' "$WORK/host-err" || { echo "FAIL: deny lacks ordered next steps or offload host" >&2; exit 1; }
+out="$(printf '%s' '{"conversationId":"c","toolCall":{"name":"run_command","args":{"CommandLine":"agent-tmux codex start w /tmp"}}}' | run_adapted bash "$ROOT/.agents/hooks/agy-adapt.sh" PreToolUse host-load-gate)"
+printf '%s' "$out" | jq -e '.decision == "deny"' >/dev/null || { echo "FAIL: agy run_command deny not mapped: $out" >&2; exit 1; }
+out="$(printf '%s' '{"conversationId":"c","toolCall":{"name":"invoke_subagent","args":{"Task":"t"}}}' | run_adapted bash "$ROOT/.agents/hooks/agy-adapt.sh" PreToolUse host-load-gate)"
+printf '%s' "$out" | jq -e '.decision == "deny"' >/dev/null || { echo "FAIL: agy invoke_subagent deny not mapped: $out" >&2; exit 1; }
+
+echo "JSONL hooks smoke: bol denies incomplete briefs + proxy briefs missing declared fields; concurrency gate denies the 6th subagent; ledger counts pending-less workflow agents per run and caps the 26th; workflow TaskStop drops only that run's markers; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call; host load gate warns via additionalContext, denies Agent/v2 spawn/local agent-tmux launches on load/pressure/unreadable (also through the Cursor and agy adapters), passes start-ssh/dry-run/off/non-macOS"

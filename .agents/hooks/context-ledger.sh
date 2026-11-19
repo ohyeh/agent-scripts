@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# PostToolUse hook (A5): minimal context-exhaustion ledger. Appends one JSONL
+# line per tool call (tool name, file path if the input carries one, sha256
+# of the tool_input) to ledger.jsonl in the session's run dir. No analysis
+# layer — this is the smallest thing that produces a greppable audit trail.
+set -u
+
+IN="$(cat)"
+command -v jq >/dev/null 2>&1 || exit 0
+# binaries only: macOS shasum is a perl #! script, which leaks kernel memory under a #!-launched CLI
+command -v sha256sum >/dev/null 2>&1 && SHASUM="sha256sum" || SHASUM="openssl dgst -sha256 -r"
+
+TOOL_NAME="$(printf '%s' "$IN" | jq -r '.tool_name // "unknown"')"
+TOOL_INPUT="$(printf '%s' "$IN" | jq -c '.tool_input // {}')"
+FILE_PATH="$(printf '%s' "$IN" | jq -r '.tool_input.file_path // .tool_input.path // .tool_input.notebook_path // empty')"
+SESSION_ID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
+
+RUN_DIR="${HOME}/.local/state/agent-hooks/${SESSION_ID:-pid-$PPID}"
+mkdir -p "$RUN_DIR"
+LEDGER="$RUN_DIR/ledger.jsonl"
+
+sha="$(printf '%s' "$TOOL_INPUT" | $SHASUM | cut -d' ' -f1)"
+ts="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+
+# Evidence tokens: fixed-shape facts the tool actually printed (exit=N,
+# N passed, PASS, DEPLOY OK, VERDICT: …), normalized by the shared
+# evidence-tokens.sh. claim-evidence-gate.sh later requires a completion claim
+# to quote one of these — binding the claim to an observation. PostToolUse
+# carries no exit code for Bash (measured 2.1.246: stdout/stderr/interrupted
+# only), so printed tokens are the strongest binding available. Only the
+# normalized tokens are stored, never the surrounding output.
+TOKENIZER="$(dirname "$0")/evidence-tokens.sh"
+evidence='[]'
+if [ -x "$TOKENIZER" ]; then
+  resp_tok="$(printf '%s' "$IN" \
+    | jq -r '.tool_response | if type=="string" then . elif type=="object" then ((.stdout // "") + "\n" + (.stderr // "") + "\n" + ((.content // "") | if type=="string" then . else tostring end)) else tostring end' 2>/dev/null \
+    | bash "$TOKENIZER")"
+  # Provenance: a token present in what the tool was GIVEN was not produced by
+  # running anything. ctx_execute echoes its own source, so a grep pattern
+  # 'All tests passed' minted a phantom token (session 07fab76e, 2026-09-01,
+  # twice in one session). Fails closed: a genuine output token that also
+  # appears in the input is dropped, costing one more verification run. That
+  # trade is deliberate — keeping it would preserve a demonstrated bypass
+  # (echo a token, quote it back, satisfy the gate with nothing run). This
+  # gate enforces evidence continuity for honest agents; a runtime-COMPUTED
+  # forgery (printf 'All tests %s' passed) is outside its assurance model and
+  # is not chased here — no stdout-only hook can attest execution.
+  in_tok="$(printf '%s' "$TOOL_INPUT" | bash "$TOKENIZER")"
+  evidence="$(comm -23 <(printf '%s\n' "$resp_tok" | sort -u) \
+                       <(printf '%s\n' "$in_tok"  | sort -u) \
+              | grep -v '^$' | jq -R . | jq -s -c .)"
+fi
+
+# agent_id: set when a subagent made the call. precompact-instructions.sh reads
+# the newest row to tell which thread is compacting (compaction hooks carry no
+# agent_id of their own).
+AGENT_ID="$(printf '%s' "$IN" | jq -r '.agent_id // empty')"
+jq -cn --arg ts "$ts" --arg tool "$TOOL_NAME" --arg file "$FILE_PATH" --arg sha "$sha" --argjson ev "${evidence:-[]}" --arg aid "$AGENT_ID" \
+  '{timestamp: $ts, tool: $tool, file: (if $file == "" then null else $file end), input_sha256: $sha, evidence: $ev, agent_id: (if $aid == "" then null else $aid end)}' >> "$LEDGER"
+
+# W44-2 B2: this hook already sees every PostToolUse, so it hands TaskStop to the subagent ledger
+# (no extra registration). A failure is logged and never changes this hook's exit.
+if [ "$TOOL_NAME" = TaskStop ]; then
+  printf '%s' "$IN" | bash "$(dirname "$0")/subagent-ledger.sh" 2>>"$RUN_DIR/taskstop-forward.log" \
+    || echo "$ts subagent-ledger.sh exit=$?" >> "$RUN_DIR/taskstop-forward.log"
+fi
+exit 0

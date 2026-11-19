@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# claude-only.sh <hook> — run a ~/.claude/settings.json hook on Claude Code only.
+# Cursor's Third-Party Imports also runs settings.json hooks, with the raw Cursor
+# payload, next to the adapted ~/.cursor/hooks.json copies (live dump 2026-09-26):
+# every gate ran twice and the extra ledger line had no evidence. A raw Cursor
+# payload carries top-level cursor_version; the adapter output does not. There,
+# print nothing at all so the native copy's reply is the only one.
+payload="$(cat)"
+if jq -e 'type == "object" and has("cursor_version")' >/dev/null 2>&1 <<<"$payload"; then
+  exit 0
+fi
+# bash <hook>, not a shebang exec: on macOS a #! script that execs another #!
+# script leaks ~1 KB of kernel memory (data.kalloc.1024) per launch until reboot.
+# Claude Code shows a prompt for a hook's permissionDecision "ask" (rm-home-gate reads this).
+printf '%s' "$payload" | AGENT_HOOK_ASK_OK=1 bash "$@"
