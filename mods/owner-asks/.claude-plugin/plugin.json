@@ -1,0 +1,10 @@
+{
+  "name": "owner-asks",
+  "version": "0.1.0",
+  "description": "Keeps raw owner messages and their sources, derives the compaction index, and reminds once after resume.",
+  "author": { "name": "PaulYeh", "url": "https://github.com/ohyeh" },
+  "repository": "https://github.com/ohyeh/agent-scripts",
+  "keywords": ["owner", "asks", "recall"],
+  "displayName": "Owner Asks",
+  "license": "MIT"
+}
