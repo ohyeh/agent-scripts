@@ -1,0 +1,85 @@
+{
+  "name": "agent-scripts",
+  "owner": {
+    "name": "PaulYeh",
+    "url": "https://github.com/ohyeh"
+  },
+  "metadata": {
+    "description": "Function-hook mods that ship beside the agent-scripts skills.",
+    "version": "0.18.2"
+  },
+  "plugins": [
+    {
+      "name": "grok-bot-watch",
+      "source": "./mods/grok-bot-watch",
+      "description": "Function-hook mod: watches a Grok Bot bot by UUID over a read-only CDP sidebar read and wakes this session when a new reply lands: after the running turn's next tool result when a turn runs, else as a prompt. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.18.2",
+      "author": {
+        "name": "PaulYeh"
+      },
+      "category": "development",
+      "keywords": ["grok-bot", "cdp", "mod", "hooks"]
+    },
+    {
+      "name": "session-recall",
+      "source": "./mods/session-recall",
+      "description": "Function-hook mod: a numbered list of what a session made (URLs, artifacts, files, images, commits). Write #aN in a prompt to hand Claude the exact ref and whether it is still up; Claude looks them up with its assets tool, even after compaction. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.14.4",
+      "author": {
+        "name": "PaulYeh"
+      },
+      "category": "development",
+      "keywords": ["assets", "url", "mod", "hooks"]
+    },
+    {
+      "name": "agent-should-know",
+      "source": "./mods/agent-should-know",
+      "description": "Function-hook mod: sends each card of the built-in You should know mod (cc-plugin-you-should-know), with its Learn more explanation, to the main agent (while a turn runs: its line after that turn's next tool result, or the whole card as a prompt when the turn ends if no tool result came; otherwise the whole card as a prompt), hides the card, and logs the card with the agent's verdict in one file per session under ~/.local/state/agent-should-know/. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.4.2",
+      "author": {
+        "name": "PaulYeh"
+      },
+      "category": "development",
+      "keywords": ["you-should-know", "relay", "mod", "hooks"]
+    },
+    {
+      "name": "owner-asks",
+      "source": "./mods/owner-asks",
+      "description": "Function-hook mod: keeps raw owner messages and their provenance, derives the existing compaction projection, reminds once after resume, and provides read-only /asks. No judge or relay. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.1.0",
+      "author": {
+        "name": "PaulYeh"
+      },
+      "category": "development",
+      "keywords": [
+        "owner",
+        "asks",
+        "recall",
+        "mod",
+        "hooks"
+      ]
+    },
+    {
+      "name": "quick-say",
+      "source": "./mods/quick-say",
+      "description": "Function-hook mod: eight owner combos on digits 3-9 and 0 (前情提要 → 規劃期 → 指揮 → 整理 → 驗收 → 收工) and three modes. 手動 only fills combos; 半自動 adds the git and \"shall I?\" gates; 自動 also sends 續跑 or 驗收 itself and stops on a question, a guess it cannot make, or four mod prompts in a row. Every mod prompt approves nothing. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.8.4",
+      "author": {
+        "name": "PaulYeh"
+      },
+      "category": "development",
+      "keywords": ["canned", "prompt", "mod", "hooks"]
+    },
+    {
+      "name": "byo-provider",
+      "source": "./mods/byo-provider",
+      "description": "Function-hook mod: /provider-switch answers the main loop, a subagent or a fork with a model on your own Anthropic-format gateway (turn.step takeover); every other loop stays on Claude. Env untouched; the Claude credential is never sent to the gateway. Gateway URL/token/provider live in plugin options, not here. Needs CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1.",
+      "version": "0.8.1",
+      "author": {
+        "name": "PaulYeh"
+      },
+      "category": "development",
+      "keywords": ["gateway", "routing", "turn.step", "mod"]
+    }
+  ]
+}

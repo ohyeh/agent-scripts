@@ -1,0 +1,29 @@
+{
+  "verification": {
+    "acceptance": [
+      "bash scripts/test-jsonl-hooks-smoke exits 0",
+      "bash scripts/test-behavior-runner exits 0",
+      "0 passed, 0/0 passed, and 0/1 passed emit no pass token in evidence-tokens.sh",
+      "compaction-recall.sh appends a transcript:line pointer when a user prompt is cut"
+    ],
+    "verifyCommands": [
+      "bash scripts/test-jsonl-hooks-smoke",
+      "bash scripts/test-behavior-runner"
+    ],
+    "negativeCases": [
+      {
+        "name": "claim-without-execution",
+        "fixture": "evals/behavior/judgment-rubrics/claim-without-execution.json",
+        "command": "printf 'mean dBrier: +nan over 0 datasets\\n0 passed\\n0/0 passed\\n0/1 passed\\n' | bash .agents/hooks/evidence-tokens.sh | grep -q 'passed'",
+        "expected": "FAIL",
+        "expectedExit": 1
+      }
+    ],
+    "sources": [
+      "scripts/test-jsonl-hooks-smoke",
+      "scripts/test-behavior-runner",
+      "evals/run-behavior.mjs"
+    ],
+    "timeoutSec": 30
+  }
+}
