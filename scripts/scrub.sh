@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# Zero-dependency pre-push scrub for ohyeh/agent-scripts.
+#
+# Extends the W1+W2 base scrub (SECRET_RE + PATH_RE, plan
+# `.workflow/next-direction/plan-agent-scripts-spinout.md:87-100`) per the
+# W1+W2 binding carry-forward: "Before ANY next push (W4/W6): extend scrub
+# with HOST_RE (hostnames + Tailscale 100.x IPs) + commit-metadata check."
+#
+# Scans the index (`git grep --cached`) and every commit this push would
+# publish (`origin/main..HEAD`); secrets are scanned across ALL history.
+# Other patterns over already-published history are REPORTED as debt
+# (history-*.txt), not blocked -- scope ruling 2026-09-15, see `git show 97e4b0d^:.agents/rules/lessons.md`. Exits 0 only on a
+# clean scan; any match, any unexpected `git grep` exit code, a dirty
+# working tree, or a broken object graph is a hard BLOCK (exit 1). Never weaken
+# these patterns to make a scan pass -- fix the staged content instead.
+#
+# This file is intentionally NOT excluded from any scan. Each pattern that
+# would otherwise self-match its own literal definition is built by
+# concatenating adjacent quoted string fragments (e.g. 'ohYE''Hs') -- the
+# evaluated pattern value is identical to a single-quoted literal, but the
+# quote characters interrupting the substring in this file's own source text
+# mean the pattern cannot match its own definition line. Do not "simplify"
+# these concatenations back into single literals -- that reintroduces the
+# self-match and would require re-adding a file-scope exclusion instead.
+#
+# History-wide findings need triage into real-secret vs documented-placeholder
+# (teaching paths, AWS docs example keys) before escalating — placeholders get a
+# policy decision, never a pattern weakening.
+#
+# Usage: scripts/scrub.sh [REPO] [EVIDENCE_DIR] [EXTRA_PATH...]   (EVIDENCE_DIR default: new mktemp dir, path printed)
+#   REPO         defaults to the repo containing this script.
+#   EVIDENCE_DIR must be outside the repo.
+#   EXTRA_PATH   files or directories scanned on disk with every pattern
+#                (W42-3): gitignored artifacts that get published or sent for
+#                review, e.g. evals/retro-metrics/<ISO-week>/ and its week JSON.
+#                git grep never sees them; W41 sent ~300 home-path hits out.
+set -euo pipefail
+
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO="${1:-$SCRIPT_DIR/..}"
+REPO="$(CDPATH= cd -- "$REPO" && pwd)"
+# EVIDENCE_DIR inside the repo dirties the working tree and self-BLOCKs the scan
+# (happened twice: W4 era and 2026-07-18) — default to a fresh temp dir outside it.
+# Omitting it was itself a repeated mistake (W42, W43: exit 1 before any scan).
+EVIDENCE="${2:-$(mktemp -d "${TMPDIR:-/tmp}/scrub-evidence.XXXXXX")}"
+[ -n "${2:-}" ] || echo "EVIDENCE_DIR=$EVIDENCE" >&2
+shift "$(( $# < 2 ? $# : 2 ))"
+EXTRA=("$@")
+case "$(CDPATH= cd -- "$(dirname -- "$EVIDENCE")" 2>/dev/null && pwd)/$(basename -- "$EVIDENCE")" in
+  "$REPO"/*) echo "ERROR: EVIDENCE_DIR resolves inside the repo ($REPO) — pick an external path." >&2; exit 1;;
+esac
+mkdir -p "$EVIDENCE"
+
+# --- base patterns (W1+W2) ---
+SECRET_RE='(-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----|gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16})'
+PATH_RE='(/User''s/[^/[:space:]]+|/hom''e/[^/[:space:]]+|/priv''ate/tmp/)'
+
+# --- W4 extension: machine hostnames (this fleet's known patterns) ---
+# --- W9 addition: no-hyphen serial variant + the tailnet domain suffix (additive only, per binding carry-forward: never weaken existing alternatives) ---
+# --- W39 addition: full model hostname + lowercase serial variant (both leaked in W36-W38 retro files) ---
+HOST_RE='(oh''YEHs|MB''P|Mac''Book''Pro|Mac-''Mini|25006''93-paul|25006931Pa''ul|25006931pa''ul|\.t''s\.net)'
+
+# --- W4 extension: Tailscale CGNAT range, RFC 6598 (second octet 64-127 under the 100/8 block) ---
+TAILSCALE_RE='100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.'
+
+# --- W4 extension: the private company email this fleet must never publish ---
+PRIVATE_EMAIL_RE='paulyeh@econcord\.com\.tw'
+
+# --- W42-3 addition: home paths in Claude's encoded project-key form
+#     (`/x/y` becomes `-x-y`), which PATH_RE cannot see ---
+# Anchored: a project key starts a path segment or a token, so `encoded-home-scan`
+# (a plain kebab word) must not match.
+ENCODED_HOME_RE='(^|[/"'"'"'`[:space:]])-(User''s|hom''e)-[A-Za-z0-9._]+-'
+
+# --- scope (user ruling 2026-09-15): the BLOCKING content scan covers the
+#     commits this push would publish (origin/main..HEAD; every commit when
+#     origin/main is absent) plus the index. Secrets stay blocking across ALL
+#     history. Paths/hosts/IPs/emails already on origin/main are reported to
+#     history-*.txt as debt, never silently dropped -- rewriting a public
+#     history cannot un-publish them and breaks ff-only clone-tracked deploys.
+if git -C "$REPO" rev-parse --verify -q origin/main >/dev/null; then
+  git -C "$REPO" rev-list origin/main..HEAD > "$EVIDENCE/scrub-commits.txt"
+else
+  git -C "$REPO" rev-list --all > "$EVIDENCE/scrub-commits.txt"
+fi
+git -C "$REPO" rev-list --all > "$EVIDENCE/history-commits.txt"
+
+set +e
+git -C "$REPO" grep -nEI "$SECRET_RE"        $(cat "$EVIDENCE/history-commits.txt") -- . > "$EVIDENCE/secret-scan.txt";        secret_rc=$?
+for kind in path host tailscale private-email encoded-home; do
+  case "$kind" in path) re="$PATH_RE";; host) re="$HOST_RE";; tailscale) re="$TAILSCALE_RE";; private-email) re="$PRIVATE_EMAIL_RE";; encoded-home) re="$ENCODED_HOME_RE";; esac
+  git -C "$REPO" grep -nEI -e "$re" $(cat "$EVIDENCE/history-commits.txt") -- . > "$EVIDENCE/history-$kind-scan.txt"
+  printf '%s history hits: %s (non-blocking debt)\n' "$kind" "$(wc -l < "$EVIDENCE/history-$kind-scan.txt" | tr -d ' ')"
+done
+git -C "$REPO" grep -nEI "$PATH_RE"          $(cat "$EVIDENCE/scrub-commits.txt") -- . > "$EVIDENCE/path-scan.txt";          path_rc=$?
+git -C "$REPO" grep -nEI "$HOST_RE"          $(cat "$EVIDENCE/scrub-commits.txt") -- . > "$EVIDENCE/host-scan.txt";          host_rc=$?
+git -C "$REPO" grep -nEI "$TAILSCALE_RE"     $(cat "$EVIDENCE/scrub-commits.txt") -- . > "$EVIDENCE/tailscale-scan.txt";     ts_rc=$?
+git -C "$REPO" grep -nEI "$PRIVATE_EMAIL_RE" $(cat "$EVIDENCE/scrub-commits.txt") -- . > "$EVIDENCE/private-email-scan.txt"; email_rc=$?
+git -C "$REPO" grep -nEI -e "$ENCODED_HOME_RE" $(cat "$EVIDENCE/scrub-commits.txt") -- . > "$EVIDENCE/encoded-home-scan.txt"; enc_rc=$?
+
+# --- index/staged-file scan (git grep --cached): required in addition to the
+#     history scan above -- rev-list --all only reaches committed objects,
+#     never the index, so a file staged but not yet committed would slip
+#     through without this. ---
+git -C "$REPO" grep --cached -nEI "$SECRET_RE"        -- . > "$EVIDENCE/secret-scan-staged.txt";        secret_staged_rc=$?
+git -C "$REPO" grep --cached -nEI "$PATH_RE"          -- . > "$EVIDENCE/path-scan-staged.txt";          path_staged_rc=$?
+git -C "$REPO" grep --cached -nEI "$HOST_RE"          -- . > "$EVIDENCE/host-scan-staged.txt";          host_staged_rc=$?
+git -C "$REPO" grep --cached -nEI "$TAILSCALE_RE"     -- . > "$EVIDENCE/tailscale-scan-staged.txt";     ts_staged_rc=$?
+git -C "$REPO" grep --cached -nEI "$PRIVATE_EMAIL_RE" -- . > "$EVIDENCE/private-email-scan-staged.txt"; email_staged_rc=$?
+git -C "$REPO" grep --cached -nEI -e "$ENCODED_HOME_RE" -- . > "$EVIDENCE/encoded-home-scan-staged.txt"; enc_staged_rc=$?
+
+# --- W42-3: on-disk scan of EXTRA paths (gitignored artifacts) ---
+extra_rc=1
+: > "$EVIDENCE/extra-scan.txt"
+if [ "${#EXTRA[@]}" -gt 0 ]; then
+  grep -rnEI -e "$SECRET_RE|$PATH_RE|$HOST_RE|$TAILSCALE_RE|$PRIVATE_EMAIL_RE|$ENCODED_HOME_RE" -- "${EXTRA[@]}" > "$EVIDENCE/extra-scan.txt"; extra_rc=$?
+  printf 'extra paths: %s · hits: %s\n' "${#EXTRA[@]}" "$(wc -l < "$EVIDENCE/extra-scan.txt" | tr -d ' ')"
+fi
+set -e
+
+for rc in "$secret_rc" "$path_rc" "$host_rc" "$ts_rc" "$email_rc" "$enc_rc" \
+          "$secret_staged_rc" "$path_staged_rc" "$host_staged_rc" "$ts_staged_rc" "$email_staged_rc" "$enc_staged_rc" "$extra_rc"; do
+  test "$rc" -eq 0 || test "$rc" -eq 1
+done
+
+test ! -s "$EVIDENCE/secret-scan.txt"
+test ! -s "$EVIDENCE/path-scan.txt"
+test ! -s "$EVIDENCE/host-scan.txt"
+test ! -s "$EVIDENCE/tailscale-scan.txt"
+test ! -s "$EVIDENCE/private-email-scan.txt"
+test ! -s "$EVIDENCE/secret-scan-staged.txt"
+test ! -s "$EVIDENCE/path-scan-staged.txt"
+test ! -s "$EVIDENCE/host-scan-staged.txt"
+test ! -s "$EVIDENCE/tailscale-scan-staged.txt"
+test ! -s "$EVIDENCE/private-email-scan-staged.txt"
+test ! -s "$EVIDENCE/encoded-home-scan.txt"
+test ! -s "$EVIDENCE/encoded-home-scan-staged.txt"
+test ! -s "$EVIDENCE/extra-scan.txt"
+
+# --- W4 extension: commit-metadata scan ---
+# Author/committer name+email over every commit, checked against every
+# pattern above. Every commit must carry either the accepted local identity,
+# JENHAO YEH <ohyeh0412@gmail.com> (user-approved 2026-07-17), or the exact
+# GitHub-authored identity produced when that same user's PR is merged.
+# Any commit with any other identity blocks the scrub.
+git -C "$REPO" log --format='%H %an %ae %cn %ce' $(cat "$EVIDENCE/scrub-commits.txt") --no-walk 2>/dev/null > "$EVIDENCE/commit-metadata.txt" || : > "$EVIDENCE/commit-metadata.txt"
+
+set +e
+grep -nE "$SECRET_RE|$PATH_RE|$HOST_RE|$TAILSCALE_RE|$PRIVATE_EMAIL_RE" "$EVIDENCE/commit-metadata.txt" > "$EVIDENCE/commit-metadata-flagged.txt"; meta_rc=$?
+set -e
+test "$meta_rc" -eq 1
+test ! -s "$EVIDENCE/commit-metadata-flagged.txt"
+
+# Commit message bodies: metadata alone let private terms reach a public commit message.
+: > "$EVIDENCE/commit-messages.txt"; if [ -s "$EVIDENCE/scrub-commits.txt" ]; then git -C "$REPO" log --no-walk=unsorted --stdin --format='%H%n%B' < "$EVIDENCE/scrub-commits.txt" > "$EVIDENCE/commit-messages.txt" || exit 1; fi
+set +e
+grep -nEI "$SECRET_RE|$PATH_RE|$HOST_RE|$TAILSCALE_RE|$PRIVATE_EMAIL_RE|$ENCODED_HOME_RE" "$EVIDENCE/commit-messages.txt" > "$EVIDENCE/commit-messages-flagged.txt"; msg_rc=$?
+set -e
+test "$msg_rc" -eq 1
+test ! -s "$EVIDENCE/commit-messages-flagged.txt"
+
+LOCAL_IDENTITY='JENHAO YEH ohyeh0412@gmail.com JENHAO YEH ohyeh0412@gmail.com'
+GITHUB_MERGE_IDENTITY='JENHAO YEH ohyeh@users.noreply.github.com GitHub noreply@github.com'
+sort -u "$EVIDENCE/commit-metadata.txt" > "$EVIDENCE/commit-metadata-unique.txt"
+: > "$EVIDENCE/commit-metadata-unexpected.txt"
+while IFS= read -r line; do
+  test -z "$line" && continue
+  identity="${line#* }"
+  case "$identity" in
+    "$LOCAL_IDENTITY"|"$GITHUB_MERGE_IDENTITY") ;;
+    *) printf '%s\n' "$line" >> "$EVIDENCE/commit-metadata-unexpected.txt" ;;
+  esac
+done < "$EVIDENCE/commit-metadata-unique.txt"
+test ! -s "$EVIDENCE/commit-metadata-unexpected.txt"
+
+# --- working-tree/object-graph sanity (unchanged from W1+W2) ---
+test -z "$(git -C "$REPO" status --porcelain)"
+git -C "$REPO" fsck --full --no-reflogs
+
+printf 'VERDICT: PASS\n' > "$EVIDENCE/scrub-verdict.txt"
+echo "VERDICT: PASS"

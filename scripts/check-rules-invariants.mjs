@@ -1,0 +1,222 @@
+#!/usr/bin/env node
+// Rules eval gate — static invariants for global/ + .agents/rules/ + skills/.
+// Exit 0 = all PASS. Any FAIL = exit 1.
+import { readFileSync, readdirSync, existsSync, statSync, writeFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+const results = [];
+const check = (name, ok, detail = '') =>
+  results.push({ name, ok, detail });
+
+const read = (p) => readFileSync(join(ROOT, p), 'utf8');
+
+// 1. global files byte-identical
+const claudeMd = read('global/CLAUDE.md');
+const agentsMd = read('global/AGENTS.md');
+check('global-identical', claudeMd === agentsMd,
+  'global/CLAUDE.md vs global/AGENTS.md');
+
+// 2. size: no cap. The line cap was retired 2026-08-25 (line counts measure
+// wrapping, not content, and were passed by reflowing prose); the byte budget
+// baseline was retired 2026-09-01 for the same class of reason — it counted
+// bytes as a proxy for context cost while the runtime already reports real
+// token usage (/context, statusline), and rulesBytes counted routed files
+// that are read on demand and cost nothing per session. Growth is governed by
+// review, not by a number.
+const ruleFiles = readdirSync(join(ROOT, '.agents/rules'))
+  .filter((f) => f.endsWith('.md'));
+
+// 3. every routed file named by the compact kernel exists. Keep this list
+// explicit so a wording change cannot silently reduce the number of checks.
+const refs = [
+  'rules/model-dispatch.md',
+  'skills/delegation-templates/SKILL.md',
+  'rules/judgment-rubrics.md',
+  'skills/unknowns-discovery/SKILL.md',
+  'skills/using-decision-tree/references/loops.md',
+  'rules/session-titles.md',
+  'rules/maintenance.md',
+];
+check('gate-ref-count', refs.length === 7, `${refs.length}/7`);
+for (const ref of refs) {
+  const canonical = ref.startsWith('rules/')
+    ? join(ROOT, '.agents', ref)
+    : join(ROOT, ref);
+  check(`gate-ref ${ref}`, existsSync(canonical));
+}
+
+// 4. canary rule present in global
+check('canary-rule', /MUST end with `✈` alone/.test(claudeMd), 'mandatory final-line ✈ clause');
+
+// 4b. iron-law clauses a kernel compression once dropped (lesson 2026-09-05):
+// both kernels keep each one, matched with line breaks folded to spaces.
+const flat = (s) => s.replace(/\s+/g, ' ');
+for (const [file, text] of [['global/CLAUDE.md', claudeMd], ['global/kernel-lean.md', read('global/kernel-lean.md')]]) {
+  const missing = ['never a silent edit', 'runtime-native model', 'do not defend', 'not authorization']
+    .filter((c) => !flat(text).includes(c));
+  check(`iron-clauses ${file}`, missing.length === 0, missing.length ? `missing: ${missing.join(', ')}` : '4/4');
+}
+
+// 4c. hooks never exec a PATH shim (lesson 2026-10-03): a bare `python3` may be a
+// pyenv shim and `shasum` is a Perl `#!` launcher; use /usr/bin/python3 or a binary.
+const shimHits = readdirSync(join(ROOT, '.agents/hooks')).filter((f) => f.endsWith('.sh'))
+  .flatMap((f) => read(`.agents/hooks/${f}`).split('\n').map((l, i) => [f, i + 1, l]))
+  .filter(([, , l]) => !/^\s*#/.test(l) && /(^|[^\/\w.-])(python3|shasum)\b/.test(l))
+  .map(([f, n]) => `${f}:${n}`);
+check('hooks-no-shim-exec', shimHits.length === 0, shimHits.join(', ') || 'clean');
+
+// 4d. the skills CLI is pinned (AGENTS.md "pinned CLI version"): an unpinned `npx skills`
+// installs whatever upstream shipped today on every host (motions 2026-10-15 #12).
+const unpinned = ['scripts/deploy.sh', 'README.md']
+  .flatMap((f) => read(f).split('\n').map((l, i) => [f, i + 1, l]))
+  .filter(([, , l]) => /npx\s+(-y|--yes)\s+skills(?!@\d)\b/.test(l))   // the run form; prose says `npx skills`
+  .map(([f, n]) => `${f}:${n}`);
+check('skills-cli-pinned', unpinned.length === 0, unpinned.join(', ') || 'pinned');
+
+// 5. deploy content is pinned to the SHA resolved before download
+const deploy = read('scripts/deploy.sh');
+const resolveAt = deploy.indexOf('DEPLOYED_SHA="$(git ls-remote');
+const pinnedUrlAt = deploy.indexOf('archive/${DEPLOYED_SHA}.tar.gz');
+const downloadAt = deploy.indexOf('curl -fsSL "$REPO_TARBALL_URL"');
+check('deploy-pinned-sha',
+  resolveAt >= 0 && resolveAt < pinnedUrlAt && pinnedUrlAt < downloadAt &&
+    !deploy.includes('${DEPLOYED_SHA:-unknown}'),
+  'resolve SHA -> build pinned URL -> download');
+const deployRuntime = spawnSync('bash', ['-c', String.raw`
+  set -euo pipefail
+  fixed=0123456789abcdef0123456789abcdef01234567
+  request_log="$(mktemp)"
+  WORKDIR="$(mktemp -d)"
+  trap 'rm -rf "$WORKDIR" "$request_log"' EXIT
+  git() { printf '%s\trefs/heads/main\n' "$fixed"; }
+  curl() { printf '%s\n' "$*" > "$request_log"; }
+  tar() {
+    while [ "$#" -gt 0 ]; do
+      if [ "$1" = "-C" ]; then
+        shift
+        mkdir -p "$1/agent-scripts-$fixed"
+        return
+      fi
+      shift
+    done
+    return 2
+  }
+  source scripts/deploy.sh
+  resolve_release >/dev/null
+  download_release >/dev/null
+  expected="-fsSL https://github.com/ohyeh/agent-scripts/archive/$fixed.tar.gz"
+  [ "$(cat "$request_log")" = "$expected" ]
+  [ "$SRC" = "$WORKDIR/agent-scripts-$fixed" ]
+`], { cwd: ROOT, encoding: 'utf8' });
+check('deploy-pinned-sha-runtime', deployRuntime.status === 0,
+  deployRuntime.stderr.trim() || 'observed request URL and archive root');
+
+// 7. public tracked files must not contain private fleet topology or home paths
+const privatePatterns = [
+  String.raw`100\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}`,
+  ['/Us', 'ers/[A-Za-z0-9._-]+'].join(''),
+  ['ohYE', 'Hs-MB', 'P-14'].join(''),
+  ['2500693', 'paul'].join('-'),
+  ['openclaw', 'macmini'].join('-'),
+  ['mac', 'mini', 'm2'].join('-'),
+  ['paul', String.raw`\.yeh@`].join(''),
+].join('|');
+// Plain grep, not `git grep`: deploy.sh runs this check inside the downloaded
+// tarball tree, which has no .git. The tarball holds exactly the tracked files.
+const sensitivePaths = ['.agents', '.claude/handoffs', 'scripts', 'skills']
+  .filter((p) => existsSync(join(ROOT, p)));
+// In a working tree, scan only TRACKED files: untracked session artifacts under
+// .claude/handoffs/ are gitignored and can never reach the public repo, so
+// grepping them is a false positive on every compaction. In the tarball there is
+// no .git, so fall back to scanning the paths themselves.
+const tracked = spawnSync('git', ['ls-files', '-z', '--', ...sensitivePaths],
+  { cwd: ROOT, encoding: 'utf8' });
+const scanTargets = tracked.status === 0 && tracked.stdout
+  ? tracked.stdout.split('\0').filter(Boolean)
+  : sensitivePaths;
+const sensitive = spawnSync('grep', ['-rnE', privatePatterns, ...scanTargets],
+  { cwd: ROOT, encoding: 'utf8' });
+check('public-sensitive-literals', sensitive.status === 1,
+  sensitive.status === 1 ? 'no private fleet literals'
+    : (sensitive.stdout.trim() || `grep exit ${sensitive.status}: ${sensitive.stderr.trim()}`));
+
+// 15. Skill frontmatter must survive a YAML parse. An unquoted ": " inside a
+// scalar makes YAML read a nested mapping, the frontmatter fails with "mapping
+// values are not allowed here", and the skills CLI silently stops discovering
+// the skill: `add` omits it from "Found N skills" and `upgrade -g` prints only
+// "Failed to update" because cli.mjs pipes the child's stderr and discards it.
+// Cost the fleet 2h of a stale deployed router on 2026-09-03.
+const skillsDir = join(ROOT, 'skills');
+const fmOffenders = [];
+let fmChecked = 0;
+if (existsSync(skillsDir)) {
+  for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const p = join(skillsDir, entry.name, 'SKILL.md');
+    if (!existsSync(p)) continue;
+    fmChecked++;
+    const block = readFileSync(p, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/);
+    if (!block) { fmOffenders.push(`${entry.name}: no frontmatter block`); continue; }
+    for (const line of block[1].split(/\r?\n/)) {
+      const kv = line.match(/^([A-Za-z][\w-]*):[ \t]+(.*)$/);
+      if (!kv) continue;
+      const value = kv[2].trim();
+      if (/^['"[{>|]/.test(value)) continue; // quoted, flow, or block scalar
+      if (/:[ \t]/.test(value)) {
+        fmOffenders.push(`${entry.name}: unquoted ": " in ${kv[1]}`);
+      }
+    }
+  }
+}
+check('skill-frontmatter-yaml', fmOffenders.length === 0,
+  fmOffenders.length ? fmOffenders.join('; ') : `${fmChecked} skill frontmatters parse`);
+
+// skill-router table: regexes compile, owners resolve (skills-lock / recipes)
+const routerTable = spawnSync('bash', [join(ROOT, 'scripts/check-skill-router-table.sh')], { encoding: 'utf8' });
+check('skill-router-table', routerTable.status === 0,
+  (routerTable.stdout + routerTable.stderr).trim().split('\n').slice(-1)[0]);
+
+// skills-lock-tree: each skill from this repo pins skillFolderHash = git tree hash of its
+// committed folder (`rev-parse HEAD:skills/<name>`, what the skills CLI reads from the GitHub
+// trees API). Catch a stale pin before push, not at deploy (W45-14: b539ca1, fixed by c7de5d9).
+// No installed lock: only the tree half runs, so this host's installed set cannot fail it.
+// Checkout only: deploy runs this on the release tarball before its stale-pin self-repair
+// (deploy.sh), and failing there would block every host instead of repairing the pin.
+const atRepoTop = spawnSync('git', ['-C', ROOT, 'rev-parse', '--show-prefix'], { encoding: 'utf8' });
+if (atRepoTop.status === 0 && atRepoTop.stdout.trim() === '') {
+  const lockTree = spawnSync('bash', [join(ROOT, 'scripts/sync-skills-lock.sh'), '--check'],
+    { encoding: 'utf8', env: { ...process.env, SKILLS_GLOBAL_LOCK: join(ROOT, '.no-installed-lock') } });
+  check('skills-lock-tree', lockTree.status === 0,
+    (lockTree.stdout + lockTree.stderr).trim().split('\n').slice(-1)[0]);
+}
+
+// dead refs: live guidance must not name a retired skill/agent/command
+const deadRefs = spawnSync('bash', [join(ROOT, 'scripts/check-dead-refs.sh')], { encoding: 'utf8' });
+check('dead-refs', deadRefs.status === 0,
+  (deadRefs.stdout + deadRefs.stderr).trim().split('\n').slice(-1)[0]);
+
+// mod-version-sync: a mod's hard-coded hook VERSION is what its panel title shows; it must
+// equal plugin.json, or the band shows an old version after an update (quick-say 0.7.0 showed v0.6.2).
+const modDrift = [];
+for (const name of readdirSync(join(ROOT, 'mods'))) {
+  const plugin = join(ROOT, 'mods', name, '.claude-plugin/plugin.json');
+  if (!existsSync(plugin)) continue;
+  const want = JSON.parse(readFileSync(plugin, 'utf8')).version;
+  const hooks = join(ROOT, 'mods', name, 'hooks');
+  const found = existsSync(hooks) ? readdirSync(hooks).filter(f => /\.tsx?$/.test(f))
+    .map(f => readFileSync(join(hooks, f), 'utf8').match(/\b(?:MOD_)?VERSION\s*=\s*'([0-9.]+)'/)?.[1]).filter(Boolean) : [];
+  for (const have of found) if (have !== want) modDrift.push(`${name} hook=${have} plugin=${want}`);
+}
+check('mod-version-sync', modDrift.length === 0, modDrift.join('; ') || 'hook VERSION = plugin.json');
+
+let failed = 0;
+for (const r of results) {
+  if (!r.ok) failed++;
+  console.log(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}${r.detail ? `  (${r.detail})` : ''}`);
+}
+console.log(`\n${results.length - failed}/${results.length} passed`);
+process.exit(failed ? 1 : 0);
