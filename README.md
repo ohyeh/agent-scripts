@@ -1,0 +1,78 @@
+# agent-scripts
+
+Canonical home for generic agent policy skills, routers, and workflow recipes, spun out of
+`ohyeh/tmux-agent-tools` (which retains only tmux worker lifecycle mechanics and its narrow
+router).
+
+This repository is the canonical home (ADR-0001) for the fleet's generic agent policy skills,
+routers, workflow recipes, and shared rule files; machines are deployed copies only. Built
+incrementally per a frozen, second-model-reviewed implementation plan. Key contents:
+
+- `skills/using-decision-tree/` — the decision-tree router: one trunk, one branch file per domain (design first).
+- `skills/using-workflows/` — the workflow meta-router and its 12 canonical recipes
+  (`skills/using-workflows/workflows/`), migrated from `ohyeh/tmux-agent-tools`. This bundle is
+  the single canonical copy; machines deploy it to `~/.claude/workflows/` via the install script.
+- `skills/delegation-templates/`, `skills/unknowns-discovery/`, and
+  `skills/shared-memory-intake/` — generic policy skills. These are canonical skill directories;
+  the `.agents/rules/` exclusion below covers only same-named *rule* Markdown files, not skills.
+- `.agents/rules/` — the shared routed-rule files (`model-dispatch.md`, `judgment-rubrics.md`,
+  `maintenance.md`, `session-titles.md`, `harness-diagnosis.md`,
+  `agent-environment-provisioning.md`, `LETTER-TO-FUTURE-SESSIONS.md`).
+  `delegation-templates.md` and `unknowns-discovery.md` are
+  deliberately not carried over as rule files — their skills above are canonical instead.
+- `scripts/scrub.sh` — the pre-push secret/path/hostname/Tailscale-IP/commit-metadata scrub that
+  must PASS before any push to this repo's remote.
+
+For an agent that cannot use the deploy script — a web agent, or anything that was
+previously handed a ZIP or a Drive folder — the bootstrap prompt is a single URL:
+[`WEB-AGENTS.md`](WEB-AGENTS.md). It loads the kernel over raw HTTPS and routes from there.
+
+Release channel: immutable tag (primary), protected `main` (fallback), per the frozen ADR
+governing this spinout's repo boundary, release policy, and per-skill fleet cutover invariant.
+
+## Deploy (clone-free, one command)
+
+Canonical deploy is a single raw-GitHub bootstrap — no clone, no working copy left on the
+machine. It downloads the current `main` tarball to a scratch dir and deploys all four runtime
+layers (global files → `~/.claude`/`~/.codex`, rules → `~/.agents/rules/`, workflow recipes →
+`~/.claude/workflows/`, and the `skills-lock.json` skill set), each layer printing PASS/FAIL
+with hash/diff evidence and aborting fast on the first failure:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/scripts/deploy.sh | bash
+```
+
+The skills-only restore below is Layer 4 of that script, kept for the skill-set-only case.
+
+## Fleet skill restore (`skills-lock.json`)
+
+`skills-lock.json` at the repo root is the fleet's canonical skill set (entry count lives in the file, never here): a byte-identical COPY of the reference machine's
+`~/.agents/.skill-lock.json`, not a union merged from several machines. Every machine
+converges to this same set, so `cmp` between the two files is the check — a repo lock that
+differs from the reference machine's is a defect, whichever side is newer. Two manual-only
+items are deliberately excluded: `commit-commands` (a Claude Code plugin, not a skill) and
+`note` (hand-copied, no tool-resolvable source).
+
+After a local `npx skills upgrade -g` or `npx skills add -g`, run `scripts/sync-skills-lock.sh`
+in this repo and commit the lock. `deploy.sh` fails closed until you do, because restoring the
+older lock would silently downgrade or remove what you just installed.
+
+Any skill named in the global rules belongs in this lock — otherwise the rule points at
+something a freshly deployed machine does not have. `stop-slop` was that gap until
+2026-07-27: CLAUDE.md loads it for writing-heavy work, but it survived on the fleet only
+as a hand-copied folder.
+
+To restore all skills on a (new) machine — the CLI restores into `.agents/skills/` **relative
+to the cwd**, so run it from `$HOME` for a global install:
+
+```sh
+cd ~
+curl -fsSL https://raw.githubusercontent.com/ohyeh/agent-scripts/main/skills-lock.json -o skills-lock.json
+npx -y skills@1.7.2 experimental_install
+rm skills-lock.json
+```
+
+Format verified against the CLI (one-entry restore, exit 0). The `$HOME`-cwd global-install
+path is inferred from the CLI's cwd-relative behavior — UNCONFIRMED on a fresh machine until
+first used. Before running `npx skills update/upgrade -g` afterwards, clear ghost lock records
+(entries whose folder no longer exists) or deleted skills resurrect.
