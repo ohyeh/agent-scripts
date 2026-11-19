@@ -1,0 +1,914 @@
+#!/usr/bin/env bash
+# Clone-free deploy: downloads the current agent-scripts main tarball
+# to a scratch dir and deploys every runtime layer from it. No git
+# clone, no working copy left behind on the target machine — the repo is
+# canonical, machines are deployed copies only.
+#
+# Usage: scripts/deploy.sh           deploy every layer
+#        scripts/deploy.sh --check   same layer checks, read-only: no write to ~; runs every
+#                                    layer, then exits 1 if any layer differs from the release
+#                                    (W44-3: a skills FAIL must not hide the hooks). Skips Layer 0
+#                                    (it tests the release tree, not this host) and the layers
+#                                    that have no read-only check (agy statusline, codex-cu).
+#                                    "Deployed / in sync" claims quote this exit 0 (W43-3).
+#
+# Clone-tracked layout (grok-bot VM): when ~/.agents/rules is a symlink into
+# a working clone of this repo, the clone IS the source: `git pull --ff-only`
+# replaces the tarball, the rules rsync and the hook copies are skipped
+# (they would overwrite the symlink targets in place and dirty the git
+# tree), every verify step still runs. Everything else is identical.
+#
+# Layers, in order (each layer prints PASS/FAIL + the hash/diff evidence it
+# checked; on deploy the FIRST failing layer aborts the whole run non-zero -- fail
+# fast, no silent fallback to a partial deploy; --check reports every layer):
+#   0. invariants - scripts/check-rules-invariants.mjs run inside the
+#                 downloaded tree; any FAIL aborts before ~ is touched.
+#   1. global   - global/CLAUDE.md -> ~/.claude/CLAUDE.md,
+#                 global/AGENTS.md -> ~/.codex/AGENTS.md,
+#                 global/CLAUDE.md -> ~/.gemini/GEMINI.md (if ~/.gemini exists),
+#                 each verified by md5.
+#   2. rules    - rsync -a --delete .agents/rules/ -> ~/.agents/rules/,
+#                 verified by a full diff. The repo is canonical.
+#   3. workflows- skills/using-workflows/scripts/install.sh --force into
+#                 ~/.claude/workflows/, verified by matching aggregate
+#                 sha256 (computed with a relative cd so paths don't leak
+#                 into the hash) against the downloaded tree.
+#   4. skills   - restores skills-lock.json via `npx skills experimental_install`,
+#                 run from $HOME per the CLI's cwd-relative install path
+#                 (see README.md "Fleet skill restore"); then links
+#                 ~/.claude/skills and (if agy) ~/.gemini/config/skills to it.
+#                 A stale pin triggers upgrade, lock sync, commit, push and recheck.
+#                 --check reports that repair without running it.
+#   5. hooks    - installs the kernel sentinel hooks (.agents/hooks/) into
+#                 ~/.agents/hooks/; registers them in ~/.claude/settings.json
+#                 (Claude events) and, if ~/.cursor exists, ~/.cursor/hooks.json
+#                 (Cursor events via cursor-adapt.sh). Removes the retired tmux dispatch hook
+#                 (workflow-gate hooks live with their owning plugins).
+#   6. context-mode dir - pin CONTEXT_MODE_DIR to ~/.claude/context-mode on
+#                 every present runtime (Codex/Cursor/Gemini/zshrc + Cursor
+#                 symlink). Plugin upgrades rewrite MCP env; this layer
+#                 puts the pin back and fails closed if it did not stick.
+#   7. cursor   - kernel.mdc, Ponytail instruction rule (if plugin present),
+#                 HUD scripts + statusLine merge (never copies cli-config).
+#                 SKIPs without ~/.cursor (Cursor not installed).
+#   7b. grok    - Grok Build's own files: ~/.grok/rules/ponytail.md (plugin body)
+#                 ~/.grok/statusline.sh (claude-hud wrapper) as [ui.status_line]
+#                 command, compat policy and 500k/90 in ~/.grok/config.toml.
+#                 Does not write ~/.cursor. check-grok-runtime.sh also asserts
+#                 `grok inspect --json` sees the kernel, every settings.json
+#                 hook and every ~/.agents skill. SKIPs without grok.
+#   8. agents   - global/agents/<runtime>/ -> that runtime's agent dir
+#                 (claude -> ~/.claude/agents, codex -> ~/.codex/agents),
+#                 rsync --delete + diff, only for sub-dirs present in the repo.
+#   8b. mods    - scripts/sync-mods.sh: an installed mod of this repo behind the
+#                 release marketplace version is updated (never newly installed).
+#   9. codex-cu - installs codex-cu-mcp + codex-cu-proxy into ~/.local/bin and
+#                 registers "codex-cu" at USER scope (Claude/Cursor/agy), so
+#                 Codex computer use works in every project with no per-repo
+#                 .mcp.json. SKIPs where the Computer Use plugin is absent.
+set -euo pipefail
+
+# macOS ships `md5 -q`; Linux (grok-bot VM) has md5sum only and a non-login ssh
+# PATH. Shim once here; `export -f` reaches every `bash scripts/*.sh` child.
+if ! command -v md5 >/dev/null 2>&1; then
+  md5() { [ "${1:-}" = -q ] && shift; { if [ $# -gt 0 ]; then md5sum "$1"; else md5sum; fi; } | cut -d' ' -f1; }
+  export -f md5
+fi
+
+# The skills CLI needs Node 22+ (`glob` from fs/promises). On the grok-bot VM a non-login ssh
+# PATH finds /usr/bin/node v20, while the login PATH has ~/.local/bin/node v22 (2026-10-16).
+node_major() { node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0; }
+if [ "$(node_major)" -lt 22 ] && [ -x "$HOME/.local/bin/node" ]; then
+  export PATH="$HOME/.local/bin:$PATH"
+fi
+if [ "$(node_major)" -lt 22 ]; then
+  echo "FAIL [node] the skills layer needs Node 22+; found $(node -v 2>/dev/null || echo none) at $(command -v node || echo 'no node')" >&2
+  exit 1
+fi
+
+REPO_GIT_URL="https://github.com/ohyeh/agent-scripts.git"
+RELEASE_REF="refs/heads/main"
+cleanup() { rm -rf "$WORKDIR"; }
+CHECK=0
+w() { [ "$CHECK" = 1 ] || "$@"; }   # a write to ~: runs on deploy only
+# Missing runtime file: deploy seeds it, --check reports it.
+seed() {
+  [ -f "$1" ] && return
+  [ "$CHECK" = 0 ] || { echo "FAIL [$3] $1 missing" >&2; exit 1; }
+  printf '%s' "$2" > "$1"
+}
+# A rewritten runtime file: deploy moves it into place; --check needs the rewrite to be a no-op.
+apply() {
+  if [ "$CHECK" = 0 ]; then mv "$1" "$2"; return; fi
+  local n=cat; case "$2" in *.json) n='jq -S .';; esac
+  if ! cmp -s <($n "$1") <($n "$2" 2>/dev/null); then
+    echo "FAIL [$3] $2 differs from what deploy writes (< live, > deploy):" >&2
+    diff <($n "$2" 2>/dev/null) <($n "$1") >&2 || true
+    rm -f "$1"; exit 1
+  fi
+  rm -f "$1"
+}
+# One layer. Deploy: a FAIL exits the script. --check: a FAIL (an `exit 1` or a set -e stop)
+# ends only this layer's subshell; main exits with the combined status after the last layer.
+CHECK_RC=0
+layer() {
+  if [ "$CHECK" = 0 ]; then "$@"; return; fi
+  set +e; ( set -e; "$@" ); [ $? = 0 ] || CHECK_RC=1; set -e
+}
+
+SKILLS_STATE=layer-ok
+skills_step() {
+  local step="$1" rc; shift
+  if "$@"; then return 0; else rc=$?; fi
+  SKILLS_STATE=failed
+  echo "FAIL [skills] state=failed step=$step exit=$rc" >&2
+  return "$rc"
+}
+
+# Both stale-pin checks use this decision for deploy and --check.
+skills_stale_pin() {
+  local reason="$1" token rc repair="$SRC"
+  if [ "${SKILLS_RECHECK:-0}" = 1 ]; then
+    SKILLS_STATE=failed
+    echo "FAIL [skills] state=failed step=recheck: $reason" >&2
+    return 1
+  fi
+  SKILLS_STATE=stale-pin
+  echo "INFO [skills] state=stale-pin: $reason"
+  if [ "$CHECK" = 1 ]; then
+    echo 'FAIL [skills] stale pin; deploy would run: GITHUB_TOKEN="$(gh auth token --hostname github.com)" npx --yes skills@1.7.2 upgrade -g -y -> scripts/sync-skills-lock.sh -> git commit -> git push -> recheck [skills]' >&2
+    return 1
+  fi
+  token="$(skills_step auth gh auth token --hostname github.com)" || { rc=$?; SKILLS_STATE=failed; return "$rc"; }
+  skills_step upgrade env GITHUB_TOKEN="$token" npx --yes skills@1.7.2 upgrade -g -y || return $?
+  if [ "$CLONE_TRACKED" = 0 ]; then
+    repair="$WORKDIR/skills-repair"
+    skills_step clone git clone --single-branch --branch "${RELEASE_REF#refs/heads/}" "$REPO_GIT_URL" "$repair" || return $?
+    # Do not publish a lock against a different release if main moved during deploy.
+    skills_step release-match test "$(git -C "$repair" rev-parse HEAD)" = "$DEPLOYED_SHA" || return $?
+  fi
+  skills_step sync bash "$repair/scripts/sync-skills-lock.sh" || return $?
+  skills_step commit git -C "$repair" commit --only -m 'Sync skill pins after deploy upgrade' -- skills-lock.json || return $?
+  skills_step push git -C "$repair" push origin "HEAD:${RELEASE_REF#refs/heads/}" || return $?
+  if [ "$repair" != "$SRC" ]; then
+    skills_step lock-copy cp "$repair/skills-lock.json" "$SRC/skills-lock.json" || return $?
+  fi
+  DEPLOYED_SHA="$(skills_step revision git -C "$repair" rev-parse HEAD)" || { rc=$?; SKILLS_STATE=failed; return "$rc"; }
+  (SKILLS_RECHECK=1; trap 'rc=$?; if [ "$rc" != 0 ]; then SKILLS_STATE=failed; echo "FAIL [skills] state=failed step=recheck exit=$rc" >&2; fi' EXIT; layer_skills)
+  SKILLS_STATE=repaired
+  echo "PASS [skills] state=repaired"
+}
+
+resolve_release() {
+  echo "==> Resolving agent-scripts $RELEASE_REF..."
+  DEPLOYED_SHA="$(git ls-remote "$REPO_GIT_URL" "$RELEASE_REF" | cut -f1)"
+  if [[ ! "$DEPLOYED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "FAIL [resolve] expected one 40-character commit SHA for $RELEASE_REF" >&2
+    return 1
+  fi
+  REPO_TARBALL_URL="https://github.com/ohyeh/agent-scripts/archive/${DEPLOYED_SHA}.tar.gz"
+  echo "PASS [resolve] $RELEASE_REF -> $DEPLOYED_SHA"
+}
+
+download_release() {
+  echo "==> Downloading agent-scripts @ $DEPLOYED_SHA to scratch dir..."
+  curl -fsSL "$REPO_TARBALL_URL" | tar xz -C "$WORKDIR"
+  SRC="$WORKDIR/agent-scripts-$DEPLOYED_SHA"
+  if [ ! -d "$SRC" ]; then
+    echo "FAIL [download] archive did not extract the expected SHA-pinned tree: $SRC" >&2
+    return 1
+  fi
+  echo "PASS [download] extracted to $SRC"
+  echo "PASS [download] deploying $RELEASE_REF @ $DEPLOYED_SHA"
+}
+
+CLONE_TRACKED=0
+detect_clone_tracked() {
+  [ -L ~/.agents/rules ] || return 0
+  local target; target="$(cd "$(dirname "$(readlink ~/.agents/rules)")/.." && pwd -P)"
+  # the symlink must point at <clone>/.agents/rules of THIS repo, on branch main
+  if [ ! -f "$target/scripts/deploy.sh" ] || ! git -C "$target" remote get-url origin 2>/dev/null | grep -q 'ohyeh/agent-scripts'; then
+    echo "FAIL [resolve] ~/.agents/rules is a symlink but not into an agent-scripts clone: $target" >&2
+    return 1
+  fi
+  if [ -n "$(git -C "$target" status --porcelain --untracked-files=no)" ]; then
+    echo "FAIL [resolve] clone $target has tracked changes; refusing to pull over them" >&2
+    return 1
+  fi
+  # Layers install from the working tree, so a file git does not track there ships
+  # too (W42-7: a retired recipe kept coming back on grok-bot-vm). Checked before the
+  # pull, so a FAIL leaves HEAD as it was. Ignored files stay allowed: deploy itself
+  # installs check-bol-prompt.sh into .agents/hooks.
+  local stray; stray="$(git -C "$target" status --porcelain --untracked-files=all -- skills global .agents)"
+  if [ -n "$stray" ]; then
+    echo "FAIL [resolve] clone $target has untracked files in deployed paths; remove them first:" >&2
+    printf '%s\n' "$stray" >&2
+    return 1
+  fi
+  CLONE_TRACKED=1; SRC="$target"
+  echo "==> [resolve] clone-tracked layout: ~/.agents/rules -> $target; pulling $RELEASE_REF"
+  w git -C "$SRC" pull -q --ff-only origin "${RELEASE_REF#refs/heads/}"
+  DEPLOYED_SHA="$(git -C "$SRC" rev-parse HEAD)"
+  echo "PASS [resolve] clone @ $DEPLOYED_SHA (git pull --ff-only; tarball skipped)"
+}
+
+main() {
+case "${1:-}" in
+  "") ;;
+  --check) CHECK=1 ;;
+  *) echo "usage: scripts/deploy.sh [--check]" >&2; exit 2 ;;
+esac
+WORKDIR="$(mktemp -d)"
+trap cleanup EXIT
+detect_clone_tracked
+if [ "$CLONE_TRACKED" = 0 ]; then
+  resolve_release
+  download_release
+fi
+
+# --- Layer 0: rules invariants (the only caller of this check; a red here
+# means main is not deployable — abort before any layer mutates ~) -----------
+if [ "$CHECK" = 1 ]; then
+echo "SKIP [invariants+tests] --check verifies this host, not the release tree"
+else
+echo "==> [invariants] node scripts/check-rules-invariants.mjs @ $DEPLOYED_SHA"
+if ! (cd "$SRC" && node scripts/check-rules-invariants.mjs); then
+  echo "FAIL [invariants] check-rules-invariants exited non-zero; refusing to deploy" >&2
+  exit 1
+fi
+echo "PASS [invariants] all checks green"
+
+# Hook and recipe regressions, on the release tree before any layer mutates ~.
+# The list and the per-test sandbox live in scripts/run-layer0-tests.sh, so a run by hand before a push uses the same set.
+if ! bash "$SRC/scripts/run-layer0-tests.sh" "$SRC" "$WORKDIR"; then
+  echo "FAIL [tests] layer0 regressions; refusing to deploy" >&2
+  exit 1
+fi
+fi
+
+# --- Layer 1: global runtime files -----------------------------------------
+# Same kernel to every present runtime: Claude, Codex, and Gemini/agy (GEMINI.md
+# only when ~/.gemini exists — that runtime is optional).
+layer_global() {
+echo "==> [global] deploying CLAUDE.md + AGENTS.md (+ GEMINI.md if ~/.gemini present)"
+global_targets=(
+  "$SRC/global/CLAUDE.md:$HOME/.claude/CLAUDE.md"
+  "$SRC/global/AGENTS.md:$HOME/.codex/AGENTS.md"
+)
+if [ -d "$HOME/.gemini" ]; then
+  global_targets+=("$SRC/global/CLAUDE.md:$HOME/.gemini/GEMINI.md")
+fi
+global_report=""
+for pair in "${global_targets[@]}"; do
+  src="${pair%%:*}"; dst="${pair#*:}"
+  w cp "$src" "$dst"
+  [ -f "$dst" ] || { echo "FAIL [global] $dst missing" >&2; exit 1; }
+  src_md5="$(md5 -q "$src")"; dst_md5="$(md5 -q "$dst")"
+  if [ "$src_md5" != "$dst_md5" ]; then
+    echo "FAIL [global] md5 mismatch: $dst $src_md5 vs $dst_md5" >&2
+    exit 1
+  fi
+  global_report="$global_report $(basename "$dst")=$src_md5"
+done
+echo "PASS [global] md5 match ($global_report )"
+}
+layer layer_global
+
+# --- Layer 2: rules ----------------------------------------------------------
+layer_rules() {
+echo "==> [rules] rsync canonical .agents/rules/ -> ~/.agents/rules/"
+if [ "$CLONE_TRACKED" = 1 ]; then
+  echo "     (clone-tracked: symlink already points at the pulled clone; rsync skipped, diff still verified)"
+else
+  w mkdir -p ~/.agents/rules
+  w rsync -a --delete "$SRC/.agents/rules/" ~/.agents/rules/
+fi
+[ -d ~/.agents/rules ] || { echo "FAIL [rules] ~/.agents/rules missing" >&2; exit 1; }
+rules_diff="$(diff -rq ~/.agents/rules/ "$SRC/.agents/rules/" || true)"
+if [ -n "$rules_diff" ]; then
+  echo "FAIL [rules] diff found after rsync:" >&2
+  echo "$rules_diff" >&2
+  exit 1
+fi
+echo "PASS [rules] 0 diff"
+}
+layer layer_rules
+
+# --- Layer 3: workflows -------------------------------------------------------
+layer_workflows() {
+echo "==> [workflows] install.sh --force -> ~/.claude/workflows/"
+w mkdir -p ~/.claude/workflows
+manifest=~/.claude/workflows/.using-workflows-managed-files
+seed "$manifest" "" workflows   # bootstrap: empty manifest on a fresh machine
+w bash "$SRC/skills/using-workflows/scripts/install.sh" --previous-manifest "$manifest" --force
+[ -d ~/.claude/workflows ] || { echo "FAIL [workflows] ~/.claude/workflows missing" >&2; exit 1; }
+# The installer's fixpoint: manifest = the shipped file set, and each shipped file byte-equal.
+# User files outside the manifest are not ours to check.
+wsrc="$SRC/skills/using-workflows/workflows"
+shipped="$(cd "$wsrc" && find . -path ./archive -prune -o -type f -print | sed 's#^\./##' | LC_ALL=C sort -u)"
+if [ "$shipped" != "$(LC_ALL=C sort -u "$manifest")" ]; then
+  echo "FAIL [workflows] $manifest is not the shipped file set; deploy rewrites it" >&2
+  exit 1
+fi
+wf_diff="$(while IFS= read -r rel; do cmp -s "$wsrc/$rel" ~/.claude/workflows/"$rel" || printf ' %s' "$rel"; done <<<"$shipped")"
+if [ -n "$wf_diff" ]; then
+  echo "FAIL [workflows] missing or different from the release:$wf_diff" >&2
+  exit 1
+fi
+echo "PASS [workflows] $(wc -l <<<"$shipped" | tr -d ' ') managed files match the release"
+}
+layer layer_workflows
+
+# --- Layer 4: skills -----------------------------------------------------------
+layer_skills() {
+echo "==> [skills] restoring skills-lock.json via npx skills experimental_install"
+if [ ! -f "$SRC/skills-lock.json" ]; then
+  echo "FAIL [skills] no skills-lock.json in the downloaded repo tree" >&2
+  exit 1
+fi
+# A local `npx skills upgrade -g` leaves installed skills newer than the lock;
+# restoring the lock would silently downgrade them. Repair before restore.
+if ! drift="$(bash "$SRC/scripts/sync-skills-lock.sh" --check)"; then
+  skills_stale_pin "$drift"
+  return
+fi
+if [ "$CHECK" = 0 ]; then
+cp "$SRC/skills-lock.json" ~/skills-lock.json
+( cd ~ && npx -y skills@1.7.2 experimental_install )   # pinned CLI (AGENTS.md); bump on purpose
+rm -f ~/skills-lock.json
+fi
+# experimental_install installs the folders but leaves ~/.agents/.skill-lock.json
+# untouched (2026-09-04: local 67 / .44 69 vs repo 70). The README contract is
+# "byte-identical copy", so converge the machine-global lock to the repo lock.
+G="${SKILLS_GLOBAL_LOCK:-$HOME/.agents/.skill-lock.json}"
+w cp "$SRC/skills-lock.json" "$G"
+if ! cmp -s "$SRC/skills-lock.json" "$G"; then
+  echo "FAIL [skills] $G is not the release lock; deploy restores it. Pins that differ: $(jq -r -n \
+    --slurpfile r "$SRC/skills-lock.json" --slurpfile g "$G" '[($r[0].skills + $g[0].skills | keys[])
+    | select($r[0].skills[.] != $g[0].skills[.])] | join(" ")' 2>/dev/null || echo '(unreadable)')" >&2
+  exit 1
+fi
+if [ ! -d ~/.agents/skills ]; then
+  echo "FAIL [skills] ~/.agents/skills does not exist after restore" >&2
+  exit 1
+fi
+# The lock says what must be installed; check each payload, not only the registry.
+# skillFolderHash is the upstream git tree of the skill folder. A root-level skill
+# (skillPath SKILL.md) hashes the whole upstream repo, which the CLI does not copy
+# in full: for those only SKILL.md is checked.
+# $2 = core.autocrlf: an upstream `eol=crlf` attribute checks out CRLF over an LF blob
+# (impeccable *.cmd, 2026-10-23), so a folder also matches its pin with CRLF folded to LF.
+# shortcut: a line-ending-only local edit passes; upgrade when the installer carries upstream .gitattributes.
+folder_tree() { local g; g="$(mktemp -d)"; git init -q "$g"; printf '__pycache__/\n*.pyc\n.DS_Store\n' > "$g/ex"  # run-time litter
+  git --git-dir="$g/.git" --work-tree="$1" -c core.excludesFile="$g/ex" -c core.autocrlf="${2:-false}" add -A . 2>/dev/null && git --git-dir="$g/.git" write-tree; rm -rf "$g"; }
+skills_missing="" skills_differ=""
+while IFS=$'\t' read -r k sp h; do
+  d="$HOME/.agents/skills/$k"
+  if [ ! -f "$d/SKILL.md" ]; then skills_missing="$skills_missing $k"; continue; fi
+  case "$sp" in */*) [ "$(folder_tree "$d")" = "$h" ] || [ "$(folder_tree "$d" input)" = "$h" ] || skills_differ="$skills_differ $k";; esac
+done < <(jq -r '.skills | to_entries[] | [.key, .value.skillPath, .value.skillFolderHash] | @tsv' "$SRC/skills-lock.json")
+if [ -n "$skills_missing$skills_differ" ]; then
+  skills_stale_pin "not installed:${skills_missing:- none}; content differs from the pin:${skills_differ:- none}"
+  return
+fi
+
+# `experimental_install` adds/updates the lock roster but retains removed
+# skills. Reconcile the managed directory so every deployment converges.
+allowed_skills="$(jq -r '.skills | keys[]' "$SRC/skills-lock.json")"
+removed_skills=0
+[ "$CHECK" = 1 ] || while IFS= read -r installed_skill; do
+  [ "$installed_skill" = synced ] && continue  # owned by Claude Code account-skill sync, not the lock
+  if ! grep -Fqx "$installed_skill" <<<"$allowed_skills"; then
+    rm -rf "$HOME/.agents/skills/$installed_skill"
+    echo "INFO [skills] removed stale skill: $installed_skill"
+    removed_skills=$((removed_skills + 1))
+  fi
+done < <(find "$HOME/.agents/skills" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort)
+
+unexpected_skills="$(comm -23 \
+  <(find "$HOME/.agents/skills" -mindepth 1 -maxdepth 1 -type d ! -name synced -exec basename {} \; | sort) \
+  <(printf '%s\n' "$allowed_skills" | sort))"
+if [ -n "$unexpected_skills" ]; then
+  echo "FAIL [skills] stale managed skills remain: $unexpected_skills" >&2
+  exit 1
+fi
+echo "PASS [skills] installed lock = release lock; every locked skill installed at its pin; removed $removed_skills stale skill(s)"
+
+# Claude Code reads ~/.claude/skills. Fleet layout: ONE directory symlink
+# ~/.claude/skills -> ../.agents/skills (no per-skill links). Issue #5 came from a
+# host that still had the old per-skill loop and drifted (67 links / 72 skills).
+# Converge: replace a dir that holds only symlinks (or is empty); refuse to touch
+# a dir that holds real content.
+CS="$HOME/.claude/skills"
+if [ -L "$CS" ] && [ "$(cd "$CS" 2>/dev/null && pwd -P)" = "$(cd "$HOME/.agents/skills" && pwd -P)" ]; then
+  echo "PASS [claude-skills] $CS -> $(readlink "$CS")"
+else
+  [ "$CHECK" = 0 ] || { echo "FAIL [claude-skills] $CS is not the ../.agents/skills link" >&2; exit 1; }
+  if [ -e "$CS" ] && [ -n "$(find "$CS" -mindepth 1 -maxdepth 1 ! -type l ! -name .DS_Store 2>/dev/null)" ]; then
+    echo "FAIL [claude-skills] $CS holds real entries, refusing to replace: $(find "$CS" -mindepth 1 -maxdepth 1 ! -type l ! -name .DS_Store | xargs -n1 basename | tr '\n' ' ')" >&2
+    exit 1
+  fi
+  rm -rf "$CS"
+  ln -s ../.agents/skills "$CS"
+  echo "PASS [claude-skills] converged: $CS -> ../.agents/skills (replaced per-skill links)"
+fi
+
+# agy reads global skills from ~/.gemini/config/skills (binary string). Its 2026-10-09
+# config migration dropped the old hand-made ~/.gemini/antigravity-cli/skills link
+# silently, so deploy owns the link now and fails if a skill does not resolve.
+AS="$HOME/.gemini/config/skills"
+if [ ! -d "$HOME/.gemini/config" ]; then
+  echo "SKIP [agy-skills] ~/.gemini/config absent (agy not installed)"
+else
+  if ! { [ -L "$AS" ] && [ "$(cd "$AS" 2>/dev/null && pwd -P)" = "$(cd "$HOME/.agents/skills" && pwd -P)" ]; }; then
+    [ "$CHECK" = 0 ] || { echo "FAIL [agy-skills] $AS is not the ../../.agents/skills link" >&2; exit 1; }
+    if [ -e "$AS" ] && [ ! -L "$AS" ]; then
+      echo "FAIL [agy-skills] $AS is a real directory, refusing to replace" >&2
+      exit 1
+    fi
+    rm -f "$AS"
+    ln -s ../../.agents/skills "$AS"
+  fi
+  [ -f "$AS/session-handoff/SKILL.md" ] || { echo "FAIL [agy-skills] $AS/session-handoff/SKILL.md does not resolve" >&2; exit 1; }
+  echo "PASS [agy-skills] $AS -> $(readlink "$AS")"
+fi
+}
+layer layer_skills
+
+# --- Layer 5: hooks ------------------------------------------------------------
+# Kernel sentinel hooks (version-upgrade tripwire + session-title nudge) are
+# repo-managed: installed to ~/.agents/hooks/ and registered idempotently in
+# ~/.claude/settings.json. Workflow-gate hooks stay with their owning plugins.
+layer_hooks() {
+echo "==> [hooks] installing sentinel hooks + registering in ~/.claude/settings.json"
+w rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent-tools plugin
+w rm -f ~/.agents/hooks/bol-prompt-warn.sh      # retired 2026-08-25; replaced by bol-prompt-gate.sh (blocking)
+w rm -f ~/.agents/hooks/postcompact-handoff.sh  # retired 2026-11-10; its file copy of the summary had no reader
+w mkdir -p ~/.agents/hooks
+# same-file guard: on the clone-tracked layout ~/.agents/hooks IS $SRC/.agents/hooks
+hook_install() {
+  local dst=~/.agents/hooks/"$(basename "$1")"
+  if [ "$CHECK" = 1 ]; then
+    cmp -s "$1" "$dst" || { echo "FAIL [hooks] $dst missing or differs from the release" >&2; exit 1; }
+  else
+    [ "$1" -ef "$dst" ] || install -m "${2:-0755}" "$1" ~/.agents/hooks/
+  fi
+}
+hook_install "$SRC/.agents/hooks/claude-version-sentinel.sh"
+hook_install "$SRC/.agents/hooks/session-title-sentinel.sh"
+hook_install "$SRC/.agents/hooks/bol-prompt-gate.sh"
+hook_install "$SRC/.agents/hooks/subagent-ledger.sh"
+hook_install "$SRC/.agents/hooks/subagent-lock.sh"     # sourced by the concurrency gate
+hook_install "$SRC/scripts/check-bol-prompt.sh"
+hook_install "$SRC/.agents/hooks/context-ledger.sh"
+hook_install "$SRC/.agents/hooks/skill-router-nudge.sh"
+hook_install "$SRC/.agents/hooks/skill-router-table.tsv" 0644
+hook_install "$SRC/.agents/hooks/skill-chain-nudge.sh"
+hook_install "$SRC/.agents/hooks/bash-read-audit.sh"
+hook_install "$SRC/.agents/hooks/artifact-title-gate.sh"
+hook_install "$SRC/.agents/hooks/agent-device-target-gate.sh"
+# idevicesyslog guard (2026-10-28 iPhone panic): sits ahead of the real binary in PATH.
+if [ "$CHECK" = 1 ]; then
+  { cmp -s "$SRC/.agents/bin/idevicesyslog" ~/.local/bin/idevicesyslog && [ -x ~/.local/bin/idevicesyslog ]; } || { echo "FAIL [bin] ~/.local/bin/idevicesyslog missing, not executable, or differs from the release" >&2; exit 1; }
+  if command -v idevicesyslog >/dev/null 2>&1; then
+    [ "$(command -v idevicesyslog)" -ef ~/.local/bin/idevicesyslog ] || { echo "FAIL [bin] PATH resolves idevicesyslog to $(command -v idevicesyslog), not the guard in ~/.local/bin" >&2; exit 1; }
+    command -v timeout >/dev/null 2>&1 || { echo "FAIL [bin] idevicesyslog guard needs \`timeout\` (brew install coreutils)" >&2; exit 1; }
+  fi
+else
+  mkdir -p ~/.local/bin && install -m 0755 "$SRC/.agents/bin/idevicesyslog" ~/.local/bin/idevicesyslog
+fi
+hook_install "$SRC/.agents/hooks/tmux-assign-host-gate.sh"
+hook_install "$SRC/.agents/hooks/review-dispatch-gate.sh"
+hook_install "$SRC/.agents/hooks/workflow-agent-cap.sh"
+hook_install "$SRC/.agents/hooks/pr-create-gate.sh"
+hook_install "$SRC/.agents/hooks/rm-home-gate.sh"
+hook_install "$SRC/.agents/hooks/running-script-edit-gate.sh"
+hook_install "$SRC/.agents/hooks/codex-cu-chrome-gate.sh"
+hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
+hook_install "$SRC/.agents/hooks/claude-only.sh"
+hook_install "$SRC/.agents/hooks/agy-adapt.sh"
+hook_install "$SRC/.agents/hooks/compaction-recall.sh"
+hook_install "$SRC/.agents/hooks/precompact-instructions.sh"
+hook_install "$SRC/.agents/hooks/evidence-tokens.sh"
+hook_install "$SRC/.agents/hooks/claim-evidence-gate.sh"
+hook_install "$SRC/.agents/hooks/subagent-concurrency-gate.sh"
+hook_install "$SRC/.agents/hooks/host-load-gate.sh"
+hook_install "$SRC/.agents/hooks/deny-replay-gate.sh"
+hook_install "$SRC/.agents/hooks/compaction-cap-gate.sh"
+hook_install "$SRC/.agents/hooks/wakeup-idle-gate.sh"
+hook_install "$SRC/.agents/hooks/round-cost-gate.sh"
+hook_install "$SRC/.agents/hooks/worker-followup-gate.sh"
+
+SETTINGS=~/.claude/settings.json
+seed "$SETTINGS" '{}' hooks
+tmp_settings="$(mktemp)"
+# Every settings.json hook runs behind claude-only.sh: Cursor's Third-Party Imports would
+# otherwise run it a second time next to its ~/.cursor/hooks.json copy.
+jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
+   --arg vs "\"\$HOME/.agents/hooks/claude-version-sentinel.sh\"" \
+   --arg ts "\"\$HOME/.agents/hooks/session-title-sentinel.sh\"" \
+   --arg bolold "\"\$HOME/.agents/hooks/bol-prompt-warn.sh\"" \
+   --arg bol "\"\$HOME/.agents/hooks/bol-prompt-gate.sh\"" \
+   --arg subledger "\"\$HOME/.agents/hooks/subagent-ledger.sh\"" \
+   --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" \
+   --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
+   --arg device "\"\$HOME/.agents/hooks/agent-device-target-gate.sh\"" \
+   --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
+   --arg review "\"\$HOME/.agents/hooks/review-dispatch-gate.sh\"" \
+   --arg wfcap "\"\$HOME/.agents/hooks/workflow-agent-cap.sh\"" \
+   --arg rmhome "\"\$HOME/.agents/hooks/rm-home-gate.sh\"" \
+   --arg cuchrome "\"\$HOME/.agents/hooks/codex-cu-chrome-gate.sh\"" \
+   --arg runedit "\"\$HOME/.agents/hooks/running-script-edit-gate.sh\"" \
+   --arg prcreate "\"\$HOME/.agents/hooks/pr-create-gate.sh\"" \
+   --arg recall "\"\$HOME/.agents/hooks/compaction-recall.sh\"" \
+   --arg precompact "\"\$HOME/.agents/hooks/precompact-instructions.sh\"" \
+   --arg postcompact "\"\$HOME/.agents/hooks/postcompact-handoff.sh\"" \
+   --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
+   --arg conc "\"\$HOME/.agents/hooks/subagent-concurrency-gate.sh\"" \
+   --arg hostload "\"\$HOME/.agents/hooks/host-load-gate.sh\"" \
+   --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" \
+   --arg arttitle "\"\$HOME/.agents/hooks/artifact-title-gate.sh\"" \
+   --arg router "\"\$HOME/.agents/hooks/skill-router-nudge.sh\"" \
+   --arg chain "\"\$HOME/.agents/hooks/skill-chain-nudge.sh\"" \
+   --arg compcap "\"\$HOME/.agents/hooks/compaction-cap-gate.sh\"" \
+   --arg idle "\"\$HOME/.agents/hooks/wakeup-idle-gate.sh\"" \
+   --arg roundcost "\"\$HOME/.agents/hooks/round-cost-gate.sh\"" \
+   --arg followup "\"\$HOME/.agents/hooks/worker-followup-gate.sh\"" \
+   --arg dispatchgate "$HOME/.agents/hooks/review-dispatch-gate.sh" '
+  def ensure(ev; bare): ($only + " " + bare) as $cmd |
+    .hooks[ev] = ((.hooks[ev] // [])
+      | if any(.[]; any(.hooks[]?; .command == $cmd))
+        then . else . + [{"hooks":[{"type":"command","command":$cmd}]}] end);
+  def ensureMatched(ev; matcher; bare): ($only + " " + bare) as $cmd |
+    .hooks[ev] = ((.hooks[ev] // [])
+      | if any(.[]; any(.hooks[]?; .command == $cmd))
+        then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":$cmd}]}] end);
+  # pre-wrapper deploys registered the bare path, pre-bash ones the shebang wrapper;
+  # rewrite both in place so nothing runs twice. bash, never a #! exec: a CLI that
+  # descends from a #! script (cursor-agent; any agent-tmux worker) leaks ~1 KB of
+  # kernel memory (data.kalloc.1024) on every #! exec until reboot (live 2026-10-03).
+  def wrapBare:
+    .hooks |= ((. // {}) | with_entries(.value |= map(.hooks |= map(
+      if (.command | type) == "string" and (.command | test("^\"\\$HOME/\\.agents/hooks/[^\" ]+\\.sh\"$"))
+      then .command = $only + " " + .command
+      elif (.command | type) == "string" and (.command | startswith("\"$HOME/.agents/hooks/claude-only.sh\" "))
+      then .command = "bash " + .command else . end))));
+  # repo-owned hooks once per event+matcher: a host that held both the old and the
+  # new form of one hook would otherwise run it twice after the rewrite
+  def dedupeFleet:
+    .hooks |= ((. // {}) | with_entries(.value |= (
+      reduce .[] as $g ({seen: {}, out: []};
+        ($g.matcher // "") as $m
+        | (reduce ($g.hooks // [])[] as $h ({seen: .seen, keep: []};
+            (if ($h.command | type) == "string" and ($h.command | test("/\\.agents/hooks/"))
+             then $m + " " + $h.command else null end) as $k
+            | if $k != null and .seen[$k] then .
+              else .keep += [$h] | (if $k != null then .seen[$k] = true else . end) end)) as $r
+        | .seen = $r.seen
+        | if ($r.keep | length) > 0 then .out += [$g + {hooks: $r.keep}] else . end)
+      | .out)));
+  def retire(ev; cmd):
+    .hooks[ev] = ((.hooks[ev] // [])
+      | map(.hooks |= map(select(.command != cmd))) | map(select(.hooks | length > 0)));
+  retire("PreToolUse"; $bolold)
+  | wrapBare
+  | dedupeFleet
+  | ensure("SessionStart"; $vs)
+  | ensure("Stop"; $ts)
+  | ensureMatched("PreToolUse"; "Agent"; $bol)
+  | ensure("SubagentStart"; $subledger)
+  | ensure("SubagentStop"; $subledger)
+  | ensure("SessionStart"; $subledger)
+  | ensureMatched("PreToolUse"; "Bash"; $audit)
+  | ensureMatched("PreToolUse"; "Bash"; $device)
+  | ensureMatched("PreToolUse"; "Bash"; $assignhost)
+  | ensureMatched("PreToolUse"; "Agent"; $review)
+  # W44-1: settings PreToolUse never fires for mod tools; the tmux-agent mod runs this gate
+  # itself from TMUX_AGENT_DISPATCH_GATE. ensureMatched keeps an existing entry, so move it in place
+  | .hooks.PreToolUse |= map(if any(.hooks[]?; .command == ($only + " " + $review))
+      then .matcher = "Agent" else . end)
+  | .env = ((.env // {}) + {TMUX_AGENT_DISPATCH_GATE: $dispatchgate})
+  | ensureMatched("PreToolUse"; "Workflow"; $wfcap)
+  # W44-2 B1: subagent-ledger.sh now counts workflow agents at SubagentStart
+  | retire("SubagentStart"; $only + " " + $wfcap)
+  | ensureMatched("PreToolUse"; "Bash|EnterWorktree|Agent"; $rmhome)
+  # 2026-10-23: rm-home-gate also covers EnterWorktree and Agent; widen an existing Bash entry in place
+  | .hooks.PreToolUse |= map(if any(.hooks[]?; .command == ($only + " " + $rmhome))
+      then .matcher = "Bash|EnterWorktree|Agent" else . end)
+  # 2026-11-13 owner ruling: deny, never ask. The hook denies these too; the deny rules cover a
+  # form the hook misses, and the ask rules of an older deploy are removed so no prompt reaches the owner
+  | ["EnterWorktree", "Bash(git worktree add *)", "Bash(git -C * worktree add *)",
+     "Bash(*Google Chrome* --headless*)"] as $blocked
+  | .permissions.ask = ((.permissions.ask // []) - $blocked)
+  | .permissions.deny = (((.permissions.deny // []) + $blocked) | unique)
+  | ensureMatched("PreToolUse"; "mcp__codex-cu__js"; $cuchrome)
+  # 2026-11-06: an edit to a script a live process runs corrupts that run
+  | ensureMatched("PreToolUse"; "Edit|Write|MultiEdit"; $runedit)
+  | ensureMatched("PreToolUse"; "Bash"; $prcreate)
+  | ensureMatched("PostToolUse"; "*"; $ledger)
+  # 2026-11-13: a loaded skill is told its next station (using-decision-tree references/chain.tsv); a nudge, never a block
+  | ensureMatched("PostToolUse"; "Skill"; $chain)
+  | ensureMatched("SessionStart"; "compact"; $recall)
+  | ensure("PreCompact"; $precompact)
+  | retire("PostCompact"; $only + " " + $postcompact)   # retired 2026-11-10
+  | ensure("Stop"; $claim)
+  | ensureMatched("PreToolUse"; "Agent"; $conc)
+  | ensureMatched("PreToolUse"; "Agent|Bash|mcp__tmux-agent__assign"; $hostload)
+  # earlier deploys registered "Agent|Bash"; widen it in place so the mod assign tool is gated too
+  | .hooks.PreToolUse |= map(if any(.hooks[]?; .command == ($only + " " + $hostload)) then .matcher = "Agent|Bash|mcp__tmux-agent__assign" else . end)
+  | ensureMatched("PreToolUse"; "*"; $deny)
+  | ensureMatched("PreToolUse"; "Artifact"; $arttitle)
+  | ensure("UserPromptSubmit"; $router)
+  | ensureMatched("PreToolUse"; "Write|Edit|NotebookEdit|Bash|ScheduleWakeup"; $compcap)
+  | ensureMatched("PreToolUse"; "ScheduleWakeup"; $idle)
+  | ensureMatched("PreToolUse"; "Bash|Read|Grep|Glob|mcp__plugin_context-mode_context-mode__ctx_execute|mcp__plugin_context-mode_context-mode__ctx_execute_file"; $roundcost)
+  | ensureMatched("PreToolUse"; "SendMessage"; $followup)
+' "$SETTINGS" > "$tmp_settings" || { echo "FAIL [hooks] settings.json rewrite (jq) failed" >&2; exit 1; }
+apply "$tmp_settings" "$SETTINGS" hooks
+
+# Codex sends Claude-shaped hook payloads (live dump 2026-09-26), so the tool/stop gates run as-is.
+if [ -d ~/.codex ]; then
+  CODEX_HOOKS=~/.codex/hooks.json
+  seed "$CODEX_HOOKS" '{}' hooks
+  tmp_codex="$(mktemp)"
+  jq --arg router "\"\$HOME/.agents/hooks/skill-router-nudge.sh\"" \
+     --arg audit "\"\$HOME/.agents/hooks/bash-read-audit.sh\"" \
+     --arg assignhost "\"\$HOME/.agents/hooks/tmux-assign-host-gate.sh\"" \
+     --arg rmhome "\"\$HOME/.agents/hooks/rm-home-gate.sh\"" \
+     --arg prcreate "\"\$HOME/.agents/hooks/pr-create-gate.sh\"" \
+     --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" \
+     --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" \
+     --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
+     --arg hostload "\"\$HOME/.agents/hooks/host-load-gate.sh\"" '
+    def ensureMatched(ev; matcher; bare): ("bash " + bare) as $cmd |
+      .hooks[ev] = ((.hooks[ev] // [])
+        | if any(.[]; any(.hooks[]?; .command == $cmd))
+          then . else . + [{"matcher": matcher, "hooks":[{"type":"command","command":$cmd}]}] end);
+    # pre-bash deploys registered the bare #! path; prefix bash in place (see wrapBare)
+    def prefixBash:
+      .hooks |= ((. // {}) | with_entries(.value |= map(.hooks |= map(
+        if (.command | type) == "string" and (.command | test("^\"\\$HOME/\\.agents/hooks/[^\" ]+\\.sh\"$"))
+        then .command = "bash " + .command else . end))));
+    # repo-owned hooks once per event+matcher: a host that held both the old and the
+    # new form of one hook would otherwise run it twice after the rewrite
+    def dedupeFleet:
+      .hooks |= ((. // {}) | with_entries(.value |= (
+        reduce .[] as $g ({seen: {}, out: []};
+          ($g.matcher // "") as $m
+          | (reduce ($g.hooks // [])[] as $h ({seen: .seen, keep: []};
+              (if ($h.command | type) == "string" and ($h.command | test("/\\.agents/hooks/"))
+               then $m + " " + $h.command else null end) as $k
+              | if $k != null and .seen[$k] then .
+                else .keep += [$h] | (if $k != null then .seen[$k] = true else . end) end)) as $r
+          | .seen = $r.seen
+          | if ($r.keep | length) > 0 then .out += [$g + {hooks: $r.keep}] else . end)
+        | .out)));
+    prefixBash
+    | dedupeFleet
+    | ensureMatched("UserPromptSubmit"; ""; $router)
+    | ensureMatched("PreToolUse"; "Bash"; $audit)
+    | ensureMatched("PreToolUse"; "Bash"; $assignhost)
+    | ensureMatched("PreToolUse"; "Bash"; $rmhome)
+    | ensureMatched("PreToolUse"; "Bash"; $prcreate)
+    | ensureMatched("PreToolUse"; "*"; $deny)
+    # "*": the gate filters Bash and collaborationspawn_agent (v2 spawn) itself
+    | ensureMatched("PreToolUse"; "*"; $hostload)
+    | ensureMatched("PostToolUse"; "*"; $ledger)
+    | ensureMatched("Stop"; ""; $claim)
+  ' "$CODEX_HOOKS" > "$tmp_codex" || { echo "FAIL [hooks] codex hooks.json rewrite (jq) failed" >&2; exit 1; }
+  apply "$tmp_codex" "$CODEX_HOOKS" hooks
+  # Codex skips a hooks.json entry until config.toml holds its trusted_hash (live:
+  # host-load-gate never ran, 2026-10-03). Trust only the fleet hooks this block
+  # wrote. Hash = codex-rs hooks/src/engine/discovery.rs hook_hash (rust-v0.160.0):
+  # sha256 of canonical JSON {event_name, matcher, hooks:[normalized handler]};
+  # it reproduced every hash the Codex TUI had stored for these entries.
+  CODEX_CFG=~/.codex/config.toml
+  seed "$CODEX_CFG" "" hooks
+  # the state keys embed the live hooks.json path, so only the config file is redirected
+  cfg_out="$CODEX_CFG"; if [ "$CHECK" = 1 ]; then cfg_out="$(mktemp)"; cp "$CODEX_CFG" "$cfg_out"; fi
+  python3 - "$CODEX_HOOKS" "$cfg_out" <<'PY'
+import hashlib, json, re, sys
+hooks_path, cfg_path = sys.argv[1], sys.argv[2]
+label = {"PreToolUse": "pre_tool_use", "PostToolUse": "post_tool_use",
+         "UserPromptSubmit": "user_prompt_submit", "Stop": "stop"}
+cfg = open(cfg_path).read()
+for event, groups in json.load(open(hooks_path)).get("hooks", {}).items():
+    if event not in label:
+        continue
+    for i, group in enumerate(groups):
+        for j, h in enumerate(group.get("hooks", [])):
+            cmd = h.get("command", "")
+            if h.get("type") != "command" or "/.agents/hooks/" not in cmd:
+                continue
+            handler = {"type": "command", "command": cmd,
+                       "timeout": max(h.get("timeout") or 600, 1), "async": bool(h.get("async", False))}
+            ident = {"event_name": label[event], "hooks": [handler]}
+            # matcher_pattern_for_event: only tool events keep a matcher
+            if group.get("matcher") is not None and event in ("PreToolUse", "PostToolUse"):
+                ident["matcher"] = group["matcher"]
+            digest = "sha256:" + hashlib.sha256(
+                json.dumps(ident, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            header = f'[hooks.state."{hooks_path}:{label[event]}:{i}:{j}"]'
+            line = f'trusted_hash = "{digest}"'
+            # the whole section, header to the next [table]: keys may come in any order
+            sec = re.compile(r'(?m)^' + re.escape(header) + r'[ \t]*\n((?:(?!\[).*\n?)*)')
+            m = sec.search(cfg)
+            if not m:
+                cfg = cfg.rstrip("\n") + "\n\n" + header + "\n" + line + "\n"
+                continue
+            body = m.group(1)
+            if re.search(r'(?m)^trusted_hash[ \t]*=.*$', body):
+                body = re.sub(r'(?m)^trusted_hash[ \t]*=.*$', lambda _: line, body, count=1)
+            else:
+                body = line + "\n" + body
+            cfg = cfg[:m.start(1)] + body + cfg[m.end(1):]
+open(cfg_path, "w").write(cfg)
+PY
+  [ "$CHECK" = 0 ] || apply "$cfg_out" "$CODEX_CFG" hooks
+fi
+
+# agy rejects ~/.gemini/config/hooks.json whole when any key is not agy-format, so the
+# fleet owns its own plugin dir instead (whole-file, idempotent overwrite).
+if [ -d ~/.gemini/config ]; then
+  AGY_PLUGIN=~/.gemini/config/plugins/agent-scripts
+  w mkdir -p "$AGY_PLUGIN"
+  t="$(mktemp)"; printf '{"name":"agent-scripts"}\n' > "$t"; apply "$t" "$AGY_PLUGIN/plugin.json" hooks
+  t="$(mktemp)"
+  jq -n --arg a "bash \$HOME/.agents/hooks/agy-adapt.sh" '{"agent-scripts":{
+    PreToolUse:[{matcher:"run_command",hooks:[
+      {type:"command",command:($a+" PreToolUse tmux-assign-host-gate")},
+      {type:"command",command:($a+" PreToolUse bash-read-audit")},
+      {type:"command",command:($a+" PreToolUse host-load-gate")},
+      {type:"command",command:($a+" PreToolUse rm-home-gate")}]},
+      {matcher:"invoke_subagent",hooks:[
+      {type:"command",command:($a+" PreToolUse host-load-gate")}]}],
+    Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$t"
+  apply "$t" "$AGY_PLUGIN/hooks.json" hooks
+fi
+
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate running-script-edit-gate pr-create-gate compaction-recall precompact-instructions skill-router-nudge skill-chain-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
+  if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
+    echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
+    exit 1
+  fi
+done
+[ -r ~/.agents/hooks/skill-router-table.tsv ] || { echo "FAIL [hooks] skill-router-table.tsv not installed" >&2; exit 1; }
+# The gate fails closed: a missing validator would deny every dispatch, so its presence is a deploy check.
+[ -x ~/.agents/hooks/check-bol-prompt.sh ] || { echo "FAIL [hooks] check-bol-prompt.sh (bol-prompt-gate validator) not installed" >&2; exit 1; }
+[ -x ~/.agents/hooks/evidence-tokens.sh ] || { echo "FAIL [hooks] evidence-tokens.sh (shared by context-ledger + claim-evidence-gate) not installed" >&2; exit 1; }
+[ -x ~/.agents/hooks/cursor-adapt.sh ] || { echo "FAIL [hooks] cursor-adapt.sh not installed" >&2; exit 1; }
+[ -x ~/.agents/hooks/claude-only.sh ] || { echo "FAIL [hooks] claude-only.sh (settings.json hook wrapper) not installed" >&2; exit 1; }
+[ -x ~/.agents/hooks/agy-adapt.sh ] || { echo "FAIL [hooks] agy-adapt.sh not installed" >&2; exit 1; }
+if [ -e ~/.agents/hooks/postcompact-handoff.sh ] || grep -q 'postcompact-handoff' "$SETTINGS"; then
+  echo "FAIL [hooks] retired postcompact-handoff.sh still installed or registered" >&2
+  exit 1
+fi
+if [ -e ~/.agents/hooks/bol-prompt-warn.sh ] || grep -q 'bol-prompt-warn' "$SETTINGS"; then
+  echo "FAIL [hooks] retired bol-prompt-warn.sh still installed or registered" >&2
+  exit 1
+fi
+jq -e . "$SETTINGS" >/dev/null || { echo "FAIL [hooks] settings.json is no longer valid JSON" >&2; exit 1; }
+echo "PASS [hooks] sentinel hooks installed + registered, retired dispatch/warn hooks absent"
+
+if [ -d ~/.cursor ]; then   # Cursor present (install-context-mode-dir.sh uses the same test)
+  echo "==> [hooks] registering portable sentinels in ~/.cursor/hooks.json"
+  w bash "$SRC/scripts/install-cursor-hooks.sh"
+  bash "$SRC/scripts/check-cursor-hooks.sh"
+  echo "PASS [hooks] Cursor adapter registry"
+else echo "SKIP [hooks] ~/.cursor absent (Cursor not installed)"; fi
+}
+layer layer_hooks
+
+# --- Layer 6: context-mode storage pin ---------------------------------------
+# Machine-local. Layer 0 cannot see ~/. Plugin upgrades drop CONTEXT_MODE_DIR.
+layer_context_mode() {
+echo "==> [context-mode] pin storage to ~/.claude/context-mode"
+if [ "$CHECK" = 1 ]; then bash "$SRC/scripts/check-context-mode-dir.sh"   # the installer's own last step
+else bash "$SRC/scripts/install-context-mode-dir.sh"; fi
+echo "PASS [context-mode] canonical store ~/.claude/context-mode"
+if [ "$CHECK" = 0 ]; then
+  python3 "$SRC/scripts/codex-context-mode.py" --repair
+  if [ "$(uname -s)" = Darwin ]; then python3 "$SRC/scripts/codex-context-mode.py" --lock; fi
+  # Trust the locked, fork-sourced plugin's hooks with this host's own fingerprint (owner 11-06:
+  # a /hooks click per host and per plugin build blocked every deploy).
+  python3 "$SRC/scripts/codex-context-mode.py" --trust
+fi
+}
+layer layer_context_mode
+
+# --- Layer 7: Cursor runtime (kernel / ponytail rule / HUD) -------------------
+layer_cursor() {
+echo "==> [cursor] kernel.mdc + ponytail rule + HUD statusLine"
+w bash "$SRC/scripts/install-cursor-hud.sh"   # also Claude's own status line; never creates ~/.cursor
+[ -d ~/.cursor ] || { echo "SKIP [cursor] ~/.cursor absent (Cursor not installed)"; return 0; }
+w bash "$SRC/scripts/install-cursor-kernel.sh"
+w bash "$SRC/scripts/install-cursor-ponytail.sh"
+bash "$SRC/scripts/check-cursor-runtime.sh"
+echo "PASS [cursor] kernel + HUD + ponytail wiring"
+}
+layer layer_cursor
+
+# --- Layer 7b: Grok Build (its own rule + status line) -----------------------
+layer_grok() {
+echo "==> [grok] own rule + status line; inspect sees the Claude layout"
+w bash "$SRC/scripts/install-grok-runtime.sh"
+bash "$SRC/scripts/check-grok-runtime.sh"
+}
+layer layer_grok
+
+# --- Layer 7c: Chrome headless policy ------------------------------------------
+# Owner 2026-11-06: agents kept opening headless Chrome through npm/node children that no
+# Bash text gate can see (grok_bot/pub test/lib/cdp.mjs). Chrome's HeadlessMode=2 policy makes
+# Chrome itself refuse --headless from any launcher; tested on this host: "Headless mode is
+# disallowed by the system admin.", codex-cu-chrome-id still PASS. rm-home-gate stays as a fast filter.
+layer_chrome() {
+echo "==> [chrome] HeadlessMode policy = 2 (disallowed)"
+if [ "$(uname -s)" != Darwin ] || [ ! -d "/Applications/Google Chrome.app" ]; then
+  echo "SKIP [chrome] Google Chrome not installed (macOS only)"; return
+fi
+w defaults write com.google.Chrome HeadlessMode -int 2
+got="$(defaults read com.google.Chrome HeadlessMode 2>/dev/null || true)"
+[ "$got" = 2 ] || { echo "FAIL [chrome] HeadlessMode=${got:-<absent>}, expected 2" >&2; exit 1; }
+echo "PASS [chrome] HeadlessMode=2: Chrome refuses headless launches"
+}
+layer layer_chrome
+
+# --- Layer 7b: Antigravity runtime (statusline) --------------------------------
+layer_agy() {
+echo "==> [agy] statusline script + settings.json"
+if [ "$CHECK" = 1 ]; then echo "SKIP [agy] no read-only check"
+else bash "$SRC/scripts/install-antigravity-statusline.sh"; fi
+}
+layer layer_agy
+
+# --- Layer 8: agent definitions ----------------------------------------------
+layer_agents() {
+echo "==> [agents] global/agents/<runtime>/ -> runtime agent dirs"
+agents_report=""
+for rt in claude codex; do
+  src="$SRC/global/agents/$rt"
+  [ -d "$src" ] || continue
+  case "$rt" in claude) dst="$HOME/.claude/agents";; codex) dst="$HOME/.codex/agents";; esac
+  # A frontmatter hook whose script is missing is a SILENT ALLOW (measured
+  # 2026-09-04: bogus command path -> `echo x > f` succeeded). Fail closed:
+  # every `command:` a definition references must already be executable here.
+  while IFS= read -r hook_cmd; do
+    hook_path="${hook_cmd//\$HOME/$HOME}"; hook_path="${hook_path//\~/$HOME}"
+    if [ ! -x "$hook_path" ]; then
+      echo "FAIL [agents] $rt definition references hook not installed/executable: $hook_cmd" >&2
+      exit 1
+    fi
+  done < <(grep -h -E '^[[:space:]]*command:[[:space:]]*' "$src"/*.md 2>/dev/null | sed -E 's/^[[:space:]]*command:[[:space:]]*//; s/^bash[[:space:]]+//; s/^"//; s/"$//')
+  w mkdir -p "$dst"
+  w rsync -a --delete "$src/" "$dst/"
+  [ -d "$dst" ] || { echo "FAIL [agents] $dst missing" >&2; exit 1; }
+  agents_diff="$(diff -rq "$dst/" "$src/" || true)"
+  if [ -n "$agents_diff" ]; then
+    echo "FAIL [agents] $rt diff found after rsync:" >&2
+    echo "$agents_diff" >&2
+    exit 1
+  fi
+  agents_report="$agents_report $rt=$(find "$src" -type f | wc -l | tr -d ' ')"
+done
+echo "PASS [agents] 0 diff (${agents_report# })"
+}
+layer layer_agents
+
+# --- Layer 8b: mods (this repo's Claude Code plugins at the release version) ----
+layer_mods() {
+echo "==> [mods] installed agent-scripts plugins vs the release marketplace"
+if [ "$CHECK" = 1 ]; then bash "$SRC/scripts/sync-mods.sh" --check
+else bash "$SRC/scripts/sync-mods.sh"; fi
+}
+layer layer_mods
+
+# W35 retro F2: a per-host deploy record, so a retro can window "after both
+# hosts ran version X" instead of comparing hosts on different gate versions.
+deploy_method=tarball; [ "$CLONE_TRACKED" = 1 ] && deploy_method=clone-tracked
+# --- Layer 9: codex-cu (Codex computer use as a user-scope MCP server) -------
+# SKIPs on a host with no Computer Use plugin; that is not a failure.
+echo "==> [codex-cu] install proxy + register at user scope"
+if [ "$CHECK" = 1 ]; then echo "SKIP [codex-cu] no read-only check"
+else bash "$SRC/skills/codex-cu/scripts/install-codex-cu.sh"; fi
+
+if [ "$CHECK" = 0 ]; then
+mkdir -p ~/.local/state/agent-scripts
+# Stable name: macOS `hostname` follows DHCP/network; LocalHostName does not.
+host_id="$(scutil --get LocalHostName 2>/dev/null || hostname -s)"
+printf '{"timestamp":"%s","host":"%s","sha":"%s","method":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$host_id" "$DEPLOYED_SHA" "$deploy_method" >> ~/.local/state/agent-scripts/deploy-log.jsonl
+echo "PASS [deploy-log] appended $host_id @ ${DEPLOYED_SHA:0:7} -> ~/.local/state/agent-scripts/deploy-log.jsonl"
+fi
+
+# Provenance (deploy log = release) + one isolated run of the context-mode hook: a mounted
+# hook is not a working hook (W41 F2). Deploy and --check both end here (W43-3).
+layer bash "$SRC/scripts/check-deploy-drift.sh"
+if [ "$CHECK_RC" != 0 ]; then echo "==> CHECK FAILED — see the FAIL lines above; this host differs from $RELEASE_REF @ $DEPLOYED_SHA" >&2; exit 1; fi
+if [ "$CHECK" = 1 ]; then echo "==> CHECK OK — this host matches $RELEASE_REF @ $DEPLOYED_SHA"
+else echo "==> DEPLOY OK — all layers PASS"; fi
+}
+
+# :- so piping the script in (ssh host 'bash -s' < deploy.sh) works under set -u,
+# where BASH_SOURCE is unset and the guard must still run main.
+if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then
+  main "$@"
+fi
