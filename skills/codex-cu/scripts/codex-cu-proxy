@@ -1,0 +1,319 @@
+#!/usr/bin/env python3
+"""Stdio MCP proxy: inject Codex turn metadata into every tools/call, answer the
+per-app approval prompts (elicitation/create) by policy, pass all else through verbatim.
+
+Approval policy file (CU_APPROVE_FILE, default ~/.config/codex-cu/approve), read on
+every prompt so an edit takes effect at once:
+  absent       accept nothing (forward or decline, as below)
+  `all`        accept every prompt, app or not (full mode); `all` among names = names only
+  app names    one per line; accept `Allow Computer Use to use "<name>"?` only (safe mode)
+A prompt the policy does not accept goes to the client if the client declared
+elicitation, else the proxy declines it (agy and cursor-agent cannot answer one).
+"""
+import json, os, queue, subprocess, sys, threading, uuid
+from pathlib import Path
+
+CHILD = os.environ.get("CU_CHILD") or str(Path(__file__).resolve().parent / "codex-cu-mcp")  # sibling by default
+SID, TID = os.environ.get("CU_SID") or str(uuid.uuid4()), str(uuid.uuid4())  # CU_SID: reuse a session to clean up its leaked tab
+LOG = os.environ.get("CU_LOG")  # set CU_LOG=<path> to record one line per tools/call
+APPROVE_FILE = os.environ.get("CU_APPROVE_FILE") or str(Path.home() / ".config/codex-cu/approve")
+
+
+def policy_accepts(message, policy_text):
+    """policy_text None = no file. Returns True only for an explicit accept."""
+    if policy_text is None:
+        return False
+    names = [l.strip() for l in policy_text.splitlines() if l.strip() and not l.strip().startswith("#")]
+    if names == ["all"]:
+        return True
+    return isinstance(message, str) and any(message == f'Allow Computer Use to use "{n}"?' for n in names)
+
+
+def read_policy():
+    try:
+        return Path(APPROVE_FILE).read_text()
+    except FileNotFoundError:
+        return None
+    except (OSError, UnicodeDecodeError) as exc:  # unreadable policy must not open the gate; log and treat as absent
+        sys.stderr.write(f"codex-cu-proxy: cannot read {APPROVE_FILE}: {exc}\n")
+        return None
+
+
+def answer_elicitation(msg, client_elicits, policy_text):
+    """For a server->client elicitation/create, return the reply line the proxy sends
+    to the child, or None to forward it to the client. The caller logs the action
+    once the reply is really queued."""
+    params = msg.get("params") if isinstance(msg.get("params"), dict) else {}
+    message = params.get("message")
+    if policy_accepts(message, policy_text):
+        action = "accept"
+    elif client_elicits:
+        return None
+    else:
+        action = "decline"
+    result = {"action": action, "content": {}} if action == "accept" else {"action": action}
+    return json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": result})
+
+
+def declare_elicitation(line):
+    """Rewrite the client's initialize so the server may send prompts. Returns
+    (line, client_declared_elicitation)."""
+    try:
+        msg = json.loads(line)
+        caps = msg["params"].setdefault("capabilities", {})
+    except (ValueError, TypeError, KeyError, AttributeError):
+        return line, False
+    if not isinstance(caps, dict):
+        return line, False
+    if "elicitation" in caps:
+        return line, True
+    caps["elicitation"] = {}
+    return json.dumps(msg), False
+
+
+def inject(line: str) -> str:
+    try:
+        msg = json.loads(line)
+    except ValueError:
+        return line
+    if isinstance(msg, dict) and msg.get("method") == "tools/call":
+        params = msg.setdefault("params", {})
+        if not isinstance(params, dict):
+            return line  # malformed request: let the child reject it, don't crash the connection
+        meta = params.setdefault("_meta", {})
+        if not isinstance(meta, dict):
+            return line
+        meta["x-codex-turn-metadata"] = json.dumps({"session_id": SID, "turn_id": TID})
+        if LOG:
+            with open(LOG, "a") as f:  # per-call evidence: same pair reused across calls
+                f.write(json.dumps({"n": "tools/call", "sid": SID, "tid": TID}) + "\n")
+        return json.dumps(msg)
+    return line
+
+
+def handle_pre_init(line: str):  # no `str | None`: /usr/bin/python3 is 3.9 on macOS
+    """Process messages before initialize.
+    Returns (is_init, reply).
+    If is_init is True, initialize has arrived.
+    If is_init is False:
+      - reply is a JSON-RPC error string for requests with an id
+      - reply is None for notifications (no id), which are dropped
+    """
+    try:
+        msg = json.loads(line)
+    except (ValueError, TypeError):
+        return False, None
+    if not isinstance(msg, dict):
+        return False, None
+    if msg.get("method") == "initialize":
+        return True, None
+    req_id = msg.get("id")
+    if req_id is not None:
+        return False, json.dumps({"jsonrpc": "2.0", "id": req_id, "error": {"code": -32601, "message": "Method not found"}})
+    return False, None
+
+
+def self_test():
+    out = json.loads(inject(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "js"}})))
+    meta = json.loads(out["params"]["_meta"]["x-codex-turn-metadata"])
+    assert meta == {"session_id": SID, "turn_id": TID}
+    other = json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    assert inject(other) == other  # non-tools/call passes verbatim
+    assert inject("not json") == "not json"
+    for bad in ('{"jsonrpc":"2.0","id":3,"method":"tools/call","params":null}',
+                '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":[]}'):
+        assert inject(bad) == bad  # malformed params must not crash the connection
+
+    # Pre-initialize: requests with id return -32601 and do not reach child
+    is_init, reply = handle_pre_init('{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}')
+    assert not is_init
+    assert reply is not None
+    rep = json.loads(reply)
+    assert rep["id"] == 1
+    assert rep["error"]["code"] == -32601
+    assert rep["error"]["message"] == "Method not found"
+
+    # Pre-initialize: notifications without id are dropped
+    is_init, reply = handle_pre_init('{"jsonrpc":"2.0","method":"notifications/initialized"}')
+    assert not is_init
+    assert reply is None
+
+    # Pre-initialize: initialize triggers transition
+    is_init, reply = handle_pre_init('{"jsonrpc":"2.0","id":2,"method":"initialize","params":{}}')
+    assert is_init
+    assert reply is None
+
+    # Approval policy
+    calc = 'Allow Computer Use to use "Calculator"?'
+    notes = 'Allow Computer Use to use "Notes"?'
+    assert not policy_accepts(calc, None)
+    assert policy_accepts(calc, "all\n") and policy_accepts("Allow microphone?", "all")
+    assert policy_accepts(calc, "# safe\nCalculator\nTextEdit\n")
+    assert not policy_accepts(notes, "Calculator\n")
+    assert not policy_accepts(calc, "Calc\n")  # exact name, not prefix
+    assert not policy_accepts(notes, "all\nCalculator")  # `all` must stand alone to mean everything
+    el = {"jsonrpc": "2.0", "id": 7, "method": "elicitation/create", "params": {"message": notes}}
+    assert json.loads(answer_elicitation(el, False, "all"))["result"] == {"action": "accept", "content": {}}
+    assert answer_elicitation(el, True, "Calculator") is None  # client can ask the user
+    assert json.loads(answer_elicitation(el, False, "Calculator"))["result"] == {"action": "decline"}
+    assert json.loads(answer_elicitation(el, False, None))["result"]["action"] == "decline"
+
+    # initialize: declare elicitation, remember whether the client did
+    line, had = declare_elicitation('{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"capabilities":{}}}')
+    assert not had and json.loads(line)["params"]["capabilities"]["elicitation"] == {}
+    src = '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"capabilities":{"elicitation":{"form":{}}}}}'
+    assert declare_elicitation(src) == (src, True)
+    assert declare_elicitation('{"id":0,"method":"initialize"}')[1] is False
+
+    print("self-test ok", file=sys.stderr)
+
+
+DRAIN_IDLE_S = float(os.environ.get("CU_DRAIN_IDLE_S", "30"))  # env override is for the test only
+CHUNK = 65536
+
+
+def drain(pump, state):
+    """After the child exits, keep waiting while bytes still reach the client (a slow
+    client is fine). Give up after DRAIN_IDLE_S with no byte progress: a client that
+    stopped reading, or a grandchild still holding the child's stdout. True = drained."""
+    idle, seen = 0.0, state["bytes"]
+    while pump.is_alive():
+        pump.join(0.5)
+        if state["bytes"] != seen:
+            idle, seen = 0.0, state["bytes"]
+        else:
+            idle += 0.5
+            if idle >= DRAIN_IDLE_S:
+                return False
+    return True
+
+
+def reap(child, pump, state):
+    """A quiet child death must end the proxy: otherwise it blocks on stdin forever
+    and the MCP client waits for a reply that can never arrive. Deliver the child's
+    last lines first; if that cannot finish, exit non-zero instead of truncating silently."""
+    rc = child.wait()
+    drained = drain(pump, state)
+    code = rc if rc >= 0 else 128 - rc
+    msg = f"child {CHILD} exited {rc}"
+    if not drained:
+        msg += f"\ncodex-cu-proxy: no output progress for {DRAIN_IDLE_S:g}s after child exit; output may be incomplete"
+        code = code or 1
+    die(code, msg)
+
+
+def die(code, msg):
+    """End the process with `code` after a best-effort diagnostic. The exit must not
+    depend on stderr: a closed stderr raises (nowhere left to report it), a stderr
+    nobody reads blocks, so a timer forces the exit."""
+    timer = threading.Timer(5, os._exit, (code,))
+    timer.daemon = True
+    timer.start()
+    try:
+        sys.stderr.write(f"codex-cu-proxy: {msg}\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+    os._exit(code)
+
+
+def fail(msg):
+    """The connection cannot continue: say why and end it non-zero."""
+    die(1, msg)
+
+
+def main():
+    child = subprocess.Popen([CHILD], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=sys.stderr, text=True, bufsize=1)
+    out_lock, close_lock = threading.Lock(), threading.Lock()
+    state = {"client_elicits": False, "bytes": 0, "closing": False}
+    to_child = queue.Queue()  # one writer thread owns child stdin, so no reader ever blocks on it
+    out = sys.stdout.buffer
+
+    def to_client(line):
+        data = (line + "\n").encode()
+        with out_lock:
+            for i in range(0, len(data), CHUNK):  # chunked so drain() can see byte progress
+                out.write(data[i:i + CHUNK])
+                out.flush()
+                state["bytes"] += min(CHUNK, len(data) - i)
+
+    def send_to_child(line):
+        """Queue a line unless the client already closed; False = dropped."""
+        with close_lock:
+            if state["closing"]:
+                return False
+            to_child.put(line)
+            return True
+
+    def writer():
+        while True:
+            line = to_child.get()
+            if line is None:
+                break
+            try:
+                child.stdin.write(line + "\n")
+                child.stdin.flush()
+            except (BrokenPipeError, OSError, ValueError) as exc:
+                fail(f"child stdin closed, cannot send: {exc!r}")
+        try:
+            child.stdin.close()
+        except (BrokenPipeError, OSError, ValueError):
+            pass
+
+    def pump():
+        """Child -> client. Approval prompts stop here when the policy answers them."""
+        try:
+            for line in child.stdout:
+                stripped = line.rstrip("\n")
+                try:
+                    msg = json.loads(stripped)
+                except ValueError:
+                    msg = None
+                if isinstance(msg, dict) and msg.get("method") == "elicitation/create" and "id" in msg:
+                    reply = answer_elicitation(msg, state["client_elicits"], read_policy())
+                    # One gate after the (possibly slow) policy read decides drop vs act.
+                    # A forward can still meet an EOF right after this check; that equals
+                    # a client that closes just after it receives the prompt.
+                    with close_lock:
+                        closing = state["closing"]
+                        if not closing and reply is not None:
+                            to_child.put(reply)
+                    if closing:
+                        sys.stderr.write("codex-cu-proxy: elicitation dropped, client closed stdin\n")
+                        continue
+                    if reply is not None:
+                        params = msg.get("params") if isinstance(msg.get("params"), dict) else {}
+                        action = json.loads(reply)["result"]["action"]
+                        sys.stderr.write(f"codex-cu-proxy: elicitation {action} {json.dumps(params.get('message'))}\n")
+                        continue
+                to_client(stripped)
+        except BrokenPipeError:
+            fail("client stdout closed")
+        except Exception as exc:  # a dead pump hangs the connection: fail loudly instead
+            fail(f"pump failed: {exc!r}")
+
+    threading.Thread(target=writer, daemon=True).start()
+    pump_thread = threading.Thread(target=pump, daemon=True)
+    pump_thread.start()
+    reaper = threading.Thread(target=reap, args=(child, pump_thread, state), daemon=True)
+    reaper.start()
+    initialized = False
+    for line in sys.stdin:
+        stripped = line.rstrip("\n")
+        if not initialized:
+            is_init, reply = handle_pre_init(stripped)
+            if not is_init:
+                if reply is not None:
+                    to_client(reply)
+                continue
+            initialized = True
+            stripped, state["client_elicits"] = declare_elicitation(stripped)
+        send_to_child(inject(stripped))
+    with close_lock:  # client EOF = shutdown: queued lines go out, later approvals are dropped (logged)
+        state["closing"] = True
+        to_child.put(None)
+    reaper.join()  # reap() ends the process once the child exits and its output is delivered
+
+
+if __name__ == "__main__":
+    self_test() if "--self-test" in sys.argv else main()

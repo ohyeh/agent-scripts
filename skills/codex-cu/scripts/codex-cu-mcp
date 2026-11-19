@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""Launch the newest openai-bundled unified-computer-use cua_repl.
+
+`--resolve` prints the chosen version dir and exits 0 without launching, so the
+installer and the checker share THIS readiness logic instead of each guessing
+from the base dir's mere existence.
+"""
+import json
+import os
+import sys
+from pathlib import Path
+
+BASE = Path.home() / ".codex/plugins/cache/openai-bundled/unified-computer-use"
+# node -e: run argv[1:] as a child on inherited stdio, forward stop signals, pass its exit code.
+SPAWN = (
+    'const [c,...a]=process.argv.slice(1);'
+    'const p=require("child_process").spawn(c,a,{stdio:"inherit"});'
+    'for(const s of ["SIGTERM","SIGINT","SIGHUP"])process.on(s,()=>p.kill(s));'
+    'p.on("error",e=>{console.error("codex-cu-mcp: "+e.message);process.exit(127)});'
+    'p.on("exit",code=>process.exit(code??128));'
+)
+
+
+def version_key(path: Path):
+    parts = []
+    for piece in path.name.split("."):
+        if piece.isdigit():
+            parts.append((0, int(piece)))
+        else:
+            parts.append((1, piece))
+    return (parts, path.stat().st_mtime_ns)
+
+
+def main() -> None:
+    if not BASE.is_dir():
+        sys.stderr.write(f"codex-cu-mcp: missing {BASE}\n")
+        sys.exit(1)
+    subdirs = [p for p in BASE.iterdir() if p.is_dir()]
+    # A dir without .mcp.json is not a release: a half-finished download or a
+    # staging dir would otherwise outrank a good numeric version (version_key
+    # sorts non-numeric pieces ABOVE numeric ones) and launch would then fail.
+    versions = [p for p in subdirs if (p / ".mcp.json").is_file()]
+    if not versions:
+        skipped = ", ".join(sorted(p.name for p in subdirs)) or "none"
+        sys.stderr.write(
+            f"codex-cu-mcp: no usable version under {BASE} "
+            f"(dirs without .mcp.json: {skipped})\n"
+        )
+        sys.exit(1)
+    if len(versions) < len(subdirs):
+        ignored = ", ".join(sorted(p.name for p in subdirs if p not in versions))
+        sys.stderr.write(f"codex-cu-mcp: ignoring dirs without .mcp.json: {ignored}\n")
+    latest = max(versions, key=version_key)
+    mcp_path = latest / ".mcp.json"
+    resolve_only = "--resolve" in sys.argv
+    try:
+        spec_root = json.loads(mcp_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        sys.stderr.write(f"codex-cu-mcp: cannot read {mcp_path}: {exc}\n")
+        sys.exit(1)
+    servers = spec_root.get("mcpServers")
+    spec = servers.get("cua_repl") if isinstance(servers, dict) else None
+    if not isinstance(spec, dict):
+        sys.stderr.write(f"codex-cu-mcp: cua_repl missing in {mcp_path}\n")
+        sys.exit(1)
+    command = spec.get("command")
+    args = spec.get("args") or []
+    env_extra = spec.get("env") or {}
+    if not isinstance(command, str) or not command:
+        sys.stderr.write(f"codex-cu-mcp: cua_repl command missing in {mcp_path}\n")
+        sys.exit(1)
+    if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
+        sys.stderr.write(f"codex-cu-mcp: cua_repl args must be a string array in {mcp_path}\n")
+        sys.exit(1)
+    if not isinstance(env_extra, dict):
+        sys.stderr.write(f"codex-cu-mcp: cua_repl env must be an object in {mcp_path}\n")
+        sys.exit(1)
+    # Since 26.1029 the plugin runs the server as
+    #   /bin/sh -c 'export BROWSER_USE_ACCESS_EXECUTOR_ID="${...-}"; exec "$@"' cua-repl <server> [args]
+    # which re-exports the id we drop below as "" ("browser access host is unavailable").
+    # Run the inner server without it ($0 = args[2], "$@" = args[3:]). Checked before
+    # --resolve so check-codex-cu.sh fails on a wrapper shape we do not know.
+    if command == "/bin/sh" and args[:1] == ["-c"] and "BROWSER_USE_ACCESS_EXECUTOR_ID" in "".join(args[1:2]):
+        if len(args) < 4 or 'exec "$@"' not in args[1]:
+            sys.stderr.write(f"codex-cu-mcp: unknown /bin/sh wrapper in {mcp_path}: {args!r}\n")
+            sys.exit(1)
+        command, args = args[3], args[4:]
+    # The Chrome native host and the Sky app check the signature of the connecting
+    # node_repl AND its parent; our python parent fails that, so browsers and apps
+    # list empty. Run node_repl as a child of the plugin's OpenAI-signed node.
+    # shortcut: passes only an immediate-parent check; revisit if upstream walks further up.
+    node = env_extra.get("NODE_REPL_NODE_PATH")
+    if not isinstance(node, str) or not os.access(node, os.X_OK):
+        sys.stderr.write(f"codex-cu-mcp: NODE_REPL_NODE_PATH missing or not executable in {mcp_path}: {node!r}\n")
+        sys.exit(1)
+    if resolve_only:
+        print(latest)
+        return
+    # Strip any --import require-browser-access.mjs that OpenAI bundled plugins
+    # inject to enforce BROWSER_USE_ACCESS_EXECUTOR_ID verification (which expects
+    # ChatGPT app internal pipe). Outside ChatGPT app, that pipe does not exist;
+    # dropping the import allows browser-service.mjs to discover Chromium instances directly.
+    # 26.1029 no longer passes this import; kept for older builds.
+    filtered_args = []
+    skip_next = False
+    for i, arg in enumerate(args):
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == "--import" and i + 1 < len(args) and "require-browser-access" in args[i + 1]:
+            skip_next = True
+            continue
+        if "require-browser-access" in arg:
+            continue
+        filtered_args.append(arg)
+    env = os.environ.copy()
+    for key, value in env_extra.items():
+        env[str(key)] = value if isinstance(value, str) else json.dumps(value)
+    env.pop("BROWSER_USE_ACCESS_EXECUTOR_ID", None)
+    os.execve(node, [node, "-e", SPAWN, command, *filtered_args], env)
+
+
+if __name__ == "__main__":
+    main()

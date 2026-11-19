@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""Run JS files through cua_repl in order, in one runtime, via codex-cu-proxy.
+
+Usage: [CU_HOST=<ssh host>] [CU_SID=<session>] [CU_TIMEOUT_MS=90000] codex-cu-remote <file.js>...
+  CU_HOST set: drive that Mac over SSH (its own proxy and approval policy). Unset: this Mac.
+Variables persist from one file to the next within a run; each run is a new runtime.
+Exit 1 when a step returns an error or the proxy closes early.
+"""
+import json, os, shlex, signal, subprocess, sys
+
+PROXY = "~/.local/bin/codex-cu-proxy"
+files = sys.argv[1:]
+if not files:
+    sys.exit(__doc__.strip().splitlines()[2])
+codes = []
+for path in files:  # read all before SSH, so a bad path fails without a session
+    with open(path) as f:
+        codes.append(f.read())
+host, sid = os.environ.get("CU_HOST"), os.environ.get("CU_SID")
+timeout_ms = int(os.environ.get("CU_TIMEOUT_MS", "90000"))
+if host:
+    # sshd starts the command as a group leader, and exec keeps it, so $$ is the remote
+    # proxy's process group: report it first so a forced stop can kill it over SSH
+    cmd = ["ssh", "-o", "BatchMode=yes", host, 'echo "codex-cu-remote pgid $$"; '
+           + (f"export CU_SID={shlex.quote(sid)}; " if sid else "") + "exec " + PROXY]
+else:
+    cmd = [os.path.expanduser(PROXY)]  # CU_SID passes through the inherited environment
+# own process group, so a forced stop reaches the proxy's MCP child too
+p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1, start_new_session=True)
+remote_pgid = None
+if host:
+    first = p.stdout.readline().split()
+    if first[:2] != ["codex-cu-remote", "pgid"] or not first[2:3] or not first[2].isdigit():
+        p.kill()
+        sys.exit(f"FAIL codex-cu-remote: no pgid line from {host} (exit {p.wait()})")
+    remote_pgid = first[2]
+
+
+def send(msg):
+    p.stdin.write(json.dumps(msg) + "\n")
+    p.stdin.flush()
+
+
+def wait(id_):
+    for line in p.stdout:
+        try:
+            m = json.loads(line)
+        except ValueError:
+            continue
+        if "method" in m:  # server-to-client message, never our reply
+            if "id" in m:  # a request needs an answer: ping, or method-not-found
+                send({"jsonrpc": "2.0", "id": m["id"], "result": {}} if m["method"] == "ping" else
+                     {"jsonrpc": "2.0", "id": m["id"], "error": {"code": -32601, "message": "not supported"}})
+            continue
+        if m.get("id") == id_:
+            return m
+    raise SystemExit(f"FAIL codex-cu-remote: proxy closed before reply {id_}")
+
+
+def close():
+    """stdin EOF lets the proxy stop its MCP child. Past its own 30 s limit, stop the whole
+    group (TERM, then KILL), on the remote Mac too. Returns False when the stop was forced."""
+    try:
+        p.stdin.close()
+    except OSError:
+        pass
+    try:
+        p.wait(timeout=40)
+        return True
+    except subprocess.TimeoutExpired:
+        pass
+    remote = None
+    if remote_pgid:
+        try:
+            rc = subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=15", host,
+                                 f"kill -TERM -- -{remote_pgid} 2>/dev/null; sleep 5; kill -KILL -- -{remote_pgid} 2>/dev/null; true"],
+                                stdin=subprocess.DEVNULL, timeout=40).returncode
+            remote = f"remote ({host} pgid {remote_pgid}) " + ("stopped" if rc == 0 else f"NOT confirmed: ssh exit {rc}")
+        except subprocess.TimeoutExpired:
+            remote = f"remote ({host} pgid {remote_pgid}) NOT confirmed: ssh timed out"
+    for sig in (signal.SIGTERM, signal.SIGKILL):  # KILL always: the proxy can exit while its child ignores TERM
+        try:
+            os.killpg(p.pid, sig)
+        except (ProcessLookupError, PermissionError):  # macOS: EPERM when only the unreaped leader is left
+            break
+        try:
+            p.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+    print("FAIL codex-cu-remote: proxy did not exit after stdin EOF; local process group stopped"
+          + (f"; {remote}" if remote else ""), file=sys.stderr)
+    return False
+
+
+failed = False
+try:
+    send({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+        "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "codex-cu-remote", "version": "1"}}})
+    init = wait(1)
+    if "error" in init:
+        raise SystemExit("FAIL codex-cu-remote: initialize " + json.dumps(init["error"]))
+    send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+    for n, (path, code) in enumerate(zip(files, codes), start=2):
+        send({"jsonrpc": "2.0", "id": n, "method": "tools/call", "params": {
+            "name": "js", "arguments": {"code": code, "timeout_ms": timeout_ms}}})
+        r = wait(n)
+        print(f"=== step {n - 1}: {path}")
+        res = r.get("result", {})
+        for c in res.get("content", []):
+            if c.get("type") == "text":
+                print(c["text"])
+        if "error" in r or res.get("isError"):
+            print("ERROR", json.dumps(r.get("error") or "tool returned isError"), flush=True)
+            failed = True
+            break  # later files depend on earlier state
+finally:
+    clean = close()
+    try:
+        sys.stdout.flush()
+    except BrokenPipeError:
+        pass
+sys.exit(1 if failed or not clean else 0)
