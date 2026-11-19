@@ -1,0 +1,51 @@
+This skill is a fork of `skills/session-handoff` from softaworks/agent-toolkit.
+
+Upstream: https://github.com/softaworks/agent-toolkit
+Forked at lock computedHash:
+  8a73adac79d965a57dc5e898a498c479b749a8fad5ba03b08aa033ad9b710437
+
+Upstream is MIT licensed; its copyright and permission notice is retained
+below, as MIT requires for copies and substantial portions.
+
+Local changes since the fork:
+- SKILL.md addresses the scripts by absolute path, so the documented commands
+  work from any cwd. Keep the process cwd at the target project: the scaffold
+  derives the project from cwd by design.
+- validate_handoff.py decides READY/BLOCKED from concrete blockers (secrets,
+  remaining TODOs, missing required sections). The upstream 0-100 quality
+  score was removed: it scored heading presence, so a handoff full of
+  unfilled TODOs still cleared its 70 threshold.
+- validate_handoff.py no longer reports an already-redacted value as a leaked
+  secret (`PASSWORD="..."` blocked a real handoff), and resolves cited paths
+  by walking up to the directory holding .claude/ instead of assuming a fixed
+  depth. Re-run over 28 stored handoffs: 26 READY, 2 blocked, both correctly
+  (they are runbooks kept in the handoffs directory, not handoffs).
+- Slimmed to what is actually used, measured over 28 handoffs in local
+  transcripts: create_handoff 31 invocations, validate_handoff 102,
+  list_handoffs 3, check_staleness 1. Dropped list_handoffs.py,
+  check_staleness.py (both replaced by two shell one-liners in SKILL.md),
+  references/resume-checklist.md (inlined), README.md, and evals/.
+
+---
+
+MIT License
+
+Copyright (c) 2026 Leonardo Flores
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
