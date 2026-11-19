@@ -1,0 +1,4 @@
+{
+  "description": "Reads the You should know offer card above the prompt, submits it to the main agent, hides it, and logs it with the agent's answer.",
+  "modules": ["./register.ts"]
+}
