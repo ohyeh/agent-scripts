@@ -21,7 +21,7 @@ import type { View } from '../types'
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
-const VERSION = '0.8.1' // keep equal to .claude-plugin/plugin.json
+const VERSION = '0.8.2' // keep equal to .claude-plugin/plugin.json
 const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
 const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
@@ -127,11 +127,27 @@ async function releaseGuard($: EngineInterface, record: NonNullable<ReturnType<t
   record.guard = undefined
 }
 
+/** Where guards and CLI results live: beside GATE_LOG when it is set. */
+const stateDir = async ($: EngineInterface) =>
+  logPath?.includes('/') ? logPath.slice(0, logPath.lastIndexOf('/')) : `${await $.env.get('HOME')}/.local/state/byo-provider`
+
+/** Request bodies hold the conversation: always this folder, never beside GATE_LOG. Throws unless it is
+ *  this user's real folder with mode 700. mkdir only makes a missing folder: nothing here changes the
+ *  mode of an existing one or follows a symlink (find does not). */
+async function requestDir($: EngineInterface): Promise<string> {
+  const dir = `${await $.env.get('HOME')}/.local/state/byo-provider/requests`
+  await $.process.run(['mkdir', '-p', '-m', '700', dir])
+  const uid = (await $.process.run(['id', '-u'])).stdout.trim()
+  const seen = await $.process.run(['find', dir, '-maxdepth', '0', '-type', 'd', '-perm', '700', '-user', uid])
+  if (!/^\d+$/.test(uid) || seen.exitCode !== 0 || seen.stdout.trim() !== dir) throw new Error(`request folder is not private: ${dir} must be your own folder with mode 700`)
+  return dir
+}
+
 async function armGuard($: EngineInterface, loop: string, selector?: string) {
   const record = cliLoops.get(loop)!
   if (record.guard || (!record.worker && !selector) || !record.workerProfile || !record.ledger) return
   await releaseGuard($, record)
-  const state = logPath?.includes('/') ? logPath.slice(0, logPath.lastIndexOf('/')) : `${await $.env.get('HOME')}/.local/state/byo-provider`
+  const state = await stateDir($)
   record.guardPath = `${state}/byo-${loop}-${Date.now()}.guard`
   await $.fs.write(record.guardPath, JSON.stringify({ state: 'armed', owner: record.owner }))
   record.guard = $.process.spawn({ argv: ['python3', `${$.plugin.root}/scripts/cli.py`, '--guard', await tmuxBin($), record.workerProfile, selector ?? record.worker!, record.guardPath, record.ledger] })
@@ -296,14 +312,25 @@ async function agentDef($: EngineInterface, type: string | undefined): Promise<{
 }
 
 /** POSTs to `<url>/v1/messages` with curl: `$.http.fetch` gives up after 30 s, a long gateway answer
- *  (effort max, a long loop) takes more. The token goes in the child's env, the body on stdin: neither
+ *  (effort max, a long loop) takes more. The token goes in the child's env, the body in a file: neither
  *  in argv. status 0 means curl itself failed; `text` then holds its error. */
 async function post($: EngineInterface, cfg: GateProfile, body: string): Promise<{ status: number; ok: boolean; text: string }> {
-  const r = await $.process.run(['curl', '-sS', '--max-time', String(Math.ceil(cfg.timeoutMs / 1000)), '-X', 'POST',
-    '--variable', '%BYO_GATE_TOKEN', '--expand-header', 'authorization: Bearer {{BYO_GATE_TOKEN}}',
-    '-H', 'content-type: application/json', '-H', 'anthropic-version: 2023-06-01',
-    '--data-binary', '@-', '-w', '\n%{http_code}', `${cfg.url.replace(/\/+$/, '')}/v1/messages`],
-  { stdin: body, env: { BYO_GATE_TOKEN: cfg.token }, timeoutMs: cfg.timeoutMs + 5000 })
+  // Not stdin: the engine refuses a process whose argv or stdin names a Claude Code settings file,
+  // and the system prompt in the body names them.
+  const file = `${await requestDir($)}/byo-request-${Date.now()}-${Math.random().toString(36).slice(2)}.json`
+  let r
+  try {
+    await $.fs.write(file, body)
+    r = await $.process.run(['curl', '-sS', '--max-time', String(Math.ceil(cfg.timeoutMs / 1000)), '-X', 'POST',
+      '--variable', '%BYO_GATE_TOKEN', '--expand-header', 'authorization: Bearer {{BYO_GATE_TOKEN}}',
+      '-H', 'content-type: application/json', '-H', 'anthropic-version: 2023-06-01',
+      '--data-binary', `@${file}`, '-w', '\n%{http_code}', `${cfg.url.replace(/\/+$/, '')}/v1/messages`],
+    { env: { BYO_GATE_TOKEN: cfg.token }, timeoutMs: cfg.timeoutMs + 5000 })
+  } finally {
+    // Not awaited: a slow removal must not turn an answer into a timeout; session.start sweeps what stays.
+    void $.process.run(['rm', '-f', file]).then(x => { if (x.exitCode !== 0) throw new Error(`rm exit ${x.exitCode}`) })
+      .catch(err => log($, { ev: 'gate-request-file-kept', error: String(err) }).catch(() => undefined))
+  }
   if (r.exitCode !== 0) return { status: 0, ok: false, text: `curl exit ${r.exitCode}: ${r.stderr.trim().slice(0, 300)}` }
   const i = r.stdout.lastIndexOf('\n')
   const status = Number(r.stdout.slice(i + 1))
@@ -451,7 +478,7 @@ async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, si
     return failStep(e.turnId, e.index, 'agent type is not opted in by cli_types')
   }
   const route = `cli:${cfg.cli}`
-  const state = logPath?.includes('/') ? logPath.slice(0, logPath.lastIndexOf('/')) : `${await $.env.get('HOME')}/.local/state/byo-provider`
+  const state = await stateDir($)
   await log($, { ev: 'cli-step', loop, index: e.index, route })
   // A relay step goes on waiting for the worker the step before it started: no new task, no round.
   const relay = record.relay
@@ -719,6 +746,11 @@ export const register: Register = (on, opts) => {
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     logPath = await $.env.get('GATE_LOG')
+    // A session that died mid-request left its body file; a request lives ten minutes at most.
+    // shortcut: age stands for "its owner is gone", upgrade to an owner check if a live request is ever swept.
+    await requestDir($).then(dir => $.process.run(['find', dir, '-maxdepth', '1', '-type', 'f', '-name', 'byo-request-*.json', '-mmin', '+60', '-delete']))
+      .then(x => { if (x.exitCode !== 0) throw new Error(`find exit ${x.exitCode}: ${x.stderr.slice(0, 200)}`) })
+      .catch(err => log($, { ev: 'gate-request-sweep-fail', error: String(err) }).catch(() => undefined))
     try { await restoreBindings($) }
     catch (error) {
       bindingError = String(error)

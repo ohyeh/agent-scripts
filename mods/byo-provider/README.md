@@ -207,8 +207,13 @@ Test switches (env, read at `session.start`, for `claude -p` where you cannot ty
 3. The deferred set is parsed from the engine's reminder text (2.1.319 wording). The main-loop-only
    set (`ScheduleWakeup`, `Workflow`) is a measured constant.
 4. Non-streaming: text shows only when the full answer arrives. The request goes through `curl`
-   (8.3 or later: `--variable` puts the token in a header from the child's env, the body goes on
-   stdin), because `$.http.fetch` gives up after 30 s and an `effort=max` step on a long loop took
+   (8.3 or later: `--variable` puts the token in a header from the child's env, the body goes in
+   `byo-request-*.json` in `~/.local/state/byo-provider/requests`, whatever `GATE_LOG` says; the step
+   fails unless that folder is your own, not a symlink, with mode 700. The file holds the conversation.
+   byo tries to remove it after curl exits; a file that stays (the removal failed, or the session died)
+   goes at a later session start that sweeps, once it is an hour old. Claude Code 2.1.329 refuses a
+   process whose stdin names a settings file),
+   because `$.http.fetch` gives up after 30 s and an `effort=max` step on a long loop took
    115 s. `timeout` caps it at 590 s (`$.process.run` allows ten minutes). On an interrupt the step ends
    at once; curl keeps running until `--max-time` and its late answer is ignored.
 5. Privacy: a gated loop sends its full conversation (first message with all context blocks, about

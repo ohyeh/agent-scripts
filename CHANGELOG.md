@@ -96,6 +96,12 @@
 - Key 3 can be taken by the workers band with three or more workers (same limit as key 4).
 - Tests read the band version from `MOD_VERSION` (now exported). Four tests had failed since the version passed the hard-coded `v0.6.2`.
 
+## byo-provider 0.8.2
+
+- A gateway step works again on Claude Code 2.1.329. That version refuses a `$.process.run` whose argv or stdin names a Claude Code settings file; the request body went to curl on stdin and its system prompt names those files, so every gateway step ended in 0.4 s with `a Claude Code settings file is not for plugins outside policy to write`. The body now goes to `~/.local/state/byo-provider/requests/byo-request-*.json` and curl reads it with `--data-binary @<file>`.
+- The request file holds the conversation. A step fails with `request folder is not private` unless that folder is the user's own, not a symlink, with mode 700; byo tries to remove the file after curl exits and logs a failed removal as `gate-request-file-kept`; a session start that can sweep removes files older than an hour and logs `gate-request-sweep-fail` when it cannot. byo never changes the mode of an existing folder.
+- Checked live with `GATE_TEST_MAIN=default claude --plugin-dir mods/byo-provider -p`: status 200 after the change, the refusal before it.
+
 ## byo-provider 0.8.1
 
 - A brief with a `runtime: tmux/<profile>` line starts one worker, not two. tmux-agent launches the worker and spawns its own waiter with model `sonnet`; with a `sonnet=` tier line on a CLI profile, byo routed that spawn too and started a second worker for the same task (seen with `sonnet=t-tagy`: workers `byomixedlong.tplxl` and `byo-a3debf…`). byo now leaves a spawn whose prompt has that line, or whose type is `tmux-agent:tmux-waiter`, on Claude (`ownedByTmuxAgent`). Such a spawn runs on Claude even when its tier names a gateway profile, and even when tmux-agent is not loaded (no toast; the log says `spawn-claude`, `tmuxOwned: true`). The spawn log line records `tmuxOwned` and `subagentType`.
