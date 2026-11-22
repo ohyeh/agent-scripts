@@ -1,5 +1,11 @@
 # Changelog
 
+## gemini-deep-research 0.1.0: new skill
+
+- Owner 2026-11-22 「上述的操作能寫成 skill 放 repo 嗎」, then chose agent-scripts and 「用英文寫」.
+- New `skills/gemini-deep-research/SKILL.md`: send a text to Gemini Deep Research in the user's Chrome through `codex-cu`, set the model and thinking level, check both plus the tool in one AX read, paste, send, reload when the page stops at the plan, and start the research. Every step comes from one live run on 2026-11-22 (zh-TW UI); reading the finished report back is not tested.
+- `skills-lock.json` adds `gemini-deep-research` (deploy removes skills missing from the lock). No row in `skill-router-table.tsv`, `map.md` or `chain.tsv` yet: those need their own approval.
+
 ## retro-agenda, WEB-AGENTS, two workflow recipes, router coverage, claim-gate replay: W47 close-out round 19
 
 - Owner 2026-11-20 「反正我是期望 艦隊與 Retro 能盡可能 當初處理完 除非真的要觀測夠多樣本」「我不是說你們共識就算嗎」「反正就都弄完以及套用」.
