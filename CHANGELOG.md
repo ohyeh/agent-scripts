@@ -1,5 +1,11 @@
 # Changelog
 
+## gemini-web 0.1.0: rename from gemini-deep-research
+
+- Owner 2026-11-22 「叫 gemini web 好點」.
+- `skills/gemini-deep-research/` moves to `skills/gemini-web/`. The name, the title and the first sentence of the description now say Gemini web; the steps do not change. The old name was never deployed.
+- `skills-lock.json` renames the entry. `scripts/check-dead-refs.sh` adds `gemini-deep-research` to the retired names.
+
 ## gemini-deep-research 0.1.0: new skill
 
 - Owner 2026-11-22 「上述的操作能寫成 skill 放 repo 嗎」, then chose agent-scripts and 「用英文寫」.

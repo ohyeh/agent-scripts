@@ -1,12 +1,12 @@
 ---
-name: gemini-deep-research
-description: Send a text to Gemini Deep Research in the user's logged-in Google Chrome through codex-cu, set the model and thinking level, and start the research. Use when the user asks to give a text to Gemini, run Gemini Deep Research, or names a Gemini model (Neon, Hydrogen, Carbon) for a research or review run. Not for the Gemini API or the agy CLI.
+name: gemini-web
+description: Drive Gemini web (gemini.google.com) in the user's logged-in Google Chrome through codex-cu. Send a text, set the model and thinking level, and start Deep Research. Use when the user asks to give a text to Gemini, run Gemini Deep Research, or names a Gemini model (Neon, Hydrogen, Carbon) for a research or review run. Not for the Gemini API or the agy CLI.
 allowed-tools: Bash(osascript:*)
 metadata:
   version: "0.1.0"
 ---
 
-# Gemini Deep Research through codex-cu
+# Gemini web through codex-cu
 
 Read the `codex-cu` skill first. It owns browser selection, tab rules, and
 failure classes. This skill adds only the Gemini page steps. Every step below
