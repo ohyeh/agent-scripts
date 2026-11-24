@@ -854,7 +854,9 @@ export const register: Register = (on, opts) => {
 
   // A tool a kept-record agent ran: its result goes into that record for the next gate step.
   on('tool.call', async ($, e, next) => {
-    if (e.tool === 'SendMessage' && typeof e.message === 'object' && e.message.type === 'shutdown_request') {
+    // 2.1.331 types the hook's message as string while the tool schema still lists the object form.
+    const msg: unknown = e.tool === 'SendMessage' ? e.message : undefined
+    if (e.tool === 'SendMessage' && typeof msg === 'object' && msg !== null && (msg as { type?: unknown }).type === 'shutdown_request') {
       const target = (await $.agent.list()).find(a => a.name === e.to || a.id === e.to)
       const id = target?.id ?? [...cliLoops].find(([id, r]) => id === e.to || r.name === e.to)?.[0]
       if (id && await onCli($, id)) { // tmux and headless CLI teammates; a gateway teammate gets the request as a message
@@ -871,8 +873,10 @@ export const register: Register = (on, opts) => {
         return { result: { success: true, message: `CLI teammate ${e.to} stopped` } }
       }
     }
-    if (e.tool === 'TaskStop') {
-      const id = cliLoops.has(e.task_id) ? e.task_id : [...cliLoops].find(([, r]) => r.name === e.task_id)?.[0] ?? (await $.agent.list()).find(a => a.name === e.task_id || a.teammateId === e.task_id)?.id
+    // 2.1.331: task_id is optional, shell_id its deprecated alias.
+    const stopId = e.tool === 'TaskStop' ? e.task_id ?? e.shell_id : undefined
+    if (stopId) {
+      const id = cliLoops.has(stopId) ? stopId : [...cliLoops].find(([, r]) => r.name === stopId)?.[0] ?? (await $.agent.list()).find(a => a.name === stopId || a.teammateId === stopId)?.id
       if (id) {
         await stopCli($, id)
         if (await onCli($, id)) cliLoops.get(id)!.closed = true

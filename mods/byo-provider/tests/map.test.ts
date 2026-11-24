@@ -162,6 +162,8 @@ test('deferred tools from the engine announcement, as it reads in the first user
   expect(deferredTools([{ role: 'user' as const, content: [{ type: 'text', text: 'nothing here' }] }]).size).toBe(0)
 })
 
+// The mod lib has no timers in its types; the test runtime does.
+const { setTimeout, clearTimeout } = globalThis as unknown as { setTimeout: (f: () => void, ms: number) => unknown; clearTimeout: (t: unknown) => void }
 const after = (ms: number, fn: () => void) => { const t = setTimeout(fn, ms); return { cancel: () => clearTimeout(t) } }
 
 test('deadline: answer in time, timeout, interrupt, and a rejection passes through', async () => {

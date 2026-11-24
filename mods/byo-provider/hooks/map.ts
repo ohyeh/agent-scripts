@@ -242,7 +242,7 @@ export type Ran = { id?: string; text: string; isError: boolean }
 /** The user message that answers the last assistant message's tool calls, from results recorded by
  *  tool.call: matched by tool_use id, else in the order they came; a call with none gets an error result. */
 export function resultsFor(last: Msg | undefined, ran: readonly Ran[]): Msg | null {
-  const uses = (last?.content ?? []).filter(b => b.type === 'tool_use') as Array<{ id: string }>
+  const uses = (last?.content ?? []).filter(b => b.type === 'tool_use') as unknown as Array<{ id: string }>
   if (!uses.length) return null
   const left = [...ran]
   const pick = (id: string) => {
