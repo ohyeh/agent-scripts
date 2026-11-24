@@ -8,8 +8,8 @@
 #
 # SKIPPED on Cursor (not a bug — missing fields or Claude-only):
 #   claude-version-sentinel  — Claude CLI version tripwire
-#   session-title-sentinel   — Stop output is a Claude {systemMessage} reminder; Cursor
-#                              stop wants followup_message, and greps Claude jsonl
+#   session-title-sentinel   — Claude UserPromptSubmit additionalContext reminder that
+#                              greps Claude jsonl
 # claim-evidence-gate runs through its own branch below (beforeSubmitPrompt + stop).
 # tmux-assign-host-gate IS registered: parent Shell has no subagent_id →
 # agent_type ABSENT → deny. Task-hosted Shell with subagent_id passes.

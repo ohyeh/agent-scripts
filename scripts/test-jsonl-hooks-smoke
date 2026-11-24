@@ -204,12 +204,12 @@ TR2="$WORK/transcript-short.jsonl"
 printf '%s\n' '{"type":"user","message":{"content":"hi"}}' '{"type":"custom-title","customTitle":"✅ foo — shipped · .1-abcd1234"}' > "$TR2"
 out="$(printf '%s' "$(jq -cn --arg t "$TR2" '{session_id:"ts-1",transcript_path:$t,stop_hook_active:false,last_assistant_message:"改好了 應該沒問題"}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/session-title-sentinel.sh")"
 [[ -z "$out" ]] || { echo "FAIL: title sentinel acted on a claim (not its job): $out" >&2; exit 1; }
-# 2026-11-17: when it fires (12+ human prompts), it reminds the owner and never sends the turn back
+# when it fires (12+ human prompts), it tells the model as UserPromptSubmit context and never blocks
 TR3="$WORK/transcript-long.jsonl"; : > "$TR3"
 for _ in $(seq 12); do printf '%s\n' '{"type":"user","message":{"content":"next"}}' >> "$TR3"; done
 out="$(printf '%s' "$(jq -cn --arg t "$TR3" '{session_id:"ts-2",transcript_path:$t,stop_hook_active:false}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/session-title-sentinel.sh")"
-jq -e '(.systemMessage | test("Session title check")) and (has("decision") | not)' <<<"$out" >/dev/null \
-  || { echo "FAIL: title sentinel must remind without blocking: $out" >&2; exit 1; }
+jq -e '(.hookSpecificOutput.hookEventName == "UserPromptSubmit") and (.hookSpecificOutput.additionalContext | test("Session title check")) and (has("decision") | not)' <<<"$out" >/dev/null \
+  || { echo "FAIL: title sentinel must reach the model as context without blocking: $out" >&2; exit 1; }
 
 # claim-evidence gate: claims are bound to the ledger by token equality
 TR3="$WORK/transcript-claim.jsonl"

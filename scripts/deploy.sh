@@ -574,7 +574,8 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | wrapBare
   | dedupeFleet
   | ensure("SessionStart"; $vs)
-  | ensure("Stop"; $ts)
+  | retire("Stop"; $only + " " + $ts)   # moved 2026-11-24: Stop systemMessage never reached the model
+  | ensure("UserPromptSubmit"; $ts)
   | ensureMatched("PreToolUse"; "Agent"; $bol)
   | ensure("SubagentStart"; $subledger)
   | ensure("SubagentStop"; $subledger)

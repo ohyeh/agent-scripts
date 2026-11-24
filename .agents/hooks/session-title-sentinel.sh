@@ -1,20 +1,16 @@
 #!/usr/bin/env bash
-# Stop hook: one-shot nudge when a non-trivial session ends its turn with no
-# session title ever set (session-titles.md lifecycle). Mechanical reminder,
-# not enforcement — the rename gate stays the model's judgment call.
+# UserPromptSubmit hook: a cadence reminder that the session title may be stale
+# (session-titles.md lifecycle). Mechanical reminder, not enforcement; the
+# rename gate stays the model's judgment call.
 #
-# Detection is heuristic (ponytail: grep the transcript for either a local
-# customTitle record or the cloud rename endpoint having been called; upgrade
-# to parsing the jsonl properly if false positives ever matter):
-#   titled   = transcript mentions customTitle OR /v1/code/sessions
-#   nontrivial = >= 12 user-typed prompts in the transcript
-# Fires at most once per session (marker file), never when stop_hook_active.
+# It speaks to the MODEL as additionalContext on the next prompt. As a Stop hook
+# its {systemMessage} reached only the owner, so the model never renamed.
+#   nontrivial = >= 12 user-typed prompts in the transcript; then every 40.
 set -u
 
 IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
 
-[ "$(printf '%s' "$IN" | jq -r '.stop_hook_active // false')" = "true" ] && exit 0
 TRANSCRIPT="$(printf '%s' "$IN" | jq -r '.transcript_path // empty')"
 [ -f "$TRANSCRIPT" ] || exit 0
 SESSION_ID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
@@ -48,7 +44,7 @@ if [ -f "$MARKER" ]; then
 fi
 
 printf '%s' "$prompts" > "$MARKER"
-# A reminder shown to the owner, not a block: 32 blocks in 7 days (2026-11-17), 11 of them
-# answered by the owner speaking first, and a turn sent back for hygiene costs a full round.
-jq -n '{systemMessage: "Session title check: the title may be stale (session-titles.md §Rename gate)."}'
+# Context for the model, never a block: a turn sent back for hygiene costs a full round
+# (32 Stop blocks in 7 days, 2026-11-17).
+jq -n '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: "Session title check: the title may be stale. Re-check it against session-titles.md §Rename gate and rename through its §Runtime control if status, subject or outcome changed."}}'
 exit 0
