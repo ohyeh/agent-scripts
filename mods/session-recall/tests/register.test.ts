@@ -915,7 +915,7 @@ const band = (props: { maxRows?: number; hasSurvey?: boolean; bodyColumns?: numb
   component: 'AbovePrompt' as const,
   requestId: 'above-prompt',
   viewport: { columns: 100, rows: 50 },
-  props: { hasSurvey: false, isWorking: false, maxRows: 40, bodyColumns: 80, scroll: { offset: 0, bodyRows: 39 }, view: {}, ...props },
+  props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 40, bodyColumns: 80, scroll: { offset: 0, bodyRows: 39 }, view: {}, ...props },
 })
 
 /** The engine under the mod: an in-memory store (or one whose writes fail), tools that print a dev-server URL, a recorded `open`. */
@@ -1139,8 +1139,9 @@ describe('the TUI', () => {
     expect(w.toasts.at(-1)).toContain('select the part of this reply to quote and copy it')
     expect(w.filled).toEqual([])
     expect(w.runs.some(a => a[0] === 'tmux' || a[0] === 'open'), 'no TUI is opened').toBe(false)
-    expect(await $.ui.render(reply('```\ncode\n```', 'm2'))).toEqual({ type: 'engine', ref: 0 })
-    expect(await $.ui.render(reply('- ship it', 'm3', 'desktop'))).toEqual({ type: 'engine', ref: 0 })
+    // The engine's ref is opaque and per step: assert the drawing passes through, not its number.
+    expect(await $.ui.render(reply('```\ncode\n```', 'm2'))).toMatchObject({ type: 'engine' })
+    expect(await $.ui.render(reply('- ship it', 'm3', 'desktop'))).toMatchObject({ type: 'engine' })
     await $.ui.render(reply('- not in any answer', 'm4'))
     await $.ui.press({ plugin: 'session-recall', key: 'quote', requestId: 'm4' } as never)
     expect(w.toasts.at(-1)).toContain('not among the answers kept')

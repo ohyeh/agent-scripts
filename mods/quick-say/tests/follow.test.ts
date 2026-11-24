@@ -152,7 +152,7 @@ test('ask gate: a closing "shall I?" is answered once; 半自動 shows no sugges
   label = PHRASES[0]!.label
   await $.turn.complete(done('要我繼續嗎？', { agentId: 'a1' }))
   await $.turn.complete(done('要我繼續嗎？', { reason: 'aborted', isAborted: true }))
-  await $.ui.render({ surface: 'terminal', component: 'AbovePrompt', requestId: 'above', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 120, scroll: { offset: 0, bodyRows: 19 }, view: {} } })
+  await $.ui.render({ surface: 'terminal', component: 'AbovePrompt', requestId: 'above', props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 20, bodyColumns: 120, scroll: { offset: 0, bodyRows: 19 }, view: {} } })
   await $.ui.press({ plugin: PLUGIN, key: 'mode', requestId: 'above' })
   await $.command.run({ command: PLUGIN, args: 'mode manual', origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 120 } })
   expect(w.store.get('quick-say.mode')).toBe('手動')
@@ -163,7 +163,7 @@ test('ask gate: a closing "shall I?" is answered once; 半自動 shows no sugges
   // Manual persists; the next press returns to semi-auto.
   await $.session.start(start)
   expect(w.store.get('quick-say.mode')).toBe('手動')
-  await $.ui.render({ surface: 'terminal', component: 'AbovePrompt', requestId: 'above', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 120, scroll: { offset: 0, bodyRows: 19 }, view: {} } })
+  await $.ui.render({ surface: 'terminal', component: 'AbovePrompt', requestId: 'above', props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 20, bodyColumns: 120, scroll: { offset: 0, bodyRows: 19 }, view: {} } })
   await $.ui.press({ plugin: PLUGIN, key: 'mode', requestId: 'above' })
   expect(w.store.get('quick-say.mode')).toBe('半自動')
 })
@@ -200,7 +200,7 @@ test('auto stops on a question after gates, and the stopped header is not dim', 
   await $.command.run(mode('自動'))
   await $.turn.complete(done('A 還是 B？\n\n✈'))
   expect(w.nudges().length).toBe(0)
-  const tree = await $.ui.render({ surface: 'terminal', component: 'AbovePrompt', requestId: 'above', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 160, scroll: { offset: 0, bodyRows: 19 }, view: {} } })
+  const tree = await $.ui.render({ surface: 'terminal', component: 'AbovePrompt', requestId: 'above', props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 20, bodyColumns: 160, scroll: { offset: 0, bodyRows: 19 }, view: {} } })
   expect(JSON.stringify(tree)).toContain('停：agent 在問問題')
   expect(JSON.stringify(tree)).toContain('"dimColor":false')
   await $.turn.complete(done('繼續。'))
@@ -215,7 +215,7 @@ test('auto stops on a question after gates, and the stopped header is not dim', 
 
 test('a mode change clears auto stop from the header and lets auto send again', async ($, on) => {
   const w = world(on, labels => labels[0])
-  const band = { surface: 'terminal' as const, component: 'AbovePrompt' as const, requestId: 'above', props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns: 160, scroll: { offset: 0, bodyRows: 19 }, view: {} } }
+  const band = { surface: 'terminal' as const, component: 'AbovePrompt' as const, requestId: 'above', props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 20, bodyColumns: 160, scroll: { offset: 0, bodyRows: 19 }, view: {} } }
   await $.session.start(start)
   await $.command.run(mode('自動'))
   await $.turn.complete(done('A 還是 B？'))

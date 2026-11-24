@@ -334,7 +334,7 @@ const band = (props: { maxRows?: number; bodyColumns?: number } = {}) => ({
   component: 'AbovePrompt' as const,
   requestId: 'above-prompt',
   viewport: { columns: 100, rows: 50 },
-  props: { hasSurvey: false, isWorking: false, maxRows: 40, bodyColumns: 80, scroll: { offset: 0, bodyRows: 39 }, view: {}, ...props },
+  props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 40, bodyColumns: 80, scroll: { offset: 0, bodyRows: 39 }, view: {}, ...props },
 })
 
 function textOf(node: unknown): string {

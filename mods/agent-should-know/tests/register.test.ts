@@ -13,6 +13,7 @@ const BAND = {
   requestId: 'above',
   props: {
     hasSurvey: false,
+    isCollapsed: false,
     isWorking: true,
     maxRows: 20,
     bodyColumns: 80,
@@ -25,7 +26,7 @@ const band = (bodyColumns = 120) => ({
   surface: 'terminal' as const,
   component: 'AbovePrompt' as const,
   requestId: 'above',
-  props: { hasSurvey: false, isWorking: false, maxRows: 20, bodyColumns, scroll: { offset: 0, bodyRows: 19 }, view: {} },
+  props: { hasSurvey: false, isCollapsed: false, isWorking: false, maxRows: 20, bodyColumns, scroll: { offset: 0, bodyRows: 19 }, view: {} },
 })
 
 function textOf(node: unknown): string {

@@ -348,7 +348,7 @@ export const register: Register = on => {
     if (e.props.hasSurvey) return next(e)
     const at = e.props.rows.findIndex(r => offerLine(r.tree) !== null)
     if (at === -1) return next(e)
-    if (!(await relay($, s, offerLine(e.props.rows[at].tree)!))) return next(e)
+    if (!(await relay($, s, offerLine(e.props.rows[at]!.tree)!))) return next(e)
     return next({ ...e, props: { ...e.props, rows: e.props.rows.filter((_, i) => i !== at) } })
   })
 
