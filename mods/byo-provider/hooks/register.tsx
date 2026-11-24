@@ -1,6 +1,6 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ToolInfo, TurnStepChunk, TurnStepInput, TurnStepResult } from 'claude-code'
-import { maxTimeoutSeconds, ownedByTmuxAgent, relayStep, RELAY_SLICE_MS, RELAY_TOOL, bandText, bindingPlan, parseBindings, cliAllowed, cliProfile, finishStop, stopReceipt, reportStep, withAnswer, roundPrompt, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
+import { maxTimeoutSeconds, ownedByTmuxAgent, relayStep, RELAY_SLICE_MS, RELAY_TOOL, bandText, bindingPlan, parseBindings, cliAllowed, cliKind, cliProfile, finishStop, stopReceipt, reportStep, withAnswer, roundPrompt, deadline, resultsFor, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, redact, tierRoute, toStep } from './map'
 import { SCHEMAS } from './schemas'
 import type { CliBinding, CliOwner, Fail, GateTool, Msg, Ran, Step } from './map'
 import type { View } from '../types'
@@ -21,7 +21,7 @@ import type { View } from '../types'
 // Everything private (gateway URL, token, model, effort) lives in profile files the owner keeps,
 // `<profiles>/<name>.conf`, never in this repo or in settings.
 
-const VERSION = '0.8.2' // keep equal to .claude-plugin/plugin.json
+const VERSION = '0.9.0' // keep equal to .claude-plugin/plugin.json
 const FOLD_KEY = 'byo-provider.fold' // 'open' once unfolded; else the band is its header line
 const HIDE_KEY = 'byo-provider.hidden'
 let options: { path: string } = { path: '~/.config/byo-provider/profiles' }
@@ -184,7 +184,8 @@ async function restoreBindings($: EngineInterface) {
     await armGuard($, b.agentId)
     await releaseGuard($, cliLoops.get(b.agentId)!, true)
     loops.set(b.agentId, b.profile)
-    if (b.kind !== 'fork' && b.kind !== 'workflow') types.set(b.agentId, b.kind)
+    // `type` is the real agent type when an unlisted one rode the general-purpose opt-in (cliKind).
+    if (b.kind !== 'fork' && b.kind !== 'workflow') types.set(b.agentId, b.type ?? b.kind)
     routed.push(b.profile)
     await log($, { ev: 'cli-rebind', loop: b.agentId, worker: b.worker, profile: b.profile })
   }
@@ -548,7 +549,7 @@ async function cliStep($: EngineInterface, e: TurnStepInput, cfg: CliProfile, si
         if (!workerDir) throw new Error('assign gave no worker state path')
         const ledger = workerDir.slice(0, workerDir.lastIndexOf('/'))
         if (record.ledger !== ledger) throw new Error('assign worker state path differs from cleanup ledger')
-        await saveBinding($, loop, { agentId: loop, worker: record.worker, profile: cfg.name, workerProfile: record.workerProfile, kind: record.kind, ledger, owner: record.owner, name: record.name, cwd: record.cwd })
+        await saveBinding($, loop, { agentId: loop, worker: record.worker, profile: cfg.name, workerProfile: record.workerProfile, kind: record.kind, type: types.get(loop), ledger, owner: record.owner, name: record.name, cwd: record.cwd })
         await log($, { ev: 'cli-assign', loop, worker: record.worker, route })
       }
       // One step may not run past ten minutes (the engine aborts it), so a long task is waited for in slices:
@@ -910,7 +911,8 @@ export const register: Register = (on, opts) => {
     let model = noTask || tmuxOwned ? undefined : tier !== undefined ? (tier === 'claude' ? undefined : tier) : modeRoute
     const candidate = model ? parseConf(String(await $.fs.read(`${await profilesDir($)}/${model}.conf`).catch(() => ''))) : {}
     const isCli = Object.hasOwn(candidate, 'cli')
-    if (isCli && !cliAllowed(defaults, e.subagentType, !!e.workflow, e.fork)) {
+    const kind = model && !e.workflow && !e.fork ? cliKind(defaults, e.subagentType, await agentDef($, e.subagentType)) : e.subagentType
+    if (isCli && !cliAllowed(defaults, kind, !!e.workflow, e.fork)) {
       model = modeRoute !== model ? modeRoute : undefined
       const fallback = model ? parseConf(String(await $.fs.read(`${await profilesDir($)}/${model}.conf`).catch(() => ''))) : {}
       if (Object.hasOwn(fallback, 'cli')) model = undefined
@@ -929,7 +931,7 @@ export const register: Register = (on, opts) => {
       const previous = cliLoops.get(agentId)
       if (previous) {
         if (e.resume && e.prompt?.trim() && !previous.pending.includes(e.prompt)) previous.pending.push(e.prompt)
-      } else cliLoops.set(agentId, { prompt: e.prompt, kind: e.workflow ? 'workflow' : e.fork ? 'fork' : e.subagentType, name: e.name, cwd: e.cwd, teammate: !!e.isTeammate || !!e.name, pending: [] })
+      } else cliLoops.set(agentId, { prompt: e.prompt, kind: e.workflow ? 'workflow' : e.fork ? 'fork' : kind ?? e.subagentType, name: e.name, cwd: e.cwd, teammate: !!e.isTeammate || !!e.name, pending: [] })
       routed.push(model)
       if (e.workflow) own.set(agentId, { msgs: [{ role: 'user', content: [{ type: 'text', text: e.prompt }] }], ran: [] })
       if (!e.fork) types.set(agentId, e.subagentType)

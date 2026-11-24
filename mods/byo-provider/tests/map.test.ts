@@ -2,7 +2,7 @@
 import { expect, test } from 'claude-code/testing'
 import { deadline, deferredTools, failStep, forGate, loadedTools, parseAgentDef, parseConf, tierRoute, toStep, bandText, resultsFor } from '../hooks/map'
 import { SCHEMAS } from '../hooks/schemas'
-import { maxTimeoutSeconds, ownedByTmuxAgent, relayStep, RELAY_TOOL, bindingPlan, cliAllowed, cliProfile, finishStop, reportStep, roundPrompt, withAnswer } from '../hooks/map'
+import { maxTimeoutSeconds, ownedByTmuxAgent, relayStep, RELAY_TOOL, bindingPlan, cliAllowed, cliKind, cliProfile, finishStop, reportStep, roundPrompt, withAnswer } from '../hooks/map'
 
 test('failed stop keeps binding and guard; only confirmed stop releases them', async () => {
   const state = { binding: true, guard: true }
@@ -23,7 +23,7 @@ test('failed stop keeps binding and guard; only confirmed stop releases them', a
 })
 
 test('stored CLI bindings split by live agent id without losing route metadata', () => {
-  const first = { agentId: 'a1', worker: 'byo-one.abcde', profile: 'coding', workerProfile: 'agy-flash', kind: 'general-purpose', ledger: '/state/.v3', name: 'mate', cwd: '/repo', owner: { sessionId: 'own', pid: 123, procStart: 'start' } }
+  const first = { agentId: 'a1', worker: 'byo-one.abcde', profile: 'coding', workerProfile: 'agy-flash', kind: 'general-purpose', type: 'pr-review-toolkit:code-reviewer', ledger: '/state/.v3', name: 'mate', cwd: '/repo', owner: { sessionId: 'own', pid: 123, procStart: 'start' } }
   const second = { ...first, agentId: 'a2', worker: 'byo-two.abcde' }
   const stored = JSON.parse(JSON.stringify([first, second]))
   expect(bindingPlan(stored, ['a1', 'unrelated'], 'own', [])).toEqual({ rebind: [first], stop: [second], keep: [] })
@@ -56,6 +56,7 @@ test('invalid stored bindings fail before they can name a worker to stop', () =>
   const binding = { agentId: 'a1', worker: 'byo-one.abcde', profile: 'coding', workerProfile: 'agy-flash', kind: 'workflow', ledger: '/state/.v3' }
   for (const owner of [undefined, {}, { sessionId: 'own', pid: '123', procStart: 'start' }, { sessionId: 'own', pid: 0, procStart: 'start' }, { sessionId: 'own', pid: 123, procStart: '' }])
     expect(() => bindingPlan([{ ...binding, owner }], [], 'own', [])).toThrow()
+  expect(() => bindingPlan([{ ...binding, owner: { sessionId: 'own', pid: 123, procStart: 'start' }, type: 5 }], [], 'own', [])).toThrow()
 })
 
 test('CLI profile needs no gateway fields and rejects unsafe or empty names', () => {
@@ -76,6 +77,19 @@ test('CLI opt-in is exact, including separate workflow and fork tokens', () => {
   expect(cliAllowed(kv, undefined, false, true)).toBe(true)
   expect(cliAllowed({ cli_types: 'general-purpose' }, 'general-purpose', true)).toBe(false)
   expect(cliAllowed({ cli_types: 'general-purpose' }, 'general-purpose', false, true)).toBe(false)
+})
+
+test('an unrestricted plugin or custom agent rides the general-purpose opt-in', () => {
+  const kv = { cli_types: 'general-purpose,workflow' }
+  const open = { }
+  expect(cliKind(kv, 'pr-review-toolkit:code-reviewer', open)).toBe('general-purpose')
+  expect(cliKind(kv, 'my-agent', open)).toBe('general-purpose')
+  expect(cliKind(kv, 'pr-review-toolkit:code-reviewer', { tools: ['Read', 'Grep'] })).toBe('pr-review-toolkit:code-reviewer')
+  expect(cliKind(kv, 'pr-review-toolkit:code-reviewer', { disallowed: ['Bash'] })).toBe('pr-review-toolkit:code-reviewer')
+  expect(cliKind(kv, 'Explore', null)).toBe('Explore')
+  expect(cliKind({ cli_types: 'workflow' }, 'my-agent', open)).toBe('my-agent')
+  expect(cliKind({ cli_types: 'my-agent' }, 'my-agent', open)).toBe('my-agent')
+  expect(cliKind(kv, undefined, open)).toBe(undefined)
 })
 
 test('CLI reports end one step and failed, blocked, malformed reports never succeed', () => {

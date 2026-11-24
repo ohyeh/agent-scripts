@@ -121,7 +121,12 @@ takes its parent's model, so its parent's tier applies (from an Opus main loop, 
 Cost: on one host a tmux CLI teammate took 134–238 s for a trivial task and a headless CLI
 about 30 s. Use a headless profile for one-shot work and `tmux/` only when the conversation
 must persist across rounds. A CLI route
-applies only to listed agent types. Workflow agents need `workflow`, and forks
+applies only to listed agent types. A plugin or custom agent type that is not
+listed (for example `pr-review-toolkit:code-reviewer`) counts as
+`general-purpose` when its definition file sets no `tools` or `disallowedTools`:
+it has the same tools, and its definition text starts the CLI task. A
+tool-restricted type, or a built-in type with no definition file (`Explore`,
+`Plan`), must still be listed by name. Workflow agents need `workflow`, and forks
 need `fork`, even if another type is listed. Unlisted types ignore a CLI tier
 override and keep the non-CLI `agents=` route; if that mode also selects a CLI
 profile, they stay on Claude. Existing HTTP profiles are unchanged.

@@ -7,7 +7,7 @@ export type GateTool = { name: string; description: string; input_schema: Record
 export type Step = { chunks: TurnStepChunk[]; result: TurnStepResult; ok?: boolean }
 
 export type CliOwner = { sessionId: string; pid: number; procStart: string }
-export type CliBinding = { agentId: string; worker: string; profile: string; workerProfile: string; kind: string; ledger: string; owner: CliOwner; name?: string; cwd?: string }
+export type CliBinding = { agentId: string; worker: string; profile: string; workerProfile: string; kind: string; type?: string; ledger: string; owner: CliOwner; name?: string; cwd?: string }
 
 export function stopReceipt(worker: string, receipt: string): boolean {
   return receipt.startsWith(`stopped "${worker}" on `) || receipt.split('\n').some(line =>
@@ -28,7 +28,7 @@ export function parseBindings(stored: unknown): CliBinding[] {
   for (const raw of stored) {
     if (!raw || typeof raw !== 'object' || !['agentId', 'worker', 'profile', 'workerProfile', 'kind', 'ledger'].every(k => typeof raw[k] === 'string' && raw[k].length > 0)
       || !/^[\w.-]+$/.test(raw.worker) || !/^[\w.-]+$/.test(raw.workerProfile)
-      || ['name', 'cwd'].some(k => raw[k] !== undefined && typeof raw[k] !== 'string')
+      || ['name', 'cwd', 'type'].some(k => raw[k] !== undefined && typeof raw[k] !== 'string')
       || !raw.owner || typeof raw.owner.sessionId !== 'string' || !raw.owner.sessionId
       || !Number.isSafeInteger(raw.owner.pid) || raw.owner.pid <= 0
       || typeof raw.owner.procStart !== 'string' || !raw.owner.procStart) throw new Error('invalid CLI binding entry')
@@ -52,6 +52,14 @@ export function bindingPlan(stored: unknown, liveIds: readonly string[], session
 export function cliAllowed(kv: Record<string, string>, type: string | undefined, workflow = false, fork = false): boolean {
   const kind = workflow ? 'workflow' : fork ? 'fork' : type
   return !!kind && (kv.cli_types ?? '').split(',').map(t => t.trim()).includes(kind)
+}
+
+/** The kind a spawn is gated as. A plugin or custom agent type that is not listed rides the
+ *  `general-purpose` opt-in when its definition file narrows no tools: same tools, and the CLI task
+ *  starts with that definition. Built-in types (no file) and tool-restricted types keep their own kind. */
+export function cliKind(kv: Record<string, string>, type: string | undefined, def: { tools?: string[]; disallowed?: string[] } | null): string | undefined {
+  if (!type || !def || def.tools?.length || def.disallowed?.length || cliAllowed(kv, type)) return type
+  return cliAllowed(kv, 'general-purpose') ? 'general-purpose' : type
 }
 
 /** Longest `timeout` a profile may set. A gateway request is one `$.process.run` (ten minutes at most);
