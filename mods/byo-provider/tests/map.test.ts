@@ -86,6 +86,8 @@ test('an unrestricted plugin or custom agent rides the general-purpose opt-in', 
   expect(cliKind(kv, 'my-agent', open)).toBe('general-purpose')
   expect(cliKind(kv, 'pr-review-toolkit:code-reviewer', { tools: ['Read', 'Grep'] })).toBe('pr-review-toolkit:code-reviewer')
   expect(cliKind(kv, 'pr-review-toolkit:code-reviewer', { disallowed: ['Bash'] })).toBe('pr-review-toolkit:code-reviewer')
+  // An empty `tools:` means every tool (parseAgentDef), so it rides the opt-in too.
+  expect(cliKind(kv, 'my-agent', parseAgentDef('---\ntools: []\n---\nbody'))).toBe('general-purpose')
   expect(cliKind(kv, 'Explore', null)).toBe('Explore')
   expect(cliKind({ cli_types: 'workflow' }, 'my-agent', open)).toBe('my-agent')
   expect(cliKind({ cli_types: 'my-agent' }, 'my-agent', open)).toBe('my-agent')
