@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.54.0-ironlaws
+Version: 4.55.0-ironlaws
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` (`global/` = kernel; `.agents/rules/` →
@@ -69,8 +69,8 @@ Version: 4.54.0-ironlaws
 - Hard task, stalled progress, or final answer → `judgment-rubrics` §8 (same approach ≤3 rounds,
   each one tier up; every call counts).
 - Edit guidance, rules, or skills → `maintenance` §1: exact diff, then approval.
-- Friction found (user correction, same friction twice) → `maintenance` §2: a gate, or a backlog
-  row naming the file.
+- Friction found (user correction, same friction twice) or a lesson to keep (學起來) →
+  `maintenance` §2: a gate, or a backlog row naming the file.
 - Usage, cost, or quota analysis → `harness-diagnosis` §Usage analysis.
 - Task type not named above (PDFs, test plans, architecture) → skill `using-decision-tree`, intent
   branch, first.

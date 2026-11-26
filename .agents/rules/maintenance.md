@@ -43,11 +43,15 @@
 - Do not keep a free-text lesson list.
 - Act in the same turn after one user correction, two repeats, a fact that contradicts rules,
   a delegation failure a check could catch, or a change in model or tool availability.
-- Pick exactly one outcome: gate, rule fix, backlog row, or nothing.
+- Find the lesson first: read this session's user messages, newest first; for each correction,
+  compare the failed attempt with the one that worked, name the one change that made it work,
+  and state the root cause and its scope (all sessions, one repo, or one tool).
+- Pick exactly one outcome: gate, rule or skill fix, backlog row, or nothing.
 - Gate: add a hook or check in `.agents/hooks/` or `scripts/` that fails on the bad case.
   Apply §1 eligibility and each touched file's approval path.
   Retire or merge one gate or rule paragraph in that commit unless the user names the addition.
-- Rule fix: propose the exact diff under §1; close its local pending row in the same turn (§3).
+- Rule or skill fix: propose the exact diff under §1; close its local pending row in the same
+  turn (§3).
   Close another host's row through retro §6.5 (row collection).
 - For kernel fixes, follow its Editing this file standard before feedback.
   Put a fix that breaks that standard in a routed file or hook.

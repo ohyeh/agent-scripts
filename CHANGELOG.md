@@ -1,5 +1,13 @@
 # Changelog
 
+## kernel 4.55.0: the /learn draft folds into maintenance §2; no separate skill
+
+- Owner 2026-11-26 「可是我以為應該是整合到 kernel or 收工 or 相關 skill？」.
+- maintenance §2 gains the agy `/learn` method: read this session's user messages newest first, compare the failed attempt with the one that worked, name the one change, and state root cause and scope. Its outcome list now says "rule or skill fix".
+- Kernel routing (both runtime files and kernel-lean): a lesson to keep (學起來) routes to maintenance §2, so the mid-session entry exists without a skill. 收工 (quick-say 0) already routes class corrections there.
+- The untracked `skills/learn` draft moved to `.workflow/202611261500-shougong-learn/learn-draft/`. Not taken: sol's two-entry design (`learn` skill + 收工), which would have kept a second parallel entry.
+- Not verified: an agent acting on 學起來 under the new text.
+
 ## deploy: context-mode and tmux-agent MCP in agy; grok drops dead skill links
 
 - Owner 2026-11-26 「codex-cu | context-mode 大家都要用的」「agy | grok 都要這樣才對吧？」.

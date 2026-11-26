@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.54.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.55.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`; skills
@@ -53,8 +53,8 @@ Version: 4.54.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 - Plan/investigate or shape output → `operator-defaults`; comparisons or any page, diagram, chart,
   motion, or Artifact → `artifacts-rules`, unasked; before first build also skill
   `using-decision-tree` (design).
-- Edit rules or skills → `maintenance` §1: exact diff, then approval. Friction found → `maintenance`
-  §2: a gate, or a backlog row naming the file.
+- Edit rules or skills → `maintenance` §1: exact diff, then approval. Friction found or 學起來 →
+  `maintenance` §2: a gate, or a backlog row naming the file.
 - Usage, cost, or quota analysis → `harness-diagnosis` §Usage analysis.
 - Task type not named above → skill `using-decision-tree`, intent branch, first.
 
