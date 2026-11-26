@@ -30,11 +30,10 @@
 ### 2. 開場收齊四台收件匣並派消化（收件匣規約 §6.5）
 
 - 以實際唯讀 SSH 測試各在編機器可達性並附輸出；tailscale 狀態列不算證據。
-- 開跑與收尾前，在四台分別列兩個收件匣的 pending 清冊、件數及積齡；無法讀取時附失敗輸出，標 `UNCONFIRMED`，不得記為 0。盤點只讀；搬檔或遠端寫入須有該機的授權。
+- 開跑與收尾前，在四台分別列兩個收件匣的 pending 清冊、件數；無法讀取時附失敗輸出，標 `UNCONFIRMED`，不得記為 0。盤點只讀；搬檔或遠端寫入須有該機的授權。
 - 共用記憶或反省匣任一台逾 20 件，開跑先派該台消化；收尾仍逾 20 件，列收件匣處理的 backlog。共用記憶由 Codex curator 以 `--as codex` 跑 `shared-memory-intake` 的 Codex 步驟 1–8（鎖、validator、來源機核證、MEMORY 去重、ad_hoc note、跨機傳輸與雜湊、逐件處置帳、交接確認）。
 - 反省匣的新投稿只收符合 `maintenance.md` §3 的 `kind: proposal`，沒有合格反例就不投稿；可重用事實只投共用記憶。逐台逐件讀舊件並記去向，既有 note 作為深挖線索。
 - 採納案按目標檔合併，走 `maintenance.md` §1；驗收通過、重複或 owner 核准棄案時，依 §3 在來源機追加對應 `closed:` 尾行，同輪搬至 `done/`，原文保留。逐件記 `motions.md`、佐證或承接 backlog 列；仍有未結子項時保留 pending。
-- 每台實際執行一次 `context-mode` hook 指令並檢視 exit code；非零即列為本輪缺口。
 
 ### 3. 逐案讀原始紀錄與臨時動議
 
@@ -60,7 +59,7 @@
 
 ### 6. 決策樹與自動化串聯盤點（每週固定）
 
-- 每週稽核 `using-decision-tree`：先派 `agy-flash` 逐列盤點全部 member 列與 `chain.tsv` 列，檢查該 member 是否仍在安裝清單、本輪窗口內兩份 nudge log 的命中數、下站是否接續執行、死連結與與 kernel 路由索引的衝突。
+- 每週稽核 `using-decision-tree`：先派 `agy-flash` 逐列盤點全部 member 列與 `chain.tsv` 列，檢查該 member 是否仍在安裝清單、下站是否接續執行、死連結與與 kernel 路由索引的衝突。
 - 檢查觸發漏接：掃描本輪窗口內符合任一分支 `when` 條件、卻未收到 nudge 且未載入決策樹的 owner 原話。
 - 檢查跨層串聯：逐一對照決策樹點名的每個 mod 與 workflow recipe，以及點名決策樹的每個 mod 與 recipe，列出單向或斷裂的連結。
 - 盤點本輪窗口的 owner 原話，找出既不符合任何分支列、也不符合任何 kernel 路由列的任務，以及已有安裝的 skill、mod 工具、recipe 或 script 可接手某一階段，當時卻由 agent 手動完成的任務。按場景分組，附原話與來源，逐組點名可串聯的已安裝元件、各自可接手的階段與接續順序。
@@ -79,6 +78,5 @@
 
 - 裁決落地後、報告收尾前，同 URL 原地更新唯一狀態頁「[agent-scripts] 艦隊與 Retro」。
 - 儀表板只保留兩塊：**本輪決定**（TL;DR 與棄案結案摘要）與 **backlog**（上週做了沒／有效沒＋本週新列），並更新 `updated.at`（UTC）。
-- 儀表板「相關報告」表若有頁面因本輪 findings 過時或完成，同 URL 原地更新並加「W(n) 後續」段；未受影響者填「無變化」，不得留白。
 - `advisor`（L2）回覆必須當輪落檔至 `<run dir>/l2-review.md`；行為稽核 digest 使用 `evals/retro-metrics/session-digest.py <transcript> <out>`。
 - 收尾前依 `judgment-rubrics.md` §2 與 §5 重查本輪 backlog 狀態，未查證者標 `UNCONFIRMED`，不得寫為「還沒做」。

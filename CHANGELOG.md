@@ -1,5 +1,15 @@
 # Changelog
 
+## rules: retro-agenda drops four measurement steps
+
+- Owner 2026-11-26 「我希望不要是過去個腳本跑跑更新艦隊 這種沒效率的量測」 (after 11-19 「過往萃取一些統計 已經沒啥意義了」). Deletion only, four places:
+  - §2: the inbox lists no longer record age.
+  - §2: the per-machine context-mode hook run is removed. The same check runs at deploy (`scripts/check-deploy-drift.sh`, called from `scripts/deploy.sh:910`), so a broken hook now shows up at deploy, not at retro.
+  - §6: the tree audit no longer counts nudge-log hits per row.
+  - §8: the per-report upkeep of the status page's related-reports table is removed. The status page update itself stays (owner 11-19 「記得 retro html 最後也要更新」).
+- Kept after review: the closing inbox sweep and its count, and the "still over 20 at close" backlog clause. These are W47 F1/F2 fixes; the closing sweep found new items in W47. The missed-trigger scan also stays, because the owner named it a weekly step in 7303f25. Missed quotes are reported as cases, without a recall ratio.
+- Consensus under maintenance §1: the second-model reviewer (Claude Sonnet 5.5) blocked round 1 on the inbox items and passed rounds 2 and 3; the advisor withdrew the missed-trigger deletion and agreed to the rest. Record: `evals/retro-metrics/2026-W48/opinions/review-agenda-r1.md`, `l2-review.md` (local only).
+
 ## quick-say 0.8.8: 前情提要 reads global rules, shared memory by topic, and lists cautions
 
 - Owner 2026-11-26 「5: 前情提要 會要求把 global + project 規範看過嗎？」「還有過往記憶、注意事項也是」.
