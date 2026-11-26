@@ -1,6 +1,6 @@
 ---
 name: unknowns-discovery
-description: Find the map/territory gap BEFORE it gets expensive. Invoke when starting a non-trivial task in unfamiliar territory (new module, new technology, work the user has not done before), when acceptance criteria are "I'll know it when I see it", when the user struggles to describe what they want, or when a long-horizon task came back wrong and a blind retry is tempting. Not for typo-level fixes or tasks with fully objective acceptance criteria.
+description: Find the map/territory gap BEFORE it gets expensive. Invoke when starting a non-trivial task in unfamiliar territory (new module, new technology, work the user has not done before), when acceptance criteria are "I'll know it when I see it", when the user struggles to describe what they want, when an open decision needs new angles or other perspectives (lens and panel pass, 「換個角度」「多方觀點」), or when a long-horizon task came back wrong and a blind retry is tempting. Not for typo-level fixes or tasks with fully objective acceptance criteria.
 ---
 
 # Unknowns Discovery
@@ -67,6 +67,36 @@ resubscribe-on-foreground — say the word to change any. Proceeding."
 Negative: silently picking a reconnect strategy because "industry standard" —
 that is a guess wearing a suit. Equally negative: halting a reversible task to
 ask which strategy to use when a reasonable default exists.
+
+## §2.1 Lens and panel pass
+
+Apply: a decision or idea is still open (two or more plausible directions)
+before you state the defaults, or the user asks for new angles or other
+perspectives. Skip it when acceptance is objective. It runs inline, in one
+reply. (Adapted from the Gemini built-in skills `generate-fresh-ideas` and
+`get-more-perspectives`, W48 retro import.)
+
+- [ ] Five lenses, one idea each (a one-line pitch plus one or two lines). Drop
+      a lens that does not apply and say why.
+      1. Contrarian: the strongest case against the leading option.
+      2. What it misses: the second-order effect, edge case or next problem
+         nobody named.
+      3. Evidence: the fact, measurement, existing code or past case that would
+         settle the choice, and the cheapest way to get it.
+      4. Smallest version: the version that can run today, as steps.
+      5. The person who meets it: one real user or operator walking through it.
+- [ ] Five-role panel on the leading option, one short opinion each: doer (can
+      we build and run it, effort), skeptic (risks, failure modes), forward
+      thinker (what it enables later), user advocate (effect on the people who
+      use it), cost (time, money, quota, upkeep).
+- [ ] Close with one recommendation. It becomes the stated default (universal
+      guard). List each point the panel left open.
+
+Limits: one model playing five roles is not a different-model verdict; a
+decision that needs one goes to the kernel consensus ladder or a second-model
+review. For isolated parallel branches with scoring, use `adhd`; to stress-test
+with the user, use `grilling`. When the work is too big for one session, the
+open points become the first decision tickets of `wayfinder`.
 
 ## §3 Brainstorm & prototype before real code
 
@@ -152,5 +182,6 @@ Apply: after a change far larger than the user expected, or when they ask.
   through §2–§5. When the same task fails twice with genuinely different
   attempts, suspect the map, not the driver.
 - Exit: when the defaults are stated and no §STOP condition holds, start the next station in the same turn
-  (`prototype` for a design question, else the implementation) with the stated
-  defaults as its input.
+  with the stated defaults as its input: `prototype` for a design question,
+  `wayfinder` when the work is too big for one session (the §2.1 open points
+  are its first decision tickets), else the implementation.

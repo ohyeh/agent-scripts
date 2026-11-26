@@ -1,5 +1,13 @@
 # Changelog
 
+## match-my-writing-style, prep-for-meetings, focus-my-energy 0.1.0; unknowns-discovery lens and panel pass: Gemini built-ins imported
+
+- Owner 2026-11-26 「我叫你看官方內建的那些...」, then 「我覺得這兩個是 和 /unknowns-discovery + /wayfinder 整合 看是不是 /using-decision-tree 加強？」 and 「直接整合啊」. The Gemini skill gallery (`探索`) holds five skills; all five are now in the system. The text is our own; Google's text stays in the local retro record.
+- Three new skills: `match-my-writing-style` (a reviewed voice card, then drafts in that voice; stops at the draft), `prep-for-meetings` (a one-meeting brief with sources; stops at the brief), `focus-my-energy` (the next task by energy and free time; agent-run work goes to workers). Mail, Drive, chat and calendar are read as the task needs, read-only, with no write-back (owner 「看需求可讀啊」). Voice card and energy notes stay in `~/.agents/` on the host, outside every repo.
+- `unknowns-discovery` §2.1: five lenses (contrarian, what it misses, evidence, smallest version, the person who meets it) and a five-role panel (doer, skeptic, forward thinker, user advocate, cost) on an open decision, inline. It is one model, not a different-model verdict; `adhd` stays the parallel-branch option. Its open points become the first `wayfinder` tickets; Exit names `wayfinder`.
+- Decision tree: the reply-draft flow row starts with `match-my-writing-style`; new map rows and a "Plan the owner's day" section; three chain rows.
+- This replaces the W48 seats' verdicts (narrow reply-draft voice, skip energy and meeting prep) by the owner's instruction. Not reviewed by the seats or a second model. Not verified: a live run of any of the three skills.
+
 ## hooks: agent-device gate takes --udid/--serial; router table catches visual and writing asks
 
 - `agent-device-target-gate.sh` (00b59ef, 66d8e51, c3a1e55): `--udid` and `--serial` count as targets beside `--device` (agent-device 0.21.8 `open` help lists all three), so a physical-device open with `--udid` is no longer blocked. Every line of a multi-line command is checked. A line continues only when it ends in an odd number of backslashes, and a target flag counts only at segment start or after whitespace. Second-model review (Claude Sonnet 5.5): round 1 BLOCK, rounds 2 and 3 PASS. A W48 seat (sol) did not sign two residual forms that still pass (a flag inside quoted text, or used as another flag's value); the comment says so, and the risk is for the owner.

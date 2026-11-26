@@ -246,18 +246,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/unknowns-discovery/SKILL.md",
-      "skillFolderHash": "a147f8af0c63d548fd07546296f4cc6d6702c0f9",
+      "skillFolderHash": "3cff8548a35ae6cb69ddc4e8b2402b8bc406ee02",
       "installedAt": "2026-07-18T20:48:21.472Z",
-      "updatedAt": "2026-09-27T13:47:36.006Z"
+      "updatedAt": "2026-11-26T18:00:00.000Z"
     },
     "using-decision-tree": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-decision-tree/SKILL.md",
-      "skillFolderHash": "ff58b8824b67d57c54659ab7edc4e72bdc77b8ce",
+      "skillFolderHash": "1a16b39a20a4e2e5d2e4a7510d0046f2b3b223df",
       "installedAt": "2026-10-23T00:00:00.000Z",
-      "updatedAt": "2026-11-06T11:25:55.000Z"
+      "updatedAt": "2026-11-26T18:00:00.000Z"
     },
     "using-grok-bot-app": {
       "source": "ohyeh/agent-scripts",
@@ -358,6 +358,33 @@
       "skillFolderHash": "502adecf056faca59345bc98c405b136663f42a6",
       "installedAt": "2026-11-22T02:17:40.000Z",
       "updatedAt": "2026-11-22T02:17:40.000Z"
+    },
+    "match-my-writing-style": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/match-my-writing-style/SKILL.md",
+      "skillFolderHash": "92807ad41bbb94d4e7c2d40c24137b5b6e275c5b",
+      "installedAt": "2026-11-26T18:00:00.000Z",
+      "updatedAt": "2026-11-26T18:00:00.000Z"
+    },
+    "prep-for-meetings": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/prep-for-meetings/SKILL.md",
+      "skillFolderHash": "64ce1722a400aa314ce082ede44034be8dc24264",
+      "installedAt": "2026-11-26T18:00:00.000Z",
+      "updatedAt": "2026-11-26T18:00:00.000Z"
+    },
+    "focus-my-energy": {
+      "source": "ohyeh/agent-scripts",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
+      "skillPath": "skills/focus-my-energy/SKILL.md",
+      "skillFolderHash": "12ce0f040707bbe7343758fccdbc03752c62e38b",
+      "installedAt": "2026-11-26T18:00:00.000Z",
+      "updatedAt": "2026-11-26T18:00:00.000Z"
     }
   },
   "dismissed": {

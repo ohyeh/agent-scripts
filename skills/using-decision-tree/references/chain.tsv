@@ -23,3 +23,6 @@ delegation-templates	dispatch the brief with this runtime's own tool (a subagent
 codex-cu	none automatically: return to the station that asked for the browser or app step (a defect goes to diagnosing-bugs)	the observed state
 using-grok-bot-app	none automatically: return to the station that asked for the bot read or send	the quoted bot text
 using-tmux-agent-tools	delegation-templates to shape the brief (GOAL/MODEL/ACCEPTANCE/REPORT) before any worker is started or told; an inline outcome has no next station	the worker choice and brief
+match-my-writing-style	writing-artifacts when the reply needs structure, then stop-slop; show the draft and stop (sending is a kernel hard-stop)	the voice card and the draft
+prep-for-meetings	none: show the brief and stop; replies and calendar changes are a kernel hard-stop	the brief
+focus-my-energy	none automatically: the owner picks; agent-run tasks go to workers through using-tmux-agent-tools	the ordered task list
