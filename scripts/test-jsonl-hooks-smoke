@@ -136,8 +136,14 @@ run_device_gate() {
 }
 run_device_gate 'agent-device open MyApp --platform ios --device phone'
 run_device_gate 'agent-device open MyApp --platform web'
+run_device_gate 'agent-device open MyApp --platform ios --udid 00008150-X'
+run_device_gate $'agent-device open MyApp --platform ios \\\n  --device phone'
 if run_device_gate 'agent-device open MyApp --platform ios; printf -- --device'; then
   echo "FAIL: sibling --device token bypassed agent-device gate" >&2
+  exit 1
+fi
+if run_device_gate $'cd /tmp\nagent-device open MyApp --platform ios'; then
+  echo "FAIL: agent-device open on line 2 without a target bypassed the gate" >&2
   exit 1
 fi
 
