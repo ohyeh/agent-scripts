@@ -13,10 +13,11 @@
 | `/plan` | 照計畫執行；失敗兩次、前提不成立、要做新決定就交回 | [prompts/plan.md](prompts/plan.md) |
 | `/review-agent` | 唯讀 code review，只報驗證過的問題，分 P0–P3 | [prompts/review-agent.md](prompts/review-agent.md) |
 | `/swarm` | 多 agent 平行協作（Preview、吃額度） | [prompts/swarm.md](prompts/swarm.md) |
+| `/boost` | Boost 多代理 orchestrator，處理複雜任務（和 teamwork 同一組開關） | [prompts/boost.md](prompts/boost.md) |
 
 每個檔案都是：用途 → 中文重點 → agy 原文。
 
-binary 裡出現的其他斜線指令（`/btw`、`/hive`、`/compact`、`/rewind`、`/fork`、`/effort`、`/thinking`、`/context`…）沒有獨立 prompt，是程式內建功能；用法請查 [references/changelog.md](references/changelog.md)（1.0.0 → 1.5.16 完整更新紀錄）。binary 裡找不到 `boost` 指令。
+binary 裡出現的其他斜線指令（`/btw`、`/hive`、`/compact`、`/rewind`、`/fork`、`/effort`、`/thinking`、`/context`…）沒有獨立 prompt，是程式內建功能；用法請查 [references/changelog.md](references/changelog.md)（1.0.0 → 1.5.16 完整更新紀錄）。
 
 ## 其他
 
