@@ -1,5 +1,15 @@
 # Changelog
 
+## seat review folds for the Gemini import; session-handoff R6 lists due items
+
+- W48 final seat round (sol, `opinions/sol-final.md`), folded without another round because each change only tightens:
+  - `prep-for-meetings`, `match-my-writing-style`: before showing or handing off a result, omit private source details unless everyone who can see it is authorized; the voice card keeps traits and neutral sample labels, never private source text. Meeting gaps say "not found", "not checked" or "connector unavailable".
+  - `focus-my-energy`: recommends agent-run work for delegation; starts workers only for tasks already authorized. At most three tasks; unknown free time gives estimates.
+  - `unknowns-discovery` §2.1: a provisional recommendation; adopt a default only after any required decision or review under model-dispatch and the consensus ladder. A perspectives-only ask stops at the analysis. Open points are proposed as `wayfinder` tickets; tracker tickets need the owner's authorization.
+  - Reply-draft flow: plain replies run `stop-slop` once inside `match-my-writing-style`; structured replies go to `writing-artifacts`.
+- `session-handoff` RESUME R6 (W48 inbox A3-17, sol's exact text): list each still-open item due today or earlier in the handoff's Immediate Next Steps and Blockers, with its read-only live check and result, or an unverified label and the reason. Owner delegated: 「你們大家趕緊的快共識、部署、收尾了」.
+- Not verified: a live resume or a live run of the new skills under this text.
+
 ## kernel 4.56.0: weekly retro routes to retro-agenda
 
 - W48 retro case B7: the kernel had no retro route, so a session asked to "run retro" or asked about the last retro did not read the agenda first. Both W48 seats signed the route (`inbox-layers-integrated.md` §C, L1′).

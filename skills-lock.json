@@ -182,9 +182,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/session-handoff/SKILL.md",
-      "skillFolderHash": "62cb5d02de71f9b9c0961362cc04ab66c8cbf2c0",
+      "skillFolderHash": "f96b4407f51f75b04e1d9313962cb7f5b803d870",
       "installedAt": "2026-07-18T20:48:39.017Z",
-      "updatedAt": "2026-11-26T00:00:00.000Z"
+      "updatedAt": "2026-11-26T18:40:00.000Z"
     },
     "shared-memory-intake": {
       "source": "ohyeh/agent-scripts",
@@ -246,18 +246,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/unknowns-discovery/SKILL.md",
-      "skillFolderHash": "3cff8548a35ae6cb69ddc4e8b2402b8bc406ee02",
+      "skillFolderHash": "cd4604a9688d4edea0dcafec8edafa0b8dac6f46",
       "installedAt": "2026-07-18T20:48:21.472Z",
-      "updatedAt": "2026-11-26T18:00:00.000Z"
+      "updatedAt": "2026-11-26T18:40:00.000Z"
     },
     "using-decision-tree": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-decision-tree/SKILL.md",
-      "skillFolderHash": "ae15ba3686b078ec2357157cfa827126260a908f",
+      "skillFolderHash": "f351c450989362a03ab370257b647ec33e225b35",
       "installedAt": "2026-10-23T00:00:00.000Z",
-      "updatedAt": "2026-11-26T18:00:00.000Z"
+      "updatedAt": "2026-11-26T18:40:00.000Z"
     },
     "using-grok-bot-app": {
       "source": "ohyeh/agent-scripts",
@@ -364,27 +364,27 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/match-my-writing-style/SKILL.md",
-      "skillFolderHash": "92807ad41bbb94d4e7c2d40c24137b5b6e275c5b",
+      "skillFolderHash": "f0e3971f05bd3d819f6afda8575a62cc66be6908",
       "installedAt": "2026-11-26T18:00:00.000Z",
-      "updatedAt": "2026-11-26T18:00:00.000Z"
+      "updatedAt": "2026-11-26T18:40:00.000Z"
     },
     "prep-for-meetings": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/prep-for-meetings/SKILL.md",
-      "skillFolderHash": "64ce1722a400aa314ce082ede44034be8dc24264",
+      "skillFolderHash": "e8285c553b89650c8099c45d0b0f40c8e519d20a",
       "installedAt": "2026-11-26T18:00:00.000Z",
-      "updatedAt": "2026-11-26T18:00:00.000Z"
+      "updatedAt": "2026-11-26T18:40:00.000Z"
     },
     "focus-my-energy": {
       "source": "ohyeh/agent-scripts",
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/focus-my-energy/SKILL.md",
-      "skillFolderHash": "12ce0f040707bbe7343758fccdbc03752c62e38b",
+      "skillFolderHash": "23d0c4b55cf5986914af488c1aec3757d91569ee",
       "installedAt": "2026-11-26T18:00:00.000Z",
-      "updatedAt": "2026-11-26T18:00:00.000Z"
+      "updatedAt": "2026-11-26T18:40:00.000Z"
     }
   },
   "dismissed": {

@@ -72,8 +72,9 @@ ask which strategy to use when a reasonable default exists.
 
 Apply: a decision or idea is still open (two or more plausible directions)
 before you state the defaults, or the user asks for new angles or other
-perspectives. Skip it when acceptance is objective. It runs inline, in one
-reply. (Adapted from the Gemini built-in skills `generate-fresh-ideas` and
+perspectives. Skip it when acceptance is objective and the approach is
+settled. When the user asks only for perspectives, deliver the analysis and
+stop. It runs inline, in one reply. (Adapted from the Gemini built-in skills `generate-fresh-ideas` and
 `get-more-perspectives`, W48 retro import.)
 
 - [ ] Five lenses, one idea each (a one-line pitch plus one or two lines). Drop
@@ -89,14 +90,16 @@ reply. (Adapted from the Gemini built-in skills `generate-fresh-ideas` and
       we build and run it, effort), skeptic (risks, failure modes), forward
       thinker (what it enables later), user advocate (effect on the people who
       use it), cost (time, money, quota, upkeep).
-- [ ] Close with one recommendation. It becomes the stated default (universal
-      guard). List each point the panel left open.
+- [ ] State one provisional recommendation and list the open points. Adopt a
+      default or proceed only after any required decision or review under
+      `model-dispatch` and the kernel consensus ladder.
 
 Limits: one model playing five roles is not a different-model verdict; a
 decision that needs one goes to the kernel consensus ladder or a second-model
 review. For isolated parallel branches with scoring, use `adhd`; to stress-test
-with the user, use `grilling`. When the work is too big for one session, the
-open points become the first decision tickets of `wayfinder`.
+with the user, use `grilling`. For work that spans sessions, propose the open
+points as the first `wayfinder` tickets; create tracker tickets only when the
+owner has authorized that write.
 
 ## §3 Brainstorm & prototype before real code
 
@@ -181,7 +184,9 @@ Apply: after a change far larger than the user expected, or when they ask.
   unknowns, not model capability. Do not blind-retry: bring the user back
   through §2–§5. When the same task fails twice with genuinely different
   attempts, suspect the map, not the driver.
-- Exit: when the defaults are stated and no §STOP condition holds, start the next station in the same turn
-  with the stated defaults as its input: `prototype` for a design question,
-  `wayfinder` when the work is too big for one session (the §2.1 open points
-  are its first decision tickets), else the implementation.
+- Exit: when the defaults are stated, no §STOP condition holds, and any review
+  that `model-dispatch` or the consensus ladder requires is done, start the next
+  station in the same turn with the stated defaults as its input: `prototype` for a design question,
+  `wayfinder` when the work is too big for one session (propose the §2.1 open
+  points as its first tickets; create tracker tickets only when the owner has
+  authorized that write), else the implementation.

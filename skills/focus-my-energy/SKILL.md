@@ -1,6 +1,6 @@
 ---
 name: focus-my-energy
-description: Pick what the owner should work on now, by matching the owner's task list to their current energy and free time, not only to the calendar. Hard thinking goes to high energy, small tasks to low energy, and work agents can run alone goes to workers. Use when the owner asks 「現在該做什麼」「我很累」「排一下今天」, "what should I work on", or shares a task list to order.
+description: Pick what the owner should work on now, by matching the owner's task list to their current energy and free time, not only to the calendar. Hard thinking goes to high energy, small tasks to low energy, and work agents can run alone is recommended for delegation. Use when the owner asks 「現在該做什麼」「我很累」「排一下今天」, "what should I work on", or shares a task list to order.
 metadata:
   version: "0.1.0"
 ---
@@ -30,15 +30,15 @@ the text below is our own.
 
 ## Step 3: Recommend
 
-1. Give one task for now, and the next two, each with a time box that fits the
-   free time.
+1. Give one task for now and at most two more, each with a time box. When the
+   free time is unknown, mark the boxes as estimates; when nothing fits, say so.
    - High energy: the most important deep task first.
    - Medium energy: light tasks in a batch, or a deep task split into a small
      first step.
    - Low energy: light or recovery tasks; no new deep decisions.
-2. List the agent-run tasks to start now, so they run while the owner works.
-   Starting a worker follows the normal routes (`using-tmux-agent-tools`,
-   `delegation-templates`).
+2. List the agent-run tasks that could run on workers while the owner works.
+   Start workers only for tasks already authorized for execution, using the
+   normal dispatch route (`using-tmux-agent-tools`, `delegation-templates`).
 3. Say in one line why the first task fits the energy.
 
 ## Learn the pattern (optional)

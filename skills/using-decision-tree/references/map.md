@@ -36,11 +36,11 @@ the row's loop has closed.
 | New feature, acceptance unclear | `unknowns-discovery` (when its trigger holds) → `prototype` for a design question, or `wayfinder` when too big for one session → implement (`tdd` when the user wants test-first) → a check executed and quoted before any done claim (kernel Done rule) → `defect-first-review` when risk or the user asks | stated defaults → design answer or decision tickets → diff and tests → quoted check output → findings | findings fixed and re-verified; a repeated finding → a gate, or a backlog row that names the file |
 | Bug or regression | `diagnosing-bugs` (many competing hypotheses → fan out via `using-tmux-agent-tools` under `model-dispatch`) → re-run the original scenario → `defect-first-review` on the fix diff when risk warrants | repro and failing signal → fix and regression test → original scenario re-run → findings | regression test stays in the repo |
 | Test plan | write the cases inline → only when execution is authorized: the browser row below (web) or the app row below (app) → a bug → Bug row; tracker issues → `triage` | cases → execution evidence → bug report | a missed case goes back into the plan |
-| Idea still fuzzy | `adhd` to diverge in parallel, `grilling` to stress-test, or neither → `unknowns-discovery` (its §2.1 lens and panel pass while the direction is open) → the New feature row | scored survivors or confirmed decisions → stated defaults | the user confirms the direction |
+| Idea still fuzzy | `adhd` to diverge in parallel, `grilling` to stress-test, or neither → `unknowns-discovery` (its §2.1 lens and panel pass while the direction is open; a perspectives-only ask stops at the analysis) → the New feature row when implementation is authorized | scored survivors or confirmed decisions → stated defaults | the user confirms the direction |
 | Codebase hard to change | `improve-codebase-architecture` → the user picks a candidate → `grilling`, with `codebase-design` for the interface (terms unclear → `domain-modeling`) → `tdd` or implement → `defect-first-review` | ranked opportunities → interface and seam → tests and diff | the review has no confirmed finding |
 | Work too big for one session | `wayfinder` → each slice enters its own row → `session-handoff` at each pause | map of slices → handoff doc | every slice is closed |
 | Docs for a project | `documentation-writing` → `stop-slop` → run every example | draft → clean draft | every example runs |
-| Reply draft for a teammate or a ticket | `match-my-writing-style` (the owner's voice card) → `writing-artifacts` when the reply needs structure → `stop-slop` → show the draft and stop; sending it is a kernel hard-stop. Mail, Drive, chat or calendar are read as the task needs, read-only, never written back | voice card → draft → clean draft | the owner approves or sends it |
+| Reply draft for a teammate or a ticket | `match-my-writing-style` (the owner's voice card; it runs `stop-slop` on a plain reply), or `writing-artifacts` when the reply needs structure (it tightens its own text) → show the draft and stop; sending it is a kernel hard-stop. Voice samples from mail, Drive or chat, and background on the thread or event being answered, are read as the task needs, read-only, never written back | voice card → clean draft | the owner approves or sends it |
 | Pause or hand off | `session-handoff`; follow its Exit | handoff doc | the next session starts from the doc |
 
 Owner pointers (their chains stay with them): codebase-wide deepening →
@@ -122,7 +122,7 @@ read-only, never written back, and stop at a brief or a list.
 | I need to… | Skill | Mode |
 |---|---|---|
 | brief the owner before one meeting: background, open actions, risky topics, 30-second card | `prep-for-meetings` | Skill() |
-| pick the owner's next task by current energy and free time; start agent-run work on workers | `focus-my-energy` | Skill() |
+| pick the owner's next task by current energy and free time; recommend agent-run work for delegation | `focus-my-energy` | Skill() |
 
 ## Visual and HTML output
 
