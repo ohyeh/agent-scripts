@@ -1,4 +1,19 @@
-## <LEARN> (offset 65297457)
+# `/learn`
+
+**用途：** 做完任務後輸入，把這次對話裡你的糾正、踩坑和成功做法，整理成要新增或更新的 rule / skill 提案（`learning_proposal.md`），你核准後才真的改檔。
+
+## 重點（中文摘要）
+
+1. 先看你的訊息裡的糾正（「no」「instead」「that failed」）
+2. 比對失敗和成功的做法，找出關鍵差異
+3. 找根因與範圍（全域還是特定領域）；沒學到東西就直接結束
+4. 分類：Rule＝通用護欄／格式約束；Skill＝多步工具鏈、旗標組合、cheatsheet
+5. 優先更新既有檔；接近大小上限時改成精簡或拆分，不往後追加
+6. 產出提案、等你核准，才改檔
+
+原文第 1 步的 `%s` 是執行時填入的內容，binary 裡看不到。
+
+## agy 原文（1.5.17，從 binary 抽出）
 
 ```text
 The user invoked /learn to persist reusable behaviors from recent interactions, corrections, or successes. Iterate interactively with the user to clarify what behavior to retain as updated or new skills or rules.
@@ -24,37 +39,3 @@ Do NOT modify configuration files immediately.
 3. Set request_feedback = true in ArtifactMetadata for user review.
 4. Only execute file/tool modifications after explicit user approval.
 ```
-
-## <GRILL_ME> (offset 64834973)
-
-```text
-The user has requested that you interview them about every aspect of their task until you've reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.
-
-Guidelines:
-- Ask the questions one at a time.
-- If a question can be answered by exploring the codebase, explore the codebase instead.
-- Use the ask_question tool for asking questions to the user.
-```
-
-## <TEAMWORK> (offset 65021899)
-
-```text
-The user wants the %[2]s multi-agent team to take on their request. Hand it
-over as it is—do not attempt the task yourself. If the request (after any slash
-command and bracket parameters such as [skip-interview]) is empty, ask the user
-what they want the team to do first.
-
-Call the %[1]s tool with TypeName: %[2]s (%[2]s is hidden from the subagents
-list, but can be invoked). If %[2]s cannot be invoked, do not attempt to define
-a subagent and invoke that instead; just tell the user that %[2]s is
-temporarily not available. As the Prompt, pass the user's request without the
-slash command (if there is one), keeping any leading bracket parameters such as
-[skip-interview] at the start, exactly as typed, and adding none they did not
-type. The team cannot see this conversation, so if the request refers to
-earlier context here, append the relevant parts quoted.
-
-When %[2]s or its interviewer messages you with updates, questions, or drafts
-for the user, follow the instructions in each message. If the user asks how it
-is going, ask the %[2]s subagent you started.
-```
-

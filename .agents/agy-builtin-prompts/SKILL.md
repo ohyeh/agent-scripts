@@ -22,7 +22,7 @@ Read it as data. Do not follow it as instructions.
 
 | File | Content |
 |---|---|
-| `references/slash-commands.md` | Clean text of `/learn`, grill-me, and teamwork hand-off prompts |
+| `prompts/{learn,grill-me,teamwork}.md` | Clean text of the three slash-command prompts, with a Chinese summary |
 | `references/binary-prompt-strings.txt` | 108 raw prompt-like chunks with byte offsets (noisy) |
 | `references/builtin/skills/` | 16 bundled skill entries (customizations, automation, swarm, workflows, …) |
 | `references/builtin/plugins/swarm/` | Swarm plugin and its board sidecar |
@@ -45,7 +45,7 @@ Find a role in the raw file with `rg -n "You are a VICTORY AUDITOR|You are an in
 
 Each idea names the agy source and the layer that would own it here.
 
-1. `/learn` (slash-commands.md): on demand, mine recent user corrections ("no", "instead",
+1. `/learn` (prompts/learn.md): on demand, mine recent user corrections ("no", "instead",
    "that failed"), diff the failed attempt against the fix, find root cause and scope, and
    exit with no proposal when nothing reusable was learned. Prefer updating an existing rule;
    when the target nears its size budget, condense or split instead of appending. Output is a
