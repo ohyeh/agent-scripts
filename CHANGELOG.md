@@ -1,5 +1,16 @@
 # Changelog
 
+## using-decision-tree: entries from hooks and mods, page updates, reply drafts, gemini-web
+
+- Owner 2026-11-26 「9 我預期是 /using-decision-tree 你們要加強討論、擴充」. Two W48 seats (sol, agy-argon) signed every row.
+- Trunk: a new "Entries from hooks and mods" part names the router nudge, the chain nudge and quick-say keys 6 and 7 as entries; they point at a branch and approve nothing.
+- Index: design covers new or updated visual work; writing covers a draft reply.
+- Loops: two entries — continue an approved plan through implement, review and verify (read the earlier run record first), and handle PR review comments.
+- Design Q1: an update to an existing page counts as visual work; an update that only changes controls (for example playback speed) builds directly.
+- Map: a `gemini-web` row, and the `stop-slop` row points to `simplified-english`. Chain: a `gemini-web` row. (The reply-draft flow row and the `unknowns-discovery` Exit line moved into the Gemini import commit.)
+- Record: `evals/retro-metrics/2026-W48/t123-integrated.md` §2 and §5 (local only).
+- Not verified: a live session routed through the new rows.
+
 ## quick-say 0.8.9: key 3 becomes a second-model review (審查)
 
 - Owner 2026-11-26 「6. quick-say 第一個組合要佔哪一顆鍵 你們討論啊」. In the W48 retro the seats first proposed key 4 (sol) and `-` (argon); both then signed the commander's default, key 3.

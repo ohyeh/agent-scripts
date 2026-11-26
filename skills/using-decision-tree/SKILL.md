@@ -32,6 +32,17 @@ branch file plus one index row; this file does not change for it.
 A worker on one assigned task enters this tree only when its brief names it;
 otherwise its brief already binds the members.
 
+## Entries from hooks and mods
+
+- Claude Code `.agents/hooks/skill-router-nudge.sh` matches the owner's prompt
+  against `.agents/hooks/skill-router-table.tsv` and prints a `[skill-router]`
+  line. Start at step 1, also on a later turn with a new deliverable. The line
+  approves nothing.
+- Claude Code `.agents/hooks/skill-chain-nudge.sh` prints the
+  `references/chain.tsv` row when a station loads. Runtimes without this hook,
+  and a station read inline, follow the member's Exit section or the chain row.
+- quick-say combos 6 (規劃期) and 7 (調查) send the owner into this tree.
+
 ## Changing the tree
 
 Each member row carries `class`:

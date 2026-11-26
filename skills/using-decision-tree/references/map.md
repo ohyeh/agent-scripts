@@ -103,6 +103,7 @@ before any install or deploy.
 | drive a browser: navigate, fill forms, read a logged-in page, screenshot | `codex-cu` where it is installed: the user's own Chrome, background tab first. A host without it (no ChatGPT Computer Use plugin) goes straight to `agent-browser`, no setup unless the user asks; so does a step codex-cu cannot do. `agent-browser` runs one named session, reused and closed at the end, never several at once | Skill() |
 | drive an iOS, Android, macOS, or TV app | macOS app: `codex-cu` where it is installed, else `agent-device`; iOS, Android, TV: `agent-device` | Skill() |
 | read or drive the Grok Bot macOS app (bots, folders, transcripts) | `using-grok-bot-app` | Skill() |
+| drive Gemini web through `codex-cu`: send approved text, pick a model or thinking level, or start Deep Research the user asked for | `gemini-web` | Skill() |
 
 ## Write for people to read
 
@@ -110,7 +111,7 @@ before any install or deploy.
 |---|---|---|
 | turn a fuzzy subject into a finished deliverable (entry point) | `writing-artifacts` | Skill() |
 | write in-repo software docs: README, API, tutorial | `documentation-writing` | Skill() |
-| remove AI writing patterns from any prose | `stop-slop` | Skill() |
+| remove AI writing patterns from any prose; for procedural English or a 「說白話」 re-explanation also apply rule `simplified-english` | `stop-slop` | Skill() |
 | draft in the owner's own voice from a reviewed voice card | `match-my-writing-style` | Skill() |
 
 ## Plan the owner's day

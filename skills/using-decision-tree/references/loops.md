@@ -69,6 +69,12 @@ audit (design-vs-code-audit)
 ```
 
 Entry points off the loop:
+- An approved plan still needs implementation, review and verification →
+  `spec-implement-dual-review-verify` when it fits the live roster and runtime.
+  A request to resume an earlier workflow starts with its run record and recipe.
+- PR review comments → read the PR thread and set the scope. Use
+  `findings-triage` only when the input is confirmed findings that fit its
+  contract; keep replies and thread resolution inside the approved scope.
 - ONE artifact needs a second-model verdict → `consensus-gate` — ONE round,
   irreversible/behavior-tier changes only; NOT a default station
 - research (facts, prices, sources; often several rounds) → `haiku-research-round`

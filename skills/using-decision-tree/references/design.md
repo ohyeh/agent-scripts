@@ -17,10 +17,12 @@ at the end; that table is the only place a member is chosen.
 **Q1 Deliverable — who owns the output?**
 - Diagram → DG-REPO when it is one of that member's native types drawn from a
   real repo or trace; else DG-HOUSE.
-- Report, plan, comparison or explainer page → skill `writing-artifacts`
-  first (one page, one topic), then build one self-contained HTML file under
-  rule `artifacts-rules`. Exception: the page arrives from `writing-artifacts`
-  Stage 4 with frozen text → build directly. One pass, no loop.
+- Report, plan, comparison or explainer page, new or an update to an existing
+  page → skill `writing-artifacts` first (one page, one topic), then build or
+  update one self-contained HTML file under rule `artifacts-rules`. Exception:
+  the page arrives from `writing-artifacts` Stage 4 with frozen text, or the
+  update changes only controls such as playback speed → build directly. One
+  pass, no loop.
 - Web page or web app screen, native screen, existing interface → the target
   stack; direction from Q2.
 - Metrics, KPIs, status, a data file, or a large scan-and-compare page →

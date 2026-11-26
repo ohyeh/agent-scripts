@@ -22,6 +22,7 @@ skill-creator	rule maintenance §1: exact diff, then approval	the drafted skill 
 delegation-templates	dispatch the brief with this runtime's own tool (a subagent, or a tmux worker through using-tmux-agent-tools), then re-run the report's check yourself	the filled brief
 codex-cu	none automatically: return to the station that asked for the browser or app step (a defect goes to diagnosing-bugs)	the observed state
 using-grok-bot-app	none automatically: return to the station that asked for the bot read or send	the quoted bot text
+gemini-web	none automatically: return the conversation URL, model, thinking level and Deep Research status to the station that asked	the Gemini conversation URL and status
 using-tmux-agent-tools	delegation-templates to shape the brief (GOAL/MODEL/ACCEPTANCE/REPORT) before any worker is started or told; an inline outcome has no next station	the worker choice and brief
 match-my-writing-style	writing-artifacts when the reply needs structure, then stop-slop; show the draft and stop (sending is a kernel hard-stop)	the voice card and the draft
 prep-for-meetings	none: show the brief and stop; replies and calendar changes are a kernel hard-stop	the brief
