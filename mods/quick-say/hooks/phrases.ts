@@ -26,7 +26,7 @@ You are the owner and long-term maintainer of this codebase, and its design is u
     when: "接續前一段工作，先搞懂任務和之前怎麼做",
     text: `/session-handoff resume 前情提要：先搞懂這個任務，再談下一步。
 1. 要解決什麼問題：用我的原話講。
-2. 之前怎麼做：整份讀完交接、它接續的上一份交接、交接列的 artifact、Working Methods 和交接指到的 run dir 紀錄（plan.md、state.md 和它們引用的檔），以及上一個 session（寫這份交接的那個）的完整紀錄，不要只讀片段；更早的 session 看交接和 footprint 的 timeline，下一步要用到它的內容才開它的 log。列出哪些做法跑過有效、哪些失敗、當時在什麼條件下，各附原始紀錄 path:line 或 commit sha。
+2. 之前怎麼做：整份讀完交接、它接續的上一份交接、交接列的 artifact、Working Methods 和交接指到的 run dir 紀錄（plan.md、state.md 和它們引用的檔），以及上一個 session（寫這份交接的那個）的完整紀錄，不要只讀片段；更早的 session 只看交接和 footprint 的 timeline；要讀多個 session 我會特別說。列出哪些做法跑過有效、哪些失敗、當時在什麼條件下，各附原始紀錄 path:line 或 commit sha。
 3. 專案的規範和筆記（AGENTS.md、CLAUDE.md、.claude/rules、.agents/rules、任務筆記）、記憶（.claude/memory、USER-MEMORY、共用記憶）和現成工具（scripts）裡，哪些和這個任務有關。
 4. 現在停在哪、下一步是什麼、出處是什麼；現場唯讀查一次並附輸出。
 5. 第 2、3 點每個來源逐項列「讀了」或「沒讀＋原因」。

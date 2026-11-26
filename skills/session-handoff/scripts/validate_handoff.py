@@ -176,7 +176,7 @@ def record(field: str):
     start, end = int(start), int(end or start)
     if start < 1 or end < start:
         return None
-    return f"{os.path.normpath(path)}:{start}-{end}"
+    return f"{path}:{start}-{end}"
 
 
 def norm(text: str) -> str:
@@ -418,8 +418,9 @@ def validate_handoff(filepath: str) -> dict:
     missing_recommended = check_recommended_sections(content)
     secrets_found = scan_for_secrets(content)
     existing_files, missing_files = check_file_references(content, str(base_path))
-    missing_files = method_warnings + [f for f in missing_files
-                                       if not any(w.startswith(os.path.normpath(f) + " (") for w in method_warnings)]
+    resolve = lambda f: os.path.realpath(os.path.join(base_path, os.path.expanduser(f)))
+    noted = {resolve(w.split(" (Working Methods record")[0]) for w in method_warnings}
+    missing_files = method_warnings + [f for f in missing_files if resolve(f) not in noted]
 
     return {
         "filepath": str(path),
@@ -639,6 +640,13 @@ def self_test():
         (root / "run" / "alias.md").symlink_to(root / "run" / "state.md")
         assert bad("retired: CDP · run/state.md:2 · run/alias.md:2", chain=chained)    # symlink to the same line
         assert ok("retired: CDP · run/state.md:2 · run/alias.md:3", chain=chained)     # a different line passes
+        (root / "other" / "inner").mkdir(parents=True)
+        (root / "other" / "state.md").write_text("y\n" * 5)
+        (root / "run" / "hop").symlink_to(root / "other" / "inner")
+        (hd / "prev.md").write_text(wm("CDP · worked · 2026-11-23 · other/state.md:2 · Android"))
+        assert bad("retired: CDP · other/state.md:2 · run/hop/../state.md:2", chain=chained)  # symlink then ..: same file
+        (hd / "prev.md").write_text(wm("CDP · worked · 2026-11-23 · run/state.md:2 · Android"))
+        assert ok("retired: CDP · run/state.md:2 · run/hop/../state.md:2", chain=chained)     # it is other/state.md
     print("self-test ok")
 
 

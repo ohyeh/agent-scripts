@@ -9,7 +9,8 @@
 ## session-handoff: a resume reads the previous session, not every session
 
 - Owner 2026-11-26 「我覺得 handoff 先讀上一個 session 就好 讀太多個 window 一下就爆了」.
-- RESUME reads the previous session (the writer of the chosen handoff) in full, plus user-named sessions. An older session's timeline comes from its footprint and the handoffs; its log opens only when the next step depends on a node it holds. R1 no longer gathers sessions outside the chain. quick-say combo 5 says the same.
+- Owner 「橫跨多個 使用這要特別說 預設不該是多個」.
+- RESUME reads one session by default: the previous session (the writer of the chosen handoff), in full. More than one session only when the user asks (names them or asks for the whole history). An older session's timeline comes from its footprint and the handoffs; a node only its log holds stays unverified and is named in the reply. R1 no longer gathers sessions outside the chain. quick-say combo 5 says the same.
 
 ## session-handoff: stricter Working Methods after re-review
 
@@ -19,6 +20,7 @@
 - Round 2 (sol BLOCK R01a/R03a/R04a): a predecessor row in the older four-field form is still carried (add its conditions or `unknown`); `Continues from` must appear once, as a link or exactly `None (fresh start)`; records compare by normalized path and line range, so `./run/x.md:2` and `run/x.md:2-2` are one record; one WARN per missing file.
 - Round 3 (sol BLOCK R03a/R04a): one `## Handoff Chain` section and one `Continues from` field, empty values counted; records compare by the file they resolve to under the project root, so an absolute and a relative path to one line are one record; a carried method may hold several conditions on one record; one WARN per missing file.
 - Round 4 (sol BLOCK R04a): records resolve symlinks before comparing, so an alias of the same line cannot retire a method; a missing file warns once however it is spelled.
+- Round 5 (sol BLOCK R04a/R04b): a record keeps its written path until symlinks resolve, so `run/hop/../state.md` compares as the file it reaches; missing-file warnings merge by resolved path.
 - Scaffold: `--continues-from` matches the file name exactly. Template: a `## Handoff Chain` section like the scaffold's.
 - RESUME: a full catch-up opens every artifact the chain lists and stops after its reply; Step 3b reads R1's whole session list and the files cited run dirs cite; a resume opens the record behind any node the next step depends on.
 
