@@ -1,5 +1,11 @@
 # Changelog
 
+## hooks: agent-device gate takes --udid/--serial; router table catches visual and writing asks
+
+- `agent-device-target-gate.sh` (00b59ef, 66d8e51, c3a1e55): `--udid` and `--serial` count as targets beside `--device` (agent-device 0.21.8 `open` help lists all three), so a physical-device open with `--udid` is no longer blocked. Every line of a multi-line command is checked. A line continues only when it ends in an odd number of backslashes, and a target flag counts only at segment start or after whitespace. Second-model review (Claude Sonnet 5.5): round 1 BLOCK, rounds 2 and 3 PASS. A W48 seat (sol) did not sign two residual forms that still pass (a flag inside quoted text, or used as another flag's value); the comment says so, and the risk is for the owner.
+- `skill-router-table.tsv`, `skill-router-nudge.sh`, `scripts/skill-router-coverage.py` (469ede1): the visual row also takes update and draft verbs, HTML updates, diagrams, mockups, reports and reply drafts. New rows send writing cleanup and "resume the earlier workflow" asks to `using-decision-tree`. `gemini-web` gets a name row. The delegation row fires only when the prompt starts with a seat name or uses an explicit dispatch verb, so worker completion reports stay silent. The nudge and the coverage script skip `<hc from=...>` worker relays. Replay through the real hook: 42 of 45 (the three misses are retro asks, left to the kernel route). Not caught: asks whose key words span two lines, because grep matches per line (W49 candidate).
+- Record: `evals/retro-metrics/2026-W48/t123-integrated.md`, `opinions/review-hooks-r3.md` (local only).
+
 ## rules: retro-agenda drops four measurement steps
 
 - Owner 2026-11-26 「我希望不要是過去個腳本跑跑更新艦隊 這種沒效率的量測」 (after 11-19 「過往萃取一些統計 已經沒啥意義了」). Deletion only, four places:
