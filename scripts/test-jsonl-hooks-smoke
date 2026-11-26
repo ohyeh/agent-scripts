@@ -146,6 +146,12 @@ if run_device_gate $'cd /tmp\nagent-device open MyApp --platform ios'; then
   echo "FAIL: agent-device open on line 2 without a target bypassed the gate" >&2
   exit 1
 fi
+for glued in $'agent-device open MyApp\\\n--udid X' $'agent-device open MyApp\\\n--serial X' $'agent-device open MyApp --platform ios \\\\\n--udid X'; do
+  if run_device_gate "$glued"; then
+    echo "FAIL: a glued or non-continued target flag counted as a target" >&2
+    exit 1
+  fi
+done
 
 # precompact: the summary rules are CREATE Step 2 of the deployed skill, sent whole; no skill -> nothing
 PCH="$WORK/pc-home"; mkdir -p "$PCH/.agents/skills/session-handoff"

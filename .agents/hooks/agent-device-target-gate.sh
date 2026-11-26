@@ -17,13 +17,14 @@ command -v jq >/dev/null 2>&1 || exit 0
 CMD="$(printf '%s' "$IN" | jq -r '.tool_input.command // ""')"
 # Inspect each shell segment independently. A --device token in a sibling
 # command must not authorize the agent-device invocation. A newline also ends a
-# segment, so an invocation on a later line of a script is inspected; a
-# backslash line continuation is joined first.
+# segment, so an invocation on a later line of a script is inspected; a line
+# ending in an odd number of backslashes continues (bash rule) and is joined
+# first. A target flag counts only as its own argument.
 # ponytail: separator-level parsing; use a shell AST if quoted separators
 # become common in agent-device arguments.
-MISSING="$(printf '%s\n' "$CMD" | awk '{ if (sub(/\\$/, "")) printf "%s", $0; else print }' | awk -v RS='[|;&\n]+' '
+MISSING="$(printf '%s\n' "$CMD" | awk '{ if (match($0, /\\+$/) && RLENGTH % 2) printf "%s", substr($0, 1, length($0) - 1); else print }' | awk -v RS='[|;&\n]+' '
   /^[[:space:]]*agent-device[[:space:]]+open([[:space:]]|$)/ {
-    if ($0 !~ /--(device|udid|serial)([=[:space:]]|$)/ &&
+    if ($0 !~ /(^|[[:space:]])--(device|udid|serial)([=[:space:]]|$)/ &&
         $0 !~ /--platform[[:space:]=]+web([[:space:]]|$)/ &&
         $0 !~ /--surface([=[:space:]]|$)/) { print; exit }
   }
