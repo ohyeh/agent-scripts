@@ -32,7 +32,10 @@ root="$(jq -r '.plugins["context-mode@context-mode"][0].installPath // empty' "$
 if [ -z "$root" ]; then
   echo "SKIP [hook] context-mode not installed for Claude on $(hostname)"
 else
-  cmd="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$root/hooks/hooks.json")"
+  # context-mode 2.x names its manifest in plugin.json (./hooks/claude-code.json); 1.x used hooks/hooks.json.
+  manifest="$(jq -r 'if (.hooks|type) == "string" then .hooks else "hooks/hooks.json" end' \
+    "$root/.claude-plugin/plugin.json" 2>/dev/null || echo hooks/hooks.json)"
+  cmd="$(jq -r '.hooks.PreToolUse[0].hooks[0].command' "$root/${manifest#./}")"
   probe='{"hook_event_name":"PreToolUse","session_id":"deploy-drift-probe","tool_name":"Read","tool_input":{"file_path":"/dev/null"}}'
   # Throwaway HOME + TMPDIR, env -i: the hook's self-heal rewrites <HOME>/.claude/plugins/
   # installed_plugins.json whenever $TMPDIR/context-mode-healed-<ver> is absent (W43-7, macmini
