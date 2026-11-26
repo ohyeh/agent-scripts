@@ -24,7 +24,7 @@ P="${P:0:2000}"
 [ -n "${P//[[:space:]]/}" ] || exit 0
 # The hook receives a plugin notice without the "The <name> plugin sent a message:" line the transcript shows.
 [[ "$P" == 'The '*' plugin sent a message:'* || "$P" == 'tmux-agent: '*' worker(s) '* ]] && exit 0
-printf '%s' "$P" | grep -Eq 'teammate-message|^Another Claude session|Ran [0-9]+ shell|^\[skill-router\]|^<(task-notification|system-reminder|command-|local-command)' && exit 0
+printf '%s' "$P" | grep -Eq 'teammate-message|^<hc from=|^Another Claude session|Ran [0-9]+ shell|^\[skill-router\]|^<(task-notification|system-reminder|command-|local-command)' && exit 0
 
 TABLE="${SKILL_ROUTER_TABLE:-$(dirname "$0")/skill-router-table.tsv}"
 [ -r "$TABLE" ] || exit 0

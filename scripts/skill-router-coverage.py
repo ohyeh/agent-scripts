@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TABLE = ROOT / ".agents/hooks/skill-router-table.tsv"
 PASTE = re.compile(r"<pasted_content[^>]*>[\s\S]*?</pasted_content[^>]*>")
 # Same skip as the hook, plus test-harness and non-typed rows.
-SKIP = re.compile(r"teammate-message|^Another Claude session|Ran [0-9]+ shell|^\[skill-router\]"
+SKIP = re.compile(r"teammate-message|^<hc from=|^Another Claude session|Ran [0-9]+ shell|^\[skill-router\]"
                   r"|^<(task-notification|system-reminder|command-|local-command)"
                   r"|^\[Request interrupted|^Run Bash command|^Stop hook feedback|_TURN_\d"
                   # Machine-made prompts (compaction summary, /security-review, worker briefs).
