@@ -1,5 +1,14 @@
 # Changelog
 
+## session-handoff: stricter Working Methods after re-review
+
+- Owner 2026-11-26 「審一下吧」. Re-review of f13d6f4: agy flash PASS; sol BLOCK (R01–R04), each with a CLI counterexample.
+- Validator: each row holds exactly one record (path:line[-line] or sha, backticks allowed); line 0, reversed ranges, URLs, prose, briefs and plans are refused. The conditions field is required (`unknown` allowed), and carried rows compare whole, conditions included. A retirement needs a different newer record. One `none` row at most. The predecessor link is read only from `## Handoff Chain` (fenced examples ignored) and must be a link or `None (fresh start)`. A record file not found here is a WARN in the report.
+- Round 2 (sol BLOCK R01a/R03a/R04a): a predecessor row in the older four-field form is still carried (add its conditions or `unknown`); `Continues from` must appear once, as a link or exactly `None (fresh start)`; records compare by normalized path and line range, so `./run/x.md:2` and `run/x.md:2-2` are one record; one WARN per missing file.
+- Round 2 (sol BLOCK R01a/R03a/R04a): a predecessor row in the older four-field form is still carried (add its conditions or `unknown`); `Continues from` must appear once, as a link or exactly `None (fresh start)`; records compare by normalized path and line range, so `./run/x.md:2` and `run/x.md:2-2` are one record; one WARN per missing file.
+- Scaffold: `--continues-from` matches the file name exactly. Template: a `## Handoff Chain` section like the scaffold's.
+- RESUME: a full catch-up opens every artifact the chain lists and stops after its reply; Step 3b reads R1's whole session list and the files cited run dirs cite; a resume opens the record behind any node the next step depends on.
+
 ## session-handoff Working Methods, full-read resume, 前情提要 and 收工 rewrite
 
 - Owner 2026-11-26 「前情提要 跟 收工 完全跟大便一樣」「他完全活在自己世界為啥」「必須打開原本的 run dir， artifact、舊 session 也還是要讀吧 不然怎知道 timeline 怎麼演變的」「然後寫的規範、筆記、ＭＥＭＯＲＹ都不看啊」「這些也要 前情提要叫他看過吧」.

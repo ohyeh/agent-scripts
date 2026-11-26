@@ -151,7 +151,7 @@ def get_previous_handoff_info(project_path: str, continues_from: str = None) -> 
     if continues_from:
         # Find specific handoff
         for h in handoffs:
-            if continues_from in h["filename"]:
+            if h["filename"] == Path(continues_from).name:
                 return {
                     "exists": True,
                     "filename": h["filename"],
@@ -271,7 +271,7 @@ def generate_handoff(
 
 ## Working Methods
 
-- [TODO: what it does, on which device or env] · [TODO: worked | failed] · [TODO: YYYY-MM-DD] · [TODO: run record path:line or commit sha] · [TODO: limit]
+- [TODO: what it does, on which device or env] · [TODO: worked | failed] · [TODO: YYYY-MM-DD] · [TODO: one run record: path:line or commit sha] · [TODO: conditions it held under, or unknown]
 
 [TODO: Copy every row of the continued handoff's Working Methods whole; drop one only as `- retired: <what> · <old record> · <record that replaced it>`. Write `- none · <reason>` only when the task used no method worth repeating.]
 

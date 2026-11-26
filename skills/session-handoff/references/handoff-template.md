@@ -5,6 +5,7 @@ Use this template structure when creating handoff documents. The smart scaffold 
 ## Table of Contents
 
 - [Session Metadata](#session-metadata)
+- [Handoff Chain](#handoff-chain)
 - [Current State Summary](#current-state-summary)
 - [Immediate Next Steps](#immediate-next-steps)
 - [Blockers/Open Questions](#blockersopen-questions)
@@ -44,6 +45,11 @@ Use this template structure when creating handoff documents. The smart scaffold 
 - Branch: [GIT_BRANCH]
 - Session duration: [APPROX_DURATION]
 
+## Handoff Chain
+
+- **Continues from**: [[previous handoff file]](./[previous handoff file]) — or `None (fresh start)`; the scaffold fills it from `--continues-from`
+- **Supersedes**: [older handoffs this replaces, or "None"]
+
 ## Current State Summary
 
 [One paragraph: What was being worked on, current status, and where things left off]
@@ -66,10 +72,10 @@ Use this template structure when creating handoff documents. The smart scaffold 
 ## Working Methods
 
 How this task is done here, from this and every earlier session. One row per method or tool:
-- [what it does, on which device or env] · worked | failed · [YYYY-MM-DD] · [run record path:line or commit sha] · [limit or condition]
+- [what it does, on which device or env] · worked | failed · [YYYY-MM-DD] · [one run record: path:line or commit sha] · [conditions it held under, or unknown]
 - none · [reason] (only when the task used no method worth repeating)
 
-The record is the run record (state.md, evidence file, log, commit), never a brief, a plan, or "used before". Write in the limit field the conditions the result holds under (device, build, what it proved). Copy every row of the handoff this one continues from whole; drop a row only as `- retired: <what> · <old record> · <record that replaced it>`. A retired row can drop at the next handoff; the row that replaced it carries on.
+The record is the run record (state.md, evidence file, log, commit), never a brief, a plan, or "used before". The last field is required: the conditions the result holds under (device, build, what it proved), or `unknown`. The validator compares carried rows whole, conditions included. Copy every row of the handoff this one continues from whole; drop a row only as `- retired: <what> · <old record> · <record that replaced it>`. A retired row can drop at the next handoff; the row that replaced it carries on.
 
 ## Standing Authorizations
 
@@ -94,7 +100,7 @@ The record is the run record (state.md, evidence file, log, commit), never a bri
 
 ## Sources Read
 
-[This session's resume status lines, exactly as its reply printed them. The next resume reads a session marked `full` or `inherited full` here through its footprint, and through its log when the footprint is missing or the next step needs a cited line.]
+[This session's resume status lines, exactly as its reply printed them. The next resume reads a session marked `full` or `inherited full` here through its footprint, through its log when the footprint is missing, and opens the record behind any node the next step depends on.]
 
 - [SID8] full · COUNT [n] · TOOLS [n] · pack [dir]
 - [SID8] inherited full (from [handoff file])
