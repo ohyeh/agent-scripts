@@ -5,6 +5,7 @@
 - Owner 2026-11-26 「codex-cu | context-mode 大家都要用的」「agy | grok 都要這樣才對吧？」.
 - agy: `install-context-mode-dir.sh` registers `context-mode` with `agy mcp add` (MCP only; the same wrapper and store as Cursor, `CONTEXT_MODE_PLATFORM=antigravity-cli`). It used to skip agy. `deploy.sh` removes the hand-made `codex-tmux-agent-adapter`, whose npx node and worktree paths were gone on one host. agy dispatches workers with hc (herdr) from `run_command`, so it gets no tmux-agent MCP (owner: 「走 herdr 就好」).
 - grok already loads `context-mode` (Claude plugin) and `codex-cu` (`~/.claude.json`) through its Claude compat, and reads `~/.agents/skills` itself. `install-grok-runtime.sh` now also removes dangling `~/.grok/skills` links into `~/.agents/skills` (6 on one host).
+- codex-cu: `install-codex-cu.sh` also registers in Gemini CLI (`~/.gemini/settings.json`); one host had it by hand, the other not.
 - Not verified: an agy session calling a `ctx_*` tool.
 
 ## kernel 4.54.0: one supervision rule across kernel, rules, quick-say and tmux-agent-tools

@@ -132,6 +132,7 @@ register_json() {
 
 register_json "${HOME}/.claude.json" "Claude Code (user scope)"
 register_json "${HOME}/.cursor/mcp.json" "Cursor"
+register_json "${HOME}/.gemini/settings.json" "Gemini CLI"
 
 # agy owns its own store; `mcp add` is an upsert (re-run returns 0).
 if command -v agy >/dev/null 2>&1; then
