@@ -270,7 +270,15 @@ wrap_json_mcp_command "${HOME}/.gemini/settings.json"
 for rt in "${HOME}/.codex" "${HOME}/.gemini"; do
   [ -d "$rt" ] && pin_runtime_symlink "$rt"
 done
-# agy / Antigravity CLI is not a fleet pin target — do not wrap its mcp_config.
+# agy owns its mcp_config; `agy mcp add` is an upsert. MCP only: its hooks.json is
+# the agent-scripts plugin's, and agy rejects the whole file on a foreign key.
+if command -v agy >/dev/null 2>&1; then
+  if agy_err="$(agy mcp add -e "CONTEXT_MODE_DIR=${CANON}" -e CONTEXT_MODE_PLATFORM=antigravity-cli context-mode "$WRAPPER" context-mode 2>&1 >/dev/null)"; then
+    echo "PASS [context-mode-dir] registered in agy"
+  else
+    echo "WARN [context-mode-dir] agy registration failed (non-fatal): ${agy_err:-<no output>}" >&2
+  fi
+fi
 pin_zshrc
 echo "PASS [context-mode-dir] install wrote pins"
 exec "$CHECK"

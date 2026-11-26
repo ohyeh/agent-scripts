@@ -745,6 +745,20 @@ if [ -d ~/.gemini/config ]; then
       {type:"command",command:($a+" PreToolUse host-load-gate")}]}],
     Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$t"
   apply "$t" "$AGY_PLUGIN/hooks.json" hooks
+  # tmux-agent MCP from the skills install, not a plugin cache, worktree or npx path
+  # that a cleanup removes. `agy mcp add` is an upsert. It replaces the hand-made
+  # codex-tmux-agent-adapter entry.
+  TA_MCP=~/.agents/skills/tmux-agent-tools/scripts/tmux-agent-mcp
+  if [ "$CHECK" = 0 ] && command -v agy >/dev/null 2>&1 && [ -x "$TA_MCP" ]; then
+    if agy_err="$(agy mcp add tmux-agent "$TA_MCP" 2>&1 >/dev/null)"; then
+      echo "PASS [agy-mcp] tmux-agent -> $TA_MCP"
+      if agy mcp list 2>/dev/null | grep -q '^codex-tmux-agent-adapter '; then
+        agy mcp remove codex-tmux-agent-adapter >/dev/null && echo "PASS [agy-mcp] removed codex-tmux-agent-adapter"
+      fi
+    else
+      echo "WARN [agy-mcp] tmux-agent registration failed (non-fatal): ${agy_err:-<no output>}" >&2
+    fi
+  fi
 fi
 
 for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate running-script-edit-gate pr-create-gate compaction-recall precompact-instructions skill-router-nudge skill-chain-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do

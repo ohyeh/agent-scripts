@@ -1,5 +1,12 @@
 # Changelog
 
+## deploy: context-mode and tmux-agent MCP in agy; grok drops dead skill links
+
+- Owner 2026-11-26 「codex-cu | context-mode 大家都要用的」「agy | grok 都要這樣才對吧？」.
+- agy: `install-context-mode-dir.sh` registers `context-mode` with `agy mcp add` (MCP only; the same wrapper and store as Cursor, `CONTEXT_MODE_PLATFORM=antigravity-cli`). It used to skip agy. `deploy.sh` registers `tmux-agent` from `~/.agents/skills/tmux-agent-tools/scripts/tmux-agent-mcp` and removes the hand-made `codex-tmux-agent-adapter`, whose npx node and worktree paths were gone on one host.
+- grok already loads `context-mode` (Claude plugin) and `codex-cu` (`~/.claude.json`) through its Claude compat, and reads `~/.agents/skills` itself. `install-grok-runtime.sh` now also removes dangling `~/.grok/skills` links into `~/.agents/skills` (6 on one host).
+- Not verified: an agy session calling a `ctx_*` or tmux-agent tool.
+
 ## kernel 4.54.0: one supervision rule across kernel, rules, quick-say and tmux-agent-tools
 
 - Owner 2026-11-26 「感覺要 整個體系不該有 矛盾 / 不然閉環跑不順」.

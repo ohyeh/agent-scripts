@@ -67,6 +67,11 @@ if [ -n "$agents_skills" ] && [ -d "${HOME}/.grok/skills" ]; then
     [ -L "$l" ] || continue
     case "$(cd "$l" 2>/dev/null && pwd -P)" in
       "$agents_skills"/*) rm "$l"; echo "PASS [grok-own] removed duplicate link $l (Grok reads ~/.agents/skills)" ;;
+      "")
+        # A dangling link into ~/.agents/skills: the skill was retired there.
+        case "$(readlink "$l")" in
+          */.agents/skills/*) rm "$l"; echo "PASS [grok-own] removed dangling link $l (skill gone from ~/.agents/skills)" ;;
+        esac ;;
     esac
   done
 fi
