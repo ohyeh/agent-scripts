@@ -25,3 +25,5 @@ binary 裡出現的其他斜線指令（`/btw`、`/hive`、`/compact`、`/rewind
 - `references/binary-prompt-strings.txt`：108 段原始字串，約 45 種角色（Teamwork 各角色、Victory Auditor、investigation / improvement worker、compaction 接續…）。雜訊多，用搜尋找，例如：
   `rg -n "You are a VICTORY AUDITOR" references/binary-prompt-strings.txt`
 - `references/builtin/`：agy 隨附的 skill 與 swarm plugin，直接複製。
+
+公開 repo 的檢查（`scripts/check-rules-invariants.mjs` 的 `public-sensitive-literals`）會擋 `/Users/<名字>` 與 `100.x.x.x` 位址。原檔裡有 8 處這類第三方字串（Google binary 內的範例路徑與 CGNAT／metadata 位址），已改成 `/Users/<user>`、`100.64.x.x/10`、`100.100.100.x`，其餘原文不動。

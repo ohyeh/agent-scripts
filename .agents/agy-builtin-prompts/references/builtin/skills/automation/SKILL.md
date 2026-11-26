@@ -240,10 +240,10 @@ When the user agrees to a test run:
         -   **`access_grants`**:
         -   `command(<binary_and_subcommand>)` — e.g., `command(gh pr list)`
             (never `command(*)`).
-        -   `read_file(<absolute_path>)` — e.g., `read_file(/Users/alice/notes)`
+        -   `read_file(<absolute_path>)` — e.g., `read_file(/Users/<user>/notes)`
             (never `read_file(*)` or `read_file(/)`).
         -   `write_file(<absolute_path>)` — e.g.,
-            `write_file(/Users/alice/digests)` (never `write_file(*)` or
+            `write_file(/Users/<user>/digests)` (never `write_file(*)` or
             `write_file(/)`).
         -   `mcp(<server_name>/<tool_name>)` — e.g., `mcp(buganizer/get_bugs)`
             (only for real MCP tools actually called; never `mcp(*)`).
