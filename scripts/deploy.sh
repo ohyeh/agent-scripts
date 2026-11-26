@@ -745,19 +745,10 @@ if [ -d ~/.gemini/config ]; then
       {type:"command",command:($a+" PreToolUse host-load-gate")}]}],
     Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$t"
   apply "$t" "$AGY_PLUGIN/hooks.json" hooks
-  # tmux-agent MCP from the skills install, not a plugin cache, worktree or npx path
-  # that a cleanup removes. `agy mcp add` is an upsert. It replaces the hand-made
-  # codex-tmux-agent-adapter entry.
-  TA_MCP=~/.agents/skills/tmux-agent-tools/scripts/tmux-agent-mcp
-  if [ "$CHECK" = 0 ] && command -v agy >/dev/null 2>&1 && [ -x "$TA_MCP" ]; then
-    if agy_err="$(agy mcp add tmux-agent "$TA_MCP" 2>&1 >/dev/null)"; then
-      echo "PASS [agy-mcp] tmux-agent -> $TA_MCP"
-      if agy mcp list 2>/dev/null | grep -q '^codex-tmux-agent-adapter '; then
-        agy mcp remove codex-tmux-agent-adapter >/dev/null && echo "PASS [agy-mcp] removed codex-tmux-agent-adapter"
-      fi
-    else
-      echo "WARN [agy-mcp] tmux-agent registration failed (non-fatal): ${agy_err:-<no output>}" >&2
-    fi
+  # agy dispatches workers with hc (herdr) from run_command; it needs no tmux-agent MCP.
+  # Remove the hand-made adapter entry: its npx node and worktree paths go stale.
+  if [ "$CHECK" = 0 ] && command -v agy >/dev/null 2>&1 && agy mcp list 2>/dev/null | grep -q '^codex-tmux-agent-adapter '; then
+    agy mcp remove codex-tmux-agent-adapter >/dev/null && echo "PASS [agy-mcp] removed codex-tmux-agent-adapter (agy uses hc)"
   fi
 fi
 
