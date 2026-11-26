@@ -116,6 +116,12 @@ output. Follow both by default.
 - Stop when the loop meets the outcome. Start a new goal only from an approved
   goal queue. Stop each worker you will not reuse in the turn you read its
   result.
+- After you dispatch a worker, check its screen or first product in the same
+  turn.
+- On each wake, compare the worker's product with the plan (numbers, samples,
+  scope, rounds); stop or re-dispatch it at once when they differ.
+- After you change a worker's instructions, check its next action; stop it if
+  it did not follow them.
 
 ## Shape every output
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## kernel 4.54.0: one supervision rule across kernel, rules, quick-say and tmux-agent-tools
+
+- Owner 2026-11-26 「感覺要 整個體系不該有 矛盾 / 不然閉環跑不順」.
+- Kernel (both runtime files and kernel-lean): the old "arm a stall monitor ... watching completion only" line said the opposite of quick-say combo 8. It now reads: before ending a turn with a worker running, check its screen or first product, then arm a monitor that wakes on new products, errors, idleness and stalls; never `sleep N`.
+- operator-defaults §Long loop: check a worker at dispatch; compare each product with the plan and stop or re-dispatch; check the next action after changing its instructions.
+- quick-say README rows 5, 8 and 0 now match the phrases (previous session only; 盯場; Working Methods with records).
+- Sibling tmux-agent-tools 0.56.1: its router skill and receipts said "end the turn; do not status/capture". They now say `peek` once, arm a watch on the product files, then end the turn. The collector wakes only on a result, a launch failure, a gone pane, a hook-trust dialog or a quota/login blocker, never on a quiet pane, so the product watch covers idleness. A `peek` loop is still a second supervisor.
+- Not verified: no live commander session has run under the new text.
+
 ## quick-say 0.8.6: 指揮＋loop supervises running workers
 
 - Owner 2026-11-26 「他是指揮、主控、 main thread \ session 但是他 都在掛機 、發呆 傻等 發生事情都不知道」「8: 指揮＋loop 要調整吧」.

@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.53.0-ironlaws
+Version: 4.54.0-ironlaws
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` (`global/` = kernel; `.agents/rules/` →
@@ -149,8 +149,8 @@ Version: 4.53.0-ironlaws
 - Show `git status`/`git diff` after edits; commit freely, push when authorized.
 - Keep linear history: rebase onto the base, fast-forward merge, and rebase stacked PRs bottom-up;
   ask first before rewriting a protected or shared branch.
-- Arm a stall monitor (brief's, else 10m) before ending a wait turn rather than `sleep N`, watching
-  completion only where nothing else notifies.
+- Before ending a turn with a worker running, check its screen or first product, then arm a monitor
+  (brief's, else 10m) that wakes on new products, errors, idleness, and stalls; never `sleep N`.
 - Write scratch files to the session scratchpad, never the repo root or `/tmp`.
 
 ## Tools

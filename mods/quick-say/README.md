@@ -37,12 +37,12 @@ with `APPROVES_NOTHING`: it grants no new approval.
 |---|---|---|
 | 3 | 整理 | After a first working pass: run /simplify as the code owner, tidy the code and the unpushed commits, keep behaviour, and list every change. |
 | 4 | 更深的問題 | Find the deeper question behind repeated discussion. |
-| 5 | 前情提要 | Read the handoff, user.txt and footprints.txt, check what the next step relies on live (read-only) or by one `--call` receipt, no scouts; adds only the commit diffs and pages the next step continues from; explain the timeline and checkpoint, then wait for confirmation. |
+| 5 | 前情提要 | Read in full the handoff, the one it continues from, its artifacts, Working Methods records and run dirs, the project's rules, notes, tools and memory, and the previous session (older sessions only through footprints, unless the owner asks); list which methods worked or failed with records; check the checkpoint live (read-only); report each source read or not, then stop. |
 | 6 | 規劃期 | Show a state model first; add code signatures for cross-module or interface work; write the plan after agreement. |
 | 7 | 調查 | Investigate before changing anything: route with using-decision-tree, then diagnosing-bugs for breakage or unknowns-discovery for unclear asks; report root cause and evidence. |
-| 8 | 指揮＋loop | Direct workers through implementation, review and acceptance until the recorded end conditions hold. |
+| 8 | 指揮＋loop | Direct workers through implementation, review and acceptance until the recorded end conditions hold; check each worker on dispatch, wake on products, errors, idleness and stalls, and check a worker right after changing its instructions. |
 | 9 | 驗收 | Check model transitions and tasks against real product evidence; reviewers take objective issues, then a scope／direction card for the owner. |
-| 0 | 收工 | Check delivery, write the handoff and memory submission, and record the next checkpoint. |
+| 0 | 收工 | Check delivery, write the handoff (Working Methods with run records carried forward; a class correction routed through maintenance §2) and memory submission, and record the next checkpoint. |
 
 `/quick-say` shows or hides the band and lists all full texts.
 The owner's texts and the model's `when` hints live in `hooks/phrases.ts` (data only; `{{<hotkey>}}` embeds another combo's text). `register.ts` checks the list once on load.

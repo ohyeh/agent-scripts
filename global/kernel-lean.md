@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.53.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.54.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`; skills
@@ -109,8 +109,8 @@ Version: 4.53.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
   Leave another live session's checkout untouched unless agreed; read other refs via
   `git show <ref>:<path>`. Show `git diff` after edits, commit freely, push when authorized. Rebase
   then ff-merge, stacks bottom-up; rewrite only your own unmerged branches.
-- Arm a stall monitor (else 10m) for waits rather than `sleep N`, watching only where nothing else
-  notifies. Write scratch files to the session scratchpad, never the repo root or `/tmp`.
+- With a worker running, check its first product, then arm a monitor (else 10m) that wakes on
+  products, errors, idleness, and stalls; never `sleep N`. Write scratch files to the scratchpad.
 
 ## Tools
 - Prefer `fd`, `rg`, `ast-grep`, `jq`, `yq`, official CLIs; route analysis, >20-line output, web
