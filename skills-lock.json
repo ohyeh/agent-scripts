@@ -24,10 +24,10 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/callstackincubator/agent-device.git",
       "skillPath": "skills/agent-device/SKILL.md",
-      "skillFolderHash": "8b597006334fe0f7f738919a55fd449f0778f489",
+      "skillFolderHash": "790c9cc78abd85764ee09421df8da9155b970f56",
       "installedAt": "2026-07-18T20:47:33.875Z",
-      "updatedAt": "2026-11-22T15:51:29.994Z",
-      "commit": "050febab0603acff4c869083e60bdab0be3c7d9f"
+      "updatedAt": "2026-11-26T01:29:41.483Z",
+      "commit": "24f8181c31e875cd0b143b02ee389e4f99671da2"
     },
     "apple-design": {
       "source": "emilkowalski/skills",
@@ -79,9 +79,10 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/kepano/obsidian-skills.git",
       "skillPath": "plugins/obsidian/skills/defuddle/SKILL.md",
-      "skillFolderHash": "69e781a19e8807f5d037723f1f994cfbe19573ff",
+      "skillFolderHash": "e9030ba14bbab9a6607160ef81c9cc4caff68acd",
       "installedAt": "2026-07-18T20:47:55.256Z",
-      "updatedAt": "2026-11-12T01:18:35.362Z"
+      "updatedAt": "2026-11-26T01:29:41.590Z",
+      "commit": "79e85b73ef041fdfb6437ab3824e2fe29eda9244"
     },
     "delegation-templates": {
       "source": "ohyeh/agent-scripts",
@@ -106,9 +107,10 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "c3459c1167a9e09c5e983d255d5a28928b4983d0",
+      "skillFolderHash": "912c4832afaf65c33969cf025c0a30c05e4f9cdf",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-11-24T07:28:10.104Z"
+      "updatedAt": "2026-11-26T01:29:44.583Z",
+      "commit": "b228c5d77794a84150fca41b22940bb316b1398d"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
@@ -124,9 +126,10 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/mattpocock/skills.git",
       "skillPath": "skills/engineering/domain-modeling/SKILL.md",
-      "skillFolderHash": "ea30ee454ba264543dbe40737973b1a5afb9f0e6",
+      "skillFolderHash": "db8ef024fb9a7b2022d57289359ae96cff0d8483",
       "installedAt": "2026-07-18T20:49:31.166Z",
-      "updatedAt": "2026-09-30T12:34:23.464Z"
+      "updatedAt": "2026-11-26T01:29:41.556Z",
+      "commit": "6f7f7831a625f040a8e06a0e7954826b87ce775a"
     },
     "grilling": {
       "source": "mattpocock/skills",
@@ -142,9 +145,10 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/pbakaus/impeccable.git",
       "skillPath": ".agents/skills/impeccable/SKILL.md",
-      "skillFolderHash": "c4298d9d001a41c9c2a3797fddee509bc4dd7ba0",
+      "skillFolderHash": "235e068f9d3fc2402691a14e3e0f4b8ca4b070cb",
       "installedAt": "2026-07-18T20:48:31.460Z",
-      "updatedAt": "2026-11-19T09:56:01.360Z"
+      "updatedAt": "2026-11-26T01:29:45.460Z",
+      "commit": "2fc5e1459efbbf06d92c7306517c286bf12490cf"
     },
     "improve-codebase-architecture": {
       "source": "mattpocock/skills",
@@ -305,9 +309,10 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/tt-a1i/archify.git",
       "skillPath": "archify/SKILL.md",
-      "skillFolderHash": "d3e9c89dd9510a64c1114d685b68ebf1887f135e",
+      "skillFolderHash": "e91df37318f9adec8b39150a2738beb4cd22bad5",
       "installedAt": "2026-10-23T05:53:45.590Z",
-      "updatedAt": "2026-11-24T07:28:28.187Z"
+      "updatedAt": "2026-11-26T01:29:50.836Z",
+      "commit": "95586bc667fa97ed73588efc13d2f14a5b3c4241"
     },
     "design-taste-frontend": {
       "source": "Leonxlnx/taste-skill",
