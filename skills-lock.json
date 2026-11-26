@@ -107,10 +107,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/cathrynlavery/diagram-design.git",
       "skillPath": "skills/diagram-design/SKILL.md",
-      "skillFolderHash": "912c4832afaf65c33969cf025c0a30c05e4f9cdf",
+      "skillFolderHash": "f877a386935a7b6ba2bcdf00fa665e098d7e1adf",
       "installedAt": "2026-08-13T03:09:56.853Z",
-      "updatedAt": "2026-11-26T01:29:44.583Z",
-      "commit": "b228c5d77794a84150fca41b22940bb316b1398d"
+      "updatedAt": "2026-11-26T18:06:48.305Z"
     },
     "documentation-writing": {
       "source": "nilecui/skillsbase",
