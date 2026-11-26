@@ -4,15 +4,14 @@
 export default [
   {
     hotkey: "3",
-    label: "整理",
-    when: "開發告一段落、初步跑通，要整理程式碼和 commits",
-    text: `/simplify 開發告一段落，初步跑通了，現在整理程式碼和 commits。
-You are the owner and long-term maintainer of this codebase, and its design is up to you.
-1. 先跑一次現有的測試或檢查，記下通過的基準。
-2. 整理這次改動涉及的程式碼（上游分支之後的 commit，加上還沒提交的改動）：合併重複、刪掉用不到的、把名稱和結構理順；行為不變。
-3. 整理 commits：只動還沒 push 的 commit，合併成幾個各自說得清楚的 commit；已 push 的不改寫。
-4. 整理完再跑同一組檢查，結果要和基準一致。
-5. 收尾列出每一項改動，包含小改動、新增的測試和文件；任何行為變更單獨列出，由我決定留不留。`,
+    label: "審查",
+    when: "改動或提案做完，宣稱完成前要另一個模型審",
+    text: `第二模型審查：先定下要審的東西（commit sha，或檔案清單加 sha256），審完前不改它。
+1. 先確認這份成品的實際作者模型；依 model-dispatch 的 review ladder 選本輪可用且與作者不同的模型及獨立 reviewer。無法確認異模型或沒有合格席位時，回報缺口，停在派發前。用 delegation-templates 的 REVIEW/VERIFY 範本，brief 寫明證據範圍、硬性要求與我已接受的風險；最後一行要 VERDICT: PASS 或 VERDICT: BLOCK。
+2. 派完當輪看一次畫面或第一個產物，再對審查檔設監看。
+3. BLOCK：修完送回同一位審查者複審；換人時 brief 加一行 NEW SCOPE。
+4. 每輪回報審查檔路徑與行號、VERDICT 原文。
+這個組合不授權 push、部署或任何遠端寫入。`,
   },
   {
     hotkey: "4",

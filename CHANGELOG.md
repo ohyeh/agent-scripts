@@ -1,5 +1,13 @@
 # Changelog
 
+## quick-say 0.8.9: key 3 becomes a second-model review (審查)
+
+- Owner 2026-11-26 「6. quick-say 第一個組合要佔哪一顆鍵 你們討論啊」. In the W48 retro the seats first proposed key 4 (sol) and `-` (argon); both then signed the commander's default, key 3.
+- Key 3 「整理」 is replaced by 「審查」: fix the reviewed input (commit sha, or file list with sha256), find the author's model, and pick an independent reviewer on a different model by the model-dispatch review ladder. With no such seat, report the gap and stop before dispatch. Use the delegation-templates REVIEW/VERIFY template, check the screen or first product once, send a BLOCK back to the same reviewer, and report the review file and the VERDICT line. The combo approves no push, deploy or remote write.
+- Why key 3: it was the least-filled combo among keys no other feature depends on (2 fills on local-mbp14 and 4 on remote-44 since 2026-10-31). Key 9 holds the text auto mode sends, key 4 is the owner's W47 ruling, and `-` fails the engine's hotkey check. As before, the workers band can take key 3 when three or more workers run (README Limits). The old 整理 text is removed; a typed `/simplify` still works.
+- Record: `evals/retro-metrics/2026-W48/t123-integrated.md`, `opinions/sol-t123-sign.md` (local only).
+- Not verified: the key in the real TUI.
+
 ## match-my-writing-style, prep-for-meetings, focus-my-energy 0.1.0; unknowns-discovery lens and panel pass: Gemini built-ins imported
 
 - Owner 2026-11-26 「我叫你看官方內建的那些...」, then 「我覺得這兩個是 和 /unknowns-discovery + /wayfinder 整合 看是不是 /using-decision-tree 加強？」 and 「直接整合啊」. The Gemini skill gallery (`探索`) holds five skills; all five are now in the system. The text is our own; Google's text stays in the local retro record.

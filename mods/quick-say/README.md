@@ -1,6 +1,6 @@
 # quick-say
 
-Eight combos for 前情提要 → 調查 → 規劃期 → 指揮 → 整理 → 驗收 → 收工, with three modes.
+Eight combos for 前情提要 → 調查 → 規劃期 → 指揮 → 審查 → 驗收 → 收工, with three modes.
 Digits fill the full combo into the prompt box. Read or edit it, then press Enter to send.
 
 ## Modes
@@ -35,7 +35,7 @@ with `APPROVES_NOTHING`: it grants no new approval.
 
 | Key | Name | Purpose |
 |---|---|---|
-| 3 | 整理 | After a first working pass: run /simplify as the code owner, tidy the code and the unpushed commits, keep behaviour, and list every change. |
+| 3 | 審查 | Second-model review: freeze the input, dispatch an independent reviewer on a different model from the author, selected by the review ladder, with the REVIEW/VERIFY template, return a BLOCK to the same reviewer after the fix, quote each VERDICT. Approves no push, deploy or remote write. |
 | 4 | 更深的問題 | Find the deeper question behind repeated discussion. |
 | 5 | 前情提要 | Read in full the handoff, the one it continues from, its artifacts, Working Methods records and run dirs, the project's rules, notes, tools and its own memory (found first, wherever the project keeps it), the global rules the handoff cites, shared memory by tool and topic as a lead, and the previous session (older sessions only through footprints, unless the owner asks); list which methods worked or failed with records, and the handoff's cautions; check the checkpoint live (read-only); report each source read or not, then stop. |
 | 6 | 規劃期 | Show a state model first; add code signatures for cross-module or interface work; write the plan after agreement. |
@@ -50,7 +50,7 @@ The owner's texts and the model's `when` hints live in `hooks/phrases.ts` (data 
 ## Band and log
 
 ```
-▌quick say v0.8.8 · 8 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
+▌quick say v0.8.9 · 8 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
 ```
 
 The band starts folded. Open/fold and hide choices persist across sessions.

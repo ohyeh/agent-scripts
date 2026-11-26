@@ -86,7 +86,7 @@ test('narrow: icons only, labels cut, never wrapped; no room: the phrase row goe
   expect(narrow).toContain(`▌quick say v${MOD_VERSION}`)
   expect(narrow).toContain('[ ◐ ][ ▾ ][ ✕ ]')
   // Eight labels use two rows; each label fits its share.
-  expect(narrow).toContain('3: 整理  4: 更深…  5: 前情…  6: 規劃…')
+  expect(narrow).toContain('3: 審查  4: 更深…  5: 前情…  6: 規劃…')
   expect(narrow).toContain('7: 調查  8: 指揮…  9: 驗收  0: 收工')
   // Room for one phrase row only: one row, labels cut.
   expect(textOf(await $.ui.render(band(40, 3)))).toContain('4: ')
