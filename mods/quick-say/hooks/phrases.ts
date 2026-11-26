@@ -27,9 +27,10 @@ You are the owner and long-term maintainer of this codebase, and its design is u
     text: `/session-handoff resume 前情提要：先搞懂這個任務，再談下一步。
 1. 要解決什麼問題：用我的原話講。
 2. 之前怎麼做：整份讀完交接、它接續的上一份交接、交接列的 artifact、Working Methods 和交接指到的 run dir 紀錄（plan.md、state.md 和它們引用的檔），以及上一個 session（寫這份交接的那個）的完整紀錄，不要只讀片段；更早的 session 只看交接和 footprint 的 timeline；要讀多個 session 我會特別說。列出哪些做法跑過有效、哪些失敗、當時在什麼條件下，各附原始紀錄 path:line 或 commit sha。
-3. 專案的規範和筆記（AGENTS.md、CLAUDE.md、.claude/rules、.agents/rules、任務筆記）、記憶（.claude/memory、USER-MEMORY、共用記憶）和現成工具（scripts）裡，哪些和這個任務有關。
-4. 現在停在哪、下一步是什麼、出處是什麼；現場唯讀查一次並附輸出。
-5. 第 2、3 點每個來源逐項列「讀了」或「沒讀＋原因」。
+3. 規範、過往記憶和現成工具裡，哪些和這個任務有關：專案的 AGENTS.md、CLAUDE.md、.claude/rules、.agents/rules、任務筆記和 scripts；交接引用的 ~/.agents/rules 規則，和下一步會用到的 kernel 路由規則（kernel 本身已載入，不用重讀）；專案自己的記憶和筆記為主：每個專案放的位置不同（MEMORY.md、USER-MEMORY*.md、.claude/memory、.specify/memory、memory/、notes/ 等），先找出這個專案有哪些、列出來，再讀和任務有關的條目；全域共用記憶只當補充線索（read_memory.py，用任務的工具和主題當關鍵字，不用專案名；輸出太大就再縮小）。
+4. 交接裡的注意事項：Mistakes and Corrections、Important Context、Standing Authorizations、Blockers 逐條列出，講它對這次任務的影響。
+5. 現在停在哪、下一步是什麼、出處是什麼；現場唯讀查一次並附輸出。
+6. 第 2、3 點每個來源逐項列「讀了」或「沒讀＋原因」。
 紀錄裡有效的做法就照用；要換掉，先附它失敗或不適用這次條件的紀錄；沒有證據就只提唯讀查證，做法先不定。紀錄互相矛盾時，回去讀原始紀錄解決，不要猜，也不要拿 advisor 的推測當答案。
 讀不完（context 快滿）就回報讀到哪、哪些沒讀、下一份要讀哪個，不要叫我選，也不要在讀完前定做法。
 講完就停：不改專案檔、不發布、不派 worker、不碰遠端機器。紀錄裡找得到答案的事不准問我。`,

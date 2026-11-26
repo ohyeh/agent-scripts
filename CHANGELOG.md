@@ -1,5 +1,12 @@
 # Changelog
 
+## quick-say 0.8.8: 前情提要 reads global rules, shared memory by topic, and lists cautions
+
+- Owner 2026-11-26 「5: 前情提要 會要求把 global + project 規範看過嗎？」「還有過往記憶、注意事項也是」.
+- Combo 5 item 3 and session-handoff R1/R2: also read each `~/.agents/rules/` file the handoff cites and the routed rule files for the next step (the kernel is already loaded), and the project's own memory first: its locations differ (`MEMORY.md`, `USER-MEMORY*.md`, `.claude/memory/`, `.specify/memory/`, `memory/`, `notes/`), so find and list them, then read the task's entries. Shared memory is only a lead after that, queried by the task's tools and topic, not the project name (a project-name query returned 246 KB). Owner: 「專案有時候會有他自己的 不一定只有 global」「這裡更偏向專案內的」.
+- New item 4: list the handoff's cautions (Mistakes and Corrections, Important Context, Standing Authorizations, Blockers) and their effect on this task. `LETTER-TO-FUTURE-SESSIONS.md` is not added: it covers the rules system, not a task.
+- Not verified: a live resume under the new text.
+
 ## quick-say 0.8.7: outcome lists match maintenance §2
 
 - Owner 2026-11-26 「補啊 不然怎麼收尾」.
