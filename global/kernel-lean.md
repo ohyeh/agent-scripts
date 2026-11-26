@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.55.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.56.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`; skills
@@ -45,7 +45,7 @@ Version: 4.55.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
   user decision → §3/§4/§6; judge outputs or event probabilities → §9; hard/stalled/final → §8.
 - Unclear acceptance, multi-phase, or material default → skill `unknowns-discovery`.
 - Long loops → `operator-defaults` §Long loop; loop-shaped work → skill `using-decision-tree`,
-  loops branch.
+  loops branch; weekly retro → `retro-agenda`.
 - Non-trivial session lifecycle → `session-titles`.
 - Any code change → state assumptions, success criteria, and verify step per plan step; test changes
   → `operator-defaults` Test cost.

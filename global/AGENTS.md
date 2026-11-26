@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.55.0-ironlaws
+Version: 4.56.0-ironlaws
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` (`global/` = kernel; `.agents/rules/` →
@@ -57,7 +57,8 @@ Version: 4.55.0-ironlaws
 - Define or use judge outputs to choose an action, or report an event probability →
   `judgment-rubrics` §9.
 - Long loops → `operator-defaults` §Long loop; loop-shaped work
-  (audit/consensus/triage/plan→build/research) → skill `using-decision-tree`, loops branch.
+  (audit/consensus/triage/plan→build/research) → skill `using-decision-tree`, loops branch;
+  weekly retro → `retro-agenda`.
 - Non-trivial session lifecycle → `session-titles`.
 - Any code change → state assumptions, success criteria, and a verify check per plan step; adding
   or changing a test → `operator-defaults` Test cost.

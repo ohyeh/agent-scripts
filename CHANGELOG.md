@@ -1,5 +1,11 @@
 # Changelog
 
+## kernel 4.56.0: weekly retro routes to retro-agenda
+
+- W48 retro case B7: the kernel had no retro route, so a session asked to "run retro" or asked about the last retro did not read the agenda first. Both W48 seats signed the route (`inbox-layers-integrated.md` §C, L1′).
+- Kernel routing (both runtime files and kernel-lean): the loop row adds "weekly retro → `retro-agenda`". No new row; `gate-ref-count` is unchanged.
+- Not verified: a new session told 「跑 retro」 reads the agenda first, and a question about the last retro does not start a new round.
+
 ## using-decision-tree: entries from hooks and mods, page updates, reply drafts, gemini-web
 
 - Owner 2026-11-26 「9 我預期是 /using-decision-tree 你們要加強討論、擴充」. Two W48 seats (sol, agy-argon) signed every row.
