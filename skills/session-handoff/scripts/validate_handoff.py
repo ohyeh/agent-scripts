@@ -206,7 +206,9 @@ def record_file_problems(recs: set, base_path: Path, warnings: list) -> list[str
         f = Path(path).expanduser()
         f = f if f.is_absolute() else base_path / f
         if not f.is_file():
-            warnings.append(f"{path} (Working Methods record; open it on the host that holds it)")
+            note = f"{path} (Working Methods record; open it on the host that holds it)"
+            if note not in warnings:
+                warnings.append(note)
             continue
         n = len(f.read_text(errors='replace').splitlines())
         if int(line.split('-')[-1]) > n:
@@ -227,12 +229,21 @@ def check_working_methods(content: str, handoff_dir: Path, base_path: Path = Non
         return ["Working Methods section is empty: add method rows, or one `- none · <reason>` row"]
     methods = [m for m in map(METHOD_ROW.fullmatch, rows) if m]
     retired = [m for m in map(RETIRED_ROW.fullmatch, rows) if m]
+    root = base_path or handoff_dir.parent.parent
+
+    def same_record(field):
+        """A record as the file it resolves to under the project root, so spellings of one line match."""
+        r = record(field)
+        if not r or ':' not in r:
+            return r
+        path, lines = r.rsplit(':', 1)
+        return f"{os.path.normpath(os.path.join(root, os.path.expanduser(path)))}:{lines}"
 
     def row_ok(r):
         if m := METHOD_ROW.fullmatch(r):
             return bool(record(m['rec']))
         if m := RETIRED_ROW.fullmatch(r):
-            old, new = record(m['old']), record(m['new'])
+            old, new = same_record(m['old']), same_record(m['new'])
             return bool(old and new and old != new)
         return bool(NONE_ROW.fullmatch(r)) and not methods
     problems = [f"Working Methods row needs one run record (file path:line or sha, not a brief or plan), "
@@ -244,7 +255,11 @@ def check_working_methods(content: str, handoff_dir: Path, base_path: Path = Non
             + [record(m[k]) for m in retired for k in ('old', 'new')] if x}
     if base_path:
         problems += record_file_problems(recs, base_path, warnings if warnings is not None else [])
-    links = re.findall(r'^[-*][ \t]+\*\*Continues from\*\*:[ \t]*(.*\S)', section_body(content, "Handoff Chain") or '', re.M)
+    chains = re.findall(r'^#{2,6}[ \t]*Handoff Chain[ \t#]*$', re.sub(FENCE, '', content), re.M | re.I)
+    links = [x.strip() for x in re.findall(r'^[-*][ \t]+\*\*Continues from\*\*:(.*)$',
+                                           section_body(content, "Handoff Chain") or '', re.M)]
+    if len(chains) > 1:
+        links = []
     target = len(links) == 1 and re.fullmatch(r'\[[^\]]*\]\((?:\./)?([^)\s]+)\)', links[0])
     if len(links) != 1 or not (target or links[0] == "None (fresh start)"):
         return problems + ["Handoff Chain needs exactly one `- **Continues from**: [file](./file)` "
@@ -255,14 +270,17 @@ def check_working_methods(content: str, handoff_dir: Path, base_path: Path = Non
     if not prev_path.is_file():
         return problems + [f"Continues from names {target[1]}, which is not in {handoff_dir}"]
     def key(m):
-        return norm(m['what']), m['out'].lower(), m['date'], record(m['rec'])
-    kept = {key(m): norm(m['cond']) for m in map(PREV_ROW.fullmatch, rows) if m and m['cond']}
-    gone = {(norm(m['what']), record(m['old'])) for m in retired}
+        return norm(m['what']), m['out'].lower(), m['date'], same_record(m['rec'])
+    kept = {}
+    for m in map(PREV_ROW.fullmatch, rows):
+        if m and m['cond']:
+            kept.setdefault(key(m), set()).add(norm(m['cond']))
+    gone = {(norm(m['what']), same_record(m['old'])) for m in retired}
     for r in section_rows(prev_path.read_text(), "Working Methods") or []:
         m = PREV_ROW.fullmatch(r)
-        if not m or not record(m['rec']) or (norm(m['what']), record(m['rec'])) in gone:
+        if not m or not record(m['rec']) or (norm(m['what']), same_record(m['rec'])) in gone:
             continue
-        if key(m) in kept and (m['cond'] is None or kept[key(m)] == norm(m['cond'])):
+        if key(m) in kept and (m['cond'] is None or norm(m['cond']) in kept[key(m)]):
             continue
         problems.append(f"Working Methods drops or rewrites a row of {prev_path.name}: {r[:90]} "
                         f"(copy it whole, or add `- retired: {m['what']} · {m['rec'].strip()} · <newer record>`)")
@@ -605,6 +623,16 @@ def self_test():
         assert bad("none · no method", chain=chained)                                  # legacy row still carried
         assert ok("CDP · worked · 2026-11-23 · run/state.md:2 · unknown", chain=chained)
         assert bad("CDP · failed · 2026-11-23 · run/state.md:2 · unknown", chain=chained)
+        two = ("CDP · worked · 2026-11-23 · run/state.md:2 · Android only", "CDP · worked · 2026-11-23 · run/state.md:2 · Linux only")
+        (hd / "prev.md").write_text(wm(*two))
+        assert ok(*two, chain=chained)                                                 # two conditions, one record
+        assert bad(two[0], chain=chained)                                              # one of them dropped
+        assert bad(f"retired: CDP · run/state.md:2 · {root}/run/state.md:2", chain=chained)  # absolute = relative
+        assert bad("none · no method", chain="## Handoff Chain\n- **Continues from**: None (fresh start)\n\n" + chained)
+        assert bad("none · no method", chain="## Handoff Chain\n- **Continues from**:\n\n")
+        w = []
+        check_working_methods(wm("a · worked · 2026-11-23 · run/missing.md:2 · x", "b · worked · 2026-11-23 · run/missing.md:3 · x"), hd, root, w)
+        assert len(w) == 1, w                                                          # one WARN per missing file
     print("self-test ok")
 
 
