@@ -200,15 +200,15 @@ def section_rows(content: str, name: str):
 
 def record_file_problems(recs: set, base_path: Path, warnings: list) -> list[str]:
     """A path:line that resolves here must point inside the file; a file not found here is a WARN."""
-    problems = []
+    problems, seen = [], set()
     for r in sorted(x for x in recs if ':' in x):
         path, line = r.rsplit(':', 1)
         f = Path(path).expanduser()
         f = f if f.is_absolute() else base_path / f
         if not f.is_file():
-            note = f"{path} (Working Methods record; open it on the host that holds it)"
-            if note not in warnings:
-                warnings.append(note)
+            if os.path.realpath(f) not in seen:
+                seen.add(os.path.realpath(f))
+                warnings.append(f"{path} (Working Methods record; open it on the host that holds it)")
             continue
         n = len(f.read_text(errors='replace').splitlines())
         if int(line.split('-')[-1]) > n:
@@ -237,7 +237,7 @@ def check_working_methods(content: str, handoff_dir: Path, base_path: Path = Non
         if not r or ':' not in r:
             return r
         path, lines = r.rsplit(':', 1)
-        return f"{os.path.normpath(os.path.join(root, os.path.expanduser(path)))}:{lines}"
+        return f"{os.path.realpath(os.path.join(root, os.path.expanduser(path)))}:{lines}"
 
     def row_ok(r):
         if m := METHOD_ROW.fullmatch(r):
@@ -633,6 +633,12 @@ def self_test():
         w = []
         check_working_methods(wm("a · worked · 2026-11-23 · run/missing.md:2 · x", "b · worked · 2026-11-23 · run/missing.md:3 · x"), hd, root, w)
         assert len(w) == 1, w                                                          # one WARN per missing file
+        w = []
+        check_working_methods(wm("a · worked · 2026-11-23 · run/missing.md:2 · x", f"b · worked · 2026-11-23 · {root}/run/missing.md:3 · x"), hd, root, w)
+        assert len(w) == 1, w                                                          # relative and absolute: one WARN
+        (root / "run" / "alias.md").symlink_to(root / "run" / "state.md")
+        assert bad("retired: CDP · run/state.md:2 · run/alias.md:2", chain=chained)    # symlink to the same line
+        assert ok("retired: CDP · run/state.md:2 · run/alias.md:3", chain=chained)     # a different line passes
     print("self-test ok")
 
 

@@ -13,6 +13,7 @@
 - Round 2 (sol BLOCK R01a/R03a/R04a): a predecessor row in the older four-field form is still carried (add its conditions or `unknown`); `Continues from` must appear once, as a link or exactly `None (fresh start)`; records compare by normalized path and line range, so `./run/x.md:2` and `run/x.md:2-2` are one record; one WARN per missing file.
 - Round 2 (sol BLOCK R01a/R03a/R04a): a predecessor row in the older four-field form is still carried (add its conditions or `unknown`); `Continues from` must appear once, as a link or exactly `None (fresh start)`; records compare by normalized path and line range, so `./run/x.md:2` and `run/x.md:2-2` are one record; one WARN per missing file.
 - Round 3 (sol BLOCK R03a/R04a): one `## Handoff Chain` section and one `Continues from` field, empty values counted; records compare by the file they resolve to under the project root, so an absolute and a relative path to one line are one record; a carried method may hold several conditions on one record; one WARN per missing file.
+- Round 4 (sol BLOCK R04a): records resolve symlinks before comparing, so an alias of the same line cannot retire a method; a missing file warns once however it is spelled.
 - Scaffold: `--continues-from` matches the file name exactly. Template: a `## Handoff Chain` section like the scaffold's.
 - RESUME: a full catch-up opens every artifact the chain lists and stops after its reply; Step 3b reads R1's whole session list and the files cited run dirs cite; a resume opens the record behind any node the next step depends on.
 
