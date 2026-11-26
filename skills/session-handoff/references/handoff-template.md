@@ -145,7 +145,7 @@ The record is the run record (state.md, evidence file, log, commit), never a bri
 ### Mistakes and Corrections
 
 - [What went wrong or what the user corrected] - Evidence: [quote or file:line] - Fix: [what changed]. Name an existing proposal by filename. "none" if there were none.
-- For a correction of a class of behavior (for example, not reading earlier work): [the user's words] - Record they pointed at: [path:line] - First check of the next session: [the check; also an Immediate Next Step] - maintenance §2: [gate, rule fix or backlog row file]
+- For a correction of a class of behavior (for example, not reading earlier work): [the user's words] - Record they pointed at: [path:line] - First check of the next session: [the check; also an Immediate Next Step] - maintenance §2: [gate, rule or skill fix, or backlog row file]
 
 ### Ruled-Out Paths
 

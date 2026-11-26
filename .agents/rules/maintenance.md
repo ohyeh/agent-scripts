@@ -73,7 +73,8 @@
 - Name the target file and a case that fails before the fix; otherwise the row is invalid.
 - Retro §6.5 collects all hosts' pending files over SSH, moves them to `done/`, and drains
   them into `next-week-backlog.md`.
-- Close a row as a gate or rule fix with a commit sha, or as dropped with user approval (§1).
+- Close a row as a gate, rule or skill fix with a commit sha, or as dropped with user approval
+  (§1).
 - In the fix turn, append `closed: <sha> <file:line> (<date>)` and move the row to `done/`.
   Do this on the host that holds it; retro §6.5 uses the same checks for other hosts.
 - Close duplicates with the kept row's filename.

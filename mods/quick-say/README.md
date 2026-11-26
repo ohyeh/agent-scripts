@@ -50,7 +50,7 @@ The owner's texts and the model's `when` hints live in `hooks/phrases.ts` (data 
 ## Band and log
 
 ```
-▌quick say v0.8.6 · 8 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
+▌quick say v0.8.7 · 8 combos · 半自動 [ ◐ 半自動 ][ ▸ open ][ hide ]
 ```
 
 The band starts folded. Open/fold and hide choices persist across sessions.

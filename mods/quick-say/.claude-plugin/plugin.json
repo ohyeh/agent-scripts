@@ -1,6 +1,6 @@
 {
   "name": "quick-say",
-  "version": "0.8.6",
+  "version": "0.8.7",
   "description": "Eight owner combos on digits 3-9 and 0, with manual, semi-auto and auto modes. Gates and auto prompts share a four-message cap and approve nothing. Auto stops on questions or uncertainty and never persists across sessions.",
   "author": {
     "name": "PaulYeh",

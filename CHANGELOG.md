@@ -1,5 +1,11 @@
 # Changelog
 
+## quick-say 0.8.7: outcome lists match maintenance §2
+
+- Owner 2026-11-26 「補啊 不然怎麼收尾」.
+- maintenance §3, quick-say combo 0 (收工) and the session-handoff template now say "gate, rule or skill fix, or backlog row", as §2 has since 2cd7c48.
+- Not verified: nothing beyond the text checks below.
+
 ## kernel 4.55.0: the /learn draft folds into maintenance §2; no separate skill
 
 - Owner 2026-11-26 「可是我以為應該是整合到 kernel or 收工 or 相關 skill？」.

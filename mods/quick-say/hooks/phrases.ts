@@ -97,7 +97,7 @@ Discover live, never recite from memory.
 交接一定要寫清楚：
 1. 大任務、各小任務的狀態、停在哪個檢核點和驗證結果、下一個小任務。
 2. Working Methods：這次和之前的 session 用過的做法和工具，有效還是失敗、在什麼條件下，各附原始紀錄 path:line 或 commit sha（不能寫 brief，也不能寫「之前用過」）。上一份交接的做法整份帶過來。
-3. 我這次的糾正如果是一類行為（例如「之前的都不看」），在 Mistakes and Corrections 寫：我的原話、我指的那份紀錄、下個 session 開工要先做的檢查（也列進下一步），以及照 maintenance §2 的處置（gate、rule fix 或 backlog row；改規則仍要我核准）。
+3. 我這次的糾正如果是一類行為（例如「之前的都不看」），在 Mistakes and Corrections 寫：我的原話、我指的那份紀錄、下個 session 開工要先做的檢查（也列進下一步），以及照 maintenance §2 的處置（gate、rule 或 skill fix、backlog row；改規則或 skill 仍要我核准）。
 待決事項只列要我拍板的；agent 自己的提案另列「agent 提案（使用者沒要求）」，不要寫成問題。`,
   },
 ]
