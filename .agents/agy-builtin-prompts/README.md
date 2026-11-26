@@ -9,8 +9,14 @@
 | `/learn` | 把這次對話的糾正與踩坑整理成 rule / skill 更新提案，核准後才改檔 | [prompts/learn.md](prompts/learn.md) |
 | grill-me | 逐題拷問你，直到對任務有共識，每題附建議答案 | [prompts/grill-me.md](prompts/grill-me.md) |
 | teamwork | 把請求原封不動交給多代理團隊 | [prompts/teamwork.md](prompts/teamwork.md) |
+| `/goal` | 長時間無人值守；沒宣告 `GOAL_COMPLETE` 就被推著繼續做 | [prompts/goal.md](prompts/goal.md) |
+| `/plan` | 照計畫執行；失敗兩次、前提不成立、要做新決定就交回 | [prompts/plan.md](prompts/plan.md) |
+| `/review-agent` | 唯讀 code review，只報驗證過的問題，分 P0–P3 | [prompts/review-agent.md](prompts/review-agent.md) |
+| `/swarm` | 多 agent 平行協作（Preview、吃額度） | [prompts/swarm.md](prompts/swarm.md) |
 
 每個檔案都是：用途 → 中文重點 → agy 原文。
+
+binary 裡出現的其他斜線指令（`/btw`、`/hive`、`/compact`、`/rewind`、`/fork`、`/effort`、`/thinking`、`/context`…）沒有獨立 prompt，是程式內建功能；用法請查 [references/changelog.md](references/changelog.md)（1.0.0 → 1.5.16 完整更新紀錄）。binary 裡找不到 `boost` 指令。
 
 ## 其他
 
