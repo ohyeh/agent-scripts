@@ -1,5 +1,11 @@
 # Changelog
 
+## quick-say 0.8.6: 指揮＋loop supervises running workers
+
+- Owner 2026-11-26 「他是指揮、主控、 main thread \ session 但是他 都在掛機 、發呆 傻等 發生事情都不知道」「8: 指揮＋loop 要調整吧」.
+- Case: a commander session dispatched a background worker, ended its turn with "it will notify when done", and missed a broken measurement for 6 minutes until the owner asked 「啊就發呆嗎？ 你不用盯場嗎」. Three scope cuts sent to the running worker were never checked; it ran a round it had been told to drop.
+- Combo 8 drops 「等待就等待不要一堆廢話 安靜等待」 and adds 盯場 rules: check the worker's screen or first product in the turn it is dispatched; arm a watch that wakes on new or changed products, log errors, an idle or input-waiting worker, and a stall, not only completion; compare each product with the plan on waking and stop or re-dispatch at once; after changing a worker's instructions, check its next action; quiet is not unwatched.
+
 ## session-handoff: stricter Working Methods after re-review
 
 - Owner 2026-11-26 「審一下吧」. Re-review of f13d6f4: agy flash PASS; sol BLOCK (R01–R04), each with a CLI counterexample.

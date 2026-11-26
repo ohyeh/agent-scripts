@@ -136,6 +136,9 @@ test('every combo in phrases.ts fills its own whole text into the box, unsent', 
   const expected = PHRASES.map(p => p.text)
   expect(new Set(PHRASES.map(p => p.hotkey)).size).toBe(PHRASES.length)
   expect(PHRASES.find(p => p.hotkey === '8')!.text).toContain('全程指揮模式')
+  // 8 supervises running workers instead of waiting only for completion.
+  expect(PHRASES.find(p => p.hotkey === '8')!.text).toContain('盯場')
+  expect(PHRASES.find(p => p.hotkey === '8')!.text).not.toContain('安靜等待')
   // 5 前情提要 states the goal and reads how earlier work was done; 0 收工 carries Working Methods forward.
   const resume = PHRASES.find(p => p.hotkey === '5')!.text
   expect(resume).toContain('整份讀完交接')
