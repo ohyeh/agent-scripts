@@ -8,12 +8,12 @@ Use this template structure when creating handoff documents. The smart scaffold 
 - [Current State Summary](#current-state-summary)
 - [Immediate Next Steps](#immediate-next-steps)
 - [Blockers/Open Questions](#blockersopen-questions)
+- [Working Methods](#working-methods)
 - [Standing Authorizations](#standing-authorizations)
 - [Timeline](#timeline)
 - [Codebase Understanding](#codebase-understanding)
   - [Architecture Overview](#architecture-overview)
   - [Critical Files](#critical-files)
-  - [Key Patterns Discovered](#key-patterns-discovered)
 - [Work Completed](#work-completed)
   - [Tasks Finished](#tasks-finished)
   - [Files Modified](#files-modified)
@@ -61,7 +61,15 @@ Use this template structure when creating handoff documents. The smart scaffold 
 - [ ] Q-1: [unclear aspect] - Suggested: [potential resolution]
   - ans:
 
-**Start here** — [List up to three artifact paths or URLs the next step needs, or write "None".]
+**Start here** — [List the artifact paths or URLs the next step needs first, or write "None". List every other required read in Artifacts.]
+
+## Working Methods
+
+How this task is done here, from this and every earlier session. One row per method or tool:
+- [what it does, on which device or env] · worked | failed · [YYYY-MM-DD] · [run record path:line or commit sha] · [limit or condition]
+- none · [reason] (only when the task used no method worth repeating)
+
+The record is the run record (state.md, evidence file, log, commit), never a brief, a plan, or "used before". Write in the limit field the conditions the result holds under (device, build, what it proved). Copy every row of the handoff this one continues from whole; drop a row only as `- retired: <what> · <old record> · <record that replaced it>`. A retired row can drop at the next handoff; the row that replaced it carries on.
 
 ## Standing Authorizations
 
@@ -86,7 +94,7 @@ Use this template structure when creating handoff documents. The smart scaffold 
 
 ## Sources Read
 
-[This session's resume status lines, exactly as its reply printed them. The next resume skips every session marked `full` or `inherited full` here.]
+[This session's resume status lines, exactly as its reply printed them. The next resume reads a session marked `full` or `inherited full` here through its footprint, and through its log when the footprint is missing or the next step needs a cited line.]
 
 - [SID8] full · COUNT [n] · TOOLS [n] · pack [dir]
 - [SID8] inherited full (from [handoff file])
@@ -102,12 +110,6 @@ Use this template structure when creating handoff documents. The smart scaffold 
 | File | Purpose | Relevance |
 |------|---------|-----------|
 | path/to/file | What this file does | Why it matters for this task |
-
-### Key Patterns Discovered
-
-[Important patterns, conventions, or idioms found in this codebase that the next agent should follow]
-
-Name existing shared-memory submissions by filename.
 
 ## Work Completed
 
@@ -137,6 +139,7 @@ Name existing shared-memory submissions by filename.
 ### Mistakes and Corrections
 
 - [What went wrong or what the user corrected] - Evidence: [quote or file:line] - Fix: [what changed]. Name an existing proposal by filename. "none" if there were none.
+- For a correction of a class of behavior (for example, not reading earlier work): [the user's words] - Record they pointed at: [path:line] - First check of the next session: [the check; also an Immediate Next Step] - maintenance §2: [gate, rule fix or backlog row file]
 
 ### Ruled-Out Paths
 
@@ -152,12 +155,11 @@ Required when any Blocker is listed. The successor must not re-verify these unle
 
 ### Important Context
 
-[Critical information the next agent MUST know to continue effectively - this is the most important section for handoff]
+[Critical information the next agent MUST know to continue effectively - this is the most important section for handoff. List project conventions the next step depends on (branch rules, file layout), each with its source file. Name existing shared-memory submissions by filename.]
 
 ### Assumptions Made
 
-- Assumption 1: [what was assumed to be true]
-- Assumption 2: [another assumption]
+- [A claim not run yet. A method that ran goes in Working Methods, not here.]
 
 ### Potential Gotchas
 

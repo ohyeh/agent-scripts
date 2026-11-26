@@ -136,10 +136,14 @@ test('every combo in phrases.ts fills its own whole text into the box, unsent', 
   const expected = PHRASES.map(p => p.text)
   expect(new Set(PHRASES.map(p => p.hotkey)).size).toBe(PHRASES.length)
   expect(PHRASES.find(p => p.hotkey === '8')!.text).toContain('全程指揮模式')
-  // 5 前情提要 follows RESUME 3b.2b: no scouts, a --call receipt for a past event, never a replayed push or deploy.
-  expect(PHRASES.find(p => p.hotkey === '5')!.text).toContain('--call')
-  expect(PHRASES.find(p => p.hotkey === '5')!.text).not.toContain('派一個 basic tier scout')
-  expect(PHRASES.find(p => p.hotkey === '5')!.text).toContain('只補下一步要接續的 commit diff')
+  // 5 前情提要 states the goal and reads how earlier work was done; 0 收工 carries Working Methods forward.
+  const resume = PHRASES.find(p => p.hotkey === '5')!.text
+  expect(resume).toContain('整份讀完交接')
+  expect(resume).toContain('Working Methods')
+  expect(resume).not.toMatch(/D1–D5|--call|最多兩題|10 次工具/)
+  const wrapUp = PHRASES.find(p => p.hotkey === '0')!.text
+  expect(wrapUp).toContain('Working Methods')
+  expect(wrapUp).toContain('maintenance §2')
   expect(PHRASES.every(p => !/\{\{\w+\}\}/.test(p.text))).toBe(true)
   for (const p of PHRASES) {
     await $.ui.render(band())

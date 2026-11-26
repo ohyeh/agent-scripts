@@ -171,7 +171,7 @@ if [ -n "$reload_ask$live_say$ask_back" ] && grep -q '"type":"assistant"' "$TRAN
   uses="$(jq -r --arg s "$since" 'select((.timestamp // "")[0:19] >= $s) | .message.content? | arrays | .[]
     | select(.type == "tool_use" or .type == "server_tool_use") | "\(.name) \(.input | tostring)"' "$TRANSCRIPT" 2>/dev/null)"
   [ -n "$ask_back" ] && ! grep -qE '^(advisor|Agent|AskUserQuestion|mcp__tmux-agent__(assign|tell)) ' <<<"$uses" \
-    && handback_reason="${handback_reason:+$handback_reason }Decision handed to the owner without a consensus call: the reply ends with an ask (${ask_back}), but this turn made no advisor, Agent, tmux-agent assign/tell or AskUserQuestion call (judgment-rubrics §3; maintenance §1 for gates). Run advisor or a reviewer and act on its answer, or say which hard-stop item needs the owner."
+    && handback_reason="${handback_reason:+$handback_reason }Decision handed to the owner without a consensus call: the reply ends with an ask (${ask_back}), but this turn made no advisor, Agent, tmux-agent assign/tell or AskUserQuestion call (judgment-rubrics §3; maintenance §1 for gates). First, if a handoff or run record covers this task, open the records that could answer it and quote them; if none does or they do not settle it, run advisor or a reviewer and act on its answer, or say which hard-stop item needs the owner."
   [ -n "$reload_ask" ] && ! grep -q '^mcp__tmux-agent__reload ' <<<"$uses" \
     && handback_reason="${handback_reason:+$handback_reason }Hand-back without own try: the reply asks the user to reload plugins, but this turn made no mcp__tmux-agent__reload call. Call mcp__tmux-agent__reload first; hand back only if it reports the old version."
   pub="$(grep -n '^Artifact ' <<<"$uses" | grep -vE '"action":"(read|list|open|delete|pin|unpin|quickstart)"|"asset":true' | tail -1 | cut -d: -f1)"
@@ -403,6 +403,8 @@ EOF
     tools="$(printf '%s' "$line" | sed -E 's/.*TOOLS ([0-9]+).*/\1/')"
     pack="$(printf '%s' "$line" | sed -E 's/.* pack ([^ ]+)$/\1/')"; pack="${pack/#\~/$HOME}"
     pack="$(cd "$pack" 2>/dev/null && pwd -P)"
+    # The skill and validator name the session dir <pack>/<sid8>; an older line names <pack>.
+    [ -n "$pack" ] && [ "$(basename "$pack")" = "$sid" ] && pack="$(dirname "$pack")"
     miss=""
     if [ -z "$pack" ] || [ ! -f "$pack/$sid/manifest.json" ]; then
       miss=" no manifest.json for $sid under the named pack;"

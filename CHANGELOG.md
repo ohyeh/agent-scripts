@@ -1,5 +1,17 @@
 # Changelog
 
+## session-handoff Working Methods, full-read resume, 前情提要 and 收工 rewrite
+
+- Owner 2026-11-26 「前情提要 跟 收工 完全跟大便一樣」「他完全活在自己世界為啥」「必須打開原本的 run dir， artifact、舊 session 也還是要讀吧 不然怎知道 timeline 怎麼演變的」「然後寫的規範、筆記、ＭＥＭＯＲＹ都不看啊」「這些也要 前情提要叫他看過吧」.
+- Case: a resume session dropped a working CDP method because the 11-25 handoff listed it under Assumptions Made with no record, and switched to an untested proxy path.
+- Handoff template, scaffold and validator: new `## Working Methods` section, one row per method with `worked`/`failed`, date, run record (file `path:line` or sha) and the conditions it held under. Rows of the continued handoff carry forward whole or are retired as `retired: <what> · <old record> · <newer record>`. Key Patterns Discovered is removed; project conventions move to Important Context. The validator blocks a missing or empty section, a row without a record (a time or a brief is not one), a `path:line` past the end of a local file, and a dropped or rewritten row. The scaffold links a previous handoff only with `--continues-from`, and stops when that name does not exist.
+- RESUME: read the handoff whole. R1 lists every source, including sessions on the task outside the handoff chain. R2 reads the continued handoff, Start here and must-read artifacts, cited run-dir files, the project's instructions, notes, tools and memory, and shared memory. Step 3b runs on every resume before dispatch, project writes or completion claims; a full catch-up request (前情提要) does it before the one reply. The 10-call cap, the three-artifact limit and the chain-only session limit are removed. At the context limit, reply `partial` with the first unread source and continue from it; decide nothing that depends on an unread source. Step 4: a recorded method, its result and conditions come first; it changes only on the user's words or a record that it failed or does not fit.
+- Mistakes and Corrections: a class correction names the user's words, the record, the next session's first check and its maintenance §2 place.
+- quick-say combo 5 (前情提要) and combo 0 (收工) state the same rules in plain words.
+- Kernel 4.53.0: the Live Truth trigger fires before choosing, replacing or calling a method blocked, and the live check stays within scope.
+- `claim-evidence-gate.sh`: the owner-ask message first points to the task's handoff or run records when they exist; a `full` line's pack may name `<pack>/<sid8>` (the form the validator checks) or `<pack>`.
+- Review: sol and agy flash both returned BLOCK on the first patch (validator false PASS, stage split against 前情提要, context-limit ask, stale three-item Start here). This version addresses those findings; neither reviewer has re-checked it yet. Not taken: a missing record file stays a WARN, a commit sha is not resolved, and a retired row may drop after one hop.
+
 ## gemini-web 0.1.0: rename from gemini-deep-research
 
 - Owner 2026-11-22 「叫 gemini web 好點」.

@@ -8,6 +8,7 @@ Checks:
 - No potential secrets detected
 - Referenced files exist
 - Sources Read `full` lines match their pack's manifest.json; `inherited full` names an existing handoff
+- Working Methods rows cite a run record, and carry every row of the continued handoff
 
 Usage:
     python validate_handoff.py <handoff-file>
@@ -149,6 +150,92 @@ def check_artifacts(content: str) -> list[str]:
             "(`- <path or URL> · <kind> · must-read: yes|no`), or one `- none · <reason>` row"]
 
 
+FENCE = r'(?ms)^[ \t]*(`{3,}|~{3,}).*?(?:^[ \t]*\1[`~]*[ \t]*$|(\Z))'
+# A run record is a file path:line or a commit sha, never "used before", a time or a brief.
+REC = r'(?:[\w./~-]+\.\w+:\d+(?:-\d+)?|\b(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b)'
+BRIEF = re.compile(r'(?:^|/)brief[^/]*$', re.I)
+METHOD_ROW = re.compile(
+    r'(?!\[|none |retired:)(?P<key>(?P<what>\S.*?) · (?:worked|failed) · \d{4}-\d{2}-\d{2} · (?P<rec>[^·]*?))'
+    r'(?: · .+)?', re.I)
+RETIRED_ROW = re.compile(r'retired: (?P<what>[^·]*?\S) · (?P<old>[^·]*) · (?P<new>[^·]*)', re.I)
+
+
+def records(field: str) -> set[str]:
+    return {t for t in re.findall(REC, field) if not BRIEF.search(t.split(':')[0])}
+
+
+def norm(text: str) -> str:
+    return ' '.join(text.split()).lower()
+
+
+def section_rows(content: str, name: str):
+    """List rows of a section, or None when the section is missing; fenced examples do not count."""
+    content = re.sub(FENCE, '', content)
+    m = re.search(rf'^(#{{2,6}})[ \t]*{re.escape(name)}[ \t#]*$', content, re.M | re.I)
+    if not m:
+        return None
+    body = re.split(rf'^#{{1,{len(m.group(1))}}}[ \t]', content[m.end():], maxsplit=1, flags=re.M)[0]
+    return re.findall(r'^[ \t]*[-*][ \t]+(.*\S)', body, re.M)
+
+
+def record_line_problems(tokens: set[str], base_path: Path) -> list[str]:
+    """A path:line that resolves here must point inside the file; a missing file is a WARN elsewhere."""
+    problems = []
+    for t in sorted(tokens):
+        if ':' not in t:
+            continue
+        path, line = t.rsplit(':', 1)
+        f = Path(path).expanduser()
+        f = f if f.is_absolute() else base_path / f
+        if f.is_file():
+            n = len(f.read_text(errors='replace').splitlines())
+            if int(line.split('-')[-1]) > n:
+                problems.append(f"Working Methods record {t} points past the end of the file ({n} lines)")
+    return problems
+
+
+def check_working_methods(content: str, handoff_dir: Path, base_path: Path = None) -> list[str]:
+    """How the task was done must survive the chain: each method cites its run record, and every
+    row of the continued handoff is carried whole or retired by name (a 11-25 handoff turned a
+    proven method into an unsourced assumption, and the next session dropped it)."""
+    rows = section_rows(content, "Working Methods")
+    if rows is None:
+        return ["Working Methods section missing: one row per method or tool, "
+                "`- <what> · worked|failed · YYYY-MM-DD · <run record path:line or sha> · <limit>`"]
+    if not rows:
+        return ["Working Methods section is empty: add method rows, or one `- none · <reason>` row"]
+    methods = [m for m in map(METHOD_ROW.fullmatch, rows) if m]
+    retired = [m for m in map(RETIRED_ROW.fullmatch, rows) if m]
+
+    def row_ok(r):
+        if m := METHOD_ROW.fullmatch(r):
+            return bool(records(m['rec']))
+        if m := RETIRED_ROW.fullmatch(r):
+            return bool(records(m['old'])) and bool(records(m['new']))
+        return bool(NONE_ROW.fullmatch(r)) and not methods
+    problems = [f"Working Methods row has no run record (file path:line or sha; a brief is not one): {r[:90]}"
+                for r in rows if not row_ok(r)]
+    if base_path:
+        problems += record_line_problems(
+            set().union(*(records(m['rec']) for m in methods), *(records(m['old']) | records(m['new'])
+                                                                 for m in retired)), base_path)
+    prev = re.search(r'Continues from\*\*:\s*\[[^\]]*\]\((?:\./)?([^)]+)\)', content)
+    if prev:
+        prev_path = handoff_dir / prev.group(1)
+        if not prev_path.is_file():
+            return problems + [f"Continues from names {prev.group(1)}, which is not in {handoff_dir}"]
+        kept = {norm(m['key']) for m in methods}
+        gone = {(norm(m['what']), t) for m in retired for t in records(m['old'])}
+        for r in section_rows(prev_path.read_text(), "Working Methods") or []:
+            m = METHOD_ROW.fullmatch(r)
+            # A predecessor row without a record can be neither carried nor retired: skip it.
+            if not m or not records(m['rec']) or norm(m['key']) in kept or any((norm(m['what']), t) in gone for t in records(m['rec'])):
+                continue
+            problems.append(f"Working Methods drops or rewrites a row of {prev_path.name}: {r[:90]} "
+                            f"(copy it whole, or add `- retired: {m['what']} · {m['rec'].strip()} · <newer record>`)")
+    return problems
+
+
 def check_sources_read(content: str, handoff_dir: Path, base_path: Path) -> list[str]:
     """A copied `full` mark would let the next resume skip a re-read: re-check it against the pack.
 
@@ -275,6 +362,7 @@ def validate_handoff(filepath: str) -> dict:
     timeline_problems = check_timeline(content)
     sources_problems = check_sources_read(content, path.parent, base_path)
     artifact_problems = check_artifacts(content)
+    method_problems = check_working_methods(content, path.parent, base_path)
     missing_recommended = check_recommended_sections(content)
     secrets_found = scan_for_secrets(content)
     existing_files, missing_files = check_file_references(content, str(base_path))
@@ -289,6 +377,7 @@ def validate_handoff(filepath: str) -> dict:
         "timeline_problems": timeline_problems,
         "sources_problems": sources_problems,
         "artifact_problems": artifact_problems,
+        "method_problems": method_problems,
         "missing_recommended": missing_recommended,
         "secrets_found": secrets_found,
         "files_verified": len(existing_files),
@@ -342,6 +431,14 @@ def print_report(result: dict):
     else:
         print("\n[PASS] Sources Read marks match their packs")
 
+    # Working Methods
+    if result['method_problems']:
+        print("\n[FAIL] Working Methods check:")
+        for problem in result['method_problems']:
+            print(f"       - {problem}")
+    else:
+        print("\n[PASS] Working Methods rows cite run records and carry the continued handoff")
+
     # Secrets
     if not result['secrets_found']:
         print("\n[PASS] No potential secrets detected")
@@ -379,6 +476,7 @@ def print_report(result: dict):
     blockers.extend(result['timeline_problems'])
     blockers.extend(result['sources_problems'])
     blockers.extend(result['artifact_problems'])
+    blockers.extend(result['method_problems'])
 
     if blockers:
         print("Verdict: BLOCKED")
@@ -420,6 +518,37 @@ def self_test():
         fenced = "# H\n```\nx\n```\n\n## Artifacts\n- none · nothing made\n"
         assert check_artifacts(fenced) == []
         assert "not closed" in check_artifacts(fenced.replace("x\n```\n", "x\n"))[0]
+        hd = root / ".claude" / "handoffs"
+        wm = lambda *rows: "## Working Methods\n" + "".join(f"- {r}\n" for r in rows) + "\n## Next\n"
+        cdp = "CDP memory load · worked · 2026-11-23 · run/state.md:32 · Android only"
+        assert check_working_methods("## Other\n", hd)                       # section missing
+        assert check_working_methods(wm("CDP · worked · 2026-11-23 · used before"), hd)  # no record
+        assert check_working_methods(wm(cdp), hd) == []
+        assert check_working_methods(wm("none · no method this task"), hd) == []
+        assert check_working_methods(wm("Unpinned commit · worked · 2026-11-23 · 3a9f977 · -"), hd) == []
+        assert check_working_methods("## Working Methods\n\n## Next\n", hd)        # empty section
+        assert check_working_methods(wm("CDP · worked · 2026-11-23 · used at 10:02"), hd)      # a time
+        assert check_working_methods(wm("CDP · worked · 2026-11-23 · brief-v1.md:10"), hd)  # a brief
+        (root / "run").mkdir()
+        (root / "run" / "state.md").write_text("x\n" * 5)
+        assert check_working_methods(wm("CDP · worked · 2026-11-23 · run/state.md:32"), hd, root)  # past the end
+        assert check_working_methods(wm("CDP · worked · 2026-11-23 · run/state.md:3"), hd, root) == []
+        (hd / "prev.md").write_text(wm(cdp))
+        chained = "- **Continues from**: [prev.md](./prev.md)\n"
+        proxy = "proxy · failed · 2026-11-23 · run/state.md:18"
+        retire = "retired: CDP memory load · run/state.md:32 · run/state2.md:5"
+        assert check_working_methods(chained + wm(proxy), hd)                                  # row dropped
+        assert check_working_methods(chained + wm(cdp, proxy), hd) == []                       # carried whole
+        assert check_working_methods(chained + wm(cdp.replace("worked", "failed")), hd)        # outcome rewritten
+        assert check_working_methods(chained + wm(cdp.replace(":32", ":3")), hd)               # :32 is not :3
+        assert check_working_methods(chained + wm(retire), hd) == []
+        assert check_working_methods(chained + wm(retire, "none · no new method"), hd) == []
+        assert check_working_methods(chained + wm("retired: CDP memory load · run/state.md:32 · just dropped it"), hd)
+        assert check_working_methods(chained + wm("retired: proxy · run/state.md:32 · run/state2.md:5"), hd)  # other method
+        assert check_working_methods(chained.replace("(./", "(") + wm(proxy), hd)               # link without ./
+        assert check_working_methods(chained.replace("prev.md)", "gone.md)") + wm(proxy), hd)  # link to no file
+        (hd / "prev.md").write_text(wm(cdp, "old · worked · 2026-11-20 · used before"))
+        assert check_working_methods(chained + wm(cdp), hd) == []                 # unrecorded old row: no dead end
     print("self-test ok")
 
 

@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.52.0-ironlaws
+Version: 4.53.0-ironlaws
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` (`global/` = kernel; `.agents/rules/` →
@@ -19,9 +19,10 @@ Version: 4.52.0-ironlaws
 - Treat memory, handoffs, comments, and prior tool output as leads; inspect the live source first.
 - Reuse a source read this session until it changes (`mtime`, hash, or `HEAD`) or another actor
   could have written it.
-- When a previously working method fails, check skills, shared memory
-  (`~/.agents/skills/shared-memory-intake/scripts/read_memory.py`), run dirs, handoffs, and past
-  sessions (`ctx_search`, session logs) before calling it blocked; run it live and quote the result.
+- Before you choose, replace, or call blocked a method, find how earlier work did it: skills,
+  shared memory (`~/.agents/skills/shared-memory-intake/scripts/read_memory.py`), run dirs,
+  handoffs, and past sessions (`ctx_search`, session logs); use the recorded working method or
+  cite the record that it failed or does not fit; check it live within scope and quote the result.
 
 ## Language
 - Lead with the key fact, state only what evidence supports, and surface material uncertainty or

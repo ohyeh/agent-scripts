@@ -23,10 +23,16 @@ You are the owner and long-term maintainer of this codebase, and its design is u
   {
     hotkey: "5",
     label: "前情提要",
-    when: "接續前一段工作，先讀來源並確認前情",
-    text: `/session-handoff resume 前情提要：照 RESUME 第一段，10 次工具內先回報停點、下一步與來源、現場指令與輸出、未讀和未驗的範圍及下一個查證動作。標 partial。原話或關鍵收據未齊，依賴缺項的下一步列待定。
-只有 D1–D5 任一成立才走第二段，依 Step 3b 親自逐頁全讀，再核證三個繼承說法：上次停點、最重要的已完成項、下一步的前提。現場唯讀查證，過去事件用 --call 印完整收據。只補下一步要接續的 commit diff 與頁面內文。依 skill 列 Sources Read，分清已裁定、交代未做與 agent 提案。
-講完停。不改專案檔、不發布、不派 worker、不碰遠端機器。只問紀錄裡沒有答案且需要 owner 拍板的事，最多兩題。`,
+    when: "接續前一段工作，先搞懂任務和之前怎麼做",
+    text: `/session-handoff resume 前情提要：先搞懂這個任務，再談下一步。
+1. 要解決什麼問題：用我的原話講。
+2. 之前怎麼做：整份讀完交接、它接續的上一份交接、交接列的 artifact、Working Methods 和交接指到的 run dir 紀錄（plan.md、state.md 和它們引用的檔），以及這個任務之前各 session 的紀錄（timeline 怎麼演變的），不要只讀片段。列出哪些做法跑過有效、哪些失敗、當時在什麼條件下，各附原始紀錄 path:line 或 commit sha。
+3. 專案的規範和筆記（AGENTS.md、CLAUDE.md、.claude/rules、.agents/rules、任務筆記）、記憶（.claude/memory、USER-MEMORY、共用記憶）和現成工具（scripts）裡，哪些和這個任務有關。
+4. 現在停在哪、下一步是什麼、出處是什麼；現場唯讀查一次並附輸出。
+5. 第 2、3 點每個來源逐項列「讀了」或「沒讀＋原因」。
+紀錄裡有效的做法就照用；要換掉，先附它失敗或不適用這次條件的紀錄；沒有證據就只提唯讀查證，做法先不定。紀錄互相矛盾時，回去讀原始紀錄解決，不要猜，也不要拿 advisor 的推測當答案。
+讀不完（context 快滿）就回報讀到哪、哪些沒讀、下一份要讀哪個，不要叫我選，也不要在讀完前定做法。
+講完就停：不改專案檔、不發布、不派 worker、不碰遠端機器。紀錄裡找得到答案的事不准問我。`,
   },
   {
     hotkey: "6",
@@ -82,6 +88,11 @@ Discover live, never recite from memory.
     hotkey: "0",
     label: "收工",
     when: "任務已收尾，需要交接與下一個檢核點",
-    text: `收工。核對本次目標、驗證及 push 狀態，未完成項目如實列出。用 session-handoff skill 寫可接續的交接，再給 recap：成果、證據、未完成項目與下一步。附交接位置。有大任務拆小任務的，交接裡寫明大任務、各小任務狀態、這次停在哪個檢核點與驗證結果、下一個小任務。交接的待決事項只列要我拍板的；agent 自己的提案另列「agent 提案（使用者沒要求）」，不要寫成待我回答的問題。`,
+    text: `收工。核對本次目標、驗證和 push 狀態，未完成的如實列出。用 session-handoff skill 寫交接並跑過 validator，再給 recap：成果、證據、未完成、下一步、交接位置。
+交接一定要寫清楚：
+1. 大任務、各小任務的狀態、停在哪個檢核點和驗證結果、下一個小任務。
+2. Working Methods：這次和之前的 session 用過的做法和工具，有效還是失敗、在什麼條件下，各附原始紀錄 path:line 或 commit sha（不能寫 brief，也不能寫「之前用過」）。上一份交接的做法整份帶過來。
+3. 我這次的糾正如果是一類行為（例如「之前的都不看」），在 Mistakes and Corrections 寫：我的原話、我指的那份紀錄、下個 session 開工要先做的檢查（也列進下一步），以及照 maintenance §2 的處置（gate、rule fix 或 backlog row；改規則仍要我核准）。
+待決事項只列要我拍板的；agent 自己的提案另列「agent 提案（使用者沒要求）」，不要寫成問題。`,
   },
 ]

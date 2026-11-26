@@ -157,18 +157,9 @@ def get_previous_handoff_info(project_path: str, continues_from: str = None) -> 
                     "filename": h["filename"],
                     "title": h["title"],
                 }
-        return {"exists": False, "filename": continues_from, "title": "Not found"}
+        sys.exit(f"--continues-from {continues_from}: no such handoff in .claude/handoffs/")
 
-    elif handoffs:
-        # Suggest most recent
-        most_recent = handoffs[0]
-        return {
-            "exists": True,
-            "filename": most_recent["filename"],
-            "title": most_recent["title"],
-            "suggested": True,
-        }
-
+    # No explicit link means a fresh start: the latest handoff may belong to another task.
     return {"exists": False}
 
 
@@ -276,7 +267,13 @@ def generate_handoff(
 - [ ] Q-1: [TODO: open question] - Suggested: [TODO: default]
   - ans:
 
-**Start here** — [TODO: List up to three artifact paths or URLs the next step needs, or write "None".]
+**Start here** — [TODO: List the artifact paths or URLs the next step needs first, or write "None". List every other required read in Artifacts.]
+
+## Working Methods
+
+- [TODO: what it does, on which device or env] · [TODO: worked | failed] · [TODO: YYYY-MM-DD] · [TODO: run record path:line or commit sha] · [TODO: limit]
+
+[TODO: Copy every row of the continued handoff's Working Methods whole; drop one only as `- retired: <what> · <old record> · <record that replaced it>`. Write `- none · <reason>` only when the task used no method worth repeating.]
 
 ## Standing Authorizations
 
@@ -311,10 +308,6 @@ def generate_handoff(
 |------|---------|-----------|
 | [TODO: Add critical files] | | |
 
-### Key Patterns Discovered
-
-[TODO: Record only patterns the next session needs. Name existing shared-memory submissions, if any.]
-
 ## Work Completed
 
 ### Tasks Finished
@@ -342,6 +335,7 @@ def generate_handoff(
 ### Mistakes and Corrections
 
 - [TODO: What went wrong or what the user corrected, with evidence and the fix. Name an existing proposal by filename. Write "none" if there were none]
+- [TODO: For a correction of a class of behavior: the user's words, the record they pointed at, the check the next session does first (also an Immediate Next Step), and where maintenance §2 put it]
 
 ### Ruled-Out Paths
 
@@ -355,11 +349,11 @@ def generate_handoff(
 
 ### Important Context
 
-[TODO: This is the MOST IMPORTANT section - write critical information the next agent MUST know]
+[TODO: This is the MOST IMPORTANT section - write critical information the next agent MUST know: project conventions the next step depends on (branch rules, file layout), each with its source file, and existing shared-memory submissions by filename]
 
 ### Assumptions Made
 
-- [TODO: List assumptions made during this session]
+- [TODO: Claims not run yet. A method that ran goes in Working Methods, not here.]
 
 ### Potential Gotchas
 
