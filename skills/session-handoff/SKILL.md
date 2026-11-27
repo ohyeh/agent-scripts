@@ -121,7 +121,7 @@ When the user asks for the whole task, its earlier sessions or a full catch-up (
    |---|---|---|---|
    | Claude Code | `Agent`, `general-purpose`, same model | `SendMessage` to its id | `~/.claude/projects/<project>/<main-session-id>/subagents/agent-<id>.jsonl` |
    | Codex | `collaboration.spawn_agent` with `fork_turns: "none"` and `model` set to the main model (a child spawned without it ran a smaller model) | `collaboration.followup_task` to its `target` | `sqlite3 -readonly ~/.codex/state_5.sqlite "SELECT t.rollout_path FROM thread_spawn_edges e JOIN threads t ON t.id=e.child_thread_id WHERE e.parent_thread_id='$CODEX_THREAD_ID'"` |
-   | agy | `invoke_subagent` with `TypeName: "self"`, `Model` and `Workspace` `"inherit"` (`research` cannot write) | `send_message` to its `conversationId` | `~/.gemini/antigravity-cli/brain/<conversationId>/.system_generated/logs/transcript_full.jsonl` (not `transcript.jsonl`, which cuts long output) |
+   | agy | `invoke_subagent` with `TypeName: "self"`, `Model` and `Workspace` `"inherit"` (the built-in research type cannot write) | `send_message` to its `conversationId` | `~/.gemini/antigravity-cli/brain/<conversationId>/.system_generated/logs/transcript_full.jsonl` (not `transcript.jsonl`, which cuts long output) |
    | grok | `spawn_subagent`, default `general-purpose` (`explore` and `plan` cannot write; not `/fork`) | `spawn_subagent` with `resume_from` its id; this starts a new session id, so verify the newest one | `~/.grok/sessions/<url-encoded-cwd>/<child_session_id>/updates.jsonl`; `child_session_id` is in the main session's `subagent_spawned` row |
 
 Otherwise the first reply may be `partial` (R6), and Step 3b follows before any dispatch, project write or completion claim.
