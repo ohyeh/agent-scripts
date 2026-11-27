@@ -581,7 +581,8 @@ def verify(child_log, session):
     texts = []
     for line in data.splitlines():
         try:
-            texts.extend(s.replace("\r\n", "\n") for s in strings_in(json.loads(line)))  # agy's PTY writes \r\n
+            # agy's PTY ends lines with \r\n, and some with \r\r\n; a page never holds \r (splitlines cuts there).
+            texts.extend(s.replace("\r", "") for s in strings_in(json.loads(line)))
         except ValueError:
             continue  # a live log's last row can be partial
     if not texts:
@@ -835,7 +836,8 @@ def self_test():
         cut = pages[1].split("\n")
         cut = fixture(root / "cut.jsonl", [{"text": pages[0]}, {"text": "\n".join(cut[:1] + ["…cut…"] + cut[-1:])}])
         assert verify(cut, dirs[0])[:2] == (1, 2) and verify(cut, dirs[0])[2][1].startswith("MISSING footprints.txt")
-        crlf = fixture(root / "crlf.jsonl", [{"output": page.replace("\n", "\r\n")} for page in pages])  # agy's PTY output
+        crlf = fixture(root / "crlf.jsonl", [{"output": page.replace("\n", "\r\n", 1).replace("\n", "\r\r\n")}
+                                             for page in pages])  # agy's PTY output
         assert verify(crlf, dirs[0])[:2] == (2, 2)
         for bad in (fixture(root / "empty.jsonl", []), root / "missing.jsonl"):
             try:
