@@ -439,6 +439,50 @@ def read_call(session, number, page=1):
                              f"sha256={hashlib.sha256(raw).hexdigest()}"])
 
 
+def strings_in(value):
+    """Every string in a JSON value, and in any string that is itself JSON (Codex nests tool output that way)."""
+    stack = [value]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, str):
+            yield item
+            if item[:1] in "{[":
+                try:
+                    stack.append(json.loads(item))
+                except ValueError:
+                    pass
+        elif isinstance(item, dict):
+            stack.extend(item.values())
+        elif isinstance(item, list):
+            stack.extend(item)
+
+
+def verify(child_log, session):
+    """Check that a subagent's log, of any CLI, holds every page of the session's user.txt and footprints.txt
+    whole: the page and its READ stamp as --read printed them, inside one string of one row. A tool output
+    cut in the middle keeps the stamp but not the page, so it fails here. Returns (found, total, lines)."""
+    child_log, session = child_log.expanduser().resolve(), session.expanduser().resolve()
+    data = run(["zstd", "-dcf", str(child_log)]) if child_log.suffix == ".zst" else child_log.read_bytes()
+    texts = []
+    for line in data.splitlines():
+        try:
+            texts.extend(strings_in(json.loads(line)))
+        except ValueError:
+            continue  # a live log's last row can be partial
+    if not texts:
+        raise ValueError(f"{child_log}: no JSON rows")
+    found, lines = 0, []
+    for name in ("user.txt", "footprints.txt"):
+        path = session / name
+        total = len(pages_of(path.read_text(encoding="utf-8")))
+        for number in range(1, total + 1):
+            page = read_page(path, number)
+            hit = any(page in text for text in texts)
+            found += hit
+            lines.append(f"{'OK' if hit else 'MISSING'} {name} page {number}/{total}")
+    return found, len(lines), lines
+
+
 def self_test():
     with tempfile.TemporaryDirectory(prefix="resume-pack-test-") as tmp:
         root = Path(tmp)
@@ -611,6 +655,20 @@ def self_test():
             else:
                 raise AssertionError("unsupported log accepted")
             assert not (root / "unsupported").exists()
+        # --verify: whole pages in a Claude-shaped row and in Codex-style nested JSON pass; a cut page fails.
+        pages = [read_page(dirs[0] / n, 1) for n in ("user.txt", "footprints.txt")]
+        whole = fixture(root / "child.jsonl", [claude("user", [{"type": "tool_result", "content": pages[0]}]),
+                                               {"payload": {"output": json.dumps({"output": "Output:\n" + pages[1]})}}])
+        assert verify(whole, dirs[0])[:2] == (2, 2)
+        cut = pages[1].split("\n")
+        cut = fixture(root / "cut.jsonl", [{"text": pages[0]}, {"text": "\n".join(cut[:1] + ["…cut…"] + cut[-1:])}])
+        assert verify(cut, dirs[0])[:2] == (1, 2) and verify(cut, dirs[0])[2][1].startswith("MISSING footprints.txt")
+        for bad in (fixture(root / "empty.jsonl", []), root / "missing.jsonl"):
+            try:
+                verify(bad, dirs[0])
+            except (OSError, ValueError):
+                continue
+            raise AssertionError(f"{bad.name} verified")
     assert not is_error({"status": {"a": 1}}) and is_error({"status": {"status": "failed"}})  # a dict status once raised
     assert not NOT_HUMAN["claude-code"].search("<!-- reply 1 --> ok")  # a person's reply marker
     print("self-test ok")
@@ -626,8 +684,18 @@ def main():
     parser.add_argument("--page", type=int, default=1)
     parser.add_argument("--call", nargs=2, metavar=("SESSION_DIR", "T<n>"),
                         help="print one page (--page) of one call's block, the receipt of a past event, with its CALL-READ stamp")
+    parser.add_argument("--verify", nargs=2, type=Path, metavar=("CHILD_LOG", "SESSION_DIR"),
+                        help="check a subagent's log holds every page of SESSION_DIR's user.txt and footprints.txt whole")
     parser.add_argument("logs", nargs="*", type=Path)
     args = parser.parse_args()
+    if args.verify:
+        try:
+            found, total, lines = verify(*args.verify)
+        except (OSError, ValueError, UnicodeDecodeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print("\n".join(lines + [f"VERIFIED {found}/{total} {args.verify[0].expanduser().resolve()}"]))
+        return 0 if found == total else 1
     if args.call:
         try:
             print(read_call(Path(args.call[0]), int(args.call[1].lstrip("Tt")), args.page))
