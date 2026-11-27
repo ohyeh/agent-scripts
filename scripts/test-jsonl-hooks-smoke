@@ -193,7 +193,7 @@ recall_ptr_out="$(run_recall)"
 ptr="$(printf '%s\n' "$recall_ptr_out" | sed -nE 's/.*\[cut; full: ([^]]+:[0-9]+)\].*/\1/p' | tail -n 1)"
 [[ -n "$ptr" ]] || { echo "FAIL: cut prompt missing [cut; full: path:line] pointer" >&2; exit 1; }
 sed -n "${ptr##*:}p" "${ptr%:*}" | grep -q 'REVOKE' || { echo "FAIL: pointed transcript line ${ptr} missing REVOKE" >&2; exit 1; }
-# agent-should-know's open asks ride after the byte cap, whole; a subagent's recall leaves them out
+# agent-should-know's open asks ride after the byte cap, whole while under the 10,000-character hook limit; a subagent's recall leaves them out
 mkdir -p "$TEST_HOME/.local/state/agent-hooks/rc-asks"
 { echo '## Open owner asks (agent-should-know)'; echo "- U1 「$(head -c 3000 /dev/zero | tr '\0' z)END」"; echo '<!-- asks-open gen=3 end -->'; } > "$TEST_HOME/.local/state/agent-hooks/rc-asks/asks-open.md"
 asks_out="$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"

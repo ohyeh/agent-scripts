@@ -133,7 +133,8 @@ while [ "$(printf '%s' "$out" | wc -c)" -gt "$MAX_TOTAL_BYTES" ]; do
 done
 
 # agent-should-know keeps the owner's open asks here, verbatim; they go after the byte cap because a
-# dropped ask is the failure they guard against. Main thread only: the file is the parent's.
+# dropped ask is the failure they guard against. Past the 10,000-character hook limit, fit() cuts the
+# tail and names the file, so no ask is lost silently. Main thread only: the file is the parent's.
 # The mod ends a whole snapshot with `<!-- asks-open gen=<n> end -->`; without it the copy is partial.
 if [ -n "$snap" ]; then
   out="$out
