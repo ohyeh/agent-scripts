@@ -110,7 +110,21 @@ Report to user:
 
 Read the chosen handoff whole, not by sections or line ranges. Before you choose or replace a method, read its run record.
 
-When the user asks for the whole task, its earlier sessions or a full catch-up (quick-say 前情提要), give one complete read-only reply: do R1–R5 and Step 3b, open every artifact the chain's handoffs list (not only `must-read: yes`), then reply and stop. Otherwise the first reply may be `partial` (R6), and Step 3b follows before any dispatch, project write or completion claim.
+When the user asks for the whole task, its earlier sessions or a full catch-up (前情提要: quick-say key 5 in Claude Code, or this skill invoked with 前情提要 in any CLI), give one complete read-only reply and keep the main session clean:
+
+1. The main session does R1 only: it finds the handoff and its run dir.
+2. It starts ONE fresh native subagent (table below), never a fork of itself, and briefs it: R2–R4 and Step 3b for the chain, every artifact the chain's handoffs list (not only `must-read: yes`), each pack page read with its own `resume_pack.py --read <file> --page <n>` command, the pack in `<run-dir>/pack`, and `<run-dir>/catchup.md` written from [references/catchup-template.md](references/catchup-template.md) and rewritten after each source group; it returns only the path of `catchup.md`.
+3. The main session reads `catchup.md` whole, then runs `resume_pack.py --verify <child-log> <pack>/<sid8>` for each packed session. Every page must print `OK`. Send each `MISSING` page, and each `must-read: yes` artifact the file marks partial or not read, back to the same subagent to read whole, then verify again. Ask the same subagent for any detail the reply needs that `catchup.md` lacks; do not guess it.
+4. The main session runs R5 itself, reports each checked session as `- <sid8> delegated (agent <id>) · COUNT <n> · TOOLS <n> · pack <dir> · pages <ok>/<total>`, replies in the template's six sections, and stops.
+
+   | CLI | Fresh subagent | Ask it again | Child log for `--verify` |
+   |---|---|---|---|
+   | Claude Code | `Agent`, `general-purpose`, same model | `SendMessage` to its id | `~/.claude/projects/<project>/<main-session-id>/subagents/agent-<id>.jsonl` |
+   | Codex | `collaboration.spawn_agent` with `fork_turns: "none"` and `model` set to the main model (a child spawned without it ran a smaller model) | `collaboration.followup_task` to its `target` | `sqlite3 -readonly ~/.codex/state_5.sqlite "SELECT t.rollout_path FROM thread_spawn_edges e JOIN threads t ON t.id=e.child_thread_id WHERE e.parent_thread_id='$CODEX_THREAD_ID'"` |
+   | agy | `invoke_subagent` with `TypeName: "self"`, `Model` and `Workspace` `"inherit"` (`research` cannot write) | `send_message` to its `conversationId` | `~/.gemini/antigravity-cli/brain/<conversationId>/.system_generated/logs/transcript_full.jsonl` (not `transcript.jsonl`, which cuts long output) |
+   | grok | `spawn_subagent`, default `general-purpose` (`explore` and `plan` cannot write; not `/fork`) | `spawn_subagent` with `resume_from` its id; this starts a new session id, so verify the newest one | `~/.grok/sessions/<url-encoded-cwd>/<child_session_id>/updates.jsonl`; `child_session_id` is in the main session's `subagent_spawned` row |
+
+Otherwise the first reply may be `partial` (R6), and Step 3b follows before any dispatch, project write or completion claim.
 
 In R1, first list every source in scope. Read them in this order: the handoff and the handoff it continues from; the records its Working Methods or its Sourced next step cite; artifacts; the project's rules, notes, tools and memory, the global rules the handoff cites, and shared memory; then the previous session, the one that wrote the chosen handoff. Read more than one session only when the user asks for it (names the sessions or asks for the whole history); otherwise an older session's timeline comes from its footprint and the handoffs. Read a session log through pack pages, or through the filter in Step 3b for a CLI with no pack. If the context nears its limit before the list is done, stop reading and reply `partial`: what you read, each unread source as `not read (context limit)`, and the first one to read next. Continue from that source in the next session or after compaction; do not ask the user to choose. Ask only when access or scope is the user's to decide. Decide nothing that depends on an unread source: no method choice, dispatch, project write or completion claim.
 
@@ -125,25 +139,25 @@ In R1, first list every source in scope. Read them in this order: the handoff an
 
 #### Step 3: Read the record and report (R4–R6)
 
-- **R4.** For the handoff writer's session (or the session found by R1), build a Claude Code or Codex reading pack in the task run dir: `python3 <skill-dir>/scripts/resume_pack.py --out <run-dir>/pack "$LOG"`. Read all pages of `user.txt` and only the last page of `footprints.txt`, with `resume_pack.py --read <file> --page <n>`. For the last page number, use `len(pages_of(text))` from the pack script on the file text, without printing earlier pages. For another CLI, use the log sources below and report any part you cannot read.
+- **R4.** For the handoff writer's session (or the session found by R1), build a reading pack (Claude Code, Codex, agy or grok log) in the task run dir: `python3 <skill-dir>/scripts/resume_pack.py --out <run-dir>/pack "$LOG"`. Read all pages of `user.txt` and only the last page of `footprints.txt`, with `resume_pack.py --read <file> --page <n>`. For the last page number, use `len(pages_of(text))` from the pack script on the file text, without printing earlier pages. For another CLI, use the log sources below and report any part you cannot read.
 - **R5.** Run a read-only live check of the checkpoint the next step depends on. Quote the command and its output. A matching HEAD or a file that exists is not evidence of the checkpoint.
 - **R6.** Reply with the supported checkpoint, the next step and its Source, the live check, what remains unread or unverified, and the next check. In the handoff's Immediate Next Steps and Blockers, list each still-open item due today or earlier, with its own read-only live check and result or, if the check could not run, an unverified label and the reason. Mark the status `partial`. Mark any claim that depends on an unread artifact as unverified. If `user.txt` is incomplete or the R5 receipt is missing, leave any next step that depends on it undecided. Read and verify that node before acting on it. This reply gives no basis to dispatch, write project files, declare completion, or record `full` in Sources Read.
 
 ### Second stage: read the sessions behind the task
 
-Run Step 3b on every resume before you dispatch, write project files or claim completion. Once one of these applies, finish the inputs it needs and run Step 3b before the next step:
+Run Step 3b on every resume before you dispatch, write project files or claim completion. After a delegated full catch-up (First stage), Step 3b is complete for the main session once every page verifies `OK` there. Once one of these applies, finish the inputs it needs and run Step 3b before the next step:
 
 - **D1.** A freshness check in R3 fails or cannot run. Age by itself is not a trigger.
 - **D2.** The handoff conflicts with live state or a required artifact. Two user corrections on the same point also trigger D2.
 - **D3.** Count only structured failure rows: run `grep -cE '^  T[0-9]+ [^ ]+ L[0-9]+ fail[[:space:]]' "$PACK/footprints.txt"` with `PACK` set to the writer's pack directory. Use `manifest.json` field `tools` as the denominator. Trigger only when `tools > 0` and `10 × failures >= tools`. Treat grep exit 1 as zero matches. Treat a read error or a missing or invalid tool count as D1.
 - **D4.** The user asks for the whole task or asks about a node you did not read.
-- **D5.** Dispatch, a project write, or a completion claim depends on a node you did not read.
+- **D5.** Dispatch, a project write, or a completion claim depends on a node you did not read (after a delegated full catch-up: a node that is in neither `catchup.md` nor the pack's `timeline.md`).
 
 ### Step 3b: Read the sessions behind the handoffs
 
 1. Read the chosen handoff and each linked CREATE handoff. Read every user-reviewed work record and every `must-read: yes` artifact body not read in R2. Record each artifact as `- artifact <path or URL> read` or `- artifact <path or URL> not read (<reason>)`. Read the `plan.md` and `state.md` of each run dir that a Working Methods row or the continued handoff cites, and every file they cite. List the previous session (the newest writer session) and user-named sessions; read each as in 2. For an older session of the chain, take its timeline from `<project>/.claude/footprints/<sid8>.md` and the handoffs, not from memory. Open its log only when the user asks for it. When the next step depends on a node only an older log holds, mark that node unverified and name the session in the reply; report the session as `not read (older session; handoff text only)`.
 2. Read and check each listed session yourself. Build the pack as in R4. Keep it in the task run dir for CREATE and validation. A parse error means `not read`. Pack subagents only if the parent tool result failed, was cut, or lacks evidence the next step needs. The pack has `user.txt` (COUNT), `footprints.txt` (TURNS), `tools.txt` (TOOLS), slices with inputs and results, and `manifest.json`.
-   a. Use `resume_pack.py --read <file> --page <n>` on every page of `user.txt` and `footprints.txt`. Each READ stamp gives the total pages and binds the output to its body. A sample, Read tool, or piped `tail` does not count as a full read. Do not delegate the reads.
+   a. Use `resume_pack.py --read <file> --page <n>` on every page of `user.txt` and `footprints.txt`. Each READ stamp gives the total pages and binds the output to its body. A sample, Read tool, or piped `tail` does not count as a full read. Do not delegate the reads, except to the one subagent of a full catch-up (First stage), checked with `--verify`.
    b. Check all conclusions the next step needs, completion claims for open asks, every `fail`, and unsettled `noresult` or `delegate` calls. For a settled failure, name both calls in its node. Use a live read-only check for current state. For past events with no live proof, print one call with `resume_pack.py --call <pack>/<sid8> T<n> --page <k>`, all pages, in calls separate from live checks. Never replay a write, push, deploy, send or install as proof. Mark missing proof `unknown`.
    c. Fill only gaps the next step depends on. For commits, read the relevant hunks; for pages, read the contents.
    d. Write `timeline.md` in `<pack>/<sid8>/`: one line per work-list item, starting `- `, each with `asked` (user quote), the claim, `evidence` and a light: `lit` (account and evidence agree, and the line is bound to an observation: a `T<n>` whose `--call` block was printed whole after the resume prompt, or a backticked output string of 8+ characters that a live check printed after it and no earlier tool input typed: quote what the check added, such as a line number, a subject or a path, not only the string you searched for; reads of the pack, handoffs or footprints and echo/printf output do not count), `dim` (account only, or a summary only), `dark` (`unknown`, account and evidence disagree, or the user corrected that turn). Each node line ends with its light as its own field (` · lit`, ` · dim` or ` · dark`); every `fail` pointer's `T<n>` is named in a `lit` or `dark` node, never a `dim` one. The claim gate checks these. The next step relies on no `dim` or `dark` node; it continues from the last `lit` node, and its Source is a user quote or evidence that the work is unfinished. At CREATE, copy each pack's `timeline.md` to `<project>/.claude/footprints/<sid8>.md`; the next resume opens its `dim` and `dark` nodes again, and the record behind any node the next step depends on.
@@ -153,13 +167,14 @@ Run Step 3b on every resume before you dispatch, write project files or claim co
    | Claude Code | `~/.claude/projects/<project>/<session-id>.jsonl` | `resume_pack.py` (above) |
    | Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-<time>-<session-id>.jsonl` or `.jsonl.zst` | `ctx_execute` if context-mode is installed; else write the output to a scratch file and read it in pages |
    | Cursor CLI | `~/.cursor/projects/<project-slug>/agent-transcripts/<session-id>/<session-id>.jsonl` | `ctx_execute` if context-mode is installed, or an `explore` subagent |
-   | agy | `~/.gemini/antigravity-cli/brain/<conversation-id>/.system_generated/logs/transcript.jsonl` | `invoke_subagent` with model `flash`, or `run_command` output into the conversation's `scratch/` |
+   | agy | `~/.gemini/antigravity-cli/brain/<conversation-id>/.system_generated/logs/transcript_full.jsonl` (not `transcript.jsonl`, which cuts long output) | `resume_pack.py` (above) |
+   | grok | `~/.grok/sessions/<url-encoded-cwd>/<session-id>/updates.jsonl` | `resume_pack.py` (above) |
 
    Set `LOG` to the session log first; an empty path makes jq wait on stdin.
 
-   `user.txt` keeps typed messages, messages sent while the agent worked, AskUserQuestion answers (`Q: … → A: …`), pasted text, quote replies, images (`[image]`), slash commands and side-agent notes the user sent on; it drops plugin and meta rows, hook feedback, skill bodies and messages from other sessions. The filters live in `resume_pack.py` only. An answer to Codex's own question was not found in any Codex log: report it as `not recorded in the log`, never as read.
+   `user.txt` keeps typed messages, messages sent while the agent worked, AskUserQuestion answers (`Q: … → A: …`), pasted text, quote replies, images (`[image]`), slash commands and side-agent notes the user sent on; it drops plugin and meta rows, hook feedback, skill bodies and messages from other sessions. The filters live in `resume_pack.py` only. An answer to Codex's own question was not found in any Codex log: report it as `not recorded in the log`, never as read. For agy it keeps every `USER_INPUT` (its `<USER_REQUEST>` body) and `ask_question` answers, and drops `SYSTEM_MESSAGE`, `CHECKPOINT` and `ERROR_MESSAGE` rows; for grok it keeps every text `user_message_chunk`, unwraps a message sent while grok worked from `<user_query>`, and drops `<system-reminder>` rows.
 
-   Cursor CLI and agy have no pack yet: run the filter below for the user's side, and mark the session `partial (agent side not read)` unless you read its tool rows another way and say how.
+   Cursor CLI has no pack yet: run the filter below for the user's side, and mark the session `partial (agent side not read)` unless you read its tool rows another way and say how.
 
    Cursor CLI (no timestamp field: the time is the `<timestamp>` element, the words are the `<user_query>` element):
 
@@ -173,16 +188,6 @@ Run Step 3b on every resume before you dispatch, write project files or claim co
 
    A message sent while the agent worked and a reply to its question are later `role=="user"` rows. The two dropped queries are system injections. `~/.cursor/chats/<bucket>/<session-id>/store.db` holds the same session as blobs; do not point jq at it.
 
-   agy:
-
-   ```bash
-   jq -rn '[inputs | select(.type=="USER_INPUT") | (.content|tostring) as $c
-     | "\(.created_at[0:19])  \(($c|capture("<USER_REQUEST>(?<r>[\\s\\S]*?)</USER_REQUEST>")?.r // $c) | gsub("[\\r\\n\\t]+";" ") | gsub("^\\s+|\\s+$";""))\(if ((.media // [])|length)>0 then " [media]" else "" end)"]
-     | (.[]), "COUNT \(length)"' "$LOG"
-   ```
-
-   Typed messages are `type=="USER_INPUT"`; images are in `media`. Messages sent while agy worked and answers to its questions are reported to be `USER_INPUT` too, but no log has shown one yet (UNCONFIRMED): if you find them elsewhere, include them and say so.
-
 3. The user's latest correction or ruling wins. Correct the account before stating scope.
 4. In the task run dir, merge the verified nodes, handoff timeline, user messages and live state into a timeline ending at the current checkpoint. Do not brief or dispatch a worker or edit project files until the timeline matches live state.
 
@@ -192,6 +197,7 @@ In the second-stage reply, name the timeline and its latest user correction and 
 - `- <sid8> partial (<what is missing>)`
 - `- <sid8> not read (<why>)`
 - `- <sid8> inherited full (from <handoff file>)` — a session an earlier resume read, carried forward by Step 3b.1. It is not your read: never write it as `full`.
+- `- <sid8> delegated (agent <id>) · COUNT <n> · TOOLS <n> · pack <dir> · pages <ok>/<total>` — the subagent of a full catch-up read it whole and `--verify` printed `OK` for every page. It is not your read: never write it as `full`.
 
 ### Step 4: Verify scope before acting
 
