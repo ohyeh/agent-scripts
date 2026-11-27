@@ -488,6 +488,7 @@ hook_install "$SRC/.agents/hooks/cursor-adapt.sh"
 hook_install "$SRC/.agents/hooks/claude-only.sh"
 hook_install "$SRC/.agents/hooks/agy-adapt.sh"
 hook_install "$SRC/.agents/hooks/compaction-recall.sh"
+hook_install "$SRC/.agents/hooks/catchup-recall.sh"     # run by compaction-recall.sh; Codex, grok, agy call it directly
 hook_install "$SRC/.agents/hooks/precompact-instructions.sh"
 hook_install "$SRC/.agents/hooks/evidence-tokens.sh"
 hook_install "$SRC/.agents/hooks/claim-evidence-gate.sh"
@@ -640,7 +641,8 @@ if [ -d ~/.codex ]; then
      --arg deny "\"\$HOME/.agents/hooks/deny-replay-gate.sh\"" \
      --arg ledger "\"\$HOME/.agents/hooks/context-ledger.sh\"" \
      --arg claim "\"\$HOME/.agents/hooks/claim-evidence-gate.sh\"" \
-     --arg hostload "\"\$HOME/.agents/hooks/host-load-gate.sh\"" '
+     --arg hostload "\"\$HOME/.agents/hooks/host-load-gate.sh\"" \
+     --arg catchup "\"\$HOME/.agents/hooks/catchup-recall.sh\" line" '
     def ensureMatched(ev; matcher; bare): ("bash " + bare) as $cmd |
       .hooks[ev] = ((.hooks[ev] // [])
         | if any(.[]; any(.hooks[]?; .command == $cmd))
@@ -676,6 +678,9 @@ if [ -d ~/.codex ]; then
     | ensureMatched("PreToolUse"; "*"; $hostload)
     | ensureMatched("PostToolUse"; "*"; $ledger)
     | ensureMatched("Stop"; ""; $claim)
+    # Codex runs SessionStart with source "compact" after a compaction and gives its stdout to the
+    # model (rollout 01a201f2, 0.171.0: a developer message after each compacted row)
+    | ensureMatched("SessionStart"; "compact"; $catchup)
   ' "$CODEX_HOOKS" > "$tmp_codex" || { echo "FAIL [hooks] codex hooks.json rewrite (jq) failed" >&2; exit 1; }
   apply "$tmp_codex" "$CODEX_HOOKS" hooks
   # Codex skips a hooks.json entry until config.toml holds its trusted_hash (live:
@@ -691,7 +696,7 @@ if [ -d ~/.codex ]; then
 import hashlib, json, re, sys
 hooks_path, cfg_path = sys.argv[1], sys.argv[2]
 label = {"PreToolUse": "pre_tool_use", "PostToolUse": "post_tool_use",
-         "UserPromptSubmit": "user_prompt_submit", "Stop": "stop"}
+         "UserPromptSubmit": "user_prompt_submit", "Stop": "stop", "SessionStart": "session_start"}
 cfg = open(cfg_path).read()
 for event, groups in json.load(open(hooks_path)).get("hooks", {}).items():
     if event not in label:
@@ -704,8 +709,9 @@ for event, groups in json.load(open(hooks_path)).get("hooks", {}).items():
             handler = {"type": "command", "command": cmd,
                        "timeout": max(h.get("timeout") or 600, 1), "async": bool(h.get("async", False))}
             ident = {"event_name": label[event], "hooks": [handler]}
-            # matcher_pattern_for_event: only tool events keep a matcher
-            if group.get("matcher") is not None and event in ("PreToolUse", "PostToolUse"):
+            # matcher_pattern_for_event (rust-v0.172.0 events/common.rs:129): tool events and
+            # SessionStart keep a matcher; the stored ponytail session_start hash includes it
+            if group.get("matcher") is not None and event in ("PreToolUse", "PostToolUse", "SessionStart"):
                 ident["matcher"] = group["matcher"]
             digest = "sha256:" + hashlib.sha256(
                 json.dumps(ident, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -743,6 +749,8 @@ if [ -d ~/.gemini/config ]; then
       {type:"command",command:($a+" PreToolUse rm-home-gate")}]},
       {matcher:"invoke_subagent",hooks:[
       {type:"command",command:($a+" PreToolUse host-load-gate")}]}],
+    # agy has no compaction hook; the script injects the catch-up line once per new CHECKPOINT row
+    PreInvocation:[{type:"command",command:"bash $HOME/.agents/hooks/catchup-recall.sh agy-preinvocation"}],
     Stop:[{type:"command",command:($a+" Stop claim-evidence-gate")}]}}' > "$t"
   apply "$t" "$AGY_PLUGIN/hooks.json" hooks
   # agy dispatches workers with hc (herdr) from run_command; it needs no tmux-agent MCP.
@@ -750,6 +758,18 @@ if [ -d ~/.gemini/config ]; then
   if [ "$CHECK" = 0 ] && command -v agy >/dev/null 2>&1 && agy mcp list 2>/dev/null | grep -q '^codex-tmux-agent-adapter '; then
     agy mcp remove codex-tmux-agent-adapter >/dev/null && echo "PASS [agy-mcp] removed codex-tmux-agent-adapter (agy uses hc)"
   fi
+fi
+
+# Grok Build: compaction fires no SessionStart and drops PostCompact output (~/.grok/docs/user-guide/
+# 10-hooks.md:98,111). PostCompact keeps the catch-up line; the next PreToolUse gives it to the model.
+# Its own file, not settings.json: Claude Code would run these too.
+if [ -d ~/.grok ]; then
+  w mkdir -p ~/.grok/hooks
+  t="$(mktemp)"
+  jq -n --arg c "bash \"\$HOME/.agents/hooks/catchup-recall.sh\"" '{hooks:{
+    PostCompact:[{hooks:[{type:"command",command:($c+" grok-postcompact"),timeout:10}]}],
+    PreToolUse:[{hooks:[{type:"command",command:($c+" grok-pretooluse"),timeout:5}]}]}}' > "$t"
+  apply "$t" ~/.grok/hooks/agent-scripts.json hooks
 fi
 
 for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate running-script-edit-gate pr-create-gate compaction-recall precompact-instructions skill-router-nudge skill-chain-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
@@ -765,6 +785,7 @@ done
 [ -x ~/.agents/hooks/cursor-adapt.sh ] || { echo "FAIL [hooks] cursor-adapt.sh not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/claude-only.sh ] || { echo "FAIL [hooks] claude-only.sh (settings.json hook wrapper) not installed" >&2; exit 1; }
 [ -x ~/.agents/hooks/agy-adapt.sh ] || { echo "FAIL [hooks] agy-adapt.sh not installed" >&2; exit 1; }
+[ -x ~/.agents/hooks/catchup-recall.sh ] || { echo "FAIL [hooks] catchup-recall.sh not installed" >&2; exit 1; }
 if [ -e ~/.agents/hooks/postcompact-handoff.sh ] || grep -q 'postcompact-handoff' "$SETTINGS"; then
   echo "FAIL [hooks] retired postcompact-handoff.sh still installed or registered" >&2
   exit 1

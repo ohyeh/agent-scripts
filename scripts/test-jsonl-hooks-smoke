@@ -210,6 +210,30 @@ grep -q 'before any act' <<<"$partial" && { echo 'FAIL: partial cache creates a 
 grep -q 'historical cache only' <<<"$partial" || { echo 'FAIL: cache authority not labelled' >&2; exit 1; }
 asks_out="$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",agent_id:"w1",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
 grep -q 'Open owner asks' <<<"$asks_out" && { echo "FAIL: a subagent's recall carried the parent's asks" >&2; exit 1; }
+# catch-up pointer: the catchup.md the session Read comes first; one only named in tool output does not count
+mkdir -p "$WORK/run-a" "$WORK/run-b"; : > "$WORK/run-a/catchup.md"; : > "$WORK/run-b/catchup.md"
+jq -cn --arg p "$WORK/run-a/catchup.md" '{type:"assistant",message:{content:[{type:"tool_use",name:"Read",input:{file_path:$p}}]}}' >> "$TR"
+jq -cn --arg p "$WORK/run-b/catchup.md" '{type:"user",message:{content:[{type:"tool_result",content:("see\n" + $p)}]}}' >> "$TR"
+{ echo '## Open owner asks (agent-should-know)'; for i in $(seq 40); do echo "- U$i 「$(head -c 300 /dev/zero | tr '\0' q)」"; done; echo '<!-- asks-open gen=4 end -->'; } > "$TEST_HOME/.local/state/agent-hooks/rc-asks/asks-open.md"
+cu_out="$(printf '%s' "$(jq -cn --arg t "$TR" '{hook_event_name:"SessionStart",source:"compact",session_id:"rc-asks",transcript_path:$t}')" | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/compaction-recall.sh")"
+[[ "$(head -n 1 <<<"$cu_out")" == "Catch-up read before this compaction: $WORK/run-a/catchup.md — Read it whole before the next decision." ]] \
+  || { echo "FAIL: catch-up pointer missing, not first, or from tool output: $(head -n 1 <<<"$cu_out")" >&2; exit 1; }
+[[ "$(printf '%s' "$cu_out" | wc -m)" -lt 10000 ]] && grep -q 'snapshot cut at the 10,000-character hook limit' <<<"$cu_out" \
+  || { echo "FAIL: a 12K-char asks snapshot was not cut under the 10,000-character hook limit" >&2; exit 1; }
+# grok: PostCompact keeps the line, the next PreToolUse gives it once as additionalContext
+GL="$WORK/grok-updates.jsonl"; jq -cn --arg p "$WORK/run-a/catchup.md" '{params:{update:{sessionUpdate:"tool_call",rawInput:{path:$p}}}}' > "$GL"
+jq -cn --arg t "$GL" '{hookEventName:"post_compact",hook_event_name:"PostCompact",sessionId:"g1",transcript_path:$t}' | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/catchup-recall.sh" grok-postcompact
+pre() { jq -cn '{hookEventName:"pre_tool_use",hook_event_name:"PreToolUse",sessionId:"g1",toolName:"read_file"}' | HOME="$TEST_HOME" GROK_SESSION_ID=g1 bash "$ROOT/.agents/hooks/catchup-recall.sh" grok-pretooluse; }
+pre | jq -e '.hookSpecificOutput.permissionDecision == "allow" and (.hookSpecificOutput.additionalContext | contains("run-a/catchup.md"))' >/dev/null \
+  || { echo "FAIL: grok PreToolUse did not deliver the catch-up line" >&2; exit 1; }
+[[ -z "$(pre)" ]] || { echo "FAIL: grok delivered the catch-up line twice" >&2; exit 1; }
+# agy: one injectSteps per new CHECKPOINT row, {} otherwise
+AL="$WORK/agy-transcript_full.jsonl"; jq -cn --arg p "$WORK/run-a/catchup.md" '{type:"PLANNER_RESPONSE",tool_calls:[{name:"view_file",args:{AbsolutePath:$p}}]}' > "$AL"
+echo '{"step_index":"9","type":"CHECKPOINT","content":"# Resuming from a compaction"}' >> "$AL"
+agy_pi() { jq -cn --arg t "$AL" '{conversationId:"a1",transcriptPath:$t,invocationNum:2}' | HOME="$TEST_HOME" bash "$ROOT/.agents/hooks/catchup-recall.sh" agy-preinvocation; }
+agy_pi | jq -e '.injectSteps[0].systemMessage.systemMessage | contains("run-a/catchup.md")' >/dev/null || { echo "FAIL: agy CHECKPOINT gave no catch-up step" >&2; exit 1; }
+[[ "$(agy_pi)" == '{}' ]] || { echo "FAIL: agy injected the catch-up step twice for one CHECKPOINT" >&2; exit 1; }
+echo 'PASS catch-up pointer: Claude first line + 10,000-char cap, grok once via PreToolUse, agy once per CHECKPOINT'
 
 # title sentinel: title-only again — a ✅ title is the claim gate's business
 TR2="$WORK/transcript-short.jsonl"

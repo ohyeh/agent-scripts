@@ -59,15 +59,23 @@ if [ -z "$AGENT_ID" ] && [ -e "$asks" ]; then
   snap="$(cat "$asks" 2>&1)"; rc=$?
   if [ "$rc" -ne 0 ] || ! printf '%s\n' "$snap" | tail -n 1 | grep -Eq '^<!-- asks-open gen=[0-9]+ end -->$'; then
     snap="${snap}
-[agent-should-know] historical snapshot is incomplete or unreadable (cat exit $rc, no end marker); coverage UNKNOWN. Source: ${asks/#$HOME/\~}. This cache grants no authority."
+[agent-should-know] historical snapshot is incomplete or unreadable (cat exit $rc, no end marker); coverage UNKNOWN. Source: ~/${asks#"$HOME"/}. This cache grants no authority."
   fi
   snap="[agent-should-know] historical cache only; enabled state and coverage may be stale. Native owner messages define current asks.
 $snap"
 fi
+# Hook stdout stops at 10,000 characters (cf2b3ee3 printed 11,990; one snapshot is 30,838 alone):
+# print the head of the snapshot that fits beside $1 and name the file that holds the rest (the
+# cut line is under 200 characters).
+fit() { printf '%s\n' "$snap" | awk -v b="$((9800 - ${#1}))" -v f="~/${asks#"$HOME"/}" \
+  '(n += length($0) + 1) > b {print "[agent-should-know] snapshot cut at the 10,000-character hook limit; Read the rest: " f; exit} 1'; }
 if [ ! -f "$TRANSCRIPT" ]; then
-  [ -z "$snap" ] || printf '%s\n' "$snap"
+  [ -z "$snap" ] || fit ""
   exit 0
 fi
+# The catch-up file goes first, so no output cap can cut it (catchup-recall.sh has the detection).
+ptr="$(bash "$(dirname "$0")/catchup-recall.sh" line "$TRANSCRIPT")"
+[ -z "$ptr" ] || printf '%s\n' "$ptr"
 
 # grep -c prints "0" AND exits 1 on no match, so `|| echo 0` would yield "0\n0".
 compactions="$(grep -c '"isCompactSummary":true' "$TRANSCRIPT" 2>/dev/null)"
@@ -102,7 +110,7 @@ if [ -n "$AGENT_ID" ]; then
 fi
 
 if [ -z "$prompts$brief" ]; then
-  [ -z "$snap" ] || printf '%s\n' "$snap"
+  [ -z "$snap" ] || fit "$ptr"
   exit 0
 fi
 
@@ -129,7 +137,7 @@ done
 # The mod ends a whole snapshot with `<!-- asks-open gen=<n> end -->`; without it the copy is partial.
 if [ -n "$snap" ]; then
   out="$out
-$snap"
+$(fit "$ptr$out")"
 fi
 
 printf '%s\n' "$out"
