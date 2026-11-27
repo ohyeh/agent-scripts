@@ -356,10 +356,10 @@ while last > int(first) and not lines[last - 1].split(":", 2)[-1].strip():
     last -= 1
 pages, page, size = [], [], 0
 for whole in lines[int(first) - 1:last]:
-    for i in range(0, max(len(whole), 1), 4000):
-        piece = whole[i:i + 4000]
+    for i in range(0, max(len(whole), 1), 2000):
+        piece = whole[i:i + 2000]
         k = len(piece.encode("utf-8")) + 1
-        if page and size + k > 16 * 1024:
+        if page and size + k > 8 * 1024:
             pages.append(page)
             page, size = [], 0
         page.append(piece)
@@ -374,16 +374,16 @@ EOF
   }
   read_whole() { # $1 file: every page 1..T of the file on disk, each stamped with its real page sha
     local want
-    # shortcut: repeats resume_pack.py pages_of (4000-char pieces, 16 KiB pages); a change there must change this too.
+    # shortcut: repeats resume_pack.py pages_of (2000-char pieces, 8 KiB pages); a change there must change this too.
     want="$(/usr/bin/python3 - "$1" 2>/dev/null <<'EOF'
 import hashlib, sys
 raw = open(sys.argv[1], "rb").read()
 pages, page, size = [], [], 0
 for whole in raw.decode("utf-8").splitlines():
-    for i in range(0, max(len(whole), 1), 4000):
-        piece = whole[i:i + 4000]
+    for i in range(0, max(len(whole), 1), 2000):
+        piece = whole[i:i + 2000]
         n = len(piece.encode("utf-8")) + 1
-        if page and size + n > 16 * 1024:
+        if page and size + n > 8 * 1024:
             pages.append(page)
             page, size = [], 0
         page.append(piece)
