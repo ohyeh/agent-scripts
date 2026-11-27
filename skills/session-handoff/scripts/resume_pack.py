@@ -132,7 +132,8 @@ def load(log):
         sid = next((r["params"]["sessionId"] for r in rows if isinstance(r.get("params"), dict) and r["params"].get("sessionId")), log.parent.name)
         rows = [dict(r["params"]["update"], _ln=r["_ln"], timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(r["timestamp"]))
                      if isinstance(r.get("timestamp"), (int, float)) else str(r.get("timestamp", "")))
-                for r in rows if isinstance(r.get("params"), dict) and isinstance(r["params"].get("update"), dict)]
+                for r in rows if isinstance(r.get("params"), dict) and isinstance(r["params"].get("update"), dict)
+                and r["params"]["update"].get("sessionUpdate") != "hook_execution"]  # hook runs, before each prompt and call
     else:
         raise ValueError(f"unsupported CLI: {log}")
     if not re.fullmatch(r"[A-Za-z0-9_-]+", str(sid)):
@@ -303,7 +304,10 @@ def turn_start(row, cli):
             match = AGY_REQUEST.match(content)
             return (match[1] if match else content) + "".join(
                 " [image]" if str(m.get("mime_type", "")).startswith("image/") else " [media]" for m in row.get("media") or [] if isinstance(m, dict))
-        return content if row.get("type") in AGY_EVENTS else None
+        # The event mark shows the body: every SYSTEM_MESSAGE opens with the same ~140-character preamble.
+        body = re.sub(r"^The following is a <SYSTEM_MESSAGE>[^\n]*\s*<SYSTEM_MESSAGE>\s*|\s*</SYSTEM_MESSAGE>\s*$", "", content)
+        body = re.sub(r"^\[Message\] timestamp=\S+ sender=(\S+) priority=\S+ content=", r"[Message from \1] ", body)
+        return body if row.get("type") in AGY_EVENTS else None
     if cli == "grok":
         if row.get("sessionUpdate") != "user_message_chunk":
             return None
@@ -388,9 +392,10 @@ def footprints(rows, cli, calls, results, where, log_sha):
             raw = args.get("command", args.get("cmd", args.get("code", args.get("commands", args.get("CommandLine", "")))))
             cmd = " ; ".join(map(str, raw)) if isinstance(raw, list) else str(raw)  # Codex local_shell_call: argv list
             failed = any(is_error(r) for r in results.get(call_id, []))
-            if name == "ask_question":  # agy: the answer is the call's result, as Claude's is toolUseResult.answers
+            answered = [r for r in results.get(call_id, []) if r.get("status") == "DONE"] if name == "ask_question" else []
+            if answered:  # agy: the answer is the call's DONE result (as in AGY_USER), as Claude's is toolUseResult.answers
                 cur["marks"].append(f"  answer L{call[4]} " + one(" || ".join(
-                    re.sub(r"^Created At:[^\n]*\n(Completed At:[^\n]*\n)?", "", str(r.get("content", ""))) for r in results.get(call_id, [])), 300))
+                    re.sub(r"^Created At:[^\n]*\n(Completed At:[^\n]*\n)?", "", str(r.get("content", ""))) for r in answered), 300))
             kind = ("fail" if failed else "edit" if name in MUTATING else "state" if STATE_COMMAND.search(cmd)
                     or (name.startswith("mcp__") and name not in SHELL and state_tool(name))
                     else "delegate" if name in DELEGATING
@@ -771,7 +776,8 @@ def self_test():
             agy("GENERIC", content="Created At: x\nCompleted At: y\nCommand exited with code 1.\n\nCommand output:\nrejected"),
             agy("GENERIC", status="ERROR", content="Created At: x\nCompleted At: y\nEncountered error in step execution: file does not exist"),
             agy("GENERIC", content="Created At: x\nCompleted At: y\nA1: B, typed note"),
-            agy("SYSTEM_MESSAGE", content="The following is a <SYSTEM_MESSAGE> not actually sent by the user.\n<SYSTEM_MESSAGE>\nStop hook\n</SYSTEM_MESSAGE>"),
+            agy("SYSTEM_MESSAGE", content="The following is a <SYSTEM_MESSAGE> not actually sent by the user. It is provided.\n\n<SYSTEM_MESSAGE>\n"
+                                          "[Message] timestamp=t sender=s/task-1 priority=HIGH content=Task finished\n</SYSTEM_MESSAGE>"),
             request("Error: also this", media=[{"mime_type": "image/png", "uri": "/x.png"}]),
             agy("PLANNER_RESPONSE", content="Pushed.", tool_calls=[{"name": "write_to_file", "args": {"TargetFile": "/b"}}])])
         _, af, am = prepare(ag, Path("agy"))
@@ -780,7 +786,7 @@ def self_test():
                                   "2026-11-27T01:00:00  Error: also this [image]\nCOUNT 3\n")
         af = af["footprints.txt"]
         assert af.endswith("TURNS 2\n") and " fail     run_command git push origin main" in af and " fail     view_file /a" in af
-        assert "  answer L2 A1: B, typed note" in af and "  event L6 The following is a <SYSTEM_MESSAGE>" in af
+        assert "  answer L2 A1: B, typed note" in af and "  event L6 [Message from s/task-1] Task finished\n" in af
         assert " edit     write_to_file /b [no result]" in af and "said:  Pushed." in af and "asked: Error: also this [image]" in af
         # grok: an image chunk follows its "[Image #n]" text; reminders are injections; a mid-work message is unwrapped.
         def grok(kind, **update):
@@ -808,7 +814,7 @@ def self_test():
         assert gf["user.txt"] == ("2026-11-13T07:32:10  [Image #1] look\n2026-11-13T07:32:10  stop </user_query> now\n"
                                   "2026-11-13T07:32:10  string form\nCOUNT 3\n")
         gt = gf["footprints.txt"]
-        assert gt.endswith("TURNS 3\n") and " fail     run_terminal_command git push" in gt and " fail     mcp__github__push_files" in gt
+        assert gt.endswith("TURNS 3\n") and "TURN 0 " not in gt and " fail     run_terminal_command git push" in gt and " fail     mcp__github__push_files" in gt
         assert " edit     search_replace /a" in gt and "said:  Stopped." in gt and "  event L11 <system-reminder>" in gt
         assert "rejected" in gf["slices/S01.txt"] and "denied" in gf["slices/S01.txt"] and '"exit_code": 1' in gf["slices/S01.txt"]
         assert not any(s in body for body in gf.values() for s in ("114, 101", "QUJDREVG", "rejectedrejected"))
