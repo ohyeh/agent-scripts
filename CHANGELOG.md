@@ -1,5 +1,15 @@
 # Changelog
 
+## session-handoff: 前情提要 runs in one subagent on every CLI
+
+- Owner 2026-11-27: 「我目的很單純 main session thread 保持乾淨、思緒清晰、不忘事」「那就推進啊 讓大家都可以正常的 handoff-resume 啊」「不是只有你正常」.
+- RESUME First stage: the main session finds the handoff and run dir, starts one fresh native subagent (Claude Code `Agent`; Codex `collaboration.spawn_agent` with `fork_turns: "none"` and the main model; agy `invoke_subagent` `TypeName: "self"`; grok `spawn_subagent`), reads the `catchup.md` it writes (`references/catchup-template.md`), and checks it with `resume_pack.py --verify <child-log> <pack>/<sid8>`. New status line `delegated`; never `full`.
+- `resume_pack.py`: `--verify` (every page of `user.txt` and `footprints.txt` must sit whole in one string of the child log; any CLI, `.zst`, nested JSON, `\r` dropped); agy `transcript_full.jsonl` and grok `updates.jsonl` are packed; pages are 8 KiB with 2000-character pieces, because agy `run_command` cuts output over ~9.9 KB in the middle. The claim gate's two paging copies match.
+- Post-compaction pointer to the `catchup.md` the session read: Claude Code and Codex SessionStart(compact), grok PostCompact marker + PreToolUse, agy PreInvocation after a `CHECKPOINT` row (`.agents/hooks/catchup-recall.sh`). The asks-open snapshot in `compaction-recall.sh` is cut to fit the 10,000-character hook limit.
+- quick-say 0.8.10: key 5 asks for the delegated flow.
+- Evidence: child logs verified 5/5 (Claude Code, grok; 16 KiB pages) and 9/9 (Codex, agy; 8 KiB pages), every main log 0/n (`.workflow/202611271109-resume-context-cost/e2e/`).
+- Not verified: a real compaction on Codex 0.172.0, grok and agy firing the pointer; whether a main session working from `catchup.md` makes fewer wrong turns.
+
 ## seat review folds for the Gemini import; session-handoff R6 lists due items
 
 - W48 final seat round (sol, `opinions/sol-final.md`), folded without another round because each change only tightens:
