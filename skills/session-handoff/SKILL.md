@@ -108,21 +108,21 @@ Report to user:
 
 ### First stage: give the first reply
 
-Read the chosen handoff whole, not by sections or line ranges. Before you choose or replace a method, read its run record.
+Read the chosen handoff whole, not by sections or line ranges (in a full catch-up below, the subagent reads it and the main session only finds it). Before you choose or replace a method, read its run record.
 
 When the user asks for the whole task, its earlier sessions or a full catch-up (前情提要: quick-say key 5 in Claude Code, or this skill invoked with 前情提要 in any CLI), give one complete read-only reply and keep the main session clean:
 
 1. The main session does R1 only: it finds the handoff and its run dir.
-2. It starts ONE fresh native subagent (table below), never a fork of itself, and briefs it: R2–R4 and Step 3b for the chain, every artifact the chain's handoffs list (not only `must-read: yes`), each pack page read with its own `resume_pack.py --read <file> --page <n>` command, the pack in `<run-dir>/pack`, and `<run-dir>/catchup.md` written from [references/catchup-template.md](references/catchup-template.md) and rewritten after each source group; it returns only the path of `catchup.md`.
-3. The main session reads `catchup.md` whole, then runs `resume_pack.py --verify <child-log> <pack>/<sid8>` for each packed session. Every page must print `OK`. Send each `MISSING` page, and each `must-read: yes` artifact the file marks partial or not read, back to the same subagent to read whole, then verify again. Ask the same subagent for any detail the reply needs that `catchup.md` lacks; do not guess it.
-4. The main session runs R5 itself, reports each checked session as `- <sid8> delegated (agent <id>) · COUNT <n> · TOOLS <n> · pack <dir> · pages <ok>/<total>`, replies in the template's six sections, and stops.
+2. It starts ONE fresh native subagent (table below), never a fork of itself, and briefs it: R2–R4 and Step 3b for the chain, every artifact the chain's handoffs list (not only `must-read: yes`), every page of `user.txt` and `footprints.txt` (not only the last footprints page R4 names) read with its own `resume_pack.py --read <file> --page <n>` command, the pack in `<run-dir>/pack`, and `<run-dir>/catchup.md` written from [references/catchup-template.md](references/catchup-template.md) and rewritten after each source group; it returns only the path of `catchup.md`.
+3. The main session reads `catchup.md` whole, then runs `resume_pack.py --verify <child-log> <pack>/<sid8>` for each packed session. Every page must print `OK`. Send each `MISSING` page, and each `must-read: yes` artifact the file marks partial or not read, back to the same subagent to read whole, then verify again. If that second read still fails, keep it `not read (<reason>)` in the reply and stop asking. Ask the same subagent for any detail the reply needs that `catchup.md` lacks; do not guess it.
+4. The main session runs R5 itself, reports each checked session as `- <sid8> delegated (child <name>) · COUNT <n> · TOOLS <n> · pack <dir> · pages <ok>/<total>` (`<name>`: the name you gave the subagent; Claude Code's agent id is internal and stays out of replies), replies in the template's six sections, and stops.
 
    | CLI | Fresh subagent | Ask it again | Child log for `--verify` |
    |---|---|---|---|
-   | Claude Code | `Agent`, `general-purpose`, same model | `SendMessage` to its id | `~/.claude/projects/<project>/<main-session-id>/subagents/agent-<id>.jsonl` |
+   | Claude Code | `Agent` with `subagent_type: general-purpose`, a `name`, and `model` set to the main model's family | `SendMessage` to that name | `~/.claude/projects/<project>/<main-session-id>/subagents/agent-<id>.jsonl` |
    | Codex | `collaboration.spawn_agent` with `fork_turns: "none"` and `model` set to the main model (a child spawned without it ran a smaller model) | `collaboration.followup_task` to its `target` | `sqlite3 -readonly ~/.codex/state_5.sqlite "SELECT t.rollout_path FROM thread_spawn_edges e JOIN threads t ON t.id=e.child_thread_id WHERE e.parent_thread_id='$CODEX_THREAD_ID'"` |
    | agy | `invoke_subagent` with `TypeName: "self"`, `Model` and `Workspace` `"inherit"` (the built-in research type cannot write) | `send_message` to its `conversationId` | `~/.gemini/antigravity-cli/brain/<conversationId>/.system_generated/logs/transcript_full.jsonl` (not `transcript.jsonl`, which cuts long output) |
-   | grok | `spawn_subagent`, default `general-purpose` (`explore` and `plan` cannot write; not `/fork`) | `spawn_subagent` with `resume_from` its id; this starts a new session id, so verify the newest one | `~/.grok/sessions/<url-encoded-cwd>/<child_session_id>/updates.jsonl`; `child_session_id` is in the main session's `subagent_spawned` row |
+   | grok | `spawn_subagent`, default `general-purpose` (`explore` and `plan` cannot write; not `/fork`) | `spawn_subagent` with `resume_from` its id; this starts a new session id whose log carries the earlier rows, so verify the newest log (it holds the earlier pages too) | `~/.grok/sessions/<url-encoded-cwd>/<child_session_id>/updates.jsonl`; `child_session_id` is in the main session's `subagent_spawned` row |
 
 Otherwise the first reply may be `partial` (R6), and Step 3b follows before any dispatch, project write or completion claim.
 
@@ -197,7 +197,7 @@ In the second-stage reply, name the timeline and its latest user correction and 
 - `- <sid8> partial (<what is missing>)`
 - `- <sid8> not read (<why>)`
 - `- <sid8> inherited full (from <handoff file>)` — a session an earlier resume read, carried forward by Step 3b.1. It is not your read: never write it as `full`.
-- `- <sid8> delegated (agent <id>) · COUNT <n> · TOOLS <n> · pack <dir> · pages <ok>/<total>` — the subagent of a full catch-up read it whole and `--verify` printed `OK` for every page. It is not your read: never write it as `full`.
+- `- <sid8> delegated (child <name>) · COUNT <n> · TOOLS <n> · pack <dir> · pages <ok>/<total>` — the subagent of a full catch-up read it whole and `--verify` printed `OK` for every page. It is not your read: never write it as `full`.
 
 ### Step 4: Verify scope before acting
 

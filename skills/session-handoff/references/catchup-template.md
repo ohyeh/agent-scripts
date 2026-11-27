@@ -26,7 +26,7 @@
 
 ## 6. 讀取狀態
 - handoff <file> full | partial (<range>) | not read (<reason>)
-- artifact <path or URL> read | not read (<reason>)
+- artifact <path or URL> · must-read: yes | no · read | partial | not read (<reason>)
 - <sid8> · COUNT <n> · TOOLS <n> · pack <pack>/<sid8> · user.txt <read>/<total> pages · footprints.txt <read>/<total> pages
 - timeline：<pack>/<sid8>/timeline.md
 - 子代理 log：<absolute path of this subagent's own session log, if known>
