@@ -21,13 +21,16 @@ STATE="$HOME/.local/state/catchup-recall"
 # shortcut: a path with a space or a non-ASCII byte is not matched; widen the class if run dirs get one.
 pointer() {
   [ -n "${1:-}" ] && [ -f "$1" ] || return 0
-  local p
+  local p="" c
   # Tool output rows: Claude tool_result; Codex *_call_output, item_completed, exec_command_end;
   # grok tool_call_update; agy GENERIC. A \n, \t or \r escape can sit right before a JSON path.
-  p="$(grep -vE '"type":"(tool_result|function_call_output|custom_tool_call_output|item_completed|exec_command_end|GENERIC)"|"sessionUpdate":"tool_call_update"' "$1" \
+  # The last path that exists wins: a shell snippet such as '$R'/.workflow/…/catchup.md yields a
+  # bogus /.workflow/… path after the real read (2026-11-27, session 5971a435).
+  while IFS= read -r c; do [ -f "$c" ] && p="$c"; done < <(
+    grep -vE '"type":"(tool_result|function_call_output|custom_tool_call_output|item_completed|exec_command_end|GENERIC)"|"sessionUpdate":"tool_call_update"' "$1" \
     | grep -oE '(^|[^A-Za-z0-9._@+~-]|\\[nrt])(/[A-Za-z0-9._@+-]+)+/catchup\.md([^A-Za-z0-9._@+~/-]|$)' \
-    | sed -E 's|^[^/]*||; s|^/+|/|; s|(/catchup\.md).*$|\1|' | tail -n 1)"
-  [ -n "$p" ] && [ -f "$p" ] || return 0
+    | sed -E 's|^[^/]*||; s|^/+|/|; s|(/catchup\.md).*$|\1|')
+  [ -n "$p" ] || return 0
   # Not "${p/#$HOME/\~}": inside double quotes bash 3.2 keeps the backslash.
   [ "${p#"$HOME"/}" = "$p" ] || p="~/${p#"$HOME"/}"
   printf 'Catch-up read before this compaction: %s — Read it whole before the next decision.\n' "$p"
