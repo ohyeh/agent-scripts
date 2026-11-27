@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build cited reading packs from Claude Code and Codex JSONL logs."""
+"""Build cited reading packs from Claude Code, Codex, agy and grok JSONL logs."""
 
 import argparse
 import hashlib
@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -29,9 +30,34 @@ CODEX_USER = r'''[inputs | select(.type=="response_item" and .payload.type=="mes
      | ([.payload.content[]? | if .type=="input_text" then .text elif .type=="input_image" then "[image]" else empty end] | join(" ")) as $t
      | select($t|test("^\\s*(# AGENTS\\.md instructions|<(?!image)[a-z_]+[ >])")|not)
      | "\(.timestamp[0:19])  \($t|gsub("[\\r\\n\\t]+";" "))"] | (.[]), "COUNT \(length)"'''
-USER_FILTERS = {"claude-code": CLAUDE_USER, "codex": CODEX_USER}
+# agy (transcript_full.jsonl): every USER_INPUT row, its <USER_REQUEST> body only (the tail anchor keeps a pasted
+# closing tag), and each ask_question answer: the GENERIC row at the call's position after its PLANNER_RESPONSE.
+AGY_USER = r'''[inputs] as $r | def head($j): if $j >= 0 and $r[$j].type=="GENERIC" then head($j - 1) else $j end;
+     [range(0; $r|length) as $i | $r[$i] as $x
+      | if $x.type=="USER_INPUT" then ($x.content|tostring) as $c
+          | ((($c|capture("^<USER_REQUEST>\\n?(?<r>[\\s\\S]*?)\\n?</USER_REQUEST>\\n<ADDITIONAL_METADATA>") // {}) | .r // $c)
+             + ([$x.media[]? | if (.mime_type|tostring|startswith("image/")) then " [image]" else " [media]" end] | join("")))
+        elif $x.type=="GENERIC" and $x.status=="DONE" then head($i - 1) as $j | select($j >= 0)
+          | ($r[$j].tool_calls[$i - $j - 1]? // {}) as $q | select($q.name=="ask_question")
+          | "Q: \([$q.args|objects|.questions[]?|.question|tostring|.[0:60]] | join("… | "))… → \($x.content|tostring|sub("^Created At:[^\\n]*\\n(Completed At:[^\\n]*\\n)?";""))"
+        else empty end
+      | "\($x.created_at[0:19])  \(gsub("^\\s+|\\s+$";"") | gsub("[\\r\\n\\t]+";" "))"]
+     | (.[]), "COUNT \(length)"'''
+# grok (updates.jsonl): every text user_message_chunk but <system-reminder> injections; a message sent while grok
+# worked is unwrapped from its <user_query>. An image chunk is not a message: its text chunk carries "[Image #n]".
+GROK_USER = r'''[inputs | select(.params.update.sessionUpdate=="user_message_chunk") | (.timestamp|todate) as $ts | .params.update
+     | (.content | if type=="string" then ((fromjson? | objects) // {type: "text", text: .}) else . end) as $c
+     | select(($c|type)=="object" and $c.type=="text") | ($c.text|tostring) as $t
+     | select($t|test("^\\s*<system-reminder>")|not)
+     | "\($ts[0:19])  \((($t|capture("^The user sent a message while you were working:\\s*<user_query>\\n?(?<q>[\\s\\S]*?)\\n?</user_query>\\s*If the user is asking") // {}) | .q // $t) | gsub("[\\r\\n\\t]+";" "))"]
+     | (.[]), "COUNT \(length)"'''
+USER_FILTERS = {"claude-code": CLAUDE_USER, "codex": CODEX_USER, "agy": AGY_USER, "grok": GROK_USER}
+AGY_REQUEST = re.compile(r"^<USER_REQUEST>\n?([\s\S]*?)\n?</USER_REQUEST>\n<ADDITIONAL_METADATA>")
+AGY_EVENTS = {"SYSTEM_MESSAGE", "CHECKPOINT", "ERROR_MESSAGE"}  # hooks, reminders, task and other-session messages, compaction
+GROK_QUERY = re.compile(r"^The user sent a message while you were working:\s*<user_query>\n?([\s\S]*?)\n?</user_query>\s*If the user is asking")
 CALL_TYPES = {"function_call", "custom_tool_call", "local_shell_call"}
-TARGET_KEYS = "command file_path path pattern url description query skill prompt code message brief text name".split()
+TARGET_KEYS = ("command file_path path pattern url description query skill prompt code message brief text name "
+               "target_file target_directory CommandLine Path AbsolutePath TargetFile Prompt Url Message Subagents").split()
 KEEP_WHOLE = {"Agent", "Task", "SendMessage", "AskUserQuestion", "Workflow"}
 SLICE_BYTES = 256 * 1024
 
@@ -97,6 +123,16 @@ def load(log):
              and isinstance(r.get("message"), dict) for r in rows):
         cli = "claude-code"
         sid = next((r["sessionId"] for r in rows if r.get("sessionId")), log.stem)
+    elif any(r.get("type") in {"USER_INPUT", "PLANNER_RESPONSE"} and "step_index" in r for r in rows):
+        cli = "agy"  # brain/<conversation-id>/.system_generated/logs/transcript_full.jsonl
+        sid = log.parents[2].name if log.parent.name == "logs" and len(log.parents) > 2 else log.stem
+        rows = [dict(r, timestamp=str(r.get("created_at", ""))) for r in rows]
+    elif any(isinstance(r.get("params"), dict) and isinstance(r["params"].get("update"), dict) for r in rows):
+        cli = "grok"  # one row per session update; the epoch timestamp becomes jq's todate form
+        sid = next((r["params"]["sessionId"] for r in rows if isinstance(r.get("params"), dict) and r["params"].get("sessionId")), log.parent.name)
+        rows = [dict(r["params"]["update"], _ln=r["_ln"], timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(r["timestamp"]))
+                     if isinstance(r.get("timestamp"), (int, float)) else str(r.get("timestamp", "")))
+                for r in rows if isinstance(r.get("params"), dict) and isinstance(r["params"].get("update"), dict)]
     else:
         raise ValueError(f"unsupported CLI: {log}")
     if not re.fullmatch(r"[A-Za-z0-9_-]+", str(sid)):
@@ -104,11 +140,48 @@ def load(log):
     return data, rows, cli, str(sid)[:8], hashlib.sha256(raw).hexdigest()
 
 
+def grok_result(row):
+    """A grok tool result: the text the model saw plus rawOutput's small fields (type, exit_code, is_error).
+    rawOutput's byte arrays, prompt copies and base64 images stay out unless the update has no other content."""
+    raw = row.get("rawOutput")
+    text = lambda v: bytes(v).decode("utf-8", "replace") if isinstance(v, list) and v and all(
+        isinstance(b, int) and 0 <= b < 256 for b in v) else v  # grok stores command output as byte values
+    # shortcut: strings over 300 characters count as bulk (output_for_prompt duplicates content); raise it if an error hides.
+    meta = {k: v for k, v in raw.items() if isinstance(v, (bool, int, float)) or isinstance(v, str) and len(v) <= 300} if isinstance(raw, dict) else {}
+    inner = [b.get("content") if b.get("type") == "content" else b for b in row.get("content") or [] if isinstance(b, dict)]
+    content = ["[image]" if isinstance(b, dict) and b.get("type") == "image" else b for b in inner]
+    fallback = {k: text(v) for k, v in raw.items()} if isinstance(raw, dict) else raw
+    return {**meta, "status": row.get("status"), "content": content or fallback or ""}
+
+
 def tool_calls(rows, cli):
     calls, results = [], {}
+    pending = []  # agy: ids of the last response's calls, answered in order by the GENERIC rows right after it
     for row in rows:
         timestamp = row.get("timestamp", "")
-        if cli == "claude-code":
+        if cli == "agy":
+            if row.get("type") == "GENERIC" and pending:
+                status = row.get("status")
+                results[pending.pop(0)] = [{"status": status, **({"is_error": True} if status in {"ERROR", "INVALID"} else {}),
+                                            "content": row.get("content") or ""}]
+                continue
+            pending = []
+            for k, call in enumerate(row.get("tool_calls") or []):
+                name, args = call.get("name", "tool_call"), call.get("args", {})
+                if name == "call_mcp_tool" and isinstance(args, dict) and args.get("ToolName"):
+                    name, args = f"mcp__{args.get('ServerName')}__{args['ToolName']}", args.get("Arguments", {})
+                calls.append((timestamp, name, f"{row['_ln']}.{k}", args, row["_ln"]))  # agy calls carry no id
+                pending.append(calls[-1][2])
+        elif cli == "grok":
+            if row.get("sessionUpdate") == "tool_call":
+                name = ((row.get("_meta") or {}).get("x.ai/tool") or {}).get("name") or row.get("title") or "tool_call"
+                args = row.get("rawInput") or {}
+                if name == "use_tool" and isinstance(args, dict) and args.get("tool_name"):
+                    name, args = "mcp__" + str(args["tool_name"]), args.get("tool_input", {})
+                calls.append((timestamp, name, row.get("toolCallId"), args, row["_ln"]))
+            elif row.get("sessionUpdate") == "tool_call_update" and row.get("status") in {"completed", "failed"}:
+                results.setdefault(row.get("toolCallId"), []).append(grok_result(row))
+        elif cli == "claude-code":
             for block in blocks(row):
                 kind = block.get("type", "")
                 if row.get("type") == "assistant" and kind in {"tool_use", "server_tool_use"}:
@@ -174,12 +247,15 @@ def call_text(call, results):
     return lines + [""]
 
 
-MUTATING = {"Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch", "Artifact"}
+MUTATING = {"Edit", "Write", "MultiEdit", "NotebookEdit", "apply_patch", "Artifact",
+            "write_file", "edit_file", "write_to_file", "replace_file_content", "multi_replace_file_content",  # agy
+            "search_replace", "write"}  # grok
 DELEGATING = {"Agent", "Task", "Workflow", "mcp__tmux-agent__assign", "mcp__tmux-agent__tell",
-              "spawn_agent", "send_message", "followup_task"}
-SHELL = {"Bash", "exec", "exec_command", "shell", "local_shell_call", "PowerShell",
+              "spawn_agent", "send_message", "followup_task", "invoke_subagent", "spawn_subagent"}
+SHELL = {"Bash", "exec", "exec_command", "shell", "local_shell_call", "PowerShell", "run_command", "run_terminal_command",
          "mcp__plugin_context-mode_context-mode__ctx_execute", "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
-         "mcp__plugin_context-mode_context-mode__ctx_execute_file"}
+         "mcp__plugin_context-mode_context-mode__ctx_execute_file", "mcp__context-mode__ctx_execute",
+         "mcp__context-mode__ctx_batch_execute", "mcp__context-mode__ctx_execute_file"}
 # An MCP or control tool whose name has a verb that writes or acts: a state pointer (whole tokens, not substrings).
 STATE_VERBS = set("write create update delete remove publish send post set push deploy assign switch reload stop tell trash "
                   "label place close transition edit upload batch execute rename append patch merge move copy insert replace "
@@ -204,6 +280,8 @@ NOT_HUMAN = {
     "claude-code": re.compile(r"^\s*<(?!pasted_content|command-|!-- attach|!-- reply)|^Base directory for this skill|^Stop hook feedback"
                               r"|^This session is being continued|^Another Claude session sent a message|^The .+ plugin sent a message"),
     "codex": re.compile(r"^\s*(# AGENTS\.md instructions|<(?!image)[a-z_]+[ >])"),
+    "agy": re.compile(r"(?!)"),  # user.txt keeps every USER_INPUT; the dropped rows are the AGY_EVENTS types
+    "grok": re.compile(r"^\s*<system-reminder>"),
 }
 
 
@@ -219,6 +297,28 @@ def turn_start(row, cli):
     """Text of a user-side row that is not a tool result: a prompt, or an event (notice, hook, summary)."""
     txt = lambda items, img="image": " ".join(b.get("text", "") if b.get("type") in {"text", "input_text"} else "[image]"
                                               for b in items if isinstance(b, dict) and b.get("type") in {"text", "input_text", img})
+    if cli == "agy":
+        content = str(row.get("content") or "")
+        if row.get("type") == "USER_INPUT":
+            match = AGY_REQUEST.match(content)
+            return (match[1] if match else content) + "".join(
+                " [image]" if str(m.get("mime_type", "")).startswith("image/") else " [media]" for m in row.get("media") or [] if isinstance(m, dict))
+        return content if row.get("type") in AGY_EVENTS else None
+    if cli == "grok":
+        if row.get("sessionUpdate") != "user_message_chunk":
+            return None
+        content = row.get("content")
+        if isinstance(content, str):
+            try:
+                decoded = json.loads(content)
+            except ValueError:
+                decoded = None
+            content = decoded if isinstance(decoded, dict) else {"type": "text", "text": content}
+        if not isinstance(content, dict) or content.get("type") != "text":
+            return None
+        text = str(content.get("text", ""))
+        match = GROK_QUERY.match(text)
+        return match[1] if match else text
     if row.get("type") == "attachment" and row.get("attachment", {}).get("type") == "queued_command":
         prompt = row["attachment"].get("prompt", "")  # a prompt sent while the agent worked opens a turn too
         return prompt if isinstance(prompt, str) else txt(prompt)
@@ -239,6 +339,11 @@ def turn_start(row, cli):
 
 def said(row, cli):
     """The agent's own words in a row: what the turn stop ends on."""
+    if cli == "agy":
+        return str(row.get("content") or "") if row.get("type") == "PLANNER_RESPONSE" else ""
+    if cli == "grok":
+        content = row.get("content")
+        return str(content.get("text", "")) if row.get("sessionUpdate") == "agent_message_chunk" and isinstance(content, dict) else ""
     if cli == "codex":
         p = row.get("payload", {})
         if p.get("type") == "message" and p.get("role") == "assistant":
@@ -257,7 +362,7 @@ def footprints(rows, cli, calls, results, where, log_sha):
     for row in rows:
         prompt = turn_start(row, cli)
         human = (prompt is not None and not row.get("isMeta") and row.get("origin", {}).get("kind") != "plugin"
-                 and not NOT_HUMAN[cli].search(prompt))
+                 and row.get("type") not in AGY_EVENTS and not NOT_HUMAN[cli].search(prompt))
         if human:
             cur = dict(ln=row["_ln"], ts=row.get("timestamp", "")[:19], prompt=one(prompt, 160), last="", marks=[], first=None, end=None)
             turns.append(cur)
@@ -280,9 +385,12 @@ def footprints(rows, cli, calls, results, where, log_sha):
             cur["first"] = cur["first"] or t
             cur["end"] = t
             args = object_args(value)
-            raw = args.get("command", args.get("cmd", args.get("code", args.get("commands", ""))))
+            raw = args.get("command", args.get("cmd", args.get("code", args.get("commands", args.get("CommandLine", "")))))
             cmd = " ; ".join(map(str, raw)) if isinstance(raw, list) else str(raw)  # Codex local_shell_call: argv list
             failed = any(is_error(r) for r in results.get(call_id, []))
+            if name == "ask_question":  # agy: the answer is the call's result, as Claude's is toolUseResult.answers
+                cur["marks"].append(f"  answer L{call[4]} " + one(" || ".join(
+                    re.sub(r"^Created At:[^\n]*\n(Completed At:[^\n]*\n)?", "", str(r.get("content", ""))) for r in results.get(call_id, [])), 300))
             kind = ("fail" if failed else "edit" if name in MUTATING else "state" if STATE_COMMAND.search(cmd)
                     or (name.startswith("mcp__") and name not in SHELL and state_tool(name))
                     else "delegate" if name in DELEGATING
@@ -376,14 +484,16 @@ def build(logs, out, subagents=False):
     return destinations
 
 
-PAGE_BYTES = 16 * 1024  # Claude Code keeps a tool result whole only up to ~30 KB, then shows a 2 KB preview.
+# agy run_command cuts output over ~9.9 KB in the middle (and its PTY writes \r\n); Codex caps a tool output at
+# 6000 tokens; Claude Code keeps ~30 KB. A page plus its stamp stays under all three.
+PAGE_BYTES = 8 * 1024
 
 
 def pages_of(text):  # claim-evidence-gate.sh read_whole and call_whole repeat this paging; change all three
     """Split at line boundaries into pages of at most PAGE_BYTES; a longer line (a pasted message)
-    is cut into 4,000-character pieces first, so no page outgrows the transcript's limit."""
+    is cut into 2,000-character pieces first, so no page outgrows the smallest tool-output limit."""
     pages, page, size = [], [], 0
-    for line in (piece for whole in text.splitlines() for piece in (whole[i:i + 4000] for i in range(0, max(len(whole), 1), 4000))):
+    for line in (piece for whole in text.splitlines() for piece in (whole[i:i + 2000] for i in range(0, max(len(whole), 1), 2000))):
         n = len(line.encode("utf-8")) + 1
         if page and size + n > PAGE_BYTES:
             pages.append(page)
@@ -466,7 +576,7 @@ def verify(child_log, session):
     texts = []
     for line in data.splitlines():
         try:
-            texts.extend(strings_in(json.loads(line)))
+            texts.extend(s.replace("\r\n", "\n") for s in strings_in(json.loads(line)))  # agy's PTY writes \r\n
         except ValueError:
             continue  # a live log's last row can be partial
     if not texts:
@@ -488,12 +598,12 @@ def self_test():
         root = Path(tmp)
         paged = root / "paged.txt"
         paged.write_text("".join(f"{i:05d} " + "y" * 100 + "\n" for i in range(400)), encoding="utf-8")
-        one, last = read_page(paged, 1).splitlines(), read_page(paged, 3).splitlines()
-        assert one[-1].startswith(f"READ {paged.resolve()} page 1/3 lines 1-") and " body=" in one[-1] and len("\n".join(one).encode()) < 30000
+        one, last = read_page(paged, 1).splitlines(), read_page(paged, 6).splitlines()
+        assert one[-1].startswith(f"READ {paged.resolve()} page 1/6 lines 1-") and " body=" in one[-1] and len("\n".join(one).encode()) < 9890
         assert last[-1].split(" lines ")[1].split("-")[1].startswith("400 ")
-        assert sum(len(read_page(paged, n).splitlines()) - 1 for n in (1, 2, 3)) == 400
+        assert sum(len(read_page(paged, n).splitlines()) - 1 for n in range(1, 7)) == 400
         paged.write_text("短" * 20000 + "\nend\n", encoding="utf-8")  # one 60 KB pasted line
-        assert all(len(read_page(paged, n).encode()) < 30000 for n in range(1, 6)) and "page 5/5" in read_page(paged, 5)
+        assert all(len(read_page(paged, n).encode()) < 9890 for n in range(1, 11)) and "page 10/10" in read_page(paged, 10)
 
         def fixture(path, rows):
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -639,13 +749,69 @@ def self_test():
             (root / "large" / name).write_text(content, encoding="utf-8")
         total = int(read_call(root / "large", 1).splitlines()[-1].split(" page 1/")[1].split()[0])
         big = [read_call(root / "large", 1, k) for k in range(1, total + 1)]
-        assert total > 1 and all(len(page.encode("utf-8")) < 30 * 1024 for page in big)
+        assert total > 1 and all(len(page.encode("utf-8")) < 9890 for page in big)
         for bad in (0, 4):
             try:
                 read_call(dirs[2], bad)
             except ValueError:
                 continue
             raise AssertionError(f"T{bad} accepted")
+        # agy: calls carry no id; the GENERIC rows right after a response answer its calls in order.
+        def agy(kind, **extra):
+            return {"type": kind, "step_index": 0, "status": "DONE", "created_at": "2026-11-27T01:00:00Z", **extra}
+
+        def request(text, **extra):  # a skill body in the metadata repeats the closing tag, as real logs do
+            return agy("USER_INPUT", content=f"<USER_REQUEST>\n{text}\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\n"
+                                             "<SKILL>\n</USER_REQUEST>\n</SKILL>\n</ADDITIONAL_METADATA>", **extra)
+        ag = fixture(root / "brain/aaaaaaaa-agy/.system_generated/logs/transcript_full.jsonl", [
+            request("fix </USER_REQUEST> it"),
+            agy("PLANNER_RESPONSE", tool_calls=[{"name": "run_command", "args": {"CommandLine": "git push origin main"}},
+                                                 {"name": "view_file", "args": {"AbsolutePath": "/a"}},
+                                                 {"name": "ask_question", "args": {"questions": [{"question": "Which?"}]}}]),
+            agy("GENERIC", content="Created At: x\nCompleted At: y\nCommand exited with code 1.\n\nCommand output:\nrejected"),
+            agy("GENERIC", status="ERROR", content="Created At: x\nCompleted At: y\nEncountered error in step execution: file does not exist"),
+            agy("GENERIC", content="Created At: x\nCompleted At: y\nA1: B, typed note"),
+            agy("SYSTEM_MESSAGE", content="The following is a <SYSTEM_MESSAGE> not actually sent by the user.\n<SYSTEM_MESSAGE>\nStop hook\n</SYSTEM_MESSAGE>"),
+            request("Error: also this", media=[{"mime_type": "image/png", "uri": "/x.png"}]),
+            agy("PLANNER_RESPONSE", content="Pushed.", tool_calls=[{"name": "write_to_file", "args": {"TargetFile": "/b"}}])])
+        _, af, am = prepare(ag, Path("agy"))
+        assert load(ag)[2:4] == ("agy", "aaaaaaaa") and am["count"] == 3 and am["tools"] == 4
+        assert af["user.txt"] == ("2026-11-27T01:00:00  fix </USER_REQUEST> it\n2026-11-27T01:00:00  Q: Which?… → A1: B, typed note\n"
+                                  "2026-11-27T01:00:00  Error: also this [image]\nCOUNT 3\n")
+        af = af["footprints.txt"]
+        assert af.endswith("TURNS 2\n") and " fail     run_command git push origin main" in af and " fail     view_file /a" in af
+        assert "  answer L2 A1: B, typed note" in af and "  event L6 The following is a <SYSTEM_MESSAGE>" in af
+        assert " edit     write_to_file /b [no result]" in af and "said:  Pushed." in af and "asked: Error: also this [image]" in af
+        # grok: an image chunk follows its "[Image #n]" text; reminders are injections; a mid-work message is unwrapped.
+        def grok(kind, **update):
+            return {"method": "_x.ai/session/update", "timestamp": 1794555130,
+                    "params": {"sessionId": "bbbbbbbb-grok", "update": dict(sessionUpdate=kind, **update)}}
+        said_ = lambda t, **meta: grok("user_message_chunk", content={"type": "text", "text": t}, _meta=meta)
+        gk = fixture(root / "sessions/x/bbbbbbbb-grok/updates.jsonl", [
+            grok("hook_execution", event_name="user_prompt_submit", runs=[]),
+            said_("[Image #1] look", promptIndex=0, imageNumbers=[1]),
+            grok("user_message_chunk", content={"type": "image", "data": "QUJDREVG", "mimeType": "image/png"}, _meta={}),
+            grok("tool_call", toolCallId="c1", title="run_terminal_command", rawInput={"command": "git push"}),
+            grok("tool_call_update", toolCallId="c1", status="completed", content=[{"type": "content", "content": {"type": "text", "text": "rejected"}}],
+                 rawOutput={"type": "Bash", "exit_code": 1, "output": list(b"rejected"), "output_for_prompt": "rejected" * 50}),
+            grok("tool_call", toolCallId="c2", title="use_tool", rawInput={"tool_name": "github__push_files", "tool_input": {"repo": "r"}}),
+            grok("tool_call_update", toolCallId="c2", status="failed", rawOutput={"type": "MCP", "is_error": True, "output": {"Error": "denied"}}),
+            grok("tool_call", toolCallId="c3", title="search_replace", rawInput={"file_path": "/a", "old_string": "x", "new_string": "y"}),
+            grok("tool_call_update", toolCallId="c3", status="completed", content=[{"type": "diff", "path": "/a", "oldText": "x", "newText": "y"}]),
+            said_("The user sent a message while you were working:\n<user_query>\nstop </user_query> now\n</user_query>\n"
+                  "If the user is asking for a response, address the user first.", interjection=True),
+            said_("<system-reminder>\nScheduled task 1 fired\n</system-reminder>", promptIndex=1),
+            grok("agent_message_chunk", content={"type": "text", "text": "Stopped."}),
+            grok("user_message_chunk", content=json.dumps({"type": "text", "text": "string form"}))])
+        _, gf, gm = prepare(gk, Path("grok"))
+        assert load(gk)[2:4] == ("grok", "bbbbbbbb") and gm["count"] == 3 and gm["tools"] == 3
+        assert gf["user.txt"] == ("2026-11-13T07:32:10  [Image #1] look\n2026-11-13T07:32:10  stop </user_query> now\n"
+                                  "2026-11-13T07:32:10  string form\nCOUNT 3\n")
+        gt = gf["footprints.txt"]
+        assert gt.endswith("TURNS 3\n") and " fail     run_terminal_command git push" in gt and " fail     mcp__github__push_files" in gt
+        assert " edit     search_replace /a" in gt and "said:  Stopped." in gt and "  event L11 <system-reminder>" in gt
+        assert "rejected" in gf["slices/S01.txt"] and "denied" in gf["slices/S01.txt"] and '"exit_code": 1' in gf["slices/S01.txt"]
+        assert not any(s in body for body in gf.values() for s in ("114, 101", "QUJDREVG", "rejectedrejected"))
         unknown = fixture(root / "unknown.jsonl", [{"role": "user", "content": "other CLI"}])
         for inputs in [[plain, unknown], [main, unknown]]:
             try:
@@ -663,6 +829,8 @@ def self_test():
         cut = pages[1].split("\n")
         cut = fixture(root / "cut.jsonl", [{"text": pages[0]}, {"text": "\n".join(cut[:1] + ["…cut…"] + cut[-1:])}])
         assert verify(cut, dirs[0])[:2] == (1, 2) and verify(cut, dirs[0])[2][1].startswith("MISSING footprints.txt")
+        crlf = fixture(root / "crlf.jsonl", [{"output": page.replace("\n", "\r\n")} for page in pages])  # agy's PTY output
+        assert verify(crlf, dirs[0])[:2] == (2, 2)
         for bad in (fixture(root / "empty.jsonl", []), root / "missing.jsonl"):
             try:
                 verify(bad, dirs[0])
