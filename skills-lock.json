@@ -52,7 +52,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/codex-cu/SKILL.md",
-      "skillFolderHash": "e97bafb7f968a6f832b725dc9e744df236824789",
+      "skillFolderHash": "16bc60f69ab3dd3a9ca06108fe29e63a26e37e2a",
       "installedAt": "2026-10-08T17:59:00.705Z",
       "updatedAt": "2026-10-31T09:40:00.000Z"
     },
@@ -254,7 +254,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-decision-tree/SKILL.md",
-      "skillFolderHash": "bcb80e89e3f2f388983fa59ace24dcf5c810e6b8",
+      "skillFolderHash": "2df96b8a452b4a674b8507658c437f4f6f0d2049",
       "installedAt": "2026-10-23T00:00:00.000Z",
       "updatedAt": "2026-11-26T18:40:00.000Z"
     },
@@ -263,7 +263,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-grok-bot-app/SKILL.md",
-      "skillFolderHash": "0d21d5c1001388c800b051d7d02b3df39a33ed87",
+      "skillFolderHash": "481035543259e70e77b564f17a9f14b60d66a33a",
       "installedAt": "2026-09-04T08:30:33.000Z",
       "updatedAt": "2026-10-30T11:06:04.931Z"
     },
