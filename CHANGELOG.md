@@ -1,5 +1,12 @@
 # Changelog
 
+## antigravity-statusline: a window that has not started shows its full length again
+
+- Owner 2026-11-28 「然後 agy status line 我說要修正的你們都沒做 有些顯示錯誤」.
+- agy 1.5.18 sends `reset_time: 1970-01-01T00:00:00Z` for a quota window that has not started. The script copied it, so the line showed `3p: 0%` with no reset time (11-10 showed `3p: 0% (5h)`). Epoch 0 now maps to the full window (5h or 7d); a past or unparsable reset maps to none.
+- Header comment: quota goes to `model_scoped` windows, not `rate_limits`.
+- Still open: the 2026-11-03 `Statusline error: command failed: signal: killed` on remote-44 (cause not confirmed), and the 2026-11-24 ask to follow model and CLI changes, which ended with no commit.
+
 ## kernel 4.57.0: restate the goal first; unfetched clones; deferred trials name a reminder
 
 - Owner 2026-11-28 「所以比起加字…改既有句子，讓規則真的會被觸發」「當然 這也是優化 增強執行力、穩定度、強化現有能力」.

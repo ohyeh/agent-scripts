@@ -4,7 +4,7 @@
 # Inherits the claude-hud rendering engine while maintaining complete isolation
 # from Claude Code and Cursor CLI statusline configurations.
 #
-# - Maps Antigravity's real Google AI Pro quota (5h / weekly) to rate_limits
+# - Maps Antigravity's real Google AI Pro quota (5h / weekly) to model_scoped windows
 # - Suppresses foreign Cursor plan snapshot usage
 # - Suppresses foreign Claude-only environment counts (CLAUDE.md / hooks count)
 # - Displays live Git repo/branch state and Context Window usage bar
@@ -68,7 +68,17 @@ try:
 
         used = round((1 - float(entry["remaining_fraction"])) * 100)
         reset_time = entry.get("reset_time")
-        if not reset_time and "reset_in_seconds" in entry:
+        # agy sends 1970-01-01 for a window that has not started: show the full window length.
+        try:
+            ts = datetime.fromisoformat(reset_time.replace("Z", "+00:00")).timestamp() if reset_time else None
+        except (ValueError, AttributeError, TypeError):
+            ts = None
+        if ts is not None and ts <= 0:
+            span = 18000 if k.endswith("-5h") else 604800 if k.endswith("-weekly") else 0
+            reset_time = datetime.fromtimestamp(now + span, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if span else None
+        elif ts is None or ts <= now:
+            reset_time = None
+        if not reset_time and entry.get("reset_in_seconds"):
             reset_time = datetime.fromtimestamp(now + entry["reset_in_seconds"], tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         scoped.append({"display_name": dname, "utilization": used, "resets_at": reset_time})
 
