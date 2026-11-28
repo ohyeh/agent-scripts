@@ -181,7 +181,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/session-handoff/SKILL.md",
-      "skillFolderHash": "deacfc8f74c9fa96d76a4e220bc82fc6bf31d480",
+      "skillFolderHash": "341f081f1f7f187d278ef4eaf48bf5ecdab26435",
       "installedAt": "2026-07-18T20:48:39.017Z",
       "updatedAt": "2026-11-27T05:30:00.000Z"
     },
@@ -245,7 +245,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/unknowns-discovery/SKILL.md",
-      "skillFolderHash": "cd4604a9688d4edea0dcafec8edafa0b8dac6f46",
+      "skillFolderHash": "a91f4b1161d90b0cbc46ae5fb4a535c5041169d5",
       "installedAt": "2026-07-18T20:48:21.472Z",
       "updatedAt": "2026-11-26T18:40:00.000Z"
     },
