@@ -57,10 +57,10 @@
   at the stated effort.
 - Do not cross tier rows to save cost.
 - A model may occupy several tiers at different efforts; `medium+` means medium or above.
-- Best, preferred for plan/verdict: fable low/medium,
-  `gemini-4-argon-medium`, then `gemini-4-neon-low`/`-medium`, or later.
-  Argon has its own weekly quota, separate from the Gemini group that Neon, Hydrogen and Flash
-  share. Use Argon medium first. Use Neon when Argon is used up or the owner names it.
+- Best, preferred for plan, verdict and review: fable low/medium, then `gemini-4-neon-medium`/
+  `-high` or `gemini-4-carbon-medium`/`-high` (on par), or later. A routine agy worker uses
+  exec-tier Hydrogen (`agy-flash`), not Neon or Carbon. Neon, Hydrogen and, per the docs, Carbon
+  share one Gemini quota (Carbon not yet verified live).
 - Better, plan/verdict: opus high+ or `gpt-6.1-sol` medium+.
 - Exec: opus high, sonnet high+, Sol medium+, Luna xhigh/max,
   `gemini-4-hydrogen-high` or later, or Cursor `grok-4.7-high` or later.
@@ -158,8 +158,9 @@
   check the delta for one round. Review a foundation design (format, API, state) as plan text.
 - An advisor seat of `none` also skips the advisor confirmation before an ecosystem `main` push.
 - L1: use sonnet high (`pr-review-toolkit:code-reviewer` for code),
-  `gemini-4-hydrogen-high` or later, Cursor `grok-4.7-high` or later,
-  or Luna xhigh/max on request; cap at two rounds.
+  Cursor `grok-4.7-high` or later, or Luna xhigh/max on request. For an agy review seat,
+  use Neon or Carbon at a best-tier effort listed in §1, with current-task approval.
+  Cap L1 at two rounds.
 - Converge each layer before the next; zero L1 blockers passes with L2 off, else admits work to L2.
 - TK, code only: seat `silent-failure-hunter`, `pr-test-analyzer`, `type-design-analyzer`,
   and `comment-analyzer` on sonnet high beside the code reviewer in L1 round 1; cap at one round.

@@ -1,5 +1,46 @@
 # Changelog
 
+## kernel 4.57.0: restate the goal first; unfetched clones; deferred trials name a reminder
+
+- Owner 2026-11-28 「所以比起加字…改既有句子，讓規則真的會被觸發」「當然 這也是優化 增強執行力、穩定度、強化現有能力」.
+- Kernel (both runtime files and kernel-lean): the plan line on state-changing turns first restates the user's goal (W48 prep: the agent built a measurement inventory when the owner wanted friction cases, M3). M4–M6 were question turns, which this line does not cover; W49-14 stays open for them. The absence-claim line adds an unfetched clone (W48 retro §4 counted 123 cards from a stale local clone while GitHub held 148). No new kernel line; 189 lines.
+- `maintenance` §3: a row that waits for a future case names what will remind the agent; with no reminder, run an authorized trial now if the case can be reproduced, else record the blocker and the next review (W48-11, W48-21, W48-23 were all "try at the next same-type task" and none ran).
+- Dropped: a gate that blocks a negative claim built on truncated output. Both seats: the claim gate's negative class reached at most 2/7 precision (W49-3).
+- Seats: sol and neon SIGN on the integrated diff; advisor agreed with the content.
+- Not verified: a live session after deploy restates the goal before acting.
+
+## model-dispatch: Argon out; Neon or Carbon for thinking and review; agy-flash for routine workers
+
+- Owner 2026-11-28 「之後別用 argon 了可以刪掉 改用 neon 官方已經說要下架ＡＲＧＯＮ了 後續只有 carbon & neon」「Carbon…跟 neon 不相上下」「要用 neon or carbon 思考類、review 類 平時 ｗｏｒｋｅｒ agy flash 就可以了」.
+- Best tier: fable, then `gemini-4-neon-medium`/`-high` or `gemini-4-carbon-medium`/`-high` (on par). A routine agy worker uses exec-tier Hydrogen (`agy-flash`). L1's agy review seat is Neon or Carbon, not Hydrogen. The low efforts are dropped: on the Artificial Analysis index Neon low scored 44 and Carbon low 54, against Neon medium 55.
+- Evidence: Argon leaves Antigravity 2026-11-30 (antigravity.google/docs/models); `agy models` on local-mbp14 lists neon and carbon at medium and high. Research notes are in the W48 run dir (`carbon-vs-neon.md`, gitignored).
+- `agy-argon` profiles removed on local-mbp14, remote-44 and macmini (backed up first). The skill-router dispatch keyword list names `carbon` instead of `argon`.
+- Seats: sol and neon SIGN (round 3 for the L1 line).
+- Not verified: whether Carbon draws on the same live Gemini quota as Neon.
+
+## session-handoff: 前情提要 sends a first summary, then the full catch-up; batched live checks; quick-say 0.8.11
+
+- Owner 2026-11-28 「然後 handoff 還是好久」, then on option b: 「b 先回 a 持續處理…理論上可以開始討論後續做啥 銜接啥」.
+- Timing behind it: in one measured run, the first reply with content came after 1207.8 s, of which 938.8 s was spent waiting for the child. Script steps took 0–4 s, and model time was 84% of 26 timed runs (`handoff-latency.md`, W48 run dir).
+- RESUME full catch-up: the main session reads only Current State Summary, Immediate Next Steps and Blockers/Open Questions, and sends a first summary labeled `handoff only, unverified` before it calls or waits on the child. In Claude Code the child runs with `run_in_background: true`, so the user can discuss next steps. Nothing is dispatched, written or claimed done before the full reply. The full reply says which next steps the evidence confirms or changes.
+- R5 runs the checkpoint check and the due-item checks of R6 in one batch, each with a short limit, and keeps each check's own result; a timeout is `unverified (timeout)`.
+- quick-say 0.8.11: key 5 asks for the same order.
+- Seats: sol and neon SIGN.
+- Not verified: a live 前情提要 run on each CLI, and whether agy and grok show the first summary before the child returns.
+
+## unknowns-discovery: assumption check in the lens pass
+
+- Owner 2026-11-28 「腦力激盪加一步 處理」. Source card: `ai-ideas-different-assumptions` (both W48 seats: try once).
+- §2.1 lists up to three readings of the problem, each with an approach, the assumption it needs and a test that could rule it out. When two approaches share an untested assumption that could change the recommendation, it changes a constraint or finds a test that tells them apart (sol's text).
+- Trial: the 11-20 us-options-terrain prompt 「怎麼規劃下一版 市場一直變」 was replayed with and without the step. With it, the self-check found two approaches judged by the same yardstick and redid one. Both runs ended with the same recommendation, so the evidence is weak (n = 1 each).
+
+## retro-agenda §4: cards come from origin/main; every adopt or trial verdict gets a destination
+
+- Owner 2026-11-28 「retro 跑了 可是！ 概念卡吸收、轉化忘了做了」.
+- W48 §4 read an unpulled local clone and missed 25 cards that were already on GitHub. A card judged "try once" got no backlog row.
+- Step 1 fetches and lists cards from `origin/main`; a failed fetch is `UNCONFIRMED` and never falls back to local files. Step 3: in the same round, each adopted or try-once card becomes one destination (exact diff, backlog row, or a trial run this round).
+- Seats: sol and argon SIGN; advisor agreed.
+
 ## session-handoff: 前情提要 runs in one subagent on every CLI
 
 - Owner 2026-11-27: 「我目的很單純 main session thread 保持乾淨、思緒清晰、不忘事」「那就推進啊 讓大家都可以正常的 handoff-resume 啊」「不是只有你正常」.

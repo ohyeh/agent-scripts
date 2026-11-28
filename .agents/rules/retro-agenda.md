@@ -46,9 +46,9 @@
 
 ### 4. 概念卡吸收
 
-- 取出 `~/github/agent_automation/concept-cards/` 中 `收錄：` 落在本輪窗口的卡片。
+- 先 `git -C ~/github/agent_automation fetch`，再從 `origin/main` 的 `concept-cards/` 取出 `收錄：` 落在本輪窗口的卡片；本機 working tree 不算清單來源。fetch 失敗時附錯誤輸出，清單標 `UNCONFIRMED`，不得用本機檔案補位。
 - 先派 `agy-flash`（sonnet 層）分批逐張讀全文，分類為 A 可升級、B 已有（附 `file:line`）、C 不相關；A+B+C 必須等於清單總數。
-- 再派兩席獨立討論者讀全部 A 類原文與目標檔，並抽核 B 與 C 分類，逐張給定判定（採用、先試一次、已有、不採用）與核准路徑。
+- 再派兩席獨立討論者讀全部 A 類原文與目標檔，並抽核 B 與 C 分類，逐張給定判定（採用、先試一次、已有、不採用）與核准路徑。同輪把每張採用或先試一次的卡轉成一個去向：exact diff、`maintenance.md` §3 backlog 列，或本輪跑完的試驗；沒有去向不算完成。
 
 ### 5. 更深的問題（每週固定）
 

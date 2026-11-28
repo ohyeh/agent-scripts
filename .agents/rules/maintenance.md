@@ -71,6 +71,9 @@
 - Set YAML frontmatter `kind: proposal` and use this body format:
   `YYYY-MM-DD | friction (evidence) | file to change | acceptance + one negative case`.
 - Name the target file and a case that fails before the fix; otherwise the row is invalid.
+  For a trial deferred to a future case, name who or what will remind the agent when it occurs.
+  Without a reminder, run an authorized trial now if the case can be reproduced; otherwise
+  record the blocker and name the next review that will check it.
 - Retro §6.5 collects all hosts' pending files over SSH, moves them to `done/`, and drains
   them into `next-week-backlog.md`.
 - Close a row as a gate, rule or skill fix with a commit sha, or as dropped with user approval

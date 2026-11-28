@@ -11,7 +11,7 @@ gemini-web	skill	gemini-web
 haiku[^。]{0,10}(research|研究|大軍)	recipe	haiku-research-round
 (多方|各模型|多模型|第二模型|獨立)[^。]{0,8}(review|審|看)|consensus-gate	recipe	consensus-gate
 (轉給|轉告|交辦|通知)[^。]{0,16}(\bnova\b|grok ?bot)|(\bnova\b|grok ?bot)[^。]{0,12}確認	skill	using-grok-bot-app
-(派|讓|拉|叫|出動)[^。]{0,10}\b(sol|agy|deepseek|argon|neon|flash|haiku|sonnet|luna)\b|^[[:space:]]*(sol|agy|deepseek|haiku|sonnet|argon|neon)\b([[:space:]]*(\+[[:space:]]*)?(sol|agy|deepseek|argon|neon|flash|haiku|sonnet|luna)\b)*[[:space:]]*(幫我|請|先)?[[:space:]]*(跑|審查?[[:space:]]*($|這|那|此|一下|一輪|PR\b|diff\b)|review\b|reivew\b|讀|一起|確認)	skill	delegation-templates
+(派|讓|拉|叫|出動)[^。]{0,10}\b(sol|agy|deepseek|carbon|neon|flash|haiku|sonnet|luna)\b|^[[:space:]]*(sol|agy|deepseek|haiku|sonnet|carbon|neon)\b([[:space:]]*(\+[[:space:]]*)?(sol|agy|deepseek|carbon|neon|flash|haiku|sonnet|luna)\b)*[[:space:]]*(幫我|請|先)?[[:space:]]*(跑|審查?[[:space:]]*($|這|那|此|一下|一輪|PR\b|diff\b)|review\b|reivew\b|讀|一起|確認)	skill	delegation-templates
 (讀|填|read|fill|parse)[^。]{0,10}\.?pdf\b	skill	pdf
 domain model|領域模型|glossary|術語表|名詞定義|\badr\b|決策紀錄|context\.md	skill	domain-modeling
 (架構|architecture)[^。]{0,6}(設計|審|評|review|design)	skill	codebase-design

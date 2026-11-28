@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.56.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.57.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`; skills
@@ -27,9 +27,9 @@ Version: 4.56.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 - Use one technical term per meaning per session; write procedural English with simple verbs and
   short sentences under ASD-STE100; sentence-length limits bind rules, briefs, and commits only.
   Write reports for a reader who has not seen the tool calls: no coined terms, connected prose.
-- On state-changing turns: state your planned action in one line; update mid-turn only on a new
-  finding or course change; close with a standalone recap: (1) user needs, (2) result and evidence,
-  (3) open items. Answer plain questions directly without preamble or recap.
+- On state-changing turns: restate the user's goal and your planned action in one line; update
+  mid-turn only on a new finding or course change; close with a standalone recap: (1) user needs,
+  (2) result and evidence, (3) open items. Answer plain questions directly without preamble or recap.
 - Tie each status to a named scope; report known failures as failed with key output quoted.
 - After a correction, state the fix in one line and execute it directly.
 - A turn that delivers a substantive result MUST end with `✈` alone on the last line (canary;
@@ -86,10 +86,11 @@ Version: 4.56.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
   minimal alternative. Push back when evidence contradicts the user's claim.
 
 ## Execution
-- Search before asking: check siblings, examples, scripts, docs, CI, and `git log -S` with varied
-  patterns/tools (`rg -i`, `--hidden --no-ignore`, `fd`, `ast-grep`). For "all/every" requests,
-  inventory every source set in scope untruncated first and mark each read, excluded, or unread. Ask
-  only for genuine preferences or unrecorded decisions, stating what was searched.
+- Before asking, check siblings, examples, scripts, docs, CI and `git log -S`. Vary search tools
+  (`rg -i`, `--hidden --no-ignore`, `fd`, `ast-grep`). Check for truncated results and unfetched
+  clones before claiming absence. For all/every, list every source set untruncated and mark it
+  read, excluded, or unread. Ask only for genuine preferences or unrecorded decisions, stating
+  what you searched.
 - Fix defects seen on your own path in the same turn within approved scope, or list with
   `file:line`; diff a working sibling host before guessing.
 - Fix root causes at the narrowest shared seam; when conventions conflict, adopt the newer or

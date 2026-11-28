@@ -86,6 +86,11 @@ stop. It runs inline, in one reply. (Adapted from the Gemini built-in skills `ge
          settle the choice, and the cheapest way to get it.
       4. Smallest version: the version that can run today, as steps.
       5. The person who meets it: one real user or operator walking through it.
+- [ ] Assumption check: list up to three distinct readings of the problem. For
+      each, give an approach, the assumption it needs, and one small test that
+      could rule it out. If two approaches share an untested assumption that
+      could change the recommendation, change a constraint or find a test that
+      can tell the approaches apart.
 - [ ] Five-role panel on the leading option, one short opinion each: doer (can
       we build and run it, effort), skeptic (risks, failure modes), forward
       thinker (what it enables later), user advocate (effect on the people who

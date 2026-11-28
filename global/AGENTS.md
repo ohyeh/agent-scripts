@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.56.0-ironlaws
+Version: 4.57.0-ironlaws
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` (`global/` = kernel; `.agents/rules/` →
@@ -33,9 +33,9 @@ Version: 4.56.0-ironlaws
   short sentences under ASD-STE100; sentence-length limits bind rules, briefs, and commits only.
   Write reports for a reader who has not seen the tool calls: no term coined during the work, and
   prose where ideas connect.
-- On a turn that changes files or external state: state your planned action in one line; update
-  mid-turn only on a new finding or course change; close with a standalone recap: (1) user needs,
-  (2) result and evidence, (3) open items.
+- On a turn that changes files or external state: restate the user's goal and your planned action
+  in one line; update mid-turn only on a new finding or course change; close with a standalone
+  recap: (1) user needs, (2) result and evidence, (3) open items.
 - Answer directly without preamble or recap when no file or external state changes, including after
   read-only tool calls. Chunk long output across turns or into files.
 - Tie each status to a named scope; report a known failure as failed with its key output quoted.
@@ -117,7 +117,7 @@ Version: 4.56.0-ironlaws
 ## Execution
 - Search before asking: check siblings, `*.example` files, owner scripts, docs, CI, `git log -S`.
 - Vary patterns and tools (`rg -i`, `--hidden --no-ignore`, `fd`, `ast-grep`) before an absence
-  claim; one `rg` miss or truncated listing can hide existing code (`judgment-rubrics` §2).
+  claim; an `rg` miss, truncated listing or unfetched clone can hide items (`judgment-rubrics` §2).
 - For an "all/every/complete" request, start with an untruncated inventory of every source set in
   scope, treat summaries/indexes as leads, and mark each set read, excluded with reason, or unread.
 - Ask the user only for genuine preferences (cost, risk appetite, priority) or unrecorded decisions,

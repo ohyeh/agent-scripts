@@ -32,7 +32,7 @@ export default [
 6. 第 2、3 點每個來源逐項列「讀了」或「沒讀＋原因」。
 紀錄裡有效的做法就照用；要換掉，先附它失敗或不適用這次條件的紀錄；沒有證據就只提唯讀查證，做法先不定。紀錄互相矛盾時，回去讀原始紀錄解決，不要猜，也不要拿 advisor 的推測當答案。
 讀不完（context 快滿）就回報讀到哪、哪些沒讀、下一份要讀哪個，不要叫我選，也不要在讀完前定做法。
-主線保持乾淨：主線只找出交接和 run dir；第 1–6 點交給一個新開的子代理整份讀完，邊讀邊寫進 run dir 的 catchup.md，pack 也放 run dir。主線讀完 catchup.md 全文，用 resume_pack.py --verify 核對子代理每一頁都整頁讀到；沒讀全的頁和必讀 artifact 叫同一個子代理補讀，catchup.md 沒寫到的細節也問它，不要自己猜；第 5 點的現場查核主線自己做，再回覆我。
+主線保持乾淨：主線先找出交接和 run dir，只讀 Current State Summary、Immediate Next Steps、Blockers/Open Questions，先用可見的進度訊息回覆交接記載的停點、下一步和出處、阻礙，各標 handoff only, unverified。送出摘要後，把第 1–6 點交給一個新開的子代理在背景整份讀完（run_in_background），邊讀邊寫進 run dir 的 catchup.md，pack 也放 run dir；它跑的時候我可以先討論下一步。主線讀完 catchup.md 全文，用 resume_pack.py --verify 核對子代理每一頁都整頁讀到；沒讀全的頁和必讀 artifact 叫同一個子代理補讀，catchup.md 沒寫到的細節也問它，不要自己猜。第 5 點的現場查核主線自己做，一次批次跑完，再給六節完整回覆，說明哪些下一步被證據確認或要改。
 講完就停：除了 run dir，不改專案檔；除了這個子代理，不派 worker；不發布、不碰遠端機器。紀錄裡找得到答案的事不准問我。`,
   },
   {
