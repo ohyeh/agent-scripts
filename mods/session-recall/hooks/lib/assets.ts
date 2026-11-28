@@ -169,7 +169,7 @@ export function assetsOf(c: Call): Asset[] {
   if (c.tool === 'Bash') for (const m of text.matchAll(IMAGE_PATH_RE)) if (!typed.includes(m[2] ?? m[3]!) && !typed.includes(mediaPath(m))) add(fileAsset(mediaPath(m), c))
   if (c.replay) return out
   // A `.git` URL is a remote to clone or push to (`git push` prints `To <remote>`), not a page.
-  // A test run prints its fixtures (`tui-smoke.sh` showed a screen of made-up rows): its URLs are not pages it made.
+  // A test run prints its fixtures: its URLs are not pages it made.
   if (c.tool === 'Bash' && isTestRun(String(c.input.command ?? ''))) return out
   // A script that reads a session's transcript or this mod's state prints links from old turns, not ones it made.
   if (c.tool === 'Bash' && readsHistory(String(c.input.command ?? ''))) return out

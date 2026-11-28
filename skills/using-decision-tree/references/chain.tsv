@@ -1,6 +1,6 @@
 # station	next station	artifact the next station takes
 # One row per skill that has a next station in map.md §Flows. The hook skill-chain-nudge.sh prints the row when the skill loads.
-# `none` = the row's loop closes here. Validated by scripts/test-skill-chain-nudge.sh.
+# `none` = the row's loop closes here.
 unknowns-discovery	deep-research (a fact gap nobody in the session holds), prototype (a design question) or wayfinder (too big for one session), else the implementation	the stated defaults
 prototype	the implementation (tdd when the user wants test-first)	the answer to the design question
 tdd	a check executed and quoted, then defect-first-review on the diff when risk warrants	the passing tests and the diff

@@ -1,5 +1,13 @@
 # Changelog
 
+## Ecosystem cleanup: fake-based tests removed in all three repos
+
+- Owner, 2026-11-28: 「我針對的不是只有 TAT 而是體系內這些 ｍｏｄ 跟 skill 衍生的腳本、測試都是」.
+- agent-scripts: every `scripts/test-*`, `scripts/run-layer0-tests.sh`, `mods/*/tests/`, `skills/codex-cu/scripts/test-codex-cu-proxy` and the `using-grok-bot-app` `*.test.*` files are deleted (30 files). `deploy.sh` no longer runs a layer0 test list; `check-rules-invariants.mjs` (reads the real rule files) stays.
+- TAT v0.57.3 deletes its unit, contract and smoke suites (83 files) but `test-version-sync-smoke`. context-mode-local-insight deletes `test/` (5 files).
+- Docs that named a deleted test now point to the real-system check. All three `AGENTS.md` carry §Verification.
+- Real e2e of the 880e983 gate on this host, cheap model: three `agy-flash` assigns allowed, the fourth assign and a Bash `hc run … claude --model haiku` denied (`deny-workers` in `host-load-stats.jsonl`), allowed again after the three were stopped.
+
 ## Real e2e on a cheap model; fake-based tests and the shell tokenizer removed
 
 - Owner, 2026-11-28: 「smoke 只是 fixture， 為啥不刪 浪費人力」「你都知道為何不改 不刪整個相關體系的垃圾腳本、ＳＭＯＫＥ、ＦＩＸＴＵＲＥ乾淨 不改專案規範」「我們追求的真實的 e2e 可以用便宜模型測啊」.

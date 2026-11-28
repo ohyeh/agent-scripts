@@ -188,10 +188,7 @@ enter open · p preview · c copy · r #aN into the prompt · q quit
   The mod checks what it reads: a ref in the list; anything else is refused whole. A request older than 30 s (made
   while the session was not listening) is answered as not done. No answer in 5 s: the TUI says so, and keeps waiting.
 - Without `--sid` the TUI shows the session whose snapshot (`<sid>.json`) changed last.
-- `tests/tui-smoke.sh` runs the real TUI in a detached tmux pane: it draws, sends a row by its ref, and the smoke
-  answers as the mod would; then one refused; one taken and never answered; one it cannot remove; one it cannot
-  write; enter and `c`; then two TUIs on one session, two requests. `open`, `pbcopy` and `qlmanage` are stand-ins
-  there.
+
 
 ## Pointing at a row: `#aN`
 
@@ -260,5 +257,4 @@ During development: `claude --plugin-dir mods/session-recall`.
 
 ```sh
 claude plugin validate mods/session-recall
-mods/session-recall/tests/tui-smoke.sh   # the TUI in tmux
 ```

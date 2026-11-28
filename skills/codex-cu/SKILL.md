@@ -261,9 +261,6 @@ Cursor):
 - A Claude `Elicitation` hook that accepts codex-cu prompts overrides `safe` for
   forwarded apps. Remove such a hook; the policy file is the single source.
 
-`scripts/test-codex-cu-proxy` runs the proxy against a fake child (accept,
-forward, child death, slow client, two-way backpressure, bad policy, shutdown).
-
 Shutdown: once the proxy has seen the client close stdin, it drops (and logs)
 an approval prompt instead of answering or forwarding it. A prompt already
 forwarded can still meet the close. `elicitation accept` in the log means the

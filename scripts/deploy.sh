@@ -238,12 +238,6 @@ if ! (cd "$SRC" && node scripts/check-rules-invariants.mjs); then
 fi
 echo "PASS [invariants] all checks green"
 
-# Hook and recipe regressions, on the release tree before any layer mutates ~.
-# The list and the per-test sandbox live in scripts/run-layer0-tests.sh, so a run by hand before a push uses the same set.
-if ! bash "$SRC/scripts/run-layer0-tests.sh" "$SRC" "$WORKDIR"; then
-  echo "FAIL [tests] layer0 regressions; refusing to deploy" >&2
-  exit 1
-fi
 fi
 
 # --- Layer 1: global runtime files -----------------------------------------

@@ -254,10 +254,10 @@ python3 scripts/gen-schemas.py <plugin-authoring skill>/types/claude-code.d.ts h
 
 ## Tests
 
+Verify on the real system: reload the mod in a Claude Code session and route one brief through it on a cheap model.
+
 ```
-claude plugin test mods/byo-provider      # unit: response mapping, tool sets, deadline
 claude plugin validate mods/byo-provider
-python3 mods/byo-provider/tests/cli_check.py <scratch-directory>  # runner flags, abort, timeout; run outside the sandbox
 ```
 
 The live tests (a loopback fake Anthropic server that logs request shapes, never secrets, and runs

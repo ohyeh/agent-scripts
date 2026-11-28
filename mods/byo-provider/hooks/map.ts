@@ -1,4 +1,4 @@
-// Pure helpers: no `$`, so test/map.test.ts runs them under bun.
+// Pure helpers: no `$`.
 import type { TurnStepChunk, TurnStepResult, TurnUsage } from 'claude-code'
 
 export type Block = { type: string; [k: string]: unknown }

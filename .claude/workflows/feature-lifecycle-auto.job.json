@@ -1,14 +1,12 @@
 {
   "verification": {
     "acceptance": [
-      "bash scripts/test-jsonl-hooks-smoke exits 0",
-      "bash scripts/test-behavior-runner exits 0",
-      "0 passed, 0/0 passed, and 0/1 passed emit no pass token in evidence-tokens.sh",
-      "compaction-recall.sh appends a transcript:line pointer when a user prompt is cut"
+      "node scripts/check-rules-invariants.mjs exits 0",
+      "a real run on the changed live system (hook, deploy, mod, hc) with cheap-model workers; command and output quoted",
+      "0 passed, 0/0 passed, and 0/1 passed emit no pass token in evidence-tokens.sh"
     ],
     "verifyCommands": [
-      "bash scripts/test-jsonl-hooks-smoke",
-      "bash scripts/test-behavior-runner"
+      "node scripts/check-rules-invariants.mjs"
     ],
     "negativeCases": [
       {
@@ -20,9 +18,7 @@
       }
     ],
     "sources": [
-      "scripts/test-jsonl-hooks-smoke",
-      "scripts/test-behavior-runner",
-      "evals/run-behavior.mjs"
+      "scripts/check-rules-invariants.mjs"
     ],
     "timeoutSec": 30
   }
