@@ -227,6 +227,9 @@ c="$(awk -F' *= *' '/^\[/{v=""} /^\[compat\./{v=substr($0,9,length($0)-9)} v && 
 jq -n --argjson pi "$pi" --argjson n "$n" --argjson s "$s" --argjson c "${c:-[]}" --arg h "$HOME" '{projectInstructions:$pi, hooks:([range($n)|{source:{type:"user",path:($h+"/.claude")}}] + [{source:{type:"user",path:($h+"/.grok/hooks")}}]), hookLoadErrors:[], skills:$s, externalCompat:{cells:$c}}'
 SH
 chmod +x "$L/.local/bin/grok"
+# An inert agy first on PATH: the host's real agy would create ~/.gemini in the fixture HOME
+# mid-seed, after the global layer ran, and every later gemini check would fail.
+printf '#!/bin/sh\nexit 0\n' > "$L/.local/bin/agy"; chmod +x "$L/.local/bin/agy"
 printf '[mcp_servers.context-mode]\ncommand = "context-mode"\n' > "$L/.codex/config.toml"   # a Codex host with the MCP
 lrun 0 layer_global layer_rules layer_workflows layer_hooks
 # Not layer_context_mode deploy: its codex-context-mode.py step drives a real codex; --check never runs it.

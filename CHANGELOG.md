@@ -1,5 +1,11 @@
 # Changelog
 
+## deploy: context-mode registers agy before the runtime symlinks; deploy-check no longer runs the host's agy
+
+- `install-context-mode-dir.sh`: `agy mcp add` now runs before the `~/.codex` and `~/.gemini` symlink loop. On a host with agy but no `~/.gemini` yet, agy created the directory after the loop, so the first run left `~/.gemini/context-mode` unlinked and the check failed.
+- `test-deploy-check.sh`: an inert `agy` stub sits first on the fixture PATH, as the fake `grok` does. The host's real agy wrote `~/.gemini` into the fixture HOME mid-seed, which failed `seed context-mode`, the baseline `--check`, and the `[hooks]` agy plugin.json check on any host with agy installed (also at f2f332f).
+- Verified: `test-deploy-check.sh` exit 0 (`deploy-check OK`); it was exit 1 at f2f332f and 07ec294.
+
 ## hooks: no compaction cap
 
 - Removed `compaction-cap-gate.sh`. At 20 compactions it blocked all work except the handoff. Owner 2026-11-28: 「現在還有限制上限嗎？ 如果有 記得拿掉了 這樣會影響到我們長任務觀測」「拿掉了啊 我們 handoff 優化了那麼多」.

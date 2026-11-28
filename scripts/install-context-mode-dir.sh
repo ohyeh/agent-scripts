@@ -265,13 +265,9 @@ if [ -d "${HOME}/.cursor" ]; then
     wrap_json_mcp_command "$plugin_json"
   done < <(wrap_cursor_plugin_mcp)
 fi
-pin_json_mcp "${HOME}/.gemini/settings.json" ""
-wrap_json_mcp_command "${HOME}/.gemini/settings.json"
-for rt in "${HOME}/.codex" "${HOME}/.gemini"; do
-  [ -d "$rt" ] && pin_runtime_symlink "$rt"
-done
 # agy owns its mcp_config; `agy mcp add` is an upsert. MCP only: its hooks.json is
 # the agent-scripts plugin's, and agy rejects the whole file on a foreign key.
+# Before the symlink loop: on a host without ~/.gemini, agy creates it here.
 if command -v agy >/dev/null 2>&1; then
   if agy_err="$(agy mcp add -e "CONTEXT_MODE_DIR=${CANON}" -e CONTEXT_MODE_PLATFORM=antigravity-cli context-mode "$WRAPPER" context-mode 2>&1 >/dev/null)"; then
     echo "PASS [context-mode-dir] registered in agy"
@@ -279,6 +275,11 @@ if command -v agy >/dev/null 2>&1; then
     echo "WARN [context-mode-dir] agy registration failed (non-fatal): ${agy_err:-<no output>}" >&2
   fi
 fi
+pin_json_mcp "${HOME}/.gemini/settings.json" ""
+wrap_json_mcp_command "${HOME}/.gemini/settings.json"
+for rt in "${HOME}/.codex" "${HOME}/.gemini"; do
+  [ -d "$rt" ] && pin_runtime_symlink "$rt"
+done
 pin_zshrc
 echo "PASS [context-mode-dir] install wrote pins"
 exec "$CHECK"
