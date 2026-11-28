@@ -1,5 +1,24 @@
 # Changelog
 
+## host-load-gate round 3: a bash tokenizer replaces shlex; env children count only with the assign label
+
+- Fixes the round 2 review of 351f2bc (VERDICT: BLOCK; `opinions/sol-posthoc.md` `## Round 2`, A-01, A-02 and A-04).
+- A-01: the launch parser now has its own small bash tokenizer, because `shlex` lost which words were quoted, read a `#` inside a word as a comment, and never looked inside `$(...)`.
+  - A quoted `;` is a word. A comment starts only at a word boundary, so `true # ; hc run codex` passes, and `hc run "codex" # it's a comment` no longer falls back.
+  - The command word is judged after quote removal: `h"c" r"un" codex` denies. The bash prefilter strips quotes, backslashes and line joins first.
+  - `$(...)` and backticks are parsed, also inside double quotes and in an unquoted heredoc body. A heredoc body is otherwise skipped.
+  - Wrappers consume their option values (`env -u K`, `env -i`, `exec -a NAME`, `nice -n N`), and `--` ends them.
+  - Help exempts only when it is the agent's whole argv (`hc run codex --help`), so `hc run -- codex -- --help` denies again, as at 505f9b4.
+  - `--dry-run` exempts only among agent-tmux `start`'s leading flags (TAT `agent-tmux:4921`), so `start worker /repo -- --dry-run` and `start --model x --dry-run` deny.
+  - `2>&1` no longer adds `2` to the program's argv.
+- A-04: an `env` child counts only when `hc ls --json --label tmux-agent=assign` lists it. That label is the one the mod sets at TAT `workers.ts:833`; plain `hc ls` rows carry no labels. Agent-named children still count without a label.
+- A-02: the cap counts the hc cores under this user's `XDG_STATE_HOME` plus `HC_SOCKET`. A core started with another `XDG_STATE_HOME` (such as a test core) is not counted. The machine is not scanned (a `shortcut:` comment in the hook).
+- Tests (`test-jsonl-hooks-smoke`), all at the full-cap fixture: every round 2 case, plus wrapper, heredoc and fallback cases. The fake `hc` now answers `--label` the way hc 0.1.22 does. Run against the 351f2bc hook, the new smoke prints 13 FAIL lines.
+- Live, with the real hc on this host (`TMUX_WORKER_MAX=1`; the only worker is the mod-started, labeled codex child): every round 2 launch case exits 2, and the pass cases exit 0. Two real unlabeled `env` children did not count (exit 0 at cap 2; the 351f2bc hook counted 3). Once one carried `tmux-agent=assign`, the count was 2 and the hook denied. Both test terminals were killed and removed.
+- A-03 (deploy): `retireScript` retires only an entry that runs the script (optional `bash`/`sh`/`zsh` with any path, optional `claude-only.sh`), and the post-deploy check uses the same test, so a `test ! -e …/compaction-cap-gate.sh` diagnostic stays. Checked with real jq on 15 entries taken from `deploy.sh` itself (8 retired, 6 kept, one mixed group); `test-deploy-check.sh` seeds the diagnostic, and a mutant with the round 2 `contains` match fails it (`FAIL assertion: test [] = [...]`).
+- A-06 (rules): `model-dispatch.md` keeps the runtime line only for result.json, `await` and `tell` work; remote starts go to `start-ssh` and multi-worker work to its own script, never `assign`. TAT 0.57.2 adds the same exception to the router's COLLECTOR step.
+- Rules from owner corrections (W49-40, -42, -43, -44): Sol is the L2 seat, not an implementer; a word with two referents is matched to what the same message pasted; a live-system change is verified on that system first; a "fixed" claim replays the reviewer's counterexamples on both versions, with a mutant for a matcher change.
+
 ## L2 post-hoc fixes: deploy retires every spelling of a retired hook; consensus-gate stays on tmux; catch-up child model
 
 - Review: `.workflow/202611281120-herdr-first/opinions/sol-posthoc.md` (VERDICT: BLOCK on f2f332f..505f9b4). Owner: 「要跑啊」.

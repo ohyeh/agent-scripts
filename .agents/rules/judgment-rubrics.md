@@ -42,6 +42,11 @@
   first run) rather than "Restarted", a listening port, or exit 0; a claim about runtime R needs a
   run on R (a text review is not one), a "path exists and works" claim quotes this run's evidence
   from the endpoint it depends on, and a plugin "fixed" claim names the installed version.
+- [ ] Verify a change to a live system (hc, a mod, a hook, deploy) on that system first: a real hc
+  terminal or core, a real mod call, a real host read-back. Fixtures only add cases.
+- [ ] A "fixed" claim for a reviewer finding replays each counterexample the reviewer listed and
+  each case the pre-change version blocked, on both versions; a matcher change also shows a mutant
+  that the new test fails.
 - [ ] Read delegated-worker verdicts from `result.json` (`status`), not the supervise/wait exit
   code; on exit≠0 with missing/invalid `result.json`, inspect `result --path` and pane capture
   before re-dispatching or reporting failure, keeping pane PASS without valid JSON `UNCONFIRMED`.

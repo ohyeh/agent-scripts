@@ -270,19 +270,23 @@ neg layer_mods mods "$(first .claude/plugins/cache)"
 rm -rf "$L"; cp -a "$T/lbase" "$L"; touch "$L/.agents/hooks/compaction-cap-gate.sh"
 jq --arg abs "$L/.agents/hooks/compaction-cap-gate.sh" '
   .hooks.PreToolUse += [{matcher: "Bash", hooks: [{type: "command", command: "bash \"$HOME/.agents/hooks/compaction-cap-gate.sh\""}]},
-                        {matcher: "Edit", hooks: [{type: "command", command: $abs}]}]
-  | .hooks.Stop = ((.hooks.Stop // []) + [{hooks: [{type: "command", command: "\"$HOME/.agents/hooks/compaction-cap-gate.sh\""}]}])' \
+                        {matcher: "Edit", hooks: [{type: "command", command: $abs}]},
+                        {matcher: "Read", hooks: [{type: "command", command: "\"$HOME/.agents/hooks/claude-only.sh\" /bin/sh \"$HOME/.agents/hooks/compaction-cap-gate.sh\""}]}]
+  | .hooks.Stop = ((.hooks.Stop // []) + [{hooks: [{type: "command", command: "\"$HOME/.agents/hooks/compaction-cap-gate.sh\""}]}])
+  | .hooks.PostToolUse = ((.hooks.PostToolUse // []) + [{hooks: [{type: "command", command: "test ! -e \"$HOME/.agents/hooks/compaction-cap-gate.sh\""}]}])' \
   "$L/.claude/settings.json" > "$T/settings.json" && mv "$T/settings.json" "$L/.claude/settings.json"
 lrun 0 layer_hooks
 assert test ! -e "$L/.agents/hooks/compaction-cap-gate.sh"
-assert test "$(grep -c compaction-cap-gate "$L/.claude/settings.json")" = 0
+# Only the diagnostic that names the script, without running it, is left.
+assert test "$(jq -c '[.hooks[][].hooks[].command | strings | select(contains("compaction-cap-gate"))]' "$L/.claude/settings.json")" \
+  = '["test ! -e \"$HOME/.agents/hooks/compaction-cap-gate.sh\""]'
 # A settings.json that deploy cannot rewrite keeps the script, so no live entry points at a removed file.
 rm -rf "$L"; cp -a "$T/lbase" "$L"; touch "$L/.agents/hooks/compaction-cap-gate.sh"; printf '{' > "$L/.claude/settings.json"
 rc=0; lenv env MODE=0 LAYERS=layer_hooks "$REAL_BASH" "$T/layer-run" > "$T/output" 2>&1 || rc=$?
 assert test "$rc" != 0
 assert test -e "$L/.agents/hooks/compaction-cap-gate.sh"
 rm -rf "$L"; cp -a "$T/lbase" "$L"
-echo "PASS [retired-hook] compaction-cap-gate: three spellings retired, script removed after the rewrite; unreadable settings keep it"
+echo "PASS [retired-hook] compaction-cap-gate: four spellings retired, a test -e diagnostic kept, script removed after the rewrite; unreadable settings keep it"
 
 # Grok's own rule and status line. The fixture writes nothing under ~/.cursor.
 mkdir -p "$L/.grok" "$L/.claude/plugins/cache/ponytail/ponytail/9/.cursor/rules"

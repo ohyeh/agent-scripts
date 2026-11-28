@@ -33,7 +33,8 @@
   security, or ambiguity.
 - Codex review: §4 ladder; Luna xhigh/max at L1 on request, Sol medium+ at L2.
   Keep reviewer separate from author; use the seat's tier effort without step-up.
-- Codex execution: Luna xhigh/max, explicit Sol medium+, or external.
+- Codex execution: Luna xhigh/max or external. Sol is the L2 seat; a Claude commander does not
+  give it implementation (owner 2026-11-28: 「為啥亂用 codex」).
 - Dispatch only `gpt-6.1-sol`, `gpt-6-astra`, or `gpt-6-luna` from the Codex catalog.
   Use `gpt-6-astra` only when the owner names it.
 - Do not dispatch `gpt-6.1-terra`, other catalog models, or `ultra` effort.
@@ -62,7 +63,7 @@
   exec-tier Hydrogen (`agy-flash`), not Neon or Carbon. Neon, Hydrogen and, per the docs, Carbon
   share one Gemini quota (Carbon not yet verified live).
 - Better, plan/verdict: opus high+ or `gpt-6.1-sol` medium+.
-- Exec: opus high, sonnet high+, Sol medium+, Luna xhigh/max,
+- Exec: opus high, sonnet high+, Luna xhigh/max,
   `gemini-4-hydrogen-high` or later, or Cursor `grok-4.7-high` or later.
 - Basic gathering/mechanical: sonnet medium, haiku high+, Sol medium, or Luna xhigh/max.
 - Cheap gathering/mechanical: haiku medium.
@@ -127,10 +128,12 @@
      brief carries the `hc send` report line (`delegation-templates`).
   3. Else tmux: a proxy runs `assign --detach`; the parent owns the wait under §ONE OWNER.
 - Keep work on tmux until phase 3 of the hc-first plan when it needs result.json and the collector
-  (`await`, `tell`, recipes that wait on a worker), a remote start, or a multi-worker script.
-  For such work with the mod, keep a `runtime: tmux/<profile>` line in the assign brief: the mod
-  then starts a tmux worker with result.json that `await` and `tell` find. Without the mod, a
-  proxy runs `assign --detach`.
+  (`await`, `tell`, recipes that wait on a worker). With the mod, keep a `runtime: tmux/<profile>`
+  line in the assign brief: the mod then starts a tmux worker with result.json that `await` and
+  `tell` find. Without the mod, a proxy runs `assign --detach`.
+- `assign` does not start remote or multi-worker work. A remote start uses
+  `agent-tmux <cli> start-ssh`; fanout, dialogue, dag, monitor, and commander use their own
+  scripts (`using-tmux-agent-tools` SELECT).
 - Workflow recipes in `~/.claude/workflows/*.workflow.js` override these role choices.
 - Except workers, L1/TK, and mechanical seats below, recipe agents use at least opus high.
 - Mechanical L0 runners and CLI conduits use sonnet medium; L1/TK uses sonnet high.

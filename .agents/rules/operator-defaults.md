@@ -16,6 +16,9 @@ output. Follow both by default.
 
 - Scope read-back: before a UI or scope change, state in one line which
   element or range you will change.
+- A word with two possible referents (cap, limit, 上限): match it to what the
+  same message pasted or quoted. If neither fits, ask one line before you
+  change anything.
 - Wait for the reply when the request names a class of things.
 - Long-loop milestones: an open grant covers the work, not the reports.
 - Use the kernel Loop cadence: one recap per round.

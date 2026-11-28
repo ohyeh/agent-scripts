@@ -817,10 +817,16 @@ FAKE_TMUX_SESSIONS="$THREE" run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux c
 cat > "$WORK/fakebin/hc" <<'EOF'
 #!/bin/sh
 printf 'hc called\n' >> "$FAKE_HC_CALLS"
-[ "$*" = 'ls --json' ] || exit 1
+# like hc 0.1.22: ls rows carry no labels; --label lists only the rows that have it
+case "$*" in
+  'ls --json') keep='.' ;;
+  'ls --json --label tmux-agent=assign') keep='.labels["tmux-agent"] == "assign"' ;;
+  *) exit 1 ;;
+esac
 [ "${FAKE_HC_FAIL:-0}" = 0 ] || exit 5
 # the second core answers only when the hook names its session and socket together
-if [ "${HC_SESSION:-}:$HC_SOCKET" = two:hlg-state/herdr-core/two/two.sock ]; then printf '%s\n' "$FAKE_HC_ROWS2"; else printf '%s\n' "$FAKE_HC_ROWS"; fi
+if [ "${HC_SESSION:-}:$HC_SOCKET" = two:hlg-state/herdr-core/two/two.sock ]; then rows="$FAKE_HC_ROWS2"; else rows="$FAKE_HC_ROWS"; fi
+printf '%s\n' "$rows" | jq -c ".terminals |= map(select($keep) | del(.labels))"
 EOF
 chmod +x "$WORK/fakebin/hc"
 # A real listening socket stands in for a live hc core, so the gate's real perl probe runs.
@@ -837,7 +843,7 @@ export HC_SOCKET=hc.sock FAKE_HC_CALLS="$WORK/hc-calls"
 TOP='{"address":"t1","agent":"claude-code","state":"live"}'
 LOCAL_HC='{"terminals":['"$TOP"',{"address":"t7","agent":"codex","parent":"t1","state":"live"}]}'
 # hand-started codex, mod-started claude, and an assign worker that still shows env while it starts
-HC_THREE='{"terminals":['"$TOP"',{"address":"t7","agent":"codex","parent":"t1","state":"live"},{"address":"t8","agent":"claude-code","parent":"t1","state":"live"},{"address":"t9","agent":"env","parent":"t1","state":"live"}]}'
+HC_THREE='{"terminals":['"$TOP"',{"address":"t7","agent":"codex","parent":"t1","state":"live"},{"address":"t8","agent":"claude-code","parent":"t1","state":"live"},{"address":"t9","agent":"env","parent":"t1","state":"live","labels":{"tmux-agent":"assign"}}]}'
 NONLOCAL_HC='{"terminals":['"$TOP"',{"address":"t5","agent":"zsh","parent":"t1","state":"live"},{"address":"remote/t7","agent":"codex","parent":"remote/t1","state":"live"},{"address":"t8","agent":"codex","parent":"t1","state":"finished"}]}'
 for payload in "$ASSIGN" "$START"; do
   rc=0
@@ -860,6 +866,10 @@ SERVERS='{"terminals":['"$TOP"',{"address":"t7","agent":"npm","parent":"t1","sta
 AGENTS3='{"terminals":['"$TOP"',{"address":"t7","agent":"codex","parent":"t1","state":"live"},{"address":"t8","agent":"claude-code","parent":"t1","state":"live"},{"address":"t9","agent":"antigravity","parent":"t1","state":"live"}]}'
 FAKE_HC_ROWS="$SERVERS" FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$ASSIGN" ||
   { echo "FAIL: three npm/node hc children counted as workers" >&2; exit 1; }
+# round 3 item 6: an env child counts only with the mod's tmux-agent=assign label (HC_THREE's t9 does)
+ENV3='{"terminals":['"$TOP"',{"address":"t7","agent":"env","parent":"t1","state":"live"},{"address":"t8","agent":"env","parent":"t1","state":"live"},{"address":"t9","agent":"env","parent":"t1","state":"live","labels":{"other":"x"}}]}'
+FAKE_HC_ROWS="$ENV3" FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$ASSIGN" ||
+  { echo "FAIL: three env children without the tmux-agent=assign label counted as workers" >&2; exit 1; }
 rc=0
 FAKE_HC_ROWS="$AGENTS3" FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$ASSIGN" || rc=$?
 [ "$rc" = 2 ] || { echo "FAIL: three agent hc children (codex, claude-code, antigravity) must deny assign (got $rc)" >&2; exit 1; }
@@ -888,9 +898,25 @@ bash -c 'hc run codex'
 bash -lc 'hc run codex --bg'
 NO_COLOR=1 nohup hc run --bg --name=w codex &
 agent-tmux codex --profile p start w /tmp
+hc run -- codex -- --help
+env -u SOME_KEY hc run codex
+env -i PATH=/bin hc run codex
+exec -a NAME hc run codex
+command hc run codex
+time -p hc run codex
+nohup -- hc run codex
+hc run "codex" # it's a comment
+h"c" r"un" codex
+echo `hc run codex`
+echo $(hc run codex)
+echo "$(hc run codex)"
+agent-tmux codex start worker /repo -- --dry-run
+agent-tmux codex start --model x --dry-run w /tmp
+hc run codex 2>&1 | tee log
 EOF
-# ...also across lines; an unbalanced quote (an apostrophe in a heredoc) falls back to the whole-text match
-for c in $'echo hi\nhc run codex' $'echo hi # x\nhc run codex' $'cat <<EOF\nit\'s\nEOF\nhc run codex'; do
+# ...also across lines (a heredoc body is skipped, but an unquoted one runs its $(...)); a line that
+# cannot be split (an unbalanced quote) falls back to the whole-text match
+for c in $'echo hi\nhc run codex' $'echo hi # x\nhc run codex' $'cat <<EOF\nit\'s\nEOF\nhc run codex' $'cat <<EOF\n$(hc run codex)\nEOF' $'hc run codex\necho "unclosed'; do
   rc=0
   FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash "$c")" || rc=$?
   [ "$rc" = 2 ] || { echo "FAIL: multi-line launch over the worker cap was allowed: $c (got $rc)" >&2; exit 1; }
@@ -912,7 +938,16 @@ hc run 'codex --help'
 hc run "npm test"
 echo "hc run codex"
 hc ls --json
+true # ; hc run codex
+printf '%s\n' ';' hc run codex
+echo '$(hc run codex)'
+agent-tmux codex start --exact --dry-run w /tmp
+hc run codex --help 2>&1
 EOF
+for c in $'cat <<\'EOF\' > notes.md\nit\'s hc run codex\nEOF' $'cat <<-EOF\n\tit\'s `hc run --help`\n\tEOF\necho ok'; do
+  FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash "$c")" ||
+    { echo "FAIL: a heredoc body was gated at the worker cap: $c" >&2; exit 1; }
+done
 # every local core counts (review A-02): the current core (HC_SOCKET) has none, a second core has 3
 mkdir -p "$WORK/hlg-state/herdr-core/two"
 (cd "$WORK" && exec perl -MSocket -e "$CORE_PL" hlg-state/herdr-core/two/two.sock) &
@@ -944,7 +979,7 @@ HC_SOCKET=no-core.sock FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_ho
 kill "$HC_CORE_PID" 2>/dev/null || true; wait "$HC_CORE_PID" 2>/dev/null || true
 unset HC_SOCKET FAKE_HC_CALLS
 rm -f "$WORK/fakebin/hc"
-echo "PASS worker cap: hc child workers (hand, mod) and tmux together; Bash launch judged per command (quoted text, printf/echo args, hc options before the program, --on only as an hc option, --dry-run only on its agent-tmux command, one-string shell line, sh -c, loops, newlines, help), whole-text fallback on an unbalanced quote; every local hc core summed once (two-socket fixture, HC_SOCKET dedupe); only agent or env children count (npm/node pass); shell, top-level, remote and finished rows ignored; hc absent or down; TMUX_WORKER_MAX"
+echo "PASS worker cap: hc child workers (hand, mod) and tmux together; Bash launch judged per command (quoted text and quoted ;, comments, heredoc bodies, printf/echo args, hc options before the program, --on only as an hc option, --dry-run only in agent-tmux start's leading flags, help only as the whole agent argv, wrapper option values, one-string shell line, sh -c, \$(...) and backticks, loops, newlines), whole-text fallback on an unbalanced quote; every local hc core summed once (two-socket fixture, HC_SOCKET dedupe); only agent children count, env only with tmux-agent=assign (npm/node and unlabeled env pass); shell, top-level, remote and finished rows ignored; hc absent or down; TMUX_WORKER_MAX"
 # the deny reaches Cursor (subagentStart, preToolUse Shell) and agy (run_command) through their adapters
 run_adapted() { # $1 adapter command..., stdin payload
   PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="${ADAPT_LOADAVG:-$HIGH}" FAKE_MP=1 HOME="$TEST_HOME" \

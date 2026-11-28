@@ -566,10 +566,12 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
         | .seen = $r.seen
         | if ($r.keep | length) > 0 then .out += [$g + {hooks: $r.keep}] else . end)
       | .out)));
-  # every entry whose command names a retired script, in any event and any path spelling
+  # every entry that runs a retired script (optional bash/sh/zsh and claude-only.sh wrappers, any path
+  # spelling, any event); a command that only names it, such as a `test -e` diagnostic, stays
+  def runsScript(name): (.command | type) == "string"
+    and (.command | test("^\\s*(([^\"\\s]*/)?(bash|sh|zsh)\\s+)?(\"?[^\"\\s]*claude-only\\.sh\"?\\s+)?(([^\"\\s]*/)?(bash|sh|zsh)\\s+)?\"?[^\"\\s]*/" + name + "\"?(\\s|$)"));
   def retireScript(name):
-    .hooks |= ((. // {}) | with_entries(.value |= (map(.hooks |= map(select(
-      ((.command | type) != "string") or ((.command | contains(name)) | not))))
+    .hooks |= ((. // {}) | with_entries(.value |= (map(.hooks |= map(select(runsScript(name) | not)))
       | map(select(.hooks | length > 0)))));
   def retire(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
@@ -624,7 +626,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "*"; $deny)
   | ensureMatched("PreToolUse"; "Artifact"; $arttitle)
   | ensure("UserPromptSubmit"; $router)
-  | retireScript("compaction-cap-gate.sh")   # retired 2026-11-28: no compaction cap
+  | retireScript("compaction-cap-gate\\.sh")   # retired 2026-11-28: no compaction cap
   | ensureMatched("PreToolUse"; "ScheduleWakeup"; $idle)
   | ensureMatched("PreToolUse"; "Bash|Read|Grep|Glob|mcp__plugin_context-mode_context-mode__ctx_execute|mcp__plugin_context-mode_context-mode__ctx_execute_file"; $roundcost)
   | ensureMatched("PreToolUse"; "SendMessage"; $followup)
@@ -799,7 +801,9 @@ if [ -e ~/.agents/hooks/bol-prompt-warn.sh ] || grep -q 'bol-prompt-warn' "$SETT
   echo "FAIL [hooks] retired bol-prompt-warn.sh still installed or registered" >&2
   exit 1
 fi
-if [ -e ~/.agents/hooks/compaction-cap-gate.sh ] || grep -q 'compaction-cap-gate' "$SETTINGS"; then
+# Same test as runsScript in the rewrite above: an entry that runs the script, not one that names it.
+if [ -e ~/.agents/hooks/compaction-cap-gate.sh ] || jq -e '[.hooks // {} | .[] | .[] | .hooks[]? | .command | strings
+    | select(test("^\\s*(([^\"\\s]*/)?(bash|sh|zsh)\\s+)?(\"?[^\"\\s]*claude-only\\.sh\"?\\s+)?(([^\"\\s]*/)?(bash|sh|zsh)\\s+)?\"?[^\"\\s]*/compaction-cap-gate\\.sh\"?(\\s|$)"))] | length > 0' "$SETTINGS" >/dev/null; then
   echo "FAIL [hooks] retired compaction-cap-gate.sh still installed or registered" >&2
   exit 1
 fi
