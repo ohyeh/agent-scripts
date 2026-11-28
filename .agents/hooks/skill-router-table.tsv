@@ -9,6 +9,7 @@ codex-cu	skill	codex-cu
 gemini-web	skill	gemini-web
 # Organic rows (2026-11-06 coverage eval, scripts/skill-router-coverage.py): held-out organic recall 0/25 -> 6/25.
 haiku[^。]{0,10}(research|研究|大軍)	recipe	haiku-research-round
+(深入|深度|全面|多角度|多方)[^。]{0,6}(研究|調查|比較)|deep[ -]?research	skill	deep-research
 (多方|各模型|多模型|第二模型|獨立)[^。]{0,8}(review|審|看)|consensus-gate	recipe	consensus-gate
 (轉給|轉告|交辦|通知)[^。]{0,16}(\bnova\b|grok ?bot)|(\bnova\b|grok ?bot)[^。]{0,12}確認	skill	using-grok-bot-app
 (派|讓|拉|叫|出動)[^。]{0,10}\b(sol|agy|deepseek|carbon|neon|flash|haiku|sonnet|luna)\b|^[[:space:]]*(sol|agy|deepseek|haiku|sonnet|carbon|neon)\b([[:space:]]*(\+[[:space:]]*)?(sol|agy|deepseek|carbon|neon|flash|haiku|sonnet|luna)\b)*[[:space:]]*(幫我|請|先)?[[:space:]]*(跑|審查?[[:space:]]*($|這|那|此|一下|一輪|PR\b|diff\b)|review\b|reivew\b|讀|一起|確認)	skill	delegation-templates

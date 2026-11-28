@@ -191,7 +191,8 @@ Apply: after a change far larger than the user expected, or when they ask.
   attempts, suspect the map, not the driver.
 - Exit: when the defaults are stated, no §STOP condition holds, and any review
   that `model-dispatch` or the consensus ladder requires is done, start the next
-  station in the same turn with the stated defaults as its input: `prototype` for a design question,
+  station in the same turn with the stated defaults as its input: `deep-research` first when a
+  known-unknown is a fact nobody in the session holds (docs, prior art, prices), `prototype` for a design question,
   `wayfinder` when the work is too big for one session (propose the §2.1 open
   points as its first tickets; create tracker tickets only when the owner has
   authorized that write), else the implementation.

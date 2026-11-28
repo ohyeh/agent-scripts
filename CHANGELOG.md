@@ -1,5 +1,14 @@
 # Changelog
 
+## using-decision-tree: deep-research is the research default; unknowns-discovery and wayfinder hand fact gaps to it
+
+- Owner 2026-11-28: 「這個好像要加入體系跟 /using-decision-tree + /unknowns-discovery + /wayfinder 相關」, then 「要做啊靠杯」.
+- `map.md`: the research row names `deep-research` (parallel subagents, no Workflow opt-in); `haiku-research-round` stays for a user who opted into a workflow. The feature flow sends a fact gap from `unknowns-discovery` to `deep-research` and back; the wayfinder flow runs it for a slice that needs outside facts.
+- `loops.md`: research bypass and the research station name `deep-research` first.
+- `chain.tsv`: `unknowns-discovery` names `deep-research` as a next station; new `deep-research` row returns to the station that asked.
+- `unknowns-discovery` Exit: `deep-research` first for a fact nobody in the session holds.
+- `skill-router-table.tsv`: 深入／深度／全面／多角度／多方 + 研究／調查／比較, or `deep research`, nudges `deep-research`.
+
 ## deploy: context-mode registers agy before the runtime symlinks; deploy-check no longer runs the host's agy
 
 - `install-context-mode-dir.sh`: `agy mcp add` now runs before the `~/.codex` and `~/.gemini` symlink loop. On a host with agy but no `~/.gemini` yet, agy created the directory after the loop, so the first run left `~/.gemini/context-mode` unlinked and the check failed.

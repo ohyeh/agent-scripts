@@ -1,7 +1,7 @@
 # station	next station	artifact the next station takes
 # One row per skill that has a next station in map.md §Flows. The hook skill-chain-nudge.sh prints the row when the skill loads.
 # `none` = the row's loop closes here. Validated by scripts/test-skill-chain-nudge.sh.
-unknowns-discovery	prototype (a design question) or wayfinder (too big for one session), else the implementation	the stated defaults
+unknowns-discovery	deep-research (a fact gap nobody in the session holds), prototype (a design question) or wayfinder (too big for one session), else the implementation	the stated defaults
 prototype	the implementation (tdd when the user wants test-first)	the answer to the design question
 tdd	a check executed and quoted, then defect-first-review on the diff when risk warrants	the passing tests and the diff
 diagnosing-bugs	after its own fix and cleanup phases: defect-first-review on the fix diff when risk warrants	the repro and the failing signal
@@ -27,3 +27,4 @@ using-tmux-agent-tools	delegation-templates to shape the brief (GOAL/MODEL/ACCEP
 match-my-writing-style	none for a plain reply: show the draft and stop (sending is a kernel hard-stop); a reply that needs structure goes to writing-artifacts	the voice card and the draft
 prep-for-meetings	none: show the brief and stop; replies and calendar changes are a kernel hard-stop	the brief
 focus-my-energy	none automatically: the owner picks; start workers only for tasks already authorized, through using-tmux-agent-tools	the ordered task list
+deep-research	the station that asked for it (unknowns-discovery, wayfinder, or the implementation); unknowns-discovery again when the findings change the plan	the research report, a source per claim

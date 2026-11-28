@@ -17,7 +17,7 @@ One bounded task, single context, no stages, no convergence condition → do it
 directly (inline, or one worker: WORKER row). No recipe, no run dir. When in
 doubt, bypass — recipes exist for loops, not ceremony.
 Exception: research across several sources or rounds (find, compare prices,
-gather sources) is NOT bypassed — go to `haiku-research-round`. A
+gather sources) is NOT bypassed — go to `deep-research` (`haiku-research-round` only when the user opted into a workflow). A
 one-tool-call fact stays inline; a small question takes one scout, not a
 fanout. Either way, follow each claim to the primary source that owns it
 (official docs, source code, specs). When the findings must be kept, write one
@@ -77,8 +77,9 @@ Entry points off the loop:
   contract; keep replies and thread resolution inside the approved scope.
 - ONE artifact needs a second-model verdict → `consensus-gate` — ONE round,
   irreversible/behavior-tier changes only; NOT a default station
-- research (facts, prices, sources; often several rounds) → `haiku-research-round`
-  per round; you stay the commander: read each round, pick the next questions.
+- research (facts, prices, sources; often several rounds) → `deep-research` by default;
+  `haiku-research-round` per round only when the user opted into a workflow. With either,
+  you stay the commander: read each round, pick the next questions.
   When the user names the tool (e.g. codex-cu), run ONE target yourself to get a
   working recipe, then pass the tool + recipe in `args.tools`; do not browse the
   other targets yourself. A scout's blocker is a lead (judgment-rubrics §2).

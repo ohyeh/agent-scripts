@@ -10,7 +10,8 @@ export XDG_DATA_HOME="$(mktemp -d)"   # the hook logs each start; keep fixture r
 fail=0
 run() { jq -cn --arg t "$1" --arg s "$2" '{tool_name:$t,tool_input:{skill:$s},session_id:"t"}' | bash "$G"; }
 ctx() { run "$@" | jq -r '.hookSpecificOutput.additionalContext // empty'; }
-ctx Skill unknowns-discovery | grep -q 'next station is: prototype' || { echo "FAIL: unknowns-discovery did not name prototype" >&2; fail=1; }
+ctx Skill unknowns-discovery | grep -q 'next station is: deep-research .*prototype' || { echo "FAIL: unknowns-discovery did not name deep-research and prototype" >&2; fail=1; }
+ctx Skill deep-research | grep -q 'next station is: the station that asked for it' || { echo "FAIL: deep-research did not return to the station that asked" >&2; fail=1; }
 ctx Skill plugin:session-handoff | grep -q 'station session-handoff has no next station to start' || { echo "FAIL: a plugin-prefixed handoff did not match its no-next row" >&2; fail=1; }
 ctx Skill shared-memory-intake | grep -q 'report and stop' || { echo "FAIL: a closing station was not told to stop" >&2; fail=1; }
 ctx Skill security-audit | grep -q 'no next station to start' || { echo "FAIL: a station that waits was told to start a next station" >&2; fail=1; }
