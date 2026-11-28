@@ -18,6 +18,12 @@
 # Every deny is a question the agent answers; the answer line is what lets the call through.
 #   Agent, previous Agent reviewer (same cwd, this transcript) BLOCK / no verdict -> deny, same answers (W43-22)
 #   either dispatch: the previous reviewer is the newer of the two sources (W44-13)
+# hc reviewers are not tracked: assign runs this gate before it picks a backend, and an hc worker
+# leaves no .v3 record (no owner, brief or verdict; its screen holds the brief, which names both
+# verdicts). So a previous hc reviewer's BLOCK or missing verdict is invisible here, the gate may
+# judge by an older tmux or Agent reviewer, and `hc send` rounds never reach the round cap. Only
+# the rule text (judgment-rubrics §4, model-dispatch §Review ladder) covers hc reviewers until hc
+# gets a collector.
 # Not covered: reviewers across sessions, whether a review is needed.
 set -u
 
@@ -25,6 +31,13 @@ IN="$(cat)"
 command -v jq >/dev/null 2>&1 || exit 0
 TOOL="$(printf '%s' "$IN" | jq -r '.tool_name // empty')"
 case "$TOOL" in mcp__tmux-agent__assign|mcp__tmux-agent__tell|Agent) ;; *) exit 0;; esac
+# Settings hooks never fire for mod tools (TAT v0.46.16), so the host load and worker cap check
+# for mod assign runs here, before the mod picks hc or tmux.
+if [ "$TOOL" = mcp__tmux-agent__assign ]; then
+  load="$(bash "${BASH_SOURCE[0]%/*}/host-load-gate.sh" <<< "$IN")" || exit "$?"
+  # The mod reads stderr for notes. A settings hook sends warnings as JSON on stdout.
+  [ -z "$load" ] || jq -r '.hookSpecificOutput.additionalContext // empty' <<< "$load" >&2
+fi
 SESSION_ID="$(printf '%s' "$IN" | jq -r '.session_id // empty')"
 [ -n "$SESSION_ID" ] || exit 0
 

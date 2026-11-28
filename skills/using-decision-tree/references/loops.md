@@ -175,11 +175,11 @@ the loop. Do not claim completion.
 
 | Recipe | Codex | Cursor, agy |
 |---|---|---|
-| `design-vs-code-audit`, `findings-triage` (2, no tmux inside) | `ADAPTED: claude-workflow-runner` | `UNAVAILABLE` |
+| `design-vs-code-audit`, `findings-triage` (2, no CLI worker inside) | `ADAPTED: claude-workflow-runner` | `UNAVAILABLE` |
 | `spec-implement-dual-review-verify` (`pr-review-toolkit` lenses) | `UNAVAILABLE-NATIVE` (`references/codex-adapter.md:14`) | `UNAVAILABLE` |
-| `haiku-research-round` (no tmux) | `UNTESTED` natively; by hand: ≤5 scouts a round, ≤3 rounds | `UNAVAILABLE` natively; by hand: ≤5 scouts a round, ≤3 rounds |
+| `haiku-research-round` (no CLI worker) | `UNTESTED` natively; by hand: ≤5 scouts a round, ≤3 rounds | `UNAVAILABLE` natively; by hand: ≤5 scouts a round, ≤3 rounds |
 | `consensus-gate` (simple verdict outcome only) | `ADAPTED: direct-claude-review` — `references/codex-adapter.md` | `UNAVAILABLE` |
-| `consensus-gate` (as recipe; it drives a tmux-agent mod worker inside) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise | `UNAVAILABLE` |
+| `consensus-gate` (as recipe; it drives a tmux-agent mod worker inside and waits with `await`, so it needs a tmux worker; untested when assign starts it on hc) | `UNAVAILABLE-NATIVE` until nested-runner (depth-2) tests pass — stop and report; do not improvise | `UNAVAILABLE` |
 
 **Defer.**
 - Chain recipes from the TOP level only — `workflow()` nesting cap is 1, and

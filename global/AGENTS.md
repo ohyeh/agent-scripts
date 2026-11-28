@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.57.0-ironlaws
+Version: 4.58.0-ironlaws
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` (`global/` = kernel; `.agents/rules/` →
@@ -48,8 +48,8 @@ Version: 4.57.0-ironlaws
 - When a trigger applies, read the routed file and follow its criteria without quoting. Binds for
   multi-phase, irreversible, or delegated work; go straight to code for a single reversible edit
   with clear acceptance, after reading the touched code.
-- Delegate (subagent/tmux/workflow) → `model-dispatch` + skill `delegation-templates`; brief =
-  GOAL/ACCEPTANCE/REPORT + runtime-native model.
+- Delegate (subagent/workflow; worker: built-in mod path, else hc, else tmux) → `model-dispatch`
+  + skill `delegation-templates`; brief = GOAL/ACCEPTANCE/REPORT + runtime-native model.
 - Done/fixed/verified/PASS/BLOCK or negative-state claim (stuck/failed/missing/no reply) →
   `judgment-rubrics` §2/§5.
 - Unclear acceptance, multi-phase work, or material default → skill `unknowns-discovery`.

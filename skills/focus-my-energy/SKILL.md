@@ -38,7 +38,8 @@ the text below is our own.
    - Low energy: light or recovery tasks; no new deep decisions.
 2. List the agent-run tasks that could run on workers while the owner works.
    Start workers only for tasks already authorized for execution, using the
-   normal dispatch route (`using-tmux-agent-tools`, `delegation-templates`).
+   normal dispatch route (`using-tmux-agent-tools`, `delegation-templates`): built-in
+   mod path, else hc, else tmux.
 3. Say in one line why the first task fits the energy.
 
 ## Learn the pattern (optional)

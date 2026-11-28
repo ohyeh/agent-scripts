@@ -444,6 +444,7 @@ echo "==> [hooks] installing sentinel hooks + registering in ~/.claude/settings.
 w rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent-tools plugin
 w rm -f ~/.agents/hooks/bol-prompt-warn.sh      # retired 2026-08-25; replaced by bol-prompt-gate.sh (blocking)
 w rm -f ~/.agents/hooks/postcompact-handoff.sh  # retired 2026-11-10; its file copy of the summary had no reader
+w rm -f ~/.agents/hooks/compaction-cap-gate.sh  # retired 2026-11-28; the compaction cap stopped long tasks
 w mkdir -p ~/.agents/hooks
 # same-file guard: on the clone-tracked layout ~/.agents/hooks IS $SRC/.agents/hooks
 hook_install() {
@@ -495,7 +496,6 @@ hook_install "$SRC/.agents/hooks/claim-evidence-gate.sh"
 hook_install "$SRC/.agents/hooks/subagent-concurrency-gate.sh"
 hook_install "$SRC/.agents/hooks/host-load-gate.sh"
 hook_install "$SRC/.agents/hooks/deny-replay-gate.sh"
-hook_install "$SRC/.agents/hooks/compaction-cap-gate.sh"
 hook_install "$SRC/.agents/hooks/wakeup-idle-gate.sh"
 hook_install "$SRC/.agents/hooks/round-cost-gate.sh"
 hook_install "$SRC/.agents/hooks/worker-followup-gate.sh"
@@ -621,7 +621,7 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "*"; $deny)
   | ensureMatched("PreToolUse"; "Artifact"; $arttitle)
   | ensure("UserPromptSubmit"; $router)
-  | ensureMatched("PreToolUse"; "Write|Edit|NotebookEdit|Bash|ScheduleWakeup"; $compcap)
+  | retire("PreToolUse"; $only + " " + $compcap)   # retired 2026-11-28: no compaction cap
   | ensureMatched("PreToolUse"; "ScheduleWakeup"; $idle)
   | ensureMatched("PreToolUse"; "Bash|Read|Grep|Glob|mcp__plugin_context-mode_context-mode__ctx_execute|mcp__plugin_context-mode_context-mode__ctx_execute_file"; $roundcost)
   | ensureMatched("PreToolUse"; "SendMessage"; $followup)
@@ -772,7 +772,7 @@ if [ -d ~/.grok ]; then
   apply "$t" ~/.grok/hooks/agent-scripts.json hooks
 fi
 
-for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate running-script-edit-gate pr-create-gate compaction-recall precompact-instructions skill-router-nudge skill-chain-nudge compaction-cap-gate wakeup-idle-gate round-cost-gate worker-followup-gate; do
+for h in claude-version-sentinel session-title-sentinel claim-evidence-gate bol-prompt-gate subagent-concurrency-gate host-load-gate deny-replay-gate artifact-title-gate subagent-ledger context-ledger bash-read-audit agent-device-target-gate tmux-assign-host-gate review-dispatch-gate workflow-agent-cap rm-home-gate codex-cu-chrome-gate running-script-edit-gate pr-create-gate compaction-recall precompact-instructions skill-router-nudge skill-chain-nudge wakeup-idle-gate round-cost-gate worker-followup-gate; do
   if [ ! -x ~/.agents/hooks/$h.sh ] || ! grep -q "$h" "$SETTINGS"; then
     echo "FAIL [hooks] $h.sh not installed or not registered in settings.json" >&2
     exit 1
@@ -792,6 +792,10 @@ if [ -e ~/.agents/hooks/postcompact-handoff.sh ] || grep -q 'postcompact-handoff
 fi
 if [ -e ~/.agents/hooks/bol-prompt-warn.sh ] || grep -q 'bol-prompt-warn' "$SETTINGS"; then
   echo "FAIL [hooks] retired bol-prompt-warn.sh still installed or registered" >&2
+  exit 1
+fi
+if [ -e ~/.agents/hooks/compaction-cap-gate.sh ] || grep -q 'compaction-cap-gate' "$SETTINGS"; then
+  echo "FAIL [hooks] retired compaction-cap-gate.sh still installed or registered" >&2
   exit 1
 fi
 jq -e . "$SETTINGS" >/dev/null || { echo "FAIL [hooks] settings.json is no longer valid JSON" >&2; exit 1; }

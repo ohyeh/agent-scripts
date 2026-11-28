@@ -100,8 +100,9 @@
 - Dedupe transcript messages by `message.id` and weight tokens as
   `input + 1.25×write_5m + 2×write_1h + 0.1×cache_read + 5×output` so raw `cache_read` does not
   overstate long-context workers.
-- Split main, Agent worker, tmux worker ("Write final JSON to … tmux-agent-tool"), and probe
-  ("Reply with exactly") sessions before counting sessions or concurrency.
+- Split main, Agent worker, tmux worker ("Write final JSON to … tmux-agent-tool"), hc worker
+  ("When done or stuck, report to the parent with"), and probe ("Reply with exactly") sessions
+  before counting sessions or concurrency.
 - Never recommend a settings change (compact window, model) from a cost formula alone; the owner's
   recorded rationale outranks it (`autoCompactWindow` 450000 is an owner ruling).
 

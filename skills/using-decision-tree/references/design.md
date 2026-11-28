@@ -65,7 +65,7 @@ PASS or BLOCK. PROTO → none.
 
 - **DESIGN.md**: the direction stage writes it with plain Read/Write; every
   later stage and every worker prompt reads it. Workers have no chat memory.
-- **Dispatch**: tmux dispatch goes through `using-tmux-agent-tools`; worker
+- **Dispatch**: worker dispatch (built-in mod path, else hc, else tmux) goes through `using-tmux-agent-tools`; worker
   prompts come from `delegation-templates`; tiers per rule `model-dispatch`
   §4–§5, reviewer independence §6. Fanout and dialogue need the user's exact
   authorization. Worker-prompt addendum: "DESIGN CONTEXT: read
@@ -97,7 +97,7 @@ review. Constraint loading and small scoped edits stay inline.
 |---|---|
 | Route, judge, integrate, talk to the user | Main session |
 | Direction (Q2) | Inline, main session; persists to DESIGN.md |
-| Build, non-trivial | Persistent tmux worker: the model the chosen row names, `claude` otherwise; inline only for a small scoped edit |
+| Build, non-trivial | Persistent worker (built-in mod path, else hc, else tmux): the model the chosen row names, `claude` otherwise; inline only for a small scoped edit |
 | Pipeline D: compare N module shapes | Parallel in-process sub-agents, judged against PD-DEPTH |
 | First review | A fresh one-shot (tier per `model-dispatch` §4); fix re-checks go to the same reviewer |
 | Specialists, DESIGN.md upkeep | Inline |

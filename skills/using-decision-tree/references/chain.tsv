@@ -19,7 +19,7 @@ codebase-design	tdd or the implementation	the interface and its seam
 domain-modeling	the implementation, with the glossary terms in code	the glossary or ADR
 documentation-writing	stop-slop on the draft, then a run of every example	the draft
 skill-creator	rule maintenance §1: exact diff, then approval	the drafted skill and its eval
-delegation-templates	dispatch the brief with this runtime's own tool (a subagent, or a tmux worker through using-tmux-agent-tools), then re-run the report's check yourself	the filled brief
+delegation-templates	dispatch the brief with this runtime's own tool (a subagent, or a CLI worker through using-tmux-agent-tools: built-in mod path, else hc, else tmux), then re-run the report's check yourself	the filled brief
 codex-cu	none automatically: return to the station that asked for the browser or app step (a defect goes to diagnosing-bugs)	the observed state
 using-grok-bot-app	none automatically: return to the station that asked for the bot read or send	the quoted bot text
 gemini-web	none automatically: return the conversation URL, model, thinking level and Deep Research status to the station that asked	the Gemini conversation URL and status

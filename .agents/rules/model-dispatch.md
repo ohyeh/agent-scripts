@@ -48,7 +48,7 @@
   cannot override either, and bypasses defaults.
 - Count the root in `max_concurrent_threads_per_session`; cap 2 permits one root and one child.
 - If concurrent implementer and reviewer are needed, raise `[agents]` and `[features]` together.
-- A tmux worker is a fresh CLI root that reads machine config; `fork_turns` does not apply.
+- An hc or tmux worker is a fresh CLI root that reads machine config; `fork_turns` does not apply.
 - Use per-run `-c` only to depart from machine config, never to restate it.
 
 ### Tiers
@@ -106,7 +106,7 @@
   Fix rechecks return to the same reviewer under the review ladder.
 - Do not continue a worker above 200K context after its current round.
 - Use a new visual or end-to-end verifier each round.
-- Keep the separate §4 tmux persistent-session contract.
+- Keep the separate §4 persistent-worker contract (hc or tmux).
 
 ## §4 Role-first selection
 
@@ -119,8 +119,16 @@
 - Review/verification: use the review ladder below, then stop and ask at its cap.
 - Architecture or hard debugging after two evidenced failures: opus or Sol high.
 - Apply a solved pattern: sonnet medium or Luna xhigh.
-- With the tmux-agent mod, use `mcp__tmux-agent__assign` and §COLLECTOR; no proxy.
-- Without it, a proxy runs `assign --detach`; the parent owns the wait under §ONE OWNER.
+- Pick the CLI worker path in this order:
+  1. A built-in path. First check which mod tools this runtime has loaded; mods differ per
+     runtime and host. With the tmux-agent mod, use `mcp__tmux-agent__assign`; no proxy. It picks
+     hc or tmux itself. For hc, follow the assign receipt; for tmux, use §COLLECTOR.
+  2. Without one, start an hc (herdr-core) terminal by hand (`hc --skill` has the flags). Its
+     brief carries the `hc send` report line (`delegation-templates`).
+  3. Else tmux: a proxy runs `assign --detach`; the parent owns the wait under §ONE OWNER.
+- Keep work on tmux until phase 3 of the hc-first plan when it needs result.json and the collector
+  (`await`, `tell`, recipes that wait on a worker), a remote start, or a multi-worker script.
+  Assign has no per-call backend choice yet; for such work, a proxy runs `assign --detach`.
 - Workflow recipes in `~/.claude/workflows/*.workflow.js` override these role choices.
 - Except workers, L1/TK, and mechanical seats below, recipe agents use at least opus high.
 - Mechanical L0 runners and CLI conduits use sonnet medium; L1/TK uses sonnet high.
@@ -193,9 +201,12 @@
 - Use `skills/using-workflows/workflows/_lib/worker-doctrine.md` §7–§9.
 - Keep one finding ledger across layers and rounds; resolve or retain each finding and judge
   fixer rejections; keep a finding open when L1 reviewers disagree.
-- Return fixes to the same reviewer within a layer; tmux keeps its session; in-script agents
-  receive the ledger and before/after diff instead of retained context.
+- Return fixes to the same reviewer within a layer; an hc or tmux worker keeps its session;
+  in-script agents receive the ledger and before/after diff instead of retained context.
 - Do not shop for a fresh recheck reviewer (§5); escalation to a new layer is allowed.
+- `review-dispatch-gate.sh` does not track hc reviewers. It cannot see an hc reviewer's BLOCK or
+  missing verdict, and `hc send` rounds do not count toward its round cap. Apply this ladder
+  yourself for hc reviewers.
 - Review of a revised artifact is not a retry of one approach (§5).
 - Rerun a void round once; stop with cause after two consecutive voids or two L0 failures.
 - Count void rounds and L0 fixes in task calls and tokens.
@@ -206,9 +217,11 @@
   Include all layers, fixers, L0, void rounds, and advisor.
 - Compare L1 on/off with the same contracts and L0; use older unmatched evidence as direction only.
 - Drop L1 for a gate type if it does not reduce whole-task cost.
-- With `mcp__tmux-agent__assign`, follow using-tmux-agent-tools §COLLECTOR for dispatch and wait.
-  Use no proxy or parent listener; deadline, cancel, and concurrency rules still apply.
-- Without the mod, follow §ONE OWNER for dispatch, wait, pending, and teardown.
+- With `mcp__tmux-agent__assign`, a tmux worker follows using-tmux-agent-tools §COLLECTOR for
+  dispatch and wait; an hc worker follows the assign receipt (report by `hc send`, check with
+  `hc get`). Use no proxy or parent listener; deadline, cancel, and concurrency rules still apply.
+- Without the mod, an hc worker started by hand reports by `hc send` and is checked with `hc get`;
+  a tmux worker follows §ONE OWNER for dispatch, wait, pending, and teardown.
 - In local Claude Code, a `general-purpose` proxy runs `agent-tmux <cli> assign --detach`
   after setup; the parent uses bounded background `result wait-required` calls.
 - Account for local Claude Code foreground calls being reaped at about 600 seconds.
@@ -228,23 +241,28 @@
 - Retry load once later, never in a loop.
 - Tune `HOST_LOAD_WARN`, `HOST_LOAD_DENY` as core multiples, and `HOST_LOAD_OFFLOAD_HOST`;
   `HOST_LOAD_GATE=off` disables the load gate.
-- Prefer native subagents; use tmux only for another family, an unavailable seat, or a long job
-  that must outlive this session.
-- Cap live tmux workers at three per host across sessions (`TMUX_WORKER_MAX`).
-  `host-load-gate.sh` enforces this on agent-tmux launches and mod assign.
-- Stop a worker after reading its result if no follow-up is planned.
+- Prefer native subagents; use a CLI worker (built-in mod path, else hc, else tmux) only for
+  another family, an unavailable seat, or a long job that must outlive this session.
+- Cap live workers at three per host, hc and tmux together, across sessions (`TMUX_WORKER_MAX`).
+  `host-load-gate.sh` enforces this on agent-tmux launches, mod assign, and a hand `hc run` of
+  an agent CLI (`--on` passes). It counts an hc worker as a live local child terminal whose
+  program is not a shell. An hc start from a non-hc terminal has no parent and is not counted.
+- Stop a worker after reading its result if no follow-up is planned. Stop an hc worker with
+  `hc kill <t>`, then `hc rm <t>`.
 - Claude hooks: native `Agent`, shell `Bash`, both PreToolUse.
 - Codex hooks: native `collaborationspawn_agent`, shell `Bash`, both PreToolUse `*`.
 - Cursor hooks: Task and Shell through cursor-adapt `preToolUse`; no `subagentStart` event.
 - agy hooks: `invoke_subagent` and `run_command` through agy-adapt.
-- Hook coverage excludes mod/MCP assign, Grok Bot, plain terminals, and later worker load.
+- Settings hooks never fire for mod tools. Mod assign reaches `host-load-gate.sh` through
+  `review-dispatch-gate.sh` (`TMUX_AGENT_DISPATCH_GATE`), so it gets the load check and the cap.
+- Hook coverage excludes other MCP launches, Grok Bot, plain terminals, and later worker load.
   Grok Bot work runs on its box/cloud; approve local execution per app call.
 - Load warnings reach Claude, Codex, and Cursor; agy has no context channel and shows only denial.
 - Export load thresholds before CLI launch; Cursor hooks also source `~/.zshenv`.
 - On Cursor, run bol-prompt-gate on preToolUse Task; its missing start event prevents ledger counts.
-- Keep at most three named persistent tmux workers per session across CLIs; ask before more.
-- Start each once with assign, send later tasks through the same worker with `send-wait`,
-  and normally stop at session end; dispatch each through the same path.
+- Keep at most three named persistent workers (hc or tmux) per session across CLIs; ask before more.
+- Start each once through the chosen path, send later tasks through the same worker (`hc send`
+  for hc, `send-wait` for tmux), and normally stop at session end; dispatch each the same way.
 - Use throwaway workers only for trust/repo isolation or genuine parallel fanout.
 - Dispatch with assign; do not hand-chain steps or use `--prompt-file` as task delivery.
 - Before calling a profile or worker unusable, read

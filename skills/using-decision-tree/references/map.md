@@ -45,9 +45,9 @@ the row's loop has closed.
 
 Owner pointers (their chains stay with them): codebase-wide deepening →
 `improve-codebase-architecture`; interface, domain or visual design → the
-design branch; writing for people → `writing-artifacts`; tmux workers →
+design branch; writing for people → `writing-artifacts`; CLI workers (built-in mod path, else hc, else tmux) →
 `using-tmux-agent-tools` → `delegation-templates` → this runtime's worker tool
-(`mcp__tmux-agent__assign` or `tell` with the tmux-agent mod, else `tmux-agent-commander assign`); loops and
+(first check which mod tools this runtime has loaded: with the tmux-agent mod, `mcp__tmux-agent__assign`, which picks hc or tmux itself, then `hc send` or `tell`; without one, an hc terminal started by hand; else `tmux-agent-commander assign`); loops and
 recipes → the loops branch; a skill edit →
 `skill-creator` (draft, eval), then rule `maintenance` §1 (exact diff, approval)
 before any install or deploy.
@@ -88,7 +88,7 @@ before any install or deploy.
 
 | I need to… | Skill | Mode |
 |---|---|---|
-| run a CLI as a tmux worker, or decide inline versus worker | `using-tmux-agent-tools` | Skill() |
+| run a CLI as a worker (built-in mod path, else hc, else tmux), or decide inline versus worker | `using-tmux-agent-tools` | Skill() |
 | write any worker brief (GOAL/ACCEPTANCE/REPORT) | `delegation-templates` | Skill() |
 | drive tmux workers: mechanics and wrappers | `tmux-agent-tools` | via-router |
 | plan and run an explicitly orchestrated agent workflow | `codex-dynamic-workflows` | Skill() |

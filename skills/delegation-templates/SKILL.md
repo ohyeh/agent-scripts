@@ -1,6 +1,6 @@
 ---
 name: delegation-templates
-description: Fill-in-the-blank prompt templates for delegating work to subagents or tmux workers - SEARCH/LOCATE, IMPLEMENT, REFACTOR, RESEARCH, REVIEW/VERIFY. Invoke BEFORE writing any delegation prompt (Agent tool, agent-tmux worker, or fanout task), including when the user names a model or worker for a job (「派 sol」「讓 agy 跑」「deepseek 審」「haiku 一起」), so the prompt ships with explicit GOAL, MODEL, ACCEPTANCE, and REPORT sections instead of a vague ask. Not for deciding WHETHER to delegate or for driving workers after launch (see the using-tmux-agent-tools and tmux-agent-tools skills for those).
+description: Fill-in-the-blank prompt templates for delegating work to subagents or CLI workers (built-in mod path, else hc, else tmux) - SEARCH/LOCATE, IMPLEMENT, REFACTOR, RESEARCH, REVIEW/VERIFY. Invoke BEFORE writing any delegation prompt (Agent tool, hc or agent-tmux worker, or fanout task), including when the user names a model or worker for a job (「派 sol」「讓 agy 跑」「deepseek 審」「haiku 一起」), so the prompt ships with explicit GOAL, MODEL, ACCEPTANCE, and REPORT sections instead of a vague ask. Not for deciding WHETHER to delegate or for driving workers after launch (see the using-tmux-agent-tools and tmux-agent-tools skills for those).
 ---
 
 # Delegation Prompt Templates
@@ -27,7 +27,7 @@ For non-trivial work, add these filled lines before ACCEPTANCE:
 > PARALLEL: parallel briefs name each worker's write files and the owner of each shared
 > interface. Two parallel briefs never name the same file. Change a shared file or interface
 > in sequence unless an integration plan exists. Add no branch or second checkout for this.
-> Before a new worker takes a live worker's run dir, stop the old worker (TaskStop for a subagent, the stop command for a tmux worker);
+> Before a new worker takes a live worker's run dir, stop the old worker (TaskStop for a subagent, `hc kill` then `hc rm` for an hc worker, the stop command for a tmux worker);
 > a message does not stop it.
 > UI REDESIGN: when the task changes a visible interface, compare the visible-element sets before and after; hidden text does not prove that a formerly visible control or table remains visible.
 
@@ -187,12 +187,19 @@ agent-tmux claude assign {safe-name} {repo-dir} {prompt-file}
 When the delegate is a tmux worker, ADD these lines to the filled template
 (they replace nothing — the common footer still applies):
 
-> Do not spawn additional tmux sessions or delegate further.
+> Do not start more workers (hc or tmux) or delegate further.
 > WORKER_ARTIFACT: {absolute path} — write your findings to this file.
 > When done, write the structured completion (result.json contract,
 > schema_version 1) to {absolute result path} — do not rely on
 > `$TMUX_AGENT_RESULT` inside tool sandboxes. Put the REPORT bullets in its
 > `summary` field.
+
+The result lines matter only for a tmux worker. An hc worker has no result.json:
+it reports to the parent with `hc send`. Assign adds that line to its task. For an
+hc worker you start by hand, add it yourself, with the parent's terminal address:
+
+> When done or stuck, report to the parent with: hc send {parent} "<result or blocker>".
+> Write a long answer to a file and send its path.
 
 A follow-up round (`tell`) gets a new result path; the wrapper puts it on line 1
 of that round's prompt. In any brief or tell, write "the result's `summary`
@@ -210,7 +217,8 @@ learned its result path, and its `pending` was therefore permanent.
 ## Dispatch shape C — supervision proxy brief (typed contract)
 
 Only for a Claude session WITHOUT the tmux-agent mod (with it, dispatch via
-`mcp__tmux-agent__assign`; no proxy). The subagent that HOSTS the one `assign --detach` gets this brief verbatim. It is
+`mcp__tmux-agent__assign`; no proxy), and only when an hc worker started by hand
+does not fit (worker order: `model-dispatch` §4). The subagent that HOSTS the one `assign --detach` gets this brief verbatim. It is
 a fixed schema, not prose; `check-bol-prompt.sh` validates the three declared
 fields and nothing else.
 

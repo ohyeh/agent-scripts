@@ -4,6 +4,8 @@ cd "$(dirname "$0")/.." || exit 1
 H="$PWD/.agents/hooks/review-dispatch-gate.sh"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 export TMUX_AGENT_STATE_V3="$T/v3" XDG_DATA_HOME="$T/data" CLAUDE_CONFIG_DIR="$T/cc"
+# The hook smoke test covers the host-load check on mod assign.
+export HOST_LOAD_GATE=off
 fail=0
 S=sess-1
 git init -q --bare "$T/remote.git"

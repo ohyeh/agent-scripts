@@ -165,7 +165,7 @@ done
   || { echo "FAIL: precompact sent rules with no skill installed" >&2; exit 1; }
 echo 'PASS precompact: summary rules = SKILL.md CREATE Step 2 (Next Steps with Source, Timeline, Standing Authorizations), none without the skill'
 
-# compaction recall: re-injects verbatim user prompts, skips tool_result/<tags>/its own header, escalates at 3 compactions
+# compaction recall: re-injects verbatim user prompts, skips tool_result/<tags>/its own header; no compaction cap
 TR="$WORK/transcript.jsonl"
 {
   echo '{"type":"user","message":{"content":"uat = staging 記得改"}}'
@@ -180,11 +180,10 @@ out="$(run_recall)"
 grep -q -- '- uat = staging 記得改' <<<"$out" || { echo "FAIL: recall dropped a user prompt" >&2; exit 1; }
 grep -q -- '- 快點測試 驗證' <<<"$out" || { echo "FAIL: recall dropped a text-block prompt" >&2; exit 1; }
 grep -q 'noise\|skip me\|old injection' <<<"$out" && { echo "FAIL: recall leaked tool_result/tag/self output" >&2; exit 1; }
-grep -q 'ESCALATION' <<<"$out" && { echo "FAIL: escalated at 1 compaction" >&2; exit 1; }
-for i in $(seq 2 19); do echo '{"type":"user","isCompactSummary":true,"message":{"content":"s"}}' >> "$TR"; done
-grep -q 'ESCALATION' <<<"$(run_recall)" && { echo "FAIL: escalated below the 20-compaction limit" >&2; exit 1; }
-echo '{"type":"user","isCompactSummary":true,"message":{"content":"s"}}' >> "$TR"
-grep -q 'ESCALATION: this session has compacted 20 times' <<<"$(run_recall)" || { echo "FAIL: no escalation at 20 compactions" >&2; exit 1; }
+for i in $(seq 2 25); do echo '{"type":"user","isCompactSummary":true,"message":{"content":"s"}}' >> "$TR"; done
+out="$(run_recall)"
+grep -q 'Compactions in this session: 25\.' <<<"$out" || { echo "FAIL: recall lost the compaction count" >&2; exit 1; }
+grep -Eq 'ESCALATION|BLOCKED|handoff' <<<"$out" && { echo "FAIL: 25 compactions still escalate to a handoff (no cap, owner 2026-11-28)" >&2; exit 1; }
 for i in $(seq 1 60); do printf '{"type":"user","message":{"content":"%s"}}\n' "$(head -c 300 /dev/zero | tr '\0' x)" >> "$TR"; done
 [[ "$(run_recall | wc -c)" -le 6100 ]] || { echo "FAIL: recall exceeded byte cap" >&2; exit 1; }
 # Step 1: 300-char prompt ending in REVOKE emits a transcript:line pointer that reads back REVOKE
@@ -760,13 +759,16 @@ esac
 EOF
 printf '#!/bin/sh\nprintf "%%s" "$FAKE_TMUX_SESSIONS"\n' > "$WORK/fakebin/tmux"
 chmod +x "$WORK/fakebin/uname" "$WORK/fakebin/sysctl" "$WORK/fakebin/tmux"
+# A PATH with no real hc, even if it is installed on the test host: no case reads a live hc core.
+ln -s "$(command -v jq)" "$WORK/fakebin/jq"
+HOST_TEST_PATH=/usr/bin:/bin
 HIGH='{ 1.00 21.00 1.00 }'
 host_payload() { # $1 tool_name, $2 command
   jq -cn --arg t "$1" --arg c "${2:-}" '{tool_name:$t,session_id:"hlg",tool_input:{command:$c,prompt:"p"}}'
 }
-run_host() { # $1 loadavg, $2 pressure level, $3 payload; returns the hook's exit code
-  printf '%s' "$3" | PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="$1" FAKE_MP="$2" XDG_DATA_HOME="$WORK/hlg-data" \
-    bash "$ROOT/.agents/hooks/host-load-gate.sh" >"$WORK/host-out" 2>"$WORK/host-err"
+run_host() { # $1 loadavg, $2 pressure level, $3 payload; returns the hook's exit code. Runs in $WORK (relative HC_SOCKET).
+  (cd "$WORK" && printf '%s' "$3" | PATH="$WORK/fakebin:${HOST_TEST_PATH:-$PATH}" FAKE_LOADAVG="$1" FAKE_MP="$2" XDG_DATA_HOME="$WORK/hlg-data" \
+    bash "$ROOT/.agents/hooks/${HOST_TEST_GATE:-host-load-gate.sh}" >"$WORK/host-out" 2>"$WORK/host-err")
 }
 AGENT="$(host_payload Agent)"
 run_host '{ 1.00 1.00 1.00 }' 1 "$AGENT" && [[ ! -s "$WORK/host-out" ]] || { echo "FAIL: host gate not silent at low load" >&2; exit 1; }
@@ -793,17 +795,84 @@ for c in 'agent-tmux codex start-ssh w host /tmp' 'agent-tmux codex start --dry-
   run_host "$HIGH" 1 "$(host_payload Bash "$c")" || { echo "FAIL: non-launch command was gated: $c" >&2; exit 1; }
 done
 run_host "$HIGH" 1 "$(host_payload Read)" || { echo "FAIL: unrelated tool was gated" >&2; exit 1; }
-# tmux worker cap (2026-11-06): at low load, 3 live workers deny a fourth tmux launch; a native subagent is not capped
+# Local worker cap (TMUX_WORKER_MAX, default 3): hc and tmux workers together
 LOW='{ 1.00 1.00 1.00 }'
-TWO="$(printf 'main\nclaude-ds-review.cxq0u\ncodex-sol-fix.ab12c\nagy-flash-x.zz9yy\n')"
-if FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload mcp__tmux-agent__assign)"; then echo "FAIL: mod assign over the worker cap was allowed" >&2; exit 1; fi
-grep -q 'live tmux workers on this host (cap 3)' "$WORK/host-err" && grep -q 'native subagent' "$WORK/host-err" || { echo "FAIL: worker-cap deny lacks count or next steps" >&2; exit 1; }
-if FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux codex start w /tmp')"; then echo "FAIL: agent-tmux start over the worker cap was allowed" >&2; exit 1; fi
-FAKE_TMUX_SESSIONS="$(printf 'main\nclaude-ds-review.cxq0u\ncodex-sol-fix.ab12c\n')" run_host "$LOW" 1 "$(host_payload mcp__tmux-agent__assign)" || { echo "FAIL: mod assign under the worker cap was denied" >&2; exit 1; }
+TWO="$(printf 'main\nclaude-ds-review.cxq0u\ncodex-sol-fix.ab12c')"
+THREE="$(printf '%s\nagy-flash-x.zz9yy' "$TWO")"
+ASSIGN="$(host_payload mcp__tmux-agent__assign)"
+START="$(host_payload Bash 'agent-tmux codex start w /tmp')"
+if PATH="$WORK/fakebin:$HOST_TEST_PATH" command -v hc >/dev/null; then echo "FAIL: hc present in the hc-absent fixture" >&2; exit 1; fi
+rc=0
+FAKE_TMUX_SESSIONS="$THREE" run_host "$LOW" 1 "$ASSIGN" || rc=$?
+[ "$rc" = 2 ] || { echo "FAIL: hc absent, three tmux workers must deny assign (got $rc)" >&2; exit 1; }
+FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$ASSIGN" || { echo "FAIL: hc absent, two tmux workers must allow assign" >&2; exit 1; }
+FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash 'hc run codex')" || { echo "FAIL: hc absent, two tmux workers must allow a hand hc start" >&2; exit 1; }
+TMUX_WORKER_MAX=4 FAKE_TMUX_SESSIONS="$THREE" run_host "$LOW" 1 "$ASSIGN" || { echo "FAIL: TMUX_WORKER_MAX=4 did not raise the cap" >&2; exit 1; }
+if FAKE_TMUX_SESSIONS="$THREE" run_host "$LOW" 1 "$START"; then echo "FAIL: agent-tmux start over the worker cap was allowed" >&2; exit 1; fi
 FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux codex start w /tmp')" && [[ ! -s "$WORK/host-out" ]] || { echo "FAIL: launch with no live worker was not silently allowed" >&2; exit 1; }
-FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$AGENT" || { echo "FAIL: native subagent was blocked by the tmux worker cap" >&2; exit 1; }
-FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux codex start-ssh w host /tmp')" || { echo "FAIL: remote start-ssh was blocked by the tmux worker cap" >&2; exit 1; }
-echo "PASS tmux worker cap: 3 live workers deny a 4th mod assign or agent-tmux start; native subagent, start-ssh and 2 live workers pass"
+FAKE_TMUX_SESSIONS="$THREE" run_host "$LOW" 1 "$AGENT" || { echo "FAIL: native subagent was blocked by the worker cap" >&2; exit 1; }
+FAKE_TMUX_SESSIONS="$THREE" run_host "$LOW" 1 "$(host_payload Bash 'agent-tmux codex start-ssh w host /tmp')" || { echo "FAIL: remote start-ssh was blocked by the worker cap" >&2; exit 1; }
+
+cat > "$WORK/fakebin/hc" <<'EOF'
+#!/bin/sh
+printf 'hc called\n' >> "$FAKE_HC_CALLS"
+[ "$*" = 'ls --json' ] || exit 1
+[ "${FAKE_HC_FAIL:-0}" = 0 ] || exit 5
+printf '%s\n' "$FAKE_HC_ROWS"
+EOF
+chmod +x "$WORK/fakebin/hc"
+# A real listening socket stands in for a live hc core, so the gate's real perl probe runs.
+# Relative path: macOS caps a socket path at 104 bytes, and $WORK can be longer. It accepts each
+# probe: an unaccepted backlog refuses connects after 5 probes.
+(cd "$WORK" && exec perl -MSocket -e 'socket(my $s, PF_UNIX, SOCK_STREAM, 0) or die; bind($s, pack_sockaddr_un("hc.sock")) or die; listen($s, 5) or die; alarm 60; close $_ while accept($_, $s)') &
+HC_CORE_PID=$!
+trap 'kill "$HC_CORE_PID" 2>/dev/null || true; rm -rf "$WORK"' EXIT
+for _ in 1 2 3 4 5 6 7 8 9 10; do [ -S "$WORK/hc.sock" ] && break; sleep 0.2; done
+[ -S "$WORK/hc.sock" ] || { echo "FAIL: fake hc core socket did not appear" >&2; exit 1; }
+export HC_SOCKET=hc.sock FAKE_HC_CALLS="$WORK/hc-calls"
+# t1 is a top-level session (no parent). A worker is a live local child that is not a shell.
+TOP='{"address":"t1","agent":"claude-code","state":"live"}'
+LOCAL_HC='{"terminals":['"$TOP"',{"address":"t7","agent":"codex","parent":"t1","state":"live"}]}'
+# hand-started codex, mod-started claude, and an assign worker that still shows env while it starts
+HC_THREE='{"terminals":['"$TOP"',{"address":"t7","agent":"codex","parent":"t1","state":"live"},{"address":"t8","agent":"claude-code","parent":"t1","state":"live"},{"address":"t9","agent":"env","parent":"t1","state":"live"}]}'
+NONLOCAL_HC='{"terminals":['"$TOP"',{"address":"t5","agent":"zsh","parent":"t1","state":"live"},{"address":"remote/t7","agent":"codex","parent":"remote/t1","state":"live"},{"address":"t8","agent":"codex","parent":"t1","state":"finished"}]}'
+for payload in "$ASSIGN" "$START"; do
+  rc=0
+  FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$payload" || rc=$?
+  [ "$rc" = 2 ] || { echo "FAIL: two tmux workers plus one local hc worker must deny launch (got $rc)" >&2; exit 1; }
+  grep -q '3 live workers on this host (cap 3)' "$WORK/host-err" &&
+    grep -q 'hc kill <t>.*hc rm <t>' "$WORK/host-err" && grep -q 'native subagent' "$WORK/host-err" ||
+    { echo "FAIL: worker-cap deny lacks count or next steps" >&2; exit 1; }
+done
+rc=0
+HOST_TEST_GATE=review-dispatch-gate.sh FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$ASSIGN" || rc=$?
+[ "$rc" = 2 ] || { echo "FAIL: the mod dispatch gate must enforce the combined worker cap (got $rc)" >&2; exit 1; }
+rc=0
+FAKE_HC_ROWS="$HC_THREE" FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$ASSIGN" || rc=$?
+[ "$rc" = 2 ] || { echo "FAIL: three hc child workers (hand, mod, env-starting) must deny assign (got $rc)" >&2; exit 1; }
+FAKE_HC_ROWS="$NONLOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$ASSIGN" ||
+  { echo "FAIL: top-level, shell child, remote or finished hc rows counted toward the local cap" >&2; exit 1; }
+# a hand hc start is gated like agent-tmux start; --on runs it on another machine
+for c in 'hc run codex' '/opt/herdr/bin/hc run --bg --name rev claude "review"'; do
+  rc=0
+  FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash "$c")" || rc=$?
+  [ "$rc" = 2 ] || { echo "FAIL: hand hc start over the worker cap was allowed: $c (got $rc)" >&2; exit 1; }
+done
+for c in 'hc run --on mini codex' 'hc run "npm test"' 'hc ls --json'; do
+  FAKE_HC_ROWS="$HC_THREE" FAKE_TMUX_SESSIONS="$THREE" run_host "$LOW" 1 "$(host_payload Bash "$c")" ||
+    { echo "FAIL: non-local or non-agent hc command was gated: $c" >&2; exit 1; }
+done
+FAKE_HC_FAIL=1 FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$ASSIGN" ||
+  { echo "FAIL: failed hc listing blocked a launch under the tmux cap" >&2; exit 1; }
+before="$(wc -l < "$FAKE_HC_CALLS")"
+HC_SOCKET=no-core.sock FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$ASSIGN" ||
+  { echo "FAIL: stopped hc core blocked a launch under the tmux cap" >&2; exit 1; }
+[ "$(wc -l < "$FAKE_HC_CALLS")" = "$before" ] ||
+  { echo "FAIL: the hook invoked hc with its core down" >&2; exit 1; }
+kill "$HC_CORE_PID" 2>/dev/null || true; wait "$HC_CORE_PID" 2>/dev/null || true
+unset HC_SOCKET FAKE_HC_CALLS
+rm -f "$WORK/fakebin/hc"
+echo "PASS worker cap: hc child workers (hand, mod) and tmux together; hand hc run gated, --on passes; shell, top-level, remote and finished rows ignored; hc absent or down; TMUX_WORKER_MAX"
 # the deny reaches Cursor (subagentStart, preToolUse Shell) and agy (run_command) through their adapters
 run_adapted() { # $1 adapter command..., stdin payload
   PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="${ADAPT_LOADAVG:-$HIGH}" FAKE_MP=1 HOME="$TEST_HOME" \

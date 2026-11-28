@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # SessionStart hook, matcher "compact": re-inject the user's own recent prompts
-# after a compaction, and escalate to handoff when a session has compacted too
-# often. stdout of a SessionStart hook is injected as context for the model.
+# after a compaction. stdout of a SessionStart hook is injected as context for the model.
 #
 # Why (measured 2026-08-26 on a peer host, session 510a1448): the compaction
 # summary is a lossy paraphrase and the user's instruction "uat = staging" was
@@ -9,17 +8,10 @@
 # only turn-end assistant text, not user prompts, so recall must read the
 # transcript jsonl on disk — it survives compaction verbatim.
 #
-# Threshold data: the three sessions the user called 失智 compacted 3, 4 and 1
-# times (the 1 lost an instruction at that single compaction); healthy sessions
-# that day compacted 0–1. Escalated at 3 until 2026-09-02; raised to 6 to measure
-# whether the PostCompact handoff file (postcompact-handoff.sh) removes the loss.
-# W37 (2026-09-11): two 7-compact sessions had zero post-compact corrections;
-# loss no longer observed. Raised to 10 as a guard for runaway sessions only.
-# W39 (2026-09-24): long tasks hit 10 this week; raised to 20 (Paul).
+# No compaction cap (owner 2026-11-28: 「拿掉了啊 我們 handoff 優化了那麼多」): a long task
+# runs on; the count below is shown for observation only.
 set -u
 
-# Shared with compaction-cap-gate.sh (the PreToolUse gate that enforces this cap).
-MAX_COMPACTIONS="${AGENT_HOOKS_MAX_COMPACTIONS:-20}"
 MAX_PROMPTS=20
 MAX_PROMPT_CHARS=200
 # A worker's first record is its brief; at 200 chars the replay of a70f788e
@@ -119,10 +111,6 @@ ${brief:+Your brief (first message): $brief
 }$(printf '%s\n' "$prompts" | grep -v '^$' | sed 's/^/- /')
 Compactions in this session: $compactions. Re-derive current goal and title status from these, not from the summary alone."
 
-if [ "$compactions" -ge "$MAX_COMPACTIONS" ]; then
-  out="$out
-ESCALATION: this session has compacted $compactions times (limit $MAX_COMPACTIONS). Building is now BLOCKED by compaction-cap-gate.sh (no exemption). Do exactly: write the handoff (skill session-handoff), closing recap, rename this title to ↗️ with the next sequence number (session-titles.md §State transitions 4), PushNotification the user to open the successor, ScheduleWakeup {stop:true}, then idle."
-fi
 
 # ponytail: hard byte cap so the recall can never recreate the bloat that
 # caused the compaction; drop oldest prompts first if over.

@@ -1,5 +1,26 @@
 # Changelog
 
+## hooks: no compaction cap
+
+- Removed `compaction-cap-gate.sh`. At 20 compactions it blocked all work except the handoff. Owner 2026-11-28: 「現在還有限制上限嗎？ 如果有 記得拿掉了 這樣會影響到我們長任務觀測」「拿掉了啊 我們 handoff 優化了那麼多」.
+- `compaction-recall.sh` keeps the prompt replay and the `Compactions in this session: N` line. It no longer prints the ESCALATION line, and `AGENT_HOOKS_MAX_COMPACTIONS` is gone.
+- `deploy.sh` deletes the installed gate, retires its `PreToolUse` entry in `~/.claude/settings.json`, and fails if either is still there.
+- Tests: `test-jsonl-hooks-smoke` checks that 25 compactions keep the count and print no escalation or handoff order.
+
+## kernel 4.58.0: worker order is built-in mod path, else hc, else tmux; the worker cap counts hc and tmux
+
+- Owner 2026-11-28 「我想把 kernel 一些規範改成 herdr first 沒有才走 tmux 你幫我梳理一下 mod + skill」「1 2 3 都要做」「有內建的的路最優先 因為有 mod 的可能 mod 又很多種 所以先確認」.
+- Kernel (both runtime files and kernel-lean): the delegate routing line names the worker order: a built-in mod path first, else hc (herdr-core), else tmux. No new kernel line; 189 lines.
+- `host-load-gate.sh`: the cap of 3 workers per host now counts hc and tmux together (`TMUX_WORKER_MAX` still sets it). An hc worker is a live row of `hc ls --json` with a `parent` (assign passes `--parent`, and a hand `hc run` from an hc terminal sets it by default; top-level sessions have none), an address with no machine prefix (a row with `/` runs on another machine), and a program that is not a shell (zsh, bash, sh, fish, as in the mod's `HC_SHELLS`; `env` counts, because an assign worker shows `env` while it starts). This counts mod-started and hand-started workers from every session on the host. The gate also checks a Bash `hc run` (or an absolute hc path) of an agent CLI; `hc run --on <machine>` passes. With hc missing, its core down, or `hc ls` failing, the gate counts tmux only. It checks the core socket first with the mod's own probe, because an hc command can start a core that is not running (inferred from `hc --skill`: "On Windows, `hc server status` never starts a core"). The deny text adds the hc stop steps: `hc kill <t>`, then `hc rm <t>`.
+- `review-dispatch-gate.sh` runs `host-load-gate.sh` for mod assign. Settings hooks never fire for mod tools (TAT v0.46.16), so mod assign got no load check and no cap before; it gets both now, and a load warning goes to the mod as a note.
+- hc reviewers are not tracked by `review-dispatch-gate.sh`: an hc worker leaves no `.v3` record, and its screen holds the brief, which names both verdicts. The header and `model-dispatch` say so; the review ladder covers hc reviewers by rule only. A gate branch for hc waits for phase 3 (hc collector).
+- `model-dispatch` §4: pick the worker in this order: (1) first check which mod tools the runtime has loaded and use one, such as `mcp__tmux-agent__assign`, which picks hc or tmux itself (for hc follow the assign receipt, for tmux §COLLECTOR); (2) without one, start an hc terminal by hand; (3) else tmux through the proxy. The cap text names the hand `hc run` check. Work that needs result.json and the collector, a remote start, or a multi-worker script stays on tmux until phase 3; assign has no per-call backend choice, so such work goes through the proxy `assign --detach` route. Cap text, stop steps, follow-ups (`hc send`), and hook coverage updated. Seats and models are unchanged.
+- `harness-diagnosis`: the hc worker marker for splitting sessions. Skills `delegation-templates`, `using-decision-tree` (map, design, chain, loops) and `focus-my-energy`: worker wording names the same order; the result.json lines are for tmux workers only, and a brief for a hand-started hc worker carries the `hc send` report line (same words as assign, so the `harness-diagnosis` marker matches). Shape C (proxy) applies only when a hand hc start does not fit.
+- Tests: `test-jsonl-hooks-smoke` covers hc workers over the cap (assign, agent-tmux start, a hand `hc run`, and through the mod dispatch gate), hand-started, mod-started and env-starting children counted, shell children and top-level sessions not counted, `hc run --on` and `hc run "npm test"` not gated, hc absent, hc core down (hc is not called; a real listening socket and the real perl probe, not a stub), a failed hc listing, remote and finished hc rows ignored, and `TMUX_WORKER_MAX`. All host gate cases run on a PATH with no real hc. `test-review-dispatch-gate.sh` sets `HOST_LOAD_GATE=off`.
+- `loops.md`: `consensus-gate` as a recipe waits with `await`, so it needs a tmux worker; with assign on hc first this path is untested.
+- Not counted: an hc start from a non-hc terminal or with `--no-parent` (no parent). Counted although not an agent: a child server such as `hc run --bg npm run dev`.
+- Not verified: a live mod assign on hc that the gate denies; the commander syncs `skills-lock.json` after the commit.
+
 ## antigravity-statusline: a window that has not started shows its full length again
 
 - Owner 2026-11-28 「然後 agy status line 我說要修正的你們都沒做 有些顯示錯誤」.

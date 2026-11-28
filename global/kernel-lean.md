@@ -1,6 +1,6 @@
 # Lean Operating Rules
 
-Version: 4.57.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
+Version: 4.58.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 
 ## Overview & Precedence
 - Canonical: `ohyeh/agent-scripts` `global/`; rules `~/.agents/rules/<name>.md`; skills
@@ -39,8 +39,8 @@ Version: 4.57.0-ironlaws (lean edition; solid = `global/CLAUDE.md`)
 ## Routing Index
 - On trigger, read the routed file and follow its criteria without quoting. Binds for multi-phase,
   irreversible, or delegated work; go straight to code for a single reversible edit.
-- Delegate (subagent/tmux/workflow) → `model-dispatch` + skill `delegation-templates` (brief =
-  GOAL/ACCEPTANCE/REPORT + runtime-native model).
+- Delegate (subagent/workflow; worker: built-in mod path, else hc, else tmux) → `model-dispatch`
+  + skill `delegation-templates` (brief = GOAL/ACCEPTANCE/REPORT + runtime-native model).
 - Done/verified/PASS/BLOCK or negative-state claim → `judgment-rubrics` §2/§5; retry, trade-off, or
   user decision → §3/§4/§6; judge outputs or event probabilities → §9; hard/stalled/final → §8.
 - Unclear acceptance, multi-phase, or material default → skill `unknowns-discovery`.
