@@ -20,6 +20,8 @@ input=$(cat)
 if [ -z "$input" ] || ! echo "$input" | jq -e . >/dev/null 2>&1; then
   input="{}"
 fi
+# Keep the last payload agy sent, so a wrong field can be traced to agy or to this script.
+printf '%s' "$input" > "${HOME}/.gemini/antigravity-cli/statusline-last.json" 2>/dev/null || true
 
 # 1. Map Antigravity's real quota to both Gemini and 3P model_scoped windows
 snapshot_file="${HOME}/.gemini/antigravity-cli/statusline-usage-snapshot.json"
@@ -119,13 +121,15 @@ if [ -n "$cols" ] && [ "$cols" != "null" ]; then
   export COLUMNS="$cols"
 fi
 
-# Fallback model from settings.json if omitted
-agy_model=""
+# Fallback model from settings.json if omitted. In Orchestrator mode agy keeps the label of the
+# first planner ("Orchestrator (Neon)") after /model changes it; the live planner is .orchestrator.
+agy_model="" planner="" executor=""
 if [ -f "${HOME}/.gemini/antigravity-cli/settings.json" ]; then
-  agy_model=$(jq -r '.model // empty' "${HOME}/.gemini/antigravity-cli/settings.json" 2>/dev/null || true)
+  # \x1f, not tab: read merges repeated whitespace delimiters, which would shift empty fields.
+  IFS=$'\x1f' read -r agy_model planner executor < <(jq -r '[.model // "", .orchestrator.planner // "", .orchestrator.executor // ""] | join("\u001f")' "${HOME}/.gemini/antigravity-cli/settings.json" 2>/dev/null) || true
 fi
 
-input=$(printf '%s' "$input" | jq --arg cwd "$PWD" --arg agy_model "$agy_model" '
+input=$(printf '%s' "$input" | jq --arg cwd "$PWD" --arg agy_model "$agy_model" --arg planner "$planner" --arg executor "$executor" '
   if type != "object" then {} else . end
   | if (.model | not) or .model == null or (.model.display_name | not) then
       if .model.name then
@@ -133,6 +137,10 @@ input=$(printf '%s' "$input" | jq --arg cwd "$PWD" --arg agy_model "$agy_model" 
       elif ($agy_model | length > 0) then
         .model.display_name = $agy_model | .model.id = $agy_model
       else . end
+    else . end
+  | if ((.model.display_name // "") | startswith("Orchestrator")) and ($planner | length > 0) then
+      .model.display_name = ("Orchestrator: " + $planner
+        + (if ($executor | length > 0) then " ▸ " + $executor else "" end))
     else . end
   | if (.cwd | not) or .cwd == null or .cwd == "" then
       .cwd = (.workspace.current_dir // .workspace.workspace_dir // $cwd)
