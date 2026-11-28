@@ -444,7 +444,6 @@ echo "==> [hooks] installing sentinel hooks + registering in ~/.claude/settings.
 w rm -f ~/.agents/hooks/tmux-dispatch-gate.sh   # retired; owned by the tmux-agent-tools plugin
 w rm -f ~/.agents/hooks/bol-prompt-warn.sh      # retired 2026-08-25; replaced by bol-prompt-gate.sh (blocking)
 w rm -f ~/.agents/hooks/postcompact-handoff.sh  # retired 2026-11-10; its file copy of the summary had no reader
-w rm -f ~/.agents/hooks/compaction-cap-gate.sh  # retired 2026-11-28; the compaction cap stopped long tasks
 w mkdir -p ~/.agents/hooks
 # same-file guard: on the clone-tracked layout ~/.agents/hooks IS $SRC/.agents/hooks
 hook_install() {
@@ -531,7 +530,6 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
    --arg arttitle "\"\$HOME/.agents/hooks/artifact-title-gate.sh\"" \
    --arg router "\"\$HOME/.agents/hooks/skill-router-nudge.sh\"" \
    --arg chain "\"\$HOME/.agents/hooks/skill-chain-nudge.sh\"" \
-   --arg compcap "\"\$HOME/.agents/hooks/compaction-cap-gate.sh\"" \
    --arg idle "\"\$HOME/.agents/hooks/wakeup-idle-gate.sh\"" \
    --arg roundcost "\"\$HOME/.agents/hooks/round-cost-gate.sh\"" \
    --arg followup "\"\$HOME/.agents/hooks/worker-followup-gate.sh\"" \
@@ -568,6 +566,11 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
         | .seen = $r.seen
         | if ($r.keep | length) > 0 then .out += [$g + {hooks: $r.keep}] else . end)
       | .out)));
+  # every entry whose command names a retired script, in any event and any path spelling
+  def retireScript(name):
+    .hooks |= ((. // {}) | with_entries(.value |= (map(.hooks |= map(select(
+      ((.command | type) != "string") or ((.command | contains(name)) | not))))
+      | map(select(.hooks | length > 0)))));
   def retire(ev; cmd):
     .hooks[ev] = ((.hooks[ev] // [])
       | map(.hooks |= map(select(.command != cmd))) | map(select(.hooks | length > 0)));
@@ -621,12 +624,14 @@ jq --arg only "bash \"\$HOME/.agents/hooks/claude-only.sh\"" \
   | ensureMatched("PreToolUse"; "*"; $deny)
   | ensureMatched("PreToolUse"; "Artifact"; $arttitle)
   | ensure("UserPromptSubmit"; $router)
-  | retire("PreToolUse"; $only + " " + $compcap)   # retired 2026-11-28: no compaction cap
+  | retireScript("compaction-cap-gate.sh")   # retired 2026-11-28: no compaction cap
   | ensureMatched("PreToolUse"; "ScheduleWakeup"; $idle)
   | ensureMatched("PreToolUse"; "Bash|Read|Grep|Glob|mcp__plugin_context-mode_context-mode__ctx_execute|mcp__plugin_context-mode_context-mode__ctx_execute_file"; $roundcost)
   | ensureMatched("PreToolUse"; "SendMessage"; $followup)
 ' "$SETTINGS" > "$tmp_settings" || { echo "FAIL [hooks] settings.json rewrite (jq) failed" >&2; exit 1; }
 apply "$tmp_settings" "$SETTINGS" hooks
+# Only now: a failed settings rewrite above exits first, so a live entry never points at a removed script.
+w rm -f ~/.agents/hooks/compaction-cap-gate.sh  # retired 2026-11-28; the compaction cap stopped long tasks
 
 # Codex sends Claude-shaped hook payloads (live dump 2026-09-26), so the tool/stop gates run as-is.
 if [ -d ~/.codex ]; then

@@ -85,7 +85,7 @@ const modConduit = ({ profile, base, dir, worker, out, marker, timeout, task }) 
   `The worker's instruction: write the full response to ${out}, ending the file with a line exactly: ${marker}; the result.json summary is one line.\n` +
   (worker
     ? `1. Call the verified tell tool {name: "${worker}", text: the task below plus that instruction}. worker = "${worker}".\n`
-    : `1. Call the verified assign tool {profile: "${profile}", name: "${base}", dir: the absolute path of ${dir}, brief: "GOAL: " + the task below + that instruction + "\\nMODEL: none — independent read-only review\\nACCEPTANCE: ${out} ends with the marker line.\\nREPORT: a one-line summary."}. worker = the name the receipt returns (with its suffix).\n`) +
+    : `1. Call the verified assign tool {profile: "${profile}", name: "${base}", dir: the absolute path of ${dir}, brief: "GOAL: " + the task below + that instruction + "\\nMODEL: none — independent read-only review\\nACCEPTANCE: ${out} ends with the marker line.\\nREPORT: a one-line summary.\\nruntime: tmux/${profile}"}. worker = the name the receipt returns (with its suffix).\n`) +
   `2. Call the verified await tool {name: worker, max_seconds: ${Math.min(540, timeout)}} until it returns status success, failed or blocked; after ${Math.max(1, Math.ceil(timeout / 540))} pending calls, stop and report the timeout.\n` +
   `3. Read ${out}; it must end with the marker line. Return worker in the worker field.\n\nTASK:\n${task}`
 const outDir = a.outDir || `${repo.replace(/\/+$/, '')}/.workflow/consensus-gate`

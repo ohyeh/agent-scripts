@@ -1,5 +1,24 @@
 # Changelog
 
+## L2 post-hoc fixes: deploy retires every spelling of a retired hook; consensus-gate stays on tmux; catch-up child model
+
+- Review: `.workflow/202611281120-herdr-first/opinions/sol-posthoc.md` (VERDICT: BLOCK on f2f332f..505f9b4). Owner: 「要跑啊」.
+- A-03 `deploy.sh`: `retireScript` drops every settings.json entry that names `compaction-cap-gate.sh`, in any event and path spelling, and the script is deleted only after the settings rewrite succeeds. `test-deploy-check.sh` seeds three spellings (explicit `bash`, absolute path, Stop event) and an unreadable settings.json, which keeps the script.
+- A-05: `consensus-gate` and its two archive copies keep `runtime: tmux/<profile>` in the assign brief, so the mod starts a tmux worker that `await` finds. Live check: a real `mcp__tmux-agent__assign` with that line returned a tmux collector receipt; without it the mod returned an hc receipt (t7m).
+- A-06 `model-dispatch.md`: with the mod, keep the runtime line for work that needs result.json; the worker-cap text names per-command judging, every core, and agent or `env` children. TAT 0.57.1 carries the matching skill text.
+- `session-handoff`: the Claude Code catch-up child runs on a cheap, fast model the main session picks (owner 2026-11-28: 「讓 main session agent 決定 用便宜、快速模型就好了吧」). Two live catch-ups took 16 minutes each, about 90% model time, 140k output tokens each.
+- Live hc checks of the new gate (no fake hc): with t7m live and cap 1, `hc run "codex"` and `echo --dry-run; hc run codex` exit 2; `printf '%s' 'hc run codex'`, `hc run --on mini codex`, `hc run echo codex`, `hc ls` exit 0. A real second core (`HC_SESSION=gatecheck`, an `env` child) made cap 2 deny; the deployed old gate allowed it.
+
+## host-load-gate: per-command launch parsing; every hc core counted; only agent children count
+
+- Fixes review findings A-01, A-02, A-04 and A-07 (`opinions/sol-posthoc.md`, VERDICT: BLOCK on the pushed gate). Owner: 「要跑啊」, 「該做就做不是等我同意 別耍白痴了」.
+- A-01: a Bash line is split into commands (`;` `&&` `||` `|` `&` newlines, subshells) with Python's `shlex`, run by `/usr/bin/python3` (the interpreter `cursor-adapt.sh` already uses). Each command is judged by its command word, past `VAR=x`, `if`/`then`/`do`, `env`/`nohup`/`exec`, and into `sh -c` (also `-lc`) and `eval`. For `hc run`, hc's own options end at the program (`--name --cwd --on --label --parent --timeout` take a value; `--` ends them). `--on` exempts only as such an option, and one quoted string is read as a shell line. `--dry-run` exempts only the agent-tmux command that carries it. An agent with `--help`/`-h`/`--version` only prints, so it passes. Quoted text and printf/echo arguments no longer count. A line with an unbalanced quote (for example an apostrophe in a heredoc), or a host with no `/usr/bin/python3`, falls back to the old whole-text match.
+- A-02: the worker cap sums live hc child workers over every local core: `${XDG_STATE_HOME:-~/.local/state}/herdr-core/<name>/<name>.sock` (not the holder socket beside it) plus `HC_SOCKET`, counted once when it is one of those. Each socket is probed first. A globbed core is queried with `HC_SESSION` and `HC_SOCKET` set together, because hc refuses a pair that disagrees; the `HC_SOCKET` core keeps the caller's session.
+- A-04: an hc child counts only when its program is an agent CLI (`claude-code`, `codex` and `antigravity` are seen live; `claude`, `agy`, `grok`, `gemini` and `cursor-agent` are also listed), or `env` (an assign worker while it starts). npm or node dev servers no longer fill the cap.
+- A-07: the `test-jsonl-hooks-smoke` success line now says that recall keeps the count and does not escalate at 25, which matches its assertions.
+- Not counted (shortcut, in the hook): `hc run <template> "task"`, because the template file names the agent. A heredoc body is still read as commands, so it can over-block.
+- Tests: every A-01 case from the review is in `test-jsonl-hooks-smoke` at a full-cap fixture. The 漏攔 cases deny with exit 2, the 誤攔 cases pass, and the remote and real dry-run controls pass. A second real listening core socket holding 3 workers denies, the workers in both cores are summed, and a core named by both `HC_SOCKET` and the glob counts once. Three npm/node children pass; three agents deny. Run against the old hook (before the `bash -lc` and dedupe cases were added), the same smoke failed 19 checks.
+
 ## using-decision-tree: deep-research is the research default; unknowns-discovery and wayfinder hand fact gaps to it
 
 - Owner 2026-11-28: 「這個好像要加入體系跟 /using-decision-tree + /unknowns-discovery + /wayfinder 相關」, then 「要做啊靠杯」.

@@ -767,7 +767,8 @@ host_payload() { # $1 tool_name, $2 command
   jq -cn --arg t "$1" --arg c "${2:-}" '{tool_name:$t,session_id:"hlg",tool_input:{command:$c,prompt:"p"}}'
 }
 run_host() { # $1 loadavg, $2 pressure level, $3 payload; returns the hook's exit code. Runs in $WORK (relative HC_SOCKET).
-  (cd "$WORK" && printf '%s' "$3" | PATH="$WORK/fakebin:${HOST_TEST_PATH:-$PATH}" FAKE_LOADAVG="$1" FAKE_MP="$2" XDG_DATA_HOME="$WORK/hlg-data" \
+  # Relative XDG_STATE_HOME: the hook globs hc core sockets there, never the test host's live core.
+  (cd "$WORK" && printf '%s' "$3" | PATH="$WORK/fakebin:${HOST_TEST_PATH:-$PATH}" FAKE_LOADAVG="$1" FAKE_MP="$2" XDG_DATA_HOME="$WORK/hlg-data" XDG_STATE_HOME=hlg-state \
     bash "$ROOT/.agents/hooks/${HOST_TEST_GATE:-host-load-gate.sh}" >"$WORK/host-out" 2>"$WORK/host-err")
 }
 AGENT="$(host_payload Agent)"
@@ -818,13 +819,15 @@ cat > "$WORK/fakebin/hc" <<'EOF'
 printf 'hc called\n' >> "$FAKE_HC_CALLS"
 [ "$*" = 'ls --json' ] || exit 1
 [ "${FAKE_HC_FAIL:-0}" = 0 ] || exit 5
-printf '%s\n' "$FAKE_HC_ROWS"
+# the second core answers only when the hook names its session and socket together
+if [ "${HC_SESSION:-}:$HC_SOCKET" = two:hlg-state/herdr-core/two/two.sock ]; then printf '%s\n' "$FAKE_HC_ROWS2"; else printf '%s\n' "$FAKE_HC_ROWS"; fi
 EOF
 chmod +x "$WORK/fakebin/hc"
 # A real listening socket stands in for a live hc core, so the gate's real perl probe runs.
 # Relative path: macOS caps a socket path at 104 bytes, and $WORK can be longer. It accepts each
 # probe: an unaccepted backlog refuses connects after 5 probes.
-(cd "$WORK" && exec perl -MSocket -e 'socket(my $s, PF_UNIX, SOCK_STREAM, 0) or die; bind($s, pack_sockaddr_un("hc.sock")) or die; listen($s, 5) or die; alarm 60; close $_ while accept($_, $s)') &
+CORE_PL='socket(my $s, PF_UNIX, SOCK_STREAM, 0) or die; bind($s, pack_sockaddr_un($ARGV[0])) or die; listen($s, 5) or die; alarm 60; close $_ while accept($_, $s)'
+(cd "$WORK" && exec perl -MSocket -e "$CORE_PL" hc.sock) &
 HC_CORE_PID=$!
 trap 'kill "$HC_CORE_PID" 2>/dev/null || true; rm -rf "$WORK"' EXIT
 for _ in 1 2 3 4 5 6 7 8 9 10; do [ -S "$WORK/hc.sock" ] && break; sleep 0.2; done
@@ -852,16 +855,85 @@ FAKE_HC_ROWS="$HC_THREE" FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$ASSIGN" |
 [ "$rc" = 2 ] || { echo "FAIL: three hc child workers (hand, mod, env-starting) must deny assign (got $rc)" >&2; exit 1; }
 FAKE_HC_ROWS="$NONLOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$ASSIGN" ||
   { echo "FAIL: top-level, shell child, remote or finished hc rows counted toward the local cap" >&2; exit 1; }
-# a hand hc start is gated like agent-tmux start; --on runs it on another machine
-for c in 'hc run codex' '/opt/herdr/bin/hc run --bg --name rev claude "review"'; do
+# only agent children count (review A-04): three dev servers pass, three real agents deny
+SERVERS='{"terminals":['"$TOP"',{"address":"t7","agent":"npm","parent":"t1","state":"live"},{"address":"t8","agent":"node","parent":"t1","state":"live"},{"address":"t9","agent":"node","parent":"t1","state":"live"}]}'
+AGENTS3='{"terminals":['"$TOP"',{"address":"t7","agent":"codex","parent":"t1","state":"live"},{"address":"t8","agent":"claude-code","parent":"t1","state":"live"},{"address":"t9","agent":"antigravity","parent":"t1","state":"live"}]}'
+FAKE_HC_ROWS="$SERVERS" FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$ASSIGN" ||
+  { echo "FAIL: three npm/node hc children counted as workers" >&2; exit 1; }
+rc=0
+FAKE_HC_ROWS="$AGENTS3" FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$ASSIGN" || rc=$?
+[ "$rc" = 2 ] || { echo "FAIL: three agent hc children (codex, claude-code, antigravity) must deny assign (got $rc)" >&2; exit 1; }
+# Review A-01: each command of a Bash line is judged alone, by its command word, hc's own options
+# (before the program) and the program. At the cap (3 workers) every local launch denies...
+while IFS= read -r c; do
   rc=0
   FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash "$c")" || rc=$?
-  [ "$rc" = 2 ] || { echo "FAIL: hand hc start over the worker cap was allowed: $c (got $rc)" >&2; exit 1; }
+  [ "$rc" = 2 ] || { echo "FAIL: local launch over the worker cap was allowed: $c (got $rc)" >&2; exit 1; }
+done <<'EOF'
+hc run codex
+/home/u/.local/bin/hc run --bg -- /opt/bin/codex
+/opt/herdr/bin/hc run --bg --name rev claude "review"
+hc run "codex"
+"hc" run codex
+hc run codex --on
+hc run codex --dry-run
+hc run --on mba codex; hc run codex
+agent-tmux codex start --dry-run; hc run codex
+echo --dry-run; hc run codex
+hc run 'codex exec x'
+hc run 'cd /repo && codex'
+for i in 1 2; do hc run --bg codex; done
+if true; then agent-tmux codex start w /tmp; fi
+bash -c 'hc run codex'
+bash -lc 'hc run codex --bg'
+NO_COLOR=1 nohup hc run --bg --name=w codex &
+agent-tmux codex --profile p start w /tmp
+EOF
+# ...also across lines; an unbalanced quote (an apostrophe in a heredoc) falls back to the whole-text match
+for c in $'echo hi\nhc run codex' $'echo hi # x\nhc run codex' $'cat <<EOF\nit\'s\nEOF\nhc run codex'; do
+  rc=0
+  FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash "$c")" || rc=$?
+  [ "$rc" = 2 ] || { echo "FAIL: multi-line launch over the worker cap was allowed: $c (got $rc)" >&2; exit 1; }
 done
-for c in 'hc run --on mini codex' 'hc run "npm test"' 'hc ls --json'; do
-  FAKE_HC_ROWS="$HC_THREE" FAKE_TMUX_SESSIONS="$THREE" run_host "$LOW" 1 "$(host_payload Bash "$c")" ||
-    { echo "FAIL: non-local or non-agent hc command was gated: $c" >&2; exit 1; }
-done
+# ...while remote starts, a real dry run, quoted text, other commands' arguments and help pass.
+while IFS= read -r c; do
+  FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$(host_payload Bash "$c")" ||
+    { echo "FAIL: remote or non-launch command was gated at the worker cap: $c" >&2; exit 1; }
+done <<'EOF'
+hc run --on mba codex
+hc run --cwd /r --on=mba codex
+agent-tmux codex start-ssh w mba /repo
+agent-tmux codex start --dry-run w /tmp
+printf '%s\n' 'hc run codex --bg'
+hc run echo codex
+hc run "echo codex "
+hc run codex --help
+hc run 'codex --help'
+hc run "npm test"
+echo "hc run codex"
+hc ls --json
+EOF
+# every local core counts (review A-02): the current core (HC_SOCKET) has none, a second core has 3
+mkdir -p "$WORK/hlg-state/herdr-core/two"
+(cd "$WORK" && exec perl -MSocket -e "$CORE_PL" hlg-state/herdr-core/two/two.sock) &
+HC_CORE2_PID=$!
+trap 'kill "$HC_CORE_PID" "$HC_CORE2_PID" 2>/dev/null || true; rm -rf "$WORK"' EXIT
+for _ in 1 2 3 4 5 6 7 8 9 10; do [ -S "$WORK/hlg-state/herdr-core/two/two.sock" ] && break; sleep 0.2; done
+[ -S "$WORK/hlg-state/herdr-core/two/two.sock" ] || { echo "FAIL: second fake hc core socket did not appear" >&2; exit 1; }
+rc=0
+FAKE_HC_ROWS='{"terminals":[]}' FAKE_HC_ROWS2="$AGENTS3" FAKE_TMUX_SESSIONS='main' run_host "$LOW" 1 "$ASSIGN" || rc=$?
+[ "$rc" = 2 ] && grep -q '3 live workers on this host' "$WORK/host-err" ||
+  { echo "FAIL: three workers in a second local hc core must deny (got $rc)" >&2; exit 1; }
+rc=0  # summed, not the larger core: 1 tmux + 1 in each core
+FAKE_HC_ROWS="$LOCAL_HC" FAKE_HC_ROWS2="$LOCAL_HC" FAKE_TMUX_SESSIONS="$(printf 'main\nx.ab12c')" run_host "$LOW" 1 "$ASSIGN" || rc=$?
+[ "$rc" = 2 ] || { echo "FAIL: workers across two hc cores and tmux were not summed (got $rc)" >&2; exit 1; }
+FAKE_HC_ROWS='{"terminals":[]}' FAKE_HC_ROWS2="$LOCAL_HC" FAKE_TMUX_SESSIONS="$(printf 'main\nx.ab12c')" run_host "$LOW" 1 "$ASSIGN" ||
+  { echo "FAIL: two workers across two hc cores and tmux were denied" >&2; exit 1; }
+# HC_SOCKET naming a globbed core counts that core once: 1 tmux + 1 hc
+HC_SOCKET=hlg-state/herdr-core/two/two.sock FAKE_HC_ROWS="$LOCAL_HC" FAKE_HC_ROWS2="$LOCAL_HC" FAKE_TMUX_SESSIONS="$(printf 'main\nx.ab12c')" run_host "$LOW" 1 "$ASSIGN" ||
+  { echo "FAIL: a core named by HC_SOCKET and found by the glob was counted twice" >&2; exit 1; }
+kill "$HC_CORE2_PID" 2>/dev/null || true; wait "$HC_CORE2_PID" 2>/dev/null || true
+rm -rf "$WORK/hlg-state"
 FAKE_HC_FAIL=1 FAKE_TMUX_SESSIONS="$TWO" run_host "$LOW" 1 "$ASSIGN" ||
   { echo "FAIL: failed hc listing blocked a launch under the tmux cap" >&2; exit 1; }
 before="$(wc -l < "$FAKE_HC_CALLS")"
@@ -872,7 +944,7 @@ HC_SOCKET=no-core.sock FAKE_HC_ROWS="$LOCAL_HC" FAKE_TMUX_SESSIONS="$TWO" run_ho
 kill "$HC_CORE_PID" 2>/dev/null || true; wait "$HC_CORE_PID" 2>/dev/null || true
 unset HC_SOCKET FAKE_HC_CALLS
 rm -f "$WORK/fakebin/hc"
-echo "PASS worker cap: hc child workers (hand, mod) and tmux together; hand hc run gated, --on passes; shell, top-level, remote and finished rows ignored; hc absent or down; TMUX_WORKER_MAX"
+echo "PASS worker cap: hc child workers (hand, mod) and tmux together; Bash launch judged per command (quoted text, printf/echo args, hc options before the program, --on only as an hc option, --dry-run only on its agent-tmux command, one-string shell line, sh -c, loops, newlines, help), whole-text fallback on an unbalanced quote; every local hc core summed once (two-socket fixture, HC_SOCKET dedupe); only agent or env children count (npm/node pass); shell, top-level, remote and finished rows ignored; hc absent or down; TMUX_WORKER_MAX"
 # the deny reaches Cursor (subagentStart, preToolUse Shell) and agy (run_command) through their adapters
 run_adapted() { # $1 adapter command..., stdin payload
   PATH="$WORK/fakebin:$PATH" FAKE_LOADAVG="${ADAPT_LOADAVG:-$HIGH}" FAKE_MP=1 HOME="$TEST_HOME" \
@@ -895,4 +967,4 @@ printf '%s' "$out" | jq -e '.decision == "deny"' >/dev/null || { echo "FAIL: agy
 out="$(printf '%s' '{"conversationId":"c","toolCall":{"name":"invoke_subagent","args":{"Task":"t"}}}' | run_adapted bash "$ROOT/.agents/hooks/agy-adapt.sh" PreToolUse host-load-gate)"
 printf '%s' "$out" | jq -e '.decision == "deny"' >/dev/null || { echo "FAIL: agy invoke_subagent deny not mapped: $out" >&2; exit 1; }
 
-echo "JSONL hooks smoke: bol denies incomplete briefs + proxy briefs missing declared fields; concurrency gate denies the 6th subagent; ledger counts pending-less workflow agents per run and caps the 26th; workflow TaskStop drops only that run's markers; audit redacted; device flag scoped; compaction recall re-injects + escalates at 3; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call; host load gate warns via additionalContext, denies Agent/v2 spawn/local agent-tmux launches on load/pressure/unreadable (also through the Cursor and agy adapters), passes start-ssh/dry-run/off/non-macOS"
+echo "JSONL hooks smoke: bol denies incomplete briefs + proxy briefs missing declared fields; concurrency gate denies the 6th subagent; ledger counts pending-less workflow agents per run and caps the 26th; workflow TaskStop drops only that run's markers; audit redacted; device flag scoped; compaction recall re-injects prompts and keeps the count with no escalation at 25; ledger carries normalized evidence tokens only; claim gate binds done/stuck claims to the ledger; deny-replay short-circuits a replayed BLOCKED call; host load gate warns via additionalContext, denies Agent/v2 spawn/local agent-tmux launches on load/pressure/unreadable (also through the Cursor and agy adapters), passes start-ssh/dry-run/off/non-macOS"

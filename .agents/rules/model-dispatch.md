@@ -128,7 +128,9 @@
   3. Else tmux: a proxy runs `assign --detach`; the parent owns the wait under §ONE OWNER.
 - Keep work on tmux until phase 3 of the hc-first plan when it needs result.json and the collector
   (`await`, `tell`, recipes that wait on a worker), a remote start, or a multi-worker script.
-  Assign has no per-call backend choice yet; for such work, a proxy runs `assign --detach`.
+  For such work with the mod, keep a `runtime: tmux/<profile>` line in the assign brief: the mod
+  then starts a tmux worker with result.json that `await` and `tell` find. Without the mod, a
+  proxy runs `assign --detach`.
 - Workflow recipes in `~/.claude/workflows/*.workflow.js` override these role choices.
 - Except workers, L1/TK, and mechanical seats below, recipe agents use at least opus high.
 - Mechanical L0 runners and CLI conduits use sonnet medium; L1/TK uses sonnet high.
@@ -245,8 +247,11 @@
   another family, an unavailable seat, or a long job that must outlive this session.
 - Cap live workers at three per host, hc and tmux together, across sessions (`TMUX_WORKER_MAX`).
   `host-load-gate.sh` enforces this on agent-tmux launches, mod assign, and a hand `hc run` of
-  an agent CLI (`--on` passes). It counts an hc worker as a live local child terminal whose
-  program is not a shell. An hc start from a non-hc terminal has no parent and is not counted.
+  an agent CLI (`--on` passes), judging each command of a Bash line. It sums every local hc
+  core and counts an hc worker as a live child terminal running an agent CLI or `env` (an
+  assign worker starting). An hc start from a non-hc terminal has no parent and is not counted.
+- The catch-up child of a session-handoff resume runs on a cheap, fast model the main session
+  picks (owner 2026-11-28); this is an exception to the sonnet/haiku synthesis rule above.
 - Stop a worker after reading its result if no follow-up is planned. Stop an hc worker with
   `hc kill <t>`, then `hc rm <t>`.
 - Claude hooks: native `Agent`, shell `Bash`, both PreToolUse.
