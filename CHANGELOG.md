@@ -1,5 +1,12 @@
 # Changelog
 
+## Real e2e on a cheap model; fake-based tests and the shell tokenizer removed
+
+- Owner, 2026-11-28: 「smoke 只是 fixture， 為啥不刪 浪費人力」「你都知道為何不改 不刪整個相關體系的垃圾腳本、ＳＭＯＫＥ、ＦＩＸＴＵＲＥ乾淨 不改專案規範」「我們追求的真實的 e2e 可以用便宜模型測啊」.
+- `host-load-gate.sh` is back to the 880e983 version (126 lines, one regex for a shell launch). The round 2 and 3 tokenizer (366 lines) is gone. Its gaps are a `shortcut:` comment.
+- Deleted: `scripts/test-deploy-check.sh` (fake gh, git, npx, agy, grok binaries and a fake HOME) and `scripts/check-host-load-gate-live.sh` (it set a knob the gate never reads).
+- Rules: project `AGENTS.md` §Verification, `judgment-rubrics.md` §2 and the delegation IMPLEMENT template now say: prove a live-system change by a real run with workers on a cheap model; no fake binary, socket or HOME stands in for it. The mutant requirement added in b37fcf9 is removed.
+
 ## host-load-gate round 3: a bash tokenizer replaces shlex; env children count only with the assign label
 
 - Fixes the round 2 review of 351f2bc (VERDICT: BLOCK; `opinions/sol-posthoc.md` `## Round 2`, A-01, A-02 and A-04).

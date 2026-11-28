@@ -3,7 +3,7 @@
 # mutates ~; run it by hand before a push: `bash scripts/run-layer0-tests.sh`. Not a gate.
 # Explicit list (no glob: installers and live-model evals must not run here); each test gets its
 # own HOME/XDG/TMPDIR so a fixture never writes the real home. Each test must pass in a
-# git-archive tree (no .git); test-deploy-check.sh needs a checkout, so it runs by hand, not here.
+# git-archive tree (no .git).
 # Budget: ~30s total on the operator host.
 # Usage: run-layer0-tests.sh [src-dir] [work-dir]. Prints one exit line per test.
 # Without src-dir it tests `git archive HEAD` of this repo, the same tree shape deploy gets.

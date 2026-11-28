@@ -98,6 +98,8 @@ ACCEPTANCE:
 - {objective condition, e.g. "`{test command}` exits 0"}.
 - {behavioral condition, e.g. "endpoint returns 403 for expired tokens"}.
 - No placeholder text; new non-trivial logic ships with one runnable check.
+- A change to a live system (hook, deploy, mod, hc) is proven by a real run on that system, with
+  workers on a cheap model; no fake binary, socket, or HOME stands in for it.
 - Each shown derived value or timestamp names its source path; build time is not data time.
 - Do not change a probe's exit code or threshold only to make the probe pass.
 - An oracle on rendered text compares the whole string and asserts no null/undefined/NaN.

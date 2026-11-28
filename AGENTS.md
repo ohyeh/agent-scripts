@@ -30,6 +30,20 @@ Rules for any discussion or change here:
 - Ask which layer owns the change (kernel / routed rule / skill / sibling repo / deployment)
   before asking how to implement it. The wrong layer costs more than the wrong code.
 
+## Verification: the real system, on a cheap model
+
+Owner, 2026-11-28, after four corrections in one day: 「要在寫垃圾測試 mock ? smoke? 然後不實際打 hc?」
+「smoke 只是 fixture， 為啥不刪 浪費人力」「我們追求的真實的 e2e 可以用便宜模型測啊」.
+
+- Prove a change to a hook, deploy, the mod, or hc on the real system: a real `mcp__tmux-agent__assign`,
+  a real hc terminal, a real deploy read-back on each host. Start the workers on a cheap model
+  (`agy-flash`, haiku) and stop them after the check.
+- Do not write a fake binary, fake socket, or fake HOME to stand in for hc, tmux, a CLI, or a host.
+  A fixture is only for pure data logic: a parser fed its real input format.
+- Report the real run's command and output. A green fixture is not proof that the system works.
+- Keep a fix the smallest that works. When a gate needs a third round of parsing for new spellings,
+  move the check to where the worker starts; do not add more parsing.
+
 ## GitHub Actions: banned
 
 Owner ruling 2026-10-02, re-stated 2026-10-03 after a violation. Applies to every repo of the
