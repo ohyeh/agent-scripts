@@ -89,7 +89,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/delegation-templates/SKILL.md",
-      "skillFolderHash": "437e06a8ca0101b203b49bb587bba0f82054bda6",
+      "skillFolderHash": "f487773747924e31e9b22619927ac4e7f3f081aa",
       "installedAt": "2026-07-18T20:48:21.471Z",
       "updatedAt": "2026-11-06T14:27:43.000Z"
     },
@@ -254,7 +254,7 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/using-decision-tree/SKILL.md",
-      "skillFolderHash": "f351c450989362a03ab370257b647ec33e225b35",
+      "skillFolderHash": "6a9cf29e442db40ef12a522483700dcd0be286b8",
       "installedAt": "2026-10-23T00:00:00.000Z",
       "updatedAt": "2026-11-26T18:40:00.000Z"
     },
@@ -381,9 +381,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/ohyeh/agent-scripts.git",
       "skillPath": "skills/focus-my-energy/SKILL.md",
-      "skillFolderHash": "23d0c4b55cf5986914af488c1aec3757d91569ee",
+      "skillFolderHash": "6526399061430d634c73d4b48709b5e514507aad",
       "installedAt": "2026-11-26T18:00:00.000Z",
       "updatedAt": "2026-11-26T18:40:00.000Z"
+    },
+    "deep-research": {
+      "source": "google-gemini/demolab",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/google-gemini/demolab.git",
+      "skillPath": "skills/deep-research/SKILL.md",
+      "skillFolderHash": "2e97e6169a2eaabb8215a3c374c9ff0c1607c560",
+      "installedAt": "2026-11-28T05:15:30.248Z",
+      "updatedAt": "2026-11-28T05:15:30.248Z"
     }
   },
   "dismissed": {
